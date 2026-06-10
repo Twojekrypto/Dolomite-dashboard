@@ -1573,8 +1573,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-exercises-section .pf-exercise-route-filter .dd-btn{min-width:188px}
 #pf-exercises-section .pf-exercise-route-filter .dd-panel{min-width:210px}
-#pf-exercises-section .flow-route-head{text-align:center}
-#pf-exercises-section .pf-route-cell{text-align:center}
+#pf-exercises-section .flow-route-head{text-align:left}
+#pf-exercises-section .pf-route-cell{text-align:left}
 #pf-exercises-section .pf-route-tag{
   display:inline-flex;
   align-items:center;
@@ -1847,8 +1847,8 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
-          <colgroup><col style="width:18%"><col style="width:16%"><col style="width:20%"><col style="width:12%"><col style="width:20%"><col style="width:14%"></colgroup>
-          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th></tr></thead>
+          <colgroup><col style="width:136px"><col><col style="width:116px"><col style="width:118px"><col style="width:96px"><col style="width:88px"></colgroup>
+          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th></tr></thead>
           <tbody id="pf-exercises-body"></tbody>
         </table>
       </div>
@@ -2907,9 +2907,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${fmtIsoDate(r.date)}</strong>${txLink}</div><span>${esc(exerciseDateMeta(r.chain))}</span></div></td>
         <td class="pf-route-cell">${exerciseRouteTag(r.route)}</td>
         <td class="num"><span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
-        <td class="num">${lockHtml}</td>
         <td class="num">${paidHtml}</td>
         <td class="num">${priceHtml}</td>
+        <td class="num">${lockHtml}</td>
       </tr>`;
     }).join("");
     if (totalPages > 1 && pageRows.length < PAGE_SIZE){
