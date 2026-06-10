@@ -1639,11 +1639,13 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-exercises-section .pf-ex-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
 .pf-latest-date{
   display:flex;flex-direction:column;gap:3px;align-items:flex-start;
+  min-width:0;
   font-family:var(--mono);font-size:12px;color:var(--fg-2);white-space:nowrap;
+  line-height:1.22;
 }
-.pf-latest-date-top{display:flex;align-items:center;gap:6px}
+.pf-latest-date-top{display:flex;align-items:center;gap:6px;max-width:100%;min-width:0}
 .pf-latest-date strong{color:var(--fg-1);font-weight:600;font-size:11px;letter-spacing:0}
-.pf-latest-date > span{font-size:10.5px;color:rgba(255,255,255,.34);letter-spacing:0}
+.pf-latest-date > span{display:block;max-width:132px;overflow:hidden;text-overflow:ellipsis;font-size:10.5px;color:rgba(255,255,255,.34);letter-spacing:0}
 .pf-latest-date .pf-latest-tx{width:18px;height:18px;border:0;background:transparent;color:#9bcf9f;opacity:.5;border-radius:5px;display:grid;place-items:center;transition:opacity .15s var(--ease),color .15s var(--ease),background .15s var(--ease)}
 .pf-latest-date .pf-latest-tx:hover{opacity:.9;color:var(--gold);background:var(--gold-wash);transform:none}
 .pf-latest-date .pf-latest-tx svg{width:13px;height:13px}
@@ -1860,7 +1862,7 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
-          <colgroup><col style="width:136px"><col><col style="width:116px"><col style="width:118px"><col style="width:96px"><col style="width:88px"></colgroup>
+          <colgroup><col style="width:148px"><col style="width:160px"><col style="width:116px"><col style="width:118px"><col style="width:96px"><col style="width:88px"></colgroup>
           <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th></tr></thead>
           <tbody id="pf-exercises-body"></tbody>
         </table>
@@ -2542,7 +2544,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       rows.push({
         chain: "berachain",
         date: lock.date || "",
-        timestamp: route === "transfer" ? 9999999999000 - (Number(tokenId) || 0) : exerciseTimeMs(lock),
+        timestamp: exerciseTimeMs(lock),
         hash: route === "transfer" ? "" : (lock.txHash || ""),
         action: route === "transfer" ? "Transfer veDOLO" : (route === "odolo" ? "Exercise oDOLO" : "Direct veDOLO"),
         actionSub: route === "transfer" ? `Current holder of position #${tokenId}` : `Current position #${tokenId}`,
@@ -3046,8 +3048,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const paidHtml = r.isStableClaim ? `<span class="pf-ex-val pf-ex-usdc">${fmtUSD(r.paid)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const priceHtml = r.price ? `<span class="pf-ex-val pf-ex-price">$${r.price.toFixed(4)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const lockHtml = r.lockDays ? `<span class="pf-ex-lock ${exerciseLockBucket(r.lockDays)}">${fmtLockDays(r.lockDays)}</span>` : `<span class="pf-ex-muted">—</span>`;
-      const dateTop = r.fallbackCurrent && r.route === "transfer" ? "Current" : fmtIsoDate(r.date);
-      const dateMeta = r.fallbackCurrent && r.route === "transfer" ? "holder snapshot · transfer tx not indexed" : fmtExerciseDateMeta(r);
+      const dateTop = fmtIsoDate(r.date);
+      const dateMeta = r.fallbackCurrent && r.route === "transfer" ? "position date · tx pending" : fmtExerciseDateMeta(r);
       return `<tr class="pf-row">
         <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${dateTop}</strong>${txLink}</div><span>${esc(dateMeta)}</span></div></td>
         <td class="pf-route-cell">${exerciseRouteTag(r.route, r)}</td>
