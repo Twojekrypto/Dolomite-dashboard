@@ -885,7 +885,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 
   <section class="card chart-card expiry-card">
     <div class="card-head">
-      <div class="card-title"><h2>Lock Expiry Timeline</h2><span class="count-badge">forward curve</span></div>
+      <div class="card-title"><h2>Lock Expiry Timeline</h2><span class="count-badge" id="expiry-count">forward curve</span></div>
+    </div>
+    <div class="toolbar expiry-toolbar">
+      <div class="tb-left">
+        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-expiry" type="text" placeholder="Search wallet address…" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
+      </div>
     </div>
     <div class="card-body">
       <div class="expiry-focus" id="expiry-focus">
@@ -1056,6 +1061,7 @@ const state = {
   lockedHistory:[], lockedBrush:{from:0,to:0}, lockedBrushReady:false,
   holder:{q:"",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
+  expiryUi:{q:""},
   flows:{q:"",period:"7",source:"all",locksSort:"rank",locksAsc:true,unlocksSort:"rank",unlocksAsc:true,locksPage:1,unlocksPage:1,perPage:8},
   durationMode:"dolo",
   durationFocus:-1,
@@ -1860,9 +1866,52 @@ function renderExitBehavior(s, totals){
   });
   setExitBehaviorFocus(state.exitBehaviorFocus, false);
 }
+function expiryBucketLabel(ts){
+  const v = num(ts);
+  if(!v) return "";
+  const dt = new Date(v * 1000);
+  if(Number.isNaN(dt.getTime())) return "";
+  return `Q${Math.floor(dt.getUTCMonth() / 3) + 1} ${dt.getUTCFullYear()}`;
+}
+function expiryBucketSortKey(label){
+  const m = String(label || "").match(/Q([1-4])\s+(\d{4})/);
+  if(!m) return Number.MAX_SAFE_INTEGER;
+  return Number(m[2]) * 4 + Number(m[1]);
+}
+function buildExpiryView(){
+  const baseBuckets = state.expiry?.buckets || [];
+  const baseTotal = num(state.expiry?.total_dolo) || baseBuckets.reduce((sum,b) => sum + num(b.dolo), 0);
+  const q = state.expiryUi.q.trim().toLowerCase();
+  if(!q) return {buckets:baseBuckets,total:baseTotal,filtered:false,walletCount:0,positionCount:0,query:"",firstAddress:""};
+
+  const byBucket = new Map();
+  let total = 0;
+  let walletCount = 0;
+  let positionCount = 0;
+  let firstAddress = "";
+  state.holders.forEach(holder => {
+    const address = String(holder.address || "");
+    if(!address.toLowerCase().includes(q)) return;
+    walletCount += 1;
+    if(!firstAddress) firstAddress = address;
+    (holder.token_details || []).forEach(position => {
+      const label = expiryBucketLabel(position.end);
+      const dolo = num(position.dolo);
+      if(!label || !dolo) return;
+      const row = byBucket.get(label) || {label,dolo:0};
+      row.dolo += dolo;
+      byBucket.set(label,row);
+      total += dolo;
+      positionCount += 1;
+    });
+  });
+  const buckets = [...byBucket.values()].sort((a,b) => expiryBucketSortKey(a.label) - expiryBucketSortKey(b.label));
+  return {buckets,total,filtered:true,walletCount,positionCount,query:q,firstAddress};
+}
 function renderExpiry(){
-  const buckets = state.expiry?.buckets || [];
-  const total = num(state.expiry?.total_dolo) || buckets.reduce((sum,b) => sum + num(b.dolo), 0);
+  const expiryView = buildExpiryView();
+  const buckets = expiryView.buckets;
+  const total = expiryView.total;
   const max = Math.max(1, ...buckets.map(b => num(b.dolo)));
   const peakBucket = buckets.reduce((best,b) => num(b.dolo) > num(best?.dolo) ? b : best, buckets[0] || null);
   const bars = qs("#expiry-bars");
@@ -1872,6 +1921,9 @@ function renderExpiry(){
   const focusLabel = qs("#expiry-focus-label");
   const axisMax = qs("#expiry-axis-max");
   const axisMid = qs("#expiry-axis-mid");
+  const countBadge = qs("#expiry-count");
+  const walletLabel = expiryView.walletCount === 1 ? shortAddr(expiryView.firstAddress) : `${fmtInt(expiryView.walletCount)} wallets`;
+  if(countBadge) countBadge.textContent = expiryView.filtered ? `${fmtInt(expiryView.positionCount)} positions` : "forward curve";
   const segments = buckets.map((b,idx) => {
     const dolo = num(b.dolo);
     const share = total ? dolo/total*100 : 0;
@@ -1887,10 +1939,10 @@ function renderExpiry(){
     };
   });
   if(!segments.length){
-    bars.innerHTML = '<div class="loading-row">No expiry data.</div>';
-    if(focusTitle) focusTitle.textContent = "No expiry data";
+    bars.innerHTML = `<div class="loading-row">${expiryView.filtered ? "No wallet expiry data." : "No expiry data."}</div>`;
+    if(focusTitle) focusTitle.textContent = expiryView.filtered ? "No wallet matches" : "No expiry data";
     if(focusValue) focusValue.textContent = "--";
-    if(focusLabel) focusLabel.textContent = "No expiry buckets";
+    if(focusLabel) focusLabel.textContent = expiryView.filtered ? "Try a full wallet address or clear the search." : "No expiry buckets";
     if(axisMax) axisMax.textContent = "--";
     if(axisMid) axisMid.textContent = "--";
     return;
@@ -1917,12 +1969,12 @@ function renderExpiry(){
     if(active){
       if(focusTitle) focusTitle.textContent = `${active.label} expiry`;
       if(focusValue) focusValue.textContent = fmtDolo(active.dolo);
-      if(focusLabel) focusLabel.textContent = "Selected expiry bucket";
+      if(focusLabel) focusLabel.textContent = expiryView.filtered ? `${walletLabel} - selected bucket` : "Selected expiry bucket";
       return;
     }
-    if(focusTitle) focusTitle.textContent = "All expiry buckets";
+    if(focusTitle) focusTitle.textContent = expiryView.filtered ? "Wallet expiry buckets" : "All expiry buckets";
     if(focusValue) focusValue.textContent = fmtDolo(total);
-    if(focusLabel) focusLabel.textContent = `${fmtInt(segments.length)} expiry buckets; largest bucket is ${peakBucket ? peakBucket.label : "--"}`;
+    if(focusLabel) focusLabel.textContent = expiryView.filtered ? `${walletLabel} - ${fmtInt(expiryView.positionCount)} positions` : `${fmtInt(segments.length)} expiry buckets; largest bucket is ${peakBucket ? peakBucket.label : "--"}`;
   }
 
   buttons.forEach(btn => {
@@ -2279,6 +2331,8 @@ function emitQaReport(){
     const expiryBars = qs("#expiry-bars");
     const expiryFocus = qs("#expiry-focus");
     const expiryFirstBar = qs("#expiry-bars .expiry-bar");
+    const expirySearchBox = qs(".expiry-card #q-expiry")?.closest(".search");
+    const holderSearchBox = qs(".holders-card #q-holders")?.closest(".search");
     const durationCard = qs(".duration-card");
     const durationBars = qs("#duration-bars");
     const durationFocus = qs("#duration-focus");
@@ -2372,6 +2426,10 @@ function emitQaReport(){
       expiryAxisLabels: qsa(".expiry-axis span").map(el => el.textContent.trim()),
       expiryLegendText: qs(".expiry-legend") ? qs(".expiry-legend").textContent.trim().replace(/\s+/g," ") : "",
       expiryFocusStatCount: qsa(".expiry-focus-stat").length,
+      expirySearchHasClear: !!qs(".expiry-card #q-expiry + .search-clear"),
+      expirySearchWidth: expirySearchBox ? Math.round(expirySearchBox.getBoundingClientRect().width) : 0,
+      expirySearchMatchesHolderWidth: !!(expirySearchBox && holderSearchBox && Math.round(expirySearchBox.getBoundingClientRect().width) === Math.round(holderSearchBox.getBoundingClientRect().width)),
+      expiryCountBadge: qs("#expiry-count") ? qs("#expiry-count").textContent.trim() : "",
       expiryInteractiveBarCount: qsa("#expiry-bars .expiry-bar[data-expiry-idx]").length,
       expiryTooltipMode: "shared",
       expiryBarCursor: expiryFirstBar ? getComputedStyle(expiryFirstBar).cursor : "",
@@ -2537,6 +2595,7 @@ function emitQaReport(){
 function bindUi(){
   qs("#q-holders").addEventListener("input", e => { state.holder.q = e.target.value.trim(); state.holder.page = 1; renderHolders(); wireCopyButtons(); });
   qs("#q-exits").addEventListener("input", e => { state.exitsUi.q = e.target.value.trim(); state.exitsUi.page = 1; renderExits(); wireCopyButtons(); });
+  qs("#q-expiry").addEventListener("input", e => { state.expiryUi.q = e.target.value.trim(); renderExpiry(); });
   qs("#q-flows").addEventListener("input", e => { state.flows.q = e.target.value.trim(); state.flows.locksPage = 1; state.flows.unlocksPage = 1; renderLocks(); renderUnlocks(); wireCopyButtons(); });
   wireSearchClears();
   document.addEventListener("click", e => {
