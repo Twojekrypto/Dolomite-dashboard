@@ -1244,12 +1244,15 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   transition:transform .15s var(--ease),background .15s var(--ease);
   position:relative;
 }
+#pf-borrows-section .pf-table tbody tr.pf-row:hover{
+  background:rgba(201,162,39,.045);
+}
 #pf-borrows-section .pf-table tbody tr.pf-row:hover td{
-  background:linear-gradient(90deg,rgba(201,162,39,.058),rgba(255,255,255,.018));
-  border-bottom-color:rgba(52,211,153,.08);
+  background:rgba(201,162,39,.045);
+  border-bottom-color:rgba(201,162,39,.10);
 }
 #pf-borrows-section .pf-table tbody tr.pf-row:hover td:first-child{
-  box-shadow:inset 3px 0 0 #34d399;
+  box-shadow:inset 3px 0 0 var(--gold);
 }
 #pf-borrows-section .pf-table tbody td{
   padding:8px 12px;
@@ -1363,6 +1366,63 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   background:var(--pf-ex-green);
   box-shadow:0 0 8px var(--pf-ex-green);
 }
+#pf-exercises-section .pf-exercise-summary{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+  padding:13px 22px 15px;
+  border-bottom:1px solid rgba(117,184,123,.12);
+  background:linear-gradient(180deg,rgba(117,184,123,.035),rgba(9,9,11,.10));
+}
+#pf-exercises-section .pf-exercise-summary-item{
+  min-width:0;
+  border:1px solid rgba(117,184,123,.12);
+  border-radius:8px;
+  background:rgba(255,255,255,.018);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  padding:10px 12px;
+}
+#pf-exercises-section .pf-exercise-summary-item.primary{
+  border-color:rgba(117,184,123,.22);
+  background:rgba(117,184,123,.055);
+}
+#pf-exercises-section .pf-exercise-summary-label{
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.08em;
+  line-height:1.15;
+  text-transform:uppercase;
+  color:var(--fg-3);
+}
+#pf-exercises-section .pf-exercise-summary-value{
+  margin-top:5px;
+  font-family:var(--mono);
+  font-size:13px;
+  font-weight:800;
+  line-height:1.15;
+  color:var(--fg-1);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#pf-exercises-section .pf-exercise-summary-value .unit{
+  margin-left:5px;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.08em;
+  color:var(--fg-3);
+}
+#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{color:var(--pf-ex-green)}
+#pf-exercises-section .pf-exercise-summary-sub{
+  margin-top:4px;
+  font-family:var(--mono);
+  font-size:10px;
+  line-height:1.25;
+  color:var(--fg-3);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
 #pf-exercises-section .pf-table thead th{
   background:rgba(9,9,11,.38);
   border-bottom-color:var(--line-2);
@@ -1411,11 +1471,13 @@ body:not(.pf-active) #pf-results{display:none}
   .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1){display:table-cell}
   .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:none}
   .pf-table tbody td,.pf-table thead th{padding-left:16px;padding-right:16px}
+  #pf-exercises-section .pf-exercise-summary{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px 14px}
   .pf-token-name{max-width:128px}
   .pf-filters .pf-search-tbl{width:100%}
   .pf-tokensearch{margin-left:0}
 }
 @media (max-width:430px){
+  #pf-exercises-section .pf-exercise-summary{grid-template-columns:1fr}
   .pf-token-name{max-width:78px}
   .pf-token-mark{width:28px;height:28px}
   .pf-table tbody td,.pf-table thead th{padding-left:12px;padding-right:12px}
@@ -1594,6 +1656,7 @@ body:not(.pf-active) #pf-results{display:none}
         </div>
         <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">veDOLO minted</span><span class="pf-meta-value" id="pf-exercises-total">—</span></div>
       </div>
+      <div class="pf-exercise-summary" id="pf-exercises-summary" style="display:none"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
           <colgroup><col style="width:17%"><col style="width:27%"><col style="width:17%"><col style="width:13%"><col style="width:16%"><col style="width:10%"></colgroup>
@@ -1847,6 +1910,10 @@ const SYMBOL_ICONS = {
   'plvGLP' : DOLO_CDN + 'plvGLP.24551c9e68ef10245cc45fb0b96cfdff.svg',
   'PLVGLP' : DOLO_CDN + 'plvGLP.24551c9e68ef10245cc45fb0b96cfdff.svg',
   'GM' : DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
+  'dGM' : DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
+  'DGM' : DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
+  'dGMX' : DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
+  'DGMX' : DOLO_CDN + 'GMX.b836adc14ee095fd9b7671e718878333.svg',
   'PT-iBGT' : DOLO_CDN + 'PT-iBGT.45a4b4c47be320270ac8d1ce32439d2a.svg',
   'GM:ETH' : DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
   'GM:ARB' : DOLO_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
@@ -1921,6 +1988,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     n = Number(n) || 0; const a = Math.abs(n);
     const s = a >= 1e6 ? "$" + fmtCompact(n, 2) : "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return s;
+  };
+  const fmtExercisePrice = n => {
+    n = Number(n) || 0;
+    if (!n) return "—";
+    const digits = Math.abs(n) >= 1 ? 2 : 4;
+    return "$" + n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
   };
   const normAddr = a => (a || "").trim().toLowerCase();
   const isAddr = a => /^0x[0-9a-f]{40}$/.test(normAddr(a));
@@ -2073,11 +2146,6 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     return active
       ? `<span class="pf-emode-badge" data-tooltip="${emodeTip}">${EMODE_FLAME}E-Mode</span>`
       : `<span class="pf-emode-empty">—</span>`;
-  }
-  function positionLabel(row){
-    const n = String(row.account || "").trim();
-    if (!n || n === "0") return "Main borrow";
-    return `Position #${n.length > 6 ? n.slice(0,4) + "…" + n.slice(-2) : n}`;
   }
   function buildRiskBorrowRows(riskJson, addr){
     const a = normAddr(addr);
@@ -2422,7 +2490,6 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         <td>
           <div class="pf-account-cell">
             <div class="pf-account-main" title="${esc(r.accountId || r.account || "Open borrow")}">Open borrow</div>
-            <div class="pf-account-sub">${esc(positionLabel(r))}</div>
           </div>
         </td>
         <td><span class="pf-hf-badge ${hfClass(r.hf)}"><span class="pf-hf-dot"></span>${hfText(r.hf)}</span></td>
@@ -2450,6 +2517,56 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
     renderPager($(ids.pager), state.borPage + 1, totalPages, p => { state.borPage = p; renderAll(); });
   }
+  function exerciseSummaryItem(label, value, sub, primary){
+    return `<div class="pf-exercise-summary-item${primary ? " primary" : ""}">
+      <div class="pf-exercise-summary-label">${esc(label)}</div>
+      <div class="pf-exercise-summary-value">${value}</div>
+      <div class="pf-exercise-summary-sub">${esc(sub)}</div>
+    </div>`;
+  }
+  function renderExerciseSummary(rows){
+    const el = $("#pf-exercises-summary");
+    if (!el) return;
+    if (!rows.length){
+      el.style.display = "none";
+      el.innerHTML = "";
+      return;
+    }
+    const claimRows = rows.filter(r => r.isStableClaim);
+    const lockRows = rows.filter(r => !r.isStableClaim);
+    const claimVe = claimRows.reduce((s, r) => s + r.vedolo, 0);
+    const claimPaid = claimRows.reduce((s, r) => s + r.paid, 0);
+    const avgClaimPrice = claimVe ? claimPaid / claimVe : 0;
+    const lockVe = lockRows.reduce((s, r) => s + r.vedolo, 0);
+    const lockDolo = lockVe;
+    el.innerHTML = [
+      exerciseSummaryItem(
+        "oDOLO claims",
+        `${fmtCompact(claimVe)} <span class="unit">veDOLO</span>`,
+        claimRows.length ? `${claimRows.length} claims · ${fmtUSD(claimPaid)} USDC paid` : "No oDOLO option claims",
+        true
+      ),
+      exerciseSummaryItem(
+        "Avg price",
+        fmtExercisePrice(avgClaimPrice),
+        claimRows.length ? "USDC per veDOLO" : "Only shown for oDOLO claims",
+        false
+      ),
+      exerciseSummaryItem(
+        "veDOLO locks",
+        `${fmtCompact(lockVe)} <span class="unit">veDOLO</span>`,
+        lockRows.length ? `${lockRows.length} direct DOLO lock${lockRows.length === 1 ? "" : "s"}` : "No direct DOLO locks",
+        false
+      ),
+      exerciseSummaryItem(
+        "DOLO locked",
+        `${fmtCompact(lockDolo)} <span class="unit">DOLO</span>`,
+        lockRows.length ? "Locked directly into veDOLO" : "Not mixed with paired DOLO",
+        false
+      ),
+    ].join("");
+    el.style.display = "";
+  }
   function renderExerciseTable(){
     const rows = sortRows(state.exercises, state.exSort);
     const totalVe = rows.reduce((s, r) => s + r.vedolo, 0);
@@ -2457,6 +2574,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     $("#pf-exercises-count").textContent = rows.length ? `${rows.length.toLocaleString("en-US")} event${rows.length!==1?"s":""}` : "";
     $("#pf-exercises-count").style.display = rows.length ? "" : "none";
     $("#pf-exercises-total").innerHTML = rows.length ? `${fmtCompact(totalVe)}<span class="unit">veDOLO</span>` : "—";
+    renderExerciseSummary(rows);
     updateSortIndicators("ex", state.exSort);
     const body = $("#pf-exercises-body");
     if (!rows.length){
