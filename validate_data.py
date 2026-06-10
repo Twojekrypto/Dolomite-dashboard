@@ -353,7 +353,7 @@ RULES = {
         "min_bytes": 500,
     },
     "vedolo_flows.json": {
-        "required_keys": ["timestamp", "total_unlocks", "total_locks"],
+        "required_keys": ["timestamp", "total_unlocks", "total_locks", "total_transfers"],
         "checks": [],
         "min_bytes": 10_000,
     },

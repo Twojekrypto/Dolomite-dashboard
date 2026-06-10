@@ -1605,6 +1605,11 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border-color:rgba(117,184,123,.24);
   background:rgba(117,184,123,.075);
 }
+#pf-exercises-section .pf-route-tag.gold{
+  color:var(--gold-hi);
+  border-color:rgba(201,162,39,.24);
+  background:rgba(201,162,39,.075);
+}
 #pf-exercises-section .pf-ex-val{
   font-family:var(--mono);
   font-size:13px;
@@ -1839,14 +1844,14 @@ body:not(.pf-active) #pf-results{display:none}
       </div>
     </section>
 
-    <!-- veDOLO / oDOLO EXERCISES -->
+    <!-- veDOLO POSITION ACTIVITY -->
     <section class="pf-section" id="pf-exercises-section">
       <div class="card-head">
         <div class="card-title">
-          <h2>veDOLO / oDOLO Exercises</h2>
+          <h2>veDOLO Position Activity</h2>
           <span class="count-badge" id="pf-exercises-count" style="display:none"></span>
         </div>
-        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">veDOLO minted</span><span class="pf-meta-value" id="pf-exercises-total">—</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">veDOLO minted / locked</span><span class="pf-meta-value" id="pf-exercises-total">—</span></div>
       </div>
       <div class="pf-exercise-summary" id="pf-exercises-summary" style="display:none"></div>
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
@@ -2430,9 +2435,17 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
   function buildExerciseRows(exer, flows, addr){
     const seen = new Set();
-    const flowByHash = new Map(((flows && flows.locks) || [])
+    const flowLocks = (flows && flows.locks) || [];
+    const flowByHash = new Map(flowLocks
       .filter(lock => lock && lock.txHash)
       .map(lock => [String(lock.txHash).toLowerCase(), lock]));
+    const lockByTokenId = new Map();
+    flowLocks.forEach(lock => {
+      const tokenId = lock && lock.tokenId != null ? String(lock.tokenId) : "";
+      if (!tokenId) return;
+      const prev = lockByTokenId.get(tokenId);
+      if (!prev || exerciseTimeMs(lock) >= exerciseTimeMs(prev)) lockByTokenId.set(tokenId, lock);
+    });
     const rows = ((exer && exer.txs) || []).filter(tx => tx.usdc != null).map(tx => {
       const paidToken = tx.paid_token || (tx.usdc ? "USDC.e" : "DOLO");
       const usdc = Number(tx.usdc) || 0;
@@ -2456,7 +2469,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       };
     });
     const a = normAddr(addr);
-    ((flows && flows.locks) || []).forEach(lock => {
+    flowLocks.forEach(lock => {
       const hash = lock.txHash || "";
       if (!hash || seen.has(hash.toLowerCase())) return;
       if (normAddr(lock.address) !== a && normAddr(lock.beneficiaryAddress) !== a) return;
@@ -2478,6 +2491,34 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         isStableClaim: false,
       });
     });
+    ((flows && flows.transfers) || []).forEach(transfer => {
+      const from = normAddr(transfer.from);
+      const to = normAddr(transfer.to);
+      if (from !== a && to !== a) return;
+      const tokenId = transfer.tokenId != null ? String(transfer.tokenId) : "";
+      const lock = tokenId ? lockByTokenId.get(tokenId) : null;
+      const direction = to === a ? "in" : "out";
+      rows.push({
+        chain: "berachain",
+        date: transfer.date || (lock && lock.date) || "",
+        timestamp: exerciseTimeMs(transfer) || exerciseTimeMs(lock),
+        hash: transfer.txHash || transfer.hash || "",
+        action: "Transfer veDOLO",
+        actionSub: `${direction === "in" ? "Received" : "Sent"} position${tokenId ? ` #${tokenId}` : ""}`,
+        route: "transfer",
+        transferDirection: direction,
+        from,
+        to,
+        tokenId,
+        vedolo: Number(lock && lock.dolo) || Number(transfer.dolo) || 0,
+        lockDays: Number(lock && lock.lockDays) || 0,
+        paid: 0,
+        paidToken: "",
+        price: null,
+        isStableClaim: false,
+        isTransfer: true,
+      });
+    });
     return rows;
   }
 
@@ -2490,7 +2531,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     exercises: [],
     depFilter: { chains: new Set(), q: "" },
     borFilter: { chains: new Set(), q: "", hideDust: true },
-    exFilter: { routes: new Set(["odolo", "direct"]) },
+    exFilter: { routes: new Set(["odolo", "direct", "transfer"]) },
     depSort: { key: "usd", desc: true },
     borSort: { key: "debt", desc: true },
     exSort: { key: "date", desc: true },
@@ -2547,9 +2588,11 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   const GLOBE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
   const TELEGRAM_ICON = `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.12.56-.44.7-.9.43l-2.5-1.84-1.2 1.16c-.14.14-.25.25-.5.25l.18-2.52 4.56-4.12c.2-.18-.04-.28-.3-.1L8.9 13.54l-2.42-.76c-.52-.16-.54-.52.12-.78l9.48-3.66c.44-.16.82.1.56.78z"/></svg>`;
   const ROUTE_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M10 7h3a4 4 0 0 1 4 4v3"/><path d="M14 17h-3a4 4 0 0 1-4-4v-3"/></svg>`;
+  const TRANSFER_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10"/><path d="M13 3l4 4-4 4"/><path d="M17 17H7"/><path d="M11 13l-4 4 4 4"/></svg>`;
   const EXERCISE_ROUTES = [
     { key: "odolo", label: "via oDOLO", icon: "odolo-logo-official.svg", cls: "cyan", title: "via oDOLO", body: "Lock came from an oDOLO exercise and was attributed from oDOLO metadata." },
     { key: "direct", label: "Direct", icon: "", cls: "up", title: "Direct Lock", body: "Wallet locked DOLO directly into veDOLO. No oDOLO exercise route was detected for this transaction." },
+    { key: "transfer", label: "Transfer", svg: TRANSFER_ICON, cls: "gold", title: "veDOLO Transfer", body: "Existing veDOLO position moved between wallets. USDC price is not shown because this is not an exercise or purchase." },
   ];
   const EXERCISE_ROUTE_BY_KEY = Object.fromEntries(EXERCISE_ROUTES.map(r => [r.key, r]));
   function defaultExerciseRoutes(){ return new Set(EXERCISE_ROUTES.map(r => r.key)); }
@@ -2563,11 +2606,17 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   function exerciseRouteIcon(route){
     const meta = EXERCISE_ROUTE_BY_KEY[route] || EXERCISE_ROUTES[0];
     if (meta.icon) return `<img src="${meta.icon}" onerror="this.style.display='none'">`;
+    if (meta.svg) return `<div class="dd-ico">${meta.svg}</div>`;
     return `<div class="dd-ico">${ROUTE_ICON}</div>`;
   }
-  function exerciseRouteTag(route){
+  function exerciseRouteTag(route, row){
     const meta = EXERCISE_ROUTE_BY_KEY[route] || EXERCISE_ROUTES[0];
-    return `<span class="tag flow-source-tag pf-route-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(`${meta.title}: ${meta.body}`)}" aria-label="${esc(`${meta.title}: ${meta.body}`)}">${esc(meta.label)}</span>`;
+    const isTransfer = route === "transfer";
+    const label = isTransfer ? `Transfer ${row && row.transferDirection === "out" ? "Out" : "In"}` : meta.label;
+    const tip = isTransfer
+      ? `${label}: ${meta.body}`
+      : `${meta.title}: ${meta.body}`;
+    return `<span class="tag flow-source-tag pf-route-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(tip)}" aria-label="${esc(tip)}">${esc(label)}</span>`;
   }
   function chainLabel(f, present){
     if (f.chains.size === 0 || f.chains.size === present.length) return "All Chains";
@@ -2876,12 +2925,15 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       return;
     }
     const claimRows = rows.filter(r => r.isStableClaim);
-    const lockRows = rows.filter(r => !r.isStableClaim);
+    const lockRows = rows.filter(r => r.route === "direct");
+    const transferRows = rows.filter(r => r.route === "transfer");
     const claimVe = claimRows.reduce((s, r) => s + r.vedolo, 0);
     const claimPaid = claimRows.reduce((s, r) => s + r.paid, 0);
     const avgClaimPrice = claimVe ? claimPaid / claimVe : 0;
     const lockVe = lockRows.reduce((s, r) => s + r.vedolo, 0);
     const votePower = claimVe + lockVe;
+    const transferIn = transferRows.filter(r => r.transferDirection === "in").length;
+    const transferOut = transferRows.filter(r => r.transferDirection === "out").length;
     el.innerHTML = [
       exerciseSummaryItem(
         "oDOLO Exercises",
@@ -2896,7 +2948,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         false
       ),
       exerciseSummaryItem(
-        "veDOLO locks",
+        "Direct locks",
         `${fmtCompact(lockVe)} <span class="unit">veDOLO</span>`,
         lockRows.length ? `${lockRows.length} direct DOLO lock${lockRows.length === 1 ? "" : "s"}` : "No direct DOLO locks",
         false
@@ -2907,12 +2959,18 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         rows.length ? `${fmtCompact(claimVe)} via oDOLO · ${fmtCompact(lockVe)} direct` : "No vote power",
         false
       ),
+      exerciseSummaryItem(
+        "Transfers",
+        `${transferRows.length}`,
+        transferRows.length ? `${transferIn} in · ${transferOut} out` : "No veDOLO transfers",
+        false
+      ),
     ].join("");
     el.style.display = "";
   }
   function renderExerciseTable(){
     const rows = sortRows(applyExerciseFilter(state.exercises, state.exFilter), state.exSort);
-    const totalVe = rows.reduce((s, r) => s + r.vedolo, 0);
+    const totalVe = rows.filter(r => r.route !== "transfer").reduce((s, r) => s + r.vedolo, 0);
     const totalPaid = rows.reduce((s, r) => s + (r.isStableClaim ? r.paid : 0), 0);
     $("#pf-exercises-count").textContent = rows.length ? `${rows.length.toLocaleString("en-US")} event${rows.length!==1?"s":""}` : "";
     $("#pf-exercises-count").style.display = rows.length ? "" : "none";
@@ -2922,7 +2980,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const body = $("#pf-exercises-body");
     if (!rows.length){
       $("#pf-exercises-foot").style.display = "none";
-      const emptyText = state.exercises.length ? "No exercise rows match the selected route." : "No veDOLO exercises or DOLO locks found for this wallet.";
+      const emptyText = state.exercises.length ? "No activity rows match the selected route." : "No veDOLO position activity found for this wallet.";
       body.innerHTML = `<tr><td colspan="6"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${emptyText}</div></td></tr>`;
       return;
     }
@@ -2941,7 +2999,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const lockHtml = r.lockDays ? `<span class="pf-ex-lock ${exerciseLockBucket(r.lockDays)}">${fmtLockDays(r.lockDays)}</span>` : `<span class="pf-ex-muted">—</span>`;
       return `<tr class="pf-row">
         <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${fmtIsoDate(r.date)}</strong>${txLink}</div><span>${esc(fmtExerciseDateMeta(r))}</span></div></td>
-        <td class="pf-route-cell">${exerciseRouteTag(r.route)}</td>
+        <td class="pf-route-cell">${exerciseRouteTag(r.route, r)}</td>
         <td class="num"><span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
         <td class="num">${paidHtml}</td>
         <td class="num">${priceHtml}</td>

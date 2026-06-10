@@ -3,9 +3,11 @@ import unittest
 from generate_vedolo_flows import (
     ODOLO_EXERCISE_TOPIC,
     ODOLO_VESTER,
+    TRANSFER_TOPIC,
     VEDOLO_CONTRACT,
     ZERO_TOPIC,
     check_odolo_exercise_batch,
+    decode_transfer,
     extract_odolo_receipt_beneficiary,
     remap_odolo_lock_beneficiaries,
 )
@@ -181,6 +183,60 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
 
         self.assertTrue(complete)
         self.assertEqual(exercise_txs, {tx_hash: beneficiary})
+
+    def test_decodes_wallet_to_wallet_vedolo_transfer(self):
+        from_address = "0x" + "3" * 40
+        to_address = "0x" + "4" * 40
+        tx_hash = "0x" + "c" * 64
+        row = decode_transfer(
+            {
+                "topics": [
+                    TRANSFER_TOPIC,
+                    "0x" + ("0" * 24) + from_address[2:],
+                    "0x" + ("0" * 24) + to_address[2:],
+                    "0x" + "7b".zfill(64),
+                ],
+                "transactionHash": tx_hash,
+                "blockNumber": "0x2a",
+            }
+        )
+
+        self.assertEqual(
+            row,
+            {
+                "from": from_address,
+                "to": to_address,
+                "txHash": tx_hash,
+                "tokenId": 123,
+                "block": 42,
+            },
+        )
+
+    def test_ignores_vedolo_mints_and_burns_as_transfers(self):
+        to_address = "0x" + "5" * 40
+        mint = {
+            "topics": [
+                TRANSFER_TOPIC,
+                ZERO_TOPIC,
+                "0x" + ("0" * 24) + to_address[2:],
+                "0x" + "1".zfill(64),
+            ],
+            "transactionHash": "0x" + "d" * 64,
+            "blockNumber": "0x2b",
+        }
+        burn = {
+            "topics": [
+                TRANSFER_TOPIC,
+                "0x" + ("0" * 24) + to_address[2:],
+                ZERO_TOPIC,
+                "0x" + "1".zfill(64),
+            ],
+            "transactionHash": "0x" + "e" * 64,
+            "blockNumber": "0x2c",
+        }
+
+        self.assertIsNone(decode_transfer(mint))
+        self.assertIsNone(decode_transfer(burn))
 
 
 if __name__ == "__main__":
