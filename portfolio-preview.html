@@ -1854,7 +1854,7 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>veDOLO Position Activity</h2>
           <span class="count-badge" id="pf-exercises-count" style="display:none"></span>
         </div>
-        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">veDOLO minted / locked</span><span class="pf-meta-value" id="pf-exercises-total">—</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Current veDOLO</span><span class="pf-meta-value" id="pf-exercises-total">—</span></div>
       </div>
       <div class="pf-exercise-summary" id="pf-exercises-summary" style="display:none"></div>
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
@@ -2436,8 +2436,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       source: "subgraph",
     }))).filter(r => r.debt > 0.000001);
   }
-  function buildExerciseRows(exer, flows, addr){
+  function buildExerciseRows(exer, flows, addr, currentVedolo){
     const seen = new Set();
+    const seenTokenIds = new Set();
     const flowLocks = (flows && flows.locks) || [];
     const flowByHash = new Map(flowLocks
       .filter(lock => lock && lock.txHash)
@@ -2454,7 +2455,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const usdc = Number(tx.usdc) || 0;
       const hash = tx.hash || "";
       const flow = hash ? flowByHash.get(hash.toLowerCase()) : null;
+      const tokenId = flow && flow.tokenId != null ? String(flow.tokenId) : "";
       if (hash) seen.add(hash.toLowerCase());
+      if (tokenId) seenTokenIds.add(tokenId);
       return {
         chain: "berachain",
         date: tx.date || "",
@@ -2468,16 +2471,19 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         paid: usdc,
         paidToken,
         price: tx.price == null ? null : Number(tx.price) || 0,
+        tokenId,
         isStableClaim: true,
       };
     });
     const a = normAddr(addr);
     flowLocks.forEach(lock => {
       const hash = lock.txHash || "";
+      const tokenId = lock && lock.tokenId != null ? String(lock.tokenId) : "";
       if (!hash || seen.has(hash.toLowerCase())) return;
       if (normAddr(lock.address) !== a && normAddr(lock.beneficiaryAddress) !== a) return;
       seen.add(hash.toLowerCase());
       if (lock.isOdolo) return;
+      if (tokenId) seenTokenIds.add(tokenId);
       rows.push({
         chain: "berachain",
         date: lock.date || "",
@@ -2491,6 +2497,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         paid: 0,
         paidToken: "",
         price: null,
+        tokenId,
         isStableClaim: false,
       });
     });
@@ -2501,6 +2508,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const tokenId = transfer.tokenId != null ? String(transfer.tokenId) : "";
       const lock = tokenId ? lockByTokenId.get(tokenId) : null;
       const direction = to === a ? "in" : "out";
+      if (tokenId) seenTokenIds.add(tokenId);
       rows.push({
         chain: "berachain",
         date: transfer.date || (lock && lock.date) || "",
@@ -2522,6 +2530,38 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         isTransfer: true,
       });
     });
+    ((currentVedolo && currentVedolo.token_details) || []).forEach(pos => {
+      const tokenId = pos && pos.id != null ? String(pos.id) : "";
+      if (!tokenId || seenTokenIds.has(tokenId)) return;
+      const lock = lockByTokenId.get(tokenId);
+      if (!lock) return;
+      const lockOwner = normAddr(lock.address);
+      const beneficiary = normAddr(lock.beneficiaryAddress);
+      const isWalletMint = lockOwner === a || beneficiary === a;
+      const route = isWalletMint ? (lock.isOdolo ? "odolo" : "direct") : "transfer";
+      rows.push({
+        chain: "berachain",
+        date: lock.date || "",
+        timestamp: route === "transfer" ? 9999999999000 - (Number(tokenId) || 0) : exerciseTimeMs(lock),
+        hash: route === "transfer" ? "" : (lock.txHash || ""),
+        action: route === "transfer" ? "Transfer veDOLO" : (route === "odolo" ? "Exercise oDOLO" : "Direct veDOLO"),
+        actionSub: route === "transfer" ? `Current holder of position #${tokenId}` : `Current position #${tokenId}`,
+        route,
+        transferDirection: route === "transfer" ? "in" : "",
+        from: route === "transfer" ? lockOwner : "",
+        to: route === "transfer" ? a : "",
+        tokenId,
+        vedolo: Number(pos.dolo) || Number(lock.dolo) || 0,
+        lockDays: Number(lock.lockDays) || 0,
+        paid: 0,
+        paidToken: "",
+        price: null,
+        isStableClaim: false,
+        isTransfer: route === "transfer",
+        fallbackCurrent: true,
+      });
+      seenTokenIds.add(tokenId);
+    });
     return rows;
   }
 
@@ -2532,6 +2572,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     deposits: [],
     borrows: [],
     exercises: [],
+    vedoloCurrent: null,
     depFilter: { chains: new Set(), q: "" },
     borFilter: { chains: new Set(), q: "", hideDust: true },
     exFilter: { routes: new Set(["odolo", "direct", "transfer"]) },
@@ -2594,7 +2635,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   const TRANSFER_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10"/><path d="M13 3l4 4-4 4"/><path d="M17 17H7"/><path d="M11 13l-4 4 4 4"/></svg>`;
   const EXERCISE_ROUTES = [
     { key: "odolo", label: "Exercise", icon: "odolo-logo-official.svg", cls: "cyan", title: "oDOLO Exercise", body: "Wallet exercised oDOLO and received a new veDOLO position." },
-    { key: "direct", label: "Deposit", icon: "", cls: "up", title: "veDOLO Deposit", body: "Wallet created a new veDOLO position by locking DOLO directly. This is a mint/deposit, not a wallet-to-wallet transfer." },
+    { key: "direct", label: "Direct", icon: "", cls: "up", title: "Direct veDOLO", body: "Wallet created a new veDOLO position by locking DOLO directly. This is a mint/deposit, not a wallet-to-wallet transfer." },
     { key: "transfer", label: "Transfer", svg: TRANSFER_ICON, cls: "gold", title: "veDOLO Transfer", body: "Existing veDOLO position moved between wallets. USDC price is not shown because this is not an exercise or purchase." },
   ];
   const EXERCISE_ROUTE_BY_KEY = Object.fromEntries(EXERCISE_ROUTES.map(r => [r.key, r]));
@@ -2930,6 +2971,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const claimRows = rows.filter(r => r.isStableClaim);
     const lockRows = rows.filter(r => r.route === "direct");
     const transferRows = rows.filter(r => r.route === "transfer");
+    const currentVe = Number(state.vedoloCurrent && state.vedoloCurrent.total_dolo) || 0;
+    const currentVote = Number(state.vedoloCurrent && state.vedoloCurrent.total_vote_weight) || 0;
+    const currentNfts = Number(state.vedoloCurrent && state.vedoloCurrent.nft_count) || 0;
     const claimVe = claimRows.reduce((s, r) => s + r.vedolo, 0);
     const claimPaid = claimRows.reduce((s, r) => s + r.paid, 0);
     const avgClaimPrice = claimVe ? claimPaid / claimVe : 0;
@@ -2937,6 +2981,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const votePower = claimVe + lockVe;
     const transferIn = transferRows.filter(r => r.transferDirection === "in").length;
     const transferOut = transferRows.filter(r => r.transferDirection === "out").length;
+    const transferFallbacks = transferRows.filter(r => r.fallbackCurrent).length;
     el.innerHTML = [
       exerciseSummaryItem(
         "oDOLO Exercises",
@@ -2951,21 +2996,21 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         false
       ),
       exerciseSummaryItem(
-        "Deposits",
+        "Direct",
         `${fmtCompact(lockVe)} <span class="unit">veDOLO</span>`,
-        lockRows.length ? `${lockRows.length} direct DOLO deposit${lockRows.length === 1 ? "" : "s"}` : "No direct DOLO deposits",
+        lockRows.length ? `${lockRows.length} direct DOLO lock${lockRows.length === 1 ? "" : "s"}` : "No direct DOLO locks",
         false
       ),
       exerciseSummaryItem(
         "Vote power",
-        `${fmtCompact(votePower)} <span class="unit">veDOLO</span>`,
-        rows.length ? `${fmtCompact(claimVe)} exercised · ${fmtCompact(lockVe)} deposited` : "No vote power",
+        `${fmtCompact(currentVote || votePower)} <span class="unit">veDOLO</span>`,
+        currentNfts ? `${fmtCompact(currentVe)} current veDOLO · ${currentNfts} position${currentNfts === 1 ? "" : "s"}` : `${fmtCompact(claimVe)} exercised · ${fmtCompact(lockVe)} direct`,
         false
       ),
       exerciseSummaryItem(
         "Transfers",
         `${transferRows.length}`,
-        transferRows.length ? `${transferIn} in · ${transferOut} out` : "No veDOLO transfers",
+        transferRows.length ? `${transferIn} in · ${transferOut} out${transferFallbacks ? ` · ${transferFallbacks} from current snapshot` : ""}` : "No veDOLO transfers",
         false
       ),
     ].join("");
@@ -2973,7 +3018,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
   function renderExerciseTable(){
     const rows = sortRows(applyExerciseFilter(state.exercises, state.exFilter), state.exSort);
-    const totalVe = rows.filter(r => r.route !== "transfer").reduce((s, r) => s + r.vedolo, 0);
+    const currentVe = Number(state.vedoloCurrent && state.vedoloCurrent.total_dolo) || 0;
+    const totalVe = currentVe || rows.filter(r => r.route !== "transfer").reduce((s, r) => s + r.vedolo, 0);
     const totalPaid = rows.reduce((s, r) => s + (r.isStableClaim ? r.paid : 0), 0);
     $("#pf-exercises-count").textContent = rows.length ? `${rows.length.toLocaleString("en-US")} event${rows.length!==1?"s":""}` : "";
     $("#pf-exercises-count").style.display = rows.length ? "" : "none";
@@ -3000,8 +3046,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const paidHtml = r.isStableClaim ? `<span class="pf-ex-val pf-ex-usdc">${fmtUSD(r.paid)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const priceHtml = r.price ? `<span class="pf-ex-val pf-ex-price">$${r.price.toFixed(4)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const lockHtml = r.lockDays ? `<span class="pf-ex-lock ${exerciseLockBucket(r.lockDays)}">${fmtLockDays(r.lockDays)}</span>` : `<span class="pf-ex-muted">—</span>`;
+      const dateTop = r.fallbackCurrent && r.route === "transfer" ? "Current" : fmtIsoDate(r.date);
+      const dateMeta = r.fallbackCurrent && r.route === "transfer" ? "holder snapshot · transfer tx not indexed" : fmtExerciseDateMeta(r);
       return `<tr class="pf-row">
-        <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${fmtIsoDate(r.date)}</strong>${txLink}</div><span>${esc(fmtExerciseDateMeta(r))}</span></div></td>
+        <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${dateTop}</strong>${txLink}</div><span>${esc(dateMeta)}</span></div></td>
         <td class="pf-route-cell">${exerciseRouteTag(r.route, r)}</td>
         <td class="num"><span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
         <td class="num">${paidHtml}</td>
@@ -3083,7 +3131,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     chainResults.forEach(r => { state.deposits.push(...(r.deposits||[])); });
     const riskBorrows = buildRiskBorrowRows(riskJson, addr);
     state.borrows = riskBorrows.length ? riskBorrows : buildFallbackBorrowRows(chainResults, addr);
-    state.exercises = buildExerciseRows(cardData.exer, vedoloFlows, addr);
+    state.vedoloCurrent = cardData.vedolo || null;
+    state.exercises = buildExerciseRows(cardData.exer, vedoloFlows, addr, cardData.vedolo);
     state.depFilter = { chains: new Set(), q: "" }; state.borFilter = { chains: new Set(), q: "", hideDust: true }; state.exFilter = { routes: defaultExerciseRoutes() };
     state.depSort = { key: "usd", desc: true }; state.borSort = { key: "debt", desc: true }; state.exSort = { key: "date", desc: true };
     state.depPage = 0; state.borPage = 0; state.exPage = 0;
