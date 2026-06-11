@@ -8,23 +8,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dolomite - Revenue</title>
 <link rel="shortcut icon" href="../favicon.ico" type="image/png">
+<script src="../route-loader.js?v=route-loader-20260611"></script>
 <script>
-(async () => {
-  try {
-    window.__DOLO_ROUTE = "revenue";
-    const previewVersion = "revenue-20260602-date-input-audit-history-last-20260602-series-filter-fee-split-clean-donut-copy-series-checks-multiselect-no-series-status-compact-date-picker-table-ux-sync-20260607";
-    const response = await fetch(`../revenue-preview.html?v=${previewVersion}`, { cache: "no-cache" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const html = await response.text();
-    const mobileNavAssets = '<link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs"><link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs"><link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260604b"><script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"><\/script><script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"><\/script><script defer src="protocol-footer.js?v=protocol-footer-20260604b"><\/script>';
-    document.open();
-    document.write(html.replace("<head>", '<head><base href="../"><script>window.__DOLO_ROUTE="revenue";<\/script>').replace("</head>", mobileNavAssets + "</head>"));
-    document.close();
-  } catch (error) {
-    document.body.innerHTML = "<p style=\"font-family:system-ui,sans-serif;padding:24px;color:#f4f3ef;background:#09090b\">Unable to load Revenue.</p>";
-    console.error("Revenue route failed", error);
-  }
-})();
+loadDoloRoute({
+  "label": "Revenue",
+  "target": "../revenue-preview.html",
+  "version": "revenue-20260602-date-input-audit-history-last-20260602-series-filter-fee-split-clean-donut-copy-series-checks-multiselect-no-series-status-compact-date-picker-table-ux-sync-20260607",
+  "route": "revenue"
+});
 </script>
 </head>
 <body></body>

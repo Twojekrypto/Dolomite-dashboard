@@ -304,6 +304,13 @@ RULES = {
         ],
         "min_bytes": 50_000,
     },
+    "dolo_holder_wallet_history.json": {
+        "required_keys": ["timestamp", "holder_wallet_history"],
+        "checks": [
+            ("holder_wallet_history must have data", lambda d: len(d.get("holder_wallet_history", {})) >= 1),
+        ],
+        "min_bytes": 1_000_000,
+    },
     "dolo_holders.json": {
         "required_keys": ["contract", "timestamp", "stats", "holders"],
         "checks": [

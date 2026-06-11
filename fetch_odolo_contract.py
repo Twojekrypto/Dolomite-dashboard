@@ -9,7 +9,8 @@ import json
 import os
 import requests
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+
+from rpc_client import RpcClient, RpcError, decode_uint256, safe_host
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "odolo_contract_data.json")
@@ -27,50 +28,9 @@ SEL = {
     "availableTokens": "0x69bb4dc2",
 }
 
-ALCHEMY_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
-ALCHEMY_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
-RPC_URLS = [
-    *([] if not ALCHEMY_RPC else [ALCHEMY_RPC]),
-    *([] if not ALCHEMY_RPC_2 else [ALCHEMY_RPC_2]),
-    "https://rpc.berachain.com/",
-    "https://berachain-rpc.publicnode.com/",
-    "https://berachain.drpc.org/",
-]
-
 ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 
 VESTER_PADDED = ODOLO_VESTER.replace("0x", "").lower().zfill(64)
-
-
-def rpc_batch(url, calls, timeout=15):
-    """Execute a batch of eth_call requests."""
-    batch = []
-    for i, (to, data) in enumerate(calls):
-        batch.append({
-            "jsonrpc": "2.0",
-            "method": "eth_call",
-            "params": [{"to": to, "data": data}, "latest"],
-            "id": i + 1
-        })
-
-    resp = requests.post(url, json=batch, timeout=timeout)
-    resp.raise_for_status()
-    results = resp.json()
-
-    if isinstance(results, list):
-        results.sort(key=lambda r: r.get("id", 0))
-        return [r.get("result", "0x0") for r in results]
-
-    # Single response (shouldn't happen with batch, but handle it)
-    return [results.get("result", "0x0")]
-
-
-def decode_uint256(hex_str):
-    """Decode a hex string to integer."""
-    if not hex_str or hex_str in ("0x", "0x0"):
-        return 0
-    clean = hex_str.replace("0x", "")[:64]
-    return int(clean, 16) if clean else 0
 
 
 def get_holder_count():
@@ -93,67 +53,61 @@ def get_holder_count():
 def main():
     print("📡 Fetching oDOLO contract data via RPC...")
 
-    for url in RPC_URLS:
-        try:
-            print(f"   Trying {url}...")
+    client = RpcClient(chain="berachain")
+    try:
+        # Batch 1: Token data
+        batch1 = client.eth_call_batch([
+            (ODOLO_TOKEN, SEL["totalSupply"]),
+            (ODOLO_TOKEN, SEL["decimals"]),
+            (ODOLO_TOKEN, SEL["balanceOf"] + VESTER_PADDED),
+        ])
 
-            # Batch 1: Token data
-            batch1 = rpc_batch(url, [
-                (ODOLO_TOKEN, SEL["totalSupply"]),
-                (ODOLO_TOKEN, SEL["decimals"]),
-                (ODOLO_TOKEN, SEL["balanceOf"] + VESTER_PADDED),
-            ])
+        # Batch 2: Vester data
+        batch2 = client.eth_call_batch([
+            (ODOLO_VESTER, SEL["promisedTokens"]),
+            (ODOLO_VESTER, SEL["pushedTokens"]),
+            (ODOLO_VESTER, SEL["availableTokens"]),
+        ])
+    except RpcError as e:
+        print(f"   ❌ All RPC endpoints failed! {e}")
+        if os.path.exists(OUTPUT_FILE):
+            print(f"   Keeping existing {OUTPUT_FILE}")
+        else:
+            print(f"   No existing file — cannot create placeholder")
+        return
 
-            # Batch 2: Vester data
-            batch2 = rpc_batch(url, [
-                (ODOLO_VESTER, SEL["promisedTokens"]),
-                (ODOLO_VESTER, SEL["pushedTokens"]),
-                (ODOLO_VESTER, SEL["availableTokens"]),
-            ])
+    decimals = decode_uint256(batch1[1]) or 18
+    divisor = 10 ** decimals
 
-            decimals = decode_uint256(batch1[1]) or 18
-            divisor = 10 ** decimals
+    data = {
+        "totalSupply": decode_uint256(batch1[0]) / divisor,
+        "inVesterBalance": decode_uint256(batch1[2]) / divisor,
+        "promisedTokens": decode_uint256(batch2[0]) / divisor,
+        "pushedTokens": decode_uint256(batch2[1]) / divisor,
+        "availableTokens": decode_uint256(batch2[2]) / divisor,
+        "decimals": decimals,
+        "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        # Store only the provider host, never the full URL (it contains the API key).
+        "rpc_source": safe_host(client.last_endpoint or ""),
+    }
 
-            data = {
-                "totalSupply": decode_uint256(batch1[0]) / divisor,
-                "inVesterBalance": decode_uint256(batch1[2]) / divisor,
-                "promisedTokens": decode_uint256(batch2[0]) / divisor,
-                "pushedTokens": decode_uint256(batch2[1]) / divisor,
-                "availableTokens": decode_uint256(batch2[2]) / divisor,
-                "decimals": decimals,
-                "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                # Store only the provider host, never the full URL (it contains the API key).
-                "rpc_source": urlparse(url).hostname or "rpc",
-            }
+    # Derived
+    data["inCirculation"] = data["totalSupply"] - data["availableTokens"] - data["promisedTokens"]
 
-            # Derived
-            data["inCirculation"] = data["totalSupply"] - data["availableTokens"] - data["promisedTokens"]
+    # Fetch holder count from Routescan
+    holders = get_holder_count()
+    if holders is not None:
+        data["holders"] = holders
+        print(f"   Holders: {holders:,}")
 
-            # Fetch holder count from Routescan
-            holders = get_holder_count()
-            if holders is not None:
-                data["holders"] = holders
-                print(f"   Holders: {holders:,}")
+    with open(OUTPUT_FILE, "w") as f:
+        json.dump(data, f, indent=2)
 
-            with open(OUTPUT_FILE, "w") as f:
-                json.dump(data, f, indent=2)
-
-            print(f"   ✅ Saved odolo_contract_data.json")
-            print(f"   Total Supply: {data['totalSupply']:,.2f}")
-            print(f"   Available in Vester: {data['availableTokens']:,.2f}")
-            print(f"   Exercised (pushed): {data['pushedTokens']:,.2f}")
-            print(f"   In Circulation: {data['inCirculation']:,.2f}")
-            return
-
-        except Exception as e:
-            print(f"   ⚠️ RPC failed ({url}): {e}")
-            continue
-
-    print("   ❌ All RPC endpoints failed!")
-    if os.path.exists(OUTPUT_FILE):
-        print(f"   Keeping existing {OUTPUT_FILE}")
-    else:
-        print(f"   No existing file — cannot create placeholder")
+    print(f"   ✅ Saved odolo_contract_data.json")
+    print(f"   Total Supply: {data['totalSupply']:,.2f}")
+    print(f"   Available in Vester: {data['availableTokens']:,.2f}")
+    print(f"   Exercised (pushed): {data['pushedTokens']:,.2f}")
+    print(f"   In Circulation: {data['inCirculation']:,.2f}")
 
 
 if __name__ == "__main__":

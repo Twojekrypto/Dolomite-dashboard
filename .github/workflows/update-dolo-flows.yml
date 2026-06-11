@@ -105,14 +105,14 @@ jobs:
           key: dolo-holders-state-${{ github.run_number }}
 
       - name: Validate generated data
-        run: python3 validate_data.py dolo_flows.json dolo_holders.json
+        run: python3 validate_data.py dolo_flows.json dolo_holder_wallet_history.json dolo_holders.json
 
       - name: Commit and push if changed
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add dolo_flows.json dolo_holders.json vesting_investors.json
+          git add dolo_flows.json dolo_holder_wallet_history.json dolo_holders.json vesting_investors.json
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else

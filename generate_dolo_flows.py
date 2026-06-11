@@ -183,6 +183,9 @@ HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
+# Heavy per-day address-level snapshots live in a separate file so the main
+# dolo_flows.json stays small for first render; the UI lazy-loads this one.
+WALLET_HISTORY_JSON = os.path.join(DATA_DIR, "dolo_holder_wallet_history.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_flows_state.json")
 
 MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
@@ -2202,7 +2205,9 @@ def main():
             for point in holder_history_points
         ],
         "holder_bucket_history": holder_bucket_history,
-        "holder_wallet_history": holder_wallet_history,
+        # holder_wallet_history is written to WALLET_HISTORY_JSON (separate
+        # lazy-loaded file); keep a marker so the UI knows where to find it.
+        "holder_wallet_history_file": "dolo_holder_wallet_history.json",
         "cex_supply_history": cex_supply_history,
         "dolo_price": dolo_price,
         "periods": output_periods,
@@ -2234,6 +2239,14 @@ def main():
 
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, separators=(",", ":"))
+
+    wallet_history_payload = {
+        "timestamp": output["timestamp"],
+        "holder_wallet_history": holder_wallet_history,
+    }
+    with open(WALLET_HISTORY_JSON, "w") as f:
+        json.dump(wallet_history_payload, f, separators=(",", ":"))
+    print(f"💾 Saved wallet-level holder history: {WALLET_HISTORY_JSON}")
 
     # Save incremental state for next run
     save_state(state)
