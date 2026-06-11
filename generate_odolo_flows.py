@@ -107,8 +107,8 @@ def load_state():
         try:
             with open(STATE_FILE) as f:
                 return json.load(f)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"⚠️ load_state: failed to read {STATE_FILE} ({exc}); starting full resync", flush=True)
     return {}
 
 
@@ -690,8 +690,8 @@ def main():
                 if has_old_flows:
                     print(f"\n⚠️ This run found 0 flow data but existing file has data. Preserving old flow periods.")
                     existing_periods = old_periods
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"⚠️ Could not read existing output for preservation check: {exc}", flush=True)
 
     output = {
         "timestamp": datetime.utcnow().isoformat(),

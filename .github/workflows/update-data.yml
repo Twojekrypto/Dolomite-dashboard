@@ -5,6 +5,10 @@ on:
     - cron: '17 */6 * * *'  # Every 6 hours, staggered
   workflow_dispatch:  # Allow manual trigger
 
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -23,7 +27,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests web3
+        run: pip install -r requirements.txt
 
       - name: Restore locked DOLO cache
         uses: actions/cache@v5

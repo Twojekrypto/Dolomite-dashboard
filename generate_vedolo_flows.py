@@ -123,8 +123,8 @@ def load_state():
         try:
             with open(STATE_FILE) as f:
                 return json.load(f)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"⚠️ load_state: failed to read {STATE_FILE} ({exc}); starting full resync", flush=True)
     return {}
 
 
@@ -874,8 +874,8 @@ def main():
             if len(all_transfers) == 0 and old_transfers > 0:
                 print(f"\n⚠️ 0 transfers but old file has {old_transfers}. Preserving old data.")
                 all_transfers = old["transfers"]
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"⚠️ Could not read existing output for preservation check: {exc}", flush=True)
 
     # Build output
     output = {

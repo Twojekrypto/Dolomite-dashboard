@@ -59,8 +59,8 @@ def load_state():
         try:
             with open(STATE_FILE) as f:
                 return json.load(f)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"⚠️ load_state: failed to read {STATE_FILE} ({exc}); starting full resync", flush=True)
     return {}
 
 

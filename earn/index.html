@@ -12,7 +12,7 @@
 (async () => {
   try {
     const draftVersion = "earn-quality-20260516-filter-icons-20260517b-hide-dust-history-nav-20260524-revenue-nav-20260601";
-    const response = await fetch(`../dashboard-core.html?v=${draftVersion}-${Date.now()}`, { cache: "no-store" });
+    const response = await fetch(`../dashboard-core.html?v=${draftVersion}`, { cache: "no-cache" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const html = await response.text();
     const headInject = [

@@ -4883,7 +4883,7 @@ renderCexSupplyChart();
   const originalRenderHolders = renderHolders;
   const originalRenderFlows = renderFlows;
   const originalFmtNum = fmtNum;
-  const fetchJson = name => fetch(name + (name.includes("?") ? "&" : "?") + Date.now(), {cache:"no-cache"}).then(r=>{
+  const fetchJson = name => fetch(name, {cache:"no-cache"}).then(r=>{
     if(!r.ok) throw new Error(name + " HTTP " + r.status);
     return r.json();
   });

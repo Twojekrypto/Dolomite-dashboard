@@ -1845,7 +1845,7 @@ function normalizeAssetRows(rows){
 }
 
 async function loadPrebuiltAssets(){
-  const resp = await fetch(`${ASSETS_SNAPSHOT_URL}?v=${Date.now()}`, {cache:"no-cache"});
+  const resp = await fetch(ASSETS_SNAPSHOT_URL, {cache:"no-cache"});
   if(!resp.ok) throw new Error(`Snapshot HTTP ${resp.status}`);
   const payload = await resp.json();
   const rows = normalizeAssetRows(Array.isArray(payload) ? payload : payload.rows);

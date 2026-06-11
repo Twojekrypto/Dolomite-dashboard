@@ -13458,6 +13458,42 @@
                         </svg>
                         EARN
                     </a>
+                    <a class="nav-tab" id="tab-borrow" href="./borrow/">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="5" width="18" height="14" rx="2" />
+                            <path d="M3 10h18" />
+                            <path d="M12 13v4" />
+                            <path d="m9.5 15 2.5 2.5L14.5 15" />
+                        </svg>
+                        BORROW
+                    </a>
+                    <a class="nav-tab" id="tab-supply" href="./supply/">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                        SUPPLY
+                    </a>
+                    <a class="nav-tab" id="tab-revenue" href="./revenue/">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M7 15l4-4 3 3 5-7" />
+                            <path d="M16 7h3v3" />
+                        </svg>
+                        REVENUE
+                    </a>
+                    <a class="nav-tab" id="tab-history" href="./history/">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 3-6.7" />
+                            <path d="M3 3v6h6" />
+                            <path d="M12 7v5l3 2" />
+                        </svg>
+                        HISTORY
+                    </a>
                     <button class="nav-tab" id="tab-lending" onclick="switchView('lending')" style="display:none">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round">
@@ -18757,7 +18793,7 @@
         let expiryPreloaded = null;  // pre-computed from vedolo_expiry.json
 
         // Preload tiny expiry JSON for instant chart rendering
-        fetch('vedolo_expiry.json?' + Date.now())
+        fetch('vedolo_expiry.json', { cache: 'no-cache' })
             .then(r => r.ok ? r.json() : null)
             .then(data => {
                 if (data && data.buckets && data.buckets.length) {
@@ -20640,7 +20676,7 @@
             console.log('veDOLO: Loading pre-cached events from JSON...');
 
             try {
-                const resp = await fetch('vedolo_flows.json?t=' + Date.now());
+                const resp = await fetch('vedolo_flows.json', { cache: 'no-cache' });
                 if (!resp.ok) throw new Error('Failed to fetch vedolo_flows.json');
                 const json = await resp.json();
 
@@ -21355,7 +21391,7 @@
 
                     // Override current precise metrics with official Dolomite Subgraph TVL file
                     try {
-                        const doloTvls = await fetch('dolomite_tvl.json?' + Date.now()).then(r => r.json());
+                        const doloTvls = await fetch('dolomite_tvl.json', { cache: 'no-cache' }).then(r => r.json());
                         if (doloTvls && doloTvls.currentChainTvls) {
                             llRes.currentChainTvls = doloTvls.currentChainTvls;
                             if (doloTvls.tokensInUsd) llRes.tokensInUsd = doloTvls.tokensInUsd;
@@ -22622,7 +22658,7 @@
         let dolo_flowChain = 'all';
 
         function dolo_loadFlows() {
-            fetch('dolo_flows.json?' + Date.now())
+            fetch('dolo_flows.json', { cache: 'no-cache' })
                 .then(r => r.json())
                 .then(data => {
                     dolo_flowsData = data;
@@ -22954,7 +22990,7 @@
         let odolo_flowPeriod = '1d';
 
         function odolo_loadFlows() {
-            fetch('odolo_flows.json?' + Date.now())
+            fetch('odolo_flows.json', { cache: 'no-cache' })
                 .then(r => r.json())
                 .then(data => {
                     odolo_flowsData = data;
@@ -23796,7 +23832,7 @@
                 const missingBotanixPrices = results.some(r => r.chainKey === 'botanix' && !(r.price > 0));
                 if (missingBotanixPrices) {
                     try {
-                        const officialTvl = await fetch('dolomite_tvl.json?' + Date.now()).then(r => r.ok ? r.json() : null);
+                        const officialTvl = await fetch('dolomite_tvl.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null);
                         const botanixUsd = officialTvl?.chainTokensInUsd?.Botanix || {};
                         results.forEach(item => {
                             if (item.chainKey !== 'botanix' || item.price > 0) return;
@@ -31510,7 +31546,7 @@
             if (earn_freshnessStatusRequest) return earn_freshnessStatusRequest;
             earn_freshnessStatusRequest = (async () => {
                 try {
-                    const resp = await fetch(`${EARN_FRESHNESS_STATUS_URL}?v=${Date.now()}`, { cache: 'no-store' });
+                    const resp = await fetch(EARN_FRESHNESS_STATUS_URL, { cache: 'no-cache' });
                     if (!resp.ok) return null;
                     earn_freshnessStatus = await resp.json();
                     earn_updateFreshnessPill();
