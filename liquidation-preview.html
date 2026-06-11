@@ -11727,6 +11727,17 @@
                 renderRiskMenu();
                 applyFilters();
                 renderLiquidationHistory(data);
+                if (!data.liquidationHistory) {
+                    // Event history lives in a separate lazy-loaded file now.
+                    const historyFile = data.liquidationHistoryFile || 'liquidation_history.json';
+                    fetch(historyFile)
+                        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                        .then(historyData => {
+                            allLiquidationHistory = normalizeLiquidationHistoryRows(historyData.liquidationHistory || []);
+                            applyLiquidationHistoryFilters();
+                        })
+                        .catch(error => console.warn('Liquidation history unavailable', error));
+                }
                 if (document.getElementById('sim-card')) {
                     setSimTab('multi');
                     document.getElementById('risk-simulator-section').style.opacity = '1';

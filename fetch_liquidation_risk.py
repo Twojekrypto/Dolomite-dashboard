@@ -119,6 +119,10 @@ HF_EMODE_DANGER = 1.03     # 🟠
 HF_EMODE_WARNING = 1.08    # 🟡
 
 OUTPUT_FILE = "liquidation_risk.json"
+# Full liquidation event history lives in a separate lazy-loaded file so that
+# consumers that only need positions/stats (portfolio, earn, liq-monitor) do
+# not download it. Only liquidation-preview fetches this file on demand.
+HISTORY_FILE = "liquidation_history.json"
 
 # ─── GraphQL Queries ──────────────────────────────────────────────────────────
 
@@ -1352,12 +1356,19 @@ def generate_sample_data():
             "polygon_zkevm": {"liquidationRatio": "1.15", "liquidationReward": "0.05", "numberOfMarkets": 10},
         },
         "liquidationHistoryStats": build_liquidation_history_stats([]),
-        "liquidationHistory": [],
+        "liquidationHistoryFile": HISTORY_FILE,
         "positions": all_positions,
     }
-    
+
     with open(OUTPUT_FILE, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output, f, separators=(",", ":"))
+
+    with open(HISTORY_FILE, "w") as f:
+        json.dump({
+            "generatedAt": output["generatedAt"],
+            "generatedAtISO": output["generatedAtISO"],
+            "liquidationHistory": [],
+        }, f, separators=(",", ":"))
     
     print(f"\n{'='*60}")
     print(f"  ✅ Sample data saved to {OUTPUT_FILE}")
@@ -1443,13 +1454,23 @@ def main():
         "chainParams": chain_params,
         "marketSupply": all_market_supply,
         "liquidationHistoryStats": build_liquidation_history_stats(all_liquidations),
-        "liquidationHistory": all_liquidations,
+        # Events moved to HISTORY_FILE (lazy-loaded); marker tells the UI where.
+        "liquidationHistoryFile": HISTORY_FILE,
         "positions": all_positions,
     }
-    
+
     with open(OUTPUT_FILE, "w") as f:
-        json.dump(output, f, indent=2)
-    
+        json.dump(output, f, separators=(",", ":"))
+
+    history_output = {
+        "generatedAt": output["generatedAt"],
+        "generatedAtISO": output["generatedAtISO"],
+        "liquidationHistory": all_liquidations,
+    }
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history_output, f, separators=(",", ":"))
+    print(f"  💾 Liquidation history saved to {HISTORY_FILE}")
+
     print(f"\n{'='*60}")
     print(f"  ✅ Results saved to {OUTPUT_FILE}")
     print(f"  📊 Total positions: {len(all_positions)}")
