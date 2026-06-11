@@ -4,6 +4,8 @@
     "0x000000000000000000000000000000000000dead": {label:"Burn", type:"dead"},
 
     "0x3e9b9a16743551da49b5e136c716bba7932d2cec": {label:"oDOLO Vester", type:"protocol", treasury:true},
+    "0x02e513b5b54ee216bf836ceb471507488fc89543": {label:"oDOLO Token", type:"protocol", source:"token-contract", confidence:"confirmed"},
+    "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654": {label:"DOLO", type:"protocol", source:"token-contract", confidence:"confirmed"},
     "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4": {label:"veDOLO", type:"protocol"},
     "0x89576fce04dd73933f74bbcd4e6f0d9125118542": {label:"Borrow Position Proxy", type:"protocol", treasury:true},
     "0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d": {label:"Dolomite Margin", type:"protocol", treasury:true},

@@ -34,6 +34,10 @@ GRAPH_ENDPOINTS = {
 
 RECENT_ACTIVITY_DAYS = 30
 
+# Shard full activity files above this many rows (~150k rows ≈ 30 MB JSON)
+# so no single tracked file approaches GitHub's 100 MB hard limit.
+FULL_ACTIVITY_SHARD_ROW_LIMIT = 150_000
+
 DEFAULT_ACTIVITY_SYMBOLS = {
     "USD1",
     "USDC",
@@ -392,11 +396,39 @@ def write_activity_file(
     if write_full:
         chain_dir.mkdir(parents=True, exist_ok=True)
         path = chain_dir / f"{token_id}.json"
-        payload = {
-            **base_payload,
-            "scope": "all",
-            "rows": rows,
-        }
+        if len(rows) > FULL_ACTIVITY_SHARD_ROW_LIMIT:
+            # GitHub hard-limits files at 100 MB; high-volume markets (WBERA,
+            # Arbitrum WETH/USDC) exceed 40-70 MB and keep growing. Write the
+            # main file as a small index plus row shards; the UI concatenates
+            # `rowParts` in order before unpacking.
+            part_names = []
+            for part_no, start in enumerate(range(0, len(rows), FULL_ACTIVITY_SHARD_ROW_LIMIT), start=1):
+                chunk = rows[start:start + FULL_ACTIVITY_SHARD_ROW_LIMIT]
+                part_name = f"{token_id}.part{part_no}.json"
+                part_payload = {
+                    **base_payload,
+                    "scope": "all",
+                    "part": part_no,
+                    "rows": chunk,
+                }
+                (chain_dir / part_name).write_text(
+                    json.dumps(part_payload, separators=(",", ":"), ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+                part_names.append(part_name)
+            payload = {
+                **base_payload,
+                "scope": "all",
+                "rows": [],
+                "rowParts": part_names,
+                "events": len(rows),
+            }
+        else:
+            payload = {
+                **base_payload,
+                "scope": "all",
+                "rows": rows,
+            }
         path.write_text(json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
     recent_payload = {
         **base_payload,

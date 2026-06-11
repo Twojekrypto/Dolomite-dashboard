@@ -17524,6 +17524,20 @@
                 throw new Error(`Static full supply activity unavailable (${res.status})`);
             }
             const raw = await res.json();
+            if (Array.isArray(raw?.rowParts) && raw.rowParts.length) {
+                // Oversized markets are sharded into part files; fetch and
+                // concatenate rows in order before unpacking.
+                const baseDir = staticPath.replace(/[^\/]+$/, '');
+                const partVersion = getSupplyStaticActivityFileVersion(manifestEntry, manifest, 'all');
+                const parts = await Promise.all(raw.rowParts.map(async partName => {
+                    const partRes = await fetch(`${baseDir}${partName}?v=${partVersion}`);
+                    if (!partRes.ok) {
+                        throw new Error(`Static full supply activity part unavailable (${partRes.status})`);
+                    }
+                    return partRes.json();
+                }));
+                raw.rows = parts.flatMap(part => Array.isArray(part?.rows) ? part.rows : []);
+            }
             const generatedAtMs = Date.parse(raw?.generatedAt || manifestEntry.generatedAt || manifest?.generatedAt || '');
             const maxStaticAgeMs = Math.max(1, SUPPLY_ACTIVITY_DEFAULT_DAYS - 2) * 86400000;
             if (!Number.isFinite(generatedAtMs) || Date.now() - generatedAtMs > maxStaticAgeMs) {
