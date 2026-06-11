@@ -28,16 +28,10 @@ ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 CHAIN_ID = 80094  # Berachain
 RPC_URL = "https://rpc.berachain.com/"
 
-# Alchemy RPCs (if available) are used as primary — much higher rate limits
-ALCHEMY_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
-ALCHEMY_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
-RPC_URLS = [
-    *([] if not ALCHEMY_RPC else [ALCHEMY_RPC]),      # Primary: Alchemy #1
-    *([] if not ALCHEMY_RPC_2 else [ALCHEMY_RPC_2]),  # Secondary: Alchemy #2
-    "https://rpc.berachain.com/",
-    "https://berachain-rpc.publicnode.com/",
-    "https://berachain.drpc.org/",
-]
+# Endpoint list comes from the shared client (env-injected Alchemy keys first,
+# then public fallbacks) — single source of truth for RPC endpoints.
+from rpc_client import get_endpoints as _rpc_endpoints
+RPC_URLS = _rpc_endpoints("berachain")
 LOCKED_SELECTOR = "0xb45a3c0e"  # locked(uint256)
 BALANCE_OF_NFT_SELECTOR = "0xe7e242d4"  # balanceOfNFT(uint256) — current vote weight
 BALANCE_OF_SELECTOR = "0x70a08231"  # balanceOf(address) — ERC20

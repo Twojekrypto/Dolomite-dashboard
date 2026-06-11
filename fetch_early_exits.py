@@ -23,6 +23,8 @@ import requests
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from rpc_client import RpcClient, RpcError, get_endpoints as rpc_endpoints
+
 # ===== CONFIG =====
 VEDOLO_CONTRACT = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
 DOLO_TOKEN = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654"
@@ -34,15 +36,9 @@ TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523
 
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 CHAIN_ID = 80094  # Berachain
-ALCHEMY_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
-ALCHEMY_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
-RPC_URLS = [
-    *([] if not ALCHEMY_RPC else [ALCHEMY_RPC]),
-    *([] if not ALCHEMY_RPC_2 else [ALCHEMY_RPC_2]),
-    "https://berachain-rpc.publicnode.com/",
-    "https://berachain.drpc.org/",
-    "https://rpc.berachain.com/",
-]
+# Endpoint list and single-call rotation/retry come from the shared client.
+RPC_URLS = rpc_endpoints("berachain")
+_RPC = RpcClient(endpoints=RPC_URLS, timeout=20)
 ZERO_ADDR = "0x0000000000000000000000000000000000000000"
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -53,27 +49,13 @@ API_KEY = os.environ.get("BERASCAN_API_KEY", "")
 
 
 def rpc_call(method, params, retries=3):
-    """Make an RPC call with fallback across multiple providers."""
-    for rpc_idx, rpc_url in enumerate(RPC_URLS):
-        for attempt in range(retries):
-            try:
-                resp = requests.post(rpc_url, json={
-                    "jsonrpc": "2.0",
-                    "method": method,
-                    "params": params,
-                    "id": 1
-                }, timeout=20)
-                data = resp.json()
-                if "result" in data:
-                    return data["result"]
-                if "error" in data:
-                    if attempt < retries - 1:
-                        time.sleep(0.5 * (attempt + 1))
-                        continue
-            except Exception as e:
-                if attempt < retries - 1:
-                    time.sleep(0.5 * (attempt + 1))
-    return None
+    """Make an RPC call with fallback across multiple providers.
+    Keeps the historical contract: returns None when all endpoints fail."""
+    try:
+        return _RPC.call(method, params)
+    except RpcError as exc:
+        print(f"  ⚠️ RPC {method} failed on all endpoints: {exc}", flush=True)
+        return None
 
 
 def fetch_withdraw_events(start_block=0):
