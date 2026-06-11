@@ -371,6 +371,13 @@ RULES = {
         ],
         "min_bytes": 10_000,
     },
+    "liquidation_history.json": {
+        "required_keys": ["generatedAt", "liquidationHistory"],
+        "checks": [
+            ("liquidationHistory must be a list", lambda d: isinstance(d.get("liquidationHistory"), list)),
+        ],
+        "min_bytes": 100,
+    },
     "exercisers_by_address.json": {
         "required_keys": ["updated", "total_addresses", "exercisers"],
         "checks": [
