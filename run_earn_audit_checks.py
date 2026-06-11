@@ -40,6 +40,8 @@ PYTHON_FILES = [
 JAVASCRIPT_FILES = [
     ROOT / "dolo-address-labels.js",
     ROOT / "earn" / "earn-draft.js",
+    ROOT / "dashboard-core.js",
+    ROOT / "route-loader.js",
 ]
 
 

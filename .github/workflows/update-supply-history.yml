@@ -213,28 +213,52 @@ jobs:
               for path in (token.get("path"), token.get("recentPath"))
               if path
           }
+          def validate_rows(path, rows):
+              last_ts = None
+              for index, row in enumerate(rows):
+                  if not isinstance(row, list) or len(row) < 8:
+                      errors.append(f"{path}: malformed row at {index}")
+                      return
+                  timestamp = int(row[2] or 0)
+                  if timestamp <= 0:
+                      errors.append(f"{path}: missing timestamp at {index}")
+                      return
+                  if last_ts is not None and timestamp > last_ts:
+                      errors.append(f"{path}: rows are not sorted desc at {index}")
+                      return
+                  last_ts = timestamp
+
           for path_text in sorted(manifest_paths):
               path = pathlib.Path(path_text)
               if not path.exists():
                   errors.append(f"{path_text}: manifest path is missing")
                   continue
               payload = json.loads(path.read_text())
-              rows = payload.get("rows") or []
               if payload.get("__supplyActivityCompact") != 1:
                   errors.append(f"{path}: missing compact activity marker")
-              last_ts = None
-              for index, row in enumerate(rows):
-                  if not isinstance(row, list) or len(row) < 8:
-                      errors.append(f"{path}: malformed row at {index}")
-                      break
-                  timestamp = int(row[2] or 0)
-                  if timestamp <= 0:
-                      errors.append(f"{path}: missing timestamp at {index}")
-                      break
-                  if last_ts is not None and timestamp > last_ts:
-                      errors.append(f"{path}: rows are not sorted desc at {index}")
-                      break
-                  last_ts = timestamp
+              row_parts = payload.get("rowParts") or []
+              if row_parts:
+                  # Sharded oversized market: validate every part file instead
+                  # of the (intentionally empty) inline rows.
+                  total_rows = 0
+                  for part_name in row_parts:
+                      part_path = path.parent / part_name
+                      if not part_path.exists():
+                          errors.append(f"{part_path}: rowParts shard is missing")
+                          continue
+                      part_payload = json.loads(part_path.read_text())
+                      if part_payload.get("__supplyActivityCompact") != 1:
+                          errors.append(f"{part_path}: missing compact activity marker")
+                      part_rows = part_payload.get("rows") or []
+                      total_rows += len(part_rows)
+                      validate_rows(part_path, part_rows)
+                  expected = int(payload.get("events") or 0)
+                  if expected and total_rows != expected:
+                      errors.append(
+                          f"{path}: rowParts hold {total_rows} rows but index declares {expected}"
+                      )
+              else:
+                  validate_rows(path, payload.get("rows") or [])
           if errors:
               print("\n".join(errors), file=sys.stderr)
               sys.exit(1)
