@@ -2118,7 +2118,9 @@ const EXT_ICO  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const shorten = a => a.slice(0,6) + "…" + a.slice(-4);
 
 function renderProto(){
-  document.getElementById("proto-addrs").innerHTML = CONTRACTS.map((c,i)=>`
+  const protoEl = document.getElementById("proto-addrs");
+  if (!protoEl) return; // legacy section replaced by shared protocol footer
+  protoEl.innerHTML = CONTRACTS.map((c,i)=>`
     <div class="proto-addr" data-idx="${i}">
       <div class="proto-addr-left">
         <div class="proto-token">
@@ -2166,6 +2168,7 @@ function renderProto(){
    ========================================================================== */
 function setNow(){
   const el = document.getElementById("now");
+  if (!el) return; // legacy footer replaced by shared protocol footer
   const d  = new Date(SNAPSHOT_TS);
   el.textContent = "snapshot " + d.toLocaleString("en-US");
 }
