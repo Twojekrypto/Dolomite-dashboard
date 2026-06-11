@@ -8,8 +8,8 @@ import json, time, os, sys
 import requests
 from datetime import datetime
 
-ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
-ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
+# Single source of truth for endpoints (env-injected Alchemy keys first).
+from rpc_client import get_endpoints as _rpc_endpoints
 
 # ===== CONFIG =====
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654"
@@ -25,23 +25,13 @@ SAFE_SINGLETON_ADDRS = {
 CHAINS = {
     "eth": {
         "name": "Ethereum",
-        "rpcs": [
-            "https://eth.drpc.org/",
-            "https://ethereum-rpc.publicnode.com/",
-            "https://rpc.ankr.com/eth",
-        ],
+        "rpcs": _rpc_endpoints("ethereum"),
         "start_block": 21_000_000,  # DOLO deployed around this block on ETH
         "chunk_size": 50_000,
     },
     "bera": {
         "name": "Berachain",
-        "rpcs": [
-            *([] if not ALCHEMY_BERA_RPC else [ALCHEMY_BERA_RPC]),
-            *([] if not ALCHEMY_BERA_RPC_2 else [ALCHEMY_BERA_RPC_2]),
-            "https://berachain-rpc.publicnode.com/",
-            "https://berachain.drpc.org/",
-            "https://rpc.berachain.com/",
-        ],
+        "rpcs": _rpc_endpoints("berachain"),
         "start_block": 2_925_000,
         "chunk_size": 50_000,
     },
@@ -248,7 +238,7 @@ def verify_top_balances(holders, eth_balances, bera_balances, forced_addrs, max_
     BALANCE_OF_SEL = "0x70a08231"
     RPCs = {
         "eth": "https://eth.drpc.org/",
-        "bera": ALCHEMY_BERA_RPC or "https://berachain-rpc.publicnode.com/",
+        "bera": _rpc_endpoints("berachain")[0],
     }
 
     to_check = holders[:max_check]
@@ -314,7 +304,7 @@ def detect_contracts(holders, max_check=200):
 
     RPC_URLS = [
         ("eth", "https://eth.drpc.org/"),
-        ("bera", ALCHEMY_BERA_RPC or "https://berachain-rpc.publicnode.com/"),
+        ("bera", _rpc_endpoints("berachain")[0]),
     ]
 
     to_check = holders[:max_check]
