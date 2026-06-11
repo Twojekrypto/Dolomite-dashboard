@@ -256,6 +256,11 @@ class DoloAddressLabelsTest(unittest.TestCase):
         inline_map_re = re.compile(r"const\s+(?:ADDR_LABELS|DOLO_ADDR_LABELS)\s*=\s*\{")
         for path in ACTIVE_LABEL_CONSUMERS:
             source = path.read_text(encoding="utf-8")
+            if path.name == "dashboard-core.html":
+                # Main dashboard script was extracted to dashboard-core.js.
+                extracted = ROOT / "dashboard-core.js"
+                if extracted.exists():
+                    source += "\n" + extracted.read_text(encoding="utf-8")
             with self.subTest(path=path.name):
                 self.assertIn("dolo-address-labels.js", source)
                 self.assertIn("cloneDoloAddressLabels", source)

@@ -7,6 +7,10 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_CORE = ROOT / "dashboard-core.html"
+# The dashboard was split into markup + extracted stylesheet/script files;
+# contracts apply to the combined source.
+DASHBOARD_CORE_CSS = ROOT / "dashboard-core.css"
+DASHBOARD_CORE_JS = ROOT / "dashboard-core.js"
 ASSETS_LIVE_BUILDER = ROOT / "scripts" / "build_assets_live.mjs"
 ASSETS_LIVE_WORKFLOW = ROOT / ".github" / "workflows" / "update-assets-live.yml"
 PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
@@ -37,6 +41,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.source = DASHBOARD_CORE.read_text(encoding="utf-8")
+        for extracted in (DASHBOARD_CORE_CSS, DASHBOARD_CORE_JS):
+            if extracted.exists():
+                cls.source += "\n" + extracted.read_text(encoding="utf-8")
 
     def test_borrow_positions_prefer_replay_ledger_for_open_debt_cost(self):
         self.assertIn("function earn_getOpenDebtYieldForAccount", self.source)
