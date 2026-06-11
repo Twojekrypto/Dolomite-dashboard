@@ -1,6 +1,6 @@
 # Dolomite Dashboard — Project State
 
-> **Ostatnia aktualizacja:** 2026-05-07
+> **Ostatnia aktualizacja:** 2026-06-12 (po audycie — patrz `CODE_AUDIT_2026-06-11.md`)
 > **Live:** https://twojekrypto.github.io/Dolomite-dashboard/
 > **Repo:** `Twojekrypto/Dolomite-dashboard` GitHub Pages (branch `master`)
 
@@ -15,11 +15,14 @@ Prezentuje metryki tokenów DOLO, oDOLO, veDOLO — flow analysis, holder tracki
 
 ```
 Dolomite website/
-├── index.html              ← Loader (fetch + document.write → dolo-preview.html)
-├── <route>/index.html      ← Loadery sekcji (dolo, vedolo, odolo, tvl, revenue,
-│                              earn, liquidation, borrow, supply, portfolio, assets)
-├── *-preview.html          ← Właściwe strony sekcji
-├── dashboard-core.html     ← Monolit Earn (~1.9MB, ładowany przez earn/)
+├── index.html              ← Loader (route-loader.js → dolo-preview.html)
+├── <route>/index.html      ← Loadery sekcji: statyczny head (meta/OG) +
+│                              loadDoloRoute(config); wspólna logika w route-loader.js
+├── *-preview.html          ← Właściwe strony sekcji (design tokens w tokens.css)
+├── dashboard-core.html     ← Markup Earn (0.3MB) + dashboard-core.css/.js
+├── route-loader.js         ← Wspólny loader tras (jedyne źródło mobile-nav assets)
+├── tokens.css              ← 25 wspólnych zmiennych Graphite+Gold
+├── rpc_client.py           ← Wspólny klient RPC (endpointy, rotacja, retry)
 │
 ├── *.py                    ← Data pipeline scripts (Python)
 ├── *.json                  ← Generated data files (fetched by HTML)
@@ -67,6 +70,7 @@ Dolomite website/
 ## ⚠️ Kluczowe Reguły
 
 1. **Zawsze czytaj `lessons.md` na starcie sesji** — akumulacja bugów i fixów
+1a. **Ciężkie dane ładowane leniwie:** `dolo_holder_wallet_history.json`, `liquidation_history.json`, sharding `rowParts` w supply-activity — patrz sekcja "Audyt 2026-06-11/12" w `lessons.md`
 2. **CSS changes → verify via `getComputedStyle()` w browser console** — nie ufaj inline styles
 3. **Po zmianie kolumn tabeli → audyt WSZYSTKICH `nth-child` selektorów**
 4. **E-Mode:** Używaj `user.id` (nie `effectiveUser.id`) do `getAccountRiskOverride()`
