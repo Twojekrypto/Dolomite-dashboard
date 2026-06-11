@@ -9,9 +9,6 @@ import json, time, os, sys
 import requests
 from datetime import datetime, timezone
 
-ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
-ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
-ALCHEMY_BERA_RPC_3 = os.environ.get("ALCHEMY_BERACHAIN_RPC_3", "")
 
 # ===== CONFIG =====
 VEDOLO_CONTRACT = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
@@ -30,14 +27,9 @@ TRANSFER_TOPIC = ODOLO_EXERCISE_TOPIC
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ZERO_TOPIC = "0x" + ("0" * 64)
 
-RPC_URLS = [
-    *([] if not ALCHEMY_BERA_RPC else [ALCHEMY_BERA_RPC]),
-    *([] if not ALCHEMY_BERA_RPC_2 else [ALCHEMY_BERA_RPC_2]),
-    *([] if not ALCHEMY_BERA_RPC_3 else [ALCHEMY_BERA_RPC_3]),
-    "https://berachain-rpc.publicnode.com/",
-    "https://berachain.drpc.org/",
-    "https://rpc.berachain.com/",
-]
+# Single source of truth for endpoints (env-injected Alchemy keys first).
+from rpc_client import get_endpoints as _rpc_endpoints
+RPC_URLS = _rpc_endpoints("berachain")
 
 DEPLOY_BLOCK = 2_925_000  # veDOLO contract first events
 CHUNK_SIZE = 50_000

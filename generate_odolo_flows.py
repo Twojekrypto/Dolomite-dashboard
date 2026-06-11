@@ -8,8 +8,6 @@ import json, time, os, sys
 import requests
 from datetime import datetime
 
-ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
-ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
 
 # ===== CONFIG =====
 ODOLO_CONTRACT = "0x02E513b5B54eE216Bf836ceb471507488fC89543".lower()
@@ -73,13 +71,9 @@ EXCLUDED_ADDRS = {
     "0x74d09665900a5f29bac25befd30c73a5962d44e7",
 }
 
-RPC_URLS = [
-    *([] if not ALCHEMY_BERA_RPC else [ALCHEMY_BERA_RPC]),
-    *([] if not ALCHEMY_BERA_RPC_2 else [ALCHEMY_BERA_RPC_2]),
-    "https://berachain-rpc.publicnode.com/",
-    "https://berachain.drpc.org/",
-    "https://rpc.berachain.com/",
-]
+# Single source of truth for endpoints (env-injected Alchemy keys first).
+from rpc_client import get_endpoints as _rpc_endpoints
+RPC_URLS = _rpc_endpoints("berachain")
 
 BLOCK_TIME = 2  # ~2 seconds per block on Berachain
 CHUNK_SIZE = 50_000

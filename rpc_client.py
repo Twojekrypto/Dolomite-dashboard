@@ -26,7 +26,12 @@ BACKOFF_BASE_SECONDS = 0.8
 
 # Secrets injected by GitHub Actions (never hardcode keys here).
 CHAIN_ENV_KEYS = {
-    "berachain": ["ALCHEMY_BERACHAIN_RPC", "ALCHEMY_BERACHAIN_RPC_2"],
+    "berachain": ["ALCHEMY_BERACHAIN_RPC", "ALCHEMY_BERACHAIN_RPC_2", "ALCHEMY_BERACHAIN_RPC_3"],
+    "ethereum": ["ALCHEMY_ETHEREUM_RPC", "ALCHEMY_ETHEREUM_RPC_2", "ALCHEMY_ETHEREUM_RPC_3"],
+    "arbitrum": ["ALCHEMY_ARBITRUM_RPC", "ALCHEMY_ARBITRUM_RPC_2", "ALCHEMY_ARBITRUM_RPC_3"],
+    "mantle": ["ALCHEMY_MANTLE_RPC", "ALCHEMY_MANTLE_RPC_2"],
+    "xlayer": ["ALCHEMY_XLAYER_RPC"],
+    "botanix": ["ALCHEMY_BOTANIX_RPC", "ALCHEMY_BOTANIX_RPC_2", "ALCHEMY_BOTANIX_RPC_3"],
 }
 
 PUBLIC_ENDPOINTS = {
@@ -36,16 +41,26 @@ PUBLIC_ENDPOINTS = {
         "https://berachain.drpc.org/",
     ],
     "ethereum": [
-        "https://eth.llamarpc.com",
-        "https://ethereum-rpc.publicnode.com",
-        "https://eth.drpc.org",
+        "https://eth.drpc.org/",
+        "https://ethereum-rpc.publicnode.com/",
+        "https://rpc.ankr.com/eth",
     ],
     "arbitrum": [
         "https://arb1.arbitrum.io/rpc",
         "https://arbitrum-one-rpc.publicnode.com",
         "https://arbitrum.drpc.org",
     ],
+    "mantle": [
+        "https://rpc.mantle.xyz",
+        "https://mantle-rpc.publicnode.com",
+    ],
+    "xlayer": [
+        "https://rpc.xlayer.tech",
+        "https://xlayerrpc.okx.com",
+    ],
     "botanix": [
+        # lessons.md: prefer rpc.botanixlabs.com for full eth_getLogs ranges;
+        # ankr is a fallback that can reject large ranges.
         "https://rpc.botanixlabs.com",
         "https://rpc.ankr.com/botanix_mainnet",
     ],
