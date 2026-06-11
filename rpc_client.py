@@ -8,8 +8,10 @@ Single source of truth for:
 - mandatory request timeouts,
 - explicit error logging (no silent swallowing).
 
-Pilot consumer: fetch_odolo_contract.py. Other generators (generate_dolo_flows,
-generate_vedolo_flows, fetch_early_exits, …) should migrate gradually — one
+Consumers: fetch_odolo_contract.py, fetch_early_exits.py, update_data.py,
+generate_dolo_holders.py, generate_vedolo_flows.py, generate_odolo_flows.py.
+Remaining multi-chain scripts (generate_reward_claim_events, scan_earn_netflow,
+supply_*/earn_* pipelines) keep their own call helpers for now — migrate one
 script per change, verified against its own workflow/tests (see AGENTS.md).
 """
 

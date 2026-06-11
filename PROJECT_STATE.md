@@ -39,9 +39,12 @@ Dolomite website/
 
 | Strona | Plik | Co robi |
 |---|---|---|
-| **Main Dashboard** | `index.html` | veDOLO holders, DOLO/oDOLO/veDOLO flows, supply metrics, early exits, exercisers |
-| **Liquidation Risk** | `liquidations.html` | Pozycje zagrożone likwidacją, health factor gauge, E-Mode detection |
-| **Protocol Addresses** | `excluded_addresses.html` | Adresy kontraktowe Dolomite z opisami |
+| **Main Dashboard** | `index.html` → `dolo-preview.html` | DOLO holders, flows, fresh wallets, dystrybucja w czasie |
+| **Liquidations/Borrow/Supply** | `liquidation/`, `borrow/`, `supply/` → `liquidation-preview.html` | Pozycje at-risk, health factor, E-Mode, historia likwidacji, supply markets |
+| **Earn** | `earn/` → `dashboard-core.html/.css/.js` | Earnings per wallet, supply/borrow positions, yield |
+| **Pozostałe sekcje** | `vedolo/`, `odolo/`, `tvl/`, `revenue/`, `assets/`, `portfolio/`, `history/` | Dedykowane strony preview per temat |
+
+Adresy kontraktowe protokołu: wspólna stopka (`protocol-footer.js`) na każdej stronie.
 
 ## 🐍 Data Pipeline (Python Scripts)
 

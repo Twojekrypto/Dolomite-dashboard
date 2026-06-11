@@ -5,7 +5,7 @@ description: Verify UI/CSS changes using local server and browser tools
 # UI Check — Verify Visual Changes
 
 ## When to Use
-After any CSS/HTML changes to `index.html`, `liquidations.html`, or `excluded_addresses.html`.
+After any CSS/HTML changes to route loaders (`<route>/index.html`), preview pages (`*-preview.html`), `dashboard-core.html/.css/.js`, `tokens.css`, or `route-loader.js`.
 
 ## Steps
 
@@ -14,8 +14,7 @@ After any CSS/HTML changes to `index.html`, `liquidations.html`, or `excluded_ad
 
 2. Open in browser and navigate to the changed page:
    - Main dashboard: `http://localhost:8080/index.html`
-   - Liquidations: `http://localhost:8080/liquidations.html`
-   - Protocol addresses: `http://localhost:8080/excluded_addresses.html`
+   - Sekcje: `http://localhost:8080/<route>/` (dolo, vedolo, odolo, tvl, revenue, earn, borrow, liquidation, supply, portfolio, assets, history)
 
 3. Wait for data to load (some pages fetch JSON, takes 3-8 seconds)
 

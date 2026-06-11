@@ -1,5 +1,7 @@
 # Audyt bezpieczeństwa — Dolomite Dashboard
 
+> **Re-audyt 2026-06-12 (po kampanii refaktorów): CZYSTO — nic nie wyciekło.** Przeskanowano 22 235 śledzonych plików (w tym wielomegabajtowe JSON-y danych), diff ostatnich 40 commitów, wszystkie nowe pliki (rpc_client.py, route-loader.js, tokens.css, dashboard-core.css/js, pliki lazy/shardowane) i 25 workflowów. Zero sekretów, zero danych osobowych, zero ścieżek lokalnych; słowo "alchemy" nie występuje w żadnym śledzonym pliku — stary wyciek w pełni wyczyszczony, `rpc_source` zawiera wyłącznie hostname. Workflowy: brak `pull_request_target`, brak echo sekretów, least-privilege permissions, secret-guard aktywny na każdy push. Dane portfeli w plikach holderów to jawne dane on-chain (nie wyciek).
+
 Data: 2026-06-10 · Zakres: całe repozytorium `twojekrypto.github.io/Dolomite-dashboard` (wszystkie zakładki, skrypty, dane, workflowy). Wyłączono `node_modules/` i `_old/`.
 
 ## Podsumowanie
