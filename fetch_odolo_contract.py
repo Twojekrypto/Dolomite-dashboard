@@ -9,6 +9,7 @@ import json
 import os
 import requests
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "odolo_contract_data.json")
@@ -121,7 +122,8 @@ def main():
                 "availableTokens": decode_uint256(batch2[2]) / divisor,
                 "decimals": decimals,
                 "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "rpc_source": url,
+                # Store only the provider host, never the full URL (it contains the API key).
+                "rpc_source": urlparse(url).hostname or "rpc",
             }
 
             # Derived
