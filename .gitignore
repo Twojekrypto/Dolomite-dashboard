@@ -15,13 +15,8 @@ patch*.py
 check_*.py
 !check_earn_subaccount_history_consistency.py
 test_*.js
-test_*.py
-!tests/test_earn_dashboard_contracts.py
-!tests/test_dolo_address_labels.py
-!tests/test_fresh_wallets.py
-!tests/test_fetch_dolomite_revenue.py
-!tests/test_history_tax_export_contracts.py
-!tests/test_portfolio_preview_contracts.py
+# Ignore only root-level scratch tests; real tests live in tests/ and are tracked
+/test_*.py
 check_js.html
 *.bak
 dolo_cex_label_audit.json
@@ -49,3 +44,6 @@ data/earn-live-reruns/
 data/earn-subaccount-history-events/
 data/earn-subaccount-history/
 test-results/
+
+# Local Claude settings
+.claude/settings.local.json

@@ -10,6 +10,10 @@ on:
         required: false
         default: '0'
 
+concurrency:
+  group: update-dolo-flows
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -29,7 +33,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests web3
+        run: pip install -r requirements.txt
 
       - name: Check DeBank fallback browser
         run: |

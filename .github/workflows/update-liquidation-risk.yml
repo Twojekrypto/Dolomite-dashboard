@@ -5,6 +5,10 @@ on:
     - cron: '12 * * * *'  # Hourly, staggered
   workflow_dispatch:  # Allow manual trigger
 
+concurrency:
+  group: update-liquidation-risk
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -23,7 +27,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests web3 eth_abi
+        run: pip install -r requirements.txt
 
       - name: Fetch liquidation risk data
         run: python3 fetch_liquidation_risk.py

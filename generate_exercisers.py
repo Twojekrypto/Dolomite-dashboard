@@ -79,8 +79,8 @@ def load_cache():
         try:
             with open(CACHE_FILE) as f:
                 return json.load(f)
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"⚠️ load_cache: failed to read {CACHE_FILE} ({exc}); starting full resync", flush=True)
     return {}
 
 

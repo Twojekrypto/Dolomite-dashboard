@@ -682,8 +682,9 @@ def fetch_live_interest_indices(rpc_url, dolomite_margin_address, interest_indic
                     market_id = market_ids[i]
                     token_id = market_to_token[market_id]
                     
-                    new_borrow = str(borrow_raw / 10**18)
-                    new_supply = str(supply_raw / 10**18)
+                    # Exact decimal strings — no float64 rounding on 18-decimal indices
+                    new_borrow = format(Decimal(borrow_raw).scaleb(-18), "f")
+                    new_supply = format(Decimal(supply_raw).scaleb(-18), "f")
                     
                     old_borrow = interest_indices[token_id]["borrowIndex"]
                     old_supply = interest_indices[token_id]["supplyIndex"]

@@ -50,7 +50,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: python3 -m pip install --upgrade pip requests
+        run: python3 -m pip install --upgrade pip && pip install -r requirements.txt
 
       - name: Restore Arbitrum canonical runtime cache
         uses: actions/cache@v5

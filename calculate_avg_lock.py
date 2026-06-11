@@ -64,7 +64,7 @@ def get_all_exercise_txs():
             "sort": "asc"
         }
 
-        resp = requests.get(ROUTESCAN_API, params=params)
+        resp = requests.get(ROUTESCAN_API, params=params, timeout=30)
         data = resp.json()
 
         if data.get("status") != "1" or not data.get("result"):

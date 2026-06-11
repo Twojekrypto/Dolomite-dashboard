@@ -15,9 +15,11 @@ Prezentuje metryki tokenów DOLO, oDOLO, veDOLO — flow analysis, holder tracki
 
 ```
 Dolomite website/
-├── index.html              ← Main dashboard (~1MB, all-in-one SPA)
-├── liquidations.html       ← Liquidation risk dashboard
-├── excluded_addresses.html ← Protocol addresses reference
+├── index.html              ← Loader (fetch + document.write → dolo-preview.html)
+├── <route>/index.html      ← Loadery sekcji (dolo, vedolo, odolo, tvl, revenue,
+│                              earn, liquidation, borrow, supply, portfolio, assets)
+├── *-preview.html          ← Właściwe strony sekcji
+├── dashboard-core.html     ← Monolit Earn (~1.9MB, ładowany przez earn/)
 │
 ├── *.py                    ← Data pipeline scripts (Python)
 ├── *.json                  ← Generated data files (fetched by HTML)

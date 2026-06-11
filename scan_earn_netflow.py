@@ -259,8 +259,8 @@ def find_first_event_block(rpcs, rpc_idx, contract, latest_block):
             logs = get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS], start, min(start + 49_999, end))
             if logs:
                 return int(logs[0]["blockNumber"], 16)
-        except:
-            pass
+        except Exception as exc:
+            print(f"[find_first_event_block] get_logs failed for range {start}-{min(start + 49_999, end)}: {exc}", flush=True)
         # Quick binary within this 1M chunk
         if end - start > 50_000:
             # Try midpoints in 50k chunks
@@ -269,7 +269,8 @@ def find_first_event_block(rpcs, rpc_idx, contract, latest_block):
                     sub_logs = get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS], s, min(s + 49_999, end))
                     if sub_logs:
                         return int(sub_logs[0]["blockNumber"], 16)
-                except:
+                except Exception as exc:
+                    print(f"[find_first_event_block] get_logs failed for range {s}-{min(s + 49_999, end)}: {exc}", flush=True)
                     continue
         time.sleep(0.1)
     return 0

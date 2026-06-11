@@ -1326,7 +1326,7 @@ async function loadTvlSnapshot(){
   let llamaData = null;
   let officialData = null;
   try { llamaData = await fetchJson("defillama_data.json"); } catch (error) { console.warn("TVL: DeFiLlama static data unavailable", error); }
-  try { officialData = await fetchJson(`dolomite_tvl.json?t=${Date.now()}`); } catch (error) { console.warn("TVL: official Dolomite TVL data unavailable", error); }
+  try { officialData = await fetchJson("dolomite_tvl.json"); } catch (error) { console.warn("TVL: official Dolomite TVL data unavailable", error); }
   if (!llamaData && !officialData) return null;
   return buildTvlSnapshot(llamaData || {}, officialData || null);
 }

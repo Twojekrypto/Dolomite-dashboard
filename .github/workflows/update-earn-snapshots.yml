@@ -5,6 +5,10 @@ on:
     - cron: '22 */6 * * *'  # Every 6 hours, staggered
   workflow_dispatch:
 
+concurrency:
+  group: update-earn-snapshots
+  cancel-in-progress: false
+
 permissions:
   actions: write
   contents: write
