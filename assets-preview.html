@@ -874,7 +874,10 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .calc-preset:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .calc-preset.active{color:var(--bg-0);background:var(--gold);border-color:var(--gold)}
 .calc-mini{margin-top:2px;font-size:10px;color:var(--fg-3);letter-spacing:.4px;line-height:1.6}
-.calc-mini b{font-family:var(--mono);font-weight:600;color:var(--fg-2)}
+.calc-mini b{font-family:var(--mono);font-weight:600;color:var(--fg-3)}
+.calc-mini b.pos{color:var(--profit)}
+.calc-mini b.neg{color:var(--down)}
+.calc-mini b.neu{color:var(--gold-hi)}
 .calc-empty{padding:14px 16px;font-size:11.5px;color:var(--fg-3);background:var(--bg-3);border:1px dashed var(--line-3);border-radius:10px;line-height:1.5}
 .calc-impact{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:120px}
 .calc-impact-label{font-size:8.5px;line-height:1;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:700;white-space:nowrap}
@@ -2158,14 +2161,26 @@ function calcHeroHtml(row, calc, sim){
 function calcMarketDead(row){
   return !(row.tvl > 0) && !(row.lending > 0) && !(row.borrow > 0);
 }
-// One muted line of market mechanics under the hero answer — deltas only.
+// One muted line of market mechanics under the hero answer — deltas only,
+// colored by meaning: green = favourable, red = unfavourable, gold = neutral
+// mechanics (utilization). Zero deltas stay muted to avoid noise.
+function calcMiniDelta(next, prev, kind){
+  const delta = next - prev;
+  let cls = "";
+  if(Math.abs(delta) >= 0.005){
+    if(kind === "util") cls = "neu";
+    else if(kind === "lending") cls = delta > 0 ? "pos" : "neg";
+    else cls = delta < 0 ? "pos" : "neg"; // borrow: cheaper debt = favourable
+  }
+  return `<b class="${cls}">${fmtPpDelta(next, prev)}</b>`;
+}
 function calcMiniHtml(sim){
   if(sim.effectiveAmount <= 0) return "";
   const negligible = Math.abs(sim.newUtil - sim.oldUtil) < 0.005
     && Math.abs(sim.newLending - sim.oldLending) < 0.005
     && Math.abs(sim.newBorrow - sim.oldBorrow) < 0.005;
   if(negligible) return `Market impact · negligible at this size`;
-  return `Market impact · utilization <b>${fmtPpDelta(sim.newUtil, sim.oldUtil)}</b> · lending ${state.mode} <b>${fmtPpDelta(sim.newLending, sim.oldLending)}</b> · borrow ${state.mode} <b>${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}</b>`;
+  return `Market impact · utilization ${calcMiniDelta(sim.newUtil, sim.oldUtil, "util")} · lending ${state.mode} ${calcMiniDelta(sim.newLending, sim.oldLending, "lending")} · borrow ${state.mode} ${calcMiniDelta(sim.newBorrow, sim.oldBorrow, "borrow")}`;
 }
 
 // Historical-rate + utilization-curve charts were removed; only calculator
