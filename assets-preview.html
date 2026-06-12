@@ -873,7 +873,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .calc-preset{padding:6px 10px;font-size:10.5px;font-weight:600;font-family:var(--mono);color:var(--fg-3);background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px;cursor:pointer;transition:color .2s var(--ease),background .2s var(--ease),border-color .2s var(--ease)}
 .calc-preset:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .calc-preset.active{color:var(--bg-0);background:var(--gold);border-color:var(--gold)}
-.calc-note{margin-top:10px;font-size:10px;color:var(--fg-3);letter-spacing:.3px;line-height:1.5}
+.calc-mini{margin-top:2px;font-size:10px;color:var(--fg-3);letter-spacing:.4px;line-height:1.6}
+.calc-mini b{font-family:var(--mono);font-weight:600;color:var(--fg-2)}
 .calc-empty{padding:14px 16px;font-size:11.5px;color:var(--fg-3);background:var(--bg-3);border:1px dashed var(--line-3);border-radius:10px;line-height:1.5}
 .calc-impact{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:120px}
 .calc-impact-label{font-size:8.5px;line-height:1;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:700;white-space:nowrap}
@@ -2148,6 +2149,11 @@ function calcHeroHtml(row, calc, sim){
 function calcMarketDead(row){
   return !(row.tvl > 0) && !(row.lending > 0) && !(row.borrow > 0);
 }
+// One muted line of market mechanics under the hero answer — deltas only.
+function calcMiniHtml(sim){
+  if(sim.effectiveAmount <= 0) return "";
+  return `Market impact · utilization <b>${fmtPpDelta(sim.newUtil, sim.oldUtil)}</b> · lending ${state.mode} <b>${fmtPpDelta(sim.newLending, sim.oldLending)}</b> · borrow ${state.mode} <b>${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}</b>`;
+}
 
 // Historical-rate + utilization-curve charts were removed; only calculator
 // + basic stat breakdown remain in the expanded-row detail panel.
@@ -2447,55 +2453,7 @@ function render(){
 
               <div class="calc-hero" data-calc-hero aria-live="polite">${calcHeroHtml(r, calc, sim)}</div>
 
-              <div class="calc-grid">
-                <div class="calc-row metric-focus util-focus">
-                  <div class="calc-side">
-                    <div class="calc-side-lbl">Utilization · now</div>
-                    <div class="calc-side-val">${r.util.toFixed(2)}%</div>
-                  </div>
-                  <div class="calc-impact ${utilDeltaClass(sim)}" data-tooltip="${impactLabel(calc.action)}: utilization changes by ${fmtPpDelta(sim.newUtil, sim.oldUtil)}">
-                    <span class="calc-impact-label">Utilization change</span>
-                    <span class="calc-delta">${fmtPpDelta(sim.newUtil, sim.oldUtil)}</span>
-                    <svg class="calc-arrow ${sim.utilDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </div>
-                  <div class="calc-side">
-                    <div class="calc-side-lbl" style="text-align:right">Utilization · after</div>
-                    <div class="calc-side-val right">${sim.newUtil.toFixed(2)}%</div>
-                  </div>
-                </div>
-                <div class="calc-row metric-focus lending-focus">
-                  <div class="calc-side">
-                    <div class="calc-side-lbl">Native Lending ${state.mode} · now</div>
-                    <div class="calc-side-val profit">${fmtPct(sim.oldLending)}</div>
-                  </div>
-                  <div class="calc-impact ${lendingDeltaClass(sim)}" data-tooltip="${impactLabel(calc.action)}: native lending ${state.mode} changes by ${fmtPpDelta(sim.newLending, sim.oldLending)}">
-                    <span class="calc-impact-label">Yield change</span>
-                    <span class="calc-delta">${fmtPpDelta(sim.newLending, sim.oldLending)}</span>
-                    <svg class="calc-arrow ${sim.lendingDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </div>
-                  <div class="calc-side">
-                    <div class="calc-side-lbl" style="text-align:right">Native Lending ${state.mode} · after</div>
-                    <div class="calc-side-val right profit">${fmtPct(sim.newLending)}</div>
-                  </div>
-                </div>
-                <div class="calc-row metric-focus borrow-focus">
-                  <div class="calc-side">
-                    <div class="calc-side-lbl">Borrow ${state.mode} · now</div>
-                    <div class="calc-side-val down">${fmtPct(sim.oldBorrow)}</div>
-                  </div>
-                  <div class="calc-impact ${borrowDeltaClass(sim)}" data-tooltip="${impactLabel(calc.action)}: borrow ${state.mode} changes by ${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}">
-                    <span class="calc-impact-label">Cost change</span>
-                    <span class="calc-delta">${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}</span>
-                    <svg class="calc-arrow ${sim.borrowDir}" viewBox="0 0 16 10"><path d="M0 5 L12 5 M9 2 L12 5 L9 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                  </div>
-                  <div class="calc-side">
-                    <div class="calc-side-lbl" style="text-align:right">Borrow ${state.mode} · after</div>
-                    <div class="calc-side-val right down">${fmtPct(sim.newBorrow)}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="calc-note">Market impact above shows how rates move. Only native lending reacts to deposit size — oDOLO rewards${r.yield>0?" and external yield":""} apply on top regardless.</div>
+              <div class="calc-mini" data-calc-mini>${calcMiniHtml(sim)}</div>
 
                 </div>`}
 
@@ -2647,58 +2605,11 @@ function updateCalc(key){
   const sim = simulate(row, calc);
   const sel = Array.from(document.querySelectorAll(".calc")).find(el=>el.dataset.key===key);
   if(!sel) return;
-  const rows = sel.querySelectorAll(".calc-row");
-  // Utilization row
-  rows[0].querySelectorAll(".calc-side-val")[0].textContent = sim.oldUtil.toFixed(2)+"%";
-  rows[0].querySelectorAll(".calc-side-val")[1].textContent = sim.newUtil.toFixed(2)+"%";
-  const utilImpact = rows[0].querySelector(".calc-impact");
-  if(utilImpact){
-    utilImpact.classList.remove("is-up","is-down","is-flat","is-neutral");
-    utilImpact.classList.add(utilDeltaClass(sim));
-    utilImpact.dataset.tooltip = `${impactLabel(calc.action)}: utilization changes by ${fmtPpDelta(sim.newUtil, sim.oldUtil)}`;
-    utilImpact.removeAttribute("title");
-    const impactLbl = utilImpact.querySelector(".calc-impact-label");
-    const deltaLbl = utilImpact.querySelector(".calc-delta");
-    if(impactLbl) impactLbl.textContent = "Utilization change";
-    if(deltaLbl) deltaLbl.textContent = fmtPpDelta(sim.newUtil, sim.oldUtil);
-  }
-  const ar0 = rows[0].querySelector(".calc-arrow");
-  ar0.classList.remove("up-dir","down-dir"); if(sim.utilDir) ar0.classList.add(sim.utilDir);
-  // Native Lending row
-  rows[1].querySelectorAll(".calc-side-val")[0].textContent = fmtPct(sim.oldLending);
-  rows[1].querySelectorAll(".calc-side-val")[1].textContent = fmtPct(sim.newLending);
-  const impact = rows[1].querySelector(".calc-impact");
-  if(impact){
-    impact.classList.remove("is-up","is-down","is-flat");
-    impact.classList.add(lendingDeltaClass(sim));
-    impact.dataset.tooltip = `${impactLabel(calc.action)}: native lending ${state.mode} changes by ${fmtPpDelta(sim.newLending, sim.oldLending)}`;
-    impact.removeAttribute("title");
-    const impactLbl = impact.querySelector(".calc-impact-label");
-    const deltaLbl = impact.querySelector(".calc-delta");
-    if(impactLbl) impactLbl.textContent = "Yield change";
-    if(deltaLbl) deltaLbl.textContent = fmtPpDelta(sim.newLending, sim.oldLending);
-  }
-  const ar1 = rows[1].querySelector(".calc-arrow");
-  ar1.classList.remove("up-dir","down-dir"); if(sim.lendingDir) ar1.classList.add(sim.lendingDir);
-  // Borrow row
-  rows[2].querySelectorAll(".calc-side-val")[0].textContent = fmtPct(sim.oldBorrow);
-  rows[2].querySelectorAll(".calc-side-val")[1].textContent = fmtPct(sim.newBorrow);
-  const borrowImpact = rows[2].querySelector(".calc-impact");
-  if(borrowImpact){
-    borrowImpact.classList.remove("is-up","is-down","is-flat");
-    borrowImpact.classList.add(borrowDeltaClass(sim));
-    borrowImpact.dataset.tooltip = `${impactLabel(calc.action)}: borrow ${state.mode} changes by ${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}`;
-    borrowImpact.removeAttribute("title");
-    const impactLbl = borrowImpact.querySelector(".calc-impact-label");
-    const deltaLbl = borrowImpact.querySelector(".calc-delta");
-    if(impactLbl) impactLbl.textContent = "Cost change";
-    if(deltaLbl) deltaLbl.textContent = fmtPpDelta(sim.newBorrow, sim.oldBorrow);
-  }
-  const ar2 = rows[2].querySelector(".calc-arrow");
-  ar2.classList.remove("up-dir","down-dir"); if(sim.borrowDir) ar2.classList.add(sim.borrowDir);
-  // Hero answer + preset active state
+  // Simplified layout: hero answer + one muted mechanics line + preset state.
   const hero = sel.querySelector("[data-calc-hero]");
   if(hero) hero.innerHTML = calcHeroHtml(row, calc, sim);
+  const mini = sel.querySelector("[data-calc-mini]");
+  if(mini) mini.innerHTML = calcMiniHtml(sim);
   sel.querySelectorAll(".calc-preset").forEach(btn=>{
     btn.classList.toggle("active", +btn.dataset.preset === +calc.amount);
   });
