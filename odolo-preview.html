@@ -2392,15 +2392,21 @@ function _discHitTest(mx, my){
 
 function _showDiscTip(d, e){
   const c = DISC_COLOURS[d.tier];
-  const dev = d.discount - d.expected;
+  const hasRealized = d.realized !== null && d.realized !== undefined;
+  const shown = hasRealized ? d.realized : d.discount;
+  const dev = shown - d.expected;
   const devStr = (dev >= 0 ? "+" : "") + dev.toFixed(1) + "%";
   const devClr = dev >= 0 ? "#a8c499" : "#d99586";
+  const clamped = hasRealized && (d.realized < 0 || d.realized > 55);
+  const priceRows = hasRealized && d.paid !== null && d.market !== null ? `
+    <div class="tt-row"><span>Paid / veDOLO</span><b>${fmtPrice(d.paid)}</b></div>
+    <div class="tt-row"><span>Market ${d.date || ""}</span><b>${fmtPrice(d.market)}</b></div>` : "";
   DISC_TIP.innerHTML = `
     <div class="tt-h"><span class="swatch" style="background:${c}"></span>${DISC_TIER_LABELS[d.tier]}</div>
     <div class="tt-row"><span>Lock</span><b>${fmtLock(d.days)}</b></div>
-    <div class="tt-row"><span>Realized</span><b style="color:${c}">${d.discount.toFixed(1)}%</b></div>
+    <div class="tt-row"><span>Realized</span><b style="color:${c}">${shown.toFixed(1)}%${clamped ? " (poza skalą)" : ""}</b></div>
     <div class="tt-row"><span>Theoretical</span><b>${d.expected.toFixed(1)}%</b></div>
-    <div class="tt-row"><span>Δ vs theory</span><b style="color:${devClr}">${devStr}</b></div>
+    <div class="tt-row"><span>Δ vs theory</span><b style="color:${devClr}">${devStr}</b></div>${priceRows}
     <div class="tt-row"><span>Paid</span><b>${"$" + fmtNum(d.usd)}</b></div>
   `;
   DISC_TIP.style.display = "block";
@@ -3642,17 +3648,34 @@ function syncLiveFlowsForPeriod(){
 function syncLiveDiscountCurve(){
   const json = LIVE.exercisers;
   if(!json) return;
+  const prices = LIVE.priceHistory?.prices || null;
   const dots = [];
+  let priced = 0;
   (json.exercisers || []).forEach(item => {
     (item.txs || []).forEach(tx => {
       const usd = txUsd(tx);
       const days = Number(tx.lock_days);
+      const vedolo = Number(tx.vedolo) || 0;
       if(!usd || !days) return;
       const expected = theoreticalDiscount(days);
-      dots.push({ days, discount: expected, usd, tier:tierForUsd(usd), expected });
+      // Realized discount: what the buyer actually got vs the market price
+      // of DOLO on the exercise day (1 - paid_per_veDOLO / market_price).
+      let discount = expected, realized = null, paid = null, market = null;
+      if(prices && vedolo > 0 && tx.date && prices[tx.date]){
+        market = Number(prices[tx.date]);
+        paid = usd / vedolo;
+        if(market > 0){
+          realized = (1 - paid / market) * 100;
+          discount = Math.max(0, Math.min(55, realized));
+          priced += 1;
+        }
+      }
+      dots.push({ days, discount, usd, tier:tierForUsd(usd), expected, realized, paid, market, date:tx.date });
     });
   });
   if(dots.length) applyRows(DISC_DATA, dots);
+  const meta = document.querySelector("#disc-card .card-meta, .disc-meta");
+  if(meta && priced) meta.innerHTML = `<span class="pulse"></span>Lock days vs realized discount · ${priced.toLocaleString()} priced vs daily DOLO market price`;
 }
 
 function renderAll(){
@@ -3684,6 +3707,14 @@ async function initOdoloPage(){
     LIVE.exercisers = exercisers;
     LIVE.flows = flows;
     LIVE.loaded = true;
+    // Daily DOLO price history powers the realized-discount curve. Loaded
+    // separately with its own catch — missing prices degrade gracefully to
+    // the theoretical curve instead of failing the whole page.
+    fetchJson("dolo_price_history.json").then(history => {
+      LIVE.priceHistory = history;
+      syncLiveDiscountCurve();
+      drawDiscountCurve();
+    }).catch(error => console.warn("DOLO price history unavailable — curve stays theoretical:", error));
     state.exPeriod = "all";
     state.flowsPeriod = "7d";
     cbState.period = "all";
