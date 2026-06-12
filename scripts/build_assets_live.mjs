@@ -318,6 +318,10 @@ async function fetchRateRowsForChain(chainKey) {
     const sym = token.tokenSymbol || "UNKNOWN";
     const addr = String(token.tokenAddress || "").toLowerCase();
     const parts = parseYieldParts(row.outsideSupplyInterestRateParts);
+    // Borrow-side outside parts: borrowing a yield-bearing asset (wstETH,
+    // weETH, mETH, …) means owing its staking yield too — the base borrow
+    // rate alone understates the true cost by ~2-3pp on LST markets.
+    const borrowParts = parseYieldParts(row.outsideBorrowInterestRateParts);
     rows.push({
       key: `${chainKey}:${addr || String(token.marketId || sym).toLowerCase()}`,
       sym,
@@ -333,6 +337,9 @@ async function fetchRateRowsForChain(chainKey) {
       yieldSources: parts.sources,
       lending: cleanNumber(decimalToNumber(row.supplyInterestRate) * 100, 10),
       borrow: cleanNumber(decimalToNumber(row.borrowInterestRate) * 100, 10),
+      borrowYield: cleanNumber(borrowParts.external + borrowParts.odolo, 10),
+      borrowYieldSources: borrowParts.sources,
+      borrowTotal: cleanNumber(decimalToNumber(row.totalBorrowInterestRate) * 100, 10),
       supplyApr: cleanNumber(decimalToNumber(row.totalSupplyInterestRate) * 100, 10),
       lowerOptimalApr: cleanNumber(decimalToNumber(row.lowerOptimalRate) * 100, 10),
       upperOptimalApr: cleanNumber(decimalToNumber(row.upperOptimalRate) * 100, 10),

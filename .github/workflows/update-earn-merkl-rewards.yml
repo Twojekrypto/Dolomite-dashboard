@@ -35,6 +35,35 @@ jobs:
       - name: Install check dependencies
         run: python3 -m pip install --upgrade pip && pip install -r requirements.txt
 
+      - name: Guard — detect Merkl campaigns outside the eligible-market list
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request
+          from build_earn_merkl_rewards_cache import ELIGIBLE_MARKETS
+          CHAINS = {"ethereum": 1, "arbitrum": 42161, "berachain": 80094,
+                    "botanix": 3637, "mantle": 5000, "polygonzkevm": 1101, "xlayer": 196}
+          missing = []
+          for chain, cid in CHAINS.items():
+              url = f"https://api.dolomite.io/tokens/{cid}/interest-rates?exclude-odolo=false"
+              req = urllib.request.Request(url, headers={"User-Agent": "dolomite-dashboard-ci"})
+              try:
+                  with urllib.request.urlopen(req, timeout=25) as resp:
+                      payload = json.load(resp)
+              except Exception as exc:
+                  print(f"::warning title=Merkl guard::{chain}: API unreachable ({exc})")
+                  continue
+              eligible = {a.lower() for a in (ELIGIBLE_MARKETS.get(chain) or {})}
+              for row in payload.get("interestRates", []):
+                  token = row.get("token") or {}
+                  addr = str(token.get("tokenAddress") or "").lower()
+                  for part in (row.get("outsideSupplyInterestRateParts") or []):
+                      if "merkl" in str(part.get("label") or "").lower() and addr not in eligible:
+                          missing.append((chain, token.get("tokenSymbol"), addr, part.get("label")))
+          for m in missing:
+              print(f"::warning title=New Merkl campaign not in ELIGIBLE_MARKETS::{m}")
+          print("Merkl guard:", f"{len(missing)} uncovered campaign(s)" if missing else "all campaigns covered")
+          PY
+
       - name: Build Ethereum MERKL rewards cache
         run: |
           python3 build_earn_merkl_rewards_cache.py \
