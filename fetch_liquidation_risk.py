@@ -19,6 +19,18 @@ import urllib.request
 import urllib.error
 from decimal import Decimal, getcontext
 
+
+def sanitize_symbol(value):
+    """HTML-escape token symbols/names at the pipeline boundary.
+
+    Subgraph token metadata is deployer-controlled; the frontend interpolates
+    these strings into innerHTML, so neutralize markup here once instead of
+    auditing every render site (legit symbols are unaffected).
+    """
+    return (str(value or "")
+            .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            .replace('"', "&quot;").replace("'", "&#39;"))
+
 getcontext().prec = 50
 
 # ─── Configuration ────────────────────────────────────────────────────────────
@@ -356,7 +368,7 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
     
     for tv in token_values:
         token_id = tv["token"]["id"]
-        symbol = tv["token"]["symbol"]
+        symbol = sanitize_symbol(tv["token"]["symbol"])
         decimals = int(tv["token"].get("decimals", "18"))
         market_id = tv["token"].get("marketId", "-1")
         value_par = Decimal(tv["valuePar"])
@@ -872,7 +884,7 @@ def fetch_chain_data(chain_key, chain_config):
         market_risk_infos[token_id] = {
             "marginPremium": info["marginPremium"],
             "liquidationRewardPremium": info["liquidationRewardPremium"],
-            "symbol": info["token"]["symbol"],
+            "symbol": sanitize_symbol(info["token"]["symbol"]),
             "isBorrowingDisabled": info.get("isBorrowingDisabled", False),
         }
     print(f"     Found {len(market_risk_infos)} markets with risk info")
@@ -1137,6 +1149,16 @@ def fetch_chain_liquidation_history(chain_key, chain_config):
     return rows
 
 
+def load_previous_snapshot(path):
+    """Load a previously committed output JSON (for stale-chain fallback)."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
 def build_liquidation_history_stats(rows):
     by_chain = {}
     for row in rows:
@@ -1398,7 +1420,9 @@ def main():
     chain_params = {}
     all_market_supply = {}
     all_liquidations = []
-    
+    failed_chains = []
+    failed_history_chains = []
+
     for chain_key, chain_config in CHAINS.items():
         try:
             result = fetch_chain_data(chain_key, chain_config)
@@ -1409,17 +1433,59 @@ def main():
                 # Merge market supply data across chains
                 for sym, usd in result.get("marketSupply", {}).items():
                     all_market_supply[sym] = round(all_market_supply.get(sym, 0) + usd, 2)
+            else:
+                # Empty subgraph response also drops the chain from output.
+                failed_chains.append(chain_key)
         except Exception as e:
             print(f"\n  ❌ Error fetching {chain_config['label']}: {e}")
             import traceback
             traceback.print_exc()
+            failed_chains.append(chain_key)
         try:
             all_liquidations.extend(fetch_chain_liquidation_history(chain_key, chain_config))
         except Exception as e:
             print(f"\n  ❌ Error fetching liquidation history for {chain_config['label']}: {e}")
             import traceback
             traceback.print_exc()
-    
+            failed_history_chains.append(chain_key)
+
+    # Stale-chain fallback: a failed subgraph must not erase the whole chain
+    # from the published files. Carry the chain's data over from the previous
+    # snapshot and mark it stale instead.
+    stale_chains = []
+    if failed_chains:
+        previous = load_previous_snapshot(OUTPUT_FILE)
+        prev_stats = previous.get("chainStats") or {}
+        prev_params = previous.get("chainParams") or {}
+        prev_positions = previous.get("positions") or []
+        for chain_key in failed_chains:
+            if chain_key not in prev_stats:
+                print(f"::warning::chain {chain_key} failed and has no previous snapshot data to fall back to")
+                continue
+            stats = dict(prev_stats[chain_key])
+            stats["stale"] = True
+            chain_stats[chain_key] = stats
+            if chain_key in prev_params:
+                chain_params[chain_key] = prev_params[chain_key]
+            carried = [p for p in prev_positions if p.get("chain") == chain_key]
+            all_positions.extend(carried)
+            stale_chains.append(chain_key)
+            print(f"::warning::chain {chain_key} served from previous snapshot ({len(carried)} positions)")
+        # Note: marketSupply is aggregated per symbol across chains, so the
+        # failed chain's share cannot be carried over; it stays fresh-only.
+    if failed_history_chains:
+        prev_history = load_previous_snapshot(HISTORY_FILE)
+        prev_rows = prev_history.get("liquidationHistory") or []
+        for chain_key in failed_history_chains:
+            carried_rows = [r for r in prev_rows if r.get("chain") == chain_key]
+            if not carried_rows:
+                print(f"::warning::chain {chain_key} history failed and has no previous snapshot rows")
+                continue
+            all_liquidations.extend(carried_rows)
+            if chain_key not in stale_chains:
+                stale_chains.append(chain_key)
+            print(f"::warning::chain {chain_key} liquidation history served from previous snapshot ({len(carried_rows)} rows)")
+
     # Sort all positions by HF
     all_positions.sort(key=lambda x: x["healthFactor"] if x["healthFactor"] is not None else 999)
     all_liquidations.sort(key=lambda x: (x.get("timestamp") or 0, safe_float(x.get("serialId"), 0)), reverse=True)
@@ -1452,6 +1518,9 @@ def main():
         },
         "chainStats": chain_stats,
         "chainParams": chain_params,
+        # Chains whose data was carried over from the previous snapshot
+        # because their subgraph failed this run (see stale-chain fallback).
+        "staleChains": stale_chains,
         "marketSupply": all_market_supply,
         "liquidationHistoryStats": build_liquidation_history_stats(all_liquidations),
         # Events moved to HISTORY_FILE (lazy-loaded); marker tells the UI where.

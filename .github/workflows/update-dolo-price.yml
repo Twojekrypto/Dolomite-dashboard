@@ -45,8 +45,10 @@ jobs:
           git add dolo_price.json dolo_price_history.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update DOLO price: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          pushed=false
           for i in 1 2 3; do
-            git pull --rebase -X theirs origin master && git push && break
+            if git pull --rebase -X theirs origin master && git push; then pushed=true; break; fi
             echo "⚠️ Push attempt $i failed, retrying..."
             sleep 5
           done
+          if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts — data NOT published"; exit 1; fi

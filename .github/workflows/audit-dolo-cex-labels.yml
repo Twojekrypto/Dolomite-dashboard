@@ -66,9 +66,11 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "🔎 CEX label audit summary $(date -u '+%Y-%m-%d')"
+            pushed=false
             for i in 1 2 3; do
-              git pull --rebase -X theirs origin master && git push origin master && break
+              if git pull --rebase -X theirs origin master && git push origin master; then pushed=true; break; fi
               echo "⚠️ Push attempt $i failed, retrying..."
               sleep 5
             done
+            if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts — data NOT published"; exit 1; fi
           fi

@@ -272,8 +272,10 @@ jobs:
           git add data/supply-history data/supply-activity config/supply_activity_static_tokens.json generate_supply_history.py generate_supply_activity.py
           git diff --staged --quiet && echo "No supply history changes to commit" && exit 0
           git commit -m "📊 Refresh Supply history - $(date -u '+%Y-%m-%d %H:%M UTC')"
+          pushed=false
           for i in 1 2 3; do
-            git pull --rebase -X theirs origin master && git push && break
-            echo "Push attempt $i failed, retrying..."
+            if git pull --rebase -X theirs origin master && git push; then pushed=true; break; fi
+            echo "⚠️ Push attempt $i failed, retrying..."
             sleep 5
           done
+          if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts — data NOT published"; exit 1; fi

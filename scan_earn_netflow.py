@@ -479,8 +479,15 @@ def load_progress(chain_id):
     """Load scanning progress for a chain."""
     progress_file = PROGRESS_DIR / f"{chain_id}.json"
     if progress_file.exists():
-        with open(progress_file) as f:
-            data = json.load(f)
+        try:
+            with open(progress_file) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            # Corrupted progress (e.g. truncated write persisted by cache).
+            # Loudly fall back to a full rescan instead of crashing every run.
+            print(f"  ⚠️ Progress file for {chain_id} is corrupted ({exc}); "
+                  "starting from empty progress (full rescan)")
+            return _empty_progress()
         if data.get("version") != PROGRESS_VERSION:
             legacy = _empty_progress()
             legacy["last_block"] = int(data.get("last_block", 0))
@@ -696,10 +703,18 @@ def decode_log_entries(log):
 
 
 def save_progress(chain_id, progress):
-    """Save scanning progress."""
+    """Save scanning progress atomically (tmp + rename).
+
+    The runner can be killed mid-write (hard timeout/OOM); a truncated progress
+    file would be persisted by the always()-cache step and poison every
+    subsequent run of this chain until a manual reset.
+    """
     PROGRESS_DIR.mkdir(parents=True, exist_ok=True)
-    with open(PROGRESS_DIR / f"{chain_id}.json", "w") as f:
+    path = PROGRESS_DIR / f"{chain_id}.json"
+    tmp = path.with_suffix(".json.tmp")
+    with open(tmp, "w") as f:
         json.dump(progress, f)
+    os.replace(tmp, path)
 
 
 def apply_cycle_metadata(netflows, cycle_market_state):
