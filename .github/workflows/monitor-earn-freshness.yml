@@ -21,7 +21,9 @@ jobs:
       PYTHONUNBUFFERED: '1'
       GH_TOKEN: ${{ github.token }}
       EARN_DISPATCH_PAGES_AFTER_PUSH: ${{ github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]' && 'true' || 'false' }}
-      EARN_WATCHDOG_MAX_DISPATCHES: '4'
+      # 4 chains can be simultaneously stale (arbitrum/mantle/xlayer + ethereum
+      # coverage catchup) — budget must cover all of them plus headroom.
+      EARN_WATCHDOG_MAX_DISPATCHES: '6'
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
       ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
       ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}

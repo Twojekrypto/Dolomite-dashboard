@@ -443,9 +443,48 @@ def _bootstrap_baseline(args: argparse.Namespace, selected_addresses: List[str])
     )
 
 
+def _incremental_prior_cycle_complete(args: argparse.Namespace) -> bool:
+    """Probe the current incremental cycle status without mutating it.
+
+    Returns True when there is no resumable work (no cycle, or the prior
+    cycle finished) — i.e. it is safe to lock a fresh plan onto the current
+    head block. Returns False when an incomplete cycle exists and should be
+    RESUMED instead of rebuilt.
+
+    Why this matters: rebuilding the plan on every scheduled run re-locks
+    target_block to the live head and creates a brand-new cycleRoot, which
+    orphans all partial scan/backfill progress. Chains whose work exceeds a
+    single CI window (Arbitrum/Mantle) could then never converge — observed
+    in production as canonical lag growing for weeks despite 30-minute crons.
+    """
+    argv = [
+        "python3",
+        "run_earn_subaccount_history_incremental.py",
+        "status",
+        "--chain",
+        args.chain,
+        "--selection-address-file",
+        str(args.selection_address_file),
+        "--history-dir",
+        str(args.history_dir),
+        "--json",
+    ]
+    try:
+        status = _run_json(argv, timeout_seconds=args.command_timeout_seconds)
+    except Exception as exc:  # probe failure → fall back to legacy behavior
+        print(f"⚠️ incremental status probe failed ({exc}); defaulting to fresh plan", flush=True)
+        return True
+    if not isinstance(status, dict) or not status:
+        return True
+    return bool(status.get("complete"))
+
+
 def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]) -> dict:
     complete = False
     payload: Optional[dict] = None
+    start_fresh_plan = _incremental_prior_cycle_complete(args)
+    if not start_fresh_plan:
+        print(f"♻️ {args.chain}: resuming incomplete incremental cycle (no plan rebuild)", flush=True)
     for step in range(max(1, int(args.max_steps))):
         argv = [
             "python3",
@@ -465,7 +504,7 @@ def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]
             str(args.max_new_backfill_workers),
             "--json",
         ]
-        if step == 0:
+        if step == 0 and start_fresh_plan:
             argv.append("--refresh-plan")
         try:
             payload = _run_json(argv, timeout_seconds=args.command_timeout_seconds)
