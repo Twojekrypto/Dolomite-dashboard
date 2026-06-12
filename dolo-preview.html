@@ -1093,11 +1093,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
                 <span class="rw-dot-src watch"></span>
                 <div class="rw-name">Potential custody/MM</div>
               </div>
-              <div class="rw-item active" data-type="mm">
-                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src mm"></span>
-                <div class="rw-name">Market makers</div>
-              </div>
               <div class="rw-item active" data-type="bot">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src bot"></span>
@@ -1225,11 +1220,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src watch"></span>
                 <div class="rw-name">Potential custody/MM</div>
-              </div>
-              <div class="rw-item active" data-type="mm">
-                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src mm"></span>
-                <div class="rw-name">Market makers</div>
               </div>
               <div class="rw-item active" data-type="bot">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1570,7 +1560,11 @@ const HOLDERS = [
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
 const TYPE_LABELS = {eoa:"EOA", multisig:"Safe", ca:"CA", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
-const ADDRESS_TYPES = Object.keys(TYPE_LABELS);
+// MM wallets are filtered together with "Potential custody/MM" (watch) —
+// one dropdown entry controls both; row tags still show the precise type.
+const TYPE_FILTER_ALIAS = {mm: "watch"};
+const typeFilterKey = (t)=> TYPE_FILTER_ALIAS[t] || t;
+const ADDRESS_TYPES = Object.keys(TYPE_LABELS).filter(t=>!(t in TYPE_FILTER_ALIAS));
 const TYPE_TIPS = {
   eoa: "Externally Owned Account — regular wallet",
   multisig: "Smart contract wallet / multisig controlled by user signers",
@@ -3913,7 +3907,7 @@ function filterHolders({includeSearch = true} = {}){
     // rows that don't have any balance on the chosen chain
     if(state.chain === "ethereum"  && h.balEth  === 0) return false;
     if(state.chain === "berachain" && h.balBera === 0) return false;
-    if(!state.types.has(h.type)) return false;
+    if(!state.types.has(typeFilterKey(h.type))) return false;
     if(q && !h.addr.toLowerCase().includes(q) && !(h.label||"").toLowerCase().includes(q)) return false;
     return true;
   });
@@ -4165,7 +4159,7 @@ function syncFlowSpacerHeight(tbody, kind, dataRowSelector, spacerSelector, expe
 function renderFlow(target, kind){
   const q = state.qFlows.trim().toLowerCase();
   let rows = FLOWS
-    .filter(r=>state.flowsTypes.has(r.type))
+    .filter(r=>state.flowsTypes.has(typeFilterKey(r.type)))
     .map(r=>({...r, chg: effectiveChg(r)}))
     .filter(r=> kind==="acc" ? r.chg > 0 : r.chg < 0);
   rows = sortFlowRows(rows, kind);
