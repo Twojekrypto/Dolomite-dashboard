@@ -908,6 +908,30 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 .dleg-row .pct{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
 .dleg-row .amt{font-family:var(--mono);font-size:10.5px;color:var(--fg-3);font-variant-numeric:tabular-nums}
 
+/* ====== REALIZED VS THEORY ====== */
+.rvt-body{display:flex;flex-direction:column;gap:14px}
+.rvt-summary{display:flex;gap:10px;flex-wrap:wrap}
+.rvt-chip{display:inline-flex;align-items:baseline;gap:7px;padding:8px 14px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px}
+.rvt-chip b{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums}
+.rvt-chip b.pos{color:var(--profit, #75b87b)}
+.rvt-chip b.neg{color:var(--down)}
+.rvt-chip span{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:600}
+.rvt-rows{display:flex;flex-direction:column;gap:4px}
+.rvt-row{display:grid;grid-template-columns:150px 1fr 120px;align-items:center;gap:12px;padding:7px 12px;background:transparent;border:1px solid transparent;border-radius:9px;cursor:pointer;text-align:left;transition:background .2s var(--ease),border-color .2s var(--ease);font:inherit;color:inherit}
+.rvt-row:hover,.rvt-row:focus-visible{background:rgba(255,255,255,.025);border-color:var(--line-2);outline:0}
+.rvt-row.active{background:var(--gold-wash);border-color:var(--gold-line)}
+.rvt-row-lbl{font-size:11.5px;color:var(--fg-2);letter-spacing:.2px}
+.rvt-bar{display:block;height:14px;background:var(--bg-3);border-radius:4px;overflow:hidden;border:1px solid var(--line-1)}
+.rvt-bar > span{display:block;height:100%;border-radius:3px;transition:width .35s var(--ease)}
+.rvt-row.pos .rvt-bar > span{background:linear-gradient(90deg,rgba(117,184,123,.45),#75b87b)}
+.rvt-row.neg .rvt-bar > span{background:linear-gradient(90deg,rgba(180,121,107,.45),var(--down))}
+.rvt-row.neu .rvt-bar > span{background:linear-gradient(90deg,rgba(201,162,39,.4),var(--gold))}
+.rvt-row-val{font-family:var(--mono);font-size:12px;color:var(--fg-1);text-align:right;font-variant-numeric:tabular-nums}
+.rvt-row-val small{color:var(--fg-3);margin-left:6px}
+.rvt-focus{padding:10px 14px;font-size:11px;color:var(--fg-3);background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;line-height:1.6;min-height:20px}
+.rvt-focus b{font-family:var(--mono);color:var(--fg-1)}
+@media (max-width:720px){.rvt-row{grid-template-columns:110px 1fr 90px}}
+
 /* ====== DISCOUNT CURVE ====== */
 .disc-body{padding:22px 24px 24px}
 .disc-shell{position:relative;height:340px;border:1px solid var(--line-2);border-radius:var(--r-md);background:var(--bg-1);overflow:hidden}
@@ -1258,6 +1282,22 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       </div>
     </div>
     <div class="disc3-tooltip" id="disc-tooltip"></div>
+  </section>
+
+  <!-- REALIZED VS THEORY -->
+  <section class="card" id="odolo-realized-section" hidden>
+    <div class="card-head">
+      <div class="card-title">
+        <h2>Realized vs Theory</h2>
+        <span class="count-badge" id="rvt-count">—</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span>Paid price vs DOLO market price on exercise day</div>
+    </div>
+    <div class="rvt-body">
+      <div class="rvt-summary" id="rvt-summary"></div>
+      <div class="rvt-rows" id="rvt-rows"></div>
+      <div class="rvt-focus" id="rvt-focus" aria-live="polite"></div>
+    </div>
   </section>
 
   <!-- CLAIMER BREAKDOWN TABLE -->
@@ -2392,21 +2432,15 @@ function _discHitTest(mx, my){
 
 function _showDiscTip(d, e){
   const c = DISC_COLOURS[d.tier];
-  const hasRealized = d.realized !== null && d.realized !== undefined;
-  const shown = hasRealized ? d.realized : d.discount;
-  const dev = shown - d.expected;
+  const dev = d.discount - d.expected;
   const devStr = (dev >= 0 ? "+" : "") + dev.toFixed(1) + "%";
   const devClr = dev >= 0 ? "#a8c499" : "#d99586";
-  const clamped = hasRealized && (d.realized < 0 || d.realized > 55);
-  const priceRows = hasRealized && d.paid !== null && d.market !== null ? `
-    <div class="tt-row"><span>Paid / veDOLO</span><b>${fmtPrice(d.paid)}</b></div>
-    <div class="tt-row"><span>Market ${d.date || ""}</span><b>${fmtPrice(d.market)}</b></div>` : "";
   DISC_TIP.innerHTML = `
     <div class="tt-h"><span class="swatch" style="background:${c}"></span>${DISC_TIER_LABELS[d.tier]}</div>
     <div class="tt-row"><span>Lock</span><b>${fmtLock(d.days)}</b></div>
-    <div class="tt-row"><span>Realized</span><b style="color:${c}">${shown.toFixed(1)}%${clamped ? " (poza skalą)" : ""}</b></div>
+    <div class="tt-row"><span>Realized</span><b style="color:${c}">${d.discount.toFixed(1)}%</b></div>
     <div class="tt-row"><span>Theoretical</span><b>${d.expected.toFixed(1)}%</b></div>
-    <div class="tt-row"><span>Δ vs theory</span><b style="color:${devClr}">${devStr}</b></div>${priceRows}
+    <div class="tt-row"><span>Δ vs theory</span><b style="color:${devClr}">${devStr}</b></div>
     <div class="tt-row"><span>Paid</span><b>${"$" + fmtNum(d.usd)}</b></div>
   `;
   DISC_TIP.style.display = "block";
@@ -3648,34 +3682,106 @@ function syncLiveFlowsForPeriod(){
 function syncLiveDiscountCurve(){
   const json = LIVE.exercisers;
   if(!json) return;
-  const prices = LIVE.priceHistory?.prices || null;
   const dots = [];
-  let priced = 0;
   (json.exercisers || []).forEach(item => {
     (item.txs || []).forEach(tx => {
       const usd = txUsd(tx);
       const days = Number(tx.lock_days);
-      const vedolo = Number(tx.vedolo) || 0;
       if(!usd || !days) return;
       const expected = theoreticalDiscount(days);
-      // Realized discount: what the buyer actually got vs the market price
-      // of DOLO on the exercise day (1 - paid_per_veDOLO / market_price).
-      let discount = expected, realized = null, paid = null, market = null;
-      if(prices && vedolo > 0 && tx.date && prices[tx.date]){
-        market = Number(prices[tx.date]);
-        paid = usd / vedolo;
-        if(market > 0){
-          realized = (1 - paid / market) * 100;
-          discount = Math.max(0, Math.min(55, realized));
-          priced += 1;
-        }
-      }
-      dots.push({ days, discount, usd, tier:tierForUsd(usd), expected, realized, paid, market, date:tx.date });
+      dots.push({ days, discount: expected, usd, tier:tierForUsd(usd), expected });
     });
   });
   if(dots.length) applyRows(DISC_DATA, dots);
-  const meta = document.querySelector("#disc-card .card-meta, .disc-meta");
-  if(meta && priced) meta.innerHTML = `<span class="pulse"></span>Lock days vs realized discount · ${priced.toLocaleString()} priced vs daily DOLO market price`;
+}
+
+/* ============================================================
+   REALIZED VS THEORY — bucketed deviation of realized discount
+   (1 - paid/market on exercise day) from the theoretical schedule.
+   Rendered as the dashboard's focusable KPI-row pattern.
+============================================================ */
+const RVT_BUCKETS = [
+  {key:"beat10", label:"Beat theory by 10+ pp", min:10,  max:Infinity, cls:"pos"},
+  {key:"beat5",  label:"Beat by 5–10 pp",       min:5,   max:10,       cls:"pos"},
+  {key:"beat1",  label:"Beat by 1–5 pp",        min:1,   max:5,        cls:"pos"},
+  {key:"ontrack",label:"On schedule (±1 pp)",   min:-1,  max:1,        cls:"neu"},
+  {key:"miss1",  label:"Worse by 1–5 pp",       min:-5,  max:-1,       cls:"neg"},
+  {key:"miss5",  label:"Worse by 5–10 pp",      min:-10, max:-5,       cls:"neg"},
+  {key:"miss10", label:"Worse by 10+ pp",       min:-Infinity, max:-10, cls:"neg"},
+];
+let RVT_ACTIVE = null;
+
+function collectRealizedDeltas(){
+  const prices = LIVE.priceHistory?.prices;
+  const json = LIVE.exercisers;
+  if(!prices || !json) return [];
+  const out = [];
+  (json.exercisers || []).forEach(item => {
+    (item.txs || []).forEach(tx => {
+      const usd = txUsd(tx);
+      const vedolo = Number(tx.vedolo) || 0;
+      const days = Number(tx.lock_days);
+      const market = tx.date ? Number(prices[tx.date]) : 0;
+      if(!usd || !vedolo || !days || !(market > 0)) return;
+      const paid = usd / vedolo;
+      const realized = (1 - paid / market) * 100;
+      out.push({ delta: realized - theoreticalDiscount(days), realized, paid, market, usd, days, date: tx.date });
+    });
+  });
+  return out;
+}
+
+function rvtFocusHtml(bucket, rows, total){
+  if(!rows.length) return "Brak exercises w tym przedziale.";
+  const sorted = [...rows].sort((a,b)=>a.delta-b.delta);
+  const med = sorted[Math.floor(sorted.length/2)];
+  const usdSum = rows.reduce((s,r)=>s+r.usd,0);
+  return `<b>${bucket.label}</b> · ${rows.length.toLocaleString()} exercises (${(rows.length/total*100).toFixed(1)}%) · ` +
+    `volume <b>$${fmtNum(usdSum)}</b> · median Δ <b>${(med.delta>=0?"+":"")}${med.delta.toFixed(1)} pp</b> ` +
+    `(realized <b>${med.realized.toFixed(1)}%</b> @ ${med.date}, paid <b>${fmtPrice(med.paid)}</b> vs market <b>${fmtPrice(med.market)}</b>)`;
+}
+
+function renderRealizedPanel(){
+  const section = document.getElementById("odolo-realized-section");
+  if(!section) return;
+  const data = collectRealizedDeltas();
+  if(data.length < 20){ section.hidden = true; return; }
+  section.hidden = false;
+  const total = data.length;
+  const beat = data.filter(d=>d.delta>=0).length;
+  const sorted = [...data].sort((a,b)=>a.delta-b.delta);
+  const medianDelta = sorted[Math.floor(total/2)].delta;
+  document.getElementById("rvt-count").textContent = `${total.toLocaleString()} priced exercises`;
+  document.getElementById("rvt-summary").innerHTML = `
+    <span class="rvt-chip"><b class="${beat/total>=0.5?"pos":"neg"}">${(beat/total*100).toFixed(0)}%</b><span>met or beat theory</span></span>
+    <span class="rvt-chip"><b class="${medianDelta>=0?"pos":"neg"}">${(medianDelta>=0?"+":"")}${medianDelta.toFixed(1)} pp</b><span>median vs theory</span></span>
+    <span class="rvt-chip"><b>${fmtPrice(LIVE.priceHistory?.prices?.[Object.keys(LIVE.priceHistory.prices).pop()] || 0)}</b><span>DOLO market now</span></span>`;
+  const grouped = RVT_BUCKETS.map(b => ({bucket:b, rows:data.filter(d=>d.delta>=b.min && d.delta<b.max)}));
+  const maxCount = Math.max(...grouped.map(g=>g.rows.length), 1);
+  document.getElementById("rvt-rows").innerHTML = grouped.map(g => `
+    <button type="button" class="rvt-row ${g.bucket.cls} ${RVT_ACTIVE===g.bucket.key?"active":""}" data-rvt="${g.bucket.key}">
+      <span class="rvt-row-lbl">${g.bucket.label}</span>
+      <span class="rvt-bar"><span style="width:${(g.rows.length/maxCount*100).toFixed(1)}%"></span></span>
+      <span class="rvt-row-val">${g.rows.length.toLocaleString()}<small>${(g.rows.length/total*100).toFixed(1)}%</small></span>
+    </button>`).join("");
+  const focus = document.getElementById("rvt-focus");
+  const showFocus = key => {
+    const g = grouped.find(x=>x.bucket.key===key);
+    if(g) focus.innerHTML = rvtFocusHtml(g.bucket, g.rows, total);
+  };
+  section.querySelectorAll("[data-rvt]").forEach(btn => {
+    const key = btn.dataset.rvt;
+    btn.addEventListener("mouseenter", ()=>{ if(!RVT_ACTIVE) showFocus(key); });
+    btn.addEventListener("focus", ()=>{ if(!RVT_ACTIVE) showFocus(key); });
+    btn.addEventListener("click", ()=>{
+      RVT_ACTIVE = RVT_ACTIVE===key ? null : key;
+      section.querySelectorAll("[data-rvt]").forEach(b=>b.classList.toggle("active", b.dataset.rvt===RVT_ACTIVE));
+      showFocus(RVT_ACTIVE || key);
+    });
+  });
+  // Default focus: the largest bucket
+  const biggest = grouped.reduce((a,b)=>b.rows.length>a.rows.length?b:a, grouped[0]);
+  showFocus(biggest.bucket.key);
 }
 
 function renderAll(){
@@ -3707,14 +3813,13 @@ async function initOdoloPage(){
     LIVE.exercisers = exercisers;
     LIVE.flows = flows;
     LIVE.loaded = true;
-    // Daily DOLO price history powers the realized-discount curve. Loaded
-    // separately with its own catch — missing prices degrade gracefully to
-    // the theoretical curve instead of failing the whole page.
+    // Daily DOLO price history powers the separate "Realized vs Theory"
+    // panel. Loaded with its own catch — when missing, the panel simply
+    // stays hidden and the rest of the page is unaffected.
     fetchJson("dolo_price_history.json").then(history => {
       LIVE.priceHistory = history;
-      syncLiveDiscountCurve();
-      drawDiscountCurve();
-    }).catch(error => console.warn("DOLO price history unavailable — curve stays theoretical:", error));
+      renderRealizedPanel();
+    }).catch(error => console.warn("DOLO price history unavailable — realized panel hidden:", error));
     state.exPeriod = "all";
     state.flowsPeriod = "7d";
     cbState.period = "all";
