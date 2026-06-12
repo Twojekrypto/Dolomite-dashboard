@@ -2315,7 +2315,7 @@ function render(){
     else if(key==="price"){va=a.price;vb=b.price}
     else if(key==="supply"){va=a._supply;vb=b._supply}
     else if(key==="marketSupply"){va=assetMarketSupply(a);vb=assetMarketSupply(b)}
-    else if(key==="borrow"){va=a.borrow;vb=b.borrow}
+    else if(key==="borrow"){va=(a.borrowTotal ?? a.borrow);vb=(b.borrowTotal ?? b.borrow)}
     if(typeof va==="string") return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
     return dir==="asc"?va-vb:vb-va;
   });
@@ -2341,6 +2341,11 @@ function render(){
   tb.innerHTML = rows.map(r=>{
     const supply = state.mode==="APY" ? aprToApy(r._supply) : r._supply;
     const borrow = state.mode==="APY" ? aprToApy(r.borrow) : r.borrow;
+    // Effective borrow cost: base rate + the borrowed asset's own yield
+    // (staking APR on LSTs) — what the borrower actually owes.
+    const borrowEff = r.borrowYield > 0
+      ? (state.mode==="APY" ? aprToApy((r.borrowTotal ?? (r.borrow + r.borrowYield))) : (r.borrowTotal ?? (r.borrow + r.borrowYield)))
+      : borrow;
     const chain = chainMeta(r.chain);
     const keyId = marketKey(r);
     const addrUrl = explorerUrl(r);
@@ -2389,7 +2394,12 @@ function render(){
             <div class="apy-lines">${lineHTML}</div>
           </div>
         </td>
-        <td class="num"><span class="bw-val">${fmtPct(borrow)}</span></td>
+        <td class="num">
+          <div class="apy-cell">
+            <div class="bw-val">${fmtPct(borrowEff)}</div>
+            ${r.borrowYield > 0 ? `<div class="apy-lines">Base ${fmtPct(borrow)} · ${(r.borrowYieldSources?.[0]?.label || "Asset yield")} ${fmtRate(r.borrowYield)}</div>` : ""}
+          </div>
+        </td>
         <td class="details-cell" style="padding-right:32px">${toggleHTML}</td>
       </tr>
     `;
