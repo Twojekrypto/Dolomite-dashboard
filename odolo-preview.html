@@ -1740,7 +1740,9 @@ const fmtTokenFull = n => {
 };
 const avgExercisePrice = r => {
   const usdc = Number(r.usdc);
-  const vedolo = Number(r.vedolo);
+  // Pair USDC with the veDOLO from USDC-paid exercises only — mixing in
+  // DOLO-paid veDOLO would understate the realized price.
+  const vedolo = Number(r.usdcVedolo ?? r.vedolo);
   return Number.isFinite(usdc) && Number.isFinite(vedolo) && vedolo > 0 ? usdc / vedolo : 0;
 };
 const fmtPrice = n => n > 0 ? "$" + n.toFixed(n >= 1 ? 2 : 4) : "—";
@@ -3522,7 +3524,10 @@ function syncLiveMetrics(){
   setMetricText("hero-holders", data.holders ? Number(data.holders).toLocaleString() : "-");
   setText("hero-holders-sub", "unique wallets");
   setMetricText("hero-exercised-usd", usd.total_usdc ? fmtUsd(Number(usd.total_usdc)) : "-");
-  setText("hero-exercised-sub", usd.total_txs ? `${Number(usd.total_txs).toLocaleString()} exercises` : "exercise volume");
+  // Volume is USDC-paid only; the exercise count covers BOTH methods
+  // (USDC- and DOLO-paid) via avg_lock_data's full scan.
+  const allExercises = Number(lock.total_exercises) || Number(usd.total_txs) || 0;
+  setText("hero-exercised-sub", allExercises ? `${allExercises.toLocaleString()} exercises · USDC volume` : "USDC exercise volume");
   if(avgMonths){
     setMetricHtml("hero-avg-lock", avgMonths.toFixed(1), "", `<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span>`);
     setText("hero-avg-lock-sub", `${Math.round(avgDays)} days avg lock`);
@@ -3592,9 +3597,13 @@ function syncLiveExercisersForPeriod(){
   const cutoff = periodCutoff(state.exPeriod);
   const rows = (json.exercisers || []).map(item => {
     const meta = addressMeta(item.address);
-    const txs = (item.txs || []).filter(tx => tx.paid_token !== "DOLO" && (!cutoff || (tx.date && tx.date >= cutoff)));
+    // Both exercise methods count: USDC-paid and DOLO-paid. USDC columns sum
+    // only the USDC legs; veDOLO/lock stats cover every exercise.
+    const txs = (item.txs || []).filter(tx => !cutoff || (tx.date && tx.date >= cutoff));
     if(cutoff && !txs.length) return null;
-    const usdc = cutoff ? sum(txs, txUsd) : (Number(item.total_usdc) || sum(txs, txUsd));
+    const usdcTxs = txs.filter(tx => tx.paid_token !== "DOLO");
+    const usdc = sum(usdcTxs, txUsd);
+    const usdcVedolo = sum(usdcTxs, txVedolo);
     const vedolo = sum(txs, txVedolo);
     const lockDays = txs.length ? sum(txs, tx => Number(tx.lock_days) || 0) / txs.length : (Number(item.avg_lock_days) || 0);
     return {
@@ -3602,6 +3611,7 @@ function syncLiveExercisersForPeriod(){
       label:meta.label,
       type:meta.type,
       usdc,
+      usdcVedolo,
       vedolo,
       exercises:txs.length || Number(item.exercises) || 0,
       lockDays,

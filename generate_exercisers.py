@@ -30,9 +30,13 @@ USDC_E_CONTRACT = "0x549943e04f40284185054145c6e4e9568c1d3241".lower()
 ODOLO_CONTRACT = "0x02e513b5b54ee216bf836ceb471507488fc89543".lower()
 DOLO_CONTRACT = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-EXERCISE_METHOD_ID = "0xa88f8139"
-EXERCISE_METHOD_ID_2 = "0xf3621c90"  # newer exercise variant (DOLO-based, no USDC.e)
-EXERCISE_METHOD_IDS = {EXERCISE_METHOD_ID, EXERCISE_METHOD_ID_2}
+# Shared single source of truth for exercise detection (both methods).
+from odolo_exercises import (
+    EXERCISE_METHOD_USDC as EXERCISE_METHOD_ID,
+    EXERCISE_METHOD_DOLO as EXERCISE_METHOD_ID_2,
+    EXERCISE_METHOD_IDS,
+    extract_lock_duration_days,
+)
 USDC_DECIMALS = 6
 ODOLO_DECIMALS = 18
 
@@ -120,30 +124,9 @@ def get_all_transactions():
     return all_txs
 
 
-def extract_lock_duration(tx):
-    """Extract lock duration in days from tx input data."""
-    inp = tx["input"]
-    method_id = tx.get("methodId", inp[:10])
-    params_hex = inp[10:]
-
-    if method_id == EXERCISE_METHOD_ID_2:
-        # 0xf3621c90: param[0] = lock_duration in SECONDS (e.g. 604800 = 7 days)
-        if len(params_hex) < 64:
-            return None
-        duration_seconds = int(params_hex[0:64], 16)
-        if duration_seconds <= 0 or duration_seconds > 3 * 365 * 86400:
-            return None
-        return round(duration_seconds / 86400, 1)
-    else:
-        # 0xa88f8139: param[2] = lock_end timestamp
-        if len(params_hex) < 3 * 64:
-            return None
-        lock_end = int(params_hex[2*64:3*64], 16)
-        tx_time = int(tx["timeStamp"])
-        duration_seconds = lock_end - tx_time
-        if duration_seconds <= 0 or duration_seconds > 3 * 365 * 86400:
-            return None
-        return round(duration_seconds / 86400, 1)
+# Lock-duration extraction lives in odolo_exercises (shared with
+# calculate_avg_lock.py; handles both exercise methods).
+extract_lock_duration = extract_lock_duration_days
 
 
 def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
@@ -163,7 +146,7 @@ def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
                     delay = (2 ** attempt)
                     time.sleep(delay)
                     continue
-                return None, None
+                return None, None, None
 
             usdc_amount = None
             odolo_amount = None
@@ -288,7 +271,9 @@ def main():
                 "odolo": round(odolo_amount, 2) if odolo_amount else None,
                 "lock_days": lock_days,
                 "dolo_paid": round(dolo_amount, 2) if dolo_amount else None,
-                "paid_token": "DOLO" if (dolo_amount and not usdc_amount) else "USDC.e",
+                # Classify by the tx's method id (authoritative), not by which
+                # transfer logs happened to be found in the receipt.
+                "paid_token": "DOLO" if str(tx.get("methodId") or tx.get("input", "")[:10]) == "0xf3621c90" else "USDC.e",
             }
         else:
             errors += 1
@@ -323,7 +308,9 @@ def main():
                     "odolo": round(odolo_amount, 2) if odolo_amount else None,
                     "lock_days": lock_days,
                     "dolo_paid": round(dolo_amount, 2) if dolo_amount else None,
-                    "paid_token": "DOLO" if (dolo_amount and not usdc_amount) else "USDC.e",
+                    # Classify by the tx's method id (authoritative), not by which
+                # transfer logs happened to be found in the receipt.
+                "paid_token": "DOLO" if str(tx.get("methodId") or tx.get("input", "")[:10]) == "0xf3621c90" else "USDC.e",
                 }
 
             if (i + 1) % 25 == 0 or i == len(failed_txs) - 1:

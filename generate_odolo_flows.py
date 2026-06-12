@@ -280,13 +280,14 @@ def get_top(flows, tx_counts, n, mode="accumulator", excluded=None):
     """Get top N accumulators or sellers, excluding known contracts."""
     if excluded is None:
         excluded = set()
+    # 0.005 floor: float dust passes `> 0` and then rounds to a "0.00" row.
     if mode == "accumulator":
         sorted_addrs = sorted(flows.items(), key=lambda x: x[1], reverse=True)
-        filtered = [(addr, val) for addr, val in sorted_addrs if val > 0 and addr not in excluded]
+        filtered = [(addr, val) for addr, val in sorted_addrs if val >= 0.005 and addr not in excluded]
     else:
         # For sellers: flows values are gross outflows (positive = more sold)
         sorted_addrs = sorted(flows.items(), key=lambda x: x[1], reverse=True)
-        filtered = [(addr, val) for addr, val in sorted_addrs if val > 0 and addr not in excluded]
+        filtered = [(addr, val) for addr, val in sorted_addrs if val >= 0.005 and addr not in excluded]
 
     result = []
     for addr, net in filtered[:n]:
