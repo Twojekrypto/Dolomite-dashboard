@@ -15,12 +15,8 @@ from rpc_client import get_endpoints as _rpc_endpoints
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654"
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ZERO = "0x0000000000000000000000000000000000000000"
-SAFE_SINGLETON_ADDRS = {
-    "0x41675c099f32341bf84bfc5382af534df5c7461a",  # Safe 1.4.1
-    "0xd9db270c1b5e3bd161e8c8503c55ceabee709552",  # Gnosis Safe 1.3.0
-    "0x3e5c63644e683549055b9be8653de26e0b4cd36e",  # Gnosis Safe 1.1.1
-    "0x29fcb43b46531bca003ddc8fcb67ffe91900c762",  # Gnosis Safe L2
-}
+# Single source of truth for Safe singleton addresses (all versions).
+from safe_wallets import SAFE_SINGLETON_ADDRS
 
 CHAINS = {
     "eth": {
