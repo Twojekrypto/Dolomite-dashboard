@@ -263,6 +263,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
     current = start_block
     chunks_done = 0
     chunks_failed = 0
+    skipped_ranges = []  # [start, end] of block ranges lost to persistent RPC failure
 
     while current <= end_block:
         chunk_end = min(current + chunk_size - 1, end_block)
@@ -316,7 +317,8 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                 print(f"    ⚠️ Retrying block {current:,} with smaller chunk ({chunk_size:,} blocks)")
                 continue
             chunks_failed += 1
-            print(f"    ⚠️ Failed at block {current}, skipping chunk ({chunks_failed} failures so far)")
+            skipped_ranges.append([current, chunk_end])
+            print(f"    ⚠️ Failed at block {current}, skipping chunk {current}-{chunk_end} ({chunks_failed} failures so far)")
             current = chunk_end + 1
             continue
 
@@ -340,8 +342,15 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
     if chunks_failed > 0:
         fail_pct = chunks_failed * 100 // max(total_chunks_attempted, 1)
         print(f"  ⚠️ {cfg['name']}: {chunks_failed}/{total_chunks_attempted} chunks FAILED ({fail_pct}%)")
+        print(f"     skipped block ranges: {skipped_ranges[:10]}{' …' if len(skipped_ranges) > 10 else ''}")
         if fail_pct > 50:
             print(f"  🚨 {cfg['name']}: >50% chunk failure rate! Data may be incomplete.")
+    if state is not None and skipped_ranges:
+        # Persist gaps so they are visible across runs and can be re-scanned;
+        # mid-range gaps are NOT covered by the start-block coverage check.
+        gaps = state.setdefault(f"skipped_ranges_{chain_key}", [])
+        gaps.extend(skipped_ranges)
+        del gaps[:-200]  # keep the list bounded
 
     print(f"  ✅ {cfg['name']}: {len(all_transfers):,} transfers found")
     return all_transfers, chunks_failed, total_chunks_attempted
@@ -433,7 +442,7 @@ def neutralize_cross_chain_flows(flows_by_chain):
     """
     chain_keys = list(flows_by_chain.keys())
     if len(chain_keys) < 2:
-        return flows_by_chain, 0
+        return flows_by_chain, 0, 0.0
     
     # Collect all addresses that appear on multiple chains
     all_addrs = set()
@@ -1750,12 +1759,14 @@ def get_top(flows, tx_counts, n, mode="accumulator", excluded=None):
     """Get top N accumulators or sellers, excluding known contracts."""
     if excluded is None:
         excluded = set()
+    # 0.005 floor: float dust (e.g. neutralization residue of 0.004 DOLO)
+    # passes a bare `> 0` check and then rounds to a misleading "0.00" row.
     if mode == "accumulator":
         sorted_addrs = sorted(flows.items(), key=lambda x: x[1], reverse=True)
-        filtered = [(addr, val) for addr, val in sorted_addrs if val > 0 and addr not in excluded]
+        filtered = [(addr, val) for addr, val in sorted_addrs if val >= 0.005 and addr not in excluded]
     else:
         sorted_addrs = sorted(flows.items(), key=lambda x: x[1])
-        filtered = [(addr, abs(val)) for addr, val in sorted_addrs if val < 0 and addr not in excluded]
+        filtered = [(addr, abs(val)) for addr, val in sorted_addrs if val <= -0.005 and addr not in excluded]
 
     result = []
     for addr, net in filtered[:n]:
@@ -1814,13 +1825,18 @@ def main():
     dolo_price = get_dolo_price()
     print(f"\n💰 DOLO Price: ${dolo_price:.4f}" if dolo_price else "\n⚠️ Could not fetch DOLO price")
 
-    # Get current blocks for each chain
+    # Get current blocks for each chain. Back off a small confirmation buffer
+    # from the live tip: logs at the head can reorg out, and cached transfers
+    # are never invalidated (no tx-hash dedup), so scanning the unstable tip
+    # risks counting a transfer that later disappears.
+    REORG_BUFFER_BLOCKS = {"eth": 5, "bera": 15}
     print("\n📡 Getting current block numbers...")
     current_blocks = {}
     for chain_key, cfg in CHAINS.items():
         blk = get_current_block(cfg["rpcs"])
-        current_blocks[chain_key] = blk
-        print(f"  {cfg['name']}: block {blk:,}")
+        buffered = max(cfg.get("deploy_block", 0), blk - REORG_BUFFER_BLOCKS.get(chain_key, 10))
+        current_blocks[chain_key] = buffered
+        print(f"  {cfg['name']}: block {blk:,} (scanning to {buffered:,}, reorg buffer)")
 
     # Calculate cutoff blocks for each period
     cutoff_blocks = {}
