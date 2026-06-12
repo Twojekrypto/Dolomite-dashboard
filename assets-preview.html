@@ -857,8 +857,24 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 .calc-row.metric-focus .calc-arrow{width:26px;height:16px;opacity:.9;color:var(--metric-value)}
 .calc-row.lending-focus{order:-3;--metric-rgb:117,184,123;--metric-value:var(--profit-hi)}
-.calc-row.borrow-focus{order:-2;--metric-rgb:180,121,107;--metric-value:#d29689}
-.calc-row.util-focus{order:-1;--metric-rgb:201,162,39;--metric-value:var(--gold-hi)}
+.calc-row.borrow-focus{order:-1;--metric-rgb:180,121,107;--metric-value:#d29689;opacity:.62;transition:opacity .25s var(--ease)}
+.calc-row.borrow-focus:hover,.calc-row.borrow-focus:focus-within{opacity:1}
+.calc-row.util-focus{order:-2;--metric-rgb:201,162,39;--metric-value:var(--gold-hi)}
+/* Hero answer — the user-level result shown before market mechanics */
+.calc-hero{padding:12px 16px;margin-bottom:12px;background:linear-gradient(135deg,var(--gold-wash),rgba(255,255,255,.015));border:1px solid var(--gold-line);border-radius:10px}
+.calc-hero-line{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.calc-hero-line.muted{color:var(--fg-3);font-size:12px}
+.calc-hero-amt{font-family:var(--mono);font-size:13px;color:var(--fg-2);font-weight:600;font-variant-numeric:tabular-nums}
+.calc-hero-verb{font-size:11px;color:var(--fg-3);letter-spacing:.2px}
+.calc-hero-earn{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--gold-hi);font-variant-numeric:tabular-nums}
+.calc-hero-earn.down{color:var(--down)}
+.calc-hero-sub{margin-top:4px;font-size:10.5px;color:var(--fg-3);letter-spacing:.3px}
+.calc-presets{display:inline-flex;gap:6px}
+.calc-preset{padding:6px 10px;font-size:10.5px;font-weight:600;font-family:var(--mono);color:var(--fg-3);background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px;cursor:pointer;transition:color .2s var(--ease),background .2s var(--ease),border-color .2s var(--ease)}
+.calc-preset:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.calc-preset.active{color:var(--bg-0);background:var(--gold);border-color:var(--gold)}
+.calc-note{margin-top:10px;font-size:10px;color:var(--fg-3);letter-spacing:.3px;line-height:1.5}
+.calc-empty{padding:14px 16px;font-size:11.5px;color:var(--fg-3);background:var(--bg-3);border:1px dashed var(--line-3);border-radius:10px;line-height:1.5}
 .calc-impact{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:120px}
 .calc-impact-label{font-size:8.5px;line-height:1;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:700;white-space:nowrap}
 .calc-delta{
@@ -2103,6 +2119,36 @@ function simulate(row, calc){
   };
 }
 
+// Hero answer: translate the simulation into the user-level outcome
+// ("what would I earn per year"), consistent with the Supply column
+// (rateForMode over the raw APR sum; oDOLO/yield extras don't react to size).
+function calcHero(row, sim){
+  const extrasRaw = (state.rw.odolo ? row.odolo : 0) + (state.rw.yield ? row.yield : 0);
+  const totalAfter = rateForMode(lendingAt(row, sim.newUtil) + extrasRaw);
+  const totalNow = rateForMode(row.lending + extrasRaw);
+  return { totalAfter, totalNow, annual: sim.effectiveAmount * totalAfter / 100 };
+}
+function calcHeroHtml(row, calc, sim){
+  if(sim.effectiveAmount <= 0){
+    return `<div class="calc-hero-line muted">Enter an amount to simulate ${calc.action==="withdraw" ? "a withdrawal" : "a deposit"}.</div>`;
+  }
+  const h = calcHero(row, sim);
+  const isW = calc.action === "withdraw";
+  const capped = sim.effectiveAmount < sim.requested
+    ? ` · capped at ${isW ? "available liquidity" : "remaining supply cap"} ${fmtCmp(sim.effectiveAmount)}`
+    : "";
+  return `
+    <div class="calc-hero-line">
+      <span class="calc-hero-amt">${fmtCmp(sim.effectiveAmount)}</span>
+      <span class="calc-hero-verb">${isW ? "withdrawn → you'd give up" : "deposited → you'd earn"}</span>
+      <span class="calc-hero-earn${isW ? " down" : ""}">≈ ${fmtCmp(Math.abs(h.annual))}/yr</span>
+    </div>
+    <div class="calc-hero-sub">at ${fmtPct(h.totalAfter)} total supply ${state.mode} after the ${isW ? "withdrawal" : "deposit"} (now ${fmtPct(h.totalNow)})${capped}</div>`;
+}
+function calcMarketDead(row){
+  return !(row.tvl > 0) && !(row.lending > 0) && !(row.borrow > 0);
+}
+
 // Historical-rate + utilization-curve charts were removed; only calculator
 // + basic stat breakdown remain in the expanded-row detail panel.
 
@@ -2357,12 +2403,22 @@ function render(){
                 </div>
 
                 <!-- CALCULATOR -->
+                ${calcMarketDead(r) ? `
+                <div class="calc" data-key="${keyId}">
+                  <div class="calc-head">
+                    <div class="calc-title">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
+                      Yield Simulator
+                    </div>
+                  </div>
+                  <div class="calc-empty">No active lending in this market yet — there are no rates to simulate. Check back once the market has supply or borrow activity.</div>
+                </div>` : `
                 <div class="calc" data-key="${keyId}">
               <div class="calc-head">
                 <div class="calc-title">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="13" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="13" y1="18" x2="16" y2="18"/></svg>
-                  Yield Calculator
-                  <span class="calc-help" tabindex="0" aria-label="Yield calculator note" data-tooltip="Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.">?
+                  Yield Simulator
+                  <span class="calc-help" tabindex="0" aria-label="Yield simulator note" data-tooltip="Only the native lending portion of APR reacts to utilization changes. Any oDOLO rewards${r.yield>0?" and external yield":""} apply on top and don't depend on your deposit.">?
                   </span>
                 </div>
                 <div class="calc-controls">
@@ -2382,9 +2438,14 @@ function render(){
                       </button>
                     </div>
                   </div>
+                  <div class="calc-presets">
+                    ${[1000,10000,100000].map(v=>`<button class="calc-preset ${+calc.amount===v?"active":""}" data-preset="${v}">$${v/1000}K</button>`).join("")}
+                  </div>
                   <button class="calc-max" data-calc-max>MAX</button>
                 </div>
               </div>
+
+              <div class="calc-hero" data-calc-hero aria-live="polite">${calcHeroHtml(r, calc, sim)}</div>
 
               <div class="calc-grid">
                 <div class="calc-row metric-focus util-focus">
@@ -2434,7 +2495,9 @@ function render(){
                 </div>
               </div>
 
-                </div>
+              <div class="calc-note">Market impact above shows how rates move. Only native lending reacts to deposit size — oDOLO rewards${r.yield>0?" and external yield":""} apply on top regardless.</div>
+
+                </div>`}
 
               </div>
             </div>
@@ -2550,6 +2613,14 @@ function render(){
       btn.addEventListener("click", e=>e.stopPropagation());
     });
 
+    cl.querySelectorAll(".calc-preset").forEach(btn=>{
+      btn.addEventListener("click", e=>{
+        e.stopPropagation();
+        calc.amount = +btn.dataset.preset || 0;
+        if(input) input.value = calc.amount;
+        updateCalc(key);
+      });
+    });
     const maxBtn = cl.querySelector("[data-calc-max]");
     if(maxBtn){
       maxBtn.addEventListener("click", e=>{
@@ -2625,6 +2696,12 @@ function updateCalc(key){
   }
   const ar2 = rows[2].querySelector(".calc-arrow");
   ar2.classList.remove("up-dir","down-dir"); if(sim.borrowDir) ar2.classList.add(sim.borrowDir);
+  // Hero answer + preset active state
+  const hero = sel.querySelector("[data-calc-hero]");
+  if(hero) hero.innerHTML = calcHeroHtml(row, calc, sim);
+  sel.querySelectorAll(".calc-preset").forEach(btn=>{
+    btn.classList.toggle("active", +btn.dataset.preset === +calc.amount);
+  });
 }
 
 /* ==========================================================================
