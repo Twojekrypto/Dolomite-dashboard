@@ -1258,9 +1258,9 @@ function buildLockedHistory(){
   const snapshotDay = lockedChartDaySecFromMs(snapshotMs);
   if(currentLocked > 0){
     if(points.length){
-      const derived = points[points.length - 1][1];
-      const ratio = derived > 0 ? currentLocked / derived : 0;
-      if(ratio >= .85 && ratio <= 1.15) points = points.map(([t,v]) => [t, v * ratio]);
+      // lessons.md contract: normalize ONLY the endpoint to the live
+      // total_locked_dolo — never rescale the whole history (that invents
+      // historical values; the event reconstruction is already ~0.2% exact).
       if(points[points.length - 1][0] >= snapshotDay) points[points.length - 1][1] = currentLocked;
       else points.push([snapshotDay, currentLocked]);
     }else{
@@ -1754,7 +1754,13 @@ function renderHero(){
   const activePct = s.total_minted ? Math.min(100, num(s.active_nfts)/num(s.total_minted)*100) : 0;
   qs("#hero-active-bar").style.width = activePct.toFixed(1) + "%";
   const freshest = state.holdersTimestamp || state.statsTimestamp || state.price?.last_updated;
-  setText("live-label", freshest ? `Live - ${ago(freshest)}` : "Live data");
+  // Generator preserves previous totals when an RPC run looks corrupted
+  // (>50% drop guard) and flags it — never present that as live.
+  if(s._stale_data){
+    setText("live-label", freshest ? `Stale snapshot - ${ago(freshest)} (RPC issues, showing last good data)` : "Stale snapshot");
+  }else{
+    setText("live-label", freshest ? `Live - ${ago(freshest)}` : "Live data");
+  }
 }
 function renderRevenue(){
   const s = state.earlyStats || {};
@@ -1892,7 +1898,12 @@ function buildExpiryView(){
     if(!address.toLowerCase().includes(q)) return;
     walletCount += 1;
     if(!firstAddress) firstAddress = address;
+    const nowSec = Date.now() / 1000;
     (holder.token_details || []).forEach(position => {
+      // Match the generator's forward-curve rule (end > now): expired but
+      // unwithdrawn positions never appear in the global buckets, so the
+      // per-wallet view must skip them too or totals won't tie out.
+      if(num(position.end) <= nowSec) return;
       const label = expiryBucketLabel(position.end);
       const dolo = num(position.dolo);
       if(!label || !dolo) return;
@@ -2175,7 +2186,10 @@ function renderExits(){
 function getBaseFlowRows(kind){
   const cutoff = periodCutoff(state.flows.period);
   const source = state.flows.source;
-  const base = kind === "locks" ? state.locks.filter(l => l.depositType === 1 || l.depositType === 2) : state.unlocks;
+  // Types 1/2 = create/increase; 4/5 = merge/migration deposits that also
+  // carry real DOLO — include them so the panels agree with the
+  // Locked-over-time reconstruction (type 3 relocks move no DOLO).
+  const base = kind === "locks" ? state.locks.filter(l => [1,2,4,5].includes(Number(l.depositType)) && num(l.dolo) > 0) : state.unlocks;
   let rows = base.filter(r => state.flows.period === "all" || num(r.timestamp) >= cutoff);
   if(kind === "locks" && source !== "all") rows = rows.filter(r => source === "odolo" ? !!r.isOdolo : !r.isOdolo);
   if(state.flows.q){
