@@ -30,7 +30,7 @@
     header.className = "earn-premium-top";
     header.innerHTML = `
       <div class="earn-premium-brand">
-        <img src="TwojeKrypto%20dashboard.png" alt="Dolomite Dashboard · Powered by TwojeKrypto">
+        <img src="TwojeKrypto%20dashboard.webp" alt="Dolomite Dashboard · Powered by TwojeKrypto">
       </div>
       <div class="earn-premium-nav-wrap">
         <nav class="earn-premium-nav" aria-label="Dolomite dashboard sections">

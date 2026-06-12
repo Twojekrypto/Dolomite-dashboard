@@ -1182,6 +1182,10 @@
             const legacyTreasuryView = document.getElementById('view-treasury');
             if (legacyTreasuryView) legacyTreasuryView.classList.remove('active');
 
+            // Lazy-load this view's datasets on first activation (hoisted fn,
+            // defined next to the boot block at the end of this script).
+            ensureViewData(view);
+
             // Re-position sliders now that hidden containers are visible
             setTimeout(repositionAllSliders, 50);
 
@@ -19550,12 +19554,39 @@
 
 
 
-        // Eagerly preload ALL tab data in parallel for instant tab switching
-        loadData();      // veDOLO holders
-        dolo_init();     // DOLO price + TVL (now only 67KB!)
-        odolo_init();    // oDOLO contract data (static JSON first)
-        doloLoaded = true;
-        odoloLoaded = true;
+        // Lazy per-view data loading.
+        // dashboard-core.html is only served on the Earn route, so the legacy
+        // veDOLO/DOLO/oDOLO datasets (~3 MB: vedolo_holders, early_exits,
+        // dolo_flows, exercisers, odolo_flows, dolo_holders) are fetched only
+        // when their view actually becomes visible (hash navigation), instead
+        // of on every Earn page view.
+        const viewDataStarted = { earn: true, lending: true, assets: true };
+        function ensureViewData(view) {
+            if (viewDataStarted[view]) return;
+            viewDataStarted[view] = true;
+            if (view === 'vedolo') {
+                loadData();          // veDOLO holders + early exits
+            } else if (view === 'dolo' || view === 'tvl') {
+                viewDataStarted.dolo = viewDataStarted.tvl = true;
+                dolo_init();         // DOLO price + TVL + holders + flows
+                doloLoaded = true;
+            } else if (view === 'odolo') {
+                odolo_init();        // oDOLO contract data + exercisers + flows
+                odoloLoaded = true;
+            }
+        }
+        // Boot: after all DOMContentLoaded handlers (earn-draft forces the Earn
+        // view by then), load data only for whatever view is actually visible.
+        document.addEventListener('DOMContentLoaded', function () {
+            setTimeout(function () {
+                ['vedolo', 'odolo', 'dolo', 'tvl'].forEach(function (v) {
+                    const el = document.getElementById('view-' + v);
+                    if (el && el.classList.contains('active')) ensureViewData(v);
+                });
+                // Deep links to holder profiles need the veDOLO dataset.
+                if (window.location.hash.startsWith('#address=')) ensureViewData('vedolo');
+            }, 0);
+        });
 
         // ═══ UNIFIED PREMIUM TOOLTIP SYSTEM ═══
         // Single tooltip element for all types: depth badges, breakdown items, addresses, badge labels
