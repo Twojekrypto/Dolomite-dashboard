@@ -908,34 +908,35 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 .dleg-row .pct{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums}
 .dleg-row .amt{font-family:var(--mono);font-size:10.5px;color:var(--fg-3);font-variant-numeric:tabular-nums}
 
-/* ====== REALIZED VS THEORY ====== */
+/* ====== REALIZED VS THEORY — Lock Duration Distribution pattern ====== */
 /* .wrap is a flex container ordered explicitly per section — slot this
    panel right below the Discount Curve (50) and above Latest (60). */
 #odolo-realized-section{order:55}
-.rvt-body{display:flex;flex-direction:column;gap:14px}
-.rvt-explain{font-size:11.5px;color:var(--fg-3);line-height:1.65;max-width:860px}
-.rvt-explain b{color:var(--fg-2)}
-.rvt-summary{display:flex;gap:10px;flex-wrap:wrap}
-.rvt-chip{display:inline-flex;align-items:baseline;gap:7px;padding:8px 14px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px}
-.rvt-chip b{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums}
-.rvt-chip b.pos{color:var(--profit, #75b87b)}
-.rvt-chip b.neg{color:var(--down)}
-.rvt-chip span{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:600}
-.rvt-rows{display:flex;flex-direction:column;gap:4px}
-.rvt-row{display:grid;grid-template-columns:150px 1fr 120px;align-items:center;gap:12px;padding:7px 12px;background:transparent;border:1px solid transparent;border-radius:9px;cursor:pointer;text-align:left;transition:background .2s var(--ease),border-color .2s var(--ease);font:inherit;color:inherit}
-.rvt-row:hover,.rvt-row:focus-visible{background:rgba(255,255,255,.025);border-color:var(--line-2);outline:0}
-.rvt-row.active{background:var(--gold-wash);border-color:var(--gold-line)}
-.rvt-row-lbl{font-size:11.5px;color:var(--fg-2);letter-spacing:.2px}
-.rvt-bar{display:block;height:14px;background:var(--bg-3);border-radius:4px;overflow:hidden;border:1px solid var(--line-1)}
-.rvt-bar > span{display:block;height:100%;border-radius:3px;transition:width .35s var(--ease)}
-.rvt-row.pos .rvt-bar > span{background:linear-gradient(90deg,rgba(117,184,123,.45),#75b87b)}
-.rvt-row.neg .rvt-bar > span{background:linear-gradient(90deg,rgba(180,121,107,.45),var(--down))}
-.rvt-row.neu .rvt-bar > span{background:linear-gradient(90deg,rgba(201,162,39,.4),var(--gold))}
-.rvt-row-val{font-family:var(--mono);font-size:12px;color:var(--fg-1);text-align:right;font-variant-numeric:tabular-nums}
-.rvt-row-val small{color:var(--fg-3);margin-left:6px}
-.rvt-focus{padding:10px 14px;font-size:11px;color:var(--fg-3);background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;line-height:1.6;min-height:20px}
-.rvt-focus b{font-family:var(--mono);color:var(--fg-1)}
-@media (max-width:720px){.rvt-row{grid-template-columns:110px 1fr 90px}}
+.rvt-help{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid var(--line-3);color:var(--fg-3);font-family:var(--mono);font-size:10px;font-style:normal;font-weight:700;cursor:default;flex-shrink:0;transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease)}
+.rvt-help:hover,.rvt-help:focus-visible{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash);outline:0}
+.rvt-shell{display:grid;gap:16px;padding:16px 20px 20px}
+.rvt-focus{display:block;padding:14px 16px;border:1px solid var(--line-1);border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.036),rgba(255,255,255,.014));box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
+.rvt-focus-kicker{font-size:9.5px;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;color:var(--fg-4);margin-bottom:7px}
+.rvt-focus-value{font-family:var(--mono);font-size:22px;line-height:1;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rvt-focus-label{font-size:11.5px;color:var(--fg-3);line-height:1.45;margin-top:7px}
+.rvt-bars{display:flex;flex-direction:column;gap:10px}
+.rvt-row{appearance:none;width:100%;display:grid;grid-template-columns:158px minmax(0,1fr) 138px;align-items:center;gap:14px;border:1px solid transparent;border-radius:10px;padding:10px 11px;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;transition:background .16s var(--ease),border-color .16s var(--ease),box-shadow .16s var(--ease),opacity .16s var(--ease)}
+.rvt-row:hover,.rvt-row.active{border-color:var(--gold-line);background:rgba(201,162,39,.052)}
+.rvt-row.active{box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 30px rgba(0,0,0,.16)}
+.rvt-row:focus-visible{outline:1px solid var(--gold);outline-offset:3px;border-color:var(--gold-line)}
+.rvt-bars.has-active .rvt-row:not(.active){opacity:.62}
+.rvt-label{display:block;font-family:var(--mono);font-size:12px;line-height:1;font-weight:700;color:var(--fg-2);white-space:nowrap}
+.rvt-row.active .rvt-label,.rvt-row:hover .rvt-label{color:var(--fg-1)}
+.rvt-bar-track{height:12px;border-radius:999px;background:rgba(255,255,255,.026);border:1px solid var(--line-1);overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.22)}
+.rvt-bar-fill{display:block;height:100%;min-width:2px;border-radius:999px;transition:width .18s ease,filter .18s ease}
+.rvt-row.pos .rvt-bar-fill{background:linear-gradient(90deg,rgba(117,184,123,.5),#75b87b);box-shadow:0 0 18px rgba(117,184,123,.14)}
+.rvt-row.neu .rvt-bar-fill{background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi));box-shadow:0 0 18px rgba(201,162,39,.12)}
+.rvt-row.neg .rvt-bar-fill{background:linear-gradient(90deg,rgba(180,121,107,.5),#d29689);box-shadow:0 0 18px rgba(180,121,107,.14)}
+.rvt-row.active .rvt-bar-fill{filter:saturate(1.18)}
+.rvt-value{text-align:right;min-width:0}
+.rvt-value b{display:block;font-family:var(--mono);font-size:12.5px;line-height:1;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rvt-value small{display:block;margin-top:4px;font-family:var(--mono);font-size:10.5px;line-height:1;color:var(--fg-4);white-space:nowrap}
+@media (max-width:720px){.rvt-row{grid-template-columns:118px minmax(0,1fr) 96px}}
 
 /* ====== DISCOUNT CURVE ====== */
 .disc-body{padding:22px 24px 24px}
@@ -1295,14 +1296,19 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <div class="card-title">
         <h2>Realized vs Theory</h2>
         <span class="count-badge" id="rvt-count">—</span>
+        <span class="rvt-help" tabindex="0" aria-label="What is Realized vs Theory?" data-tooltip="The Discount Curve above shows the PROMISED discount for each lock length. This panel shows what buyers ACTUALLY got: for every USDC exercise we compare the price paid per veDOLO with DOLO's market price on that day. Green = beat the schedule, gold = landed on it (±1 pp), red = the market slipped below before the exercise settled.">i</span>
       </div>
       <div class="card-meta"><span class="pulse"></span>Paid price vs DOLO market price on exercise day</div>
     </div>
-    <div class="rvt-body">
-      <div class="rvt-explain">The curve above shows the <b>promised</b> discount for each lock length. This panel shows what buyers <b>actually got</b>: for every USDC exercise we compare the price paid per veDOLO with DOLO's market price on that day. <b>Green</b> = beat the schedule (market was higher than the schedule implied), <b>gold</b> = landed on it, <b>red</b> = the market price slipped below before the exercise settled. Hover or click a row for details.</div>
-      <div class="rvt-summary" id="rvt-summary"></div>
-      <div class="rvt-rows" id="rvt-rows"></div>
-      <div class="rvt-focus" id="rvt-focus" aria-live="polite"></div>
+    <div class="card-body">
+      <div class="rvt-shell">
+        <div class="rvt-focus" aria-live="polite">
+          <div class="rvt-focus-kicker" id="rvt-focus-title">All priced exercises</div>
+          <div class="rvt-focus-value" id="rvt-focus-value">--</div>
+          <div class="rvt-focus-label" id="rvt-focus-label">--</div>
+        </div>
+        <div class="rvt-bars" id="rvt-bars"></div>
+      </div>
     </div>
   </section>
 
@@ -3737,16 +3743,6 @@ function collectRealizedDeltas(){
   return out;
 }
 
-function rvtFocusHtml(bucket, rows, total){
-  if(!rows.length) return "Brak exercises w tym przedziale.";
-  const sorted = [...rows].sort((a,b)=>a.delta-b.delta);
-  const med = sorted[Math.floor(sorted.length/2)];
-  const usdSum = rows.reduce((s,r)=>s+r.usd,0);
-  return `<b>${bucket.label}</b> · ${rows.length.toLocaleString()} exercises (${(rows.length/total*100).toFixed(1)}%) · ` +
-    `volume <b>$${fmtNum(usdSum)}</b> · median Δ <b>${(med.delta>=0?"+":"")}${med.delta.toFixed(1)} pp</b> ` +
-    `(realized <b>${med.realized.toFixed(1)}%</b> @ ${med.date}, paid <b>${fmtPrice(med.paid)}</b> vs market <b>${fmtPrice(med.market)}</b>)`;
-}
-
 function renderRealizedPanel(){
   const section = document.getElementById("odolo-realized-section");
   if(!section) return;
@@ -3754,40 +3750,61 @@ function renderRealizedPanel(){
   if(data.length < 20){ section.hidden = true; return; }
   section.hidden = false;
   const total = data.length;
-  const beat = data.filter(d=>d.delta>=0).length;
+  const beatPct = data.filter(d=>d.delta>=0).length / total * 100;
   const sorted = [...data].sort((a,b)=>a.delta-b.delta);
   const medianDelta = sorted[Math.floor(total/2)].delta;
+  const priceDays = Object.keys(LIVE.priceHistory?.prices || {});
+  const marketNow = priceDays.length ? LIVE.priceHistory.prices[priceDays[priceDays.length-1]] : 0;
   document.getElementById("rvt-count").textContent = `${total.toLocaleString()} priced exercises`;
-  document.getElementById("rvt-summary").innerHTML = `
-    <span class="rvt-chip"><b class="${beat/total>=0.5?"pos":"neg"}">${(beat/total*100).toFixed(0)}%</b><span>met or beat theory</span></span>
-    <span class="rvt-chip"><b class="${medianDelta>=0?"pos":"neg"}">${(medianDelta>=0?"+":"")}${medianDelta.toFixed(1)} pp</b><span>median vs theory</span></span>
-    <span class="rvt-chip"><b>${fmtPrice(LIVE.priceHistory?.prices?.[Object.keys(LIVE.priceHistory.prices).pop()] || 0)}</b><span>DOLO market now</span></span>`;
-  const grouped = RVT_BUCKETS.map(b => ({bucket:b, rows:data.filter(d=>d.delta>=b.min && d.delta<b.max)}));
+
+  const grouped = RVT_BUCKETS.map(b => {
+    const rows = data.filter(d=>d.delta>=b.min && d.delta<b.max);
+    const rowsSorted = [...rows].sort((x,y)=>x.delta-y.delta);
+    return {
+      bucket: b,
+      rows,
+      med: rowsSorted.length ? rowsSorted[Math.floor(rowsSorted.length/2)] : null,
+      usdSum: rows.reduce((s,r)=>s+r.usd,0),
+    };
+  });
   const maxCount = Math.max(...grouped.map(g=>g.rows.length), 1);
-  document.getElementById("rvt-rows").innerHTML = grouped.map(g => `
-    <button type="button" class="rvt-row ${g.bucket.cls} ${RVT_ACTIVE===g.bucket.key?"active":""}" data-rvt="${g.bucket.key}">
-      <span class="rvt-row-lbl">${g.bucket.label}</span>
-      <span class="rvt-bar"><span style="width:${(g.rows.length/maxCount*100).toFixed(1)}%"></span></span>
-      <span class="rvt-row-val">${g.rows.length.toLocaleString()}<small>${(g.rows.length/total*100).toFixed(1)}%</small></span>
+  const bars = document.getElementById("rvt-bars");
+  bars.innerHTML = grouped.map(g => `
+    <button type="button" class="rvt-row ${g.bucket.cls}" data-rvt="${g.bucket.key}">
+      <span class="rvt-label">${g.bucket.label}</span>
+      <span class="rvt-bar-track"><span class="rvt-bar-fill" style="width:${Math.max(1.5, g.rows.length/maxCount*100).toFixed(2)}%"></span></span>
+      <span class="rvt-value"><b>${g.rows.length.toLocaleString()}</b><small>${(g.rows.length/total*100).toFixed(1)}% of exercises</small></span>
     </button>`).join("");
-  const focus = document.getElementById("rvt-focus");
-  const showFocus = key => {
-    const g = grouped.find(x=>x.bucket.key===key);
-    if(g) focus.innerHTML = rvtFocusHtml(g.bucket, g.rows, total);
+
+  // Default focus = global summary (stable anchor — aggregates intentionally
+  // do NOT change on hover); hovering/pinning a row previews that bucket.
+  const focusDefault = () => {
+    setText("rvt-focus-title", "All priced exercises");
+    setText("rvt-focus-value", `${beatPct.toFixed(0)}% met or beat theory`);
+    setText("rvt-focus-label", `median ${(medianDelta>=0?"+":"")}${medianDelta.toFixed(1)} pp vs the schedule · ${total.toLocaleString()} USDC exercises · DOLO market now ${fmtPrice(marketNow)}`);
   };
-  section.querySelectorAll("[data-rvt]").forEach(btn => {
+  const focusBucket = key => {
+    const g = grouped.find(x=>x.bucket.key===key);
+    if(!g) return;
+    setText("rvt-focus-title", g.bucket.label);
+    setText("rvt-focus-value", `${g.rows.length.toLocaleString()} exercises`);
+    setText("rvt-focus-label", g.med
+      ? `${(g.rows.length/total*100).toFixed(1)}% of all · volume $${fmtNum(g.usdSum)} · typical case: realized ${g.med.realized.toFixed(1)}% on ${g.med.date} (paid ${fmtPrice(g.med.paid)} vs market ${fmtPrice(g.med.market)})`
+      : "No exercises in this range.");
+  };
+  bars.querySelectorAll("[data-rvt]").forEach(btn => {
     const key = btn.dataset.rvt;
-    btn.addEventListener("mouseenter", ()=>{ if(!RVT_ACTIVE) showFocus(key); });
-    btn.addEventListener("focus", ()=>{ if(!RVT_ACTIVE) showFocus(key); });
+    btn.addEventListener("mouseenter", ()=>{ if(!RVT_ACTIVE) focusBucket(key); });
+    btn.addEventListener("focus", ()=>{ if(!RVT_ACTIVE) focusBucket(key); });
     btn.addEventListener("click", ()=>{
       RVT_ACTIVE = RVT_ACTIVE===key ? null : key;
-      section.querySelectorAll("[data-rvt]").forEach(b=>b.classList.toggle("active", b.dataset.rvt===RVT_ACTIVE));
-      showFocus(RVT_ACTIVE || key);
+      bars.classList.toggle("has-active", !!RVT_ACTIVE);
+      bars.querySelectorAll("[data-rvt]").forEach(b=>b.classList.toggle("active", b.dataset.rvt===RVT_ACTIVE));
+      RVT_ACTIVE ? focusBucket(RVT_ACTIVE) : focusDefault();
     });
   });
-  // Default focus: the largest bucket
-  const biggest = grouped.reduce((a,b)=>b.rows.length>a.rows.length?b:a, grouped[0]);
-  showFocus(biggest.bucket.key);
+  bars.addEventListener("mouseleave", ()=>{ if(!RVT_ACTIVE) focusDefault(); });
+  focusDefault();
 }
 
 function renderAll(){
