@@ -32,14 +32,17 @@ jobs:
       - name: Update DOLO price cache
         run: python3 update_dolo_price.py
 
+      - name: Update DOLO daily price history
+        run: python3 fetch_dolo_price_history.py
+
       - name: Validate DOLO price data
-        run: python3 validate_data.py dolo_price.json
+        run: python3 validate_data.py dolo_price.json dolo_price_history.json
 
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add dolo_price.json
+          git add dolo_price.json dolo_price_history.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update DOLO price: $(date -u '+%Y-%m-%d %H:%M UTC')"
           for i in 1 2 3; do

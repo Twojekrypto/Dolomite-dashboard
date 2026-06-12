@@ -304,6 +304,14 @@ RULES = {
         ],
         "min_bytes": 50_000,
     },
+    "dolo_price_history.json": {
+        "required_keys": ["updatedAt", "prices"],
+        "checks": [
+            ("prices must have at least 300 days", lambda d: len(d.get("prices", {})) >= 300),
+            ("prices must be positive", lambda d: all(v > 0 for v in list(d.get("prices", {}).values())[:50])),
+        ],
+        "min_bytes": 5_000,
+    },
     "dolo_holder_wallet_history.json": {
         "required_keys": ["timestamp", "holder_wallet_history"],
         "checks": [
