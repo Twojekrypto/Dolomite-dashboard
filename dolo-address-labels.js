@@ -45,7 +45,10 @@
     "0x871b0afcd3fd44f4c0071d4ade68ce40d0d6bbcc": {label:"Core Team 6", type:"protocol", treasury:true},
     "0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec": {label:"Core Team 7", type:"protocol", treasury:true},
     "0xb8ba44d5e46562ec011ade12603f353b18089a41": {label:"Core Team 8", type:"protocol", treasury:true},
-    "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07": {label:"Investor 1", type:"investor", treasury:true},
+    // Distribution contract for investor allocations: funded by the Dolomite
+    // Gnosis Safe, pays out vesting tranches to investor wallets (the pipeline
+    // labels its recipients as Investors via extract_vesting_investors).
+    "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07": {label:"Investor Distribution", type:"protocol", treasury:true, source:"flow-audit-20260612", confidence:"confirmed"},
     "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd": {label:"Investor 2", type:"investor", treasury:true},
     "0x7efd088ae500598a19a242d6d48b9f7e0d061176": {label:"Investor 3", type:"investor", treasury:true},
 
