@@ -1,12 +1,12 @@
 name: Refresh Secondary Canonical EARN History
-run-name: Refresh Secondary Canonical EARN History [${{ github.event.inputs.chain || (github.event.schedule == '23,53 * * * *' && 'mantle') || (github.event.schedule == '28,58 * * * *' && 'botanix') || (github.event.schedule == '33 * * * *' && 'polygonzkevm') || (github.event.schedule == '38 * * * *' && 'xlayer') || 'all' }}]
+run-name: Refresh Secondary Canonical EARN History [${{ github.event.inputs.chain || (github.event.schedule == '23,53 * * * *' && 'mantle') || (github.event.schedule == '28,58 * * * *' && 'botanix') || (github.event.schedule == '33 * * * *' && 'polygonzkevm') || (github.event.schedule == '8,38 * * * *' && 'xlayer') || 'all' }}]
 
 on:
   schedule:
     - cron: '23,53 * * * *'  # Mantle only, staggered from primary chains
     - cron: '28,58 * * * *'  # Botanix only, staggered from Mantle
     - cron: '33 * * * *'     # Polygon zkEVM only
-    - cron: '38 * * * *'     # X Layer only
+    - cron: '8,38 * * * *'   # X Layer only — twice hourly like primary chains (was stuck stale for days on a single hourly slot)
   workflow_dispatch:
     inputs:
       chain:
@@ -124,7 +124,7 @@ jobs:
               selected = ["botanix"]
           elif event_name == "schedule" and schedule == "33 * * * *":
               selected = ["polygonzkevm"]
-          elif event_name == "schedule" and schedule == "38 * * * *":
+          elif event_name == "schedule" and schedule == "8,38 * * * *":
               selected = ["xlayer"]
           else:
               selected = []

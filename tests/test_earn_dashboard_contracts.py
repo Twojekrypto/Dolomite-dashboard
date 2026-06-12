@@ -324,7 +324,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("cron: '23,53 * * * *'", workflow)
         self.assertIn("cron: '28,58 * * * *'", workflow)
         self.assertIn("cron: '33 * * * *'", workflow)
-        self.assertIn("cron: '38 * * * *'", workflow)
+        # XLayer runs twice hourly like primary chains — a single hourly slot
+        # left it stale for days after one failed completion (2026-06 audit).
+        self.assertIn("cron: '8,38 * * * *'", workflow)
         self.assertIn("type: choice", workflow)
         self.assertIn("          - mantle", workflow)
         self.assertIn("          - botanix", workflow)
@@ -335,7 +337,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("'23,53 * * * *' && 'mantle'", workflow)
         self.assertIn("'28,58 * * * *' && 'botanix'", workflow)
         self.assertIn("'33 * * * *' && 'polygonzkevm'", workflow)
-        self.assertIn("'38 * * * *' && 'xlayer'", workflow)
+        self.assertIn("'8,38 * * * *' && 'xlayer'", workflow)
         self.assertIn("Plan selected secondary chains", workflow)
         self.assertIn("needs: plan-secondary-canonical", workflow)
         self.assertIn("matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}", workflow)
@@ -538,7 +540,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("actions: write", workflow)
         self.assertIn("update_earn_freshness_status.py", workflow)
         self.assertIn("data/earn-freshness/status.json", workflow)
-        self.assertIn("EARN_WATCHDOG_MAX_DISPATCHES: '4'", workflow)
+        # Budget must cover all simultaneously-stale chains (arbitrum, mantle,
+        # xlayer + ethereum coverage catchup) with headroom — see 2026-06 audit.
+        self.assertIn("EARN_WATCHDOG_MAX_DISPATCHES: '6'", workflow)
         self.assertIn("scripts/plan_earn_watchdog_dispatch.py", workflow)
         self.assertIn("dispatched_count=0", workflow)
         self.assertIn("max_dispatches=\"${EARN_WATCHDOG_MAX_DISPATCHES:-4}\"", workflow)
