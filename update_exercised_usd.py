@@ -150,10 +150,13 @@ def main():
         print("  No new data. Done.")
         return
 
-    # Process new exercise transactions
-    new_usdc = 0
+    # Process new exercise transactions.
+    # Successful receipts are collected as (block, amount) and only summed
+    # after the retry pass, so amounts above a held-back checkpoint can be
+    # excluded (they will be re-fetched and counted in the next run).
     max_block = last_block
     failed_txs = []
+    succeeded = []  # list of (block, amount)
 
     for i, tx in enumerate(exercise_txs):
         amount = get_usdc_from_receipt(tx["hash"])
@@ -161,8 +164,7 @@ def main():
         max_block = max(max_block, block)
 
         if amount is not None:
-            new_usdc += amount
-            total_txs += 1
+            succeeded.append((block, amount))
             ts = int(tx["timeStamp"])
             date = time.strftime("%Y-%m-%d %H:%M", time.gmtime(ts))
             print(f"    [{i+1}/{len(exercise_txs)}] {date} | {amount:>10,.2f} USDC")
@@ -172,6 +174,7 @@ def main():
         time.sleep(RATE_LIMIT_DELAY)
 
     # Second-pass retry for failed receipts
+    still_failed = []
     if failed_txs:
         print(f"\n  Retrying {len(failed_txs)} failed receipts...")
         recovered = 0
@@ -182,15 +185,29 @@ def main():
             max_block = max(max_block, block)
 
             if amount is not None:
-                new_usdc += amount
-                total_txs += 1
+                succeeded.append((block, amount))
                 recovered += 1
+            else:
+                still_failed.append(tx)
         print(f"  Recovered {recovered}/{len(failed_txs)}")
 
     # Update max_block from ALL new txs (not just exercise)
     for tx in new_txs:
         block = int(tx["blockNumber"])
         max_block = max(max_block, block)
+
+    # Hold the checkpoint below the oldest still-failed receipt so its USDC
+    # amount is not permanently lost: the next run re-fetches everything
+    # above max_block. Successes above the held checkpoint are NOT counted
+    # now (they get counted on the re-fetch), which avoids double counting.
+    if still_failed:
+        oldest_failed = min(int(tx["blockNumber"]) for tx in still_failed)
+        max_block = min(max_block, oldest_failed - 1)
+        print(f"  ⚠️ {len(still_failed)} receipts still failing; "
+              f"checkpoint held at block {max_block} so they are re-fetched next run")
+
+    new_usdc = sum(amount for block, amount in succeeded if block <= max_block)
+    total_txs += sum(1 for block, _ in succeeded if block <= max_block)
 
     total_usdc += new_usdc
 

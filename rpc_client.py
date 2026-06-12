@@ -17,6 +17,7 @@ script per change, verified against its own workflow/tests (see AGENTS.md).
 
 import os
 import random
+import re
 import time
 from urllib.parse import urlparse
 
@@ -87,6 +88,22 @@ def safe_host(url):
     return urlparse(url).hostname or "rpc"
 
 
+# Key-bearing URL path/query fragments as emitted by provider endpoints
+# (e.g. alchemy /v2/<key>, infura /v3/<key>, drpc ?dkey=<key>).
+_KEY_PATTERN = re.compile(r"(/v2/|/v3/|/api/|/rpc/|[?&](?:api)?d?key=)[A-Za-z0-9_-]{8,}")
+
+
+def sanitize_error(exc):
+    """Stringify an exception with any URL-embedded API keys redacted.
+
+    requests' ConnectionError/Timeout messages include the full request URL
+    (`HTTPSConnectionPool(host=...): ... url: /v2/<KEY>`); GitHub Actions'
+    secret masking only matches the entire secret string, so a key appearing
+    as a bare path segment would leak into public logs.
+    """
+    return _KEY_PATTERN.sub(r"\1***", str(exc))
+
+
 class RpcError(Exception):
     """All endpoints failed for a request."""
 
@@ -132,13 +149,19 @@ class RpcClient:
                 return result
             except Exception as exc:  # requests errors, JSON errors, HTTP errors
                 last_error = exc
+                # NOTE: never log the raw exception — requests' connection errors
+                # embed the full request URL (incl. the API key path segment),
+                # and GitHub's secret masking won't catch a partial-URL leak.
                 self._log(f"⚠️ RPC {describe} failed on {safe_host(url)} "
-                          f"(attempt {attempt + 1}): {exc}")
+                          f"(attempt {attempt + 1}): {type(exc).__name__}: {sanitize_error(exc)}")
                 # Exponential backoff with jitter between full rotation rounds
                 if (attempt + 1) % n == 0:
                     delay = BACKOFF_BASE_SECONDS * (2 ** ((attempt + 1) // n - 1))
                     time.sleep(delay + random.uniform(0, 0.4))
-        raise RpcError(f"All RPC endpoints failed for {describe}: {last_error}")
+        raise RpcError(
+            f"All RPC endpoints failed for {describe}: "
+            f"{type(last_error).__name__}: {sanitize_error(last_error)}"
+        )
 
     def call(self, method, params):
         """Single JSON-RPC call. Returns the `result` field."""

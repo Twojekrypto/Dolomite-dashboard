@@ -58,13 +58,24 @@ def rpc_call(method, params, retries=3):
         return None
 
 
+def _atomic_dump(payload, path):
+    """Atomic JSON write (tmp + rename) — a kill mid-write must not leave a truncated file."""
+    tmp = str(path) + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(payload, f)
+    os.replace(tmp, path)
+
+
 def fetch_withdraw_events(start_block=0):
     """Fetch Withdraw events from the veDOLO contract using RPC getLogs with pagination.
     Supports incremental fetching from a given start_block."""
     print("📡 Phase 1: Fetching Withdraw events...")
 
     # Get latest block
-    latest_block = int(rpc_call("eth_blockNumber", []), 16)
+    block_number_hex = rpc_call("eth_blockNumber", [])
+    if block_number_hex is None:
+        raise SystemExit("❌ eth_blockNumber failed on all RPC endpoints — aborting run")
+    latest_block = int(block_number_hex, 16)
     print(f"  Latest block: {latest_block:,}")
     print(f"  Scanning from block: {start_block:,}")
 
@@ -82,10 +93,17 @@ def fetch_withdraw_events(start_block=0):
             "toBlock": hex(to_block)
         }])
 
-        if result:
-            all_logs.extend(result)
-            if len(result) > 0:
-                print(f"  Block {block:,}-{to_block:,}: {len(result)} events (total: {len(all_logs)})")
+        # None = RPC failure (≠ empty list). Abort WITHOUT advancing the
+        # checkpoint — otherwise events in this window would be skipped
+        # forever, silently understating early-exit stats.
+        if result is None:
+            raise SystemExit(
+                f"❌ eth_getLogs failed for blocks {block:,}-{to_block:,} on all endpoints; "
+                "aborting without advancing last_scanned_block"
+            )
+        all_logs.extend(result)
+        if len(result) > 0:
+            print(f"  Block {block:,}-{to_block:,}: {len(result)} events (total: {len(all_logs)})")
 
         block = to_block + 1
 
@@ -192,8 +210,12 @@ def main():
     cached_logs = []
     last_scanned_block = 0
     if os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE) as f:
-            cache_data = json.load(f)
+        try:
+            with open(CACHE_FILE) as f:
+                cache_data = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            print(f"  ⚠️ Cache file corrupted ({exc}); starting with empty cache (full rescan)")
+            cache_data = {}
         # Support both old format (flat dict) and new format (with metadata)
         if isinstance(cache_data, dict) and "_meta" in cache_data:
             cache = cache_data.get("receipts", {})
@@ -324,8 +346,7 @@ def main():
             if (batch_idx + 1) % 5 == 0 or (batch_idx + 1) == len(batches):
                 print(f"  Progress: batch {batch_idx+1}/{len(batches)} — cached: {cached_count:,} errors: {errors:,} / {len(tx_hashes_needed):,} total")
                 cache_progress = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
-                with open(CACHE_FILE, "w") as f:
-                    json.dump(cache_progress, f)
+                _atomic_dump(cache_progress, CACHE_FILE)
 
             time.sleep(0.1)  # Small delay between batches
 
@@ -333,13 +354,11 @@ def main():
 
         # Final cache save
         cache_output = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
-        with open(CACHE_FILE, "w") as f:
-            json.dump(cache_output, f)
+        _atomic_dump(cache_output, CACHE_FILE)
     else:
         # No new receipts needed, but still save updated metadata (logs + block number)
         cache_output = {"_meta": {"last_scanned_block": latest_block}, "receipts": cache, "logs": cached_logs}
-        with open(CACHE_FILE, "w") as f:
-            json.dump(cache_output, f)
+        _atomic_dump(cache_output, CACHE_FILE)
         print(f"  💾 Cache updated with latest block {latest_block:,}")
 
 

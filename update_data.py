@@ -868,38 +868,21 @@ def main():
 
 
 def update_dolo_price():
-    """Fetch CoinGecko data and save as static JSON for the dashboard."""
-    print("\n💰 Updating dolo_price.json...")
-    price_file = os.path.join(DATA_DIR, "dolo_price.json")
-    try:
-        cg = requests.get(
-            "https://api.coingecko.com/api/v3/simple/price"
-            "?ids=dolomite&vs_currencies=usd"
-            "&include_market_cap=true&include_24hr_vol=true&include_24hr_change=true",
-            timeout=15
-        ).json()
-        coins = requests.get(
-            "https://api.coingecko.com/api/v3/coins/dolomite"
-            "?localization=false&tickers=false&community_data=false&developer_data=false",
-            timeout=15
-        ).json()
+    """Refresh dolo_price.json by delegating to the standalone updater.
 
-        d = cg.get("dolomite", {})
-        md = coins.get("market_data", {})
-        data = {
-            "price": d.get("usd", 0),
-            "market_cap": d.get("usd_market_cap", 0),
-            "volume_24h": d.get("usd_24h_vol", 0),
-            "change_24h": d.get("usd_24h_change", 0),
-            "circulating_supply": md.get("circulating_supply", 0),
-            "total_supply": md.get("total_supply", 0),
-            "fdv": md.get("fully_diluted_valuation", {}).get("usd", 0),
-            "last_updated": datetime.utcnow().isoformat() + "Z"
-        }
-        with open(price_file, "w") as f:
-            json.dump(data, f, indent=2)
-        print(f"   Price: ${data['price']:.4f}  MC: ${data['market_cap']:,.0f}  FDV: ${data['fdv']:,.0f}")
+    update_dolo_price.py (run hourly by update-dolo-price.yml) is the single
+    source of truth for the payload schema and guards: it preserves previous
+    supply/FDV fields when the CoinGecko detail endpoint fails (e.g. 429) and
+    refuses to write a non-positive price. Delegating keeps both workflows
+    writing an identical file instead of this function zeroing supply fields.
+    """
+    print("\n💰 Updating dolo_price.json...")
+    try:
+        import update_dolo_price as dolo_price_module
+        dolo_price_module.main()
     except Exception as e:
+        # Keep the previous dolo_price.json on failure; the hourly
+        # update-dolo-price.yml workflow will refresh it soon anyway.
         print(f"   ⚠️ dolo_price.json update failed: {e}")
 
 

@@ -1754,7 +1754,10 @@ const explorerUrl = (row)=>{
   return row.addr && base ? base + row.addr : "";
 };
 const isWrappedMarketName = (row)=>/^(GM|GLV):\s*/i.test(String(row.name || "")) || /^gm[A-Z0-9].*/.test(String(row.sym || "")) || /^GLV-/i.test(String(row.sym || ""));
-const tokenNameHtml = (row)=>`<span class="tok-sym">${row.sym}</span>${isWrappedMarketName(row) ? "" : `<span class="tok-long">${row.name}</span>`}`;
+// XSS guard: token symbols/names/yield labels originate from deployer-controlled
+// ERC-20 metadata (live API + snapshot) and are interpolated into innerHTML.
+const esc = (v)=>String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+const tokenNameHtml = (row)=>`<span class="tok-sym">${esc(row.sym)}</span>${isWrappedMarketName(row) ? "" : `<span class="tok-long">${esc(row.name)}</span>`}`;
 function shouldSkipMarket(row){
   const sym = row.token?.tokenSymbol || "";
   const name = row.token?.tokenName || "";
@@ -2221,7 +2224,7 @@ function updateHero(){
   const heroToken = document.querySelector(".hero-token");
   if(heroToken){
     const topChain = chainMeta(topSupply.chain);
-    heroToken.innerHTML = `<img class="${tokenIconClass(topSupply.sym)}" src="${tokIcon(topSupply.sym, topSupply)}" onerror="this.style.display='none'" alt="${topSupply.sym}">
+    heroToken.innerHTML = `<img class="${tokenIconClass(topSupply.sym)}" src="${tokIcon(topSupply.sym, topSupply)}" onerror="this.style.display='none'" alt="${esc(topSupply.sym)}">
         <span class="hero-token-name">${topSupply.sym}</span>
         <span class="hero-token-sep" aria-hidden="true"></span>
         <span class="hero-chain-pill"><img src="${topChain.icon}" onerror="this.style.display='none'" alt="">${topChain.name}</span>`;
@@ -2353,7 +2356,7 @@ function render(){
                   <a class="token-ca addr-tooltip-wrap" href="${addrUrl || "#"}" target="_blank" rel="noopener" onclick="event.stopPropagation()" data-full-addr="${r.addr}">
                     <span class="token-ca-label">CA</span><span>${shortAddr(r.addr)}</span>
                   </a>
-                  <button class="token-ca-copy" data-copy="${r.addr}" aria-label="Copy ${r.sym} contract address">${COPY_ICO}</button>` : "";
+                  <button class="token-ca-copy" data-copy="${r.addr}" aria-label="Copy ${esc(r.sym)} contract address">${COPY_ICO}</button>` : "";
 
     // vertical breakdown shown under the big Supply value
     // order: Lending (native, always top) → oDOLO → External Yield
@@ -2397,7 +2400,7 @@ function render(){
         <td class="num">
           <div class="apy-cell">
             <div class="bw-val">${fmtPct(borrowEff)}</div>
-            ${r.borrowYield > 0 ? `<div class="apy-lines">Base ${fmtPct(borrow)} · ${(r.borrowYieldSources?.[0]?.label || "Asset yield")} ${fmtRate(r.borrowYield)}</div>` : ""}
+            ${r.borrowYield > 0 ? `<div class="apy-lines">Base ${fmtPct(borrow)} · ${esc(r.borrowYieldSources?.[0]?.label || "Asset yield")} ${fmtRate(r.borrowYield)}</div>` : ""}
           </div>
         </td>
         <td class="details-cell" style="padding-right:32px">${toggleHTML}</td>
@@ -2412,7 +2415,7 @@ function render(){
             <div class="asset-detail-head">
               <div>
                 <div class="asset-detail-eyebrow">Asset Details</div>
-                <div class="asset-detail-title">${r.sym} market profile</div>
+                <div class="asset-detail-title">${esc(r.sym)} market profile</div>
               </div>
               <div class="asset-detail-meta">
                 <span class="asset-detail-pill chain"><span class="adp-dot" style="background-image:url('${chain.icon}')"></span>${chain.short || chain.name}</span>

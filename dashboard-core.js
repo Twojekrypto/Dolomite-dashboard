@@ -59,7 +59,10 @@
                 const resp = await fetch('vedolo_holders.json');
                 if (resp.ok) {
                     const data = await resp.json();
-                    HOLDER_DATA = data.holders;
+                    // Guard: a partially-written/corrupted file without `holders`
+                    // must not TypeError below (which would kill init/checkHash
+                    // and silently disable the whole veDOLO view).
+                    HOLDER_DATA = Array.isArray(data.holders) ? data.holders : [];
                     // Only override stats from full file if its locked DOLO is valid (non-zero)
                     // This prevents corrupted full JSON from overwriting correct vedolo_stats.json values
                     if (data.stats) {
@@ -3097,7 +3100,7 @@
                         const curVol = dolo_cachedData?.cg?.usd_24h_vol || 0;
                         render24hBadge('dolo-vol-24h', curVol, old.volume_24h, 'pct');
                     }
-                } catch (e) { /* silent */ }
+                } catch (e) { console.warn('DOLO 24h badges failed:', e.message); }
 
                 dolo_renderChainBars(chainTvls, totalTvl, tvl, totalBorrowed, supplyLiquidity);
 
@@ -3192,7 +3195,7 @@
                     const sign = ch >= 0 ? '+' : '';
                     renderTvl24hChange('dolo-change', price, price / (1 + ch / 100), false);
                 }
-            } catch (e) { /* silent */ }
+            } catch (e) { console.warn('DOLO price refresh failed:', e.message); }
         }
 
         // ===== DOLO HOLDERS TABLE =====
@@ -3723,6 +3726,7 @@
         // ===== BRUSH NAVIGATOR =====
         let dolo_brushStart = 0;   // 0..1 fraction
         let dolo_brushEnd = 1;     // 0..1 fraction
+        let dolo_brushApplyRaf = null; // rAF handle coalescing full-SVG rebuilds during drag
 
         function dolo_renderBrush() {
             const brushSvg = document.getElementById('dolo-brush-svg');
@@ -3904,7 +3908,14 @@
                     dolo_brushEnd = newEnd;
                 }
                 dolo_updateBrushOverlay();
-                dolo_brushApply();
+                // rAF-coalesced: dolo_brushApply rebuilds the whole SVG via
+                // innerHTML — running it on every mousemove pixel causes jank.
+                if (!dolo_brushApplyRaf) {
+                    dolo_brushApplyRaf = requestAnimationFrame(() => {
+                        dolo_brushApplyRaf = null;
+                        dolo_brushApply();
+                    });
+                }
             });
 
             document.addEventListener('mouseup', () => {
@@ -5264,6 +5275,7 @@
                 }
             }`;
             assets_marketDataPromise = (async () => {
+                let anyChainOk = false;
                 await Promise.all(Object.entries(ASSETS_CHAINS).map(async ([chainKey, chain]) => {
                     try {
                         const ctrl = new AbortController();
@@ -5317,11 +5329,18 @@
                             count++;
                         });
                         console.log(`📊 ${chainKey}: ${count} markets from subgraph`);
+                        anyChainOk = true;
                     } catch (e) {
                         console.warn(`📊 ${chainKey}: subgraph failed`, e.message);
                     }
                 }));
 
+                // Only mark as loaded if at least one chain succeeded; a total
+                // outage must stay retryable instead of silently hiding the
+                // Dust/Low badges and depth columns until a hard reload.
+                if (!anyChainOk) {
+                    throw new Error('All chain subgraphs failed — market data unavailable');
+                }
                 assets_marketDataLoaded = true;
                 console.log(`✅ Assets market data: ${Object.keys(assets_marketData).length} markets in ${((performance.now() - t0) / 1000).toFixed(1)}s`);
                 return true;
@@ -5409,8 +5428,11 @@
                                 staticYieldApr += ys.rate;
                             });
                             results.push({
-                                symbol: r.token.tokenSymbol,
-                                name: r.token.tokenName,
+                                // Escape at the data boundary: tokenSymbol/tokenName are
+                                // ERC-20 fields controlled by the token deployer and these
+                                // objects feed innerHTML templates downstream (XSS guard).
+                                symbol: earn_escapeHtml(r.token.tokenSymbol),
+                                name: earn_escapeHtml(r.token.tokenName),
                                 addr: r.token.tokenAddress,
                                 chainKey: key,
                                 chainName: chain.name,
@@ -6246,7 +6268,7 @@
                 const grayStyle = GRAYSCALE_SYMBOLS.has(d.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (known && known.icon) {
-                    iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon"><img src="${known.icon}" alt="${d.symbol}"${grayStyle} onerror="this.parentElement.textContent='${(d.symbol || '?').slice(0, 2)}'"></div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
+                    iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon"><img src="${known.icon}" alt="${d.symbol}"${grayStyle} onerror="this.parentElement.textContent='${String(d.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
                 } else {
                     iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon">${(d.symbol || '?').slice(0, 2)}</div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
                 }
@@ -7129,6 +7151,14 @@
         let earn_lookupLoading = false;
         let earn_lookupUsingCachedSnapshot = false;
         let earn_activeLookupRunId = 0;
+        // Address of the lookup currently shown in the UI. Reward fetchers
+        // compare against it before writing their globals, so a slow response
+        // for wallet A can never overwrite the rewards card of wallet B.
+        let earn_activeLookupAddr = '';
+        function earn_isLookupAddrCurrent(addr) {
+            return !earn_activeLookupAddr ||
+                String(addr || '').toLowerCase() === earn_activeLookupAddr.toLowerCase();
+        }
         let earn_totalYieldStatus = 'idle'; // idle | loading | ready | error
         let earn_replayStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
@@ -7751,6 +7781,10 @@
                     }
                 }
 
+                if (!earn_isLookupAddrCurrent(addr)) {
+                    console.log('oDOLO: stale response for', addr, '— globals not updated');
+                    return claimedValue;
+                }
                 earn_odoloClaimed = claimedValue;
                 earn_odoloUnclaimed = unclaimedValue;
                 earn_odoloCumulative = cumulativeAllocation;
@@ -7842,14 +7876,21 @@
                     amount: parseInt(earnedHexes[i] || '0x0', 16) / 1e18,
                 })).filter(r => r.amount > 0.000001);
 
-                earn_ibgtRewards = { staked, rewards, metaVault };
+                const ibgtResult = { staked, rewards, metaVault };
+                if (!earn_isLookupAddrCurrent(addr)) {
+                    console.log('iBGT: stale response for', addr, '— globals not updated');
+                    return ibgtResult;
+                }
+                earn_ibgtRewards = ibgtResult;
                 earn_ibgtRewardsLoadedFor = addr;
                 console.log(`iBGT Rewards: staked=${staked.toFixed(2)}, rewards=`, rewards);
                 return earn_ibgtRewards;
             })().catch(e => {
                 console.warn('iBGT rewards fetch error:', e);
-                earn_ibgtRewards = null;
-                earn_ibgtRewardsLoadedFor = addr;
+                if (earn_isLookupAddrCurrent(addr)) {
+                    earn_ibgtRewards = null;
+                    earn_ibgtRewardsLoadedFor = addr;
+                }
                 return null;
             });
 
@@ -7964,14 +8005,21 @@
                     return s + r.amount * price;
                 }, 0);
 
-                earn_dgmxRewards = { staked, rewards, totalUsd, vault };
+                const dgmxResult = { staked, rewards, totalUsd, vault };
+                if (!earn_isLookupAddrCurrent(addr)) {
+                    console.log('dGMX: stale response for', addr, '— globals not updated');
+                    return dgmxResult;
+                }
+                earn_dgmxRewards = dgmxResult;
                 earn_dgmxRewardsLoadedFor = addr;
                 console.log(`dGMX Rewards: staked=${staked.toFixed(2)} sbfGMX, GMX=${gmxPending.toFixed(4)}, ETH=${ethPending.toFixed(6)}, esGMX=${esgmxPending.toFixed(4)}, bnGMX=${bnGmxPending.toFixed(4)}, total=$${totalUsd.toFixed(2)}`);
                 return earn_dgmxRewards;
             })().catch(e => {
                 console.warn('dGMX rewards fetch error:', e);
-                earn_dgmxRewards = null;
-                earn_dgmxRewardsLoadedFor = addr;
+                if (earn_isLookupAddrCurrent(addr)) {
+                    earn_dgmxRewards = null;
+                    earn_dgmxRewardsLoadedFor = addr;
+                }
                 return null;
             });
 
@@ -9500,8 +9548,12 @@
 
                 const decimals = decHex ? Number(BigInt('0x' + decHex.replace('0x', ''))) : 18;
 
-                // Try symbol-based icon fallback
+                // Try symbol-based icon fallback (raw symbol — icon map lookup)
                 let icon = SYMBOL_ICONS[symbol] || null;
+
+                // XSS guard: on-chain symbol() is deployer-controlled and the
+                // cached value feeds innerHTML templates downstream.
+                symbol = earn_escapeHtml(symbol);
 
                 // If still no icon, try Trust Wallet assets CDN
                 if (!icon) {
@@ -9817,7 +9869,7 @@
                 const _gsF = _GS.has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (item.icon) {
-                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }
@@ -14248,6 +14300,12 @@
         }
 
         function earn_applyMerklRewardsResult(dolomiteRewards, userAddr, chainId, requestKey) {
+            // Stale-response guard: never let wallet A's late Merkl result
+            // overwrite globals while wallet B's lookup is on screen.
+            if (!earn_isLookupAddrCurrent(userAddr)) {
+                console.log('MERKL: stale response for', userAddr, '— globals not updated');
+                return dolomiteRewards || {};
+            }
             const rewardTokenAddrs = Array.from(new Set(
                 Object.values(dolomiteRewards || {})
                     .map(entry => String(entry && entry.token ? entry.token : '').toLowerCase())
@@ -14621,10 +14679,16 @@
                         const wei = par > 0n ? absWei : -absWei;
                         if (par < 0n || wei < 0n) accountHasOpenBorrow = true;
 
+                        // XSS guard: subgraph symbol/name are deployer-controlled and
+                        // these objects feed innerHTML templates. Escape once here
+                        // (raw values still used for the icon lookups just below);
+                        // previously-stored values are already escaped — don't re-escape.
+                        const safeSgSymbol = token.symbol ? earn_escapeHtml(token.symbol) : null;
+                        const safeSgName = token.name ? earn_escapeHtml(token.name) : null;
                         earn_subgraphTokens[marketId] = {
-                            symbol: token.symbol || earn_subgraphTokens[marketId]?.symbol || 'UNK',
+                            symbol: safeSgSymbol || earn_subgraphTokens[marketId]?.symbol || 'UNK',
                             decimals,
-                            name: token.name || token.symbol || earn_subgraphTokens[marketId]?.name || 'UNK',
+                            name: safeSgName || safeSgSymbol || earn_subgraphTokens[marketId]?.name || 'UNK',
                             tokenAddr,
                             icon: earn_subgraphTokens[marketId]?.icon || SYMBOL_ICONS[token.symbol] || SYMBOL_ICONS[(token.symbol || '').toUpperCase()] || null,
                         };
@@ -15625,10 +15689,12 @@
             const applyReplayResult = (replay, useSubgraphMode) => {
                 earn_updateCanonicalSubaccountHistoryStateFromReplay(replay);
                 Object.entries(replay.marketMeta || {}).forEach(([mid, meta]) => {
+                    // XSS guard: replay metadata carries subgraph-sourced
+                    // (deployer-controlled) symbols/names into innerHTML paths.
                     earn_subgraphTokens[mid] = {
-                        symbol: meta.symbol || 'UNK',
+                        symbol: earn_escapeHtml(meta.symbol || 'UNK'),
                         decimals: meta.decimals || 18,
-                        name: meta.name || meta.symbol || 'UNK',
+                        name: earn_escapeHtml(meta.name || meta.symbol || 'UNK'),
                         tokenAddr: (meta.tokenAddr || '').toLowerCase(),
                         icon: meta.icon || null,
                     };
@@ -16447,6 +16513,7 @@
             }
 
             const lookupRunId = earn_startLookupRun();
+            earn_activeLookupAddr = addr;
             const isCurrentLookup = () => earn_isLookupRunCurrent(lookupRunId);
             const cachedLookup = earn_loadLookupCache(chainId, addr);
             const lookupProfile = earn_createLookupProfiler(chainId, addr, !!cachedLookup);
@@ -17447,7 +17514,7 @@
             return tokens.map(t => {
                 const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
                 const iconHtml = icon
-                    ? `<span class="earn-token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${(t.symbol || '?').slice(0, 2)}'"></span>`
+                    ? `<span class="earn-token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${String(t.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></span>`
                     : '';
                 const sym = (t.symbol || '?');
                 const short = sym.length > 12 ? sym.slice(0, 10) + '…' : sym;
@@ -18246,7 +18313,7 @@
                 let iconHtml;
                 if (item.icon) {
                     const _gsF = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }
@@ -18716,7 +18783,7 @@
                 let iconHtml;
                 if (a.icon) {
                     const _gsF2 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(a.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                    iconHtml = `<div class="earn-token-icon"><img src="${a.icon}" alt="${a.symbol}"${_gsF2} onerror="this.parentElement.textContent='${a.symbol.slice(0, 2)}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon"><img src="${a.icon}" alt="${a.symbol}"${_gsF2} onerror="this.parentElement.textContent='${String(a.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${a.symbol.slice(0, 2)}</div>`;
                 }
@@ -18882,7 +18949,7 @@
                     let iconHtml;
                     if (item.icon) {
                         const _gsF3 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                        iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF3} onerror="this.parentElement.textContent='${item.symbol.slice(0, 2)}'"></div>`;
+                        iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF3} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                     } else {
                         iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                     }

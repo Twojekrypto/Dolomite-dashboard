@@ -22,6 +22,11 @@ OUT = os.path.join(SCRIPT_DIR, "dolo_price_history.json")
 
 
 def fetch_chart(start_ts):
+    # DeFiLlama caps span at 1000 points. Once the history exceeds ~1000 days,
+    # anchor the window to "now - 990d" instead of launch — otherwise the query
+    # would cover only the FIRST 1000 days and silently stop picking up fresh
+    # days (existing days are preserved by the immutable merge in main()).
+    start_ts = max(start_ts, int(time.time()) - 990 * 86400)
     span = min(1000, int((time.time() - start_ts) // 86400) + 3)
     url = f"https://coins.llama.fi/chart/{COIN}?start={start_ts}&span={span}&period=1d"
     with urllib.request.urlopen(url, timeout=30) as resp:

@@ -107,8 +107,9 @@ jobs:
       - name: Validate generated data
         run: python3 validate_data.py dolo_flows.json dolo_holder_wallet_history.json dolo_holders.json
 
+      # NOTE: no `if: always()` here — if generation or validation failed,
+      # we must NOT publish potentially corrupted data files.
       - name: Commit and push if changed
-        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -117,10 +118,12 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "📊 Auto-update DOLO flows + holders $(date -u '+%Y-%m-%d %H:%M UTC')"
-            # Retry push with rebase up to 3 times to handle concurrent pushes
+            # Retry push with rebase up to 3 times; FAIL the job if all attempts fail
+            pushed=false
             for i in 1 2 3; do
-              git pull --rebase -X theirs origin master && git push origin master && break
+              if git pull --rebase -X theirs origin master && git push origin master; then pushed=true; break; fi
               echo "⚠️ Push attempt $i failed, retrying..."
               sleep 5
             done
+            if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts — generated data was NOT published"; exit 1; fi
           fi

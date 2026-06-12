@@ -51,6 +51,7 @@ def preserve_existing_output(reason):
 def get_all_exercise_txs():
     """Fetch ALL exercise transactions from the Vester contract."""
     all_txs = []
+    total_fetched = 0
     page = 1
 
     while True:
@@ -68,10 +69,29 @@ def get_all_exercise_txs():
         resp = requests.get(ROUTESCAN_API, params=params, timeout=30)
         data = resp.json()
 
-        if data.get("status") != "1" or not data.get("result"):
+        if data.get("status") != "1":
+            # status "0" with "No transactions found" is the normal
+            # end-of-data signal; anything else is a real API error and must
+            # not be treated as "scan finished" (it would silently truncate).
+            message = str(data.get("message") or "")
+            if "no transactions found" in message.lower():
+                break
+            raise SystemExit(
+                f"  ❌ Routescan API error on page {page}: "
+                f"status={data.get('status')!r} message={message!r} "
+                f"result={data.get('result')!r}"
+            )
+        if not data.get("result"):
             break
 
         txs = data["result"]
+        total_fetched += len(txs)
+        # The etherscan-style txlist window is capped at 10000 rows
+        # (page * offset). Warn loudly before the cap silently truncates.
+        if total_fetched >= 9900:
+            print(f"::warning::calculate_avg_lock.py fetched {total_fetched} txs — "
+                  f"approaching the 10000-row Routescan txlist window limit; "
+                  f"older/newer exercises may soon be silently truncated")
         # Filter for successful exercise txs (BOTH methods: USDC- and
         # DOLO-paid — see odolo_exercises.py; counting only one method made
         # this file disagree with exercisers_by_address.json).
