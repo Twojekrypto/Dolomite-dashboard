@@ -169,12 +169,8 @@ FRESH_DEBANK_FAILURE_CACHE_SECONDS = 6 * 3600
 FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS = int(os.getenv("FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS", "75"))
 FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS = int(os.getenv("FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS", "12000"))
 FRESH_DEBANK_CHROME_BIN = os.getenv("FRESH_DEBANK_CHROME_BIN", "").strip()
-SAFE_SINGLETON_ADDRS = {
-    "0x41675c099f32341bf84bfc5382af534df5c7461a",  # Safe 1.4.1
-    "0xd9db270c1b5e3bd161e8c8503c55ceabee709552",  # Gnosis Safe 1.3.0
-    "0x3e5c63644e683549055b9be8653de26e0b4cd36e",  # Gnosis Safe 1.1.1
-    "0x29fcb43b46531bca003ddc8fcb67ffe91900c762",  # Gnosis Safe L2
-}
+# Single source of truth for Safe singleton addresses (all versions).
+from safe_wallets import SAFE_SINGLETON_ADDRS
 USER_CONTRACT_WALLET_ADDRS = {
     "0xbabcc964619cf5c8a57f2b989a35cd887e8ce739",  # User Safe/multisig DOLO holder
 }
