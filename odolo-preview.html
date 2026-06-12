@@ -909,7 +909,12 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 .dleg-row .amt{font-family:var(--mono);font-size:10.5px;color:var(--fg-3);font-variant-numeric:tabular-nums}
 
 /* ====== REALIZED VS THEORY ====== */
+/* .wrap is a flex container ordered explicitly per section — slot this
+   panel right below the Discount Curve (50) and above Latest (60). */
+#odolo-realized-section{order:55}
 .rvt-body{display:flex;flex-direction:column;gap:14px}
+.rvt-explain{font-size:11.5px;color:var(--fg-3);line-height:1.65;max-width:860px}
+.rvt-explain b{color:var(--fg-2)}
 .rvt-summary{display:flex;gap:10px;flex-wrap:wrap}
 .rvt-chip{display:inline-flex;align-items:baseline;gap:7px;padding:8px 14px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px}
 .rvt-chip b{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums}
@@ -1294,6 +1299,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <div class="card-meta"><span class="pulse"></span>Paid price vs DOLO market price on exercise day</div>
     </div>
     <div class="rvt-body">
+      <div class="rvt-explain">The curve above shows the <b>promised</b> discount for each lock length. This panel shows what buyers <b>actually got</b>: for every USDC exercise we compare the price paid per veDOLO with DOLO's market price on that day. <b>Green</b> = beat the schedule (market was higher than the schedule implied), <b>gold</b> = landed on it, <b>red</b> = the market price slipped below before the exercise settled. Hover or click a row for details.</div>
       <div class="rvt-summary" id="rvt-summary"></div>
       <div class="rvt-rows" id="rvt-rows"></div>
       <div class="rvt-focus" id="rvt-focus" aria-live="polite"></div>
