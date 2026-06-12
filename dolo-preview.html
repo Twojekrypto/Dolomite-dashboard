@@ -712,6 +712,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .bal-chg.up{color:var(--up)}
 .bal-chg.down{color:var(--down)}
 
+.holder-total-sub{font-size:9.5px;color:var(--fg-3);font-family:var(--mono);letter-spacing:.2px;margin-top:2px}
 .share-cell{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
 .share-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);line-height:1.1}
 .share-bar{width:90px;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line-1)}
@@ -1099,7 +1100,20 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         </div>
       </div>
 
-      <div class="tb-right"></div>
+      <div class="tb-right">
+        <label class="holder-chart-toggle" for="holders-include-vedolo" data-tooltip="Add each wallet's locked veDOLO to its total — combines liquid and locked DOLO per holder">
+          <input id="holders-include-vedolo" type="checkbox">
+          <span class="holder-chart-toggle-check" aria-hidden="true">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="2 6.3 4.8 9 10 3"></polyline>
+            </svg>
+          </span>
+          <span class="holder-chart-toggle-icon-shell" aria-hidden="true">
+            <img class="holder-chart-toggle-icon" src="vedolo-logo.svg" alt="" onerror="this.closest('.holder-chart-toggle-icon-shell')?.remove()">
+          </span>
+          <span class="holder-chart-toggle-text">veDOLO</span>
+        </label>
+      </div>
     </div>
 
     <div class="tbl-wrap">
@@ -1598,6 +1612,7 @@ const state = {
     out: {key:"net", dir:"desc"},
   },
   includeVeDolo: false,
+  holdersIncludeVeDolo: false,
   flowsPage: {acc: 0, out: 0},
   flowsPageSize: 6,
   flowsStableBodyHeight: {acc: 0, out: 0},
@@ -3851,9 +3866,16 @@ function allocationWalletInlinePanelHtml(series, model = null){
     </div>
   `;
 }
+// When the veDOLO toggle is on, fold each wallet's locked DOLO into its
+// total (same semantics as the distribution chart's "with veDOLO" view).
+function holderWithVeDolo(h){
+  if(!state.holdersIncludeVeDolo) return h;
+  const locked = VEDOLO_LOCKS.get(h.addr.toLowerCase()) || 0;
+  return locked > 0 ? {...h, locked, total: h.total + locked} : h;
+}
 function filterHolders({includeSearch = true} = {}){
   const q = includeSearch ? state.q.trim().toLowerCase() : "";
-  return HOLDERS.filter(h=>{
+  return HOLDERS.map(holderWithVeDolo).filter(h=>{
     // Chain filter (single-select): "all" = no filter; otherwise hide
     // rows that don't have any balance on the chosen chain
     if(state.chain === "ethereum"  && h.balEth  === 0) return false;
@@ -3931,7 +3953,7 @@ function renderHolders(){
         </td>
         <td class="num">${h.balEth>0 ? `<span class="bal-val">${fmtNum(h.balEth)}</span>` : `<span class="bal-zero">—</span>`}</td>
         <td class="num">${h.balBera>0 ? `<span class="bal-val">${fmtNum(h.balBera)}</span>` : `<span class="bal-zero">—</span>`}</td>
-        <td class="num"><span class="bal-val total">${fmtNum(h.total)}</span></td>
+        <td class="num"><span class="bal-val total">${fmtNum(h.total)}</span>${state.holdersIncludeVeDolo && h.locked > 0 ? `<div class="holder-total-sub">incl. ${fmtNum(h.locked)} veDOLO</div>` : ""}</td>
         <td class="num" style="padding-right:32px">
           <div class="share-cell">
             <span class="share-val">${fmtPct(share)}</span>
@@ -4771,6 +4793,15 @@ document.getElementById("holder-include-vedolo")?.addEventListener("change", e=>
   renderHolderDistributionChart();
   if(e.currentTarget.checked && window.ensureDoloVeDoloDataLoaded){
     window.ensureDoloVeDoloDataLoaded();
+  }
+});
+document.getElementById("holders-include-vedolo")?.addEventListener("change", e=>{
+  state.holdersIncludeVeDolo = e.currentTarget.checked;
+  e.currentTarget.closest(".holder-chart-toggle")?.classList.toggle("is-active", e.currentTarget.checked);
+  renderHolders();
+  if(e.currentTarget.checked && window.ensureDoloVeDoloDataLoaded){
+    // veDOLO locks may still be loading — re-render once they arrive
+    Promise.resolve(window.ensureDoloVeDoloDataLoaded()).then(()=>renderHolders()).catch(()=>{});
   }
 });
 document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
