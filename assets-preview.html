@@ -2129,22 +2129,31 @@ function calcHero(row, sim){
   const totalNow = rateForMode(row.lending + extrasRaw);
   return { totalAfter, totalNow, annual: sim.effectiveAmount * totalAfter / 100 };
 }
+// Full dollars (with separators) below $1M; compact above. The hero answer
+// deserves precision — "$1,157/yr" not "$1K/yr".
+const fmtMoneyFull = (v)=> v >= 1e6 ? fmtCmp(v) : "$" + Math.round(v).toLocaleString("en-US");
 function calcHeroHtml(row, calc, sim){
   if(sim.effectiveAmount <= 0){
     return `<div class="calc-hero-line muted">Enter an amount to simulate ${calc.action==="withdraw" ? "a withdrawal" : "a deposit"}.</div>`;
   }
   const h = calcHero(row, sim);
   const isW = calc.action === "withdraw";
+  const annual = Math.abs(h.annual);
   const capped = sim.effectiveAmount < sim.requested
     ? ` · capped at ${isW ? "available liquidity" : "remaining supply cap"} ${fmtCmp(sim.effectiveAmount)}`
     : "";
+  const rateMoved = Math.abs(h.totalAfter - h.totalNow) >= 0.005;
+  const rateText = rateMoved
+    ? `at ${fmtPct(h.totalAfter)} total supply ${state.mode} after the ${isW ? "withdrawal" : "deposit"} (now ${fmtPct(h.totalNow)})`
+    : `at ${fmtPct(h.totalAfter)} total supply ${state.mode}`;
   return `
     <div class="calc-hero-line">
       <span class="calc-hero-amt">${fmtCmp(sim.effectiveAmount)}</span>
       <span class="calc-hero-verb">${isW ? "withdrawn → you'd give up" : "deposited → you'd earn"}</span>
-      <span class="calc-hero-earn${isW ? " down" : ""}">≈ ${fmtCmp(Math.abs(h.annual))}/yr</span>
+      <span class="calc-hero-earn${isW ? " down" : ""}">≈ ${fmtMoneyFull(annual)}/yr</span>
+      <span class="calc-hero-verb">(≈ ${fmtMoneyFull(annual/12)}/mo)</span>
     </div>
-    <div class="calc-hero-sub">at ${fmtPct(h.totalAfter)} total supply ${state.mode} after the ${isW ? "withdrawal" : "deposit"} (now ${fmtPct(h.totalNow)})${capped}</div>`;
+    <div class="calc-hero-sub">${rateText}${capped}</div>`;
 }
 function calcMarketDead(row){
   return !(row.tvl > 0) && !(row.lending > 0) && !(row.borrow > 0);
@@ -2152,6 +2161,10 @@ function calcMarketDead(row){
 // One muted line of market mechanics under the hero answer — deltas only.
 function calcMiniHtml(sim){
   if(sim.effectiveAmount <= 0) return "";
+  const negligible = Math.abs(sim.newUtil - sim.oldUtil) < 0.005
+    && Math.abs(sim.newLending - sim.oldLending) < 0.005
+    && Math.abs(sim.newBorrow - sim.oldBorrow) < 0.005;
+  if(negligible) return `Market impact · negligible at this size`;
   return `Market impact · utilization <b>${fmtPpDelta(sim.newUtil, sim.oldUtil)}</b> · lending ${state.mode} <b>${fmtPpDelta(sim.newLending, sim.oldLending)}</b> · borrow ${state.mode} <b>${fmtPpDelta(sim.newBorrow, sim.oldBorrow)}</b>`;
 }
 
