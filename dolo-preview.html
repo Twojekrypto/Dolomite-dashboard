@@ -712,7 +712,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .bal-chg.up{color:var(--up)}
 .bal-chg.down{color:var(--down)}
 
-.holder-total-sub{font-size:9.5px;color:var(--fg-3);font-family:var(--mono);letter-spacing:.2px;margin-top:2px}
+/* veDOLO column is visible only when the holders veDOLO toggle is active */
+#tbl-holders .col-vedolo{display:none}
+#tbl-holders.vedolo-on .col-vedolo{display:table-cell}
 .share-cell{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
 .share-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);line-height:1.1}
 .share-bar{width:90px;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line-1)}
@@ -1101,8 +1103,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
 
       <div class="tb-right">
-        <label class="holder-chart-toggle" for="holders-include-vedolo" data-tooltip="Add each wallet's locked veDOLO to its total — combines liquid and locked DOLO per holder">
-          <input id="holders-include-vedolo" type="checkbox">
+        <label class="holder-chart-toggle is-active" for="holders-include-vedolo" data-tooltip="Show each wallet's locked veDOLO and add it to the total — includes wallets that hold only veDOLO">
+          <input id="holders-include-vedolo" type="checkbox" checked>
           <span class="holder-chart-toggle-check" aria-hidden="true">
             <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="2 6.3 4.8 9 10 3"></polyline>
@@ -1124,6 +1126,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <th data-sort="addr">Address</th>
             <th data-sort="balEth" class="num" style="width:140px"><span class="hd-chain"><span class="dot dot-ethereum"></span>ETH</span></th>
             <th data-sort="balBera" class="num" style="width:140px"><span class="hd-chain"><span class="dot dot-berachain"></span>BERA</span></th>
+            <th data-sort="locked" class="num col-vedolo" style="width:140px"><span class="hd-chain"><img src="vedolo-logo.svg" alt="" style="width:11px;height:11px;border-radius:50%" onerror="this.style.display='none'">veDOLO</span></th>
             <th data-sort="total" class="num sorted" style="width:140px">Total</th>
             <th data-sort="share" class="num" style="padding-right:32px;width:140px">Share</th>
           </tr>
@@ -1612,7 +1615,7 @@ const state = {
     out: {key:"net", dir:"desc"},
   },
   includeVeDolo: false,
-  holdersIncludeVeDolo: false,
+  holdersIncludeVeDolo: true,
   flowsPage: {acc: 0, out: 0},
   flowsPageSize: 6,
   flowsStableBodyHeight: {acc: 0, out: 0},
@@ -3866,16 +3869,35 @@ function allocationWalletInlinePanelHtml(series, model = null){
     </div>
   `;
 }
-// When the veDOLO toggle is on, fold each wallet's locked DOLO into its
-// total (same semantics as the distribution chart's "with veDOLO" view).
-function holderWithVeDolo(h){
-  if(!state.holdersIncludeVeDolo) return h;
-  const locked = VEDOLO_LOCKS.get(h.addr.toLowerCase()) || 0;
-  return locked > 0 ? {...h, locked, total: h.total + locked} : h;
+const VEDOLO_CONTRACT_ADDRESS = "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4";
+// When the veDOLO toggle is on:
+//  - fold each wallet's locked DOLO into its total,
+//  - include wallets that hold ONLY veDOLO (no liquid DOLO),
+//  - exclude the veDOLO contract row (its balance IS the pooled locks, now
+//    attributed to their owners — keeping it would double-count supply).
+function holdersView(){
+  if(!state.holdersIncludeVeDolo) return HOLDERS;
+  const seen = new Set();
+  const out = [];
+  for(const h of HOLDERS){
+    const key = h.addr.toLowerCase();
+    if(key === VEDOLO_CONTRACT_ADDRESS) continue;
+    seen.add(key);
+    const locked = VEDOLO_LOCKS.get(key) || 0;
+    out.push(locked > 0 ? {...h, locked, total: h.total + locked} : h);
+  }
+  VEDOLO_LOCKS.forEach((locked, key) => {
+    if(seen.has(key) || !(locked > 0) || key === VEDOLO_CONTRACT_ADDRESS) return;
+    const info = sharedAddressInfo(key);
+    const mapped = holderDistributionType(key, null);
+    const type = TYPE_LABELS[mapped] ? mapped : "eoa";
+    out.push({addr: key, label: info?.label || "", type, balEth: 0, balBera: 0, locked, total: locked, veOnly: true});
+  });
+  return out;
 }
 function filterHolders({includeSearch = true} = {}){
   const q = includeSearch ? state.q.trim().toLowerCase() : "";
-  return HOLDERS.map(holderWithVeDolo).filter(h=>{
+  return holdersView().filter(h=>{
     // Chain filter (single-select): "all" = no filter; otherwise hide
     // rows that don't have any balance on the chosen chain
     if(state.chain === "ethereum"  && h.balEth  === 0) return false;
@@ -3890,6 +3912,7 @@ function sortHolders(rows){
   return [...rows].sort((a,b)=>{
     let va,vb;
     if(key==="rank"||key==="total"||key==="share"){va=a.total;vb=b.total}
+    else if(key==="locked"){va=a.locked||0;vb=b.locked||0}
     else if(key==="balEth"){va=a.balEth;vb=b.balEth}
     else if(key==="balBera"){va=a.balBera;vb=b.balBera}
     else if(key==="addr"){va=a.label||a.addr;vb=b.label||b.addr}
@@ -3898,6 +3921,7 @@ function sortHolders(rows){
   });
 }
 function renderHolders(){
+  document.getElementById("tbl-holders")?.classList.toggle("vedolo-on", !!state.holdersIncludeVeDolo);
   const rows = sortHolders(filterHolders());
   const rankMap = new Map(
     sortHolders(filterHolders({includeSearch:false}))
@@ -3953,7 +3977,8 @@ function renderHolders(){
         </td>
         <td class="num">${h.balEth>0 ? `<span class="bal-val">${fmtNum(h.balEth)}</span>` : `<span class="bal-zero">—</span>`}</td>
         <td class="num">${h.balBera>0 ? `<span class="bal-val">${fmtNum(h.balBera)}</span>` : `<span class="bal-zero">—</span>`}</td>
-        <td class="num"><span class="bal-val total">${fmtNum(h.total)}</span>${state.holdersIncludeVeDolo && h.locked > 0 ? `<div class="holder-total-sub">incl. ${fmtNum(h.locked)} veDOLO</div>` : ""}</td>
+        <td class="num col-vedolo">${h.locked > 0 ? `<span class="bal-val">${fmtNum(h.locked)}</span>` : `<span class="bal-zero">—</span>`}</td>
+        <td class="num"><span class="bal-val total">${fmtNum(h.total)}</span></td>
         <td class="num" style="padding-right:32px">
           <div class="share-cell">
             <span class="share-val">${fmtPct(share)}</span>
@@ -3980,6 +4005,7 @@ function renderHolders(){
         </td>
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-zero">—</span></td>
+        <td class="num col-vedolo"><span class="bal-zero">—</span></td>
         <td class="num"><span class="bal-val total">0</span></td>
         <td class="num" style="padding-right:32px">
           <div class="share-cell">
@@ -4804,6 +4830,13 @@ document.getElementById("holders-include-vedolo")?.addEventListener("change", e=
     Promise.resolve(window.ensureDoloVeDoloDataLoaded()).then(()=>renderHolders()).catch(()=>{});
   }
 });
+// Toggle is on by default — kick the lazy veDOLO data load after boot and
+// refresh the table once locks arrive.
+if(state.holdersIncludeVeDolo){
+  setTimeout(()=>{
+    Promise.resolve(window.ensureDoloVeDoloDataLoaded?.()).then(()=>renderHolders()).catch(()=>{});
+  }, 600);
+}
 document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
   btn.addEventListener("click", () => {
     const next = btn.dataset.holderBucketView;
