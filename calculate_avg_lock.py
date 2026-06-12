@@ -11,9 +11,10 @@ import json
 import os
 from datetime import datetime, timezone
 
+from odolo_exercises import is_exercise_tx, extract_lock_duration_seconds
+
 ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 VESTER_CONTRACT = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
-EXERCISE_METHOD_ID = "0xa88f8139"
 PAGE_SIZE = 100
 RATE_LIMIT_DELAY = 0.3
 
@@ -71,13 +72,10 @@ def get_all_exercise_txs():
             break
 
         txs = data["result"]
-        # Filter for successful exercise txs
-        exercise = [
-            tx for tx in txs
-            if tx.get("methodId") == EXERCISE_METHOD_ID
-            and tx.get("isError") == "0"
-            and tx.get("txreceipt_status") == "1"
-        ]
+        # Filter for successful exercise txs (BOTH methods: USDC- and
+        # DOLO-paid — see odolo_exercises.py; counting only one method made
+        # this file disagree with exercisers_by_address.json).
+        exercise = [tx for tx in txs if is_exercise_tx(tx)]
         all_txs.extend(exercise)
 
         print(f"  Page {page}: {len(txs)} txs, {len(exercise)} exercises (total: {len(all_txs)})")
@@ -91,22 +89,9 @@ def get_all_exercise_txs():
     return all_txs
 
 
-def extract_lock_duration(tx):
-    """Extract lock duration in seconds from exercise tx input data."""
-    inp = tx["input"]
-    if len(inp) < 266:  # 2 + 8 + 4*64
-        return None
-
-    # Param 2 (index 2) = lock_end timestamp
-    params_hex = inp[10:]
-    lock_end = int(params_hex[2*64:3*64], 16)
-    tx_time = int(tx["timeStamp"])
-
-    duration_seconds = lock_end - tx_time
-    if duration_seconds <= 0 or duration_seconds > 3 * 365 * 86400:  # sanity: max 3 years
-        return None
-
-    return duration_seconds
+# Lock-duration extraction lives in odolo_exercises.extract_lock_duration_seconds
+# (shared with generate_exercisers.py; handles both exercise methods).
+extract_lock_duration = extract_lock_duration_seconds
 
 
 def main():
@@ -140,7 +125,7 @@ def main():
 
     # Distribution buckets
     buckets = {"< 1 month": 0, "1-3 months": 0, "3-6 months": 0,
-               "6-12 months": 0, "1-2 years": 0}
+               "6-12 months": 0, "1-2 years": 0, "2+ years": 0}
     for d in durations:
         days = d / 86400
         if days < 30:
@@ -151,8 +136,10 @@ def main():
             buckets["3-6 months"] += 1
         elif days < 365:
             buckets["6-12 months"] += 1
-        else:
+        elif days < 730:
             buckets["1-2 years"] += 1
+        else:
+            buckets["2+ years"] += 1
 
     # Average discount (linear: 5% at 7 days, 50% at 730 days)
     avg_discount = 5 + (avg_days - 7) * (50 - 5) / (730 - 7)

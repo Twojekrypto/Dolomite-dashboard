@@ -15,7 +15,9 @@ ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan
 VESTER_CONTRACT = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
 USDC_E_CONTRACT = "0x549943e04f40284185054145c6e4e9568c1d3241".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
-EXERCISE_METHOD_ID = "0xa88f8139"
+# This tracker intentionally covers only USDC-paid exercises (it sums USDC
+# volume). The all-methods exercise count lives in avg_lock_data.json.
+from odolo_exercises import EXERCISE_METHOD_USDC as EXERCISE_METHOD_ID
 USDC_DECIMALS = 6
 PAGE_SIZE = 100
 RATE_LIMIT_DELAY = 0.35
