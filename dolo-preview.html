@@ -3120,7 +3120,14 @@ function buildCexSupplySeries(){
     .filter(point => point.ts > 0)
     .sort((a,b) => a.ts - b.ts);
   if(dailyPoints.length > 1){
-    if(current.total > 0 && Math.abs(baseTs - dailyPoints[dailyPoints.length - 1].ts) > 3600){
+    // Methodology guard (same rule as the holder chart): append the live
+    // "now" point only when it agrees with the precomputed series — a label
+    // added between the daily run and page load must not draw a false jump.
+    const last = dailyPoints[dailyPoints.length - 1];
+    const relDiff = Math.abs(current.total - last.cex) / Math.max(last.cex, 1);
+    const walletDiff = Math.abs(current.wallets - last.wallets);
+    const methodologyMatch = relDiff <= 0.01 && walletDiff <= 1;
+    if(current.total > 0 && Math.abs(baseTs - last.ts) > 3600 && methodologyMatch){
       dailyPoints.push({key:"now", label:"Now", ts:baseTs, cex:current.total, wallets:current.wallets});
     }
     return {

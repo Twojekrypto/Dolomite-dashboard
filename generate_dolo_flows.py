@@ -171,6 +171,13 @@ FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS = int(os.getenv("FRESH_DEBANK_VIRTUAL_TIME_B
 FRESH_DEBANK_CHROME_BIN = os.getenv("FRESH_DEBANK_CHROME_BIN", "").strip()
 # Single source of truth for Safe singleton addresses (all versions).
 from safe_wallets import SAFE_SINGLETON_ADDRS
+
+# veDOLO contract — pooled locks live here; never treat it as a user wallet.
+VEDOLO_CONTRACT_ADDR = "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4"
+
+# Direct sends of at least this many DOLO to a labeled CEX wallet flag the
+# sender as a potential CEX deposit address (cheap new-CEX funnel detection).
+CEX_DEPOSIT_FLAG_MIN_DOLO = 10_000
 USER_CONTRACT_WALLET_ADDRS = {
     "0xbabcc964619cf5c8a57f2b989a35cd887e8ce739",  # User Safe/multisig DOLO holder
 }
@@ -1600,7 +1607,37 @@ def locked_map_at_holder_point(point_ts, current_locks, vedolo_events):
         if not addr:
             continue
         locked[addr] = locked.get(addr, 0) + float(unlock.get("dolo") or 0)
+    # Hard guard: never attribute pooled locks to the veDOLO contract itself
+    # (possible if a lock event lacks beneficiaryAddress and falls back to the
+    # provider address) — that would double-count locked supply per wallet.
+    locked.pop(VEDOLO_CONTRACT_ADDR, None)
     return {addr: value for addr, value in locked.items() if value > 0.0001}
+
+
+def detect_cex_deposit_candidates(all_transfers, vesting_labels=None,
+                                  min_dolo=CEX_DEPOSIT_FLAG_MIN_DOLO, top_n=25):
+    """Flag potential NEW CEX deposit addresses.
+
+    Classic funnel: many users -> fresh deposit address -> sweep to a labeled
+    CEX hot wallet. The sweep sender is the deposit address, so any unlabeled
+    wallet that has sent >= min_dolo directly to a type:"cex" label is a
+    candidate. Results are advisory (written to dolo_flows.json cex_watch and
+    the CEX label audit); promotion to a real label stays manual.
+    """
+    labels = load_address_labels(vesting_labels)
+    cex_addrs = {a for a, info in labels.items() if str(info.get("type", "")).lower() == "cex"}
+    sent, tx_counts = {}, {}
+    for chain_key, transfers in all_transfers.items():
+        for from_addr, to_addr, value_wei, _block in transfers:
+            if to_addr in cex_addrs and from_addr not in cex_addrs \
+                    and from_addr not in labels and from_addr not in EXCLUDED_ADDRS:
+                sent[from_addr] = sent.get(from_addr, 0.0) + value_wei / 1e18
+                tx_counts[from_addr] = tx_counts.get(from_addr, 0) + 1
+    ranked = sorted(((a, v) for a, v in sent.items() if v >= min_dolo), key=lambda item: -item[1])
+    return [
+        {"address": addr, "sentToCexDolo": round(value, 2), "txCount": tx_counts.get(addr, 0)}
+        for addr, value in ranked[:top_n]
+    ]
 
 
 def empty_bucket_model(bucket_defs):
@@ -2159,6 +2196,15 @@ def main():
 
     vesting_investors = extract_vesting_investors(all_transfers)
 
+    # Potential NEW CEX deposit addresses: classic funnel is users -> deposit
+    # address -> sweep into a labeled hot wallet, so any unlabeled wallet
+    # sending >=10K DOLO straight to a known CEX is a candidate for labeling.
+    cex_deposit_candidates = detect_cex_deposit_candidates(all_transfers, vesting_investors)
+    if cex_deposit_candidates:
+        print(f"\n👀 Potential CEX deposit addresses (top {len(cex_deposit_candidates)}):")
+        for c in cex_deposit_candidates[:5]:
+            print(f"   {c['address']} sent {c['sentToCexDolo']:,.0f} DOLO to labeled CEXes ({c['txCount']} tx)")
+
     # Extra holder-bucket chart history. These are still derived from the same
     # transfer logs as the flow tables, but add enough cutoffs for a usable hover.
     holder_history_points = build_holder_history_schedule(holder_history_base_ts)
@@ -2221,6 +2267,18 @@ def main():
         # lazy-loaded file); keep a marker so the UI knows where to find it.
         "holder_wallet_history_file": "dolo_holder_wallet_history.json",
         "cex_supply_history": cex_supply_history,
+        # Advisory watchlist: unlabeled wallets funneling DOLO into labeled
+        # CEX hot wallets — candidates for new CEX deposit-address labels.
+        "cex_watch": {
+            "depositCandidates": cex_deposit_candidates,
+            "minDolo": CEX_DEPOSIT_FLAG_MIN_DOLO,
+        },
+        # Mid-range block gaps from persistent RPC failures (if any) — daily
+        # points OLDER than a gap may be reconstructed with missing flow.
+        "history_gaps": {
+            chain_key: state.get(f"skipped_ranges_{chain_key}", [])
+            for chain_key in CHAINS
+        },
         "dolo_price": dolo_price,
         "periods": output_periods,
         "balance_changes": balance_changes,
