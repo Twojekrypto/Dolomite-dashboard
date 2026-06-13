@@ -73,18 +73,23 @@
         updateExpiryLabels();
         if (!MOBILE_QUERY.matches) return;
 
-        document.querySelectorAll(SCROLL_SHELL_SELECTOR).forEach(shell => {
-            prepareShell(shell);
-            shell.classList.remove("mobile-scrollable");
-        });
+        // Compute which shells need horizontal scroll first, then mutate the class
+        // only when it actually changes. Blindly removing+adding the class made the
+        // MutationObserver (attributeFilter: ["class"]) observe our own writes and
+        // reschedule forever — a permanent layout-thrash loop on mobile.
+        const needScroll = new Set();
         document.querySelectorAll("table").forEach(table => {
             const shell = shellForTable(table);
             if (!shell) return;
             const shellWidth = shell.clientWidth || shell.getBoundingClientRect().width;
             const tableWidth = table.scrollWidth || table.getBoundingClientRect().width;
-            if (tableWidth > shellWidth + 2) {
-                prepareShell(shell);
-                shell.classList.add("mobile-scrollable");
+            if (tableWidth > shellWidth + 2) needScroll.add(shell);
+        });
+        document.querySelectorAll(SCROLL_SHELL_SELECTOR).forEach(shell => {
+            prepareShell(shell);
+            const need = needScroll.has(shell);
+            if (shell.classList.contains("mobile-scrollable") !== need) {
+                shell.classList.toggle("mobile-scrollable", need);
             }
         });
         updateDropdownPanels();
@@ -95,11 +100,12 @@
             if (!label.dataset.mobilePolishFullLabel) {
                 label.dataset.mobilePolishFullLabel = label.textContent.trim();
             }
-            if (!MOBILE_QUERY.matches) {
-                label.textContent = label.dataset.mobilePolishFullLabel;
-                return;
-            }
-            label.textContent = label.dataset.mobilePolishFullLabel.replace(/\b(Q[1-4])\s+20(\d{2})\b/g, "$1\n'$2");
+            const next = MOBILE_QUERY.matches
+                ? label.dataset.mobilePolishFullLabel.replace(/\b(Q[1-4])\s+20(\d{2})\b/g, "$1\n'$2")
+                : label.dataset.mobilePolishFullLabel;
+            // Only write when the value changes — unconditional textContent writes are
+            // childList mutations the observer would pick up, feeding the loop above.
+            if (label.textContent !== next) label.textContent = next;
         });
     }
 

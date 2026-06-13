@@ -7624,6 +7624,12 @@
             earn_updateFreshnessPill();
             earn_loadFreshnessStatus().then(earn_updateFreshnessPill);
 
+            // Invalidate any lookup still in flight for the previous chain: bump the run
+            // id so its async continuations fail earn_isLookupRunCurrent, and clear the
+            // active address so reward fetchers can't write stale-chain results.
+            earn_startLookupRun();
+            earn_activeLookupAddr = '';
+
             // Clear all chain-specific caches so next lookup fetches fresh data
             earn_netflowData = null;
             earn_interestYieldData = null;
@@ -9802,7 +9808,7 @@
             } catch (e) {
                 if (!earn_isLookupRunCurrent(runId)) return false;
                 console.error('History lookup failed:', e);
-                if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-rose)">Error loading history: ${e.message}</td></tr>`;
+                if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-rose)">Error loading history: ${earn_escapeHtml(e && e.message ? e.message : String(e))}</td></tr>`;
                 return false;
             }
         }
@@ -13089,10 +13095,16 @@
                     return earn_sortDesc ? -diff : diff;
                 });
             } else if (key === 'yield') {
+                // Schwartzian transform: earn_calculateYield is ~270 lines of BigInt + DOM
+                // reads. Computing it inside the comparator ran it twice per comparison
+                // (O(n·log n) full recalcs); precompute the key once per asset instead.
+                const yieldKeyByAsset = new Map();
+                const yieldKeyOf = (asset) => {
+                    if (!yieldKeyByAsset.has(asset)) yieldKeyByAsset.set(asset, earn_calculateYield(asset).yieldUsdScaled || 0n);
+                    return yieldKeyByAsset.get(asset);
+                };
                 earn_cachedAssets.sort((a, b) => {
-                    const yieldUsdA = earn_calculateYield(a).yieldUsdScaled || 0n;
-                    const yieldUsdB = earn_calculateYield(b).yieldUsdScaled || 0n;
-                    const diff = earn_compareBigInt(yieldUsdA, yieldUsdB);
+                    const diff = earn_compareBigInt(yieldKeyOf(a), yieldKeyOf(b));
                     return earn_sortDesc ? -diff : diff;
                 });
             } else if (key === 'apr') {
@@ -13471,7 +13483,16 @@
                 try {
                     const resp = await fetch(`${SNAPSHOT_BASE}/manifest.json`);
                     if (!resp.ok) return null;
-                    earn_snapshotManifest = await resp.json();
+                    const parsed = await resp.json();
+                    // Validate before assigning: a malformed manifest (no dates array) would
+                    // otherwise assign successfully and make every later earn_buildPeriodButtons()
+                    // — e.g. from earnChainSelect — throw an uncaught TypeError, killing the
+                    // period buttons after a chain switch.
+                    if (!parsed || !Array.isArray(parsed.dates)) {
+                        console.warn('Snapshot manifest malformed (missing dates array); ignoring');
+                        return null;
+                    }
+                    earn_snapshotManifest = parsed;
                     earn_buildPeriodButtons();
                     earn_renderNotices();
                     console.log('Snapshot manifest loaded:', earn_snapshotManifest.dates.length, 'dates');
@@ -13492,7 +13513,7 @@
 
         // Build period buttons dynamically from manifest (no-op if period bar removed)
         function earn_buildPeriodButtons() {
-            if (!earn_snapshotManifest) return;
+            if (!earn_snapshotManifest || !Array.isArray(earn_snapshotManifest.dates)) return;
             const bar = document.getElementById('earn-period-bar');
             if (!bar) return;
 
@@ -13902,7 +13923,10 @@
                     cache: 'no-store',
                 });
                 if (!resp.ok) {
-                    earn_subaccountHistoryCache[cacheKey] = null;
+                    // Only treat 404 as a permanent "no history" (cache it). A transient
+                    // 5xx/429 must NOT be cached as null for the whole session, or one
+                    // network hiccup permanently marks the wallet unverified until reload.
+                    if (resp.status === 404) earn_subaccountHistoryCache[cacheKey] = null;
                     return null;
                 }
                 const data = await resp.json();
@@ -13913,8 +13937,8 @@
                 earn_subaccountHistoryCache[cacheKey] = data;
                 return data;
             })().catch(e => {
+                // Network/abort error: return null WITHOUT caching so it can be retried.
                 console.warn('Subaccount history fetch failed:', e.message || e);
-                earn_subaccountHistoryCache[cacheKey] = null;
                 return null;
             });
             earn_subaccountHistoryRequestCache[cacheKey] = request;
@@ -13940,7 +13964,8 @@
                     cache: 'no-store',
                 });
                 if (!resp.ok) {
-                    earn_verifiedLedgerCache[cacheKey] = null;
+                    // Cache only genuine 404s; transient errors stay uncached for retry.
+                    if (resp.status === 404) earn_verifiedLedgerCache[cacheKey] = null;
                     return null;
                 }
                 const data = await resp.json();
@@ -13963,8 +13988,8 @@
                 earn_verifiedLedgerCache[cacheKey] = data;
                 return data;
             })().catch(e => {
+                // Network/abort error: return null WITHOUT caching so it can be retried.
                 console.warn('Verified ledger fetch failed:', e.message || e);
-                earn_verifiedLedgerCache[cacheKey] = null;
                 return null;
             });
             earn_verifiedLedgerRequestCache[cacheKey] = request;
@@ -14388,7 +14413,16 @@
                     return null;
                 });
                 const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${addr}`;
-                const resp = await fetch(url);
+                // 10s timeout via AbortController — a hung api.merkl.xyz must not block the
+                // whole lending section forever (every other fetch wrapper has this guard).
+                const merklCtrl = new AbortController();
+                const merklTimer = setTimeout(() => merklCtrl.abort(), 10000);
+                let resp;
+                try {
+                    resp = await fetch(url, { signal: merklCtrl.signal });
+                } finally {
+                    clearTimeout(merklTimer);
+                }
                 if (!resp.ok) {
                     const cachedRewards = await cachedMerklRewardsPromise;
                     if (cachedRewards) {
@@ -14588,7 +14622,15 @@
                 allResults = allResults.concat(batch);
                 hasMore = batch.length === PAGE_SIZE;
                 skip += PAGE_SIZE;
-                if (skip > 10000) break; // Safety: TheGraph max skip is 5000, but Goldsky may allow more
+                if (skip > 10000 && hasMore) {
+                    // Skip-based pagination is capped; there are more rows we can't reach
+                    // this way. Flag the truncation instead of silently returning a partial
+                    // set (would understate yield for addresses with >10k events).
+                    console.warn(`earn_subgraphPaginateAll: ${entityName} truncated at skip=${skip} (more rows exist; consider cursor-based serialId_gt paging)`);
+                    allResults.truncated = true;
+                    break;
+                }
+                if (skip > 10000) break;
             }
             return allResults;
         }
@@ -16731,18 +16773,15 @@
 
                         // Build enriched array with only borrow positions
                         const enriched = [];
+                        // Precise USD via BigInt scaling (wei is a BigInt) — avoids the
+                        // Number(wei)/10^decimals float drift that affects sort order and
+                        // the $1 dust boundary. Same price source as earn_getUsdPrice.
                         for (const cp of earn_collateralPositionData) {
-                            const cgKey = chainId + ':' + cp.tokenAddr.toLowerCase();
-                            const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[cp.symbol] || 0;
-                            const humanAmt = Math.abs(Number(cp.wei) / Math.pow(10, cp.decimals));
-                            cp.usdValue = humanAmt * price;
+                            cp.usdValue = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(cp.wei, cp.decimals, cp.symbol, cp.tokenAddr, chainId)));
                             enriched.push(cp);
                         }
                         for (const bp of earn_borrowPositionData) {
-                            const cgKey = chainId + ':' + bp.tokenAddr.toLowerCase();
-                            const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[bp.symbol] || 0;
-                            const humanAmt = Math.abs(Number(bp.wei) / Math.pow(10, bp.decimals));
-                            bp.usdValue = humanAmt * price;
+                            bp.usdValue = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(bp.wei, bp.decimals, bp.symbol, bp.tokenAddr, chainId)));
                             enriched.push(bp);
                         }
                         console.log(`Injected ${earn_collateralPositionData.length} collateral and ${earn_borrowPositionData.length} borrow positions (no visible supply)`);
@@ -16758,7 +16797,7 @@
                         earn_logLookupProfile(lookupProfile, 'firstRenderReady');
 
                         // Also fetch lending positions
-                        const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId })
+                        const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId, addr, chainId })
                             .then(result => {
                                 if (!isCurrentLookup()) return result;
                                 earn_markLookupProfile(lookupProfile, 'lending');
@@ -16768,7 +16807,7 @@
                         const replaySyncedLendingPromise = replayPromise.then(async ok => {
                             if (!isCurrentLookup() || !ok) return null;
                             try {
-                                return await earn_fetchAndRenderLendingPositions({ runId: lookupRunId });
+                                return await earn_fetchAndRenderLendingPositions({ runId: lookupRunId, addr, chainId });
                             } catch (e) {
                                 console.warn('Lending replay refresh:', e);
                                 return null;
@@ -16821,8 +16860,10 @@
                     }
 
                     // Check if there's netflow history for this address
+                    let netflowCheckFailed = false;
                     try {
                         const nfResp = await fetch(`${NETFLOW_BASE}/${chainId}.json`);
+                        if (!nfResp.ok) netflowCheckFailed = true;
                         if (!isCurrentLookup()) return;
                         if (nfResp.ok) {
                             const nfData = await nfResp.json();
@@ -16875,7 +16916,12 @@
                                 return;
                             }
                         }
-                    } catch (e) { /* ignore netflow check failure */ }
+                    } catch (e) {
+                        // Don't conflate a network failure with a genuine empty result —
+                        // show a "couldn't verify" state so the user knows to retry.
+                        console.warn('Netflow check failed:', e && e.message ? e.message : e);
+                        netflowCheckFailed = true;
+                    }
 
                     if (!isCurrentLookup()) return;
                     earn_lookupLoading = false;
@@ -16884,10 +16930,17 @@
                     const searchAddr = document.getElementById('earn-address').value.trim();
                     const addrBadgeHtml = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(searchAddr) : '';
                     earn_totalYieldStatus = 'ready';
-                    earn_showGlobalEmptyState({
-                        title: addrBadgeHtml ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px">No deposits found ${addrBadgeHtml}</div>` : 'No deposits found',
-                        message: 'This address has no active deposits on Dolomite',
-                    });
+                    if (netflowCheckFailed) {
+                        earn_showGlobalEmptyState({
+                            title: addrBadgeHtml ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px">Couldn’t verify deposits ${addrBadgeHtml}</div>` : 'Couldn’t verify deposits',
+                            message: 'We couldn’t reach the data source to check this address. Please try again.',
+                        });
+                    } else {
+                        earn_showGlobalEmptyState({
+                            title: addrBadgeHtml ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px">No deposits found ${addrBadgeHtml}</div>` : 'No deposits found',
+                            message: 'This address has no active deposits on Dolomite',
+                        });
+                    }
                     earn_markLookupProfile(lookupProfile, 'complete');
                     earn_logLookupProfile(lookupProfile, 'complete');
                     earn_finishLookupLoadingUi({ runId: lookupRunId, chainId, durationMs: lookupProfile.marks.complete });
@@ -16991,15 +17044,18 @@
                             const hue = [...symbol].reduce((h, c) => (h + c.charCodeAt(0) * 37) % 360, 0);
                             icon = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='hsl(${hue},50%,35%)'/><text x='16' y='22' text-anchor='middle' font-size='16' font-weight='bold' fill='white'>${ch}</text></svg>`)}`;
                         }
+                        // XSS guard: on-chain symbol() is deployer-controlled and the cached
+                        // value feeds innerHTML templates downstream. Same rule as
+                        // earn_getTokenInfo (:9556) and the subgraph decoder (:15692).
+                        // Escape AFTER icon/hue computation so icon matching uses the raw symbol.
+                        symbol = earn_escapeHtml(symbol);
                         info = { symbol, decimals, icon };
                         earn_tokenCache[key] = info;
                     }
 
-                    // USD value: use fallback prices for now (CoinGecko may still be loading)
-                    const cgKey = chainId + ':' + b.tokenAddr.toLowerCase();
-                    const priceUsd = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[info.symbol] || 0.01;
-                    const humanAmt = Number(b.wei) / Math.pow(10, info.decimals);
-                    const usdValue = Math.abs(humanAmt * priceUsd);
+                    // Precise USD via BigInt scaling (wei is a BigInt). Unknown tokens fall
+                    // back to 0 (not a fabricated $0.01, which skewed the dust filter).
+                    const usdValue = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(b.wei, info.decimals, info.symbol, b.tokenAddr, chainId)));
                     return {
                         ...b,
                         symbol: info.symbol,
@@ -17014,8 +17070,8 @@
                         const cgKey = chainId + ':' + String(asset.tokenAddr || '').toLowerCase();
                         const livePrice = earn_priceCache[cgKey];
                         if (livePrice) {
-                            const humanAmt = Math.abs(Number(asset.wei) / Math.pow(10, asset.decimals));
-                            asset.usdValue = humanAmt * livePrice;
+                            // Precise BigInt scaling (asset.wei is a BigInt).
+                            asset.usdValue = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(asset.wei, asset.decimals, asset.symbol, asset.tokenAddr, chainId)));
                         }
                     });
                 };
@@ -17030,10 +17086,7 @@
 
                 if (earn_collateralPositionData.length > 0) {
                     for (const cp of earn_collateralPositionData) {
-                        const cgKey = chainId + ':' + cp.tokenAddr.toLowerCase();
-                        const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[cp.symbol] || 0;
-                        const humanAmt = Math.abs(Number(cp.wei) / Math.pow(10, cp.decimals));
-                        cp.usdValue = humanAmt * price;
+                        cp.usdValue = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(cp.wei, cp.decimals, cp.symbol, cp.tokenAddr, chainId)));
                         enriched.push(cp);
                     }
                     console.log(`Injected ${earn_collateralPositionData.length} collateral supply positions into enriched assets`);
@@ -17048,10 +17101,7 @@
                         if (existingMarkets.has(bp.marketId) && enriched.find(a => a.marketId === bp.marketId && !a.isBorrow)) {
                             // Market exists as supply — add borrow separately
                         }
-                        const cgKey = chainId + ':' + bp.tokenAddr.toLowerCase();
-                        const price = earn_priceCache[cgKey] || TOKEN_USD_FALLBACK[bp.symbol] || 0;
-                        const humanAmt = Math.abs(Number(bp.wei) / Math.pow(10, bp.decimals));
-                        bp.usdValue = humanAmt * price;
+                        bp.usdValue = Math.abs(earn_scaledUsdToNumber(earn_getTokenUsdScaled(bp.wei, bp.decimals, bp.symbol, bp.tokenAddr, chainId)));
                         enriched.push(bp);
                     }
                     console.log(`Injected ${earn_borrowPositionData.length} borrow positions into enriched assets`);
@@ -17146,7 +17196,7 @@
                 earn_renderResults(enriched, { skipSummary: false, softRefresh: !!cachedLookup });
                 earn_logLookupProfile(lookupProfile, 'firstRenderReady');
 
-                const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId })
+                const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId, addr, chainId })
                     .then(result => {
                         if (!isCurrentLookup()) return result;
                         earn_markLookupProfile(lookupProfile, 'lending');
@@ -17209,7 +17259,7 @@
                     replayPromise.then(async ok => {
                         if (!isCurrentLookup() || !ok) return null;
                         try {
-                            return await earn_fetchAndRenderLendingPositions({ runId: lookupRunId });
+                            return await earn_fetchAndRenderLendingPositions({ runId: lookupRunId, addr, chainId });
                         } catch (e) {
                             console.warn('Lending replay refresh:', e);
                             return null;
@@ -17513,12 +17563,13 @@
             if (!tokens || tokens.length === 0) return '<span style="color:var(--text-muted)">—</span>';
             return tokens.map(t => {
                 const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
+                const safeSym = earn_escapeHtml(t.symbol || '?');   // subgraph/onchain symbol → innerHTML
                 const iconHtml = icon
-                    ? `<span class="earn-token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${String(t.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></span>`
+                    ? `<span class="earn-token-pill-icon"><img src="${icon}" alt="${safeSym}" onerror="this.parentElement.textContent='${String(t.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></span>`
                     : '';
                 const sym = (t.symbol || '?');
                 const short = sym.length > 12 ? sym.slice(0, 10) + '…' : sym;
-                return `<span class="earn-token-pill">${iconHtml}${short}<span class="earn-token-pill-usd">${earn_formatUSDCompact(t.usd)}</span></span>`;
+                return `<span class="earn-token-pill">${iconHtml}${earn_escapeHtml(short)}<span class="earn-token-pill-usd">${earn_formatUSDCompact(t.usd)}</span></span>`;
             }).join('');
         }
 
@@ -17535,7 +17586,7 @@
                 const usd = Math.abs(Number(item.usdValue || 0));
                 if (!(usd > 0)) return;
                 collateralTokens.push({
-                    symbol: item.symbol || '?',
+                    symbol: earn_escapeHtml(item.symbol || '?'),   // subgraph symbol → innerHTML downstream
                     usd,
                 });
                 const calc = earn_calculateYield(item, { requireVerifiedInterest: false });
@@ -17547,7 +17598,7 @@
                 );
                 if (Math.abs(accruedUsd) > 0.0001) {
                     accruedCollateral.push({
-                        symbol: item.symbol || '?',
+                        symbol: earn_escapeHtml(item.symbol || '?'),
                         accruedUSD: accruedUsd,
                     });
                     totalAccruedYield += accruedUsd;
@@ -17558,7 +17609,7 @@
                 const usd = Math.abs(Number(item.usdValue || 0));
                 if (!(usd > 0)) return;
                 debtTokens.push({
-                    symbol: item.symbol || '?',
+                    symbol: earn_escapeHtml(item.symbol || '?'),   // subgraph symbol → innerHTML downstream
                     usd,
                 });
                 const calc = earn_calculateYield(item, { requireVerifiedInterest: false });
@@ -17571,7 +17622,7 @@
                 );
                 if (Math.abs(accruedUsd) > 0.0001) {
                     accruedDebt.push({
-                        symbol: item.symbol || '?',
+                        symbol: earn_escapeHtml(item.symbol || '?'),
                         accruedUSD: accruedUsd,
                     });
                     totalAccruedCost += accruedUsd;
@@ -17634,7 +17685,10 @@
             if (!section || !tbody) return;
             if (!earn_isLookupRunCurrent(runId)) return null;
 
-            const addr = document.getElementById('earn-address').value.trim().toLowerCase();
+            // Prefer the address/chain captured when the lookup started (passed via opts)
+            // over re-reading the DOM here — the input may have been edited mid-flight,
+            // which previously interpolated a half-typed address straight into GraphQL.
+            const addr = (opts.addr != null ? String(opts.addr) : document.getElementById('earn-address').value.trim()).toLowerCase();
             const chainName = earn_getChain().name.toLowerCase();
 
             // Map chain name to chain key used in liquidation_risk.json
@@ -17647,7 +17701,7 @@
                 'x layer': 'xlayer',
             };
             const chainKey = chainKeyMap[chainName] || chainName;
-            const chainId = document.getElementById('earn-chain').value;
+            const chainId = opts.chainId != null ? String(opts.chainId) : document.getElementById('earn-chain').value;
             const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
 
             try {
@@ -17659,7 +17713,7 @@
                 const rewardFetches = [];
                 if (chainId === 'berachain') rewardFetches.push(earn_fetchIBGTRewards(addr).catch(() => null));
                 if (chainId === 'arbitrum') rewardFetches.push(earn_fetchDGMXRewards(addr).catch(() => null));
-                const sgPromise = sgEndpoint ? Promise.all([
+                const sgPromise = (sgEndpoint ? Promise.all([
                     earn_subgraphQuery(sgEndpoint,
                         `{ borrowPositions(first: 100, where: { effectiveUser: "${addr}", status: "OPEN" }) { marginAccount { accountNumber } openTimestamp amounts { token { id marketId symbol decimals } amountPar } } }`
                     ),
@@ -17670,7 +17724,9 @@
                     earn_subgraphQuery(sgEndpoint,
                         `{ dolomiteMargins(first: 1) { id supplyLiquidityUSD } tokens(first: 100) { id marketId symbol decimals supplyLiquidity } }`
                     ),
-                ]) : Promise.resolve(null);
+                // .catch here so an early return (e.g. no positions — the common case) cannot
+                // leave this Promise.all unobserved and trigger an unhandledrejection.
+                ]) : Promise.resolve(null)).catch(() => null);
 
                 const data = await liqRiskPromise;
                 if (!earn_isLookupRunCurrent(runId)) return null;
@@ -17985,8 +18041,9 @@
                         if (!tokens || tokens.length === 0) return '';
                         return '<div class="earn-merged-tokens">' + tokens.map(t => {
                             const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
-                            const iconHtml = icon ? `<img src="${icon}" alt="${t.symbol}" onerror="this.style.display='none'">` : '';
-                            return `<span class="earn-merged-token">${iconHtml}${t.symbol} ${earn_formatUSDCompact(t.usd)}</span>`;
+                            const safeSym = earn_escapeHtml(t.symbol);   // subgraph/onchain symbol → innerHTML
+                            const iconHtml = icon ? `<img src="${icon}" alt="${safeSym}" onerror="this.style.display='none'">` : '';
+                            return `<span class="earn-merged-token">${iconHtml}${safeSym} ${earn_formatUSDCompact(t.usd)}</span>`;
                         }).join('') + '</div>';
                     };
 
