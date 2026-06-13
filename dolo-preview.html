@@ -5026,9 +5026,15 @@ renderCexSupplyChart();
     return r.json();
   });
   const afterFirstPaint = () => new Promise(resolve => {
-    const done = () => setTimeout(resolve, 0);
-    if(typeof requestAnimationFrame === "function") requestAnimationFrame(done);
-    else done();
+    // Resolve after first paint via rAF, BUT requestAnimationFrame is paused while the
+    // tab is in the background — without a fallback the deferred heavy fetches (flows,
+    // wallet-history) would never start in a background-opened tab. The setTimeout
+    // fallback guarantees they fire (after ~1.5s) even when rAF is throttled.
+    let done = false;
+    const go = () => { if(!done){ done = true; resolve(); } };
+    if(typeof requestAnimationFrame === "function") requestAnimationFrame(() => setTimeout(go, 0));
+    else go();
+    setTimeout(go, 1500);
   });
   const fetchHeavyJson = name => afterFirstPaint().then(() => fetchJson(name));
   const safeNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
