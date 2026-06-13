@@ -51,9 +51,12 @@ def load_state():
 
 
 def save_state(state):
-    """Save incremental sync state."""
-    with open(STATE_FILE, "w") as f:
+    """Save incremental sync state atomically (tmp + os.replace) so a crash mid-write
+    cannot leave a truncated state file that forces a full resync."""
+    tmp = STATE_FILE + ".tmp"
+    with open(tmp, "w") as f:
         json.dump(state, f, indent=2)
+    os.replace(tmp, STATE_FILE)
 
 def load_investors():
     """Load addresses that claimed vesting (early investors and regular investors)."""
@@ -93,7 +96,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block=None):
 
     if start_block >= end_block:
         print(f"  {cfg['name']}: already up to date (block {start_block})")
-        return [], start_block
+        return [], start_block, []
 
     total_chunks = (end_block - start_block + chunk_size - 1) // chunk_size
     print(f"  {cfg['name']}: scanning blocks {start_block:,} → {end_block:,} ({total_chunks} chunks)")
@@ -101,6 +104,8 @@ def fetch_transfer_logs(chain_key, start_block, end_block=None):
     all_transfers = []
     current = start_block
     chunks_done = 0
+    chunks_failed = 0
+    skipped_ranges = []  # [start, end] of block ranges lost to persistent RPC failure
 
     while current <= end_block:
         chunk_end = min(current + chunk_size - 1, end_block)
@@ -151,7 +156,17 @@ def fetch_transfer_logs(chain_key, start_block, end_block=None):
                 time.sleep(0.5)
 
         if not success:
-            print(f"    ⚠️ Failed at block {current}, skipping chunk")
+            if chunk_size > 1000:
+                chunk_size = max(chunk_size // 2, 1000)
+                chunk_end = min(current + chunk_size - 1, end_block)
+                print(f"    ⚠️ Retrying block {current:,} with smaller chunk ({chunk_size:,} blocks)")
+                continue
+            # Persistent failure even at the smallest chunk: record the gap so it is
+            # re-scanned on the next run instead of being silently dropped while
+            # last_block still advances past it (mirrors generate_dolo_flows.py).
+            chunks_failed += 1
+            skipped_ranges.append([current, chunk_end])
+            print(f"    ⚠️ Failed at block {current}, recording gap {current}-{chunk_end} ({chunks_failed} failures so far)")
             current = chunk_end + 1
             continue
 
@@ -169,8 +184,15 @@ def fetch_transfer_logs(chain_key, start_block, end_block=None):
         time.sleep(0.05)
 
     rpc_idx = (rpc_idx + 1) % len(rpcs)
+    if chunks_failed > 0:
+        total_attempted = chunks_done + chunks_failed
+        fail_pct = chunks_failed * 100 // max(total_attempted, 1)
+        print(f"  ⚠️ {cfg['name']}: {chunks_failed}/{total_attempted} chunks FAILED ({fail_pct}%)")
+        print(f"     skipped block ranges: {skipped_ranges[:10]}{' …' if len(skipped_ranges) > 10 else ''}")
+        if fail_pct > 50:
+            print(f"  🚨 {cfg['name']}: >50% chunk failure rate! Data may be incomplete.")
     print(f"  ✅ {cfg['name']}: {len(all_transfers):,} transfers found")
-    return all_transfers, end_block
+    return all_transfers, end_block, skipped_ranges
 
 
 def apply_transfers(balances, transfers):
@@ -364,10 +386,42 @@ def main():
     eth_last_block = state.get("eth_last_block", CHAINS["eth"]["start_block"])
     bera_last_block = state.get("bera_last_block", CHAINS["bera"]["start_block"])
 
+    # Re-scan any block ranges that persistently failed on previous runs. last_block
+    # advances past gaps, so without this the missed transfers would never be applied.
+    eth_skipped = []
+    bera_skipped = []
+
+    def rescan_gaps(chain_key, gaps):
+        recovered = []
+        still_failed = []
+        for gap in gaps:
+            try:
+                g_start, g_end = int(gap[0]), int(gap[1])
+            except (TypeError, ValueError, IndexError):
+                continue
+            if g_start >= g_end:
+                continue
+            print(f"  ↻ {CHAINS[chain_key]['name']}: re-scanning skipped range {g_start:,}-{g_end:,}")
+            g_txs, _, g_skipped = fetch_transfer_logs(chain_key, start_block=g_start, end_block=g_end)
+            recovered.extend(g_txs)
+            still_failed.extend(g_skipped)
+        return recovered, still_failed
+
+    prev_eth_gaps = state.get("skipped_ranges_eth", [])
+    prev_bera_gaps = state.get("skipped_ranges_bera", [])
+    eth_gap_txs, eth_gap_remaining = rescan_gaps("eth", prev_eth_gaps) if prev_eth_gaps else ([], [])
+    bera_gap_txs, bera_gap_remaining = rescan_gaps("bera", prev_bera_gaps) if prev_bera_gaps else ([], [])
+    eth_skipped.extend(eth_gap_remaining)
+    bera_skipped.extend(bera_gap_remaining)
+
     # Fetch new Transfer events via eth_getLogs
     print("\n📡 Fetching Transfer events via RPC logs...")
-    eth_txs, eth_end = fetch_transfer_logs("eth", start_block=eth_last_block)
-    bera_txs, bera_end = fetch_transfer_logs("bera", start_block=bera_last_block)
+    eth_txs, eth_end, eth_new_skipped = fetch_transfer_logs("eth", start_block=eth_last_block)
+    bera_txs, bera_end, bera_new_skipped = fetch_transfer_logs("bera", start_block=bera_last_block)
+    eth_txs = eth_gap_txs + eth_txs
+    bera_txs = bera_gap_txs + bera_txs
+    eth_skipped.extend(eth_new_skipped)
+    bera_skipped.extend(bera_new_skipped)
 
     if not eth_txs and not bera_txs and not is_incremental:
         print("⚠️  No transfers found on any chain!")
@@ -443,13 +497,18 @@ def main():
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, separators=(",", ":"))
 
-    # Save state for incremental sync
+    # Save state for incremental sync. Persist any still-unscanned gaps (bounded) so
+    # the next run retries them; clears automatically once a range scans cleanly.
     save_state({
         "eth_balances": {a: b for a, b in eth_balances.items() if abs(b) > 0.0001},
         "bera_balances": {a: b for a, b in bera_balances.items() if abs(b) > 0.0001},
         "eth_last_block": eth_last_block,
         "bera_last_block": bera_last_block,
+        "skipped_ranges_eth": eth_skipped[-200:],
+        "skipped_ranges_bera": bera_skipped[-200:],
     })
+    if eth_skipped or bera_skipped:
+        print(f"  ⚠️ Unscanned gaps carried to next run — eth: {len(eth_skipped)}, bera: {len(bera_skipped)}")
 
     print(f"\n💾 Saved: {OUTPUT_JSON}")
     print(f"   Total holders: {len(holders):,}")

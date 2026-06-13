@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- XSS backstop: restrict scripts to same-origin + inline (all page scripts are
+     local files or inline blocks). Stops injected external script-element payloads
+     even if an unescaped on-chain string slips through. img/style/font/connect are
+     left unrestricted so external icons and API fetches keep working. -->
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Dolomite · DOLO</title>
 <link rel="shortcut icon" href="favicon.ico" type="image/png">
@@ -145,6 +150,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px;white-space:nowrap}
 .card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.pulse-loading{background:var(--fg-3);box-shadow:none;opacity:.6}
+.pulse-err{background:#ef4444;box-shadow:0 0 8px #ef444488}
 
 /* Holder buckets chart — TVL Over Time rhythm */
 .holder-chart-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
@@ -428,13 +435,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-brush-window{
   position:absolute;top:0;bottom:0;border:1.5px solid var(--gold);border-radius:6px;background:rgba(201,162,39,.06);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 0 0 1px rgba(201,162,39,.10);
-  cursor:grab;pointer-events:auto;transition:background .15s var(--ease),border-color .15s var(--ease)
+  cursor:grab;pointer-events:auto;touch-action:none;transition:background .15s var(--ease),border-color .15s var(--ease)
 }
 .holder-brush-window:hover{background:rgba(201,162,39,.10)}
 .holder-brush-window.dragging{cursor:grabbing;background:rgba(201,162,39,.14)}
 .holder-brush-handle{
   position:absolute;top:0;bottom:0;width:14px;display:flex;align-items:center;justify-content:center;
-  cursor:ew-resize;pointer-events:auto;border-radius:4px;transition:background .15s var(--ease)
+  cursor:ew-resize;pointer-events:auto;touch-action:none;border-radius:4px;transition:background .15s var(--ease)
 }
 .holder-brush-handle:hover{background:rgba(201,162,39,.10)}
 .holder-brush-handle.l{left:-7px;border-radius:4px 0 0 4px}
@@ -1020,9 +1027,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="card-head">
       <div class="card-title">
         <h2>DOLO Holders</h2>
-        <span class="count-badge" id="holders-count">12,481</span>
+        <span class="count-badge" id="holders-count">—</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>Live · updated 2m ago</div>
+      <div class="card-meta" id="holders-meta"><span class="pulse pulse-loading"></span>Loading…</div>
     </div>
 
     <div class="toolbar">
@@ -1538,24 +1545,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 <script>
 // type: ca = contract address, cex = centralized exchange, mm = market maker,
 //       bot = trading bot, eoa = regular wallet (EOA)
-const HOLDERS = [
-  {addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", label:"DOLO Treasury",     type:"ca",  balEth: 80_000_000, balBera: 40_000_000},
-  {addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", label:"veDOLO Contract",   type:"ca",  balEth:          0, balBera: 88_500_000},
-  {addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", label:"oDOLO Contract",    type:"ca",  balEth:          0, balBera: 42_300_000},
-  {addr:"0xd8da6bf26964af9d7eed9e03e53415d37aa96045", label:"vitalik.eth",       type:"eoa", balEth: 12_400_000, balBera:  6_000_000},
-  {addr:"0x28C6c06298d514Db089934071355E5743bf21d60", label:"Binance",           type:"cex", balEth: 12_800_000, balBera:          0},
-  {addr:"0x3e9b9a16743551da49b5e136c716bba7932d2cec", label:"oDOLO Pair Vester", type:"ca",  balEth:          0, balBera: 11_200_000},
-  {addr:"0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43", label:"Coinbase",          type:"cex", balEth:  8_900_000, balBera:          0},
-  {addr:"0xfb6a8b80ac4d65f9b3edcb19b13e85d8a25cd0bc", label:"Wintermute",        type:"mm",  balEth:  3_200_000, balBera:  2_400_000},
-  {addr:"0x4f3a120e72c76c22ae802d129f599bfdbc31cb81", label:"Magic Investor",    type:"eoa", balEth:  4_200_000, balBera:          0},
-  {addr:"0x5c7bcd6e7de5423a257d81b442095a1a6ced35c5", label:null,                 type:"eoa", balEth:          0, balBera:  3_750_000},
-  {addr:"0x6e6f0b8e8e3a2c63a3a3c6e8f0a9b8c7d6e5f4a3", label:"MEV Sniper #07",     type:"bot", balEth:  1_200_000, balBera:  1_920_000},
-  {addr:"0x7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b", label:"Kraken",            type:"cex", balEth:  2_840_000, balBera:          0},
-  {addr:"0x8a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6c", label:null,                 type:"eoa", balEth:  2_540_000, balBera:          0},
-  {addr:"0x9c8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6d", label:"GSR",                type:"mm",  balEth:    980_000, balBera:  1_200_000},
-  {addr:"0xab8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6e", label:null,                 type:"eoa", balEth:          0, balBera:  1_960_000},
-  {addr:"0xbc8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6f", label:"Arb Bot 19",         type:"bot", balEth:  1_780_000, balBera:          0},
-];
+// Populated at runtime by applyDoloHolders() from dolo_holders.json (it clears and
+// repopulates this array). Starts empty: on a fetch failure the table shows an
+// explicit "data unavailable" state rather than fabricated balances.
+const HOLDERS = [];
 // total = balEth + balBera; share = total / TOTAL_SUPPLY
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
@@ -1591,21 +1584,9 @@ let TOTAL_SUPPLY = 1_000_000_000;
 
 // Per-chain flow split — chain filter switches which value drives sort/display.
 // Total chg = chgEth + chgBera; sign of total drives Acc vs Out.
-const FLOWS = [
-  {addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", label:"Strategy 1",  type:"ca",  chgEth:+ 700_000, chgBera:+540_000},
-  {addr:"0xfb6a8b80ac4d65f9b3edcb19b13e85d8a25cd0bc", label:"Wintermute",  type:"mm",  chgEth:+ 340_000, chgBera:+500_000},
-  {addr:"0x4f3a120e72c76c22ae802d129f599bfdbc31cb81", label:"Whale 22",    type:"eoa", chgEth:+ 620_000, chgBera:       0},
-  {addr:"0x5c7bcd6e7de5423a257d81b442095a1a6ced35c5", label:null,           type:"eoa", chgEth:       0, chgBera:+410_000},
-  {addr:"0x9c8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6d", label:"GSR",         type:"mm",  chgEth:+ 110_000, chgBera:+170_000},
-  {addr:"0xab8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6e", label:null,           type:"bot", chgEth:       0, chgBera:+165_000},
-
-  {addr:"0xd8da6bf26964af9d7eed9e03e53415d37aa96045", label:"vitalik.eth", type:"eoa", chgEth:- 660_000, chgBera:-330_000},
-  {addr:"0x6e6f0b8e8e3a2c63a3a3c6e8f0a9b8c7d6e5f4a3", label:"MEV Sniper",  type:"bot", chgEth:- 250_000, chgBera:-470_000},
-  {addr:"0xbc8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6f", label:null,           type:"eoa", chgEth:- 445_000, chgBera:       0},
-  {addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", label:"veDOLO",      type:"ca",  chgEth:       0, chgBera:-310_000},
-  {addr:"0x28C6c06298d514Db089934071355E5743bf21d60", label:"Binance",     type:"cex", chgEth:- 185_000, chgBera:       0},
-  {addr:"0x3e9b9a16743551da49b5e136c716bba7932d2cec", label:"Vester",      type:"ca",  chgEth:       0, chgBera: -72_000},
-];
+// Populated at runtime by applyDoloFlows() from dolo_flows.json (it clears and
+// repopulates this array). Starts empty so a fetch failure surfaces an error state.
+const FLOWS = [];
 
 const state = {
   q:"", qFlows:"", qFresh:"",
@@ -1645,6 +1626,7 @@ const CHAIN_LABELS = {ethereum:"Ethereum", berachain:"Berachain"};
 
 const shorten = a => a.slice(0,6) + "…" + a.slice(-4);
 const fmtNum = (n) => {
+  if(!Number.isFinite(n)) return "—";
   const abs = Math.abs(n);
   if(abs >= 1e9) return (n/1e9).toFixed(2) + "B";
   if(abs >= 1e6) return (n/1e6).toFixed(2) + "M";
@@ -1698,6 +1680,20 @@ let DOLO_FRESH_HOLDERS = {};
 let DOLO_HOLDER_HISTORY_POINTS = [];
 let DOLO_HOLDER_BUCKET_HISTORY = [];
 let DOLO_HOLDER_WALLET_HISTORY = {};
+// Wallet-level daily snapshots are a ~24MB separate file used ONLY by the holder
+// distribution Details panels. Load it on first Details open, not on every visit.
+let HOLDER_WALLET_HISTORY_FILE = null;
+let holderWalletHistoryPromise = null;
+function ensureHolderWalletHistory(){
+  if(!HOLDER_WALLET_HISTORY_FILE) return Promise.resolve();   // inline already, or none
+  if(!holderWalletHistoryPromise){
+    holderWalletHistoryPromise = fetch(HOLDER_WALLET_HISTORY_FILE, {cache:"no-cache"})
+      .then(r => { if(!r.ok) throw new Error(HOLDER_WALLET_HISTORY_FILE + " HTTP " + r.status); return r.json(); })
+      .then(data => { DOLO_HOLDER_WALLET_HISTORY = data?.holder_wallet_history || {}; })
+      .catch(error => { console.warn("Wallet-level holder history unavailable", error); holderWalletHistoryPromise = null; });
+  }
+  return holderWalletHistoryPromise;
+}
 let DOLO_CEX_SUPPLY_HISTORY = [];
 let vedoloHolderStats = null;
 let vedoloDataTimestamp = null;
@@ -1763,8 +1759,19 @@ function holderDistributionType(addr, source){
   if(source?.is_contract) return "ca";
   return "eoa";
 }
+// Pipeline emits some timestamps as naive ISO (e.g. "2026-06-12T21:05:28.690836",
+// no timezone) and others with a trailing "Z". A naive string is parsed as the
+// VIEWER's local time, shifting "updated Xh ago" and history-point matching by the
+// viewer's UTC offset. Append "Z" when no timezone designator is present so all
+// pipeline timestamps are interpreted as UTC.
+function normalizeIsoTimestamp(value){
+  if(typeof value !== "string") return value;
+  const s = value.trim();
+  if(/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s)) return s + "Z";
+  return s;
+}
 function parseHolderTimestamp(value){
-  const ts = Date.parse(value || "");
+  const ts = Date.parse(normalizeIsoTimestamp(value) || "");
   return Number.isFinite(ts) ? Math.floor(ts / 1000) : 0;
 }
 function holderHistoryBaseTs(){
@@ -2358,26 +2365,13 @@ function initHolderBrush(){
   const handleR = document.getElementById("holderBrushHandleR");
   if(!svg || !overlay || !win || !handleL || !handleR) return;
   holderBrushInitialized = true;
-  const onDown = kind => event => {
-    event.preventDefault();
-    event.stopPropagation();
-    holderBrushDragging = {kind, startX:event.clientX, startFrom:holderBrushSel.from, startTo:holderBrushSel.to};
-    win.classList.add("dragging");
-    document.body.style.userSelect = "none";
-  };
-  const pxToTime = px => {
-    const {minX, span} = holderBrushDomain();
-    const width = Math.max(1, overlay.clientWidth);
-    return minX + Math.max(0, Math.min(1, px / width)) * span;
-  };
-  win.addEventListener("mousedown", onDown("window"));
-  handleL.addEventListener("mousedown", onDown("left"));
-  handleR.addEventListener("mousedown", onDown("right"));
-  document.addEventListener("mousemove", event => {
+  // Pointer Events (mouse + touch + pen) with explicit pointer capture, so the brush
+  // is draggable on touch devices. Move/up are bound per-drag to the captured target.
+  const applyHolderDrag = clientX => {
     if(!holderBrushDragging) return;
     const {minX, maxX, span} = holderBrushDomain();
     const width = Math.max(1, overlay.clientWidth);
-    const delta = (event.clientX - holderBrushDragging.startX) / width * span;
+    const delta = (clientX - holderBrushDragging.startX) / width * span;
     const minWindow = Math.max(86400, span * 0.01);
     if(holderBrushDragging.kind === "window"){
       const windowSpan = holderBrushDragging.startTo - holderBrushDragging.startFrom;
@@ -2393,14 +2387,38 @@ function initHolderBrush(){
     }
     paintHolderBrushWindow();
     scheduleHolderBrushChartRender();
-  });
-  document.addEventListener("mouseup", () => {
-    if(!holderBrushDragging) return;
-    holderBrushDragging = null;
-    win.classList.remove("dragging");
-    document.body.style.userSelect = "";
-    flushHolderBrushChartRender();
-  });
+  };
+  const onDown = kind => event => {
+    event.preventDefault();
+    event.stopPropagation();
+    holderBrushDragging = {kind, startX:event.clientX, startFrom:holderBrushSel.from, startTo:holderBrushSel.to};
+    win.classList.add("dragging");
+    document.body.style.userSelect = "none";
+    const target = event.currentTarget;
+    const pid = event.pointerId;
+    if(pid != null && target.setPointerCapture){ try{ target.setPointerCapture(pid); }catch(_){} }
+    const move = ev => applyHolderDrag(ev.clientX);
+    const up = () => {
+      holderBrushDragging = null;
+      win.classList.remove("dragging");
+      document.body.style.userSelect = "";
+      flushHolderBrushChartRender();
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
+  };
+  const pxToTime = px => {
+    const {minX, span} = holderBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    return minX + Math.max(0, Math.min(1, px / width)) * span;
+  };
+  win.addEventListener("pointerdown", onDown("window"));
+  handleL.addEventListener("pointerdown", onDown("left"));
+  handleR.addEventListener("pointerdown", onDown("right"));
   svg.addEventListener("click", event => {
     if(holderBrushDragging) return;
     const {minX, maxX} = holderBrushDomain();
@@ -2457,18 +2475,19 @@ function renderHolderDistributionChart(options = {}){
   const xRange = Math.max(1, xMax - xMin);
   const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
 
-  grid.innerHTML = "";
+  // Accumulate SVG markup in strings and assign innerHTML once per node. `innerHTML +=`
+  // in a loop re-parses the whole subtree every iteration (O(n²)); this fires per frame
+  // during a brush drag, so on the "All" range it meant ~hundreds of thousands of reparses.
+  let gridHtml = "";
   for(let i=0; i<=4; i++){
     const value = yMax * i / 4;
     const y = yAt(value);
-    grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
-    grid.innerHTML += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
+    gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    gridHtml += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
   }
-  grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  grid.innerHTML = gridHtml;
 
-  lines.innerHTML = "";
-  dots.innerHTML = "";
-  axis.innerHTML = "";
   const spanDays = xRange / 86400;
   if(model.points.length < 2){
     areaPath.setAttribute("d", "");
@@ -2481,22 +2500,28 @@ function renderHolderDistributionChart(options = {}){
     areaPath.setAttribute("d", area);
   }
   const xTicks = 5;
+  let axisHtml = "";
   for(let i=0; i<=xTicks; i++){
     const ts = xMin + xRange * i / xTicks;
     const x = xAt(ts);
     const anchor = i === 0 ? "start" : i === xTicks ? "end" : "middle";
-    axis.innerHTML += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
+    axisHtml += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
   }
+  axis.innerHTML = axisHtml;
+  let linesHtml = "";
+  let dotsHtml = "";
   bucketDefs.forEach((bucket, bucketIndex) => {
     const series = model.points.map(point => [point.ts, point.buckets[bucketIndex]?.total || 0]);
     const path = series.map((point, i) => `${i ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const muted = holderDistributionActiveKey && bucket.key !== holderDistributionActiveKey ? " is-muted" : "";
-    lines.innerHTML += `<path class="holder-chart-series-line${active}${muted}" data-key="${bucket.key}" d="${path}" stroke="${bucket.color}"/>`;
+    linesHtml += `<path class="holder-chart-series-line${active}${muted}" data-key="${bucket.key}" d="${path}" stroke="${bucket.color}"/>`;
     series.forEach(point => {
-      dots.innerHTML += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point[0]).toFixed(2)}" cy="${yAt(point[1]).toFixed(2)}" fill="${bucket.color}"/>`;
+      dotsHtml += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point[0]).toFixed(2)}" cy="${yAt(point[1]).toFixed(2)}" fill="${bucket.color}"/>`;
     });
   });
+  lines.innerHTML = linesHtml;
+  dots.innerHTML = dotsHtml;
 
   const countEl = document.getElementById("holder-chart-count");
   if(countEl){
@@ -2635,6 +2660,9 @@ function renderHolderDistributionChart(options = {}){
       holderWalletPanelKey = key;
       holderDistributionActiveKey = key;
     }
+    // Wallet-level detail rows need the heavy wallet-history file; fetch on demand,
+    // then re-render so the panel fills once it arrives.
+    ensureHolderWalletHistory().then(() => renderHolderDistributionChart({skipBrush:true})).catch(()=>{});
     renderHolderDistributionChart({skipBrush:true});
   }));
   bindHolderWalletPanel(legend);
@@ -2819,26 +2847,12 @@ function initAllocationBrush(){
   const handleR = document.getElementById("allocationBrushHandleR");
   if(!svg || !overlay || !win || !handleL || !handleR) return;
   allocationBrushInitialized = true;
-  const onDown = kind => event => {
-    event.preventDefault();
-    event.stopPropagation();
-    allocationBrushDragging = {kind, startX:event.clientX, startFrom:allocationBrushSel.from, startTo:allocationBrushSel.to};
-    win.classList.add("dragging");
-    document.body.style.userSelect = "none";
-  };
-  const pxToTime = px => {
-    const {minX, span} = allocationBrushDomain();
-    const width = Math.max(1, overlay.clientWidth);
-    return minX + Math.max(0, Math.min(1, px / width)) * span;
-  };
-  win.addEventListener("mousedown", onDown("window"));
-  handleL.addEventListener("mousedown", onDown("left"));
-  handleR.addEventListener("mousedown", onDown("right"));
-  document.addEventListener("mousemove", event => {
+  // Pointer Events (mouse + touch + pen) with explicit pointer capture — see holder brush.
+  const applyAllocationDrag = clientX => {
     if(!allocationBrushDragging) return;
     const {minX, maxX, span} = allocationBrushDomain();
     const width = Math.max(1, overlay.clientWidth);
-    const delta = (event.clientX - allocationBrushDragging.startX) / width * span;
+    const delta = (clientX - allocationBrushDragging.startX) / width * span;
     const minWindow = Math.max(86400, span * 0.01);
     if(allocationBrushDragging.kind === "window"){
       const windowSpan = allocationBrushDragging.startTo - allocationBrushDragging.startFrom;
@@ -2854,14 +2868,38 @@ function initAllocationBrush(){
     }
     paintAllocationBrushWindow();
     scheduleAllocationChartRender();
-  });
-  document.addEventListener("mouseup", () => {
-    if(!allocationBrushDragging) return;
-    allocationBrushDragging = null;
-    win.classList.remove("dragging");
-    document.body.style.userSelect = "";
-    flushAllocationChartRender();
-  });
+  };
+  const onDown = kind => event => {
+    event.preventDefault();
+    event.stopPropagation();
+    allocationBrushDragging = {kind, startX:event.clientX, startFrom:allocationBrushSel.from, startTo:allocationBrushSel.to};
+    win.classList.add("dragging");
+    document.body.style.userSelect = "none";
+    const target = event.currentTarget;
+    const pid = event.pointerId;
+    if(pid != null && target.setPointerCapture){ try{ target.setPointerCapture(pid); }catch(_){} }
+    const move = ev => applyAllocationDrag(ev.clientX);
+    const up = () => {
+      allocationBrushDragging = null;
+      win.classList.remove("dragging");
+      document.body.style.userSelect = "";
+      flushAllocationChartRender();
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
+  };
+  const pxToTime = px => {
+    const {minX, span} = allocationBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    return minX + Math.max(0, Math.min(1, px / width)) * span;
+  };
+  win.addEventListener("pointerdown", onDown("window"));
+  handleL.addEventListener("pointerdown", onDown("left"));
+  handleR.addEventListener("pointerdown", onDown("right"));
   svg.addEventListener("click", event => {
     if(allocationBrushDragging) return;
     const {minX, maxX} = allocationBrushDomain();
@@ -2915,16 +2953,17 @@ function renderAllocationChart(options = {}){
   const spanDays = xRange / 86400;
 
   grid.innerHTML = "";
-  lines.innerHTML = "";
-  dots.innerHTML = "";
-  axis.innerHTML = "";
+  // Accumulate then assign once per node (see holder distribution chart) — avoids the
+  // O(n²) innerHTML reparse per brush-drag frame.
+  let gridHtml = "";
   for(let i=0; i<=4; i++){
     const value = yMax * i / 4;
     const y = yAt(value);
-    grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
-    grid.innerHTML += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
+    gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    gridHtml += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
   }
-  grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  grid.innerHTML = gridHtml;
   const focusKey = "total";
   const focusSeries = ALLOCATION_CHART_LINE_SERIES[0];
   if(model.points.length < 2){
@@ -2935,22 +2974,28 @@ function renderAllocationChart(options = {}){
     const area = `${areaLine} L${xAt(areaSeries[areaSeries.length - 1][0]).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(areaSeries[0][0]).toFixed(2)} ${zeroY.toFixed(2)} Z`;
     areaPath.setAttribute("d", area);
   }
+  let axisHtml = "";
   for(let i=0; i<=5; i++){
     const ts = xMin + xRange * i / 5;
     const x = xAt(ts);
     const anchor = i === 0 ? "start" : i === 5 ? "end" : "middle";
-    axis.innerHTML += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
+    axisHtml += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
   }
+  axis.innerHTML = axisHtml;
+  let linesHtml = "";
+  let dotsHtml = "";
   ALLOCATION_CHART_LINE_SERIES.forEach(series => {
     const values = model.points.map(point => [point.ts, point[series.valueKey] || 0]);
     const path = values.map((point, index) => `${index ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
     const active = series.key === "total" ? " is-active" : "";
     const muted = focusKey && series.key !== focusKey ? " is-muted" : "";
-    lines.innerHTML += `<path class="holder-chart-series-line${active}${muted}" data-key="${series.key}" d="${path}" stroke="${series.color}"/>`;
+    linesHtml += `<path class="holder-chart-series-line${active}${muted}" data-key="${series.key}" d="${path}" stroke="${series.color}"/>`;
     values.forEach(point => {
-      dots.innerHTML += `<circle class="holder-chart-series-dot" data-key="${series.key}" r="3" cx="${xAt(point[0]).toFixed(2)}" cy="${yAt(point[1]).toFixed(2)}" fill="${series.color}"/>`;
+      dotsHtml += `<circle class="holder-chart-series-dot" data-key="${series.key}" r="3" cx="${xAt(point[0]).toFixed(2)}" cy="${yAt(point[1]).toFixed(2)}" fill="${series.color}"/>`;
     });
   });
+  lines.innerHTML = linesHtml;
+  dots.innerHTML = dotsHtml;
 
   const countEl = document.getElementById("allocation-chart-count");
   if(countEl){
@@ -3089,6 +3134,7 @@ function renderAllocationChart(options = {}){
       allocationWalletPanelKey = key;
     }
     allocationChartActiveKey = "total";
+    ensureHolderWalletHistory().then(() => renderAllocationChart({skipBrush:true})).catch(()=>{});
     renderAllocationChart({skipBrush:true});
   }));
   bindHolderWalletPanel(legend);
@@ -3297,26 +3343,12 @@ function initCexSupplyBrush(){
   const handleR = document.getElementById("cexSupplyBrushHandleR");
   if(!svg || !overlay || !win || !handleL || !handleR) return;
   cexSupplyBrushInitialized = true;
-  const onDown = kind => event => {
-    event.preventDefault();
-    event.stopPropagation();
-    cexSupplyBrushDragging = {kind, startX:event.clientX, startFrom:cexSupplyBrushSel.from, startTo:cexSupplyBrushSel.to};
-    win.classList.add("dragging");
-    document.body.style.userSelect = "none";
-  };
-  const pxToTime = px => {
-    const {minX, span} = cexSupplyBrushDomain();
-    const width = Math.max(1, overlay.clientWidth);
-    return minX + Math.max(0, Math.min(1, px / width)) * span;
-  };
-  win.addEventListener("mousedown", onDown("window"));
-  handleL.addEventListener("mousedown", onDown("left"));
-  handleR.addEventListener("mousedown", onDown("right"));
-  document.addEventListener("mousemove", event => {
+  // Pointer Events (mouse + touch + pen) with explicit pointer capture — see holder brush.
+  const applyCexSupplyDrag = clientX => {
     if(!cexSupplyBrushDragging) return;
     const {minX, maxX, span} = cexSupplyBrushDomain();
     const width = Math.max(1, overlay.clientWidth);
-    const delta = (event.clientX - cexSupplyBrushDragging.startX) / width * span;
+    const delta = (clientX - cexSupplyBrushDragging.startX) / width * span;
     const minWindow = Math.max(86400, span * 0.08);
     if(cexSupplyBrushDragging.kind === "window"){
       const windowSpan = cexSupplyBrushDragging.startTo - cexSupplyBrushDragging.startFrom;
@@ -3332,14 +3364,38 @@ function initCexSupplyBrush(){
     }
     paintCexSupplyBrushWindow();
     scheduleCexSupplyChartRender();
-  });
-  document.addEventListener("mouseup", () => {
-    if(!cexSupplyBrushDragging) return;
-    cexSupplyBrushDragging = null;
-    win.classList.remove("dragging");
-    document.body.style.userSelect = "";
-    flushCexSupplyChartRender();
-  });
+  };
+  const onDown = kind => event => {
+    event.preventDefault();
+    event.stopPropagation();
+    cexSupplyBrushDragging = {kind, startX:event.clientX, startFrom:cexSupplyBrushSel.from, startTo:cexSupplyBrushSel.to};
+    win.classList.add("dragging");
+    document.body.style.userSelect = "none";
+    const target = event.currentTarget;
+    const pid = event.pointerId;
+    if(pid != null && target.setPointerCapture){ try{ target.setPointerCapture(pid); }catch(_){} }
+    const move = ev => applyCexSupplyDrag(ev.clientX);
+    const up = () => {
+      cexSupplyBrushDragging = null;
+      win.classList.remove("dragging");
+      document.body.style.userSelect = "";
+      flushCexSupplyChartRender();
+      target.removeEventListener("pointermove", move);
+      target.removeEventListener("pointerup", up);
+      target.removeEventListener("pointercancel", up);
+    };
+    target.addEventListener("pointermove", move);
+    target.addEventListener("pointerup", up);
+    target.addEventListener("pointercancel", up);
+  };
+  const pxToTime = px => {
+    const {minX, span} = cexSupplyBrushDomain();
+    const width = Math.max(1, overlay.clientWidth);
+    return minX + Math.max(0, Math.min(1, px / width)) * span;
+  };
+  win.addEventListener("pointerdown", onDown("window"));
+  handleL.addEventListener("pointerdown", onDown("left"));
+  handleR.addEventListener("pointerdown", onDown("right"));
   svg.addEventListener("click", event => {
     if(cexSupplyBrushDragging) return;
     const {minX, maxX} = cexSupplyBrushDomain();
@@ -3386,16 +3442,17 @@ function renderCexSupplyChart(options = {}){
   const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
   const spanDays = xRange / 86400;
 
-  grid.innerHTML = "";
+  // Accumulate then assign once per node (see holder distribution chart).
   lines.innerHTML = "";
-  axis.innerHTML = "";
+  let gridHtml = "";
   for(let i=0; i<=4; i++){
     const value = yMax * i / 4;
     const y = yAt(value);
-    grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
-    grid.innerHTML += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
+    gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    gridHtml += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
   }
-  grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  grid.innerHTML = gridHtml;
   if(model.points.length < 2){
     areaPath.setAttribute("d", "");
   } else {
@@ -3403,12 +3460,14 @@ function renderCexSupplyChart(options = {}){
     areaPath.setAttribute("d", `${line} L${xAt(model.points[model.points.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(model.points[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`);
     lines.innerHTML = `<path class="holder-chart-series-line is-active" data-key="cex" d="${line}" stroke="#b4796b"/>`;
   }
+  let axisHtml = "";
   for(let i=0; i<=5; i++){
     const ts = xMin + xRange * i / 5;
     const x = xAt(ts);
     const anchor = i === 0 ? "start" : i === 5 ? "end" : "middle";
-    axis.innerHTML += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
+    axisHtml += `<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${fmtHolderAxisDate(ts, spanDays)}</text>`;
   }
+  axis.innerHTML = axisHtml;
 
   const countEl = document.getElementById("cex-supply-count");
   if(countEl){
@@ -3939,7 +3998,9 @@ function renderHolders(){
     sortHolders(filterHolders({includeSearch:false}))
       .map((h,i)=>[h.addr.toLowerCase(), i + 1])
   );
-  document.getElementById("holders-count").textContent = "12,481 (showing " + rows.length + " sample)";
+  // Neutral count; the live override (renderHolders wrapper) replaces this with the
+  // real "<total> holders · showing <n>" once dolo_holders.json loads.
+  document.getElementById("holders-count").textContent = rows.length.toLocaleString() + " shown";
 
   document.querySelectorAll("#tbl-holders thead th").forEach(th=>{
     const k = th.dataset.sort;
@@ -3959,18 +4020,21 @@ function renderHolders(){
   const holderRowsHtml = pageRows.map((h,i)=>{
     const rank = rankMap.get(h.addr.toLowerCase()) || (start + i + 1);
     const share = h.total / TOTAL_SUPPLY * 100;
+    // h.addr / h.label originate from on-chain data (ENS reverse names are
+    // attacker-controlled). Escape every value interpolated into innerHTML.
+    const addrAttr = escHtml(h.addr);
     const typeHtml = `<span class="type-tag type-${h.type}" data-tooltip="${TYPE_TIPS[h.type]}">${TYPE_LABELS[h.type]}</span>`;
     const safeHtml = safeBadgeHtml(h);
     const actions = `
-      <button class="addr-copy" data-copy="${h.addr}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${h.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
+      <button class="addr-copy" data-copy="${addrAttr}" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${addrAttr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
         <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
       </a>`;
     // Always 2-line layout for uniform row height. Unlabeled wallets show a
     // humanized type name (e.g. "Smart contract", "Trading bot") so the row
     // reads naturally instead of feeling empty.
     const nameCell = h.label
-      ? `<span class="addr-name">${h.label}</span>`
+      ? `<span class="addr-name">${escHtml(h.label)}</span>`
       : `<span class="addr-name addr-generic">${TYPE_GENERIC[h.type]}</span>`;
     const cellInner = `<div class="addr-line top">
         ${nameCell}
@@ -3978,11 +4042,11 @@ function renderHolders(){
         ${safeHtml}
       </div>
       <div class="addr-line bot">
-        <span class="addr-mono addr-tooltip-wrap" data-full-addr="${h.addr}">${shorten(h.addr)}</span>
+        <span class="addr-mono addr-tooltip-wrap" data-full-addr="${addrAttr}">${shorten(h.addr)}</span>
         ${actions}
       </div>`;
     return `
-      <tr data-addr="${h.addr}">
+      <tr data-addr="${addrAttr}">
         <td class="rank">${rank}</td>
         <td>
           <div class="addr-cell">${cellInner}</div>
@@ -4080,8 +4144,10 @@ function renderHolders(){
     if(e.target.closest(".addr-copy")) return;
     window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
   }));
-  renderHolderDistributionChart();
-  renderAllocationChart();
+  // Charts are NOT rebuilt here: renderHolders runs on every search keystroke,
+  // sort, and page change. The two SVG charts only depend on the underlying data
+  // sets, so the apply-data paths (applyDoloHolders / applyDoloFlows / veDOLO)
+  // own rendering them. Rebuilding them per keystroke caused visible typing jank.
 }
 
 function effectiveChg(r){
@@ -4184,24 +4250,25 @@ function renderFlow(target, kind){
     const sign = r.chg > 0 ? "+" : "";
     const balance = effectiveFlowBalance(r);
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
+    const addrAttr = escHtml(r.addr);
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
     const safeHtml = safeBadgeHtml(r);
     const actions = `
-      <button class="addr-copy" data-copy="${r.addr}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
+      <button class="addr-copy" data-copy="${addrAttr}" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${addrAttr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
         <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
       </a>`;
     const nameCell = r.label
-      ? `<span class="addr-name">${r.label}</span>`
+      ? `<span class="addr-name">${escHtml(r.label)}</span>`
       : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
     return `
-      <tr data-addr="${r.addr}">
+      <tr data-addr="${addrAttr}">
         <td class="rank">${rank}</td>
         <td>
           <div class="addr-cell">
             <div class="addr-line top">${nameCell}${typeHtml}${safeHtml}</div>
             <div class="addr-line bot">
-              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${r.addr}">${shorten(r.addr)}</span>
+              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${addrAttr}">${shorten(r.addr)}</span>
               ${actions}
             </div>
           </div>
@@ -4485,13 +4552,14 @@ function renderFreshWallets(){
     const rank = start + i + 1;
     const typeHtml = `<span class="type-tag type-${row.type}" data-tooltip="${TYPE_TIPS[row.type] || row.type}">${TYPE_LABELS[row.type] || row.type.toUpperCase()}</span>`;
     const safeHtml = safeBadgeHtml(row);
+    const addrAttr = escHtml(row.addr);
     const actions = `
-      <button class="addr-copy" data-copy="${row.addr}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${row.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
+      <button class="addr-copy" data-copy="${addrAttr}" aria-label="Copy address">${COPY_ICO}</button>
+      <a class="addr-debank" href="https://debank.com/profile/${addrAttr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
         <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
       </a>`;
     const nameCell = row.label
-      ? `<span class="addr-name">${row.label}</span>`
+      ? `<span class="addr-name">${escHtml(row.label)}</span>`
       : `<span class="addr-name addr-generic">${TYPE_GENERIC[row.type] || "Wallet"}</span>`;
     const status = freshWalletStatus(row);
     const chainHtml = row.chains.map(chain => {
@@ -4504,19 +4572,19 @@ function renderFreshWallets(){
       return `<span class="fresh-chain">${iconHtml}${chain.label}</span>`;
     }).join(" ");
     return `
-      <tr data-addr="${row.addr}">
+      <tr data-addr="${addrAttr}">
         <td class="rank">${rank}</td>
         <td>
           <div class="addr-cell">
             <div class="addr-line top">${nameCell}${typeHtml}${safeHtml}</div>
             <div class="addr-line bot">
-              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${row.addr}">${shorten(row.addr)}</span>
+              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${addrAttr}">${shorten(row.addr)}</span>
               ${actions}
             </div>
           </div>
         </td>
         <td>${freshCreatedHtml(row)}</td>
-        <td><span class="fresh-signal ${row.signal.cls}">${row.signal.label}</span></td>
+        <td><span class="fresh-signal ${row.signal.cls}">${escHtml(row.signal.label)}</span></td>
         <td class="num"><span class="flows-net up">+${fmtNum(row.received)}</span></td>
         <td class="num">${freshExposureHtml(row)}</td>
         <td><div class="fresh-status"><span class="main">${status.main}</span><span class="sub">${status.sub} · ${chainHtml}</span></div></td>
@@ -4842,12 +4910,13 @@ document.getElementById("holders-include-vedolo")?.addEventListener("change", e=
     Promise.resolve(window.ensureDoloVeDoloDataLoaded()).then(()=>renderHolders()).catch(()=>{});
   }
 });
-// Toggle is on by default — kick the lazy veDOLO data load after boot and
-// refresh the table once locks arrive.
+// Toggle is on by default — kick the lazy veDOLO data load when the main thread is
+// idle (not a fixed 600ms timer) so the heavy JSON.parse doesn't compete with first
+// paint/interaction, then refresh the table once locks arrive.
 if(state.holdersIncludeVeDolo){
-  setTimeout(()=>{
-    Promise.resolve(window.ensureDoloVeDoloDataLoaded?.()).then(()=>renderHolders()).catch(()=>{});
-  }, 600);
+  const kickVeDolo = ()=> Promise.resolve(window.ensureDoloVeDoloDataLoaded?.()).then(()=>renderHolders()).catch(()=>{});
+  if(typeof requestIdleCallback === "function") requestIdleCallback(kickVeDolo, {timeout: 2000});
+  else setTimeout(kickVeDolo, 600);
 }
 document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -4977,7 +5046,7 @@ renderCexSupplyChart();
     return "$" + n.toFixed(2);
   };
   const ago = iso => {
-    const t = new Date(iso || Date.now()).getTime();
+    const t = new Date(normalizeIsoTimestamp(iso) || Date.now()).getTime();
     const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
     if(mins < 1) return "now";
     if(mins < 60) return mins + "m ago";
@@ -5058,8 +5127,14 @@ renderCexSupplyChart();
     const label = "Data updated · " + ago(timestamp);
     document.querySelectorAll(".card-meta").forEach(el => {
       if(el.id === "flows-meta") return;
-      if(el.textContent.includes("Live") || el.textContent.includes("updated")) el.innerHTML = '<span class="pulse"></span>' + label;
+      if(el.id === "holders-meta" || el.textContent.includes("Live") || el.textContent.includes("updated") || el.textContent.includes("Loading")) el.innerHTML = '<span class="pulse"></span>' + label;
     });
+  }
+  function showHoldersError(){
+    const el = document.getElementById("holders-meta");
+    if(el) el.innerHTML = '<span class="pulse pulse-err"></span>Data unavailable — try again later';
+    const countEl = document.getElementById("holders-count");
+    if(countEl) countEl.textContent = "—";
   }
   function applyPrice(data){
     if(!data) return;
@@ -5122,6 +5197,7 @@ renderCexSupplyChart();
     state.page = 0;
     renderHolders();
     renderFreshWallets();
+    renderHolderDistributionChart();
     renderAllocationChart();
     renderCexSupplyChart();
     syncLiveMeta(data.timestamp);
@@ -5163,15 +5239,10 @@ renderCexSupplyChart();
     DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
     DOLO_HOLDER_WALLET_HISTORY = flows.holder_wallet_history || {};
     if(!flows.holder_wallet_history){
-      // Wallet-level daily snapshots live in a separate heavy file now;
-      // lazy-load it after first paint so the main payload stays small.
-      const walletHistoryFile = flows.holder_wallet_history_file || "dolo_holder_wallet_history.json";
-      fetchHeavyJson(walletHistoryFile).then(data => {
-        DOLO_HOLDER_WALLET_HISTORY = data?.holder_wallet_history || {};
-        renderHolderDistributionChart();
-      }).catch(error => {
-        console.warn("Wallet-level holder history unavailable", error);
-      });
+      // Wallet-level daily snapshots live in a separate ~24MB file. Record its name
+      // and let ensureHolderWalletHistory() fetch it on the first Details open —
+      // do NOT pull it on boot (it is unused until a panel is expanded).
+      HOLDER_WALLET_HISTORY_FILE = flows.holder_wallet_history_file || "dolo_holder_wallet_history.json";
     }
     DOLO_CEX_SUPPLY_HISTORY = Array.isArray(flows.cex_supply_history) ? flows.cex_supply_history : [];
     doloFlowDataTimestamp = flows.timestamp || null;
@@ -5212,7 +5283,7 @@ renderCexSupplyChart();
   };
   function flowRowsForPeriod(){
     const periodData = liveFlowsData?.periods?.[state.flowsPeriod];
-    if(!periodData) return;
+    if(!periodData){ FLOWS.length = 0; return; }
     const byAddr = new Map();
     const holderByAddr = new Map(HOLDERS.map(holder => [lower(holder.addr), holder]));
     const ensure = addr => {
@@ -5283,23 +5354,34 @@ renderCexSupplyChart();
           if(!ADDR_LABELS[k]) ADDR_LABELS[k] = {label, type, source, confidence:"confirmed"};
         });
       });
-    }catch(_){}
+    }catch(error){
+      // Was a silent `catch(_){}` — a failure here misclassifies Core Team /
+      // Investor wallets as plain EOAs and skews the allocation buckets, so log it.
+      console.warn("vesting_investors.json load failed — investor/team labels degraded", error);
+    }
   }
   async function boot(){
     try{
-      await applyVestingLabels();
+      // Start the vesting-label fetch concurrently with the data fetches (it used to
+      // be awaited serially, adding a full RTT to boot). Holders still wait on it
+      // below so investor/team labels are applied before rows are classified.
+      const labelsPromise = applyVestingLabels();
       let latestHoldersData = null;
       const pricePromise = fetchJson("dolo_price.json")
         .then(applyPrice)
         .catch(error => console.warn("DOLO price load failed", error));
       const holdersPromise = fetchJson("dolo_holders.json")
-        .then(data => {
+        .then(async data => {
+          await labelsPromise;
           latestHoldersData = data;
           applyHolders(data);
           return data;
         })
         .catch(error => {
           console.warn("DOLO holders load failed", error);
+          HOLDERS.length = 0;
+          renderHolders();
+          showHoldersError();
           return null;
         });
       const flowsPromise = fetchHeavyJson("dolo_flows.json")
@@ -5317,12 +5399,17 @@ renderCexSupplyChart();
         })
         .catch(error => {
           console.warn("DOLO flows load failed", error);
+          FLOWS.length = 0;
+          renderFlows();
+          const fm = document.getElementById("flows-meta");
+          if(fm) fm.textContent = "Flow data unavailable — try again later";
           return null;
         });
       await Promise.allSettled([pricePromise, holdersPromise]);
       await flowsPromise;
     }catch(err){
-      console.warn("DOLO live preview integration failed; using bundled sample rows.", err, SOURCE_FILES);
+      console.warn("DOLO live preview integration failed.", err, SOURCE_FILES);
+      showHoldersError();
     }
   }
   boot();

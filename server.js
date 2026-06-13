@@ -56,14 +56,18 @@ function proxyRequest(targetUrl, res) {
 
     proxyReq.on('error', (e) => {
         console.error('Proxy error:', e.message);
-        res.writeHead(502, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Proxy failed', message: e.message }));
+        if (!res.headersSent) {
+            res.writeHead(502, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Proxy failed', message: e.message }));
+        }
     });
 
     proxyReq.setTimeout(15000, () => {
         proxyReq.destroy();
-        res.writeHead(504, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Upstream timeout' }));
+        if (!res.headersSent) {
+            res.writeHead(504, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Upstream timeout' }));
+        }
     });
 
     proxyReq.end();
@@ -90,7 +94,14 @@ function serveStatic(filePath, res) {
 
 const server = http.createServer((req, res) => {
     const parsed = url.parse(req.url, true);
-    const pathname = decodeURIComponent(parsed.pathname);
+    let pathname;
+    try {
+        pathname = decodeURIComponent(parsed.pathname);
+    } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Bad request');
+        return;
+    }
 
     // --- API Proxy ---
     if (pathname === '/api/proxy') {
@@ -101,8 +112,17 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        // Security: only allow whitelisted origins
-        const allowed = ALLOWED_ORIGINS.some(origin => targetUrl.startsWith(origin));
+        // Security: only allow whitelisted origins (compare parsed origin, not prefix —
+        // startsWith lets api.coingecko.com.evil.com / @evil.com bypass the check)
+        let parsedTarget;
+        try {
+            parsedTarget = new URL(targetUrl);
+        } catch (e) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Invalid url parameter' }));
+            return;
+        }
+        const allowed = ALLOWED_ORIGINS.includes(parsedTarget.origin);
         if (!allowed) {
             res.writeHead(403, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'URL not in whitelist' }));
@@ -118,8 +138,9 @@ const server = http.createServer((req, res) => {
     let filePath = path.join(STATIC_DIR, pathname === '/' ? 'index.html' : pathname);
     filePath = path.resolve(filePath);
 
-    // Security: prevent path traversal
-    if (!filePath.startsWith(STATIC_DIR)) {
+    // Security: prevent path traversal (require a path separator after the root so
+    // a sibling dir sharing the prefix cannot be served)
+    if (filePath !== STATIC_DIR && !filePath.startsWith(STATIC_DIR + path.sep)) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         res.end('Forbidden');
         return;
@@ -128,7 +149,7 @@ const server = http.createServer((req, res) => {
     serveStatic(filePath, res);
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '127.0.0.1', () => {
     console.log(`\n  🚀 VeDOLO Dashboard Server`);
     console.log(`  ├─ Static:  http://localhost:${PORT}/`);
     console.log(`  ├─ Proxy:   http://localhost:${PORT}/api/proxy?url=...`);
