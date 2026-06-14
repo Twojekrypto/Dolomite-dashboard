@@ -61,6 +61,9 @@ jobs:
           # dolo_price.json is owned by update-dolo-price.yml (hourly). Do not commit it
           # here: with `pull --rebase -X theirs`, a long update-data run could otherwise
           # revert a fresher hourly price back to the stale value captured at job start.
+          # update_data.py still regenerates it, so DISCARD that change first — otherwise
+          # the unstaged file makes `git pull --rebase` below abort (dirty work tree).
+          git checkout -- dolo_price.json 2>/dev/null || true
           git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json vedolo_expiry.json odolo_contract_data.json metrics_snapshot.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"

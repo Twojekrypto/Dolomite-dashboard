@@ -29,14 +29,24 @@ def fetch_chart(start_ts):
     start_ts = max(start_ts, int(time.time()) - 990 * 86400)
     span = min(1000, int((time.time() - start_ts) // 86400) + 3)
     url = f"https://coins.llama.fi/chart/{COIN}?start={start_ts}&span={span}&period=1d"
-    with urllib.request.urlopen(url, timeout=30) as resp:
-        data = json.load(resp)
-    points = (data.get("coins", {}).get(COIN, {}) or {}).get("prices", [])
-    prices = {}
-    for point in points:
-        day = datetime.utcfromtimestamp(int(point["timestamp"])).strftime("%Y-%m-%d")
-        prices[day] = float(point["price"])
-    return prices
+    # Retry transient DeFiLlama errors (5xx/429/timeout). Without this a single blip
+    # raised straight out of urlopen and failed the whole workflow with exit 1.
+    last_err = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as resp:
+                data = json.load(resp)
+            points = (data.get("coins", {}).get(COIN, {}) or {}).get("prices", [])
+            prices = {}
+            for point in points:
+                day = datetime.utcfromtimestamp(int(point["timestamp"])).strftime("%Y-%m-%d")
+                prices[day] = float(point["price"])
+            return prices
+        except Exception as exc:
+            last_err = exc
+            print(f"⚠️ DeFiLlama fetch attempt {attempt + 1}/3 failed: {exc}", flush=True)
+            time.sleep(2 * (attempt + 1))
+    raise last_err  # exhausted retries — let main() decide whether to keep existing
 
 
 def main():
@@ -47,7 +57,16 @@ def main():
         except Exception as exc:
             print(f"⚠️ could not read existing history ({exc}); refetching all", flush=True)
 
-    fresh = fetch_chart(START_TS)
+    try:
+        fresh = fetch_chart(START_TS)
+    except Exception as exc:
+        # Transient DeFiLlama outage after retries: keep the immutable history we
+        # already have (exit 0) instead of failing the workflow. Only hard-fail when
+        # there is no existing data at all.
+        if existing:
+            print(f"⚠️ DeFiLlama unreachable after retries ({exc}) — keeping existing file", flush=True)
+            return
+        raise SystemExit(f"DeFiLlama unreachable and no existing file: {exc}")
     if not fresh:
         if existing:
             print("⚠️ DeFiLlama returned no points — keeping existing file")
