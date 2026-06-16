@@ -1179,13 +1179,58 @@ function officialStaleChainKeys(officialData){
   return stale;
 }
 
+const TVL_FALLBACK_MIN_SUPPLY_RATIO = 0.85;
+const TVL_FALLBACK_MATERIAL_TOKEN_USD = 1000000;
+const TVL_FALLBACK_MATERIAL_TOKEN_SHARE = 0.01;
+
+function chainSupplyFromCurrent(current, chain){
+  return Number(current?.[chain] || 0) + Number(current?.[`${chain}-borrowed`] || 0);
+}
+
+function hasMissingMaterialOfficialToken(officialTokens, fallbackTokens, officialSupply){
+  const materialUsd = Math.max(
+    TVL_FALLBACK_MATERIAL_TOKEN_USD,
+    Number(officialSupply || 0) * TVL_FALLBACK_MATERIAL_TOKEN_SHARE
+  );
+  return Object.entries(officialTokens || {}).some(([symbol, value]) => {
+    const usd = Number(value || 0);
+    return usd >= materialUsd && !(Number(fallbackTokens?.[symbol] || 0) > 0);
+  });
+}
+
+function fallbackSupplyIsMateriallyLower(chain, officialCurrent, fallbackCurrent){
+  const officialSupply = chainSupplyFromCurrent(officialCurrent, chain);
+  const fallbackSupply = chainSupplyFromCurrent(fallbackCurrent, chain);
+  if (!(officialSupply > 0) || !(fallbackSupply > 0)) return false;
+  return fallbackSupply / officialSupply < TVL_FALLBACK_MIN_SUPPLY_RATIO;
+}
+
+function shouldUseLlamaChainFallback(chain, officialData, llamaData, staleKeys){
+  if (!staleKeys.has(chainKey(chain))) return false;
+  const llamaCurrent = llamaData?.currentChainTvls || {};
+  if (!(Number(llamaCurrent[chain]) > 0)) return false;
+  return !fallbackSupplyIsMateriallyLower(chain, officialData?.currentChainTvls || {}, llamaCurrent);
+}
+
+function shouldUseLlamaTokenFallback(chain, officialData, llamaData, staleKeys){
+  if (!staleKeys.has(chainKey(chain))) return false;
+  const llamaTokens = llamaData?.chainTokensInUsd?.[chain];
+  if (!llamaTokens || !Object.keys(llamaTokens).length) return false;
+  const officialTokens = officialData?.chainTokensInUsd?.[chain] || {};
+  if (!Object.keys(officialTokens).length) return true;
+  const officialSupply = chainSupplyFromCurrent(officialData?.currentChainTvls || {}, chain);
+  if (fallbackSupplyIsMateriallyLower(chain, officialData?.currentChainTvls || {}, llamaData?.currentChainTvls || {})) return false;
+  if (hasMissingMaterialOfficialToken(officialTokens, llamaTokens, officialSupply)) return false;
+  return true;
+}
+
 function mergedChainTokens(llamaData, officialData, staleKeys){
   const officialTokens = officialData?.chainTokensInUsd || {};
   const llamaTokens = llamaData?.chainTokensInUsd || {};
   const merged = {};
   const chainNames = new Set([...Object.keys(officialTokens), ...Object.keys(llamaTokens)]);
   chainNames.forEach(chain => {
-    const useLlama = staleKeys.has(chainKey(chain)) && llamaTokens[chain];
+    const useLlama = shouldUseLlamaTokenFallback(chain, officialData, llamaData, staleKeys);
     const tokens = useLlama ? llamaTokens[chain] : (officialTokens[chain] || llamaTokens[chain]);
     if (tokens && Object.keys(tokens).length) merged[chain] = tokens;
   });
@@ -1268,7 +1313,7 @@ function buildTvlSnapshot(llamaData, officialData){
   const chainRows = [...chainNames]
     .map(name => {
       const key = chainKey(name);
-      const useLlama = staleKeys.has(key) && Number(llamaCurrent[name]) > 0;
+      const useLlama = shouldUseLlamaChainFallback(name, officialData, llamaData, staleKeys);
       const source = useLlama ? llamaCurrent : current;
       return {
         name,
