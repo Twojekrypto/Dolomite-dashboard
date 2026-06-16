@@ -21,7 +21,7 @@ ROUTE_CHECKS = {
     "/borrow/": ("liquidation-preview.html", "Borrow"),
     "/supply/": ("liquidation-preview.html", "Supply"),
     "/revenue/": ("revenue-preview.html", "Revenue"),
-    "/liquidation/": ("liquidation-preview.html", "Borrow"),
+    "/liquidation/": ("liquidation-preview.html", "Liquidations"),
 }
 
 ASSET_CHECKS = {

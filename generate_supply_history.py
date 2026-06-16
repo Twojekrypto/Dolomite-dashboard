@@ -342,11 +342,68 @@ def token_summary(token: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def history_file_path(out_dir: Path, chain: str, token_id: str) -> Path:
+    return out_dir / chain / f"{token_id.lower()}.json"
+
+
+def load_reusable_history_file(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    points = payload.get("points") if isinstance(payload, dict) else None
+    if not isinstance(points, list) or len(points) < 2:
+        return None
+    return payload
+
+
+def reusable_history_entry(
+    out_dir: Path,
+    chain: str,
+    token: Dict[str, Any],
+    existing_entry: Optional[Dict[str, Any]],
+    refresh_error: str,
+) -> Optional[Dict[str, Any]]:
+    token_id = str(token.get("id") or "").lower()
+    if not token_id:
+        return None
+    candidate_paths: List[Path] = []
+    if existing_entry and existing_entry.get("path"):
+        candidate_paths.append(Path(str(existing_entry["path"])))
+    candidate_paths.append(history_file_path(out_dir, chain, token_id))
+
+    seen_paths: set[str] = set()
+    for path in candidate_paths:
+        path_key = str(path)
+        if path_key in seen_paths:
+            continue
+        seen_paths.add(path_key)
+        payload = load_reusable_history_file(path)
+        if payload is None:
+            continue
+        payload_token_id = str(payload.get("tokenId") or "").lower()
+        if payload_token_id and payload_token_id != token_id:
+            continue
+        payload_chain = str(payload.get("chain") or "")
+        if payload_chain and payload_chain != chain:
+            continue
+        entry = token_summary(token)
+        entry["points"] = len(payload["points"])
+        entry["path"] = path.as_posix()
+        entry["reusedStaticHistory"] = True
+        entry["lastRefreshError"] = refresh_error[:500]
+        cached_generated_at = payload.get("generatedAt") or (existing_entry or {}).get("generatedAt")
+        if cached_generated_at:
+            entry["cachedGeneratedAt"] = cached_generated_at
+        return entry
+    return None
+
+
 def write_history_file(out_dir: Path, chain: str, token: Dict[str, Any], points: List[Dict[str, Any]], generated_at: datetime) -> Path:
     token_id = str(token.get("id") or "").lower()
     chain_dir = out_dir / chain
     chain_dir.mkdir(parents=True, exist_ok=True)
-    path = chain_dir / f"{token_id}.json"
+    path = history_file_path(out_dir, chain, token_id)
     payload = {
         "schemaVersion": 1,
         "source": "static-subgraph-replay",
@@ -374,12 +431,18 @@ def generate_chain(
     explicit_only: bool,
     max_pages_per_entity: int,
     generated_at: datetime,
+    existing_chain_entry: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     tokens, indexes = fetch_bundle(endpoint)
     selected = select_tokens(tokens, token_limit, explicit_tokens, explicit_symbols, explicit_only)
     print(f"{chain}: selected {len(selected)} / {len(tokens)} tokens", flush=True)
     written: List[Dict[str, Any]] = []
     skipped: List[Dict[str, Any]] = []
+    existing_tokens_by_id = {
+        str(token.get("tokenId") or "").lower(): token
+        for token in ((existing_chain_entry or {}).get("tokens") or [])
+        if str(token.get("tokenId") or "").strip()
+    }
     common_fields = """
       transaction { timestamp blockNumber }
       amountDeltaPar
@@ -420,6 +483,11 @@ def generate_chain(
             )
             points = build_history_points(token, supply_index, deposits, withdrawals, snapshots, int(generated_at.timestamp()))
         except RuntimeError as exc:
+            reusable_entry = reusable_history_entry(out_dir, chain, token, existing_tokens_by_id.get(token_id), str(exc))
+            if reusable_entry is not None:
+                written.append(reusable_entry)
+                print(f"{chain} {symbol}: reused existing static history after fetch error ({reusable_entry['points']} points)", flush=True)
+                continue
             print(f"{chain} {symbol}: skipped ({exc})", flush=True)
             record_skip(token, "fetch_error", str(exc))
             continue
@@ -536,6 +604,12 @@ def main() -> int:
     explicit_symbols = parse_csv_set(args.symbols)
     active_usd_threshold = decimal_or_zero(args.active_usd_threshold)
     generated_at = utc_now()
+    existing_manifest = load_existing_manifest(out_dir)
+    existing_chains_by_name = {
+        str(chain_entry.get("chain") or ""): chain_entry
+        for chain_entry in ((existing_manifest or {}).get("chains") or [])
+        if str(chain_entry.get("chain") or "").strip()
+    }
     results = []
 
     for chain in chains:
@@ -554,10 +628,10 @@ def main() -> int:
                 args.explicit_only,
                 args.max_pages_per_entity,
                 generated_at,
+                existing_chains_by_name.get(chain),
             )
         )
 
-    existing_manifest = load_existing_manifest(out_dir)
     replace_tokens_for_refreshed_chains = args.token_limit == 0 and not args.explicit_only
     manifest_chains = merge_manifest_results(existing_manifest, results, replace_tokens_for_refreshed_chains)
 
