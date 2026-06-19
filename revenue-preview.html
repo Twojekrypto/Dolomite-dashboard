@@ -243,7 +243,7 @@ h1{
 .hero-card .hc-sub{font-size:11px;color:var(--fg-3);margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .hero-bar{margin-top:10px;height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden;border:1px solid var(--line-1)}
 .hero-bar > span{display:block;height:100%;width:0;background:var(--gold);border-radius:1px;transition:width .4s var(--ease)}
-.revenue-series-toggles{
+.revenue-series-toggles,.revenue-mode-toggles{
   display:inline-flex;align-items:center;gap:6px;
   padding:4px;border:1px solid var(--line-1);border-radius:10px;
   background:rgba(255,255,255,.025);
@@ -251,14 +251,16 @@ h1{
 .revenue-series-control{
   display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0
 }
-.revenue-series-toggle{
+.revenue-series-toggle,.revenue-mode-toggle{
   min-height:32px;padding:0 10px;border-radius:7px;
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   color:var(--fg-3);font-family:var(--mono);font-size:11px;font-weight:700;
   transition:background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),opacity .16s var(--ease);
+  min-width:0;
 }
-.revenue-series-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
-.revenue-series-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.revenue-series-toggle > span:last-child,.revenue-mode-toggle > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.revenue-series-toggle:hover,.revenue-mode-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
+.revenue-series-toggle.active,.revenue-mode-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
 .revenue-series-toggle.preview{color:var(--fg-1);background:rgba(255,255,255,.045)}
 .revenue-series-toggle.dim{opacity:.42}
 .series-check{
@@ -280,7 +282,7 @@ h1{
   filter:drop-shadow(0 0 7px rgba(201,162,39,.16));
   transition:opacity .15s var(--ease),stroke-width .15s var(--ease);
 }
-.revenue-chart-line.fees{filter:none}
+.revenue-chart-line.fees,.revenue-chart-line.odoloUsdc{filter:none}
 .revenue-chart-line.is-muted{opacity:.24}
 .revenue-chart-line.is-active{stroke-width:2.9;opacity:1}
 .revenue-hover-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
@@ -333,6 +335,7 @@ h1{
 .revenue-brush-label .range{color:var(--gold);font-weight:800;margin-left:9px}
 .legend-swatch{width:18px;height:3px;border-radius:999px;background:var(--gold)}
 .legend-swatch.fees{background:#9ab7c2}
+.legend-swatch.odolo-usdc{background:#8aa37b}
 .fee-split-layout{display:grid;grid-template-columns:1fr;gap:18px;align-items:center}
 .fee-donut-wrap{position:relative;width:100%;max-width:220px;aspect-ratio:1;margin:0 auto}
 .fee-donut-svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}
@@ -604,7 +607,8 @@ h1{
   .hero-card:first-child{border-top:0;padding-top:0}
   .panel-head{display:block}
   .revenue-series-control{margin-top:12px;width:100%;display:grid;grid-template-columns:1fr;justify-items:stretch}
-  .revenue-series-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .revenue-series-toggles{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .revenue-mode-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
   .chain-date-popover,
@@ -749,12 +753,17 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Revenue Over Time</div>
-          <div class="panel-sub">Daily retained borrow-interest revenue and borrower fees.</div>
+          <div class="panel-sub">Daily retained borrow-interest revenue, oDOLO USDC exercise payments, and borrower fees.</div>
         </div>
         <div class="revenue-series-control">
           <div class="revenue-series-toggles" aria-label="Revenue chart filter">
             <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Revenue</span></button>
+            <button class="revenue-series-toggle" type="button" data-series="odoloUsdc" aria-pressed="false" aria-label="Toggle oDOLO USDC exercise payments series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch odolo-usdc"></span><span>oDOLO USDC</span></button>
             <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false" aria-label="Toggle borrower fees series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch fees"></span><span>Fees</span></button>
+          </div>
+          <div class="revenue-mode-toggles" aria-label="Revenue chart mode">
+            <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
+            <button class="revenue-mode-toggle" type="button" data-chart-mode="cumulative" aria-pressed="false"><span>Cumulative</span></button>
           </div>
         </div>
       </div>
@@ -952,12 +961,19 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-audit-source";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-odolo-usdc-chart";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-odolo-usdc-chart";
+  const SERIES_ORDER = ["revenue", "odoloUsdc", "fees"];
+  const DEFAULT_SERIES_KEYS = ["revenue", "odoloUsdc"];
   let revenueData = null;
-  let selectedRevenueSeries = new Set(["revenue", "fees"]);
+  let odoloExerciseData = null;
+  let odoloExerciseDaily = null;
+  let selectedRevenueSeries = new Set(DEFAULT_SERIES_KEYS);
+  let revenueChartMode = "daily";
   const SERIES = {
-    revenue: { key: "revenue", label: "Revenue", shortLabel: "Revenue", field: "revenueUSD", color: "#c9a227" },
-    fees: { key: "fees", label: "Borrower fees", shortLabel: "Fees", field: "feesUSD", color: "#9ab7c2" }
+    revenue: { key: "revenue", label: "Revenue", shortLabel: "Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
+    odoloUsdc: { key: "odoloUsdc", label: "oDOLO USDC paid", shortLabel: "oDOLO USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
+    fees: { key: "fees", label: "Borrower fees", shortLabel: "Fees", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" }
   };
   const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
   const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1151,27 +1167,76 @@ h1{
     const parsed = Date.parse(String(row.date || "") + "T00:00:00Z");
     return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
   }
+  function dayKeyFromTs(ts){
+    if (!ts) return "";
+    return new Date(ts * 1000).toISOString().slice(0, 10);
+  }
+  function txDateKey(tx){
+    const raw = String(tx?.date || "").slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+  }
+  function odoloExerciseDailyMap(){
+    if (odoloExerciseDaily) return odoloExerciseDaily;
+    const daily = new Map();
+    const exercisers = odoloExerciseData?.exercisers || {};
+    Object.values(exercisers).forEach(wallet => {
+      const txs = Array.isArray(wallet?.txs) ? wallet.txs : [];
+      txs.forEach(tx => {
+        if (!tx || tx.paid_token === "DOLO") return;
+        const amount = n(tx.usdc);
+        const date = txDateKey(tx);
+        if (!date || amount <= 0) return;
+        daily.set(date, (daily.get(date) || 0) + amount);
+      });
+    });
+    odoloExerciseDaily = daily;
+    return daily;
+  }
   function allRows(){
+    const dailyOdolo = odoloExerciseDailyMap();
+    let revenueCumulative = 0;
+    let feesCumulative = 0;
+    let odoloUsdcCumulative = 0;
     return (revenueData?.series || [])
       .map(row => ({ ...row, ts: rowTs(row) }))
       .filter(row => row.ts > 0)
-      .sort((a,b) => a.ts - b.ts);
+      .sort((a,b) => a.ts - b.ts)
+      .map(row => {
+        const date = txDateKey(row) || dayKeyFromTs(row.ts);
+        const odoloUsdcUSD = dailyOdolo.get(date) || 0;
+        revenueCumulative += n(row.revenueUSD);
+        feesCumulative += n(row.feesUSD);
+        odoloUsdcCumulative += odoloUsdcUSD;
+        return {
+          ...row,
+          odoloUsdcUSD,
+          revenueCumulativeUSD: revenueCumulative,
+          feesCumulativeUSD: feesCumulative,
+          odoloUsdcCumulativeUSD: odoloUsdcCumulative
+        };
+      });
   }
   function selectedRevenueDefs(){
-    return [SERIES.revenue, SERIES.fees].filter(def => selectedRevenueSeries.has(def.key));
+    return SERIES_ORDER.map(key => SERIES[key]).filter(def => selectedRevenueSeries.has(def.key));
   }
   function isSeriesVisible(key){
     return selectedRevenueSeries.has(key);
   }
   function activeSeriesDefs(){
     const defs = selectedRevenueDefs();
-    return defs.length ? defs : [SERIES.revenue, SERIES.fees];
+    return defs.length ? defs : DEFAULT_SERIES_KEYS.map(key => SERIES[key]);
+  }
+  function seriesField(def){
+    return revenueChartMode === "cumulative" ? (def.cumulativeField || def.field) : def.field;
+  }
+  function revenueChartModeLabel(){
+    return revenueChartMode === "cumulative" ? "Cumulative USD" : "Daily USD";
   }
   function toggleRevenueSeries(key){
     if (!SERIES[key]) return;
     if (selectedRevenueSeries.has(key)) {
       if (selectedRevenueSeries.size > 1) selectedRevenueSeries.delete(key);
-      else selectedRevenueSeries = new Set(["revenue", "fees"]);
+      else selectedRevenueSeries = new Set(DEFAULT_SERIES_KEYS);
     } else {
       selectedRevenueSeries.add(key);
     }
@@ -1412,19 +1477,20 @@ h1{
       return;
     }
     const def = defs?.[0] || SERIES.revenue;
+    const field = seriesField(def);
     const minX = rows[0].ts;
     const maxX = rows[rows.length - 1].ts;
     const span = Math.max(1, maxX - minX);
-    const maxY = Math.max(1, ...rows.map(row => n(row[def.field])));
+    const maxY = Math.max(1, ...rows.map(row => n(row[field])));
     const BW = 1000, BH = 56;
     const xAt = ts => (ts - minX) / span * BW;
     const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
-    const line = rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(1)} ${yAt(n(row[def.field])).toFixed(1)}`).join(" ");
+    const line = rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(1)} ${yAt(n(row[field])).toFixed(1)}`).join(" ");
     const area = `${line} L${xAt(rows[rows.length - 1].ts).toFixed(1)} ${BH} L${xAt(rows[0].ts).toFixed(1)} ${BH} Z`;
     brushLine.setAttribute("d", line);
     brushLine.setAttribute("stroke", def.color);
     brushArea.setAttribute("d", area);
-    brushArea.style.fill = def.key === "fees" ? "rgba(154,183,194,.16)" : "url(#revenueBrushGrad)";
+    brushArea.style.fill = def.key === "fees" ? "rgba(154,183,194,.16)" : def.key === "odoloUsdc" ? "rgba(138,163,123,.16)" : "url(#revenueBrushGrad)";
     paintRevenueBrushWindow();
     initRevenueBrush();
   }
@@ -1513,6 +1579,13 @@ h1{
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
   }
+  function updateRevenueModeControls(){
+    document.querySelectorAll(".revenue-mode-toggle").forEach(btn => {
+      const active = btn.dataset.chartMode === revenueChartMode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
   function renderRevenueChart(options = {}){
     const svg = qs("revenueChart");
     const rows = allRows();
@@ -1527,7 +1600,7 @@ h1{
     const xMax = model[model.length - 1].ts;
     const xRange = Math.max(1, xMax - xMin);
     const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
-    const maxValue = Math.max(1, ...model.flatMap(row => defs.map(def => n(row[def.field]))));
+    const maxValue = Math.max(1, ...model.flatMap(row => defs.map(def => n(row[seriesField(def)]))));
     const yMax = maxValue * 1.12;
     const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
     const zeroY = P_T + chartH;
@@ -1546,9 +1619,9 @@ h1{
       axis.push(`<text x="${xAt(ts).toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${formatAxisDate(ts, spanDays)}</text>`);
     }
     const areaDef = defs[0];
-    const areaLine = pathFromPoints(model, areaDef.field, xAt, yAt);
+    const areaLine = pathFromPoints(model, seriesField(areaDef), xAt, yAt);
     const area = `${areaLine} L${xAt(model[model.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(model[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`;
-    const lines = defs.map(def => `<path class="revenue-chart-line ${def.key}" data-series="${def.key}" d="${pathFromPoints(model, def.field, xAt, yAt)}" stroke="${def.color}"></path>`).join("");
+    const lines = defs.map(def => `<path class="revenue-chart-line ${def.key}" data-series="${def.key}" d="${pathFromPoints(model, seriesField(def), xAt, yAt)}" stroke="${def.color}"></path>`).join("");
     svg.innerHTML = [
       '<defs><linearGradient id="revenueChartGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c9a227" stop-opacity=".22"/><stop offset="58%" stop-color="#c9a227" stop-opacity=".05"/><stop offset="100%" stop-color="#c9a227" stop-opacity="0"/></linearGradient></defs>',
       `<g class="revenue-chart-grid">${grid.join("")}</g>`,
@@ -1559,6 +1632,7 @@ h1{
       `<g class="revenue-chart-axis">${axis.join("")}</g>`
     ].join("");
     updateRevenueLegend();
+    updateRevenueModeControls();
     attachRevenueHover(model, defs, xAt, yAt, W, H);
     renderChains();
   }
@@ -1599,8 +1673,9 @@ h1{
         if (dist < best) { best = dist; nearest = row; }
       });
       const primary = defs[0];
+      const primaryField = seriesField(primary);
       const x = xAt(nearest.ts);
-      const y = yAt(n(nearest[primary.field]));
+      const y = yAt(n(nearest[primaryField]));
       paintActive(primary.key);
       line.setAttribute("x1", x);
       line.setAttribute("x2", x);
@@ -1610,12 +1685,12 @@ h1{
       dot.setAttribute("fill", primary.color);
       dot.style.opacity = 1;
       const summary = defs.length === 1
-        ? `${primary.label}: ${usdFull(nearest[primary.field])}`
-        : "Daily USD";
+        ? `${primary.label}: ${usdFull(nearest[primaryField])}`
+        : revenueChartModeLabel();
       tip.innerHTML = `
         <div class="tt-date">${formatDay(nearest.ts, false)}</div>
         <div class="tt-val">${summary}</div>
-        ${defs.map(def => `<div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.label}</span><b>${usdFull(nearest[def.field])}</b></div>`).join("")}
+        ${defs.map(def => `<div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.label}</span><b>${usdFull(nearest[seriesField(def)])}</b></div>`).join("")}
       `;
       tip.style.opacity = 1;
       tip.style.left = "0px";
@@ -1795,6 +1870,14 @@ h1{
       toggleRevenueSeries(btn.dataset.series);
     });
   });
+  document.querySelectorAll(".revenue-mode-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.chartMode;
+      if (mode !== "daily" && mode !== "cumulative") return;
+      revenueChartMode = mode;
+      renderRevenueChart();
+    });
+  });
   const chainRangeFrom = qs("chainRangeFrom");
   const chainRangeTo = qs("chainRangeTo");
   document.querySelectorAll(".chain-date-icon-btn").forEach(btn => {
@@ -1874,13 +1957,24 @@ h1{
     if (event.key === "Escape") closeChainCalendar();
   });
   renderProtocolInfo();
-  fetch(DATA_URL, { cache:"no-cache" })
-    .then(response => {
+  function fetchJson(url){
+    return fetch(url, { cache:"no-cache" }).then(response => {
       if (!response.ok) throw new Error("HTTP " + response.status);
       return response.json();
+    });
+  }
+  Promise.all([
+    fetchJson(DATA_URL),
+    fetchJson(ODOLO_EXERCISES_URL).catch(error => {
+      console.warn("oDOLO exercise data failed", error);
+      return null;
     })
-    .then(data => {
+  ])
+    .then(([data, exercises]) => {
       revenueData = data;
+      odoloExerciseData = exercises;
+      odoloExerciseDaily = null;
+      if (!odoloExerciseData && selectedRevenueSeries.has("odoloUsdc")) selectedRevenueSeries = new Set(["revenue", "fees"]);
       render();
     })
     .catch(error => {
