@@ -1,5 +1,6 @@
 (function () {
   const navSvg = {
+    portfolio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v12H3z"/><path d="M3 7l3-4h12l3 4"/><path d="M3 12h6a3 3 0 0 0 6 0h6"/></svg>',
     assets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
     tvl: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>',
     earn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>',
@@ -34,16 +35,17 @@
       </div>
       <div class="earn-premium-nav-wrap">
         <nav class="earn-premium-nav" aria-label="Dolomite dashboard sections">
-          <a class="earn-premium-nav-item" href="./assets/">${navSvg.assets}<span>Assets</span></a>
-          <a class="earn-premium-nav-item" href="./tvl/">${navSvg.tvl}<span>TVL</span></a>
-          <a class="earn-premium-nav-item" href="./dolo/"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>DOLO</span></a>
-          <a class="earn-premium-nav-item" href="./odolo/"><img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'"><span>oDOLO</span></a>
-          <a class="earn-premium-nav-item" href="./vedolo/"><img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'"><span>veDOLO</span></a>
-          <a class="earn-premium-nav-item active" href="./earn/" aria-current="page">${navSvg.earn}<span>Earn</span></a>
-          <a class="earn-premium-nav-item" href="./borrow/">${navSvg.liquidation}<span>Borrow</span></a>
-          <a class="earn-premium-nav-item" href="./supply/">${navSvg.supply}<span>Supply</span></a>
-          <a class="earn-premium-nav-item" href="./revenue/">${navSvg.revenue}<span>Revenue</span></a>
-          <a class="earn-premium-nav-item" href="./history/">${navSvg.history}<span>History</span></a>
+          <a class="earn-premium-nav-item" href="./portfolio/" data-tab="portfolio">${navSvg.portfolio}<span>Portfolio</span></a>
+          <a class="earn-premium-nav-item" href="./assets/" data-tab="assets">${navSvg.assets}<span>Assets</span></a>
+          <a class="earn-premium-nav-item" href="./tvl/" data-tab="tvl">${navSvg.tvl}<span>TVL</span></a>
+          <a class="earn-premium-nav-item" href="./dolo/" data-tab="dolo"><img src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>DOLO</span></a>
+          <a class="earn-premium-nav-item" href="./odolo/" data-tab="odolo"><img src="odolo-logo-official.svg" alt="" onerror="this.style.display='none'"><span>oDOLO</span></a>
+          <a class="earn-premium-nav-item" href="./vedolo/" data-tab="vedolo"><img src="vedolo-logo.svg" alt="" onerror="this.style.display='none'"><span>veDOLO</span></a>
+          <a class="earn-premium-nav-item active" href="./earn/" data-tab="earn" aria-current="page">${navSvg.earn}<span>Earn</span></a>
+          <a class="earn-premium-nav-item" href="./borrow/" data-tab="borrow">${navSvg.liquidation}<span>Borrow</span></a>
+          <a class="earn-premium-nav-item" href="./supply/" data-tab="supply">${navSvg.supply}<span>Supply</span></a>
+          <a class="earn-premium-nav-item" href="./revenue/" data-tab="revenue">${navSvg.revenue}<span>Revenue</span></a>
+          <a class="earn-premium-nav-item" href="./history/" data-tab="history">${navSvg.history}<span>History</span></a>
         </nav>
       </div>`;
     const wrapper = document.querySelector(".page-wrapper");
