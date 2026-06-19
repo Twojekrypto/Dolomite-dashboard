@@ -263,6 +263,25 @@ h1{
 .revenue-series-toggle.active,.revenue-mode-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
 .revenue-series-toggle.preview{color:var(--fg-1);background:rgba(255,255,255,.045)}
 .revenue-series-toggle.dim{opacity:.42}
+.revenue-streams-panel .panel-head{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:16px;
+}
+.revenue-streams-panel .panel-head > div:first-child{max-width:720px}
+.revenue-streams-panel .revenue-series-control{
+  width:100%;
+  justify-content:space-between;
+  align-items:stretch;
+  gap:12px;
+}
+.revenue-streams-panel .revenue-series-toggles{
+  flex:1 1 auto;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.revenue-streams-panel .revenue-series-toggle{justify-content:flex-start}
+.revenue-streams-panel .revenue-mode-toggles{flex:0 0 auto}
 .series-check{
   width:14px;height:14px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
   color:transparent;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.025);
@@ -289,13 +308,15 @@ h1{
 .revenue-hover-dot{fill:var(--gold);stroke:var(--bg-0);stroke-width:2;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
 .revenue-chart-tip{
   position:absolute;pointer-events:none;opacity:0;z-index:4;
-  min-width:230px;padding:10px 12px 11px;border:1px solid var(--line-3);border-radius:10px;
+  min-width:280px;max-width:min(360px,calc(100vw - 34px));padding:10px 12px 11px;border:1px solid var(--line-3);border-radius:10px;
   background:rgba(15,15,17,.96);box-shadow:var(--sh-hi);
   transition:opacity .12s var(--ease);
 }
 .revenue-chart-tip .tt-date{color:var(--fg-3);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
 .revenue-chart-tip .tt-table{display:grid;gap:0;border:1px solid var(--line-1);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.018)}
 .revenue-chart-tip .tt-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:7px 8px;color:var(--fg-3);font-size:12px}
+.revenue-chart-tip .tt-row span{min-width:0;display:inline-flex;align-items:center;white-space:nowrap}
+.revenue-chart-tip .tt-row b{flex:0 0 auto}
 .revenue-chart-tip .tt-row + .tt-row{border-top:1px solid rgba(255,255,255,.055)}
 .revenue-chart-tip .tt-row.active{color:var(--fg-1)}
 .revenue-chart-tip .tt-row.total{margin-top:0;color:var(--fg-1);background:rgba(201,162,39,.08)}
@@ -614,6 +635,9 @@ h1{
   .revenue-series-toggles{width:100%;display:grid;grid-template-columns:1fr}
   .revenue-series-toggle{justify-content:flex-start}
   .revenue-mode-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .revenue-streams-panel .revenue-series-control{display:grid;grid-template-columns:1fr;justify-items:stretch}
+  .revenue-streams-panel .revenue-series-toggles{grid-template-columns:1fr}
+  .revenue-streams-panel .revenue-mode-toggles{width:100%}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
   .chain-date-popover,
@@ -754,7 +778,7 @@ h1{
   </section>
 
   <main class="grid-main">
-    <section class="panel">
+    <section class="panel revenue-streams-panel">
       <div class="panel-head">
         <div>
           <div class="panel-title">Revenue Streams Over Time</div>
