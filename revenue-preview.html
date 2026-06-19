@@ -243,7 +243,7 @@ h1{
 .hero-card .hc-sub{font-size:11px;color:var(--fg-3);margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .hero-bar{margin-top:10px;height:3px;background:var(--bg-3);border-radius:2px;overflow:hidden;border:1px solid var(--line-1)}
 .hero-bar > span{display:block;height:100%;width:0;background:var(--gold);border-radius:1px;transition:width .4s var(--ease)}
-.revenue-series-toggles,.revenue-mode-toggles{
+.revenue-series-toggles,.revenue-mode-toggles,.revenue-scale-toggles{
   display:inline-flex;align-items:center;gap:6px;
   padding:4px;border:1px solid var(--line-1);border-radius:10px;
   background:rgba(255,255,255,.025);
@@ -251,16 +251,18 @@ h1{
 .revenue-series-control{
   display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0
 }
-.revenue-series-toggle,.revenue-mode-toggle{
+.revenue-series-toggle,.revenue-mode-toggle,.revenue-scale-toggle{
   min-height:32px;padding:0 10px;border-radius:7px;
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   color:var(--fg-3);font-family:var(--mono);font-size:11px;font-weight:700;
   transition:background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),opacity .16s var(--ease);
   min-width:0;
 }
-.revenue-series-toggle > span:last-child,.revenue-mode-toggle > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.revenue-series-toggle:hover,.revenue-mode-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
-.revenue-series-toggle.active,.revenue-mode-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.revenue-series-toggle > span:last-child,.revenue-mode-toggle > span,.revenue-scale-toggle > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.revenue-series-toggle:hover,.revenue-mode-toggle:hover,.revenue-scale-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
+.revenue-series-toggle.active,.revenue-mode-toggle.active,.revenue-scale-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.revenue-scale-toggle:disabled{opacity:.42;cursor:default}
+.revenue-scale-toggle:disabled:hover{color:var(--fg-3);background:transparent}
 .revenue-series-toggle.preview{color:var(--fg-1);background:rgba(255,255,255,.045)}
 .revenue-series-toggle.dim{opacity:.42}
 .series-check{
@@ -285,6 +287,9 @@ h1{
 .revenue-chart-line.fees,.revenue-chart-line.odoloUsdc{filter:none}
 .revenue-chart-line.is-muted{opacity:.24}
 .revenue-chart-line.is-active{stroke-width:2.9;opacity:1}
+.revenue-clip-markers{pointer-events:none}
+.revenue-clip-marker circle{fill:var(--bg-0);stroke-width:2.2;filter:drop-shadow(0 0 7px rgba(0,0,0,.32))}
+.revenue-clip-marker text{font-family:var(--mono);font-size:10px;font-weight:800;fill:var(--fg-1);paint-order:stroke;stroke:rgba(9,9,11,.9);stroke-width:4;stroke-linejoin:round}
 .revenue-hover-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
 .revenue-hover-dot{fill:var(--gold);stroke:var(--bg-0);stroke-width:2;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
 .revenue-chart-tip{
@@ -609,6 +614,7 @@ h1{
   .revenue-series-control{margin-top:12px;width:100%;display:grid;grid-template-columns:1fr;justify-items:stretch}
   .revenue-series-toggles{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
   .revenue-mode-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .revenue-scale-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
   .chain-date-popover,
@@ -764,6 +770,10 @@ h1{
           <div class="revenue-mode-toggles" aria-label="Revenue chart mode">
             <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
             <button class="revenue-mode-toggle" type="button" data-chart-mode="cumulative" aria-pressed="false"><span>Cumulative</span></button>
+          </div>
+          <div class="revenue-scale-toggles" aria-label="Revenue chart scale">
+            <button class="revenue-scale-toggle" type="button" data-chart-scale="raw" aria-pressed="false"><span>Raw</span></button>
+            <button class="revenue-scale-toggle" type="button" data-chart-scale="focus" aria-pressed="true"><span>Focus</span></button>
           </div>
         </div>
       </div>
@@ -961,8 +971,8 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-odolo-usdc-chart";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-odolo-usdc-chart";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-focus-scale";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-focus-scale";
   const SERIES_ORDER = ["revenue", "odoloUsdc", "fees"];
   const DEFAULT_SERIES_KEYS = ["revenue", "odoloUsdc"];
   let revenueData = null;
@@ -970,6 +980,7 @@ h1{
   let odoloExerciseDaily = null;
   let selectedRevenueSeries = new Set(DEFAULT_SERIES_KEYS);
   let revenueChartMode = "daily";
+  let revenueScaleMode = "focus";
   const SERIES = {
     revenue: { key: "revenue", label: "Revenue", shortLabel: "Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
     odoloUsdc: { key: "odoloUsdc", label: "oDOLO USDC paid", shortLabel: "oDOLO USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
@@ -1229,8 +1240,30 @@ h1{
   function seriesField(def){
     return revenueChartMode === "cumulative" ? (def.cumulativeField || def.field) : def.field;
   }
+  function isFocusScaleActive(){
+    return revenueChartMode === "daily" && revenueScaleMode === "focus";
+  }
   function revenueChartModeLabel(){
-    return revenueChartMode === "cumulative" ? "Cumulative USD" : "Daily USD";
+    if (revenueChartMode === "cumulative") return "Cumulative USD";
+    return isFocusScaleActive() ? "Daily USD · Focus" : "Daily USD";
+  }
+  function percentile(values, q){
+    const sorted = values.filter(value => value > 0).sort((a,b) => a - b);
+    if (!sorted.length) return 0;
+    const pos = (sorted.length - 1) * q;
+    const base = Math.floor(pos);
+    const rest = pos - base;
+    const next = sorted[base + 1];
+    return Number.isFinite(next) ? sorted[base] + rest * (next - sorted[base]) : sorted[base];
+  }
+  function revenueChartScale(rows, defs){
+    const values = rows.flatMap(row => defs.map(def => n(row[seriesField(def)]))).filter(value => value > 0);
+    const rawMax = Math.max(1, ...values);
+    if (!isFocusScaleActive() || values.length < 12) return { yMax: rawMax * 1.12, clipped: false, rawMax };
+    const focusBase = Math.max(1, percentile(values, 0.995));
+    const focusMax = focusBase * 1.18;
+    if (rawMax <= focusMax * 1.35) return { yMax: rawMax * 1.12, clipped: false, rawMax };
+    return { yMax: focusMax, clipped: true, rawMax };
   }
   function toggleRevenueSeries(key){
     if (!SERIES[key]) return;
@@ -1481,7 +1514,8 @@ h1{
     const minX = rows[0].ts;
     const maxX = rows[rows.length - 1].ts;
     const span = Math.max(1, maxX - minX);
-    const maxY = Math.max(1, ...rows.map(row => n(row[field])));
+    const scale = revenueChartScale(rows, [def]);
+    const maxY = scale.yMax;
     const BW = 1000, BH = 56;
     const xAt = ts => (ts - minX) / span * BW;
     const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
@@ -1569,6 +1603,27 @@ h1{
   function pathFromPoints(rows, field, xAt, yAt){
     return rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(2)} ${yAt(n(row[field])).toFixed(2)}`).join(" ");
   }
+  function renderRevenueClipMarkers(rows, defs, xAt, yAt, scale, W, P_L, P_R){
+    if (!scale.clipped) return "";
+    const clipped = [];
+    defs.forEach(def => {
+      const field = seriesField(def);
+      rows.forEach(row => {
+        const value = n(row[field]);
+        if (value > scale.yMax) clipped.push({ def, row, value });
+      });
+    });
+    if (!clipped.length) return "";
+    const maxClipped = Math.max(...clipped.map(point => point.value));
+    return clipped.map(point => {
+      const x = xAt(point.row.ts);
+      const y = yAt(scale.yMax) + 5;
+      const label = point.value >= maxClipped * .98;
+      const anchor = x > W - P_R - 44 ? "end" : x < P_L + 44 ? "start" : "middle";
+      const text = label ? `<text x="${x.toFixed(1)}" y="${(y - 10).toFixed(1)}" text-anchor="${anchor}">+${usd(point.value)}</text>` : "";
+      return `<g class="revenue-clip-marker ${point.def.key}" data-series="${point.def.key}"><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.4" stroke="${point.def.color}"></circle>${text}</g>`;
+    }).join("");
+  }
   function updateRevenueLegend(){
     document.querySelectorAll(".revenue-series-toggle").forEach(btn => {
       const key = btn.dataset.series;
@@ -1586,6 +1641,16 @@ h1{
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
   }
+  function updateRevenueScaleControls(){
+    const scaleApplies = revenueChartMode === "daily";
+    document.querySelectorAll(".revenue-scale-toggle").forEach(btn => {
+      const active = scaleApplies && btn.dataset.chartScale === revenueScaleMode;
+      btn.classList.toggle("active", active);
+      btn.disabled = !scaleApplies;
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+      btn.setAttribute("aria-disabled", scaleApplies ? "false" : "true");
+    });
+  }
   function renderRevenueChart(options = {}){
     const svg = qs("revenueChart");
     const rows = allRows();
@@ -1600,8 +1665,8 @@ h1{
     const xMax = model[model.length - 1].ts;
     const xRange = Math.max(1, xMax - xMin);
     const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
-    const maxValue = Math.max(1, ...model.flatMap(row => defs.map(def => n(row[seriesField(def)]))));
-    const yMax = maxValue * 1.12;
+    const scale = revenueChartScale(model, defs);
+    const yMax = scale.yMax;
     const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
     const zeroY = P_T + chartH;
     const grid = [];
@@ -1622,17 +1687,20 @@ h1{
     const areaLine = pathFromPoints(model, seriesField(areaDef), xAt, yAt);
     const area = `${areaLine} L${xAt(model[model.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(model[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`;
     const lines = defs.map(def => `<path class="revenue-chart-line ${def.key}" data-series="${def.key}" d="${pathFromPoints(model, seriesField(def), xAt, yAt)}" stroke="${def.color}"></path>`).join("");
+    const clipMarkers = renderRevenueClipMarkers(model, defs, xAt, yAt, scale, W, P_L, P_R);
     svg.innerHTML = [
       '<defs><linearGradient id="revenueChartGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c9a227" stop-opacity=".22"/><stop offset="58%" stop-color="#c9a227" stop-opacity=".05"/><stop offset="100%" stop-color="#c9a227" stop-opacity="0"/></linearGradient></defs>',
       `<g class="revenue-chart-grid">${grid.join("")}</g>`,
       `<path class="revenue-chart-area" d="${area}"></path>`,
       `<g class="revenue-chart-lines">${lines}</g>`,
+      `<g class="revenue-clip-markers">${clipMarkers}</g>`,
       `<line class="revenue-hover-line" id="revenueHoverLine" x1="0" x2="0" y1="${P_T}" y2="${zeroY}"></line>`,
       `<circle class="revenue-hover-dot" id="revenueHoverDot" r="4" cx="0" cy="0"></circle>`,
       `<g class="revenue-chart-axis">${axis.join("")}</g>`
     ].join("");
     updateRevenueLegend();
     updateRevenueModeControls();
+    updateRevenueScaleControls();
     attachRevenueHover(model, defs, xAt, yAt, W, H);
     renderChains();
   }
@@ -1875,6 +1943,14 @@ h1{
       const mode = btn.dataset.chartMode;
       if (mode !== "daily" && mode !== "cumulative") return;
       revenueChartMode = mode;
+      renderRevenueChart();
+    });
+  });
+  document.querySelectorAll(".revenue-scale-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const scale = btn.dataset.chartScale;
+      if (scale !== "raw" && scale !== "focus") return;
+      revenueScaleMode = scale;
       renderRevenueChart();
     });
   });
