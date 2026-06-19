@@ -276,7 +276,7 @@ h1{
   align-items:stretch;
   gap:12px;
 }
-.revenue-streams-panel .revenue-series-toggles{
+.revenue-chart-panel .revenue-series-toggles{
   flex:0 1 auto;
   display:grid;
   grid-template-columns:repeat(2,minmax(170px,225px));
@@ -284,7 +284,7 @@ h1{
   padding:4px;
   border-radius:10px;
 }
-.revenue-streams-panel .revenue-series-toggle{
+.revenue-chart-panel .revenue-series-toggle{
   min-height:36px;
   padding:0 12px;
   justify-content:flex-start;
@@ -294,25 +294,17 @@ h1{
 }
 .revenue-chart-panel .revenue-mode-toggles{flex:0 0 auto}
 .borrow-interest-panel .revenue-series-control{justify-content:space-between;align-items:center}
-.borrow-series-legend{
-  display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0;
-  padding:4px;border-radius:10px;background:rgba(255,255,255,.018);border:1px solid var(--line-1)
-}
-.borrow-series-chip{
-  min-height:32px;padding:0 10px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;
-  color:var(--fg-3);font-family:var(--mono);font-size:11px;font-weight:750;white-space:nowrap
-}
 .series-check{
   width:14px;height:14px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
   color:transparent;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.025);
   transition:background .16s var(--ease),border-color .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease)
 }
-.revenue-streams-panel .series-check{width:15px;height:15px}
+.revenue-chart-panel .series-check{width:15px;height:15px}
 .series-check svg{width:10px;height:10px;display:block;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .revenue-series-toggle.active .series-check{
   color:#101014;background:var(--gold);border-color:var(--gold);box-shadow:0 0 12px rgba(201,162,39,.22)
 }
-.revenue-streams-panel .revenue-series-toggle.active{
+.revenue-chart-panel .revenue-series-toggle.active{
   background:linear-gradient(180deg,rgba(201,162,39,.16),rgba(201,162,39,.08));
   box-shadow:inset 0 0 0 1px var(--gold-line),0 8px 22px rgba(0,0,0,.12);
 }
@@ -389,7 +381,7 @@ h1{
 .revenue-brush-label .v{color:var(--fg-2)}
 .revenue-brush-label .range{color:var(--gold);font-weight:800;margin-left:9px}
 .legend-swatch{width:18px;height:3px;border-radius:999px;background:var(--gold)}
-.revenue-streams-panel .legend-swatch{width:22px;height:4px}
+.revenue-chart-panel .legend-swatch{width:22px;height:4px}
 .legend-swatch.fees{background:#9ab7c2}
 .legend-swatch.odolo-usdc{background:#8aa37b}
 .legend-swatch.liquidator-earnings{background:#b4796b}
@@ -634,12 +626,10 @@ h1{
   .revenue-series-toggle{justify-content:flex-start}
   .revenue-mode-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .revenue-chart-panel .revenue-series-control{display:grid;grid-template-columns:1fr;justify-items:stretch}
-  .revenue-streams-panel .revenue-series-toggles{width:100%;grid-template-columns:1fr}
-  .revenue-streams-panel .revenue-series-toggle{min-height:38px}
+  .revenue-chart-panel .revenue-series-toggles{width:100%;grid-template-columns:1fr}
+  .revenue-chart-panel .revenue-series-toggle{min-height:38px}
   .revenue-chart-panel .revenue-mode-toggles{width:100%}
   .borrow-interest-panel .revenue-series-control{justify-content:stretch}
-  .borrow-series-legend{width:100%;display:grid;grid-template-columns:1fr}
-  .borrow-series-chip{justify-content:flex-start}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
   .chain-date-popover,
@@ -826,9 +816,9 @@ h1{
           <div class="panel-sub">Gross interest paid by borrowers and liquidation rewards earned by liquidators.</div>
         </div>
         <div class="revenue-series-control">
-          <div class="borrow-series-legend" aria-label="Borrow interest chart series">
-            <span class="borrow-series-chip"><span class="legend-swatch fees"></span><span>Borrow Interest</span></span>
-            <span class="borrow-series-chip"><span class="legend-swatch liquidator-earnings"></span><span>Liquidator Earnings</span></span>
+          <div class="revenue-series-toggles" aria-label="Borrow interest chart filter">
+            <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false" aria-label="Toggle borrow interest series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch fees"></span><span>Borrow Interest</span></button>
+            <button class="revenue-series-toggle" type="button" data-series="liquidatorEarnings" aria-pressed="false" aria-label="Toggle liquidator earnings series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch liquidator-earnings"></span><span>Liquidator Earnings</span></button>
           </div>
           <div class="revenue-mode-toggles" aria-label="Borrow interest chart mode">
             <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
@@ -983,6 +973,7 @@ h1{
   let odoloExerciseData = null;
   let odoloExerciseDaily = null;
   let selectedRevenueSeries = new Set(DEFAULT_SERIES_KEYS);
+  let selectedBorrowInterestSeries = new Set(BORROW_INTEREST_SERIES_KEYS);
   const REVENUE_CHART_KEYS = ["streams", "borrowInterest"];
   const STREAMS_CHART_KEY = "streams";
   const BORROW_INTEREST_CHART_KEY = "borrowInterest";
@@ -1248,8 +1239,12 @@ h1{
     const defs = selectedRevenueDefs();
     return defs.length ? defs : DEFAULT_SERIES_KEYS.map(key => SERIES[key]);
   }
-  function defsFromKeys(keys){
-    return keys.map(key => SERIES[key]).filter(Boolean);
+  function selectedBorrowInterestDefs(){
+    return BORROW_INTEREST_SERIES_KEYS.map(key => SERIES[key]).filter(def => selectedBorrowInterestSeries.has(def.key));
+  }
+  function activeBorrowInterestDefs(){
+    const defs = selectedBorrowInterestDefs();
+    return defs.length ? defs : BORROW_INTEREST_SERIES_KEYS.map(key => SERIES[key]);
   }
   function revenueChartKey(key){
     return key === BORROW_INTEREST_CHART_KEY ? BORROW_INTEREST_CHART_KEY : STREAMS_CHART_KEY;
@@ -1267,14 +1262,31 @@ h1{
   function revenueChartModeLabel(key){
     return modeForRevenueChart(key) === "cumulative" ? "Cumulative USD" : "Daily USD";
   }
-  function toggleRevenueSeries(key){
-    if (!STREAM_SERIES_KEYS.includes(key)) return;
-    if (selectedRevenueSeries.has(key)) {
-      if (selectedRevenueSeries.size > 1) selectedRevenueSeries.delete(key);
-      else selectedRevenueSeries = new Set(DEFAULT_SERIES_KEYS);
+  function seriesKeysForChart(key){
+    return revenueChartKey(key) === BORROW_INTEREST_CHART_KEY ? BORROW_INTEREST_SERIES_KEYS : STREAM_SERIES_KEYS;
+  }
+  function selectedSeriesForChart(key){
+    return revenueChartKey(key) === BORROW_INTEREST_CHART_KEY ? selectedBorrowInterestSeries : selectedRevenueSeries;
+  }
+  function setSelectedSeriesForChart(key, next){
+    if (revenueChartKey(key) === BORROW_INTEREST_CHART_KEY) selectedBorrowInterestSeries = next;
+    else selectedRevenueSeries = next;
+  }
+  function toggleSeriesForChart(chartKey, seriesKey){
+    const keys = seriesKeysForChart(chartKey);
+    if (!keys.includes(seriesKey)) return;
+    const selected = new Set(selectedSeriesForChart(chartKey));
+    if (selected.has(seriesKey)) {
+      if (selected.size > 1) selected.delete(seriesKey);
+      else {
+        setSelectedSeriesForChart(chartKey, new Set(keys));
+        renderRevenueChart();
+        return;
+      }
     } else {
-      selectedRevenueSeries.add(key);
+      selected.add(seriesKey);
     }
+    setSelectedSeriesForChart(chartKey, selected);
     renderRevenueChart();
   }
   function revenueBrushDomain(){
@@ -1541,7 +1553,7 @@ h1{
     revenueBrushRows = rows;
     REVENUE_CHART_KEYS.forEach(key => ensureRevenueBrushSelection(rows, key));
     renderRevenueBrushMini("streams", rows, activeSeriesDefs());
-    renderRevenueBrushMini("borrowInterest", rows, defsFromKeys(BORROW_INTEREST_SERIES_KEYS));
+    renderRevenueBrushMini("borrowInterest", rows, activeBorrowInterestDefs());
     paintRevenueBrushWindow();
     initRevenueBrush();
   }
@@ -1667,9 +1679,11 @@ h1{
   function updateRevenueLegend(){
     document.querySelectorAll(".revenue-series-toggle").forEach(btn => {
       const key = btn.dataset.series;
-      const active = selectedRevenueSeries.has(key);
+      const chartKey = btn.closest(".borrow-interest-panel") ? BORROW_INTEREST_CHART_KEY : STREAMS_CHART_KEY;
+      const selected = selectedSeriesForChart(chartKey);
+      const active = selected.has(key);
       btn.classList.toggle("active", active);
-      btn.classList.toggle("dim", selectedRevenueSeries.size < 2 && !active);
+      btn.classList.toggle("dim", selected.size < seriesKeysForChart(chartKey).length && !active);
       btn.classList.remove("preview");
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
@@ -1700,9 +1714,9 @@ h1{
       svgId: "borrowInterestChart",
       wrapId: "borrowInterestChartWrap",
       tipId: "borrowInterestChartTip",
-      defs: defsFromKeys(BORROW_INTEREST_SERIES_KEYS),
+      defs: activeBorrowInterestDefs(),
       updateBrush: false,
-      controlsSelector: "",
+      controlsSelector: ".borrow-interest-panel .revenue-series-toggle",
       showTotal: false
     }, rows, { ...options, skipBrush: true });
     updateRevenueLegend();
@@ -1764,19 +1778,19 @@ h1{
     const line = svg?.querySelector(".revenue-hover-line");
     const dot = svg?.querySelector(".revenue-hover-dot");
     if (!svg || !wrap || !tip || !line || !dot) return;
-    const key = revenueChartKey(config.id);
+    const chartKey = revenueChartKey(config.id);
     const controls = config.controlsSelector ? document.querySelectorAll(config.controlsSelector) : [];
-    const paintActive = key => {
+    const paintActive = seriesKey => {
       svg.querySelectorAll(".revenue-chart-line").forEach(item => {
-        item.classList.toggle("is-active", item.dataset.series === key);
-        item.classList.toggle("is-muted", !!key && item.dataset.series !== key);
+        item.classList.toggle("is-active", item.dataset.series === seriesKey);
+        item.classList.toggle("is-muted", !!seriesKey && item.dataset.series !== seriesKey);
       });
       controls.forEach(item => {
-        const selected = selectedRevenueSeries.has(item.dataset.series);
-        const previewed = !!key && item.dataset.series === key;
+        const selected = selectedSeriesForChart(chartKey).has(item.dataset.series);
+        const previewed = !!seriesKey && item.dataset.series === seriesKey;
         item.classList.toggle("active", selected);
         item.classList.toggle("preview", previewed && !selected);
-        item.classList.toggle("dim", key ? item.dataset.series !== key : (selectedRevenueSeries.size < 2 && !selected));
+        item.classList.toggle("dim", seriesKey ? item.dataset.series !== seriesKey : (selectedSeriesForChart(chartKey).size < seriesKeysForChart(chartKey).length && !selected));
       });
     };
     const leave = () => {
@@ -1798,11 +1812,11 @@ h1{
       const py = (event.clientY - rect.top) / rect.height * H;
       let hovered = defs[0], hoveredBest = Infinity;
       defs.forEach(def => {
-        const dist = Math.abs(yAt(n(nearest[seriesField(def, key)])) - py);
+        const dist = Math.abs(yAt(n(nearest[seriesField(def, chartKey)])) - py);
         if (dist < hoveredBest) { hoveredBest = dist; hovered = def; }
       });
       const primary = hovered || defs[0];
-      const primaryField = seriesField(primary, key);
+      const primaryField = seriesField(primary, chartKey);
       const x = xAt(nearest.ts);
       const y = yAt(n(nearest[primaryField]));
       paintActive(primary.key);
@@ -1814,14 +1828,14 @@ h1{
       dot.setAttribute("fill", primary.color);
       dot.style.opacity = 1;
       const tooltipDefs = defs.length ? defs : activeSeriesDefs();
-      const totalEarned = tooltipDefs.reduce((sum, def) => sum + n(nearest[seriesField(def, key)]), 0);
+      const totalEarned = tooltipDefs.reduce((sum, def) => sum + n(nearest[seriesField(def, chartKey)]), 0);
       const totalRow = config.showTotal && tooltipDefs.length > 1
         ? `<div class="tt-row total"><span>Selected total</span><b>${usdFull(totalEarned)}</b></div>`
         : "";
       tip.innerHTML = `
-        <div class="tt-date">${formatDay(nearest.ts, false)} · ${revenueChartModeLabel(key)}</div>
+        <div class="tt-date">${formatDay(nearest.ts, false)} · ${revenueChartModeLabel(chartKey)}</div>
         <div class="tt-table">
-          ${tooltipDefs.map(def => `<div class="tt-row${def.key === primary.key ? " active" : ""}"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.shortLabel}</span><b>${usdFull(nearest[seriesField(def, key)])}</b></div>`).join("")}
+          ${tooltipDefs.map(def => `<div class="tt-row${def.key === primary.key ? " active" : ""}"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.shortLabel}</span><b>${usdFull(nearest[seriesField(def, chartKey)])}</b></div>`).join("")}
           ${totalRow}
         </div>
       `;
@@ -1919,7 +1933,8 @@ h1{
   }
   document.querySelectorAll(".revenue-series-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
-      toggleRevenueSeries(btn.dataset.series);
+      const key = btn.closest(".borrow-interest-panel") ? BORROW_INTEREST_CHART_KEY : STREAMS_CHART_KEY;
+      toggleSeriesForChart(key, btn.dataset.series);
     });
   });
   document.querySelectorAll(".revenue-mode-toggle").forEach(btn => {
