@@ -18,7 +18,7 @@
   var NAV_VERSIONS = {
     nav: "mobile-nav-20260602-history-tabs",
     polish: "mobile-polish-20260602-history-tabs",
-    footer: "protocol-footer-20260604b"
+    footer: "protocol-footer-20260619-mobile"
   };
 
   function buildNavAssets() {
