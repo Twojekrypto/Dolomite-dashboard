@@ -611,7 +611,8 @@ h1{
   .hero-card:first-child{border-top:0;padding-top:0}
   .panel-head{display:block}
   .revenue-series-control{margin-top:12px;width:100%;display:grid;grid-template-columns:1fr;justify-items:stretch}
-  .revenue-series-toggles{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .revenue-series-toggles{width:100%;display:grid;grid-template-columns:1fr}
+  .revenue-series-toggle{justify-content:flex-start}
   .revenue-mode-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
@@ -698,7 +699,7 @@ h1{
       </div>
       <div class="hero-token-text">
         <div class="hero-token-title">Dolomite Revenue</div>
-        <div class="hero-token-sub"><b>Dolomite</b> · retained borrow-interest estimate</div>
+        <div class="hero-token-sub"><b>Dolomite</b> · protocol-retained borrow interest</div>
       </div>
       <div class="hero-meta">
         <div class="hero-live" id="freshPill"><span class="dot"></span><span>Loading adapter data</span></div>
@@ -718,10 +719,10 @@ h1{
       <div class="hero-card">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Borrower Fees
+          Borrow Interest
         </div>
         <div class="hc-value skeleton" id="dailyFees">$0</div>
-        <div class="hc-sub">interest paid by borrowers</div>
+        <div class="hc-sub">gross interest paid by borrowers</div>
         <div class="hero-bar"><span id="dailyFeesBar"></span></div>
       </div>
       <div class="hero-card">
@@ -730,13 +731,13 @@ h1{
           Protocol Cut
         </div>
         <div class="hc-value gold skeleton" id="protocolCut">0%</div>
-        <div class="hc-sub">daily revenue / fees</div>
+        <div class="hc-sub">protocol revenue / borrow interest</div>
         <div class="hero-bar"><span id="protocolCutBar"></span></div>
       </div>
       <div class="hero-card">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg>
-          7D Revenue
+          7D Protocol Revenue
         </div>
         <div class="hc-value skeleton" id="revenue7d">$0</div>
         <div class="hc-sub">rolling protocol revenue</div>
@@ -744,7 +745,7 @@ h1{
       <div class="hero-card">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/></svg>
-          30D Revenue
+          30D Protocol Revenue
         </div>
         <div class="hc-value skeleton" id="revenue30d">$0</div>
         <div class="hc-sub">retained by protocol</div>
@@ -756,14 +757,14 @@ h1{
     <section class="panel">
       <div class="panel-head">
         <div>
-          <div class="panel-title">Revenue Over Time</div>
-          <div class="panel-sub">Daily retained borrow-interest revenue, oDOLO USDC exercise payments, and borrower fees.</div>
+          <div class="panel-title">Revenue Streams Over Time</div>
+          <div class="panel-sub">Protocol-retained borrow interest, USDC paid to exercise oDOLO, and gross borrower interest.</div>
         </div>
         <div class="revenue-series-control">
-          <div class="revenue-series-toggles" aria-label="Revenue chart filter">
-            <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Revenue</span></button>
-            <button class="revenue-series-toggle" type="button" data-series="odoloUsdc" aria-pressed="false" aria-label="Toggle oDOLO USDC exercise payments series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch odolo-usdc"></span><span>oDOLO USDC</span></button>
-            <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false" aria-label="Toggle borrower fees series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch fees"></span><span>Fees</span></button>
+          <div class="revenue-series-toggles" aria-label="Revenue stream chart filter">
+            <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle protocol revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Protocol Revenue</span></button>
+            <button class="revenue-series-toggle" type="button" data-series="odoloUsdc" aria-pressed="false" aria-label="Toggle oDOLO exercise USDC series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch odolo-usdc"></span><span>oDOLO Exercise USDC</span></button>
+            <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false" aria-label="Toggle borrow interest series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch fees"></span><span>Borrow Interest</span></button>
           </div>
           <div class="revenue-mode-toggles" aria-label="Revenue chart mode">
             <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
@@ -772,7 +773,7 @@ h1{
         </div>
       </div>
       <div class="revenue-chart-wrap" id="revenueChartWrap">
-        <svg class="revenue-chart-svg" id="revenueChart" viewBox="0 0 1000 340" preserveAspectRatio="none" role="img" aria-label="Dolomite revenue chart"></svg>
+        <svg class="revenue-chart-svg" id="revenueChart" viewBox="0 0 1000 340" preserveAspectRatio="none" role="img" aria-label="Dolomite revenue streams chart"></svg>
         <div class="revenue-chart-tip" id="revenueChartTip">
           <div class="tt-date">-</div>
           <div class="tt-val">-</div>
@@ -806,8 +807,8 @@ h1{
     <section class="panel">
       <div class="panel-head">
         <div>
-          <div class="panel-title">Fee Split</div>
-          <div class="panel-sub">Daily borrower interest split between retained protocol revenue and lender payments.</div>
+          <div class="panel-title">Borrow Interest Split</div>
+          <div class="panel-sub">Daily borrower interest split between protocol-retained revenue and lender payments.</div>
         </div>
       </div>
       <div class="mix-body">
@@ -815,7 +816,7 @@ h1{
           <div class="fee-donut-wrap">
             <svg class="fee-donut-svg" id="feeDonutSvg" viewBox="0 0 200 200"></svg>
             <div class="fee-donut-center" id="feeDonutCenter">
-              <div class="dc-label">Fee Split</div>
+              <div class="dc-label">Interest Split</div>
               <div class="dc-value" id="cutRingValue">0%</div>
               <div class="dc-sub">retained</div>
             </div>
@@ -824,7 +825,7 @@ h1{
             <div class="fee-leg-row" data-split="protocol">
               <span class="fee-leg-dot protocol"></span>
               <div class="fee-leg-main">
-                <span>Protocol revenue</span>
+                <span>Protocol Revenue</span>
                 <small>retained by Dolomite</small>
               </div>
               <strong id="splitRevenue">$0</strong>
@@ -832,16 +833,16 @@ h1{
             <div class="fee-leg-row" data-split="lenders">
               <span class="fee-leg-dot lenders"></span>
               <div class="fee-leg-main">
-                <span>Paid to lenders</span>
-                <small>from borrower fees</small>
+                <span>Lender Payments</span>
+                <small>remaining borrower interest</small>
               </div>
               <strong id="splitLenders">$0</strong>
             </div>
             <div class="fee-leg-row muted">
               <span class="fee-leg-dot total"></span>
               <div class="fee-leg-main">
-                <span>All-time protocol revenue</span>
-                <small>retained fees total</small>
+                <span>All-Time Protocol Revenue</span>
+                <small>retained interest total</small>
               </div>
               <strong id="allTimeRevenue">$0</strong>
             </div>
@@ -854,14 +855,14 @@ h1{
   <section class="panel table-panel">
     <div class="panel-head chain-panel-head">
       <div>
-        <div class="panel-title">Revenue by Chain</div>
-        <div class="panel-sub">Chain breakdown for selected date range.</div>
+        <div class="panel-title">Protocol Revenue by Chain</div>
+        <div class="panel-sub">Chain breakdown of protocol-retained revenue for selected date range.</div>
       </div>
-      <div class="chain-range-tools" aria-label="Revenue by Chain date range">
+      <div class="chain-range-tools" aria-label="Protocol Revenue by Chain date range">
         <div class="chain-date-field">
           <span>From</span>
           <div class="chain-date-trigger" id="chainRangeFromShell">
-            <input class="chain-date-value chain-date-manual" id="chainRangeFromText" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="Revenue by Chain start date">
+            <input class="chain-date-value chain-date-manual" id="chainRangeFromText" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="Protocol Revenue by Chain start date">
             <button class="chain-date-icon-btn" id="chainRangeFromBtn" type="button" data-date-bound="from" aria-haspopup="dialog" aria-expanded="false" aria-label="Open start date calendar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
             </button>
@@ -872,7 +873,7 @@ h1{
         <div class="chain-date-field">
           <span>To</span>
           <div class="chain-date-trigger" id="chainRangeToShell">
-            <input class="chain-date-value chain-date-manual" id="chainRangeToText" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="Revenue by Chain end date">
+            <input class="chain-date-value chain-date-manual" id="chainRangeToText" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="Protocol Revenue by Chain end date">
             <button class="chain-date-icon-btn" id="chainRangeToBtn" type="button" data-date-bound="to" aria-haspopup="dialog" aria-expanded="false" aria-label="Open end date calendar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
             </button>
@@ -914,15 +915,15 @@ h1{
         <thead>
           <tr>
             <th>Chain</th>
-            <th>Revenue</th>
-            <th>Borrower fees</th>
-            <th>Paid to lenders</th>
+            <th>Protocol revenue</th>
+            <th>Borrow interest</th>
+            <th>Lender payments</th>
             <th>Protocol cut</th>
-            <th>% of total</th>
+            <th>% of protocol total</th>
           </tr>
         </thead>
         <tbody id="chainRows">
-          <tr><td colspan="6" class="empty-state">Loading chain revenue...</td></tr>
+          <tr><td colspan="6" class="empty-state">Loading protocol revenue...</td></tr>
         </tbody>
       </table>
     </div>
@@ -965,8 +966,8 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-selected-tooltip-total";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-selected-tooltip-total";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-clear-stream-labels";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-clear-stream-labels";
   const SERIES_ORDER = ["revenue", "odoloUsdc", "fees"];
   const DEFAULT_SERIES_KEYS = ["revenue", "odoloUsdc"];
   let revenueData = null;
@@ -975,9 +976,9 @@ h1{
   let selectedRevenueSeries = new Set(DEFAULT_SERIES_KEYS);
   let revenueChartMode = "daily";
   const SERIES = {
-    revenue: { key: "revenue", label: "Revenue", shortLabel: "Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
-    odoloUsdc: { key: "odoloUsdc", label: "oDOLO USDC paid", shortLabel: "oDOLO USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
-    fees: { key: "fees", label: "Borrower fees", shortLabel: "Fees", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" }
+    revenue: { key: "revenue", label: "Protocol Revenue", shortLabel: "Protocol Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
+    odoloUsdc: { key: "odoloUsdc", label: "oDOLO Exercise USDC", shortLabel: "oDOLO Exercise USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
+    fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" }
   };
   const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
   const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1697,7 +1698,7 @@ h1{
       const tooltipDefs = defs.length ? defs : activeSeriesDefs();
       const totalEarned = tooltipDefs.reduce((sum, def) => sum + n(nearest[seriesField(def)]), 0);
       const totalRow = tooltipDefs.length > 1
-        ? `<div class="tt-row total"><span>Total earned</span><b>${usdFull(totalEarned)}</b></div>`
+        ? `<div class="tt-row total"><span>Selected total</span><b>${usdFull(totalEarned)}</b></div>`
         : "";
       tip.innerHTML = `
         <div class="tt-date">${formatDay(nearest.ts, false)} · ${revenueChartModeLabel()}</div>
@@ -1771,13 +1772,13 @@ h1{
       row.classList.toggle("dim", row.dataset.split !== key);
     });
     if (!key) {
-      if (center) center.innerHTML = `<div class="dc-label">Fee Split</div><div class="dc-value" id="cutRingValue">${pct(totals.dailyProtocolCut)}</div><div class="dc-sub">retained</div>`;
+      if (center) center.innerHTML = `<div class="dc-label">Interest Split</div><div class="dc-value" id="cutRingValue">${pct(totals.dailyProtocolCut)}</div><div class="dc-sub">retained</div>`;
       return;
     }
     const value = key === "protocol" ? protocol : lenders;
     const color = key === "protocol" ? "var(--gold)" : "#9ab7c2";
     const share = total > 0 ? value / total : 0;
-    if (center) center.innerHTML = `<div class="dc-label">${key === "protocol" ? "Retained" : "Lenders"}</div><div class="dc-value" style="color:${color}">${pct(share)}</div><div class="dc-sub">daily fees</div>`;
+    if (center) center.innerHTML = `<div class="dc-label">${key === "protocol" ? "Retained" : "Lenders"}</div><div class="dc-value" style="color:${color}">${pct(share)}</div><div class="dc-sub">borrow interest</div>`;
   }
   function bindFeeSplitTrigger(el, key){
     const enter = () => focusFeeSplit(key);
@@ -1852,7 +1853,7 @@ h1{
     const totalRevenue = Array.from(totals.values()).reduce((sum, item) => sum + n(item.revenueUSD), 0);
     const chains = Array.from(totals.values()).sort((a,b) => n(b.revenueUSD) - n(a.revenueUSD));
     if (!chains.length) {
-      body.innerHTML = '<tr><td colspan="6" class="empty-state">No chain revenue available for selected range.</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="empty-state">No protocol revenue available for selected range.</td></tr>';
       return;
     }
     body.innerHTML = chains.map(row => {
@@ -1867,10 +1868,10 @@ h1{
       return `<tr>
         <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${abbr} · Dolomite adapter</div></div></div></td>
         <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="revenue-share-track" aria-hidden="true"><span style="width:${shareWidth}%"></span></div><div class="num-sub">${days}D retained</div></div></td>
-        <td><div class="num-main">${usdFull(row.feesUSD)}</div><div class="num-sub">borrow interest</div></td>
-        <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div><div class="num-sub">to lenders</div></td>
+        <td><div class="num-main">${usdFull(row.feesUSD)}</div><div class="num-sub">gross</div></td>
+        <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div><div class="num-sub">lender share</div></td>
         <td><div class="num-main">${pct(cut)}</div><div class="num-sub">retained</div></td>
-        <td><div class="num-main">${pct(share)}</div><div class="num-sub">of revenue</div></td>
+        <td><div class="num-main">${pct(share)}</div><div class="num-sub">of protocol total</div></td>
       </tr>`;
     }).join("");
   }
@@ -1999,7 +2000,7 @@ h1{
         if (text) text.textContent = "Revenue data unavailable";
       }
       const chainRows = qs("chainRows");
-      if (chainRows) chainRows.innerHTML = '<tr><td colspan="6" class="empty-state">Revenue data could not be loaded.</td></tr>';
+      if (chainRows) chainRows.innerHTML = '<tr><td colspan="6" class="empty-state">Protocol revenue data could not be loaded.</td></tr>';
     });
 })();
 </script>
