@@ -990,6 +990,7 @@ h1{
     streams: { from: 0, to: 0 },
     borrowInterest: { from: 0, to: 0 }
   };
+  let chainRangeBrushKey = STREAMS_CHART_KEY;
   let revenueBrushInitialized = false;
   let revenueBrushDragging = null;
   let revenueBrushDomainKeys = { streams: "", borrowInterest: "" };
@@ -1274,8 +1275,11 @@ h1{
   function setBrushSel(key, sel){
     revenueBrushSels[brushKey(key)] = { from: sel.from, to: sel.to };
   }
-  function streamBrushSel(){
-    return brushSelFor(STREAMS_CHART_KEY);
+  function chainRangeKey(){
+    return brushKey(chainRangeBrushKey);
+  }
+  function chainBrushSel(){
+    return brushSelFor(chainRangeKey());
   }
   function ensureRevenueBrushSelection(rows, key = STREAMS_CHART_KEY){
     const keyName = brushKey(key);
@@ -1302,8 +1306,9 @@ h1{
     return visible.length ? visible : rows;
   }
   function selectedRevenueRows(rows){
-    ensureRevenueBrushSelection(rows, STREAMS_CHART_KEY);
-    const sel = streamBrushSel();
+    const key = chainRangeKey();
+    ensureRevenueBrushSelection(rows, key);
+    const sel = brushSelFor(key);
     return rows.filter(row => row.ts >= sel.from && row.ts <= sel.to);
   }
   function updateRevenueDateInputs(){
@@ -1311,8 +1316,9 @@ h1{
     const toInput = qs("chainRangeTo");
     const rows = revenueBrushRows.length ? revenueBrushRows : allRows();
     if (!fromInput || !toInput || !rows.length) return;
-    ensureRevenueBrushSelection(rows, STREAMS_CHART_KEY);
-    const sel = streamBrushSel();
+    const key = chainRangeKey();
+    ensureRevenueBrushSelection(rows, key);
+    const sel = brushSelFor(key);
     const minDate = formatDateInput(rows[0].ts);
     const maxDate = formatDateInput(rows[rows.length - 1].ts);
     fromInput.min = minDate;
@@ -1328,8 +1334,9 @@ h1{
     if (!rows.length) return;
     const minX = rows[0].ts;
     const maxX = rows[rows.length - 1].ts;
-    ensureRevenueBrushSelection(rows, STREAMS_CHART_KEY);
-    const sel = streamBrushSel();
+    const key = chainRangeKey();
+    ensureRevenueBrushSelection(rows, key);
+    const sel = brushSelFor(key);
     let from = dateInputTs(fromValue);
     let to = dateInputTs(toValue);
     if (!Number.isFinite(from)) from = sel.from || minX;
@@ -1340,8 +1347,8 @@ h1{
       if (changed === "from") to = from;
       else from = to;
     }
-    setBrushSel(STREAMS_CHART_KEY, { from, to });
-    paintRevenueBrushWindow(STREAMS_CHART_KEY);
+    setBrushSel(key, { from, to });
+    paintRevenueBrushWindow(key);
     renderRevenueChart({ skipBrush: true });
   }
   function updateChainDateTriggers(){
@@ -1349,7 +1356,7 @@ h1{
     const toBtn = qs("chainRangeToBtn");
     const fromText = qs("chainRangeFromText");
     const toText = qs("chainRangeToText");
-    const sel = streamBrushSel();
+    const sel = chainBrushSel();
     if (fromText && sel.from && document.activeElement !== fromText) fromText.value = formatManualDate(sel.from);
     if (toText && sel.to && document.activeElement !== toText) toText.value = formatManualDate(sel.to);
     if (fromBtn) {
@@ -1408,7 +1415,7 @@ h1{
     const pop = qs("chainDatePopover");
     if (!rows.length || !pop) return;
     chainCalendar.open = bound;
-    const sel = streamBrushSel();
+    const sel = chainBrushSel();
     const target = bound === "from" ? sel.from : sel.to;
     chainCalendar.monthTs = monthStartTs(target || rows[rows.length - 1].ts);
     pop.hidden = false;
@@ -1427,7 +1434,7 @@ h1{
     if (!rows.length) return;
     const minX = rows[0].ts;
     const maxX = rows[rows.length - 1].ts;
-    const sel = streamBrushSel();
+    const sel = chainBrushSel();
     if (!chainCalendar.monthTs) chainCalendar.monthTs = monthStartTs(sel[chainCalendar.open] || maxX);
     chainCalendar.monthTs = monthStartTs(clampTs(chainCalendar.monthTs, monthStartTs(minX), monthStartTs(maxX)));
     const monthDate = new Date(chainCalendar.monthTs * 1000);
@@ -1457,8 +1464,8 @@ h1{
       btn.disabled = disabled;
       btn.setAttribute("aria-label", formatRangeDay(ts));
       btn.addEventListener("click", () => {
-        if (chainCalendar.open === "from") setRevenueDateRange(formatDateInput(ts), formatDateInput(streamBrushSel().to), "from");
-        else setRevenueDateRange(formatDateInput(streamBrushSel().from), formatDateInput(ts), "to");
+        if (chainCalendar.open === "from") setRevenueDateRange(formatDateInput(ts), formatDateInput(chainBrushSel().to), "from");
+        else setRevenueDateRange(formatDateInput(chainBrushSel().from), formatDateInput(ts), "to");
         closeChainCalendar();
       });
       grid.appendChild(btn);
@@ -1562,6 +1569,7 @@ h1{
         event.preventDefault();
         event.stopPropagation();
         revenueBrushJustDragged = false;
+        chainRangeBrushKey = key;
         const sel = brushSelFor(key);
         revenueBrushDragging = { key, kind, overlay, win, startX: event.clientX, startFrom: sel.from, startTo: sel.to };
         win.classList.add("dragging");
@@ -1589,6 +1597,7 @@ h1{
         let to = center + span / 2;
         if (from < minX) { from = minX; to = from + span; }
         if (to > maxX) { to = maxX; from = to - span; }
+        chainRangeBrushKey = key;
         setBrushSel(key, { from, to });
         paintRevenueBrushWindow(key);
         renderRevenueChart({ skipBrush: true });
@@ -1843,7 +1852,7 @@ h1{
     if (!body) return;
     const rows = allRows();
     const selected = selectedRevenueRows(rows);
-    const sel = streamBrushSel();
+    const sel = chainBrushSel();
     const days = rangeDays(sel.from, sel.to);
     const totals = new Map();
     selected.forEach(row => {
@@ -1942,7 +1951,7 @@ h1{
         updateChainDateTriggers();
         return;
       }
-      const sel = streamBrushSel();
+      const sel = chainBrushSel();
       const current = bound === "from" ? sel.from : sel.to;
       if (input.value.trim() !== formatManualDate(current) && !applyManualChainDate(bound)) {
         input.classList.remove("invalid");
