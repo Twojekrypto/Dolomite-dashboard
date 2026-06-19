@@ -1,7 +1,11 @@
 import unittest
 
 from fetch_dolomite_revenue import build_output
-from validate_data import _dolomite_revenue_totals_valid
+from validate_data import (
+    _dolomite_revenue_chain_windows_valid,
+    _dolomite_revenue_totals_valid,
+    _dolomite_revenue_window_totals_valid,
+)
 
 
 START_TS = 1_700_000_000
@@ -35,12 +39,26 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
 
         output = build_output(revenue_data, fees_data)
 
+        expected_revenue_7d = 100 + sum((index + 1) * 2 for index in range(24, 30))
+        expected_fees_7d = 500 + sum((index + 1) * 10 for index in range(24, 30))
+        expected_revenue_30d = 100 + sum((index + 1) * 2 for index in range(1, 30))
+        expected_fees_30d = 500 + sum((index + 1) * 10 for index in range(1, 30))
+
         self.assertEqual(output["latest"]["revenueUSD"], 100)
         self.assertEqual(output["latest"]["feesUSD"], 500)
         self.assertEqual(output["totals"]["dailyRevenueUSD"], 100)
         self.assertEqual(output["totals"]["dailyFeesUSD"], 500)
         self.assertEqual(output["totals"]["dailySupplySideRevenueUSD"], 400)
+        self.assertEqual(output["totals"]["previousDailyRevenueUSD"], 60)
+        self.assertEqual(output["totals"]["previousDailyFeesUSD"], 300)
+        self.assertEqual(output["totals"]["revenue7dUSD"], expected_revenue_7d)
+        self.assertEqual(output["totals"]["fees7dUSD"], expected_fees_7d)
+        self.assertEqual(output["totals"]["revenue30dUSD"], expected_revenue_30d)
+        self.assertEqual(output["totals"]["fees30dUSD"], expected_fees_30d)
+        self.assertEqual(output["assurance"]["classification"], "adapter-estimated protocol borrow-interest revenue")
         self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
 
 if __name__ == "__main__":

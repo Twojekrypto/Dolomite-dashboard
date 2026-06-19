@@ -690,10 +690,10 @@ h1{
       </div>
       <div class="hero-token-text">
         <div class="hero-token-title">Dolomite Revenue</div>
-        <div class="hero-token-sub"><b>Dolomite</b> · borrow interest retained by the protocol</div>
+        <div class="hero-token-sub"><b>Dolomite</b> · retained borrow-interest estimate</div>
       </div>
       <div class="hero-meta">
-        <div class="hero-live" id="freshPill"><span class="dot"></span><span>Loading data</span></div>
+        <div class="hero-live" id="freshPill"><span class="dot"></span><span>Loading adapter data</span></div>
       </div>
     </div>
 
@@ -749,7 +749,7 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Revenue Over Time</div>
-          <div class="panel-sub">Daily retained revenue and borrower fees.</div>
+          <div class="panel-sub">Daily retained borrow-interest revenue and borrower fees.</div>
         </div>
         <div class="revenue-series-control">
           <div class="revenue-series-toggles" aria-label="Revenue chart filter">
@@ -794,7 +794,7 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Fee Split</div>
-          <div class="panel-sub">Daily borrower interest split between retained revenue and lender payments.</div>
+          <div class="panel-sub">Daily borrower interest split between retained protocol revenue and lender payments.</div>
         </div>
       </div>
       <div class="mix-body">
@@ -952,7 +952,7 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260601a";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-audit-source";
   let revenueData = null;
   let selectedRevenueSeries = new Set(["revenue", "fees"]);
   const SERIES = {
@@ -1661,7 +1661,7 @@ h1{
     const fresh = qs("freshPill");
     if (fresh) {
       const text = fresh.querySelector("span:last-child");
-      if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt);
+      if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt) + " · DeFiLlama estimate";
     }
     renderFeeSplit();
   }

@@ -69,6 +69,14 @@ def _nearly_equal(a, b, rel=1e-8, abs_tol=5.0):
     return abs(a - b) <= max(abs_tol, max(abs(a), abs(b)) * rel)
 
 
+def _safe_number(value):
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    return 0.0
+
+
 def _odolo_circulating_reconciles(data):
     try:
         total_supply = float(data.get("totalSupply"))
@@ -219,15 +227,72 @@ def _dolomite_revenue_series_valid(data):
         timestamp = row.get("timestamp")
         fees = row.get("feesUSD")
         revenue = row.get("revenueUSD")
+        supply_side = row.get("supplySideRevenueUSD")
         if not isinstance(timestamp, int) or timestamp <= previous:
             return False
-        if not isinstance(fees, (int, float)) or not isinstance(revenue, (int, float)):
+        if not all(isinstance(value, (int, float)) for value in (fees, revenue, supply_side)):
             return False
         if fees < 0 or revenue < 0 or revenue > fees + 1:
+            return False
+        if not _nearly_equal(fees, revenue + supply_side, abs_tol=1):
+            return False
+        chain_values = row.get("chains", {})
+        if not isinstance(chain_values, dict):
+            return False
+        chain_fees = sum(_safe_number(chain.get("feesUSD")) for chain in chain_values.values())
+        chain_revenue = sum(_safe_number(chain.get("revenueUSD")) for chain in chain_values.values())
+        chain_supply_side = sum(_safe_number(chain.get("supplySideRevenueUSD")) for chain in chain_values.values())
+        if chain_values and (
+            not _nearly_equal(fees, chain_fees, abs_tol=1)
+            or not _nearly_equal(revenue, chain_revenue, abs_tol=1)
+            or not _nearly_equal(supply_side, chain_supply_side, abs_tol=1)
+        ):
             return False
         if not row.get("date") or not isinstance(row.get("chains", {}), dict):
             return False
         previous = timestamp
+    return True
+
+
+def _dolomite_revenue_window_totals_valid(data):
+    totals = data.get("totals", {})
+    rows = data.get("series", [])
+    if len(rows) < 30:
+        return False
+    checks = (
+        ("revenue7dUSD", "revenueUSD", 7),
+        ("fees7dUSD", "feesUSD", 7),
+        ("revenue30dUSD", "revenueUSD", 30),
+        ("fees30dUSD", "feesUSD", 30),
+    )
+    return all(
+        _nearly_equal(totals.get(total_key), sum(_safe_number(row.get(row_key)) for row in rows[-days:]), abs_tol=1)
+        for total_key, row_key, days in checks
+    )
+
+
+def _dolomite_revenue_chain_windows_valid(data):
+    rows = data.get("series", [])
+    for days, key in ((7, "chainTotals7d"), (30, "chainTotals30d")):
+        expected = {}
+        for row in rows[-days:]:
+            for chain, payload in (row.get("chains") or {}).items():
+                item = expected.setdefault(chain, {
+                    "feesUSD": 0.0,
+                    "revenueUSD": 0.0,
+                    "supplySideRevenueUSD": 0.0,
+                })
+                item["feesUSD"] += _safe_number(payload.get("feesUSD"))
+                item["revenueUSD"] += _safe_number(payload.get("revenueUSD"))
+                item["supplySideRevenueUSD"] += _safe_number(payload.get("supplySideRevenueUSD"))
+        actual = data.get(key, {})
+        if set(actual) != set(expected):
+            return False
+        for chain, expected_values in expected.items():
+            actual_values = actual.get(chain, {})
+            for value_key, expected_value in expected_values.items():
+                if not _nearly_equal(actual_values.get(value_key), expected_value, abs_tol=1):
+                    return False
     return True
 
 
@@ -236,13 +301,18 @@ def _dolomite_revenue_totals_valid(data):
     latest = data.get("latest", {})
     daily_fees = totals.get("dailyFeesUSD")
     daily_revenue = totals.get("dailyRevenueUSD")
+    daily_supply_side = totals.get("dailySupplySideRevenueUSD")
+    daily_cut = totals.get("dailyProtocolCut")
     latest_fees = latest.get("feesUSD")
     latest_revenue = latest.get("revenueUSD")
-    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, latest_fees, latest_revenue)):
+    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, daily_supply_side, daily_cut, latest_fees, latest_revenue)):
         return False
+    expected_cut = daily_revenue / daily_fees if daily_fees > 0 else 0
     return (
         daily_fees > 0
         and 0 <= daily_revenue <= daily_fees
+        and _nearly_equal(daily_fees, daily_revenue + daily_supply_side, abs_tol=1)
+        and _nearly_equal(daily_cut, expected_cut, abs_tol=0.0001)
         and _nearly_equal(daily_fees, latest_fees, abs_tol=500)
         and _nearly_equal(daily_revenue, latest_revenue, abs_tol=500)
     )
@@ -485,10 +555,12 @@ RULES = {
         "min_bytes": 10_000,
     },
     "dolomite_revenue.json": {
-        "required_keys": ["schemaVersion", "protocol", "source", "generatedAt", "methodology", "totals", "latest", "chainTotals7d", "chainTotals30d", "series"],
+        "required_keys": ["schemaVersion", "protocol", "source", "generatedAt", "methodology", "assurance", "totals", "latest", "chainTotals7d", "chainTotals30d", "series"],
         "checks": [
             ("generatedAt must be fresh", lambda d: _fresh_timestamp(d.get("generatedAt"), max_hours=12)),
             ("revenue totals must reconcile with latest row", _dolomite_revenue_totals_valid),
+            ("revenue rolling windows must reconcile with series", _dolomite_revenue_window_totals_valid),
+            ("revenue chain windows must reconcile with series", _dolomite_revenue_chain_windows_valid),
             ("revenue history must be sorted and populated", _dolomite_revenue_series_valid),
         ],
         "min_bytes": 10_000,

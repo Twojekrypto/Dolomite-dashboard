@@ -152,6 +152,11 @@ def window_chain_totals(series, days):
     }
 
 
+def window_sum(series, days, key):
+    rows = series[-days:] if days > 0 else series
+    return sum(safe_number(row.get(key)) for row in rows)
+
+
 def latest_series_value(series, key, fallback):
     latest = series[-1] if series else {}
     value = latest.get(key)
@@ -163,21 +168,25 @@ def latest_series_value(series, key, fallback):
 
 
 def metric_totals(revenue_data, fees_data, series):
-    # DeFiLlama total24h can briefly lag the chart rows during adapter updates.
-    # The static dashboard and validator both use the latest saved series row.
+    # DeFiLlama aggregate windows can briefly lag or revise while the chart rows
+    # are updating. Keep every displayed total tied to the same saved series that
+    # powers the chart and chain breakdowns.
     fees_24h = latest_series_value(series, "feesUSD", fees_data.get("total24h"))
     revenue_24h = latest_series_value(series, "revenueUSD", revenue_data.get("total24h"))
+    previous = series[-2] if len(series) >= 2 else {}
+    previous_revenue = previous.get("revenueUSD", revenue_data.get("total48hto24h"))
+    previous_fees = previous.get("feesUSD", fees_data.get("total48hto24h"))
     return {
         "dailyRevenueUSD": round(revenue_24h, 6),
         "dailyFeesUSD": round(fees_24h, 6),
         "dailySupplySideRevenueUSD": round(max(fees_24h - revenue_24h, 0.0), 6),
         "dailyProtocolCut": round(revenue_24h / fees_24h, 8) if fees_24h > 0 else 0,
-        "previousDailyRevenueUSD": round(safe_number(revenue_data.get("total48hto24h")), 6),
-        "previousDailyFeesUSD": round(safe_number(fees_data.get("total48hto24h")), 6),
-        "revenue7dUSD": round(safe_number(revenue_data.get("total7d")), 6),
-        "fees7dUSD": round(safe_number(fees_data.get("total7d")), 6),
-        "revenue30dUSD": round(safe_number(revenue_data.get("total30d")), 6),
-        "fees30dUSD": round(safe_number(fees_data.get("total30d")), 6),
+        "previousDailyRevenueUSD": round(safe_number(previous_revenue), 6),
+        "previousDailyFeesUSD": round(safe_number(previous_fees), 6),
+        "revenue7dUSD": round(window_sum(series, 7, "revenueUSD"), 6),
+        "fees7dUSD": round(window_sum(series, 7, "feesUSD"), 6),
+        "revenue30dUSD": round(window_sum(series, 30, "revenueUSD"), 6),
+        "fees30dUSD": round(window_sum(series, 30, "feesUSD"), 6),
         "revenueAllTimeUSD": round(safe_number(revenue_data.get("totalAllTime")), 6),
         "feesAllTimeUSD": round(safe_number(fees_data.get("totalAllTime")), 6),
     }
@@ -205,7 +214,17 @@ def build_output(revenue_data, fees_data):
             "revenue": "The portion of borrower interest retained by the protocol.",
             "supplySideRevenue": "The portion of borrower interest paid to lenders.",
             "formula": "dailyRevenue = interestEarned * (1 - earningsRate); supplySideRevenue = dailyFees - dailyRevenue",
-            "scope": "Dolomite protocol fees only. Gas fees, token emissions, treasury transfers and external cost basis are excluded.",
+            "scope": "Dolomite borrow-interest economics only. Gas fees, token emissions, treasury transfers, trading spreads and external cost basis are excluded.",
+            "sourceLimitations": [
+                "DeFiLlama adapter estimates daily interest from borrow index movement and borrowed principal snapshots.",
+                "This is protocol-retained borrow interest, not a direct treasury cashflow audit.",
+                "Current-day values can be revised by DeFiLlama until the adapter window fully settles.",
+            ],
+        },
+        "assurance": {
+            "classification": "adapter-estimated protocol borrow-interest revenue",
+            "confidence": "high for retained borrow-interest direction and split; not absolute for cash-accounting revenue",
+            "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns",
         },
         "totals": metric_totals(revenue_data, fees_data, series),
         "latest": latest,
