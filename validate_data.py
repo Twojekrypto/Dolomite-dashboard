@@ -33,6 +33,7 @@ EXPECTED_TVL_CHAINS = {
     "Arbitrum",
     "X Layer",
 }
+ODOLO_FUTURE_REWARDS_WALLET = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
 NON_CHAIN_TVL_KEYS = {
     "borrowed",
     "staking",
@@ -66,6 +67,18 @@ def _nearly_equal(a, b, rel=1e-8, abs_tol=5.0):
     except (TypeError, ValueError):
         return False
     return abs(a - b) <= max(abs_tol, max(abs(a), abs(b)) * rel)
+
+
+def _odolo_circulating_reconciles(data):
+    try:
+        total_supply = float(data.get("totalSupply"))
+        future_rewards_reserve = float(data.get("futureRewardsReserve"))
+        in_vester_balance = float(data.get("inVesterBalance"))
+        in_circulation = float(data.get("inCirculation"))
+    except (TypeError, ValueError):
+        return False
+    expected = max(0.0, total_supply - future_rewards_reserve - in_vester_balance)
+    return _nearly_equal(in_circulation, expected, abs_tol=2.0)
 
 
 def _current_chain_tvls(data):
@@ -447,8 +460,29 @@ RULES = {
         "min_bytes": 50,
     },
     "odolo_contract_data.json": {
-        "required_keys": ["totalSupply", "decimals"],
-        "checks": [],
+        "required_keys": [
+            "totalSupply",
+            "decimals",
+            "futureRewardsWallet",
+            "futureRewardsReserve",
+            "inVesterBalance",
+            "inCirculation",
+            "pushedTokens",
+        ],
+        "checks": [
+            (
+                "future rewards wallet must be tracked",
+                lambda d: str(d.get("futureRewardsWallet", "")).lower() == ODOLO_FUTURE_REWARDS_WALLET,
+            ),
+            (
+                "circulating supply must exclude future rewards and vester balances",
+                _odolo_circulating_reconciles,
+            ),
+            (
+                "circulating supply must be within total supply",
+                lambda d: 0 <= float(d.get("inCirculation", -1)) <= float(d.get("totalSupply", 0)),
+            ),
+        ],
         "min_bytes": 50,
     },
     "metrics_snapshot.json": {

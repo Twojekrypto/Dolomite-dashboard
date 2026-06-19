@@ -17,6 +17,7 @@ OUTPUT_FILE = os.path.join(DATA_DIR, "odolo_contract_data.json")
 
 ODOLO_TOKEN = "0x02E513b5B54eE216Bf836ceb471507488fC89543"
 ODOLO_VESTER = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
+FUTURE_REWARDS_WALLET = "0x79E6E932bf6686a4D357D7821E6e08835Ba8A026"
 
 # Function selectors
 SEL = {
@@ -30,7 +31,28 @@ SEL = {
 
 ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 
-VESTER_PADDED = ODOLO_VESTER.replace("0x", "").lower().zfill(64)
+
+def pad_address(address):
+    return address.replace("0x", "").lower().zfill(64)
+
+
+VESTER_PADDED = pad_address(ODOLO_VESTER)
+FUTURE_REWARDS_PADDED = pad_address(FUTURE_REWARDS_WALLET)
+
+
+def derive_supply_metrics(total_supply, in_vester_balance, future_rewards_reserve):
+    """Calculate market-circulating oDOLO from on-chain balances."""
+    in_circulation = max(0.0, total_supply - future_rewards_reserve - in_vester_balance)
+    return {
+        "futureRewardsWallet": FUTURE_REWARDS_WALLET,
+        "futureRewardsReserve": future_rewards_reserve,
+        "circulatingExclusions": {
+            "futureRewardsReserve": future_rewards_reserve,
+            "vesterBalance": in_vester_balance,
+        },
+        "circulatingMethodology": "totalSupply - futureRewardsReserve - inVesterBalance",
+        "inCirculation": in_circulation,
+    }
 
 
 def get_holder_count():
@@ -60,6 +82,7 @@ def main():
             (ODOLO_TOKEN, SEL["totalSupply"]),
             (ODOLO_TOKEN, SEL["decimals"]),
             (ODOLO_TOKEN, SEL["balanceOf"] + VESTER_PADDED),
+            (ODOLO_TOKEN, SEL["balanceOf"] + FUTURE_REWARDS_PADDED),
         ])
 
         # Batch 2: Vester data
@@ -82,6 +105,7 @@ def main():
     data = {
         "totalSupply": decode_uint256(batch1[0]) / divisor,
         "inVesterBalance": decode_uint256(batch1[2]) / divisor,
+        "futureRewardsReserve": decode_uint256(batch1[3]) / divisor,
         "promisedTokens": decode_uint256(batch2[0]) / divisor,
         "pushedTokens": decode_uint256(batch2[1]) / divisor,
         "availableTokens": decode_uint256(batch2[2]) / divisor,
@@ -91,8 +115,11 @@ def main():
         "rpc_source": safe_host(client.last_endpoint or ""),
     }
 
-    # Derived
-    data["inCirculation"] = data["totalSupply"] - data["availableTokens"] - data["promisedTokens"]
+    data.update(derive_supply_metrics(
+        data["totalSupply"],
+        data["inVesterBalance"],
+        data["futureRewardsReserve"],
+    ))
 
     # Fetch holder count from Routescan
     holders = get_holder_count()
@@ -105,8 +132,10 @@ def main():
 
     print(f"   ✅ Saved odolo_contract_data.json")
     print(f"   Total Supply: {data['totalSupply']:,.2f}")
-    print(f"   Available in Vester: {data['availableTokens']:,.2f}")
-    print(f"   Exercised (pushed): {data['pushedTokens']:,.2f}")
+    print(f"   Future Rewards Reserve: {data['futureRewardsReserve']:,.2f}")
+    print(f"   Vester Balance: {data['inVesterBalance']:,.2f}")
+    print(f"   Available Tokens (vester accounting): {data['availableTokens']:,.2f}")
+    print(f"   Pushed Tokens (vester accounting): {data['pushedTokens']:,.2f}")
     print(f"   In Circulation: {data['inCirculation']:,.2f}")
 
 
