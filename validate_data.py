@@ -85,6 +85,7 @@ def _odolo_exerciser_totals(data):
     totals = {
         "total_vedolo": 0.0,
         "total_odolo_exercised": 0.0,
+        "total_odolo_exercise_usdc_paid": 0.0,
         "total_odolo_exercised_exercises": 0,
         "total_dolo_pair_vedolo": 0.0,
         "total_dolo_pair_exercises": 0,
@@ -102,6 +103,7 @@ def _odolo_exerciser_totals(data):
                 totals["total_dolo_paired"] += float(tx.get("dolo_paid") or 0)
             else:
                 totals["total_odolo_exercised"] += vedolo
+                totals["total_odolo_exercise_usdc_paid"] += float(tx.get("usdc") or 0)
                 totals["total_odolo_exercised_exercises"] += 1
     return totals
 
@@ -111,6 +113,7 @@ def _odolo_exerciser_totals_reconcile(data):
     return (
         _nearly_equal(data.get("total_vedolo"), totals["total_vedolo"], abs_tol=2.0)
         and _nearly_equal(data.get("total_odolo_exercised"), totals["total_odolo_exercised"], abs_tol=2.0)
+        and _nearly_equal(data.get("total_odolo_exercise_usdc_paid"), totals["total_odolo_exercise_usdc_paid"], abs_tol=2.0)
         and int(data.get("total_odolo_exercised_exercises", -1)) == totals["total_odolo_exercised_exercises"]
         and _nearly_equal(data.get("total_dolo_pair_vedolo"), totals["total_dolo_pair_vedolo"], abs_tol=2.0)
         and int(data.get("total_dolo_pair_exercises", -1)) == totals["total_dolo_pair_exercises"]
@@ -441,6 +444,7 @@ RULES = {
             "updated",
             "total_addresses",
             "total_odolo_exercised",
+            "total_odolo_exercise_usdc_paid",
             "total_odolo_exercised_exercises",
             "total_dolo_pair_vedolo",
             "total_dolo_pair_exercises",
