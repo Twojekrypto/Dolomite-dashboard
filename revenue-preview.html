@@ -249,13 +249,6 @@ h1{
   padding:4px;border:1px solid var(--line-1);border-radius:10px;
   background:rgba(255,255,255,.025);
 }
-.revenue-series-label{
-  min-height:42px;padding:0 12px;border:1px solid var(--line-1);border-radius:10px;
-  display:inline-flex;align-items:center;gap:8px;color:var(--fg-2);
-  font-family:var(--mono);font-size:11px;font-weight:700;
-  background:rgba(255,255,255,.025);min-width:0;
-}
-.revenue-series-label span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .revenue-series-control{
   display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0
 }
@@ -287,18 +280,32 @@ h1{
   flex:1 1 auto;
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  padding:5px;
+  border-radius:12px;
 }
-.revenue-streams-panel .revenue-series-toggle{justify-content:flex-start}
+.revenue-streams-panel .revenue-series-toggle{
+  min-height:42px;
+  padding:0 14px;
+  justify-content:flex-start;
+  gap:10px;
+  border-radius:9px;
+  font-size:11.5px;
+}
 .revenue-chart-panel .revenue-mode-toggles{flex:0 0 auto}
-.borrow-interest-panel .revenue-series-label{flex:1 1 auto;justify-content:flex-start}
+.borrow-interest-panel .revenue-series-control{justify-content:flex-end}
 .series-check{
   width:14px;height:14px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
   color:transparent;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.025);
   transition:background .16s var(--ease),border-color .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease)
 }
+.revenue-streams-panel .series-check{width:16px;height:16px}
 .series-check svg{width:10px;height:10px;display:block;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .revenue-series-toggle.active .series-check{
   color:#101014;background:var(--gold);border-color:var(--gold);box-shadow:0 0 12px rgba(201,162,39,.22)
+}
+.revenue-streams-panel .revenue-series-toggle.active{
+  background:linear-gradient(180deg,rgba(201,162,39,.16),rgba(201,162,39,.08));
 }
 .revenue-chart-wrap{padding:24px 24px 18px;position:relative}
 .revenue-chart-svg{width:100%;height:340px;display:block;overflow:visible}
@@ -337,8 +344,8 @@ h1{
   width:100%;height:56px;display:block;border-radius:8px;border:1px solid var(--line-2);
   background:var(--bg-1);box-shadow:inset 0 1px 0 rgba(255,255,255,.02);cursor:crosshair
 }
-.revenue-brush-line{fill:none;stroke:var(--gold);stroke-width:1;opacity:.64}
-.revenue-brush-area{fill:url(#revenueBrushGrad);opacity:.62}
+.revenue-brush-line{fill:none;stroke-width:1;opacity:.64}
+.revenue-brush-area{opacity:.62;pointer-events:none}
 .revenue-brush-overlay{position:absolute;top:0;left:0;right:0;height:56px;pointer-events:none}
 .revenue-brush-dim{position:absolute;top:0;bottom:0;background:rgba(6,8,12,.55);pointer-events:none;border-radius:8px}
 .revenue-brush-dim.l{left:0;border-radius:8px 0 0 8px}
@@ -360,6 +367,11 @@ h1{
 .revenue-brush-handle .grip{display:flex;gap:2px;pointer-events:none}
 .revenue-brush-handle .grip span{width:2px;height:18px;border-radius:2px;background:var(--gold);opacity:.85}
 .revenue-brush-handle .grip span:last-child{opacity:.45}
+.borrow-interest-panel .revenue-brush-window{border-color:#9ab7c2;background:rgba(154,183,194,.06);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 0 0 1px rgba(154,183,194,.10)}
+.borrow-interest-panel .revenue-brush-window:hover{background:rgba(154,183,194,.10)}
+.borrow-interest-panel .revenue-brush-window.dragging{background:rgba(154,183,194,.14)}
+.borrow-interest-panel .revenue-brush-handle:hover{background:rgba(154,183,194,.10)}
+.borrow-interest-panel .revenue-brush-handle .grip span{background:#9ab7c2}
 .revenue-brush-label{
   text-align:center;font-family:var(--mono);font-size:11px;color:var(--fg-3);letter-spacing:.3px;
   min-height:16px;min-width:0;margin:0 0 8px
@@ -368,6 +380,7 @@ h1{
 .revenue-brush-label .v{color:var(--fg-2)}
 .revenue-brush-label .range{color:var(--gold);font-weight:800;margin-left:9px}
 .legend-swatch{width:18px;height:3px;border-radius:999px;background:var(--gold)}
+.revenue-streams-panel .legend-swatch{width:22px;height:4px}
 .legend-swatch.fees{background:#9ab7c2}
 .legend-swatch.odolo-usdc{background:#8aa37b}
 .table-panel{margin-top:18px;overflow:hidden}
@@ -613,7 +626,7 @@ h1{
   .revenue-chart-panel .revenue-series-control{display:grid;grid-template-columns:1fr;justify-items:stretch}
   .revenue-streams-panel .revenue-series-toggles{grid-template-columns:1fr}
   .revenue-chart-panel .revenue-mode-toggles{width:100%}
-  .borrow-interest-panel .revenue-series-label{width:100%;justify-content:flex-start}
+  .borrow-interest-panel .revenue-series-control{justify-content:stretch}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
   .chain-date-popover,
@@ -776,18 +789,10 @@ h1{
           <div class="tt-val">-</div>
         </div>
       </div>
-      <div class="revenue-brush-wrap" id="revenueBrushWrap">
+      <div class="revenue-brush-wrap" id="revenueBrushWrap" data-brush-key="streams">
         <div class="revenue-brush-label" id="revenueBrushLabel"></div>
         <div class="revenue-brush-stage">
           <svg class="revenue-brush-svg" id="revenueBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="Revenue time range navigator">
-            <defs>
-              <linearGradient id="revenueBrushGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#c9a227" stop-opacity=".30"/>
-                <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
-              </linearGradient>
-            </defs>
-            <path class="revenue-brush-area" id="revenueBrushArea" d=""></path>
-            <path class="revenue-brush-line" id="revenueBrushLine" d=""></path>
           </svg>
           <div class="revenue-brush-overlay" id="revenueBrushOverlay">
             <div class="revenue-brush-dim l" id="revenueBrushDimL"></div>
@@ -808,7 +813,6 @@ h1{
           <div class="panel-sub">Gross interest paid by borrowers.</div>
         </div>
         <div class="revenue-series-control">
-          <div class="revenue-series-label" aria-label="Visible revenue stream"><span class="legend-swatch fees"></span><span>Borrow Interest</span></div>
           <div class="revenue-mode-toggles" aria-label="Borrow interest chart mode">
             <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
             <button class="revenue-mode-toggle" type="button" data-chart-mode="cumulative" aria-pressed="false"><span>Cumulative</span></button>
@@ -820,6 +824,20 @@ h1{
         <div class="revenue-chart-tip" id="borrowInterestChartTip">
           <div class="tt-date">-</div>
           <div class="tt-val">-</div>
+        </div>
+      </div>
+      <div class="revenue-brush-wrap" id="borrowInterestBrushWrap" data-brush-key="borrowInterest">
+        <div class="revenue-brush-label" id="borrowInterestBrushLabel"></div>
+        <div class="revenue-brush-stage">
+          <svg class="revenue-brush-svg" id="borrowInterestBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="Borrow interest time range navigator"></svg>
+          <div class="revenue-brush-overlay" id="borrowInterestBrushOverlay">
+            <div class="revenue-brush-dim l"></div>
+            <div class="revenue-brush-window">
+              <div class="revenue-brush-handle l"><div class="grip"><span></span><span></span></div></div>
+              <div class="revenue-brush-handle r"><div class="grip"><span></span><span></span></div></div>
+            </div>
+            <div class="revenue-brush-dim r"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -939,8 +957,8 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-split-charts";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-split-charts";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-dual-mini-charts";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-dual-mini-charts";
   const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
   const BORROW_INTEREST_SERIES_KEYS = ["fees"];
   const DEFAULT_SERIES_KEYS = STREAM_SERIES_KEYS;
@@ -1411,19 +1429,21 @@ h1{
   }
   function paintRevenueBrushWindow(){
     const { minX, span } = revenueBrushDomain();
-    const win = qs("revenueBrushWindow");
-    const dimL = qs("revenueBrushDimL");
-    const dimR = qs("revenueBrushDimR");
-    const label = qs("revenueBrushLabel");
-    if (!win || !dimL || !dimR || !label) return;
     const leftPct = Math.max(0, Math.min(100, (revenueBrushSel.from - minX) / span * 100));
     const rightPct = Math.max(leftPct, Math.min(100, (revenueBrushSel.to - minX) / span * 100));
-    win.style.left = leftPct + "%";
-    win.style.width = (rightPct - leftPct) + "%";
-    dimL.style.width = leftPct + "%";
-    dimR.style.width = (100 - rightPct) + "%";
     const days = rangeDays(revenueBrushSel.from, revenueBrushSel.to);
-    label.innerHTML = `<span class="v">${formatDay(revenueBrushSel.from, false)}</span><span class="sep"> → </span><span class="v">${formatDay(revenueBrushSel.to, false)}</span><span class="range"> · ${days}D</span>`;
+    document.querySelectorAll(".revenue-brush-wrap").forEach(wrap => {
+      const win = wrap.querySelector(".revenue-brush-window");
+      const dimL = wrap.querySelector(".revenue-brush-dim.l");
+      const dimR = wrap.querySelector(".revenue-brush-dim.r");
+      const label = wrap.querySelector(".revenue-brush-label");
+      if (!win || !dimL || !dimR || !label) return;
+      win.style.left = leftPct + "%";
+      win.style.width = (rightPct - leftPct) + "%";
+      dimL.style.width = leftPct + "%";
+      dimR.style.width = (100 - rightPct) + "%";
+      label.innerHTML = `<span class="v">${formatDay(revenueBrushSel.from, false)}</span><span class="sep"> → </span><span class="v">${formatDay(revenueBrushSel.to, false)}</span><span class="range"> · ${days}D</span>`;
+    });
     updateRevenueDateInputs();
     renderChainCalendar();
   }
@@ -1443,65 +1463,92 @@ h1{
     }
     renderRevenueChart({ skipBrush: true });
   }
-  function renderRevenueBrush(rows, defs){
+  function renderRevenueBrushes(rows){
     revenueBrushRows = rows;
     ensureRevenueBrushSelection(rows);
-    const brushLine = qs("revenueBrushLine");
-    const brushArea = qs("revenueBrushArea");
-    if (!brushLine || !brushArea) return;
-    if (rows.length < 2) {
-      brushLine.setAttribute("d", "");
-      brushArea.setAttribute("d", "");
-      paintRevenueBrushWindow();
-      return;
-    }
-    const def = defs?.[0] || SERIES.revenue;
-    const field = seriesField(def);
-    const minX = rows[0].ts;
-    const maxX = rows[rows.length - 1].ts;
-    const span = Math.max(1, maxX - minX);
-    const maxY = Math.max(1, ...rows.map(row => n(row[field])));
-    const BW = 1000, BH = 56;
-    const xAt = ts => (ts - minX) / span * BW;
-    const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
-    const line = rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(1)} ${yAt(n(row[field])).toFixed(1)}`).join(" ");
-    const area = `${line} L${xAt(rows[rows.length - 1].ts).toFixed(1)} ${BH} L${xAt(rows[0].ts).toFixed(1)} ${BH} Z`;
-    brushLine.setAttribute("d", line);
-    brushLine.setAttribute("stroke", def.color);
-    brushArea.setAttribute("d", area);
-    brushArea.style.fill = def.key === "fees" ? "rgba(154,183,194,.16)" : def.key === "odoloUsdc" ? "rgba(138,163,123,.16)" : "url(#revenueBrushGrad)";
+    renderRevenueBrushMini("streams", rows, activeSeriesDefs());
+    renderRevenueBrushMini("borrowInterest", rows, defsFromKeys(BORROW_INTEREST_SERIES_KEYS));
     paintRevenueBrushWindow();
     initRevenueBrush();
   }
+  function renderRevenueBrushMini(key, rows, defs){
+    const wrap = document.querySelector(`.revenue-brush-wrap[data-brush-key="${key}"]`);
+    const svg = wrap?.querySelector(".revenue-brush-svg");
+    if (!svg) return;
+    if (rows.length < 2) {
+      svg.innerHTML = "";
+      return;
+    }
+    const visibleDefs = (defs && defs.length ? defs : [SERIES.revenue]).filter(Boolean);
+    const areaDef = visibleDefs[0] || SERIES.revenue;
+    const minX = rows[0].ts;
+    const maxX = rows[rows.length - 1].ts;
+    const span = Math.max(1, maxX - minX);
+    const maxY = Math.max(1, ...rows.flatMap(row => visibleDefs.map(def => n(row[seriesField(def)]))));
+    const BW = 1000, BH = 56;
+    const xAt = ts => (ts - minX) / span * BW;
+    const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
+    const lineFor = def => rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(1)} ${yAt(n(row[seriesField(def)])).toFixed(1)}`).join(" ");
+    const areaLine = lineFor(areaDef);
+    const area = `${areaLine} L${xAt(rows[rows.length - 1].ts).toFixed(1)} ${BH} L${xAt(rows[0].ts).toFixed(1)} ${BH} Z`;
+    const gradId = `revenueBrushGrad-${key}`;
+    const lines = visibleDefs.map(def => `<path class="revenue-brush-line ${def.key}" d="${lineFor(def)}" stroke="${def.color}"></path>`).join("");
+    svg.innerHTML = [
+      `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${areaDef.color}" stop-opacity=".30"/><stop offset="100%" stop-color="${areaDef.color}" stop-opacity="0"/></linearGradient></defs>`,
+      `<path class="revenue-brush-area" d="${area}" fill="url(#${gradId})"></path>`,
+      lines
+    ].join("");
+  }
   function initRevenueBrush(){
+    document.querySelectorAll(".revenue-brush-wrap").forEach(wrap => {
+      if (wrap.dataset.brushReady === "true") return;
+      const svg = wrap.querySelector(".revenue-brush-svg");
+      const overlay = wrap.querySelector(".revenue-brush-overlay");
+      const win = wrap.querySelector(".revenue-brush-window");
+      const handleL = wrap.querySelector(".revenue-brush-handle.l");
+      const handleR = wrap.querySelector(".revenue-brush-handle.r");
+      if (!svg || !overlay || !win || !handleL || !handleR) return;
+      wrap.dataset.brushReady = "true";
+      const onDown = kind => event => {
+        event.preventDefault();
+        event.stopPropagation();
+        revenueBrushJustDragged = false;
+        revenueBrushDragging = { kind, overlay, win, startX: event.clientX, startFrom: revenueBrushSel.from, startTo: revenueBrushSel.to };
+        win.classList.add("dragging");
+        document.body.style.userSelect = "none";
+      };
+      const pxToTime = px => {
+        const { minX, span } = revenueBrushDomain();
+        const width = Math.max(1, overlay.clientWidth);
+        return minX + Math.max(0, Math.min(1, px / width)) * span;
+      };
+      win.addEventListener("pointerdown", onDown("window"));
+      handleL.addEventListener("pointerdown", onDown("left"));
+      handleR.addEventListener("pointerdown", onDown("right"));
+      svg.addEventListener("click", event => {
+        if (revenueBrushJustDragged) {
+          revenueBrushJustDragged = false;
+          return;
+        }
+        const { minX, maxX } = revenueBrushDomain();
+        const rect = overlay.getBoundingClientRect();
+        const center = pxToTime(event.clientX - rect.left);
+        const span = revenueBrushSel.to - revenueBrushSel.from;
+        let from = center - span / 2;
+        let to = center + span / 2;
+        if (from < minX) { from = minX; to = from + span; }
+        if (to > maxX) { to = maxX; from = to - span; }
+        revenueBrushSel = { from, to };
+        paintRevenueBrushWindow();
+        renderRevenueChart({ skipBrush: true });
+      });
+    });
     if (revenueBrushInitialized) return;
-    const svg = qs("revenueBrushSvg");
-    const overlay = qs("revenueBrushOverlay");
-    const win = qs("revenueBrushWindow");
-    const handleL = qs("revenueBrushHandleL");
-    const handleR = qs("revenueBrushHandleR");
-    if (!svg || !overlay || !win || !handleL || !handleR) return;
     revenueBrushInitialized = true;
-    const onDown = kind => event => {
-      event.preventDefault();
-      event.stopPropagation();
-      revenueBrushJustDragged = false;
-      revenueBrushDragging = { kind, startX: event.clientX, startFrom: revenueBrushSel.from, startTo: revenueBrushSel.to };
-      win.classList.add("dragging");
-      document.body.style.userSelect = "none";
-    };
-    const pxToTime = px => {
-      const { minX, span } = revenueBrushDomain();
-      const width = Math.max(1, overlay.clientWidth);
-      return minX + Math.max(0, Math.min(1, px / width)) * span;
-    };
-    win.addEventListener("pointerdown", onDown("window"));
-    handleL.addEventListener("pointerdown", onDown("left"));
-    handleR.addEventListener("pointerdown", onDown("right"));
     document.addEventListener("pointermove", event => {
       if (!revenueBrushDragging) return;
       const { minX, maxX, span } = revenueBrushDomain();
-      const width = Math.max(1, overlay.clientWidth);
+      const width = Math.max(1, revenueBrushDragging.overlay?.clientWidth || 0);
       const delta = (event.clientX - revenueBrushDragging.startX) / width * span;
       const minWindow = Math.max(86400, span * 0.01);
       if (Math.abs(event.clientX - revenueBrushDragging.startX) > 2) revenueBrushJustDragged = true;
@@ -1522,27 +1569,10 @@ h1{
     });
     document.addEventListener("pointerup", () => {
       if (!revenueBrushDragging) return;
+      revenueBrushDragging.win?.classList.remove("dragging");
       revenueBrushDragging = null;
-      win.classList.remove("dragging");
       document.body.style.userSelect = "";
       flushRevenueBrushChartRender();
-    });
-    svg.addEventListener("click", event => {
-      if (revenueBrushJustDragged) {
-        revenueBrushJustDragged = false;
-        return;
-      }
-      const { minX, maxX } = revenueBrushDomain();
-      const rect = overlay.getBoundingClientRect();
-      const center = pxToTime(event.clientX - rect.left);
-      const span = revenueBrushSel.to - revenueBrushSel.from;
-      let from = center - span / 2;
-      let to = center + span / 2;
-      if (from < minX) { from = minX; to = from + span; }
-      if (to > maxX) { to = maxX; from = to - span; }
-      revenueBrushSel = { from, to };
-      paintRevenueBrushWindow();
-      renderRevenueChart({ skipBrush: true });
     });
   }
   function pathFromPoints(rows, field, xAt, yAt){
@@ -1595,7 +1625,7 @@ h1{
     const defs = config.defs && config.defs.length ? config.defs : activeSeriesDefs();
     if (!svg || !defs.length) return;
     const model = visibleRows(rows);
-    if (config.updateBrush && !options.skipBrush) renderRevenueBrush(rows, defs);
+    if (config.updateBrush && !options.skipBrush) renderRevenueBrushes(rows);
     const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
     const chartW = W - P_L - P_R;
     const chartH = H - P_T - P_B;
