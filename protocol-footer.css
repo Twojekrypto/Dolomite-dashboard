@@ -275,16 +275,33 @@
   pointer-events:none;
 }
 @media (max-width:760px){
+  .dolo-protocol-footer{
+    border-radius:18px;
+  }
   .dolo-protocol-footer-head{
     padding:20px 18px 18px;
   }
   .dolo-protocol-footer-body{
     padding:18px;
   }
+  .dolo-protocol-footer-brand{
+    width:100%;
+    align-items:flex-start;
+  }
   .dolo-protocol-footer-links{
     flex-direction:column;
     align-items:flex-start;
     gap:10px;
+    width:100%;
+  }
+  .dolo-protocol-footer-links-group{
+    width:100%;
+  }
+  .dolo-protocol-footer-pill{
+    flex:1 1 calc(50% - 6px);
+    justify-content:center;
+    min-width:0;
+    padding:0 10px;
   }
   .dolo-protocol-footer-links-sep{
     display:none;
@@ -294,13 +311,72 @@
   }
   .dolo-protocol-footer-addr{
     width:100%;
-    display:grid;
-    grid-template-columns:minmax(0,1fr) auto;
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+    padding:12px;
   }
-  .dolo-protocol-footer-addr-right{
+  .dolo-protocol-footer-addr-left{
+    width:100%;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .dolo-protocol-footer-token{
     min-width:0;
   }
+  .dolo-protocol-footer-token-name{
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .dolo-protocol-footer-chain{
+    flex:0 0 auto;
+  }
+  .dolo-protocol-footer-addr-right{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 30px 30px;
+    gap:8px;
+    width:100%;
+    min-width:0;
+    justify-content:stretch;
+  }
   .dolo-protocol-footer-hex{
-    max-width:96px;
+    display:flex;
+    align-items:center;
+    min-width:0;
+    max-width:100%;
+    height:30px;
+    padding:0 10px;
+    border-radius:6px;
+    background:var(--bg-3,#1a1a1e);
+    border:1px solid var(--line-2,rgba(255,255,255,.08));
+    color:var(--fg-2,#a5a29a);
+  }
+  .dolo-protocol-footer-copy,
+  .dolo-protocol-footer-explore{
+    width:30px;
+    height:30px;
+  }
+}
+@media (max-width:380px){
+  .dolo-protocol-footer-head{
+    padding:18px 14px 16px;
+  }
+  .dolo-protocol-footer-body{
+    padding:16px 14px 18px;
+  }
+  .dolo-protocol-footer-pill{
+    flex-basis:100%;
+  }
+  .dolo-protocol-footer-chain{
+    max-width:134px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .dolo-protocol-footer-hex{
+    padding:0 8px;
+    font-size:10.5px;
   }
 }
