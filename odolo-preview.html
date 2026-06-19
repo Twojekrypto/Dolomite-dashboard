@@ -1157,8 +1157,8 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
           Circulating
         </div>
         <div class="val" id="hero-circulating" data-count-value="0">0.000</div>
-        <div class="sub" id="hero-circulating-sub">88.3% of total</div>
-        <div class="hero-bar"><span id="hero-circulating-bar" style="width:88.3%"></span></div>
+        <div class="sub" id="hero-circulating-sub">11.0% of total</div>
+        <div class="hero-bar"><span id="hero-circulating-bar" style="width:11.0%"></span></div>
       </div>
 
       <div class="hero-stat">
@@ -1173,10 +1173,10 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <div class="hero-stat">
         <div class="lbl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 6v12"/><path d="M16 9.5A4 4 0 0 0 12.5 8H11a2 2 0 0 0 0 4h2a2 2 0 0 1 0 4h-1.5A4 4 0 0 1 8 14.5"/></svg>
-          Exercised (USDC)
+          Options Exercised
         </div>
-        <div class="val gold" id="hero-exercised-usd" data-count-value="0">$0.000</div>
-        <div class="sub" id="hero-exercised-sub">3,535 exercises</div>
+        <div class="val gold" id="hero-exercised-usd" data-count-value="0">0.000</div>
+        <div class="sub" id="hero-exercised-sub">oDOLO exercised</div>
       </div>
 
       <div class="hero-stat">
@@ -1718,6 +1718,10 @@ const state = {
 let exStableBodyHeight = 0;
 
 const shorten = a => a.slice(0,6) + "…" + a.slice(-4);
+const finiteNum = (value, fallback = 0) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+};
 const fmtNum = n => {
   const abs = Math.abs(n);
   if(abs >= 1e9) return (n/1e9).toFixed(2) + "B";
@@ -2049,10 +2053,9 @@ function drawDonut(opts){
    oDOLO DISTRIBUTION DONUT
 ============================================================ */
 const DIST_SEGMENTS = [
-  {label:"Emission Reserve", value:118.27e6, color:"#e4c15a", desc:"Locked, released over time as LM rewards", fmt:"118.27M"},
-  {label:"Exercised",        value: 18.13e6, color:"#a8c499", desc:"Burned to mint veDOLO across 3,535 exercises", fmt:"18.13M"},
-  {label:"Awaiting claim",   value: 14.97e6, color:"#22d3ee", desc:"Earned via LM, sitting in vester to claim", fmt:"14.97M"},
-  {label:"Vesting",          value:  3.16e6, color:"#a78bfa", desc:"Paired with DOLO, locked in vester contracts", fmt:"3.16M"},
+  {label:"Future rewards reserve", value:131.31e6, color:"#e4c15a", desc:"Held for future oDOLO distributions", fmt:"131.31M"},
+  {label:"Circulating",            value: 16.60e6, color:"#a8c499", desc:"Total supply minus reserves and vester balance", fmt:"16.60M"},
+  {label:"Vester balance",         value:  2.76e6, color:"#a78bfa", desc:"oDOLO currently held by the vester contract", fmt:"2.76M"},
 ];
 
 /* ============================================================
@@ -3496,19 +3499,22 @@ document.querySelectorAll(".nav-item").forEach(it=>{
 });
 
 function syncLiveMetrics(){
-  if(!LIVE.contract && !LIVE.usd && !LIVE.lock) return;
+  if(!LIVE.contract && !LIVE.usd && !LIVE.lock && !LIVE.exercisers) return;
   const data = LIVE.contract || {};
   const usd = LIVE.usd || {};
   const lock = LIVE.lock || {};
-  const totalSupply = Number(data.totalSupply) || 0;
-  const available = Number(data.availableTokens) || 0;
-  const promised = Number(data.promisedTokens) || 0;
-  const pushed = Number(data.pushedTokens) || 0;
-  const circulating = Number(data.inCirculation) || Math.max(0, totalSupply - available - promised);
+  const exercisers = LIVE.exercisers || {};
+  const totalSupply = finiteNum(data.totalSupply);
+  const futureRewardsReserve = finiteNum(data.futureRewardsReserve);
+  const inVesterBalance = finiteNum(data.inVesterBalance, finiteNum(data.promisedTokens));
+  const circulatingRaw = Number(data.inCirculation);
+  const circulating = Number.isFinite(circulatingRaw)
+    ? circulatingRaw
+    : Math.max(0, totalSupply - futureRewardsReserve - inVesterBalance);
   const circulatingPct = totalSupply > 0 ? Math.max(0, Math.min(100, circulating / totalSupply * 100)) : 0;
-  const avgDiscount = Number(lock.avg_discount_pct) || 0;
-  const avgMonths = Number(lock.avg_lock_months) || (Number(lock.avg_lock_days) || 0) / 30.44;
-  const avgDays = Number(lock.avg_lock_days) || 0;
+  const avgDiscount = finiteNum(lock.avg_discount_pct);
+  const avgMonths = finiteNum(lock.avg_lock_months) || finiteNum(lock.avg_lock_days) / 30.44;
+  const avgDays = finiteNum(lock.avg_lock_days);
 
   if(totalSupply){
     setMetricHtml("hero-supply", fmtNum(totalSupply), "", `<span class="unit">oDOLO</span>`);
@@ -3518,16 +3524,21 @@ function syncLiveMetrics(){
     setMetricHtml("hero-discount", `${avgDiscount.toFixed(1)}%`, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l14-14"/><circle cx="7.5" cy="6.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg>`, `<span class="lbl">avg discount</span>`);
   }
   setMetricText("hero-circulating", circulating ? fmtNum(circulating) : "-");
-  setText("hero-circulating-sub", totalSupply ? `${circulatingPct.toFixed(1)}% of total` : "circulating supply");
+  const reserveNote = futureRewardsReserve ? `excludes ${fmtNum(futureRewardsReserve)} future rewards` : "circulating supply";
+  setText("hero-circulating-sub", totalSupply ? `${circulatingPct.toFixed(1)}% of total · ${reserveNote}` : "circulating supply");
   const bar = document.getElementById("hero-circulating-bar");
   if(bar) bar.style.width = `${circulatingPct.toFixed(1)}%`;
   setMetricText("hero-holders", data.holders ? Number(data.holders).toLocaleString() : "-");
   setText("hero-holders-sub", "unique wallets");
-  setMetricText("hero-exercised-usd", usd.total_usdc ? fmtUsd(Number(usd.total_usdc)) : "-");
-  // Volume is USDC-paid only; the exercise count covers BOTH methods
-  // (USDC- and DOLO-paid) via avg_lock_data's full scan.
-  const allExercises = Number(lock.total_exercises) || Number(usd.total_txs) || 0;
-  setText("hero-exercised-sub", allExercises ? `${allExercises.toLocaleString()} exercises · USDC volume` : "USDC exercise volume");
+  const exercisedOdolo = finiteNum(exercisers.total_vedolo) || finiteNum(data.exercisedOdolo) || finiteNum(data.pushedTokens);
+  setMetricText("hero-exercised-usd", exercisedOdolo ? fmtNum(exercisedOdolo) : "-");
+  const allExercises = finiteNum(lock.total_exercises) || finiteNum(exercisers.total_exercises) || finiteNum(usd.total_txs);
+  const usdcVolume = finiteNum(usd.total_usdc) || finiteNum(exercisers.total_usdc);
+  const exercisedSub = [
+    allExercises ? `${allExercises.toLocaleString()} exercises` : "",
+    usdcVolume ? `${fmtUsd(usdcVolume)} USDC volume` : "",
+  ].filter(Boolean).join(" · ");
+  setText("hero-exercised-sub", exercisedSub || "oDOLO exercised");
   if(avgMonths){
     setMetricHtml("hero-avg-lock", avgMonths.toFixed(1), "", `<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span>`);
     setText("hero-avg-lock-sub", `${Math.round(avgDays)} days avg lock`);
@@ -3543,16 +3554,17 @@ function syncLiveMetrics(){
 function syncLiveDistribution(){
   const data = LIVE.contract;
   if(!data) return;
-  const totalSupply = Number(data.totalSupply) || 0;
-  const available = Number(data.availableTokens) || 0;
-  const promised = Number(data.promisedTokens) || 0;
-  const pushed = Number(data.pushedTokens) || 0;
-  const reserve = Math.max(0, totalSupply - available - promised - pushed);
+  const totalSupply = finiteNum(data.totalSupply);
+  const futureRewardsReserve = finiteNum(data.futureRewardsReserve);
+  const inVesterBalance = finiteNum(data.inVesterBalance, finiteNum(data.promisedTokens));
+  const circulatingRaw = Number(data.inCirculation);
+  const circulating = Number.isFinite(circulatingRaw)
+    ? circulatingRaw
+    : Math.max(0, totalSupply - futureRewardsReserve - inVesterBalance);
   applyRows(DIST_SEGMENTS, [
-    {label:"Emission Reserve", value:reserve, color:"#e4c15a", desc:"Locked, released over time as LM rewards", fmt:fmtNum(reserve)},
-    {label:"Exercised", value:pushed, color:"#a8c499", desc:"Burned to mint veDOLO", fmt:fmtNum(pushed)},
-    {label:"Awaiting claim", value:available, color:"#22d3ee", desc:"Earned via LM, sitting in vester to claim", fmt:fmtNum(available)},
-    {label:"Vesting", value:promised, color:"#a78bfa", desc:"Paired with DOLO, locked in vester contracts", fmt:fmtNum(promised)},
+    {label:"Future rewards reserve", value:futureRewardsReserve, color:"#e4c15a", desc:"Held for future oDOLO distributions", fmt:fmtNum(futureRewardsReserve)},
+    {label:"Circulating", value:circulating, color:"#a8c499", desc:"Total supply minus reserves and vester balance", fmt:fmtNum(circulating)},
+    {label:"Vester balance", value:inVesterBalance, color:"#a78bfa", desc:"oDOLO currently held by the vester contract", fmt:fmtNum(inVesterBalance)},
   ]);
 }
 
