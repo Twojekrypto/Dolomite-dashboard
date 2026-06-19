@@ -227,13 +227,13 @@ def _dolomite_revenue_series_valid(data):
         timestamp = row.get("timestamp")
         fees = row.get("feesUSD")
         revenue = row.get("revenueUSD")
-        liquidation_fees = row.get("liquidationFeesUSD", 0)
+        liquidator_earnings = row.get("liquidatorEarningsUSD", 0)
         supply_side = row.get("supplySideRevenueUSD")
         if not isinstance(timestamp, int) or timestamp <= previous:
             return False
-        if not all(isinstance(value, (int, float)) for value in (fees, revenue, liquidation_fees, supply_side)):
+        if not all(isinstance(value, (int, float)) for value in (fees, revenue, liquidator_earnings, supply_side)):
             return False
-        if fees < 0 or revenue < 0 or liquidation_fees < 0 or revenue > fees + 1:
+        if fees < 0 or revenue < 0 or liquidator_earnings < 0 or revenue > fees + 1:
             return False
         if not _nearly_equal(fees, revenue + supply_side, abs_tol=1):
             return False
@@ -263,10 +263,10 @@ def _dolomite_revenue_window_totals_valid(data):
     checks = (
         ("revenue7dUSD", "revenueUSD", 7),
         ("fees7dUSD", "feesUSD", 7),
-        ("liquidationFees7dUSD", "liquidationFeesUSD", 7),
+        ("liquidatorEarnings7dUSD", "liquidatorEarningsUSD", 7),
         ("revenue30dUSD", "revenueUSD", 30),
         ("fees30dUSD", "feesUSD", 30),
-        ("liquidationFees30dUSD", "liquidationFeesUSD", 30),
+        ("liquidatorEarnings30dUSD", "liquidatorEarningsUSD", 30),
     )
     return all(
         _nearly_equal(totals.get(total_key), sum(_safe_number(row.get(row_key)) for row in rows[-days:]), abs_tol=1)
@@ -304,24 +304,24 @@ def _dolomite_revenue_totals_valid(data):
     latest = data.get("latest", {})
     daily_fees = totals.get("dailyFeesUSD")
     daily_revenue = totals.get("dailyRevenueUSD")
-    daily_liquidation_fees = totals.get("dailyLiquidationFeesUSD", latest.get("liquidationFeesUSD", 0))
+    daily_liquidator_earnings = totals.get("dailyLiquidatorEarningsUSD", latest.get("liquidatorEarningsUSD", 0))
     daily_supply_side = totals.get("dailySupplySideRevenueUSD")
     daily_cut = totals.get("dailyProtocolCut")
     latest_fees = latest.get("feesUSD")
     latest_revenue = latest.get("revenueUSD")
-    latest_liquidation_fees = latest.get("liquidationFeesUSD", 0)
-    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, daily_liquidation_fees, daily_supply_side, daily_cut, latest_fees, latest_revenue, latest_liquidation_fees)):
+    latest_liquidator_earnings = latest.get("liquidatorEarningsUSD", 0)
+    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, daily_liquidator_earnings, daily_supply_side, daily_cut, latest_fees, latest_revenue, latest_liquidator_earnings)):
         return False
     expected_cut = daily_revenue / daily_fees if daily_fees > 0 else 0
     return (
         daily_fees > 0
         and 0 <= daily_revenue <= daily_fees
-        and daily_liquidation_fees >= 0
+        and daily_liquidator_earnings >= 0
         and _nearly_equal(daily_fees, daily_revenue + daily_supply_side, abs_tol=1)
         and _nearly_equal(daily_cut, expected_cut, abs_tol=0.0001)
         and _nearly_equal(daily_fees, latest_fees, abs_tol=500)
         and _nearly_equal(daily_revenue, latest_revenue, abs_tol=500)
-        and _nearly_equal(daily_liquidation_fees, latest_liquidation_fees, abs_tol=1)
+        and _nearly_equal(daily_liquidator_earnings, latest_liquidator_earnings, abs_tol=1)
     )
 
 

@@ -94,7 +94,7 @@ def breakdown_map(rows):
     return out
 
 
-def confirmed_liquidation_fee_daily(path=LIQUIDATION_HISTORY_FILE):
+def liquidator_earnings_daily(path=LIQUIDATION_HISTORY_FILE):
     daily = {}
     try:
         with open(path) as f:
@@ -103,9 +103,7 @@ def confirmed_liquidation_fee_daily(path=LIQUIDATION_HISTORY_FILE):
         return daily
 
     for row in payload.get("liquidationHistory", []) or []:
-        if row.get("protocolFeeSource") != "feeAgentTransfer":
-            continue
-        amount = safe_number(row.get("protocolFeeUSD"))
+        amount = safe_number(row.get("liquidationRewardUSD"))
         if amount <= 0:
             continue
         timestamp = row.get("timestamp")
@@ -116,12 +114,12 @@ def confirmed_liquidation_fee_daily(path=LIQUIDATION_HISTORY_FILE):
     return daily
 
 
-def merge_series(revenue_data, fees_data, liquidation_fee_daily=None):
+def merge_series(revenue_data, fees_data, liquidator_earnings=None):
     revenue_chart = chart_map(revenue_data.get("totalDataChart"))
     fees_chart = chart_map(fees_data.get("totalDataChart"))
     revenue_breakdowns = breakdown_map(revenue_data.get("totalDataChartBreakdown"))
     fees_breakdowns = breakdown_map(fees_data.get("totalDataChartBreakdown"))
-    liquidation_fee_daily = liquidation_fee_daily or {}
+    liquidator_earnings = liquidator_earnings or {}
     timestamps = sorted(set(revenue_chart) | set(fees_chart))
     chains = sorted({
         chain
@@ -135,7 +133,7 @@ def merge_series(revenue_data, fees_data, liquidation_fee_daily=None):
         revenue = revenue_chart.get(ts, 0.0)
         fees = fees_chart.get(ts, 0.0)
         day = day_from_timestamp(ts)
-        liquidation_fees = safe_number(liquidation_fee_daily.get(day))
+        liquidator_earnings_usd = safe_number(liquidator_earnings.get(day))
         chain_rows = {}
         for chain in chains:
             chain_revenue = chain_value(revenue_breakdowns.get(ts, {}), chain)
@@ -152,7 +150,7 @@ def merge_series(revenue_data, fees_data, liquidation_fee_daily=None):
             "date": day,
             "feesUSD": round(fees, 6),
             "revenueUSD": round(revenue, 6),
-            "liquidationFeesUSD": round(liquidation_fees, 6),
+            "liquidatorEarningsUSD": round(liquidator_earnings_usd, 6),
             "supplySideRevenueUSD": round(max(fees - revenue, 0.0), 6),
             "protocolCut": round(revenue / fees, 8) if fees > 0 else 0,
             "chains": chain_rows,
@@ -194,37 +192,38 @@ def latest_series_value(series, key, fallback):
     return safe_number(fallback)
 
 
-def metric_totals(revenue_data, fees_data, series):
+def metric_totals(revenue_data, fees_data, series, liquidator_earnings=None):
     # DeFiLlama aggregate windows can briefly lag or revise while the chart rows
     # are updating. Keep every displayed total tied to the same saved series that
     # powers the chart and chain breakdowns.
     fees_24h = latest_series_value(series, "feesUSD", fees_data.get("total24h"))
     revenue_24h = latest_series_value(series, "revenueUSD", revenue_data.get("total24h"))
+    liquidator_earnings_all_time = sum(safe_number(value) for value in (liquidator_earnings or {}).values())
     previous = series[-2] if len(series) >= 2 else {}
     previous_revenue = previous.get("revenueUSD", revenue_data.get("total48hto24h"))
     previous_fees = previous.get("feesUSD", fees_data.get("total48hto24h"))
     return {
         "dailyRevenueUSD": round(revenue_24h, 6),
         "dailyFeesUSD": round(fees_24h, 6),
-        "dailyLiquidationFeesUSD": round(latest_series_value(series, "liquidationFeesUSD", 0), 6),
+        "dailyLiquidatorEarningsUSD": round(latest_series_value(series, "liquidatorEarningsUSD", 0), 6),
         "dailySupplySideRevenueUSD": round(max(fees_24h - revenue_24h, 0.0), 6),
         "dailyProtocolCut": round(revenue_24h / fees_24h, 8) if fees_24h > 0 else 0,
         "previousDailyRevenueUSD": round(safe_number(previous_revenue), 6),
         "previousDailyFeesUSD": round(safe_number(previous_fees), 6),
         "revenue7dUSD": round(window_sum(series, 7, "revenueUSD"), 6),
         "fees7dUSD": round(window_sum(series, 7, "feesUSD"), 6),
-        "liquidationFees7dUSD": round(window_sum(series, 7, "liquidationFeesUSD"), 6),
+        "liquidatorEarnings7dUSD": round(window_sum(series, 7, "liquidatorEarningsUSD"), 6),
         "revenue30dUSD": round(window_sum(series, 30, "revenueUSD"), 6),
         "fees30dUSD": round(window_sum(series, 30, "feesUSD"), 6),
-        "liquidationFees30dUSD": round(window_sum(series, 30, "liquidationFeesUSD"), 6),
+        "liquidatorEarnings30dUSD": round(window_sum(series, 30, "liquidatorEarningsUSD"), 6),
         "revenueAllTimeUSD": round(safe_number(revenue_data.get("totalAllTime")), 6),
         "feesAllTimeUSD": round(safe_number(fees_data.get("totalAllTime")), 6),
-        "liquidationFeesAllTimeUSD": round(window_sum(series, 0, "liquidationFeesUSD"), 6),
+        "liquidatorEarningsAllTimeUSD": round(liquidator_earnings_all_time or window_sum(series, 0, "liquidatorEarningsUSD"), 6),
     }
 
 
-def build_output(revenue_data, fees_data, liquidation_fee_daily=None):
-    series = merge_series(revenue_data, fees_data, liquidation_fee_daily)
+def build_output(revenue_data, fees_data, liquidator_earnings=None):
+    series = merge_series(revenue_data, fees_data, liquidator_earnings)
     if len(series) < 30:
         raise ValueError("Merged revenue series has too few rows")
 
@@ -237,31 +236,32 @@ def build_output(revenue_data, fees_data, liquidation_fee_daily=None):
             "dailyRevenue": f"{BASE_URL}?dataType=dailyRevenue",
             "dailyFees": f"{BASE_URL}?dataType=dailyFees",
             "adapter": "https://github.com/DefiLlama/dimension-adapters/tree/master/fees/dolomite",
-            "liquidationFees": "liquidation_history.json",
-            "liquidationFeeDocs": "https://docs.dolomite.io/risk-management",
+            "liquidatorEarnings": "liquidation_history.json",
+            "liquidationDocs": "https://docs.dolomite.io/risk-management",
         },
         "generatedAt": utc_now_iso(),
         "lastUpdated": utc_now_iso(),
         "methodology": {
             "fees": "Interest paid by borrowers.",
             "revenue": "The portion of borrower interest retained by the protocol.",
-            "liquidationFees": "Confirmed Dolomite liquidation fee-rake transfers to the protocol feeAgent, sourced from same-transaction Dolomite subgraph Transfer rows.",
+            "liquidatorEarnings": "Liquidation rewards earned by liquidators, sourced from Dolomite liquidation history rows.",
             "supplySideRevenue": "The portion of borrower interest paid to lenders.",
-            "formula": "dailyRevenue = interestEarned * (1 - earningsRate); supplySideRevenue = dailyFees - dailyRevenue; liquidationFees = sum(confirmed feeAgent transfer USD in liquidation txs)",
-            "scope": "Dolomite borrow-interest economics plus confirmed protocol liquidation fee-rake transfers. Gas fees, token emissions, treasury transfers outside confirmed liquidation fee transfers, trading spreads and external cost basis are excluded.",
+            "formula": "dailyRevenue = interestEarned * (1 - earningsRate); supplySideRevenue = dailyFees - dailyRevenue; liquidatorEarnings = sum(liquidationRewardUSD)",
+            "scope": "Dolomite borrow-interest economics plus liquidator rewards from confirmed liquidation events. Gas fees, token emissions, treasury transfers, trading spreads and protocol liquidation-rake attribution are excluded.",
             "sourceLimitations": [
                 "DeFiLlama adapter estimates daily interest from borrow index movement and borrowed principal snapshots.",
                 "This is protocol-retained borrow interest, not a direct treasury cashflow audit.",
-                "Liquidation fees are counted only when liquidation_history.json contains a same-transaction Transfer to the Dolomite feeAgent; unconfirmed penalty estimates are excluded.",
+                "Liquidator earnings show rewards earned by liquidators and do not split out any amount retained by Dolomite.",
+                "Liquidator earnings chart rows are aligned to the DeFiLlama borrow-interest date range; all-time liquidator earnings use the full liquidation history snapshot.",
                 "Current-day values can be revised by DeFiLlama until the adapter window fully settles.",
             ],
         },
         "assurance": {
-            "classification": "adapter-estimated protocol borrow-interest revenue plus confirmed liquidation fee-agent transfers",
-            "confidence": "high for retained borrow-interest direction/split and high for liquidation fee transfers that are present in the Dolomite subgraph; not absolute for full cash-accounting revenue",
-            "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest; liquidation fees are top-level daily stream values",
+            "classification": "adapter-estimated protocol borrow-interest revenue plus liquidation rewards earned by liquidators",
+            "confidence": "high for retained borrow-interest direction/split and high for liquidator reward values present in Dolomite liquidation history; not a protocol liquidation-rake revenue split",
+            "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest; liquidator earnings are top-level daily stream values",
         },
-        "totals": metric_totals(revenue_data, fees_data, series),
+        "totals": metric_totals(revenue_data, fees_data, series, liquidator_earnings),
         "latest": latest,
         "chainTotals7d": window_chain_totals(series, 7),
         "chainTotals30d": window_chain_totals(series, 30),
@@ -274,7 +274,7 @@ def main():
     try:
         revenue_data = fetch_metric("dailyRevenue")
         fees_data = fetch_metric("dailyFees")
-        output = build_output(revenue_data, fees_data, confirmed_liquidation_fee_daily())
+        output = build_output(revenue_data, fees_data, liquidator_earnings_daily())
         with open(OUTPUT_FILE, "w") as f:
             json.dump(output, f, separators=(",", ":"))
 

@@ -279,7 +279,7 @@ h1{
 .revenue-streams-panel .revenue-series-toggles{
   flex:0 1 auto;
   display:grid;
-  grid-template-columns:repeat(3,minmax(150px,205px));
+  grid-template-columns:repeat(2,minmax(170px,225px));
   gap:7px;
   padding:4px;
   border-radius:10px;
@@ -293,7 +293,15 @@ h1{
   font-size:11px;
 }
 .revenue-chart-panel .revenue-mode-toggles{flex:0 0 auto}
-.borrow-interest-panel .revenue-series-control{justify-content:flex-end}
+.borrow-interest-panel .revenue-series-control{justify-content:space-between;align-items:center}
+.borrow-series-legend{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0;
+  padding:4px;border-radius:10px;background:rgba(255,255,255,.018);border:1px solid var(--line-1)
+}
+.borrow-series-chip{
+  min-height:32px;padding:0 10px;border-radius:8px;display:inline-flex;align-items:center;gap:8px;
+  color:var(--fg-3);font-family:var(--mono);font-size:11px;font-weight:750;white-space:nowrap
+}
 .series-check{
   width:14px;height:14px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
   color:transparent;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.025);
@@ -318,7 +326,7 @@ h1{
   filter:drop-shadow(0 0 7px rgba(201,162,39,.16));
   transition:opacity .15s var(--ease),stroke-width .15s var(--ease);
 }
-.revenue-chart-line.fees,.revenue-chart-line.odoloUsdc,.revenue-chart-line.liquidationFees{filter:none}
+.revenue-chart-line.fees,.revenue-chart-line.odoloUsdc,.revenue-chart-line.liquidatorEarnings{filter:none}
 .revenue-chart-line.is-muted{opacity:.24}
 .revenue-chart-line.is-active{stroke-width:2.9;opacity:1}
 .revenue-hover-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
@@ -384,7 +392,7 @@ h1{
 .revenue-streams-panel .legend-swatch{width:22px;height:4px}
 .legend-swatch.fees{background:#9ab7c2}
 .legend-swatch.odolo-usdc{background:#8aa37b}
-.legend-swatch.liquidation-fees{background:#b4796b}
+.legend-swatch.liquidator-earnings{background:#b4796b}
 .table-panel{margin-top:18px;overflow:hidden}
 .chain-panel-head{align-items:flex-start}
 .chain-range-tools{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;justify-content:flex-end;position:relative}
@@ -630,6 +638,8 @@ h1{
   .revenue-streams-panel .revenue-series-toggle{min-height:38px}
   .revenue-chart-panel .revenue-mode-toggles{width:100%}
   .borrow-interest-panel .revenue-series-control{justify-content:stretch}
+  .borrow-series-legend{width:100%;display:grid;grid-template-columns:1fr}
+  .borrow-series-chip{justify-content:flex-start}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
   .chain-date-popover,
@@ -772,12 +782,11 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Dolomite Revenue Over Time</div>
-          <div class="panel-sub">Protocol-retained borrow interest, confirmed liquidation fee rake, and USDC paid to exercise oDOLO.</div>
+          <div class="panel-sub">Protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
         </div>
         <div class="revenue-series-control">
           <div class="revenue-series-toggles" aria-label="Revenue stream chart filter">
             <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle borrow interest revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Borrow Interest Revenue</span></button>
-            <button class="revenue-series-toggle" type="button" data-series="liquidationFees" aria-pressed="false" aria-label="Toggle protocol liquidation fee series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch liquidation-fees"></span><span>Liquidation Fees</span></button>
             <button class="revenue-series-toggle" type="button" data-series="odoloUsdc" aria-pressed="false" aria-label="Toggle oDOLO exercise USDC series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch odolo-usdc"></span><span>oDOLO Exercise USDC</span></button>
           </div>
           <div class="revenue-mode-toggles" aria-label="Revenue chart mode">
@@ -814,9 +823,13 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Borrow Interest Over Time</div>
-          <div class="panel-sub">Gross interest paid by borrowers.</div>
+          <div class="panel-sub">Gross interest paid by borrowers and liquidation rewards earned by liquidators.</div>
         </div>
         <div class="revenue-series-control">
+          <div class="borrow-series-legend" aria-label="Borrow interest chart series">
+            <span class="borrow-series-chip"><span class="legend-swatch fees"></span><span>Borrow Interest</span></span>
+            <span class="borrow-series-chip"><span class="legend-swatch liquidator-earnings"></span><span>Liquidator Earnings</span></span>
+          </div>
           <div class="revenue-mode-toggles" aria-label="Borrow interest chart mode">
             <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
             <button class="revenue-mode-toggle" type="button" data-chart-mode="cumulative" aria-pressed="false"><span>Cumulative</span></button>
@@ -961,10 +974,10 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-liquidation-fees";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-liquidation-fees";
-  const STREAM_SERIES_KEYS = ["revenue", "liquidationFees", "odoloUsdc"];
-  const BORROW_INTEREST_SERIES_KEYS = ["fees"];
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-liquidator-earnings";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-liquidator-earnings";
+  const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
+  const BORROW_INTEREST_SERIES_KEYS = ["fees", "liquidatorEarnings"];
   const DEFAULT_SERIES_KEYS = STREAM_SERIES_KEYS;
   let revenueData = null;
   let odoloExerciseData = null;
@@ -976,9 +989,9 @@ h1{
   let revenueChartModes = { streams: "daily", borrowInterest: "daily" };
   const SERIES = {
     revenue: { key: "revenue", label: "Borrow Interest Revenue", shortLabel: "Borrow Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
-    liquidationFees: { key: "liquidationFees", label: "Liquidation Fees", shortLabel: "Liquidation Fees", field: "liquidationFeesUSD", cumulativeField: "liquidationFeesCumulativeUSD", color: "#b4796b" },
     odoloUsdc: { key: "odoloUsdc", label: "oDOLO Exercise USDC", shortLabel: "oDOLO Exercise USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
-    fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" }
+    fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" },
+    liquidatorEarnings: { key: "liquidatorEarnings", label: "Liquidator Earnings", shortLabel: "Liquidator Earnings", field: "liquidatorEarningsUSD", cumulativeField: "liquidatorEarningsCumulativeUSD", color: "#b4796b" }
   };
   const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
   const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1205,7 +1218,7 @@ h1{
     const dailyOdolo = odoloExerciseDailyMap();
     let revenueCumulative = 0;
     let feesCumulative = 0;
-    let liquidationFeesCumulative = 0;
+    let liquidatorEarningsCumulative = 0;
     let odoloUsdcCumulative = 0;
     return (revenueData?.series || [])
       .map(row => ({ ...row, ts: rowTs(row) }))
@@ -1216,14 +1229,14 @@ h1{
         const odoloUsdcUSD = dailyOdolo.get(date) || 0;
         revenueCumulative += n(row.revenueUSD);
         feesCumulative += n(row.feesUSD);
-        liquidationFeesCumulative += n(row.liquidationFeesUSD);
+        liquidatorEarningsCumulative += n(row.liquidatorEarningsUSD);
         odoloUsdcCumulative += odoloUsdcUSD;
         return {
           ...row,
           odoloUsdcUSD,
           revenueCumulativeUSD: revenueCumulative,
           feesCumulativeUSD: feesCumulative,
-          liquidationFeesCumulativeUSD: liquidationFeesCumulative,
+          liquidatorEarningsCumulativeUSD: liquidatorEarningsCumulative,
           odoloUsdcCumulativeUSD: odoloUsdcCumulative
         };
       });
@@ -1679,7 +1692,8 @@ h1{
       tipId: "revenueChartTip",
       defs: activeSeriesDefs(),
       updateBrush: !options.skipBrush,
-      controlsSelector: ".revenue-streams-panel .revenue-series-toggle"
+      controlsSelector: ".revenue-streams-panel .revenue-series-toggle",
+      showTotal: true
     }, rows, options);
     renderRevenueChartPanel({
       id: "borrowInterest",
@@ -1688,7 +1702,8 @@ h1{
       tipId: "borrowInterestChartTip",
       defs: defsFromKeys(BORROW_INTEREST_SERIES_KEYS),
       updateBrush: false,
-      controlsSelector: ""
+      controlsSelector: "",
+      showTotal: false
     }, rows, { ...options, skipBrush: true });
     updateRevenueLegend();
     updateRevenueModeControls();
@@ -1800,7 +1815,7 @@ h1{
       dot.style.opacity = 1;
       const tooltipDefs = defs.length ? defs : activeSeriesDefs();
       const totalEarned = tooltipDefs.reduce((sum, def) => sum + n(nearest[seriesField(def, key)]), 0);
-      const totalRow = tooltipDefs.length > 1
+      const totalRow = config.showTotal && tooltipDefs.length > 1
         ? `<div class="tt-row total"><span>Selected total</span><b>${usdFull(totalEarned)}</b></div>`
         : "";
       tip.innerHTML = `
