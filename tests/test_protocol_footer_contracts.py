@@ -31,8 +31,9 @@ class ProtocolFooterContractsTest(unittest.TestCase):
 
         for shell in shells:
             html = shell.read_text(encoding="utf-8")
-            self.assertIn("route-loader-20260619-footer-mobile", html, msg=str(shell.relative_to(ROOT)))
+            self.assertIn("route-loader-20260619-footer-links", html, msg=str(shell.relative_to(ROOT)))
             self.assertNotIn("route-loader-20260611", html, msg=str(shell.relative_to(ROOT)))
+            self.assertNotIn("route-loader-20260619-footer-mobile", html, msg=str(shell.relative_to(ROOT)))
 
     def test_mobile_footer_contract_address_layout_is_stable(self):
         css = (ROOT / "protocol-footer.css").read_text(encoding="utf-8")
@@ -41,6 +42,15 @@ class ProtocolFooterContractsTest(unittest.TestCase):
         self.assertIn("grid-template-columns:minmax(0,1fr) 30px 30px", css)
         self.assertIn(".dolo-protocol-footer-hex", css)
         self.assertIn("max-width:100%", css)
+
+    def test_mobile_footer_community_and_resources_links_are_grid_aligned(self):
+        css = (ROOT / "protocol-footer.css").read_text(encoding="utf-8")
+
+        self.assertIn(".dolo-protocol-footer-links-group", css)
+        self.assertIn("grid-template-columns:repeat(2,minmax(0,1fr))", css)
+        self.assertIn(".dolo-protocol-footer-links-label", css)
+        self.assertIn("grid-column:1 / -1", css)
+        self.assertIn("@media (max-width:380px)", css)
 
 
 if __name__ == "__main__":
