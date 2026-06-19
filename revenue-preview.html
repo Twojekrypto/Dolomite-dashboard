@@ -186,6 +186,7 @@ h1{
   gap:18px;
   margin-top:18px;
 }
+.revenue-chart-grid{grid-template-columns:minmax(0,1fr)}
 .panel{
   border:1px solid var(--line-1);
   border-radius:8px;
@@ -248,6 +249,13 @@ h1{
   padding:4px;border:1px solid var(--line-1);border-radius:10px;
   background:rgba(255,255,255,.025);
 }
+.revenue-series-label{
+  min-height:42px;padding:0 12px;border:1px solid var(--line-1);border-radius:10px;
+  display:inline-flex;align-items:center;gap:8px;color:var(--fg-2);
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  background:rgba(255,255,255,.025);min-width:0;
+}
+.revenue-series-label span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .revenue-series-control{
   display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;min-width:0
 }
@@ -263,13 +271,13 @@ h1{
 .revenue-series-toggle.active,.revenue-mode-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
 .revenue-series-toggle.preview{color:var(--fg-1);background:rgba(255,255,255,.045)}
 .revenue-series-toggle.dim{opacity:.42}
-.revenue-streams-panel .panel-head{
+.revenue-chart-panel .panel-head{
   display:grid;
   grid-template-columns:minmax(0,1fr);
   gap:16px;
 }
-.revenue-streams-panel .panel-head > div:first-child{max-width:720px}
-.revenue-streams-panel .revenue-series-control{
+.revenue-chart-panel .panel-head > div:first-child{max-width:720px}
+.revenue-chart-panel .revenue-series-control{
   width:100%;
   justify-content:space-between;
   align-items:stretch;
@@ -278,10 +286,11 @@ h1{
 .revenue-streams-panel .revenue-series-toggles{
   flex:1 1 auto;
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(2,minmax(0,1fr));
 }
 .revenue-streams-panel .revenue-series-toggle{justify-content:flex-start}
-.revenue-streams-panel .revenue-mode-toggles{flex:0 0 auto}
+.revenue-chart-panel .revenue-mode-toggles{flex:0 0 auto}
+.borrow-interest-panel .revenue-series-label{flex:1 1 auto;justify-content:flex-start}
 .series-check{
   width:14px;height:14px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;
   color:transparent;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.025);
@@ -295,7 +304,7 @@ h1{
 .revenue-chart-svg{width:100%;height:340px;display:block;overflow:visible}
 .revenue-chart-grid line{stroke:var(--line-1);stroke-width:1}
 .revenue-chart-grid text,.revenue-chart-axis text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);font-weight:500}
-.revenue-chart-area{fill:url(#revenueChartGrad);opacity:.58;pointer-events:none}
+.revenue-chart-area{opacity:.58;pointer-events:none}
 .revenue-chart-line{
   fill:none;stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round;
   filter:drop-shadow(0 0 7px rgba(201,162,39,.16));
@@ -361,40 +370,6 @@ h1{
 .legend-swatch{width:18px;height:3px;border-radius:999px;background:var(--gold)}
 .legend-swatch.fees{background:#9ab7c2}
 .legend-swatch.odolo-usdc{background:#8aa37b}
-.fee-split-layout{display:grid;grid-template-columns:1fr;gap:18px;align-items:center}
-.fee-donut-wrap{position:relative;width:100%;max-width:220px;aspect-ratio:1;margin:0 auto}
-.fee-donut-svg{width:100%;height:100%;display:block;transform:rotate(-90deg)}
-.fee-donut-arc{fill:none;stroke-width:30;transition:opacity .15s var(--ease),stroke-width .2s var(--ease);cursor:pointer}
-.fee-donut-arc:hover,.fee-donut-arc.active{stroke-width:36}
-.fee-donut-arc.dim{opacity:.18}
-.fee-donut-center{
-  position:absolute;inset:28%;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  pointer-events:none;text-align:center;border-radius:50%;background:rgba(10,10,12,.42);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.035)
-}
-.fee-donut-center .dc-label{
-  max-width:100%;font-size:9px;text-transform:uppercase;letter-spacing:1.15px;color:var(--fg-3);font-weight:800;
-  margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
-}
-.fee-donut-center .dc-value{font-family:var(--mono);font-size:22px;font-weight:850;color:var(--fg-1);line-height:1;font-variant-numeric:tabular-nums}
-.fee-donut-center .dc-sub{font-family:var(--mono);font-size:10px;color:var(--fg-3);margin-top:5px;white-space:nowrap}
-.fee-legend{display:flex;flex-direction:column;gap:4px;width:100%;min-width:0}
-.fee-leg-row{
-  display:flex;align-items:center;gap:11px;min-width:0;
-  padding:10px 11px;border-left:3px solid transparent;border-radius:8px;
-  transition:background .15s var(--ease),border-color .15s var(--ease),opacity .15s var(--ease),transform .15s var(--ease);
-}
-.fee-leg-row:not(.muted){cursor:pointer}
-.fee-leg-row:hover,.fee-leg-row.active{background:rgba(201,162,39,.05);border-left-color:var(--gold)}
-.fee-leg-row.dim{opacity:.35;transform:scale(.99)}
-.fee-leg-dot{width:10px;height:10px;border-radius:50%;flex:0 0 10px;background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.3)}
-.fee-leg-dot.lenders{background:#9ab7c2;box-shadow:0 0 8px rgba(154,183,194,.22)}
-.fee-leg-dot.total{background:var(--fg-4);box-shadow:none}
-.fee-leg-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
-.fee-leg-main span{font-size:13px;font-weight:700;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fee-leg-main small{font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fee-leg-row strong{font-family:var(--mono);font-size:13px;color:var(--fg-2);font-weight:800;white-space:nowrap}
-.fee-leg-row:hover strong,.fee-leg-row.active strong{color:var(--fg-1)}
 .table-panel{margin-top:18px;overflow:hidden}
 .chain-panel-head{align-items:flex-start}
 .chain-range-tools{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;justify-content:flex-end;position:relative}
@@ -635,9 +610,10 @@ h1{
   .revenue-series-toggles{width:100%;display:grid;grid-template-columns:1fr}
   .revenue-series-toggle{justify-content:flex-start}
   .revenue-mode-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .revenue-streams-panel .revenue-series-control{display:grid;grid-template-columns:1fr;justify-items:stretch}
+  .revenue-chart-panel .revenue-series-control{display:grid;grid-template-columns:1fr;justify-items:stretch}
   .revenue-streams-panel .revenue-series-toggles{grid-template-columns:1fr}
-  .revenue-streams-panel .revenue-mode-toggles{width:100%}
+  .revenue-chart-panel .revenue-mode-toggles{width:100%}
+  .borrow-interest-panel .revenue-series-label{width:100%;justify-content:flex-start}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
   .chain-date-trigger{min-width:0;width:100%}
   .chain-date-popover,
@@ -646,8 +622,6 @@ h1{
   .revenue-chart-wrap{padding:18px 16px 14px}
   .revenue-chart-svg{height:280px}
   .revenue-brush-wrap{padding:4px 16px 16px}
-  .fee-split-layout{grid-template-columns:1fr}
-  .fee-donut-wrap{max-width:260px}
   .revenue-table th,.revenue-table td{padding:12px 14px}
   .revenue-table{min-width:760px}
   .proto-addrs{grid-template-columns:1fr}
@@ -777,18 +751,17 @@ h1{
     </div>
   </section>
 
-  <main class="grid-main">
-    <section class="panel revenue-streams-panel">
+  <main class="grid-main revenue-chart-grid">
+    <section class="panel revenue-chart-panel revenue-streams-panel">
       <div class="panel-head">
         <div>
           <div class="panel-title">Revenue Streams Over Time</div>
-          <div class="panel-sub">Protocol-retained borrow interest, USDC paid to exercise oDOLO, and gross borrower interest.</div>
+          <div class="panel-sub">Protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
         </div>
         <div class="revenue-series-control">
           <div class="revenue-series-toggles" aria-label="Revenue stream chart filter">
             <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle protocol revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Protocol Revenue</span></button>
             <button class="revenue-series-toggle" type="button" data-series="odoloUsdc" aria-pressed="false" aria-label="Toggle oDOLO exercise USDC series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch odolo-usdc"></span><span>oDOLO Exercise USDC</span></button>
-            <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false" aria-label="Toggle borrow interest series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch fees"></span><span>Borrow Interest</span></button>
           </div>
           <div class="revenue-mode-toggles" aria-label="Revenue chart mode">
             <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
@@ -828,49 +801,25 @@ h1{
       </div>
     </section>
 
-    <section class="panel">
+    <section class="panel revenue-chart-panel borrow-interest-panel">
       <div class="panel-head">
         <div>
-          <div class="panel-title">Borrow Interest Split</div>
-          <div class="panel-sub">Daily borrower interest split between protocol-retained revenue and lender payments.</div>
+          <div class="panel-title">Borrow Interest Over Time</div>
+          <div class="panel-sub">Gross interest paid by borrowers.</div>
+        </div>
+        <div class="revenue-series-control">
+          <div class="revenue-series-label" aria-label="Visible revenue stream"><span class="legend-swatch fees"></span><span>Borrow Interest</span></div>
+          <div class="revenue-mode-toggles" aria-label="Borrow interest chart mode">
+            <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
+            <button class="revenue-mode-toggle" type="button" data-chart-mode="cumulative" aria-pressed="false"><span>Cumulative</span></button>
+          </div>
         </div>
       </div>
-      <div class="mix-body">
-        <div class="fee-split-layout">
-          <div class="fee-donut-wrap">
-            <svg class="fee-donut-svg" id="feeDonutSvg" viewBox="0 0 200 200"></svg>
-            <div class="fee-donut-center" id="feeDonutCenter">
-              <div class="dc-label">Interest Split</div>
-              <div class="dc-value" id="cutRingValue">0%</div>
-              <div class="dc-sub">retained</div>
-            </div>
-          </div>
-          <div class="fee-legend" id="feeSplitLegend">
-            <div class="fee-leg-row" data-split="protocol">
-              <span class="fee-leg-dot protocol"></span>
-              <div class="fee-leg-main">
-                <span>Protocol Revenue</span>
-                <small>retained by Dolomite</small>
-              </div>
-              <strong id="splitRevenue">$0</strong>
-            </div>
-            <div class="fee-leg-row" data-split="lenders">
-              <span class="fee-leg-dot lenders"></span>
-              <div class="fee-leg-main">
-                <span>Lender Payments</span>
-                <small>remaining borrower interest</small>
-              </div>
-              <strong id="splitLenders">$0</strong>
-            </div>
-            <div class="fee-leg-row muted">
-              <span class="fee-leg-dot total"></span>
-              <div class="fee-leg-main">
-                <span>All-Time Protocol Revenue</span>
-                <small>retained interest total</small>
-              </div>
-              <strong id="allTimeRevenue">$0</strong>
-            </div>
-          </div>
+      <div class="revenue-chart-wrap" id="borrowInterestChartWrap">
+        <svg class="revenue-chart-svg" id="borrowInterestChart" viewBox="0 0 1000 340" preserveAspectRatio="none" role="img" aria-label="Dolomite borrow interest chart"></svg>
+        <div class="revenue-chart-tip" id="borrowInterestChartTip">
+          <div class="tt-date">-</div>
+          <div class="tt-val">-</div>
         </div>
       </div>
     </section>
@@ -990,10 +939,11 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-clear-stream-labels";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-clear-stream-labels";
-  const SERIES_ORDER = ["revenue", "odoloUsdc", "fees"];
-  const DEFAULT_SERIES_KEYS = ["revenue", "odoloUsdc"];
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-split-charts";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-split-charts";
+  const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
+  const BORROW_INTEREST_SERIES_KEYS = ["fees"];
+  const DEFAULT_SERIES_KEYS = STREAM_SERIES_KEYS;
   let revenueData = null;
   let odoloExerciseData = null;
   let odoloExerciseDaily = null;
@@ -1246,14 +1196,14 @@ h1{
       });
   }
   function selectedRevenueDefs(){
-    return SERIES_ORDER.map(key => SERIES[key]).filter(def => selectedRevenueSeries.has(def.key));
-  }
-  function isSeriesVisible(key){
-    return selectedRevenueSeries.has(key);
+    return STREAM_SERIES_KEYS.map(key => SERIES[key]).filter(def => selectedRevenueSeries.has(def.key));
   }
   function activeSeriesDefs(){
     const defs = selectedRevenueDefs();
     return defs.length ? defs : DEFAULT_SERIES_KEYS.map(key => SERIES[key]);
+  }
+  function defsFromKeys(keys){
+    return keys.map(key => SERIES[key]).filter(Boolean);
   }
   function seriesField(def){
     return revenueChartMode === "cumulative" ? (def.cumulativeField || def.field) : def.field;
@@ -1262,7 +1212,7 @@ h1{
     return revenueChartMode === "cumulative" ? "Cumulative USD" : "Daily USD";
   }
   function toggleRevenueSeries(key){
-    if (!SERIES[key]) return;
+    if (!STREAM_SERIES_KEYS.includes(key)) return;
     if (selectedRevenueSeries.has(key)) {
       if (selectedRevenueSeries.size > 1) selectedRevenueSeries.delete(key);
       else selectedRevenueSeries = new Set(DEFAULT_SERIES_KEYS);
@@ -1616,12 +1566,36 @@ h1{
     });
   }
   function renderRevenueChart(options = {}){
-    const svg = qs("revenueChart");
     const rows = allRows();
-    if (!svg || !rows.length) return;
-    const defs = activeSeriesDefs();
+    if (!rows.length) return;
+    renderRevenueChartPanel({
+      id: "streams",
+      svgId: "revenueChart",
+      wrapId: "revenueChartWrap",
+      tipId: "revenueChartTip",
+      defs: activeSeriesDefs(),
+      updateBrush: !options.skipBrush,
+      controlsSelector: ".revenue-streams-panel .revenue-series-toggle"
+    }, rows, options);
+    renderRevenueChartPanel({
+      id: "borrowInterest",
+      svgId: "borrowInterestChart",
+      wrapId: "borrowInterestChartWrap",
+      tipId: "borrowInterestChartTip",
+      defs: defsFromKeys(BORROW_INTEREST_SERIES_KEYS),
+      updateBrush: false,
+      controlsSelector: ""
+    }, rows, { ...options, skipBrush: true });
+    updateRevenueLegend();
+    updateRevenueModeControls();
+    renderChains();
+  }
+  function renderRevenueChartPanel(config, rows, options = {}){
+    const svg = qs(config.svgId);
+    const defs = config.defs && config.defs.length ? config.defs : activeSeriesDefs();
+    if (!svg || !defs.length) return;
     const model = visibleRows(rows);
-    if (!options.skipBrush) renderRevenueBrush(rows, defs);
+    if (config.updateBrush && !options.skipBrush) renderRevenueBrush(rows, defs);
     const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
     const chartW = W - P_L - P_R;
     const chartH = H - P_T - P_B;
@@ -1648,36 +1622,35 @@ h1{
       axis.push(`<text x="${xAt(ts).toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${formatAxisDate(ts, spanDays)}</text>`);
     }
     const areaDef = defs[0];
+    const gradientId = `revenueChartGrad-${config.id}`;
     const areaLine = pathFromPoints(model, seriesField(areaDef), xAt, yAt);
     const area = `${areaLine} L${xAt(model[model.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(model[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`;
     const lines = defs.map(def => `<path class="revenue-chart-line ${def.key}" data-series="${def.key}" d="${pathFromPoints(model, seriesField(def), xAt, yAt)}" stroke="${def.color}"></path>`).join("");
     svg.innerHTML = [
-      '<defs><linearGradient id="revenueChartGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#c9a227" stop-opacity=".22"/><stop offset="58%" stop-color="#c9a227" stop-opacity=".05"/><stop offset="100%" stop-color="#c9a227" stop-opacity="0"/></linearGradient></defs>',
+      `<defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${areaDef.color}" stop-opacity=".22"/><stop offset="58%" stop-color="${areaDef.color}" stop-opacity=".05"/><stop offset="100%" stop-color="${areaDef.color}" stop-opacity="0"/></linearGradient></defs>`,
       `<g class="revenue-chart-grid">${grid.join("")}</g>`,
-      `<path class="revenue-chart-area" d="${area}"></path>`,
+      `<path class="revenue-chart-area" d="${area}" fill="url(#${gradientId})"></path>`,
       `<g class="revenue-chart-lines">${lines}</g>`,
-      `<line class="revenue-hover-line" id="revenueHoverLine" x1="0" x2="0" y1="${P_T}" y2="${zeroY}"></line>`,
-      `<circle class="revenue-hover-dot" id="revenueHoverDot" r="4" cx="0" cy="0"></circle>`,
+      `<line class="revenue-hover-line" x1="0" x2="0" y1="${P_T}" y2="${zeroY}"></line>`,
+      `<circle class="revenue-hover-dot" r="4" cx="0" cy="0"></circle>`,
       `<g class="revenue-chart-axis">${axis.join("")}</g>`
     ].join("");
-    updateRevenueLegend();
-    updateRevenueModeControls();
-    attachRevenueHover(model, defs, xAt, yAt, W, H);
-    renderChains();
+    attachRevenueHover(config, model, defs, xAt, yAt, W, H);
   }
-  function attachRevenueHover(model, defs, xAt, yAt, W, H){
-    const svg = qs("revenueChart");
-    const wrap = qs("revenueChartWrap");
-    const tip = qs("revenueChartTip");
-    const line = qs("revenueHoverLine");
-    const dot = qs("revenueHoverDot");
+  function attachRevenueHover(config, model, defs, xAt, yAt, W, H){
+    const svg = qs(config.svgId);
+    const wrap = qs(config.wrapId);
+    const tip = qs(config.tipId);
+    const line = svg?.querySelector(".revenue-hover-line");
+    const dot = svg?.querySelector(".revenue-hover-dot");
     if (!svg || !wrap || !tip || !line || !dot) return;
+    const controls = config.controlsSelector ? document.querySelectorAll(config.controlsSelector) : [];
     const paintActive = key => {
       svg.querySelectorAll(".revenue-chart-line").forEach(item => {
         item.classList.toggle("is-active", item.dataset.series === key);
         item.classList.toggle("is-muted", !!key && item.dataset.series !== key);
       });
-      document.querySelectorAll(".revenue-series-toggle").forEach(item => {
+      controls.forEach(item => {
         const selected = selectedRevenueSeries.has(item.dataset.series);
         const previewed = !!key && item.dataset.series === key;
         item.classList.toggle("active", selected);
@@ -1743,7 +1716,7 @@ h1{
       tip.style.top = Math.max(screenY - tipH - 12, 4) + "px";
     };
     svg.onmouseleave = leave;
-    document.querySelectorAll(".revenue-series-toggle").forEach(item => {
+    controls.forEach(item => {
       item.onmouseenter = () => paintActive(item.dataset.series);
       item.onmouseleave = () => { paintActive(""); updateRevenueLegend(); };
     });
@@ -1758,10 +1731,6 @@ h1{
     setText("protocolCut", pct(totals.dailyProtocolCut));
     setText("revenue7d", usd(totals.revenue7dUSD));
     setText("revenue30d", usd(totals.revenue30dUSD));
-    setText("splitRevenue", usdFull(totals.dailyRevenueUSD));
-    setText("splitLenders", usdFull(totals.dailySupplySideRevenueUSD));
-    setText("allTimeRevenue", usd(totals.revenueAllTimeUSD));
-    setText("cutRingValue", pct(totals.dailyProtocolCut));
     const changeEl = qs("dailyChange");
     if (changeEl) {
       changeEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg><span>' + (change >= 0 ? "+" : "") + (change * 100).toFixed(1) + '%</span><span class="lbl">24h</span>';
@@ -1777,84 +1746,6 @@ h1{
       const text = fresh.querySelector("span:last-child");
       if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt) + " · DeFiLlama estimate";
     }
-    renderFeeSplit();
-  }
-  function focusFeeSplit(key){
-    const center = qs("feeDonutCenter");
-    const totals = revenueData?.totals || {};
-    const protocol = n(totals.dailyRevenueUSD);
-    const lenders = n(totals.dailySupplySideRevenueUSD);
-    const total = Math.max(0, protocol + lenders);
-    document.querySelectorAll(".fee-donut-arc").forEach(arc => {
-      if (!key) { arc.classList.remove("dim","active"); return; }
-      arc.classList.toggle("active", arc.dataset.split === key);
-      arc.classList.toggle("dim", arc.dataset.split !== key);
-    });
-    document.querySelectorAll(".fee-leg-row[data-split]").forEach(row => {
-      if (!key) { row.classList.remove("dim","active"); return; }
-      row.classList.toggle("active", row.dataset.split === key);
-      row.classList.toggle("dim", row.dataset.split !== key);
-    });
-    if (!key) {
-      if (center) center.innerHTML = `<div class="dc-label">Interest Split</div><div class="dc-value" id="cutRingValue">${pct(totals.dailyProtocolCut)}</div><div class="dc-sub">retained</div>`;
-      return;
-    }
-    const value = key === "protocol" ? protocol : lenders;
-    const color = key === "protocol" ? "var(--gold)" : "#9ab7c2";
-    const share = total > 0 ? value / total : 0;
-    if (center) center.innerHTML = `<div class="dc-label">${key === "protocol" ? "Retained" : "Lenders"}</div><div class="dc-value" style="color:${color}">${pct(share)}</div><div class="dc-sub">borrow interest</div>`;
-  }
-  function bindFeeSplitTrigger(el, key){
-    const enter = () => focusFeeSplit(key);
-    const leave = () => focusFeeSplit("");
-    el.addEventListener("mouseenter", enter);
-    el.addEventListener("pointerenter", enter);
-    el.addEventListener("focus", enter);
-    el.addEventListener("click", event => {
-      event.preventDefault();
-      focusFeeSplit(key);
-    });
-    el.addEventListener("keydown", event => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.preventDefault();
-      focusFeeSplit(key);
-    });
-    el.addEventListener("mouseleave", leave);
-    el.addEventListener("pointerleave", leave);
-    el.addEventListener("blur", leave);
-  }
-  function renderFeeSplit(){
-    const svg = qs("feeDonutSvg");
-    const totals = revenueData?.totals || {};
-    if (!svg) return;
-    const protocol = Math.max(0, n(totals.dailyRevenueUSD));
-    const lenders = Math.max(0, n(totals.dailySupplySideRevenueUSD));
-    const total = Math.max(1, protocol + lenders);
-    const parts = [
-      { key:"protocol", value:protocol, color:"#c9a227" },
-      { key:"lenders", value:lenders, color:"#9ab7c2" }
-    ];
-    const cx = 100, cy = 100, r = 72, sw = 30;
-    const C = 2 * Math.PI * r;
-    let offset = 0;
-    let html = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,.045)" stroke-width="${sw}"/>`;
-    parts.forEach(part => {
-      const frac = part.value / total;
-      const gap = 2;
-      const len = Math.max(0, frac * C - gap);
-      html += `<circle class="fee-donut-arc" data-split="${part.key}" cx="${cx}" cy="${cy}" r="${r}" stroke="${part.color}" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-offset}" pathLength="${C}"/>`;
-      offset += frac * C;
-    });
-    svg.innerHTML = html;
-    svg.querySelectorAll(".fee-donut-arc").forEach(arc => {
-      arc.setAttribute("tabindex", "0");
-      bindFeeSplitTrigger(arc, arc.dataset.split);
-    });
-    document.querySelectorAll(".fee-leg-row[data-split]").forEach(row => {
-      row.setAttribute("tabindex", "0");
-      bindFeeSplitTrigger(row, row.dataset.split);
-    });
-    focusFeeSplit("");
   }
   function renderChains(){
     const body = qs("chainRows");
@@ -2013,7 +1904,7 @@ h1{
       revenueData = data;
       odoloExerciseData = exercises;
       odoloExerciseDaily = null;
-      if (!odoloExerciseData && selectedRevenueSeries.has("odoloUsdc")) selectedRevenueSeries = new Set(["revenue", "fees"]);
+      if (!odoloExerciseData && selectedRevenueSeries.has("odoloUsdc")) selectedRevenueSeries = new Set(["revenue"]);
       render();
     })
     .catch(error => {
