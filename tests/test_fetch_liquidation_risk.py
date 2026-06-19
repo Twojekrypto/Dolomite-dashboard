@@ -139,18 +139,70 @@ class TestHistoryStats(unittest.TestCase):
     def test_aggregation_and_rounding(self):
         rows = [
             {"chain": "berachain", "debtRepaidUSD": "10.005", "collateralSeizedUSD": 11,
-             "liquidationRewardUSD": 1},
+             "liquidationRewardUSD": 1, "protocolFeeUSD": 0.1},
             {"chain": "berachain", "debtRepaidUSD": 5, "collateralSeizedUSD": "5.5",
-             "liquidationRewardUSD": "bad-value"},
+             "liquidationRewardUSD": "bad-value", "protocolFeeUSD": "bad-value"},
             {"chain": "arbitrum", "debtRepaidUSD": 1, "collateralSeizedUSD": 2,
-             "liquidationRewardUSD": 0.5},
+             "liquidationRewardUSD": 0.5, "protocolFeeUSD": 0.05},
         ]
         stats = flr.build_liquidation_history_stats(rows)
         self.assertEqual(stats["total"], 3)
         self.assertEqual(stats["byChain"]["berachain"]["count"], 2)
         self.assertAlmostEqual(stats["byChain"]["berachain"]["debtRepaidUSD"], 15.01)
         self.assertAlmostEqual(stats["byChain"]["berachain"]["liquidationRewardUSD"], 1.0)
+        self.assertAlmostEqual(stats["byChain"]["berachain"]["protocolFeeUSD"], 0.1)
         self.assertAlmostEqual(stats["debtRepaidUSD"], 16.01)
+        self.assertAlmostEqual(stats["protocolFeeUSD"], 0.15)
+
+    def test_protocol_fee_transfers_match_same_tx_held_token_after_liquidation(self):
+        rows = [
+            {
+                "txHash": "0xabc",
+                "serialId": "10",
+                "heldToken": {"id": "0xheld"},
+                "liquidationRewardUSD": 100,
+            },
+            {
+                "txHash": "0xabc",
+                "serialId": "12",
+                "heldToken": {"id": "0xother"},
+                "liquidationRewardUSD": 50,
+            },
+        ]
+        transfers = [
+            {
+                "id": "0xabc-11",
+                "serialId": "11",
+                "transaction": {"id": "0xabc"},
+                "token": {"id": "0xheld"},
+                "amountDeltaWei": "1.25",
+                "amountUSDDeltaWei": "10",
+            },
+            {
+                "id": "0xabc-9",
+                "serialId": "9",
+                "transaction": {"id": "0xabc"},
+                "token": {"id": "0xheld"},
+                "amountDeltaWei": "9",
+                "amountUSDDeltaWei": "90",
+            },
+            {
+                "id": "0xabc-13",
+                "serialId": "13",
+                "transaction": {"id": "0xabc"},
+                "token": {"id": "0xother"},
+                "amountDeltaWei": "0.5",
+                "amountUSDDeltaWei": "5",
+            },
+        ]
+
+        flr.attach_protocol_liquidation_fees(rows, transfers)
+
+        self.assertEqual(rows[0]["protocolFeeTransferId"], "0xabc-11")
+        self.assertEqual(rows[0]["protocolFeeSource"], "feeAgentTransfer")
+        self.assertAlmostEqual(rows[0]["protocolFeeUSD"], 10.0)
+        self.assertEqual(rows[1]["protocolFeeTransferId"], "0xabc-13")
+        self.assertAlmostEqual(rows[1]["protocolFeeUSD"], 5.0)
 
 
 class TestIndexSerialization(unittest.TestCase):
