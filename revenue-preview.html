@@ -965,8 +965,8 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-hover-total";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-hover-total";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-selected-tooltip-total";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-selected-tooltip-total";
   const SERIES_ORDER = ["revenue", "odoloUsdc", "fees"];
   const DEFAULT_SERIES_KEYS = ["revenue", "odoloUsdc"];
   let revenueData = null;
@@ -1694,13 +1694,16 @@ h1{
       dot.setAttribute("cy", y);
       dot.setAttribute("fill", primary.color);
       dot.style.opacity = 1;
-      const allDefs = SERIES_ORDER.map(key => SERIES[key]).filter(Boolean);
-      const totalEarned = allDefs.reduce((sum, def) => sum + n(nearest[seriesField(def)]), 0);
+      const tooltipDefs = defs.length ? defs : activeSeriesDefs();
+      const totalEarned = tooltipDefs.reduce((sum, def) => sum + n(nearest[seriesField(def)]), 0);
+      const totalRow = tooltipDefs.length > 1
+        ? `<div class="tt-row total"><span>Total earned</span><b>${usdFull(totalEarned)}</b></div>`
+        : "";
       tip.innerHTML = `
         <div class="tt-date">${formatDay(nearest.ts, false)} · ${revenueChartModeLabel()}</div>
         <div class="tt-table">
-          ${allDefs.map(def => `<div class="tt-row${def.key === primary.key ? " active" : ""}"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.shortLabel}</span><b>${usdFull(nearest[seriesField(def)])}</b></div>`).join("")}
-          <div class="tt-row total"><span>Total earned</span><b>${usdFull(totalEarned)}</b></div>
+          ${tooltipDefs.map(def => `<div class="tt-row${def.key === primary.key ? " active" : ""}"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.shortLabel}</span><b>${usdFull(nearest[seriesField(def)])}</b></div>`).join("")}
+          ${totalRow}
         </div>
       `;
       tip.style.opacity = 1;
