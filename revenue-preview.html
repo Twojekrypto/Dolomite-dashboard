@@ -296,7 +296,9 @@ h1{
 .revenue-chart-tip .tt-date{color:var(--fg-3);font-size:10px;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
 .revenue-chart-tip .tt-val{color:var(--gold);font-weight:700;font-size:14px}
 .revenue-chart-tip .tt-row{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:5px;color:var(--fg-3);font-size:12px}
+.revenue-chart-tip .tt-row.active{color:var(--fg-1)}
 .revenue-chart-tip .tt-row b{color:var(--fg-1);font-weight:700}
+.revenue-chart-tip .tt-row.active b{color:var(--gold)}
 .revenue-brush-wrap{position:relative;padding:4px 24px 18px;user-select:none}
 .revenue-brush-stage{position:relative}
 .revenue-brush-svg{
@@ -961,8 +963,8 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-odolo-usdc-chart";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-odolo-usdc-chart";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-hover-summary";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-hover-summary";
   const SERIES_ORDER = ["revenue", "odoloUsdc", "fees"];
   const DEFAULT_SERIES_KEYS = ["revenue", "odoloUsdc"];
   let revenueData = null;
@@ -1672,7 +1674,13 @@ h1{
         const dist = Math.abs(xAt(row.ts) - px);
         if (dist < best) { best = dist; nearest = row; }
       });
-      const primary = defs[0];
+      const py = (event.clientY - rect.top) / rect.height * H;
+      let hovered = defs[0], hoveredBest = Infinity;
+      defs.forEach(def => {
+        const dist = Math.abs(yAt(n(nearest[seriesField(def)])) - py);
+        if (dist < hoveredBest) { hoveredBest = dist; hovered = def; }
+      });
+      const primary = hovered || defs[0];
       const primaryField = seriesField(primary);
       const x = xAt(nearest.ts);
       const y = yAt(n(nearest[primaryField]));
@@ -1684,13 +1692,12 @@ h1{
       dot.setAttribute("cy", y);
       dot.setAttribute("fill", primary.color);
       dot.style.opacity = 1;
-      const summary = defs.length === 1
-        ? `${primary.label}: ${usdFull(nearest[primaryField])}`
-        : revenueChartModeLabel();
+      const allDefs = SERIES_ORDER.map(key => SERIES[key]).filter(Boolean);
+      const summary = `${primary.label}: ${usdFull(nearest[primaryField])}`;
       tip.innerHTML = `
-        <div class="tt-date">${formatDay(nearest.ts, false)}</div>
+        <div class="tt-date">${formatDay(nearest.ts, false)} · ${revenueChartModeLabel()}</div>
         <div class="tt-val">${summary}</div>
-        ${defs.map(def => `<div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.label}</span><b>${usdFull(nearest[seriesField(def)])}</b></div>`).join("")}
+        ${allDefs.map(def => `<div class="tt-row${def.key === primary.key ? " active" : ""}"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.label}</span><b>${usdFull(nearest[seriesField(def)])}</b></div>`).join("")}
       `;
       tip.style.opacity = 1;
       tip.style.left = "0px";
