@@ -1173,10 +1173,10 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <div class="hero-stat">
         <div class="lbl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 6v12"/><path d="M16 9.5A4 4 0 0 0 12.5 8H11a2 2 0 0 0 0 4h2a2 2 0 0 1 0 4h-1.5A4 4 0 0 1 8 14.5"/></svg>
-          Options Exercised
+          oDOLO Exercised
         </div>
         <div class="val gold" id="hero-exercised-usd" data-count-value="0">0.000</div>
-        <div class="sub" id="hero-exercised-sub">oDOLO exercised</div>
+        <div class="sub" id="hero-exercised-sub">USDC-paid only</div>
       </div>
 
       <div class="hero-stat">
@@ -1914,6 +1914,18 @@ function sum(arr, pick){
 }
 function txUsd(tx){ return tx && tx.paid_token !== "DOLO" ? (Number(tx.usdc) || 0) : 0; }
 function txVedolo(tx){ return tx && tx.paid_token !== "DOLO" ? (Number(tx.vedolo) || 0) : 0; }
+function summarizeOdoloExercise(json){
+  const txs = [];
+  (json?.exercisers || []).forEach(item => (item.txs || []).forEach(tx => txs.push(tx)));
+  const usdcPaid = txs.filter(tx => tx && tx.paid_token !== "DOLO" && Number(tx.vedolo) > 0);
+  const doloPaired = txs.filter(tx => tx && tx.paid_token === "DOLO" && Number(tx.vedolo) > 0);
+  return {
+    odolo: finiteNum(json?.total_odolo_exercised) || sum(usdcPaid, tx => tx.vedolo),
+    exercises: finiteNum(json?.total_odolo_exercised_exercises) || usdcPaid.length,
+    usdc: finiteNum(json?.total_usdc) || sum(usdcPaid, txUsd),
+    pairedOdolo: finiteNum(json?.total_dolo_pair_vedolo) || sum(doloPaired, tx => tx.vedolo),
+  };
+}
 function tierForUsd(usd){
   if(usd >= 25000) return "whale";
   if(usd >= 5000) return "large";
@@ -3530,15 +3542,15 @@ function syncLiveMetrics(){
   if(bar) bar.style.width = `${circulatingPct.toFixed(1)}%`;
   setMetricText("hero-holders", data.holders ? Number(data.holders).toLocaleString() : "-");
   setText("hero-holders-sub", "unique wallets");
-  const exercisedOdolo = finiteNum(exercisers.total_vedolo) || finiteNum(data.exercisedOdolo) || finiteNum(data.pushedTokens);
+  const exerciseSummary = summarizeOdoloExercise(exercisers);
+  const exercisedOdolo = exerciseSummary.odolo;
   setMetricText("hero-exercised-usd", exercisedOdolo ? fmtNum(exercisedOdolo) : "-");
-  const allExercises = finiteNum(lock.total_exercises) || finiteNum(exercisers.total_exercises) || finiteNum(usd.total_txs);
-  const usdcVolume = finiteNum(usd.total_usdc) || finiteNum(exercisers.total_usdc);
+  const allExercises = exerciseSummary.exercises || finiteNum(usd.total_txs);
   const exercisedSub = [
-    allExercises ? `${allExercises.toLocaleString()} exercises` : "",
-    usdcVolume ? `${fmtUsd(usdcVolume)} USDC volume` : "",
+    allExercises ? `${allExercises.toLocaleString()} USDC-paid` : "USDC-paid only",
+    exerciseSummary.pairedOdolo ? "excludes DOLO pairing" : "",
   ].filter(Boolean).join(" · ");
-  setText("hero-exercised-sub", exercisedSub || "oDOLO exercised");
+  setText("hero-exercised-sub", exercisedSub);
   if(avgMonths){
     setMetricHtml("hero-avg-lock", avgMonths.toFixed(1), "", `<span style="font-size:14px;color:var(--fg-3);margin-left:4px">mo</span>`);
     setText("hero-avg-lock-sub", `${Math.round(avgDays)} days avg lock`);
