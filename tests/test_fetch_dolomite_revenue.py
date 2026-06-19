@@ -37,7 +37,11 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         revenue_data = metric_payload(total24h=9_999, latest_value=100, step=2)
         fees_data = metric_payload(total24h=8_888, latest_value=500, step=10)
 
-        output = build_output(revenue_data, fees_data)
+        output = build_output(
+            revenue_data,
+            fees_data,
+            {"2023-12-14": 4.5},
+        )
 
         expected_revenue_7d = 100 + sum((index + 1) * 2 for index in range(24, 30))
         expected_fees_7d = 500 + sum((index + 1) * 10 for index in range(24, 30))
@@ -46,16 +50,21 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
 
         self.assertEqual(output["latest"]["revenueUSD"], 100)
         self.assertEqual(output["latest"]["feesUSD"], 500)
+        self.assertEqual(output["latest"]["liquidationFeesUSD"], 4.5)
         self.assertEqual(output["totals"]["dailyRevenueUSD"], 100)
         self.assertEqual(output["totals"]["dailyFeesUSD"], 500)
+        self.assertEqual(output["totals"]["dailyLiquidationFeesUSD"], 4.5)
         self.assertEqual(output["totals"]["dailySupplySideRevenueUSD"], 400)
         self.assertEqual(output["totals"]["previousDailyRevenueUSD"], 60)
         self.assertEqual(output["totals"]["previousDailyFeesUSD"], 300)
         self.assertEqual(output["totals"]["revenue7dUSD"], expected_revenue_7d)
         self.assertEqual(output["totals"]["fees7dUSD"], expected_fees_7d)
+        self.assertEqual(output["totals"]["liquidationFees7dUSD"], 4.5)
         self.assertEqual(output["totals"]["revenue30dUSD"], expected_revenue_30d)
         self.assertEqual(output["totals"]["fees30dUSD"], expected_fees_30d)
-        self.assertEqual(output["assurance"]["classification"], "adapter-estimated protocol borrow-interest revenue")
+        self.assertEqual(output["totals"]["liquidationFees30dUSD"], 4.5)
+        self.assertEqual(output["totals"]["liquidationFeesAllTimeUSD"], 4.5)
+        self.assertEqual(output["assurance"]["classification"], "adapter-estimated protocol borrow-interest revenue plus confirmed liquidation fee-agent transfers")
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))

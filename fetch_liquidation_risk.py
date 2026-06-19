@@ -135,6 +135,11 @@ OUTPUT_FILE = "liquidation_risk.json"
 # consumers that only need positions/stats (portfolio, earn, liq-monitor) do
 # not download it. Only liquidation-preview fetches this file on demand.
 HISTORY_FILE = "liquidation_history.json"
+# LiquidatorProxyV6 transfers Dolomite's liquidation fee rake to the registry
+# fee agent. This is a protocol address, not a secret. Keep the metric
+# conservative: only subgraph-confirmed fee-agent transfers count as protocol
+# liquidation fee revenue.
+DOLOMITE_PROTOCOL_FEE_AGENT = "0x4d5f0344d245f1d13607e5b61dd317de3b3178b8"
 
 # ─── GraphQL Queries ──────────────────────────────────────────────────────────
 
@@ -301,6 +306,41 @@ query($skip: Int!, $first: Int!) {
 }
 """
 
+QUERY_PROTOCOL_LIQUIDATION_FEE_TRANSFERS = """
+query($txs: [String!], $feeAgent: String!) {
+  transfers(
+    first: 1000,
+    where: {
+      transaction_in: $txs,
+      toEffectiveUser: $feeAgent
+    },
+    orderBy: serialId,
+    orderDirection: asc
+  ) {
+    id
+    serialId
+    transaction {
+      id
+      timestamp
+    }
+    fromEffectiveUser { id }
+    toEffectiveUser { id }
+    toMarginAccount {
+      accountNumber
+      user { id }
+    }
+    token {
+      id
+      symbol
+      decimals
+      marketId
+    }
+    amountDeltaWei
+    amountUSDDeltaWei
+  }
+}
+"""
+
 
 # ─── Helper Functions ─────────────────────────────────────────────────────────
 
@@ -340,6 +380,86 @@ def safe_float(value, default=0.0):
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def normalized_address(value):
+    return str(value or "").strip().lower()
+
+
+def normalized_token_id(token):
+    return normalized_address((token or {}).get("id"))
+
+
+def fetch_protocol_liquidation_fee_transfers(url, tx_hashes, fee_agent=DOLOMITE_PROTOCOL_FEE_AGENT):
+    """Fetch confirmed Dolomite liquidation fee-rake transfers for a batch of transactions."""
+    txs = sorted({normalized_address(tx) for tx in tx_hashes if normalized_address(tx)})
+    if not txs:
+        return []
+
+    rows = []
+    chunk_size = 100
+    for start in range(0, len(txs), chunk_size):
+        chunk = txs[start:start + chunk_size]
+        data = graphql_request(
+            url,
+            QUERY_PROTOCOL_LIQUIDATION_FEE_TRANSFERS,
+            variables={"txs": chunk, "feeAgent": normalized_address(fee_agent)},
+        )
+        rows.extend(data.get("transfers", []) or [])
+        time.sleep(0.05)
+    return rows
+
+
+def attach_protocol_liquidation_fees(liquidation_rows, fee_transfers):
+    """Attach only same-transaction fee-agent transfer amounts to matching liquidation rows."""
+    transfer_groups = {}
+    for transfer in fee_transfers or []:
+        tx = normalized_address((transfer.get("transaction") or {}).get("id"))
+        token_id = normalized_token_id(transfer.get("token"))
+        if not tx or not token_id:
+            continue
+        to_user = normalized_address((transfer.get("toEffectiveUser") or {}).get("id"))
+        if to_user and to_user != DOLOMITE_PROTOCOL_FEE_AGENT:
+            continue
+        account_number = str((transfer.get("toMarginAccount") or {}).get("accountNumber") or "0")
+        if account_number != "0":
+            continue
+        transfer_groups.setdefault((tx, token_id), []).append({
+            "id": transfer.get("id") or "",
+            "serialId": safe_float(transfer.get("serialId"), -1),
+            "amount": safe_float(transfer.get("amountDeltaWei"), 0),
+            "amountUSD": safe_float(transfer.get("amountUSDDeltaWei"), 0),
+            "token": transfer.get("token") or {},
+        })
+
+    for group in transfer_groups.values():
+        group.sort(key=lambda item: item["serialId"])
+
+    matched_transfer_ids = set()
+    for row in sorted(liquidation_rows, key=lambda item: safe_float(item.get("serialId"), -1)):
+        row["protocolFeeAmount"] = 0.0
+        row["protocolFeeUSD"] = 0.0
+        row["protocolFeeTransferId"] = ""
+        row["protocolFeeSource"] = "none"
+
+        tx = normalized_address(row.get("txHash"))
+        held_token_id = normalized_token_id(row.get("heldToken"))
+        serial_id = safe_float(row.get("serialId"), -1)
+        for transfer in transfer_groups.get((tx, held_token_id), []):
+            if transfer["id"] in matched_transfer_ids:
+                continue
+            if transfer["serialId"] <= serial_id:
+                continue
+            if transfer["amountUSD"] <= 0:
+                continue
+            matched_transfer_ids.add(transfer["id"])
+            row["protocolFeeAmount"] = transfer["amount"]
+            row["protocolFeeUSD"] = transfer["amountUSD"]
+            row["protocolFeeTransferId"] = transfer["id"]
+            row["protocolFeeSource"] = "feeAgentTransfer"
+            break
+
+    return liquidation_rows
 
 
 def compute_health_factor(token_values, oracle_prices, interest_indices, market_risk_infos,
@@ -1095,6 +1215,7 @@ def fetch_chain_liquidation_history(chain_key, chain_config):
         if not liquidations:
             break
 
+        page_rows = []
         for item in liquidations:
             tx = item.get("transaction") or {}
             liquid_user = item.get("liquidEffectiveUser") or {}
@@ -1107,7 +1228,7 @@ def fetch_chain_liquidation_history(chain_key, chain_config):
             liquidated_address = liquid_user.get("id") or (liquid_account.get("effectiveUser") or {}).get("id") or ""
             liquidator_address = solid_user.get("id") or (solid_account.get("effectiveUser") or {}).get("id") or ""
 
-            rows.append({
+            page_rows.append({
                 "id": item.get("id") or f"{chain_key}-{tx_hash}-{item.get('serialId', skip)}",
                 "chain": chain_key,
                 "chainLabel": label,
@@ -1137,6 +1258,10 @@ def fetch_chain_liquidation_history(chain_key, chain_config):
                 "explorer": (chain_config.get("explorer") or "") + liquidated_address,
                 "txExplorer": (chain_config.get("tx_explorer") or "").rstrip("/") + "/" + tx_hash if chain_config.get("tx_explorer") else "",
             })
+
+        fee_transfers = fetch_protocol_liquidation_fee_transfers(url, [row.get("txHash") for row in page_rows])
+        attach_protocol_liquidation_fees(page_rows, fee_transfers)
+        rows.extend(page_rows)
 
         print(f"     Fetched {len(rows)} liquidations so far...")
         if len(liquidations) < page_size:
@@ -1168,14 +1293,16 @@ def build_liquidation_history_stats(rows):
             "debtRepaidUSD": 0.0,
             "collateralSeizedUSD": 0.0,
             "liquidationRewardUSD": 0.0,
+            "protocolFeeUSD": 0.0,
         })
         stats["count"] += 1
         stats["debtRepaidUSD"] += safe_float(row.get("debtRepaidUSD"), 0)
         stats["collateralSeizedUSD"] += safe_float(row.get("collateralSeizedUSD"), 0)
         stats["liquidationRewardUSD"] += safe_float(row.get("liquidationRewardUSD"), 0)
+        stats["protocolFeeUSD"] += safe_float(row.get("protocolFeeUSD"), 0)
 
     for stats in by_chain.values():
-        for key in ("debtRepaidUSD", "collateralSeizedUSD", "liquidationRewardUSD"):
+        for key in ("debtRepaidUSD", "collateralSeizedUSD", "liquidationRewardUSD", "protocolFeeUSD"):
             stats[key] = round(stats[key], 2)
 
     return {
@@ -1183,6 +1310,7 @@ def build_liquidation_history_stats(rows):
         "debtRepaidUSD": round(sum(s["debtRepaidUSD"] for s in by_chain.values()), 2),
         "collateralSeizedUSD": round(sum(s["collateralSeizedUSD"] for s in by_chain.values()), 2),
         "liquidationRewardUSD": round(sum(s["liquidationRewardUSD"] for s in by_chain.values()), 2),
+        "protocolFeeUSD": round(sum(s["protocolFeeUSD"] for s in by_chain.values()), 2),
         "byChain": by_chain,
     }
 

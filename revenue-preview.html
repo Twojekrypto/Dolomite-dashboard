@@ -279,7 +279,7 @@ h1{
 .revenue-streams-panel .revenue-series-toggles{
   flex:0 1 auto;
   display:grid;
-  grid-template-columns:repeat(2,minmax(170px,220px));
+  grid-template-columns:repeat(3,minmax(150px,205px));
   gap:7px;
   padding:4px;
   border-radius:10px;
@@ -318,7 +318,7 @@ h1{
   filter:drop-shadow(0 0 7px rgba(201,162,39,.16));
   transition:opacity .15s var(--ease),stroke-width .15s var(--ease);
 }
-.revenue-chart-line.fees,.revenue-chart-line.odoloUsdc{filter:none}
+.revenue-chart-line.fees,.revenue-chart-line.odoloUsdc,.revenue-chart-line.liquidationFees{filter:none}
 .revenue-chart-line.is-muted{opacity:.24}
 .revenue-chart-line.is-active{stroke-width:2.9;opacity:1}
 .revenue-hover-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
@@ -384,6 +384,7 @@ h1{
 .revenue-streams-panel .legend-swatch{width:22px;height:4px}
 .legend-swatch.fees{background:#9ab7c2}
 .legend-swatch.odolo-usdc{background:#8aa37b}
+.legend-swatch.liquidation-fees{background:#b4796b}
 .table-panel{margin-top:18px;overflow:hidden}
 .chain-panel-head{align-items:flex-start}
 .chain-range-tools{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;justify-content:flex-end;position:relative}
@@ -771,11 +772,12 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Dolomite Revenue Over Time</div>
-          <div class="panel-sub">Protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
+          <div class="panel-sub">Protocol-retained borrow interest, confirmed liquidation fee rake, and USDC paid to exercise oDOLO.</div>
         </div>
         <div class="revenue-series-control">
           <div class="revenue-series-toggles" aria-label="Revenue stream chart filter">
-            <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle protocol revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Protocol Revenue</span></button>
+            <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle borrow interest revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Borrow Interest Revenue</span></button>
+            <button class="revenue-series-toggle" type="button" data-series="liquidationFees" aria-pressed="false" aria-label="Toggle protocol liquidation fee series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch liquidation-fees"></span><span>Liquidation Fees</span></button>
             <button class="revenue-series-toggle" type="button" data-series="odoloUsdc" aria-pressed="false" aria-label="Toggle oDOLO exercise USDC series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch odolo-usdc"></span><span>oDOLO Exercise USDC</span></button>
           </div>
           <div class="revenue-mode-toggles" aria-label="Revenue chart mode">
@@ -959,9 +961,9 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-independent-revenue-charts";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-independent-revenue-charts";
-  const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-liquidation-fees";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-liquidation-fees";
+  const STREAM_SERIES_KEYS = ["revenue", "liquidationFees", "odoloUsdc"];
   const BORROW_INTEREST_SERIES_KEYS = ["fees"];
   const DEFAULT_SERIES_KEYS = STREAM_SERIES_KEYS;
   let revenueData = null;
@@ -973,7 +975,8 @@ h1{
   const BORROW_INTEREST_CHART_KEY = "borrowInterest";
   let revenueChartModes = { streams: "daily", borrowInterest: "daily" };
   const SERIES = {
-    revenue: { key: "revenue", label: "Protocol Revenue", shortLabel: "Protocol Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
+    revenue: { key: "revenue", label: "Borrow Interest Revenue", shortLabel: "Borrow Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
+    liquidationFees: { key: "liquidationFees", label: "Liquidation Fees", shortLabel: "Liquidation Fees", field: "liquidationFeesUSD", cumulativeField: "liquidationFeesCumulativeUSD", color: "#b4796b" },
     odoloUsdc: { key: "odoloUsdc", label: "oDOLO Exercise USDC", shortLabel: "oDOLO Exercise USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
     fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" }
   };
@@ -1202,6 +1205,7 @@ h1{
     const dailyOdolo = odoloExerciseDailyMap();
     let revenueCumulative = 0;
     let feesCumulative = 0;
+    let liquidationFeesCumulative = 0;
     let odoloUsdcCumulative = 0;
     return (revenueData?.series || [])
       .map(row => ({ ...row, ts: rowTs(row) }))
@@ -1212,12 +1216,14 @@ h1{
         const odoloUsdcUSD = dailyOdolo.get(date) || 0;
         revenueCumulative += n(row.revenueUSD);
         feesCumulative += n(row.feesUSD);
+        liquidationFeesCumulative += n(row.liquidationFeesUSD);
         odoloUsdcCumulative += odoloUsdcUSD;
         return {
           ...row,
           odoloUsdcUSD,
           revenueCumulativeUSD: revenueCumulative,
           feesCumulativeUSD: feesCumulative,
+          liquidationFeesCumulativeUSD: liquidationFeesCumulative,
           odoloUsdcCumulativeUSD: odoloUsdcCumulative
         };
       });

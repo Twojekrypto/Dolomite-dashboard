@@ -16,6 +16,7 @@ import requests
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_revenue.json")
+LIQUIDATION_HISTORY_FILE = os.path.join(DATA_DIR, "liquidation_history.json")
 BASE_URL = "https://api.llama.fi/summary/fees/dolomite"
 REQUEST_TIMEOUTS = (
     (10, 45),
@@ -93,11 +94,34 @@ def breakdown_map(rows):
     return out
 
 
-def merge_series(revenue_data, fees_data):
+def confirmed_liquidation_fee_daily(path=LIQUIDATION_HISTORY_FILE):
+    daily = {}
+    try:
+        with open(path) as f:
+            payload = json.load(f)
+    except (OSError, ValueError):
+        return daily
+
+    for row in payload.get("liquidationHistory", []) or []:
+        if row.get("protocolFeeSource") != "feeAgentTransfer":
+            continue
+        amount = safe_number(row.get("protocolFeeUSD"))
+        if amount <= 0:
+            continue
+        timestamp = row.get("timestamp")
+        if not isinstance(timestamp, (int, float)):
+            continue
+        day = day_from_timestamp(timestamp)
+        daily[day] = daily.get(day, 0.0) + amount
+    return daily
+
+
+def merge_series(revenue_data, fees_data, liquidation_fee_daily=None):
     revenue_chart = chart_map(revenue_data.get("totalDataChart"))
     fees_chart = chart_map(fees_data.get("totalDataChart"))
     revenue_breakdowns = breakdown_map(revenue_data.get("totalDataChartBreakdown"))
     fees_breakdowns = breakdown_map(fees_data.get("totalDataChartBreakdown"))
+    liquidation_fee_daily = liquidation_fee_daily or {}
     timestamps = sorted(set(revenue_chart) | set(fees_chart))
     chains = sorted({
         chain
@@ -110,6 +134,8 @@ def merge_series(revenue_data, fees_data):
     for ts in timestamps:
         revenue = revenue_chart.get(ts, 0.0)
         fees = fees_chart.get(ts, 0.0)
+        day = day_from_timestamp(ts)
+        liquidation_fees = safe_number(liquidation_fee_daily.get(day))
         chain_rows = {}
         for chain in chains:
             chain_revenue = chain_value(revenue_breakdowns.get(ts, {}), chain)
@@ -123,9 +149,10 @@ def merge_series(revenue_data, fees_data):
 
         rows.append({
             "timestamp": ts,
-            "date": day_from_timestamp(ts),
+            "date": day,
             "feesUSD": round(fees, 6),
             "revenueUSD": round(revenue, 6),
+            "liquidationFeesUSD": round(liquidation_fees, 6),
             "supplySideRevenueUSD": round(max(fees - revenue, 0.0), 6),
             "protocolCut": round(revenue / fees, 8) if fees > 0 else 0,
             "chains": chain_rows,
@@ -179,21 +206,25 @@ def metric_totals(revenue_data, fees_data, series):
     return {
         "dailyRevenueUSD": round(revenue_24h, 6),
         "dailyFeesUSD": round(fees_24h, 6),
+        "dailyLiquidationFeesUSD": round(latest_series_value(series, "liquidationFeesUSD", 0), 6),
         "dailySupplySideRevenueUSD": round(max(fees_24h - revenue_24h, 0.0), 6),
         "dailyProtocolCut": round(revenue_24h / fees_24h, 8) if fees_24h > 0 else 0,
         "previousDailyRevenueUSD": round(safe_number(previous_revenue), 6),
         "previousDailyFeesUSD": round(safe_number(previous_fees), 6),
         "revenue7dUSD": round(window_sum(series, 7, "revenueUSD"), 6),
         "fees7dUSD": round(window_sum(series, 7, "feesUSD"), 6),
+        "liquidationFees7dUSD": round(window_sum(series, 7, "liquidationFeesUSD"), 6),
         "revenue30dUSD": round(window_sum(series, 30, "revenueUSD"), 6),
         "fees30dUSD": round(window_sum(series, 30, "feesUSD"), 6),
+        "liquidationFees30dUSD": round(window_sum(series, 30, "liquidationFeesUSD"), 6),
         "revenueAllTimeUSD": round(safe_number(revenue_data.get("totalAllTime")), 6),
         "feesAllTimeUSD": round(safe_number(fees_data.get("totalAllTime")), 6),
+        "liquidationFeesAllTimeUSD": round(window_sum(series, 0, "liquidationFeesUSD"), 6),
     }
 
 
-def build_output(revenue_data, fees_data):
-    series = merge_series(revenue_data, fees_data)
+def build_output(revenue_data, fees_data, liquidation_fee_daily=None):
+    series = merge_series(revenue_data, fees_data, liquidation_fee_daily)
     if len(series) < 30:
         raise ValueError("Merged revenue series has too few rows")
 
@@ -206,25 +237,29 @@ def build_output(revenue_data, fees_data):
             "dailyRevenue": f"{BASE_URL}?dataType=dailyRevenue",
             "dailyFees": f"{BASE_URL}?dataType=dailyFees",
             "adapter": "https://github.com/DefiLlama/dimension-adapters/tree/master/fees/dolomite",
+            "liquidationFees": "liquidation_history.json",
+            "liquidationFeeDocs": "https://docs.dolomite.io/risk-management",
         },
         "generatedAt": utc_now_iso(),
         "lastUpdated": utc_now_iso(),
         "methodology": {
             "fees": "Interest paid by borrowers.",
             "revenue": "The portion of borrower interest retained by the protocol.",
+            "liquidationFees": "Confirmed Dolomite liquidation fee-rake transfers to the protocol feeAgent, sourced from same-transaction Dolomite subgraph Transfer rows.",
             "supplySideRevenue": "The portion of borrower interest paid to lenders.",
-            "formula": "dailyRevenue = interestEarned * (1 - earningsRate); supplySideRevenue = dailyFees - dailyRevenue",
-            "scope": "Dolomite borrow-interest economics only. Gas fees, token emissions, treasury transfers, trading spreads and external cost basis are excluded.",
+            "formula": "dailyRevenue = interestEarned * (1 - earningsRate); supplySideRevenue = dailyFees - dailyRevenue; liquidationFees = sum(confirmed feeAgent transfer USD in liquidation txs)",
+            "scope": "Dolomite borrow-interest economics plus confirmed protocol liquidation fee-rake transfers. Gas fees, token emissions, treasury transfers outside confirmed liquidation fee transfers, trading spreads and external cost basis are excluded.",
             "sourceLimitations": [
                 "DeFiLlama adapter estimates daily interest from borrow index movement and borrowed principal snapshots.",
                 "This is protocol-retained borrow interest, not a direct treasury cashflow audit.",
+                "Liquidation fees are counted only when liquidation_history.json contains a same-transaction Transfer to the Dolomite feeAgent; unconfirmed penalty estimates are excluded.",
                 "Current-day values can be revised by DeFiLlama until the adapter window fully settles.",
             ],
         },
         "assurance": {
-            "classification": "adapter-estimated protocol borrow-interest revenue",
-            "confidence": "high for retained borrow-interest direction and split; not absolute for cash-accounting revenue",
-            "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns",
+            "classification": "adapter-estimated protocol borrow-interest revenue plus confirmed liquidation fee-agent transfers",
+            "confidence": "high for retained borrow-interest direction/split and high for liquidation fee transfers that are present in the Dolomite subgraph; not absolute for full cash-accounting revenue",
+            "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest; liquidation fees are top-level daily stream values",
         },
         "totals": metric_totals(revenue_data, fees_data, series),
         "latest": latest,
@@ -239,7 +274,7 @@ def main():
     try:
         revenue_data = fetch_metric("dailyRevenue")
         fees_data = fetch_metric("dailyFees")
-        output = build_output(revenue_data, fees_data)
+        output = build_output(revenue_data, fees_data, confirmed_liquidation_fee_daily())
         with open(OUTPUT_FILE, "w") as f:
             json.dump(output, f, separators=(",", ":"))
 
