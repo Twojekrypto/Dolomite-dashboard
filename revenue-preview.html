@@ -277,20 +277,20 @@ h1{
   gap:12px;
 }
 .revenue-streams-panel .revenue-series-toggles{
-  flex:1 1 auto;
+  flex:0 1 auto;
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:8px;
-  padding:5px;
-  border-radius:12px;
+  grid-template-columns:repeat(2,minmax(170px,220px));
+  gap:7px;
+  padding:4px;
+  border-radius:10px;
 }
 .revenue-streams-panel .revenue-series-toggle{
-  min-height:42px;
-  padding:0 14px;
+  min-height:36px;
+  padding:0 12px;
   justify-content:flex-start;
-  gap:10px;
-  border-radius:9px;
-  font-size:11.5px;
+  gap:9px;
+  border-radius:8px;
+  font-size:11px;
 }
 .revenue-chart-panel .revenue-mode-toggles{flex:0 0 auto}
 .borrow-interest-panel .revenue-series-control{justify-content:flex-end}
@@ -299,13 +299,14 @@ h1{
   color:transparent;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.025);
   transition:background .16s var(--ease),border-color .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease)
 }
-.revenue-streams-panel .series-check{width:16px;height:16px}
+.revenue-streams-panel .series-check{width:15px;height:15px}
 .series-check svg{width:10px;height:10px;display:block;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .revenue-series-toggle.active .series-check{
   color:#101014;background:var(--gold);border-color:var(--gold);box-shadow:0 0 12px rgba(201,162,39,.22)
 }
 .revenue-streams-panel .revenue-series-toggle.active{
   background:linear-gradient(180deg,rgba(201,162,39,.16),rgba(201,162,39,.08));
+  box-shadow:inset 0 0 0 1px var(--gold-line),0 8px 22px rgba(0,0,0,.12);
 }
 .revenue-chart-wrap{padding:24px 24px 18px;position:relative}
 .revenue-chart-svg{width:100%;height:340px;display:block;overflow:visible}
@@ -624,7 +625,8 @@ h1{
   .revenue-series-toggle{justify-content:flex-start}
   .revenue-mode-toggles{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .revenue-chart-panel .revenue-series-control{display:grid;grid-template-columns:1fr;justify-items:stretch}
-  .revenue-streams-panel .revenue-series-toggles{grid-template-columns:1fr}
+  .revenue-streams-panel .revenue-series-toggles{width:100%;grid-template-columns:1fr}
+  .revenue-streams-panel .revenue-series-toggle{min-height:38px}
   .revenue-chart-panel .revenue-mode-toggles{width:100%}
   .borrow-interest-panel .revenue-series-control{justify-content:stretch}
   .chain-range-tools{margin-top:14px;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-content:stretch}
@@ -768,7 +770,7 @@ h1{
     <section class="panel revenue-chart-panel revenue-streams-panel">
       <div class="panel-head">
         <div>
-          <div class="panel-title">Revenue Streams Over Time</div>
+          <div class="panel-title">Dolomite Revenue Over Time</div>
           <div class="panel-sub">Protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
         </div>
         <div class="revenue-series-control">
@@ -957,8 +959,8 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-dual-mini-charts";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-dual-mini-charts";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-independent-revenue-charts";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-independent-revenue-charts";
   const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
   const BORROW_INTEREST_SERIES_KEYS = ["fees"];
   const DEFAULT_SERIES_KEYS = STREAM_SERIES_KEYS;
@@ -966,7 +968,10 @@ h1{
   let odoloExerciseData = null;
   let odoloExerciseDaily = null;
   let selectedRevenueSeries = new Set(DEFAULT_SERIES_KEYS);
-  let revenueChartMode = "daily";
+  const REVENUE_CHART_KEYS = ["streams", "borrowInterest"];
+  const STREAMS_CHART_KEY = "streams";
+  const BORROW_INTEREST_CHART_KEY = "borrowInterest";
+  let revenueChartModes = { streams: "daily", borrowInterest: "daily" };
   const SERIES = {
     revenue: { key: "revenue", label: "Protocol Revenue", shortLabel: "Protocol Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
     odoloUsdc: { key: "odoloUsdc", label: "oDOLO Exercise USDC", shortLabel: "oDOLO Exercise USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
@@ -981,10 +986,13 @@ h1{
     { token:"oDOLO",  logo:"odolo-logo-official.svg", chain:"Berachain", chainKey:"berachain", addr:"0x02E513b5B54eE216Bf836ceb471507488fC89543", explorer:"https://berascan.com" },
     { token:"veDOLO", logo:"vedolo-logo.svg",         chain:"Berachain", chainKey:"berachain", addr:"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4", explorer:"https://berascan.com" },
   ];
-  let revenueBrushSel = { from: 0, to: 0 };
+  let revenueBrushSels = {
+    streams: { from: 0, to: 0 },
+    borrowInterest: { from: 0, to: 0 }
+  };
   let revenueBrushInitialized = false;
   let revenueBrushDragging = null;
-  let revenueBrushDomainKey = "";
+  let revenueBrushDomainKeys = { streams: "", borrowInterest: "" };
   let revenueBrushRows = [];
   let revenueBrushRenderFrame = 0;
   let revenueBrushJustDragged = false;
@@ -1223,11 +1231,21 @@ h1{
   function defsFromKeys(keys){
     return keys.map(key => SERIES[key]).filter(Boolean);
   }
-  function seriesField(def){
-    return revenueChartMode === "cumulative" ? (def.cumulativeField || def.field) : def.field;
+  function revenueChartKey(key){
+    return key === BORROW_INTEREST_CHART_KEY ? BORROW_INTEREST_CHART_KEY : STREAMS_CHART_KEY;
   }
-  function revenueChartModeLabel(){
-    return revenueChartMode === "cumulative" ? "Cumulative USD" : "Daily USD";
+  function modeForRevenueChart(key){
+    return revenueChartModes[revenueChartKey(key)] || "daily";
+  }
+  function setRevenueChartMode(key, mode){
+    revenueChartModes[revenueChartKey(key)] = mode === "cumulative" ? "cumulative" : "daily";
+  }
+  function seriesField(def, modeOrKey){
+    const mode = modeOrKey === "cumulative" || modeOrKey === "daily" ? modeOrKey : modeForRevenueChart(modeOrKey);
+    return mode === "cumulative" ? (def.cumulativeField || def.field) : def.field;
+  }
+  function revenueChartModeLabel(key){
+    return modeForRevenueChart(key) === "cumulative" ? "Cumulative USD" : "Daily USD";
   }
   function toggleRevenueSeries(key){
     if (!STREAM_SERIES_KEYS.includes(key)) return;
@@ -1245,20 +1263,37 @@ h1{
     const maxX = rows[rows.length - 1]?.ts || (minX + 1);
     return { rows, minX, maxX, span: Math.max(1, maxX - minX) };
   }
-  function ensureRevenueBrushSelection(rows){
+  function brushKey(key){
+    return revenueChartKey(key);
+  }
+  function brushSelFor(key){
+    const keyName = brushKey(key);
+    if (!revenueBrushSels[keyName]) revenueBrushSels[keyName] = { from: 0, to: 0 };
+    return revenueBrushSels[keyName];
+  }
+  function setBrushSel(key, sel){
+    revenueBrushSels[brushKey(key)] = { from: sel.from, to: sel.to };
+  }
+  function streamBrushSel(){
+    return brushSelFor(STREAMS_CHART_KEY);
+  }
+  function ensureRevenueBrushSelection(rows, key = STREAMS_CHART_KEY){
+    const keyName = brushKey(key);
+    const sel = brushSelFor(keyName);
     const minX = rows[0]?.ts || 0;
     const maxX = rows[rows.length - 1]?.ts || (minX + 1);
     const domainKey = `${minX}:${maxX}:${rows.length}`;
-    if (revenueBrushDomainKey !== domainKey || !(revenueBrushSel.from >= minX && revenueBrushSel.to <= maxX && revenueBrushSel.from < revenueBrushSel.to)) {
-      revenueBrushSel = { from: minX, to: maxX };
-      revenueBrushDomainKey = domainKey;
+    if (revenueBrushDomainKeys[keyName] !== domainKey || !(sel.from >= minX && sel.to <= maxX && sel.from < sel.to)) {
+      setBrushSel(keyName, { from: minX, to: maxX });
+      revenueBrushDomainKeys[keyName] = domainKey;
     }
   }
-  function visibleRows(rows){
-    ensureRevenueBrushSelection(rows);
-    let visible = rows.filter(row => row.ts >= revenueBrushSel.from && row.ts <= revenueBrushSel.to);
+  function visibleRows(rows, key = STREAMS_CHART_KEY){
+    ensureRevenueBrushSelection(rows, key);
+    const sel = brushSelFor(key);
+    let visible = rows.filter(row => row.ts >= sel.from && row.ts <= sel.to);
     if (visible.length < 2 && rows.length >= 2) {
-      const center = (revenueBrushSel.from + revenueBrushSel.to) / 2;
+      const center = (sel.from + sel.to) / 2;
       visible = [...rows]
         .sort((a,b) => Math.abs(a.ts - center) - Math.abs(b.ts - center))
         .slice(0, 2)
@@ -1267,22 +1302,25 @@ h1{
     return visible.length ? visible : rows;
   }
   function selectedRevenueRows(rows){
-    ensureRevenueBrushSelection(rows);
-    return rows.filter(row => row.ts >= revenueBrushSel.from && row.ts <= revenueBrushSel.to);
+    ensureRevenueBrushSelection(rows, STREAMS_CHART_KEY);
+    const sel = streamBrushSel();
+    return rows.filter(row => row.ts >= sel.from && row.ts <= sel.to);
   }
   function updateRevenueDateInputs(){
     const fromInput = qs("chainRangeFrom");
     const toInput = qs("chainRangeTo");
     const rows = revenueBrushRows.length ? revenueBrushRows : allRows();
     if (!fromInput || !toInput || !rows.length) return;
+    ensureRevenueBrushSelection(rows, STREAMS_CHART_KEY);
+    const sel = streamBrushSel();
     const minDate = formatDateInput(rows[0].ts);
     const maxDate = formatDateInput(rows[rows.length - 1].ts);
     fromInput.min = minDate;
     fromInput.max = maxDate;
     toInput.min = minDate;
     toInput.max = maxDate;
-    fromInput.value = formatDateInput(revenueBrushSel.from);
-    toInput.value = formatDateInput(revenueBrushSel.to);
+    fromInput.value = formatDateInput(sel.from);
+    toInput.value = formatDateInput(sel.to);
     updateChainDateTriggers();
   }
   function setRevenueDateRange(fromValue, toValue, changed){
@@ -1290,18 +1328,20 @@ h1{
     if (!rows.length) return;
     const minX = rows[0].ts;
     const maxX = rows[rows.length - 1].ts;
+    ensureRevenueBrushSelection(rows, STREAMS_CHART_KEY);
+    const sel = streamBrushSel();
     let from = dateInputTs(fromValue);
     let to = dateInputTs(toValue);
-    if (!Number.isFinite(from)) from = revenueBrushSel.from || minX;
-    if (!Number.isFinite(to)) to = revenueBrushSel.to || maxX;
+    if (!Number.isFinite(from)) from = sel.from || minX;
+    if (!Number.isFinite(to)) to = sel.to || maxX;
     from = Math.max(minX, Math.min(maxX, from));
     to = Math.max(minX, Math.min(maxX, to));
     if (from > to) {
       if (changed === "from") to = from;
       else from = to;
     }
-    revenueBrushSel = { from, to };
-    paintRevenueBrushWindow();
+    setBrushSel(STREAMS_CHART_KEY, { from, to });
+    paintRevenueBrushWindow(STREAMS_CHART_KEY);
     renderRevenueChart({ skipBrush: true });
   }
   function updateChainDateTriggers(){
@@ -1309,8 +1349,9 @@ h1{
     const toBtn = qs("chainRangeToBtn");
     const fromText = qs("chainRangeFromText");
     const toText = qs("chainRangeToText");
-    if (fromText && revenueBrushSel.from && document.activeElement !== fromText) fromText.value = formatManualDate(revenueBrushSel.from);
-    if (toText && revenueBrushSel.to && document.activeElement !== toText) toText.value = formatManualDate(revenueBrushSel.to);
+    const sel = streamBrushSel();
+    if (fromText && sel.from && document.activeElement !== fromText) fromText.value = formatManualDate(sel.from);
+    if (toText && sel.to && document.activeElement !== toText) toText.value = formatManualDate(sel.to);
     if (fromBtn) {
       const open = chainCalendar.open === "from";
       fromBtn.classList.toggle("open", open);
@@ -1367,7 +1408,8 @@ h1{
     const pop = qs("chainDatePopover");
     if (!rows.length || !pop) return;
     chainCalendar.open = bound;
-    const target = bound === "from" ? revenueBrushSel.from : revenueBrushSel.to;
+    const sel = streamBrushSel();
+    const target = bound === "from" ? sel.from : sel.to;
     chainCalendar.monthTs = monthStartTs(target || rows[rows.length - 1].ts);
     pop.hidden = false;
     pop.dataset.side = bound === "from" ? "left" : "right";
@@ -1385,7 +1427,8 @@ h1{
     if (!rows.length) return;
     const minX = rows[0].ts;
     const maxX = rows[rows.length - 1].ts;
-    if (!chainCalendar.monthTs) chainCalendar.monthTs = monthStartTs(revenueBrushSel[chainCalendar.open] || maxX);
+    const sel = streamBrushSel();
+    if (!chainCalendar.monthTs) chainCalendar.monthTs = monthStartTs(sel[chainCalendar.open] || maxX);
     chainCalendar.monthTs = monthStartTs(clampTs(chainCalendar.monthTs, monthStartTs(minX), monthStartTs(maxX)));
     const monthDate = new Date(chainCalendar.monthTs * 1000);
     const year = monthDate.getUTCFullYear();
@@ -1395,15 +1438,15 @@ h1{
     const firstCell = firstDay - startOffset * 86400;
     if (title) title.textContent = monthDate.toLocaleDateString("en-US", { month:"long", year:"numeric", timeZone:"UTC" });
     if (subtitle) subtitle.textContent = chainCalendar.open === "from" ? "Choose start date" : "Choose end date";
-    if (range) range.textContent = `${formatRangeDay(revenueBrushSel.from)} -> ${formatRangeDay(revenueBrushSel.to)}`;
+    if (range) range.textContent = `${formatRangeDay(sel.from)} -> ${formatRangeDay(sel.to)}`;
     grid.innerHTML = "";
     for (let i = 0; i < 42; i++) {
       const ts = firstCell + i * 86400;
       const d = new Date(ts * 1000);
       const dayMonth = d.getUTCMonth();
       const disabled = ts < minX || ts > maxX;
-      const selected = sameDay(ts, revenueBrushSel.from) || sameDay(ts, revenueBrushSel.to);
-      const inRange = ts >= revenueBrushSel.from && ts <= revenueBrushSel.to;
+      const selected = sameDay(ts, sel.from) || sameDay(ts, sel.to);
+      const inRange = ts >= sel.from && ts <= sel.to;
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "chain-cal-day" +
@@ -1414,8 +1457,8 @@ h1{
       btn.disabled = disabled;
       btn.setAttribute("aria-label", formatRangeDay(ts));
       btn.addEventListener("click", () => {
-        if (chainCalendar.open === "from") setRevenueDateRange(formatDateInput(ts), formatDateInput(revenueBrushSel.to), "from");
-        else setRevenueDateRange(formatDateInput(revenueBrushSel.from), formatDateInput(ts), "to");
+        if (chainCalendar.open === "from") setRevenueDateRange(formatDateInput(ts), formatDateInput(streamBrushSel().to), "from");
+        else setRevenueDateRange(formatDateInput(streamBrushSel().from), formatDateInput(ts), "to");
         closeChainCalendar();
       });
       grid.appendChild(btn);
@@ -1427,22 +1470,27 @@ h1{
     if (prev) prev.disabled = chainCalendar.monthTs <= minMonth;
     if (next) next.disabled = chainCalendar.monthTs >= maxMonth;
   }
-  function paintRevenueBrushWindow(){
-    const { minX, span } = revenueBrushDomain();
-    const leftPct = Math.max(0, Math.min(100, (revenueBrushSel.from - minX) / span * 100));
-    const rightPct = Math.max(leftPct, Math.min(100, (revenueBrushSel.to - minX) / span * 100));
-    const days = rangeDays(revenueBrushSel.from, revenueBrushSel.to);
+  function paintRevenueBrushWindow(key){
+    const { rows, minX, span } = revenueBrushDomain();
+    const targetKey = key ? brushKey(key) : "";
     document.querySelectorAll(".revenue-brush-wrap").forEach(wrap => {
+      const currentKey = brushKey(wrap.dataset.brushKey);
+      if (targetKey && currentKey !== targetKey) return;
       const win = wrap.querySelector(".revenue-brush-window");
       const dimL = wrap.querySelector(".revenue-brush-dim.l");
       const dimR = wrap.querySelector(".revenue-brush-dim.r");
       const label = wrap.querySelector(".revenue-brush-label");
       if (!win || !dimL || !dimR || !label) return;
+      ensureRevenueBrushSelection(rows, currentKey);
+      const sel = brushSelFor(currentKey);
+      const leftPct = Math.max(0, Math.min(100, (sel.from - minX) / span * 100));
+      const rightPct = Math.max(leftPct, Math.min(100, (sel.to - minX) / span * 100));
+      const days = rangeDays(sel.from, sel.to);
       win.style.left = leftPct + "%";
       win.style.width = (rightPct - leftPct) + "%";
       dimL.style.width = leftPct + "%";
       dimR.style.width = (100 - rightPct) + "%";
-      label.innerHTML = `<span class="v">${formatDay(revenueBrushSel.from, false)}</span><span class="sep"> → </span><span class="v">${formatDay(revenueBrushSel.to, false)}</span><span class="range"> · ${days}D</span>`;
+      label.innerHTML = `<span class="v">${formatDay(sel.from, false)}</span><span class="sep"> → </span><span class="v">${formatDay(sel.to, false)}</span><span class="range"> · ${days}D</span>`;
     });
     updateRevenueDateInputs();
     renderChainCalendar();
@@ -1465,7 +1513,7 @@ h1{
   }
   function renderRevenueBrushes(rows){
     revenueBrushRows = rows;
-    ensureRevenueBrushSelection(rows);
+    REVENUE_CHART_KEYS.forEach(key => ensureRevenueBrushSelection(rows, key));
     renderRevenueBrushMini("streams", rows, activeSeriesDefs());
     renderRevenueBrushMini("borrowInterest", rows, defsFromKeys(BORROW_INTEREST_SERIES_KEYS));
     paintRevenueBrushWindow();
@@ -1484,11 +1532,11 @@ h1{
     const minX = rows[0].ts;
     const maxX = rows[rows.length - 1].ts;
     const span = Math.max(1, maxX - minX);
-    const maxY = Math.max(1, ...rows.flatMap(row => visibleDefs.map(def => n(row[seriesField(def)]))));
+    const maxY = Math.max(1, ...rows.flatMap(row => visibleDefs.map(def => n(row[seriesField(def, key)]))));
     const BW = 1000, BH = 56;
     const xAt = ts => (ts - minX) / span * BW;
     const yAt = value => BH - Math.max(0, Math.min(1, value / (maxY * 1.05))) * BH;
-    const lineFor = def => rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(1)} ${yAt(n(row[seriesField(def)])).toFixed(1)}`).join(" ");
+    const lineFor = def => rows.map((row, index) => `${index ? "L" : "M"}${xAt(row.ts).toFixed(1)} ${yAt(n(row[seriesField(def, key)])).toFixed(1)}`).join(" ");
     const areaLine = lineFor(areaDef);
     const area = `${areaLine} L${xAt(rows[rows.length - 1].ts).toFixed(1)} ${BH} L${xAt(rows[0].ts).toFixed(1)} ${BH} Z`;
     const gradId = `revenueBrushGrad-${key}`;
@@ -1509,11 +1557,13 @@ h1{
       const handleR = wrap.querySelector(".revenue-brush-handle.r");
       if (!svg || !overlay || !win || !handleL || !handleR) return;
       wrap.dataset.brushReady = "true";
+      const key = brushKey(wrap.dataset.brushKey);
       const onDown = kind => event => {
         event.preventDefault();
         event.stopPropagation();
         revenueBrushJustDragged = false;
-        revenueBrushDragging = { kind, overlay, win, startX: event.clientX, startFrom: revenueBrushSel.from, startTo: revenueBrushSel.to };
+        const sel = brushSelFor(key);
+        revenueBrushDragging = { key, kind, overlay, win, startX: event.clientX, startFrom: sel.from, startTo: sel.to };
         win.classList.add("dragging");
         document.body.style.userSelect = "none";
       };
@@ -1533,13 +1583,14 @@ h1{
         const { minX, maxX } = revenueBrushDomain();
         const rect = overlay.getBoundingClientRect();
         const center = pxToTime(event.clientX - rect.left);
-        const span = revenueBrushSel.to - revenueBrushSel.from;
+        const sel = brushSelFor(key);
+        const span = sel.to - sel.from;
         let from = center - span / 2;
         let to = center + span / 2;
         if (from < minX) { from = minX; to = from + span; }
         if (to > maxX) { to = maxX; from = to - span; }
-        revenueBrushSel = { from, to };
-        paintRevenueBrushWindow();
+        setBrushSel(key, { from, to });
+        paintRevenueBrushWindow(key);
         renderRevenueChart({ skipBrush: true });
       });
     });
@@ -1551,6 +1602,7 @@ h1{
       const width = Math.max(1, revenueBrushDragging.overlay?.clientWidth || 0);
       const delta = (event.clientX - revenueBrushDragging.startX) / width * span;
       const minWindow = Math.max(86400, span * 0.01);
+      const key = revenueBrushDragging.key;
       if (Math.abs(event.clientX - revenueBrushDragging.startX) > 2) revenueBrushJustDragged = true;
       if (revenueBrushDragging.kind === "window") {
         const windowSpan = revenueBrushDragging.startTo - revenueBrushDragging.startFrom;
@@ -1558,13 +1610,19 @@ h1{
         let to = revenueBrushDragging.startTo + delta;
         if (from < minX) { from = minX; to = from + windowSpan; }
         if (to > maxX) { to = maxX; from = to - windowSpan; }
-        revenueBrushSel = { from, to };
+        setBrushSel(key, { from, to });
       } else if (revenueBrushDragging.kind === "left") {
-        revenueBrushSel.from = Math.min(revenueBrushDragging.startTo - minWindow, Math.max(minX, revenueBrushDragging.startFrom + delta));
+        setBrushSel(key, {
+          from: Math.min(revenueBrushDragging.startTo - minWindow, Math.max(minX, revenueBrushDragging.startFrom + delta)),
+          to: revenueBrushDragging.startTo
+        });
       } else if (revenueBrushDragging.kind === "right") {
-        revenueBrushSel.to = Math.max(revenueBrushDragging.startFrom + minWindow, Math.min(maxX, revenueBrushDragging.startTo + delta));
+        setBrushSel(key, {
+          from: revenueBrushDragging.startFrom,
+          to: Math.max(revenueBrushDragging.startFrom + minWindow, Math.min(maxX, revenueBrushDragging.startTo + delta))
+        });
       }
-      paintRevenueBrushWindow();
+      paintRevenueBrushWindow(key);
       scheduleRevenueBrushChartRender();
     });
     document.addEventListener("pointerup", () => {
@@ -1590,7 +1648,8 @@ h1{
   }
   function updateRevenueModeControls(){
     document.querySelectorAll(".revenue-mode-toggle").forEach(btn => {
-      const active = btn.dataset.chartMode === revenueChartMode;
+      const key = btn.closest(".borrow-interest-panel") ? BORROW_INTEREST_CHART_KEY : STREAMS_CHART_KEY;
+      const active = btn.dataset.chartMode === modeForRevenueChart(key);
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
@@ -1624,7 +1683,8 @@ h1{
     const svg = qs(config.svgId);
     const defs = config.defs && config.defs.length ? config.defs : activeSeriesDefs();
     if (!svg || !defs.length) return;
-    const model = visibleRows(rows);
+    const key = revenueChartKey(config.id);
+    const model = visibleRows(rows, key);
     if (config.updateBrush && !options.skipBrush) renderRevenueBrushes(rows);
     const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
     const chartW = W - P_L - P_R;
@@ -1633,7 +1693,7 @@ h1{
     const xMax = model[model.length - 1].ts;
     const xRange = Math.max(1, xMax - xMin);
     const xAt = ts => P_L + (ts - xMin) / xRange * chartW;
-    const maxValue = Math.max(1, ...model.flatMap(row => defs.map(def => n(row[seriesField(def)]))));
+    const maxValue = Math.max(1, ...model.flatMap(row => defs.map(def => n(row[seriesField(def, key)]))));
     const yMax = maxValue * 1.12;
     const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
     const zeroY = P_T + chartH;
@@ -1653,9 +1713,9 @@ h1{
     }
     const areaDef = defs[0];
     const gradientId = `revenueChartGrad-${config.id}`;
-    const areaLine = pathFromPoints(model, seriesField(areaDef), xAt, yAt);
+    const areaLine = pathFromPoints(model, seriesField(areaDef, key), xAt, yAt);
     const area = `${areaLine} L${xAt(model[model.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(model[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`;
-    const lines = defs.map(def => `<path class="revenue-chart-line ${def.key}" data-series="${def.key}" d="${pathFromPoints(model, seriesField(def), xAt, yAt)}" stroke="${def.color}"></path>`).join("");
+    const lines = defs.map(def => `<path class="revenue-chart-line ${def.key}" data-series="${def.key}" d="${pathFromPoints(model, seriesField(def, key), xAt, yAt)}" stroke="${def.color}"></path>`).join("");
     svg.innerHTML = [
       `<defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${areaDef.color}" stop-opacity=".22"/><stop offset="58%" stop-color="${areaDef.color}" stop-opacity=".05"/><stop offset="100%" stop-color="${areaDef.color}" stop-opacity="0"/></linearGradient></defs>`,
       `<g class="revenue-chart-grid">${grid.join("")}</g>`,
@@ -1674,6 +1734,7 @@ h1{
     const line = svg?.querySelector(".revenue-hover-line");
     const dot = svg?.querySelector(".revenue-hover-dot");
     if (!svg || !wrap || !tip || !line || !dot) return;
+    const key = revenueChartKey(config.id);
     const controls = config.controlsSelector ? document.querySelectorAll(config.controlsSelector) : [];
     const paintActive = key => {
       svg.querySelectorAll(".revenue-chart-line").forEach(item => {
@@ -1707,11 +1768,11 @@ h1{
       const py = (event.clientY - rect.top) / rect.height * H;
       let hovered = defs[0], hoveredBest = Infinity;
       defs.forEach(def => {
-        const dist = Math.abs(yAt(n(nearest[seriesField(def)])) - py);
+        const dist = Math.abs(yAt(n(nearest[seriesField(def, key)])) - py);
         if (dist < hoveredBest) { hoveredBest = dist; hovered = def; }
       });
       const primary = hovered || defs[0];
-      const primaryField = seriesField(primary);
+      const primaryField = seriesField(primary, key);
       const x = xAt(nearest.ts);
       const y = yAt(n(nearest[primaryField]));
       paintActive(primary.key);
@@ -1723,14 +1784,14 @@ h1{
       dot.setAttribute("fill", primary.color);
       dot.style.opacity = 1;
       const tooltipDefs = defs.length ? defs : activeSeriesDefs();
-      const totalEarned = tooltipDefs.reduce((sum, def) => sum + n(nearest[seriesField(def)]), 0);
+      const totalEarned = tooltipDefs.reduce((sum, def) => sum + n(nearest[seriesField(def, key)]), 0);
       const totalRow = tooltipDefs.length > 1
         ? `<div class="tt-row total"><span>Selected total</span><b>${usdFull(totalEarned)}</b></div>`
         : "";
       tip.innerHTML = `
-        <div class="tt-date">${formatDay(nearest.ts, false)} · ${revenueChartModeLabel()}</div>
+        <div class="tt-date">${formatDay(nearest.ts, false)} · ${revenueChartModeLabel(key)}</div>
         <div class="tt-table">
-          ${tooltipDefs.map(def => `<div class="tt-row${def.key === primary.key ? " active" : ""}"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.shortLabel}</span><b>${usdFull(nearest[seriesField(def)])}</b></div>`).join("")}
+          ${tooltipDefs.map(def => `<div class="tt-row${def.key === primary.key ? " active" : ""}"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${def.color};margin-right:6px"></i>${def.shortLabel}</span><b>${usdFull(nearest[seriesField(def, key)])}</b></div>`).join("")}
           ${totalRow}
         </div>
       `;
@@ -1782,7 +1843,8 @@ h1{
     if (!body) return;
     const rows = allRows();
     const selected = selectedRevenueRows(rows);
-    const days = rangeDays(revenueBrushSel.from, revenueBrushSel.to);
+    const sel = streamBrushSel();
+    const days = rangeDays(sel.from, sel.to);
     const totals = new Map();
     selected.forEach(row => {
       Object.entries(row.chains || {}).forEach(([chain, values]) => {
@@ -1834,7 +1896,8 @@ h1{
     btn.addEventListener("click", () => {
       const mode = btn.dataset.chartMode;
       if (mode !== "daily" && mode !== "cumulative") return;
-      revenueChartMode = mode;
+      const key = btn.closest(".borrow-interest-panel") ? BORROW_INTEREST_CHART_KEY : STREAMS_CHART_KEY;
+      setRevenueChartMode(key, mode);
       renderRevenueChart();
     });
   });
@@ -1879,7 +1942,8 @@ h1{
         updateChainDateTriggers();
         return;
       }
-      const current = bound === "from" ? revenueBrushSel.from : revenueBrushSel.to;
+      const sel = streamBrushSel();
+      const current = bound === "from" ? sel.from : sel.to;
       if (input.value.trim() !== formatManualDate(current) && !applyManualChainDate(bound)) {
         input.classList.remove("invalid");
         input.removeAttribute("aria-invalid");
