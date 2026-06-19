@@ -82,6 +82,7 @@ def summarize_exercise_totals(exercisers):
     totals = {
         "total_vedolo": 0.0,
         "total_odolo_exercised": 0.0,
+        "total_odolo_exercise_usdc_paid": 0.0,
         "total_odolo_exercised_exercises": 0,
         "total_dolo_pair_vedolo": 0.0,
         "total_dolo_pair_exercises": 0,
@@ -99,6 +100,7 @@ def summarize_exercise_totals(exercisers):
                 totals["total_dolo_paired"] += tx.get("dolo_paid") or 0
             else:
                 totals["total_odolo_exercised"] += vedolo
+                totals["total_odolo_exercise_usdc_paid"] += tx.get("usdc") or 0
                 totals["total_odolo_exercised_exercises"] += 1
     return {
         key: round(value, 2) if isinstance(value, float) else value
@@ -437,6 +439,7 @@ def main():
         "total_usdc": round(sum(e["total_usdc"] for e in exercisers), 2),
         "total_vedolo": totals["total_vedolo"],
         "total_odolo_exercised": totals["total_odolo_exercised"],
+        "total_odolo_exercise_usdc_paid": totals["total_odolo_exercise_usdc_paid"],
         "total_odolo_exercised_exercises": totals["total_odolo_exercised_exercises"],
         "total_dolo_pair_vedolo": totals["total_dolo_pair_vedolo"],
         "total_dolo_pair_exercises": totals["total_dolo_pair_exercises"],
@@ -454,11 +457,11 @@ def main():
     with open(OUTPUT_FILE, "w") as f:
         json.dump(result, f, indent=2)
 
-    avg_price = result["total_usdc"] / result["total_odolo_exercised"] if result["total_odolo_exercised"] > 0 else 0
+    avg_price = result["total_odolo_exercise_usdc_paid"] / result["total_odolo_exercised"] if result["total_odolo_exercised"] > 0 else 0
     print(f"\n{'=' * 60}")
     print(f"DONE!")
     print(f"  Unique addresses:  {len(exercisers)}")
-    print(f"  Total USDC.e:      ${result['total_usdc']:,.2f}")
+    print(f"  USDC paid:         ${result['total_odolo_exercise_usdc_paid']:,.2f}")
     print(f"  oDOLO exercised:   {result['total_odolo_exercised']:,.2f} (USDC-paid only)")
     print(f"  oDOLO/DOLO paired: {result['total_dolo_pair_vedolo']:,.2f}")
     print(f"  Total veDOLO:      {result['total_vedolo']:,.2f} (all methods)")

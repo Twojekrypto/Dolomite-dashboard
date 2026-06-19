@@ -21,6 +21,7 @@ class TestOdoloExerciseMetrics(unittest.TestCase):
 
         self.assertEqual(totals["total_vedolo"], 3500.0)
         self.assertEqual(totals["total_odolo_exercised"], 1000.0)
+        self.assertEqual(totals["total_odolo_exercise_usdc_paid"], 50.0)
         self.assertEqual(totals["total_odolo_exercised_exercises"], 1)
         self.assertEqual(totals["total_dolo_pair_vedolo"], 2500.0)
         self.assertEqual(totals["total_dolo_pair_exercises"], 1)
@@ -30,6 +31,7 @@ class TestOdoloExerciseMetrics(unittest.TestCase):
         data = {
             "total_vedolo": 3500.0,
             "total_odolo_exercised": 1000.0,
+            "total_odolo_exercise_usdc_paid": 50.0,
             "total_odolo_exercised_exercises": 1,
             "total_dolo_pair_vedolo": 2500.0,
             "total_dolo_pair_exercises": 1,
