@@ -291,17 +291,30 @@
   .dolo-protocol-footer-links{
     flex-direction:column;
     align-items:flex-start;
-    gap:10px;
+    gap:14px;
     width:100%;
   }
   .dolo-protocol-footer-links-group{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:stretch;
+    gap:8px;
     width:100%;
   }
+  .dolo-protocol-footer-links-label{
+    grid-column:1 / -1;
+    display:block;
+    margin:0 0 2px;
+  }
   .dolo-protocol-footer-pill{
-    flex:1 1 calc(50% - 6px);
+    width:100%;
+    height:34px;
     justify-content:center;
     min-width:0;
-    padding:0 10px;
+    padding:0 12px;
+  }
+  .dolo-protocol-footer-links-group:first-child .dolo-protocol-footer-pill:last-child{
+    grid-column:1 / -1;
   }
   .dolo-protocol-footer-links-sep{
     display:none;
@@ -367,8 +380,11 @@
   .dolo-protocol-footer-body{
     padding:16px 14px 18px;
   }
-  .dolo-protocol-footer-pill{
-    flex-basis:100%;
+  .dolo-protocol-footer-links-group{
+    grid-template-columns:1fr;
+  }
+  .dolo-protocol-footer-links-group:first-child .dolo-protocol-footer-pill:last-child{
+    grid-column:auto;
   }
   .dolo-protocol-footer-chain{
     max-width:134px;
