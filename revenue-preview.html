@@ -1696,6 +1696,99 @@ h1{
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
   }
+  function paintRevenueSeriesFocus(chartKey, svg, controls, seriesKey){
+    if (!svg) return;
+    svg.querySelectorAll(".revenue-chart-line").forEach(item => {
+      item.classList.toggle("is-active", item.dataset.series === seriesKey);
+      item.classList.toggle("is-muted", !!seriesKey && item.dataset.series !== seriesKey);
+    });
+    controls.forEach(item => {
+      const selected = selectedSeriesForChart(chartKey).has(item.dataset.series);
+      const previewed = !!seriesKey && item.dataset.series === seriesKey;
+      item.classList.toggle("active", selected);
+      item.classList.toggle("preview", previewed && !selected);
+      item.classList.toggle("dim", seriesKey ? item.dataset.series !== seriesKey : (selectedSeriesForChart(chartKey).size < seriesKeysForChart(chartKey).length && !selected));
+    });
+  }
+  function clearRevenuePanelFocus(chartKey){
+    const isBorrow = revenueChartKey(chartKey) === BORROW_INTEREST_CHART_KEY;
+    const svg = qs(isBorrow ? "borrowInterestChart" : "revenueChart");
+    const controls = document.querySelectorAll(isBorrow ? ".borrow-interest-panel .revenue-series-toggle" : ".revenue-streams-panel .revenue-series-toggle");
+    paintRevenueSeriesFocus(chartKey, svg, controls, "");
+  }
+  function clearOtherRevenuePanelFocus(chartKey){
+    clearRevenuePanelFocus(revenueChartKey(chartKey) === BORROW_INTEREST_CHART_KEY ? STREAMS_CHART_KEY : BORROW_INTEREST_CHART_KEY);
+  }
+  function revenueControlConfig(btn){
+    if (!btn || !btn.closest(".revenue-chart-panel")) return null;
+    if (btn.closest(".borrow-interest-panel")) {
+      return {
+        chartKey: BORROW_INTEREST_CHART_KEY,
+        svg: qs("borrowInterestChart"),
+        controls: document.querySelectorAll(".borrow-interest-panel .revenue-series-toggle")
+      };
+    }
+    return {
+      chartKey: STREAMS_CHART_KEY,
+      svg: qs("revenueChart"),
+      controls: document.querySelectorAll(".revenue-streams-panel .revenue-series-toggle")
+    };
+  }
+  function paintRevenueControlButton(btn, seriesKey){
+    const config = revenueControlConfig(btn);
+    if (!config) return;
+    if (seriesKey) clearOtherRevenuePanelFocus(config.chartKey);
+    paintRevenueSeriesFocus(config.chartKey, config.svg, config.controls, seriesKey || "");
+    if (!seriesKey) updateRevenueLegend();
+  }
+  let revenueControlHoverButton = null;
+  function setRevenueControlHoverButton(btn){
+    if (!btn) return;
+    if (revenueControlHoverButton && revenueControlHoverButton !== btn) paintRevenueControlButton(revenueControlHoverButton, "");
+    revenueControlHoverButton = btn;
+    paintRevenueControlButton(btn, btn.dataset.series);
+  }
+  function clearRevenueControlHoverButton(btn){
+    if (btn && revenueControlHoverButton !== btn) return;
+    const previous = revenueControlHoverButton;
+    revenueControlHoverButton = null;
+    if (previous) paintRevenueControlButton(previous, "");
+  }
+  function bindRevenueControlHovers(){
+    if (document.body.dataset.revenueControlHoverReady === "true") return;
+    document.body.dataset.revenueControlHoverReady = "true";
+    document.addEventListener("pointerover", event => {
+      const btn = event.target?.closest?.(".revenue-series-toggle");
+      if (btn) setRevenueControlHoverButton(btn);
+    });
+    document.addEventListener("pointerout", event => {
+      const btn = event.target?.closest?.(".revenue-series-toggle");
+      if (!btn || btn.contains(event.relatedTarget)) return;
+      clearRevenueControlHoverButton(btn);
+    });
+    document.addEventListener("mouseover", event => {
+      const btn = event.target?.closest?.(".revenue-series-toggle");
+      if (btn) setRevenueControlHoverButton(btn);
+    });
+    document.addEventListener("mouseout", event => {
+      const btn = event.target?.closest?.(".revenue-series-toggle");
+      if (!btn || btn.contains(event.relatedTarget)) return;
+      clearRevenueControlHoverButton(btn);
+    });
+    document.addEventListener("mousemove", event => {
+      const btn = event.target?.closest?.(".revenue-series-toggle");
+      if (btn) setRevenueControlHoverButton(btn);
+      else if (revenueControlHoverButton) clearRevenueControlHoverButton();
+    });
+    document.addEventListener("focusin", event => {
+      const btn = event.target?.closest?.(".revenue-series-toggle");
+      if (btn) setRevenueControlHoverButton(btn);
+    });
+    document.addEventListener("focusout", event => {
+      const btn = event.target?.closest?.(".revenue-series-toggle");
+      if (btn) clearRevenueControlHoverButton(btn);
+    });
+  }
   function renderRevenueChart(options = {}){
     const rows = allRows();
     if (!rows.length) return;
@@ -1721,6 +1814,7 @@ h1{
     }, rows, { ...options, skipBrush: true });
     updateRevenueLegend();
     updateRevenueModeControls();
+    bindRevenueControlHovers();
     renderChains();
   }
   function renderRevenueChartPanel(config, rows, options = {}){
@@ -1781,17 +1875,8 @@ h1{
     const chartKey = revenueChartKey(config.id);
     const controls = config.controlsSelector ? document.querySelectorAll(config.controlsSelector) : [];
     const paintActive = seriesKey => {
-      svg.querySelectorAll(".revenue-chart-line").forEach(item => {
-        item.classList.toggle("is-active", item.dataset.series === seriesKey);
-        item.classList.toggle("is-muted", !!seriesKey && item.dataset.series !== seriesKey);
-      });
-      controls.forEach(item => {
-        const selected = selectedSeriesForChart(chartKey).has(item.dataset.series);
-        const previewed = !!seriesKey && item.dataset.series === seriesKey;
-        item.classList.toggle("active", selected);
-        item.classList.toggle("preview", previewed && !selected);
-        item.classList.toggle("dim", seriesKey ? item.dataset.series !== seriesKey : (selectedSeriesForChart(chartKey).size < seriesKeysForChart(chartKey).length && !selected));
-      });
+      if (seriesKey) clearOtherRevenuePanelFocus(chartKey);
+      paintRevenueSeriesFocus(chartKey, svg, controls, seriesKey);
     };
     const leave = () => {
       line.style.opacity = 0;
@@ -1851,10 +1936,6 @@ h1{
       tip.style.top = Math.max(screenY - tipH - 12, 4) + "px";
     };
     svg.onmouseleave = leave;
-    controls.forEach(item => {
-      item.onmouseenter = () => paintActive(item.dataset.series);
-      item.onmouseleave = () => { paintActive(""); updateRevenueLegend(); };
-    });
   }
   function renderHero(){
     const totals = revenueData.totals || {};
