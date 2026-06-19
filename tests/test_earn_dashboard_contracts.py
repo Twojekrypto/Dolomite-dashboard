@@ -14,6 +14,7 @@ DASHBOARD_CORE_JS = ROOT / "dashboard-core.js"
 ASSETS_LIVE_BUILDER = ROOT / "scripts" / "build_assets_live.mjs"
 ASSETS_LIVE_WORKFLOW = ROOT / ".github" / "workflows" / "update-assets-live.yml"
 PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
+SECRET_GUARD_WORKFLOW = ROOT / ".github" / "workflows" / "secret-guard.yml"
 ETHEREUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-ethereum-canonical-history.yml"
 ARBITRUM_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-arbitrum-canonical-history.yml"
 BERACHAIN_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-canonical-history.yml"
@@ -170,6 +171,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
             self.assertNotIn("fetch-depth: 0", workflow, workflow_path.name)
             if "fetch-depth:" in workflow:
                 self.assertIn("fetch-depth: 1", workflow, workflow_path.name)
+
+    def test_secret_guard_uses_shallow_checkout(self):
+        workflow = SECRET_GUARD_WORKFLOW.read_text(encoding="utf-8")
+        self.assertNotIn("fetch-depth: 0", workflow)
+        self.assertIn("fetch-depth: 1", workflow)
+        self.assertIn("ensure_commit", workflow)
 
     def test_earn_commit_helper_regenerates_freshness_after_rebase(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
