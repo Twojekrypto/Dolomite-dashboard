@@ -2389,27 +2389,31 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   async function fetchVedoVoteWeights(tokenIds){
     const ids = [...new Set((tokenIds || []).map(id => Number(id)).filter(Number.isFinite))];
     if (!ids.length) return {};
-    const batch = ids.map((id, idx) => ({
-      jsonrpc: "2.0",
-      id: idx,
-      method: "eth_call",
-      params: [{ to: VEDOLO_CONTRACT, data: VEDOLO_BALANCE_OF_NFT + BigInt(id).toString(16).padStart(64, "0") }, "latest"],
-    }));
-    for (const rpc of BERA_RPCS){
-      try {
-        const r = await fetch(rpc, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(batch) });
-        const j = await r.json();
-        if (!Array.isArray(j)) continue;
-        const out = {};
-        j.forEach(row => {
-          const tokenId = ids[Number(row && row.id)];
-          const value = tokenAmountFromHex(row && row.result);
-          if (tokenId && value !== null) out[String(tokenId)] = value;
-        });
-        if (Object.keys(out).length) return out;
-      } catch(e){}
+    const out = {};
+    const chunkSize = 100;
+    for (let offset = 0; offset < ids.length; offset += chunkSize){
+      const chunk = ids.slice(offset, offset + chunkSize);
+      const batch = chunk.map((id, idx) => ({
+        jsonrpc: "2.0",
+        id: idx,
+        method: "eth_call",
+        params: [{ to: VEDOLO_CONTRACT, data: VEDOLO_BALANCE_OF_NFT + BigInt(id).toString(16).padStart(64, "0") }, "latest"],
+      }));
+      for (const rpc of BERA_RPCS){
+        try {
+          const r = await fetch(rpc, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(batch) });
+          const j = await r.json();
+          if (!Array.isArray(j)) continue;
+          j.forEach(row => {
+            const tokenId = chunk[Number(row && row.id)];
+            const value = tokenAmountFromHex(row && row.result);
+            if (tokenId && value !== null) out[String(tokenId)] = value;
+          });
+          if (chunk.every(id => out[String(id)] !== undefined)) break;
+        } catch(e){}
+      }
     }
-    return {};
+    return out;
   }
 
   // active oDOLO vesting positions (Berachain only)
@@ -2522,29 +2526,76 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       source: "subgraph",
     }))).filter(r => r.debt > 0.000001);
   }
+  function flowTimeSec(row){
+    const ms = exerciseTimeMs(row);
+    return ms ? ms / 1000 : 0;
+  }
+  function tokenIdKey(row){
+    return row && row.tokenId != null ? String(row.tokenId) : "";
+  }
+  function latestFlowRow(rows){
+    return (rows || []).reduce((best, row) => !best || flowTimeSec(row) >= flowTimeSec(best) ? row : best, null);
+  }
+  function flowRowsByToken(rows){
+    const byToken = new Map();
+    (rows || []).forEach(row => {
+      const tokenId = tokenIdKey(row);
+      if (!tokenId) return;
+      if (!byToken.has(tokenId)) byToken.set(tokenId, []);
+      byToken.get(tokenId).push(row);
+    });
+    return byToken;
+  }
+  function lockGroupsByToken(flows){
+    const groups = new Map();
+    ((flows && flows.locks) || []).forEach(lock => {
+      const tokenId = tokenIdKey(lock);
+      if (!tokenId) return;
+      const group = groups.get(tokenId) || { locks: [], totalDolo: 0, latestEnd: 0, latestLock: null };
+      const dolo = Number(lock.dolo) || 0;
+      const end = Number(lock.locktime || lock.end) || 0;
+      group.locks.push(lock);
+      group.totalDolo += dolo;
+      group.latestEnd = Math.max(group.latestEnd, end);
+      if (!group.latestLock || flowTimeSec(lock) >= flowTimeSec(group.latestLock)) group.latestLock = lock;
+      groups.set(tokenId, group);
+    });
+    return groups;
+  }
   function latestVedoloOwnerForLock(lock, transfers){
     const tokenId = lock && lock.tokenId != null ? String(lock.tokenId) : "";
     if (!tokenId) return "";
     let owner = normAddr(lock.beneficiaryAddress || lock.address);
-    (transfers || [])
-      .filter(t => String(t && t.tokenId) === tokenId)
-      .sort((a, b) => (exerciseTimeMs(a) || 0) - (exerciseTimeMs(b) || 0))
-      .forEach(t => { owner = normAddr(t.to) || owner; });
+    const latestTransfer = latestFlowRow((transfers || []).filter(t => String(t && t.tokenId) === tokenId));
+    if (latestTransfer) owner = normAddr(latestTransfer.to) || owner;
     return owner;
   }
-  function missingActiveVedoloLocks(currentVedolo, flows, addr){
+  function latestUnlockAfterLock(group, unlocks){
+    const latestUnlock = latestFlowRow(unlocks || []);
+    return !!(latestUnlock && group && group.latestLock && flowTimeSec(latestUnlock) >= flowTimeSec(group.latestLock));
+  }
+  function vedoloPatchTokenIds(currentVedolo, flows, addr){
     const a = normAddr(addr);
     const existingIds = new Set(((currentVedolo && currentVedolo.token_ids) || []).map(id => String(id)));
+    const snapshotTs = Number(currentVedolo && currentVedolo._snapshot_ts) || 0;
+    const lockGroups = lockGroupsByToken(flows);
     const transfers = (flows && flows.transfers) || [];
-    const unlockIds = new Set(((flows && flows.unlocks) || [])
-      .filter(u => normAddr(u.address) === a)
-      .map(u => String(u.tokenId)));
-    return ((flows && flows.locks) || [])
-      .filter(lock => lock && lock.tokenId != null)
-      .filter(lock => !existingIds.has(String(lock.tokenId)))
-      .filter(lock => !unlockIds.has(String(lock.tokenId)))
-      .filter(lock => latestVedoloOwnerForLock(lock, transfers) === a)
-      .sort((aLock, bLock) => Number(aLock.tokenId) - Number(bLock.tokenId));
+    const transfersByToken = flowRowsByToken(transfers);
+    const unlocksByToken = flowRowsByToken((flows && flows.unlocks) || []);
+    const ids = new Set();
+
+    lockGroups.forEach((group, tokenId) => {
+      if (latestUnlockAfterLock(group, unlocksByToken.get(tokenId))) return;
+      if (latestVedoloOwnerForLock(group.latestLock, transfers) !== a) return;
+      const hasPostSnapshotLock = !snapshotTs || group.locks.some(lock => flowTimeSec(lock) > snapshotTs);
+      if (!existingIds.has(tokenId) || hasPostSnapshotLock) ids.add(tokenId);
+    });
+    existingIds.forEach(tokenId => {
+      const postSnapshotTransfer = latestFlowRow((transfersByToken.get(tokenId) || []).filter(t => !snapshotTs || flowTimeSec(t) > snapshotTs));
+      const postSnapshotUnlock = latestFlowRow((unlocksByToken.get(tokenId) || []).filter(u => !snapshotTs || flowTimeSec(u) > snapshotTs));
+      if (postSnapshotTransfer || postSnapshotUnlock) ids.add(tokenId);
+    });
+    return [...ids].map(Number).filter(Number.isFinite).sort((x, y) => x - y);
   }
   function estimateVoteWeight(lock){
     const amount = Number(lock && lock.dolo) || 0;
@@ -2554,13 +2605,73 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     return amount && end > now ? amount * Math.min(maxLock, end - now) / maxLock : 0;
   }
   function mergeVedoloFromFlows(currentVedolo, flows, addr, voteWeights){
-    const missing = missingActiveVedoloLocks(currentVedolo, flows, addr);
-    if (!missing.length) return currentVedolo || null;
-    const base = currentVedolo ? {
-      ...currentVedolo,
-      token_ids: [...(currentVedolo.token_ids || [])],
-      token_details: [...(currentVedolo.token_details || [])],
-    } : {
+    const a = normAddr(addr);
+    const snapshotTs = Number(currentVedolo && currentVedolo._snapshot_ts) || 0;
+    const lockGroups = lockGroupsByToken(flows);
+    const transfers = (flows && flows.transfers) || [];
+    const transfersByToken = flowRowsByToken(transfers);
+    const unlocksByToken = flowRowsByToken((flows && flows.unlocks) || []);
+    const detailsByToken = new Map();
+    ((currentVedolo && currentVedolo.token_details) || []).forEach(pos => {
+      const tokenId = pos && pos.id != null ? String(pos.id) : "";
+      if (!tokenId) return;
+      detailsByToken.set(tokenId, { ...pos });
+    });
+    ((currentVedolo && currentVedolo.token_ids) || []).forEach(id => {
+      const tokenId = String(id);
+      if (!detailsByToken.has(tokenId)) detailsByToken.set(tokenId, { id: Number(id), dolo: 0, end: 0, vote_weight: 0 });
+    });
+
+    const changedIds = new Set();
+    detailsByToken.forEach((detail, tokenId) => {
+      const postSnapshotUnlock = latestFlowRow((unlocksByToken.get(tokenId) || []).filter(u => !snapshotTs || flowTimeSec(u) > snapshotTs));
+      if (postSnapshotUnlock) {
+        detailsByToken.delete(tokenId);
+        changedIds.add(tokenId);
+        return;
+      }
+      const postSnapshotTransfer = latestFlowRow((transfersByToken.get(tokenId) || []).filter(t => !snapshotTs || flowTimeSec(t) > snapshotTs));
+      if (postSnapshotTransfer && normAddr(postSnapshotTransfer.to) !== a) {
+        detailsByToken.delete(tokenId);
+        changedIds.add(tokenId);
+      }
+    });
+
+    lockGroups.forEach((group, tokenId) => {
+      if (latestUnlockAfterLock(group, unlocksByToken.get(tokenId))) return;
+      if (latestVedoloOwnerForLock(group.latestLock, transfers) !== a) return;
+
+      const existing = detailsByToken.get(tokenId);
+      const postSnapshotLocks = snapshotTs
+        ? group.locks.filter(lock => flowTimeSec(lock) > snapshotTs)
+        : group.locks;
+      if (existing && !postSnapshotLocks.length) return;
+
+      const locksToApply = existing ? postSnapshotLocks : group.locks;
+      const amountDelta = locksToApply.reduce((sum, lock) => sum + (Number(lock.dolo) || 0), 0);
+      const latestEnd = Math.max(
+        Number(existing && existing.end) || 0,
+        ...locksToApply.map(lock => Number(lock.locktime || lock.end) || 0)
+      );
+      const liveVote = Number((voteWeights || {})[tokenId]);
+      const nextDetail = existing ? { ...existing } : { id: Number(tokenId), dolo: 0, end: 0, vote_weight: 0 };
+      nextDetail.dolo = Math.round(((Number(nextDetail.dolo) || 0) + amountDelta) * 100) / 100;
+      nextDetail.end = latestEnd || Number(nextDetail.end) || 0;
+      nextDetail.vote_weight = Math.round((
+        Number.isFinite(liveVote) && liveVote >= 0
+          ? liveVote
+          : estimateVoteWeight({ ...group.latestLock, dolo: nextDetail.dolo, locktime: nextDetail.end })
+      ) * 10000) / 10000;
+      detailsByToken.set(tokenId, nextDetail);
+      changedIds.add(tokenId);
+    });
+
+    if (!changedIds.size) return currentVedolo || null;
+    const tokenDetails = [...detailsByToken.values()].sort((x, y) => Number(x.id) - Number(y.id));
+    if (!tokenDetails.length) return null;
+    const tokenIds = tokenDetails.map(t => Number(t.id)).filter(Number.isFinite);
+    const ends = tokenDetails.map(t => Number(t.end) || 0).filter(Boolean);
+    const base = currentVedolo ? { ...currentVedolo } : {
       address: addr,
       nft_count: 0,
       token_ids: [],
@@ -2568,33 +2679,15 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       total_vote_weight: 0,
       token_details: [],
     };
-    let totalDolo = Number(base.total_dolo) || 0;
-    let totalVote = Number(base.total_vote_weight) || 0;
-    missing.forEach(lock => {
-      const tokenId = Number(lock.tokenId);
-      const voteWeight = Number((voteWeights || {})[String(tokenId)]);
-      const resolvedVote = Number.isFinite(voteWeight) && voteWeight > 0 ? voteWeight : estimateVoteWeight(lock);
-      const dolo = Number(lock.dolo) || 0;
-      totalDolo += dolo;
-      totalVote += resolvedVote;
-      base.token_ids.push(tokenId);
-      base.token_details.push({
-        id: tokenId,
-        dolo: Math.round(dolo * 100) / 100,
-        end: Number(lock.locktime) || 0,
-        vote_weight: Math.round(resolvedVote * 10000) / 10000,
-      });
-    });
-    base.token_ids = [...new Set(base.token_ids.map(Number).filter(Number.isFinite))].sort((a, b) => a - b);
-    base.token_details.sort((a, b) => Number(a.id) - Number(b.id));
-    const ends = base.token_details.map(t => Number(t.end) || 0).filter(Boolean);
-    base.nft_count = base.token_ids.length;
-    base.total_dolo = Math.round(totalDolo * 100) / 100;
-    base.total_vote_weight = Math.round(totalVote * 10000) / 10000;
+    base.token_ids = tokenIds;
+    base.token_details = tokenDetails;
+    base.nft_count = tokenIds.length;
+    base.total_dolo = Math.round(tokenDetails.reduce((sum, t) => sum + (Number(t.dolo) || 0), 0) * 100) / 100;
+    base.total_vote_weight = Math.round(tokenDetails.reduce((sum, t) => sum + (Number(t.vote_weight) || 0), 0) * 10000) / 10000;
     base.earliest_lock_end = ends.length ? Math.min(...ends) : base.earliest_lock_end;
     base.latest_lock_end = ends.length ? Math.max(...ends) : base.latest_lock_end;
     base.patched_from_flows = true;
-    base.patched_flow_count = missing.length;
+    base.patched_flow_count = changedIds.size;
     return base;
   }
   function buildExerciseRows(exer, flows, addr, currentVedolo){
@@ -3280,10 +3373,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     ]);
 
     const staticDolo = findByAddress(doloHolders, addr);
-    const staticVedolo = findByAddress(vedoloHolders, addr);
-    const missingVedoloLocks = missingActiveVedoloLocks(staticVedolo, vedoloFlows, addr);
-    const missingVoteWeights = missingVedoloLocks.length
-      ? await fetchVedoVoteWeights(missingVedoloLocks.map(lock => lock.tokenId)).catch(() => ({}))
+    const staticVedoloRow = findByAddress(vedoloHolders, addr);
+    const staticVedolo = staticVedoloRow ? {
+      ...staticVedoloRow,
+      _snapshot_ts: Date.parse((vedoloHolders && vedoloHolders.timestamp) || "") / 1000 || 0,
+    } : null;
+    const vedoloPatchIds = vedoloPatchTokenIds(staticVedolo, vedoloFlows, addr);
+    const missingVoteWeights = vedoloPatchIds.length
+      ? await fetchVedoVoteWeights(vedoloPatchIds).catch(() => ({}))
       : {};
     const mergedVedolo = mergeVedoloFromFlows(staticVedolo, vedoloFlows, addr, missingVoteWeights);
     const cardData = {
