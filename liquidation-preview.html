@@ -2293,12 +2293,11 @@
             border-spacing: 0 !important;
             table-layout: fixed;
         }
-        .liquidation-history-table colgroup col:nth-child(1) { width: 7.8%; }   /* Chain */
-        .liquidation-history-table colgroup col:nth-child(2) { width: 14.7%; }  /* Liquidated wallet — left cluster */
-        .liquidation-history-table colgroup col:nth-child(3) { width: 13.2%; }  /* Date — sits next to the wallet */
-        .liquidation-history-table colgroup col:nth-child(4) { width: 31.2%; }  /* Spacer — gap before money */
-        .liquidation-history-table colgroup col:nth-child(5) { width: 17.3%; }  /* Collateral seized — right group */
-        .liquidation-history-table colgroup col:nth-child(6) { width: 15.3%; }  /* Debt repaid — right group */
+        .liquidation-history-table colgroup col:nth-child(1) { width: 9%; }    /* Chain */
+        .liquidation-history-table colgroup col:nth-child(2) { width: 15%; }   /* Date */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 23%; }   /* Liquidated wallet */
+        .liquidation-history-table colgroup col:nth-child(4) { width: 27%; }   /* Collateral seized */
+        .liquidation-history-table colgroup col:nth-child(5) { width: 26%; }   /* Debt repaid */
         .liquidation-history-table thead th {
             position: sticky;
             top: 0;
@@ -2350,12 +2349,12 @@
         .liquidation-history-table tbody tr:last-child td {
             border-bottom: 0;
         }
-        .liquidation-history-table tbody td:nth-child(2) {
+        .liquidation-history-table tbody td:nth-child(3) {
             overflow: visible;
         }
-        /* Amount columns (Debt repaid, Collateral seized) — pos-merged display, left-aligned, right group (cols 5,6; col 4 is the adjustable spacer) */
-        .liquidation-history-table tbody td:nth-child(5),
-        .liquidation-history-table tbody td:nth-child(6) {
+        /* Amount columns (Collateral seized, Debt repaid) — pos-merged display, left-aligned, right group */
+        .liquidation-history-table tbody td:nth-child(4),
+        .liquidation-history-table tbody td:nth-child(5) {
             overflow: visible;
             white-space: normal;
             text-align: left;
@@ -5145,12 +5144,11 @@
         body.route-liquidation #positions-table colgroup col:nth-child(5) { width: 17.1% !important; }
         body.route-liquidation #positions-table colgroup col:nth-child(6) { width: 20% !important; }
         body.route-liquidation #positions-table colgroup col:nth-child(7) { width: 15.3% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 11.5% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19.5% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 13.5% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 23% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 17.5% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 15% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 9% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 15% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 23% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 27% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 26% !important; }
         body.route-liquidation #positions-table thead th,
         body.route-liquidation #liquidation-history-table thead th {
             padding: 12px 14px !important;
@@ -10061,14 +10059,13 @@
                     </div>
                     <table class="liquidation-history-table" id="liquidation-history-table" style="display:none;">
                         <colgroup>
-                            <col><col><col><col><col><col>
+                            <col><col><col><col><col>
                         </colgroup>
                         <thead>
                             <tr>
                                 <th>Chain</th>
-                                <th>Liquidated wallet</th>
                                 <th>Date</th>
-                                <th class="col-spacer" aria-hidden="true"></th>
+                                <th>Liquidated wallet</th>
                                 <th style="text-align:left; overflow:visible">
                                     <span class="col-header-group">
                                         Collateral seized
@@ -14199,7 +14196,7 @@
             if (totalUsd) { const txt = totalUsd.querySelector('.lh-total-text') || totalUsd; txt.textContent = `Debt repaid: ${formatUSDCompact(filteredDebtUsd)}`; }
 
             if (!filteredTotal) {
-                body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
                 pager.innerHTML = '';
                 return;
             }
@@ -14216,14 +14213,13 @@
                 const txHref = row.txHash ? `${getSupplyTxExplorer(chain)}${row.txHash}` : '';
                 return `<tr>
                     <td><span class="chain-badge ${supplyEscapeHtml(chain)}"><img class="chain-icon" src="${supplyEscapeHtml(chainIcon)}" alt="">${supplyEscapeHtml(chainLabel)}</span></td>
-                    <td>${renderLiquidationHistoryAddress(row.liquidatedAddress, chain)}</td>
                     <td>
                         <div class="supply-activity-time supply-activity-date-cell">
                             <div class="supply-activity-time-top"><strong>${supplyEscapeHtml(supplyFormatActivityDate(row.timestamp))}</strong>${txHref ? `<a class="liquidation-history-tx" href="${supplyEscapeHtml(txHref)}" target="_blank" rel="noopener" aria-label="Open transaction"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>` : ''}</div>
                             <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                         </div>
                     </td>
-                    <td class="col-spacer"></td>
+                    <td>${renderLiquidationHistoryAddress(row.liquidatedAddress, chain)}</td>
                     <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD, 'collateral')}</td>
                     <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD, 'debt')}</td>
                 </tr>`;
@@ -14231,7 +14227,7 @@
 
             if (pageRows.length < LIQUIDATION_HISTORY_PAGE_SIZE) {
                 for (let i = 0; i < (LIQUIDATION_HISTORY_PAGE_SIZE - pageRows.length); i++) {
-                    body.innerHTML += '<tr><td colspan="6" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
+                    body.innerHTML += '<tr><td colspan="5" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
                 }
             }
 

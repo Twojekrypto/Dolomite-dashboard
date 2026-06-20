@@ -1,9 +1,11 @@
+import json
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 PORTFOLIO_HTML = ROOT / "portfolio-preview.html"
+EXERCISERS_JSON = ROOT / "exercisers_by_address.json"
 
 
 class PortfolioPreviewContractsTest(unittest.TestCase):
@@ -83,7 +85,13 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("seenTokenIds", self.html)
         self.assertIn("flowLocks = (flows && flows.locks) || []", self.html)
         self.assertIn("lockByTokenId", self.html)
-        self.assertIn('String(tx.paid_token || "").toUpperCase() === "DOLO"', self.html)
+        self.assertIn("function isDoloPairExerciseTx(tx)", self.html)
+        self.assertIn('if (paidTokenKey(tx) === "DOLO") return true;', self.html)
+        self.assertIn('if (methodId === "0xf3621c90") return true;', self.html)
+        self.assertIn("return doloPaid > 0 && tx.usdc == null;", self.html)
+        self.assertIn("function isStableExerciseTx(tx)", self.html)
+        self.assertIn("function pairedDoloAmount(tx)", self.html)
+        self.assertIn(".filter(tx => isStableExerciseTx(tx) || isDoloPairExerciseTx(tx))", self.html)
         self.assertIn('action: isPair ? "Pair oDOLO + DOLO" : "Exercise oDOLO"', self.html)
         self.assertIn('route: isPair ? "pair" : "odolo"', self.html)
         self.assertIn("pairedDolo: doloPaired", self.html)
@@ -108,6 +116,8 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('id="pf-exercises-filters"', self.html)
         self.assertIn("EXERCISE_ROUTES", self.html)
         self.assertIn("buildExerciseFilters(state.exercises, state.exFilter, renderAll)", self.html)
+        self.assertIn("const routeCounts = rows.reduce", self.html)
+        self.assertIn('class="dd-opt-count"', self.html)
         self.assertIn('<colgroup><col style="width:148px"><col style="width:160px"><col style="width:116px"><col style="width:118px"><col style="width:118px"><col style="width:96px"><col style="width:88px"></colgroup>', self.html)
         self.assertIn("#pf-exercises-section .flow-route-head{text-align:left}", self.html)
         self.assertIn("#pf-exercises-section .pf-route-cell{text-align:left}", self.html)
@@ -195,6 +205,23 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertNotIn('exerciseSummaryItem(\n        "Transfers"', self.html)
         self.assertNotIn("direct DOLO lock", self.html)
         self.assertNotIn("Not mixed with paired DOLO", self.html)
+
+    def test_odolo_pair_snapshot_matches_transaction_rows(self):
+        data = json.loads(EXERCISERS_JSON.read_text(encoding="utf-8"))
+        txs = [
+            tx
+            for exerciser in data.get("exercisers", [])
+            for tx in exerciser.get("txs", [])
+        ]
+        pair_txs = [tx for tx in txs if str(tx.get("paid_token", "")).upper() == "DOLO"]
+        self.assertGreater(len(pair_txs), 0)
+        self.assertEqual(len(pair_txs), data.get("total_dolo_pair_exercises"))
+        self.assertAlmostEqual(
+            sum(float(tx.get("vedolo") or 0) for tx in pair_txs),
+            float(data.get("total_dolo_pair_vedolo") or 0),
+            places=1,
+        )
+        self.assertTrue(all(tx.get("dolo_paid") for tx in pair_txs))
 
     def test_hash_update_stays_on_portfolio_route_under_base_tag(self):
         self.assertIn('history.replaceState(null, "", `${location.pathname}${location.search}#${addr}`);', self.html)

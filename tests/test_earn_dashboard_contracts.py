@@ -701,7 +701,17 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_liquidation_tables_keep_address_and_expand_contracts(self):
         source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
         self.assertIn("body.route-liquidation #positions-table colgroup col:nth-child(2) { width: 19% !important; }", source)
-        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19.5% !important; }", source)
+        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 15% !important; }", source)
+        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 23% !important; }", source)
+        self.assertNotIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(6)", source)
+        start = source.index('<table class="liquidation-history-table" id="liquidation-history-table"')
+        end = source.index('<tbody id="liquidation-history-body"', start)
+        history_head = source[start:end]
+        self.assertIn("<col><col><col><col><col>", history_head)
+        self.assertLess(history_head.index("<th>Chain</th>"), history_head.index("<th>Date</th>"))
+        self.assertLess(history_head.index("<th>Date</th>"), history_head.index("<th>Liquidated wallet</th>"))
+        self.assertLess(history_head.index("<th>Liquidated wallet</th>"), history_head.index("Collateral seized"))
+        self.assertLess(history_head.index("Collateral seized"), history_head.index("Debt repaid"))
         self.assertIn("body.route-liquidation #positions-table tbody tr,\n        body.route-liquidation #liquidation-history-table tbody tr {\n            height: 86px !important;", source)
         self.assertIn("max-width: 132px !important;", source)
         self.assertIn("const chainLabel = CHAIN_SHORT_LABELS[chain] || row.chainLabel || chain || '—';", source)
