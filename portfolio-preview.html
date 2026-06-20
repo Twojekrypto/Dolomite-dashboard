@@ -2333,20 +2333,56 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     return { deposits, borrows };
   }
 
-  // oDOLO wallet balance — direct RPC balanceOf on Berachain (same contract as fetch_odolo_contract.py)
+  // DOLO/oDOLO wallet balances — direct RPC balanceOf for the inspected wallet.
+  const DOLO_TOKEN = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654";
   const ODOLO_TOKEN = "0x02E513b5B54eE216Bf836ceb471507488fC89543";
+  const ETH_RPCS = ["https://ethereum-rpc.publicnode.com/", "https://eth.drpc.org/", "https://rpc.ankr.com/eth"];
   const BERA_RPCS = ["https://rpc.berachain.com/", "https://berachain-rpc.publicnode.com/", "https://berachain.drpc.org/"];
-  async function fetchOdoloBalance(addr){
+  function tokenAmountFromHex(result, decimals = 18){
+    if (typeof result !== "string" || !/^0x[0-9a-fA-F]+$/.test(result)) return null;
+    const raw = BigInt(result);
+    const base = 10n ** BigInt(decimals);
+    return Number(raw / base) + Number(raw % base) / Number(base);
+  }
+  async function fetchTokenBalance(token, rpcs, addr){
     const data = "0x70a08231" + normAddr(addr).replace("0x","").padStart(64, "0");
-    for (const rpc of BERA_RPCS){
+    for (const rpc of rpcs){
       try {
         const r = await fetch(rpc, { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: ODOLO_TOKEN, data }, "latest"] }) });
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to: token, data }, "latest"] }) });
         const j = await r.json();
-        if (j && typeof j.result === "string" && /^0x[0-9a-fA-F]+$/.test(j.result)) return Number(BigInt(j.result)) / 1e18;
+        const value = tokenAmountFromHex(j && j.result);
+        if (value !== null) return value;
       } catch(e){}
     }
     return null;
+  }
+  async function fetchDoloBalance(addr){
+    const [ethBal, beraBal] = await Promise.all([
+      fetchTokenBalance(DOLO_TOKEN, ETH_RPCS, addr),
+      fetchTokenBalance(DOLO_TOKEN, BERA_RPCS, addr),
+    ]);
+    if (ethBal === null && beraBal === null) return null;
+    return { balance_eth: ethBal, balance_bera: beraBal };
+  }
+  function mergeDoloBalance(staticRow, liveRow){
+    if (!liveRow) return staticRow || null;
+    const eth = liveRow.balance_eth !== null && liveRow.balance_eth !== undefined ? liveRow.balance_eth : Number(staticRow && staticRow.balance_eth) || 0;
+    const bera = liveRow.balance_bera !== null && liveRow.balance_bera !== undefined ? liveRow.balance_bera : Number(staticRow && staticRow.balance_bera) || 0;
+    const chains = [];
+    if (eth >= 0.000001) chains.push("eth");
+    if (bera >= 0.000001) chains.push("bera");
+    return {
+      ...(staticRow || {}),
+      balance: eth + bera,
+      balance_eth: eth,
+      balance_bera: bera,
+      chains,
+      balance_source: "live-rpc",
+    };
+  }
+  async function fetchOdoloBalance(addr){
+    return fetchTokenBalance(ODOLO_TOKEN, BERA_RPCS, addr);
   }
 
   // active oDOLO vesting positions (Berachain only)
@@ -2625,7 +2661,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const vOTok = d.vesting ? d.vesting.oToken : 0;
     const vPair = d.vesting ? d.vesting.pairDolo : 0;
     const total = held + ve + vOTok;
-    $("#pf-sum-total").innerHTML = `${fmtCompact(total)}<span class="unit">DOLO</span>`;
+    $("#pf-sum-total").innerHTML = `${fmtCompact(total)}<span class="unit">DOLO eq.</span>`;
     const usdEl = $("#pf-sum-total-usd");
     if (d.doloPrice){ usdEl.style.display = ""; usdEl.innerHTML = `≈ ${fmtUSD(total * d.doloPrice)}<span class="lbl">USD</span>`; }
     else usdEl.style.display = "none";
@@ -3134,14 +3170,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const doloPrice = doloPriceJson && (doloPriceJson.price || (doloPriceJson.data && doloPriceJson.data.price)) || 0;
 
     // on-chain in parallel
-    const [vesting, odoloBal, ...chainResults] = await Promise.all([
+    const [vesting, odoloBal, liveDolo, ...chainResults] = await Promise.all([
       fetchVesting(addr),
       fetchOdoloBalance(addr).catch(() => null),
+      fetchDoloBalance(addr).catch(() => null),
       ...CHAINS.map(c => fetchChainPositions(c, addr).catch(() => ({ deposits: [], borrows: [] }))),
     ]);
 
+    const staticDolo = findByAddress(doloHolders, addr);
     const cardData = {
-      dolo: findByAddress(doloHolders, addr),
+      dolo: mergeDoloBalance(staticDolo, liveDolo),
       vedolo: findByAddress(vedoloHolders, addr),
       exer: findByAddress(exercisers, addr),
       vesting,
