@@ -2247,13 +2247,15 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   const exerciseTimeMs = row => {
     const raw = row?.timestamp ?? row?.block_timestamp ?? row?.blockTimestamp ?? row?.time ?? row?.datetime ?? row?.date_time;
     if (raw != null && raw !== ""){
-      const num = Number(raw);
-      if (Number.isFinite(num) && num > 0) return num > 1e12 ? num : num * 1000;
-      const parsed = Date.parse(String(raw));
+      const text = String(raw).trim();
+      const num = Number(text);
+      if (Number.isFinite(num)) return num > 0 ? (num > 1e12 ? num : num * 1000) : 0;
+      const parsed = Date.parse(text);
       if (Number.isFinite(parsed)) return parsed;
     }
     return 0;
   };
+  const exerciseSortTimeMs = row => exerciseTimeMs(row) || Date.parse(`${row?.date || ""}T00:00:00Z`) || 0;
   const fmtExerciseRelativeTime = ms => {
     if (!Number.isFinite(ms) || ms <= 0) return "—";
     const diff = Math.max(0, Math.floor((Date.now() - ms) / 1000));
@@ -3114,7 +3116,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       else if (s.key === "hf"){ av = Number.isFinite(Number(a.hf)) ? Number(a.hf) : -1; bv = Number.isFinite(Number(b.hf)) ? Number(b.hf) : -1; }
       else if (s.key === "collateral"){ av = a.collateral; bv = b.collateral; }
       else if (s.key === "debt"){ av = a.debt; bv = b.debt; }
-      else if (s.key === "date"){ av = exerciseTimeMs(a) || Date.parse(`${a.date || ""}T00:00:00Z`) || 0; bv = exerciseTimeMs(b) || Date.parse(`${b.date || ""}T00:00:00Z`) || 0; }
+      else if (s.key === "date"){ av = exerciseSortTimeMs(a); bv = exerciseSortTimeMs(b); }
       else if (s.key === "action"){ av = a.action || ""; bv = b.action || ""; }
       else if (s.key === "route"){ av = a.route || ""; bv = b.route || ""; }
       else if (s.key === "vedolo"){ av = a.vedolo; bv = b.vedolo; }

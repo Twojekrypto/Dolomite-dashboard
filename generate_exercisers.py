@@ -455,6 +455,7 @@ def main():
         tx_entry = {
             "hash": tx_hash,
             "date": date_str,
+            "timestamp": timestamp,
             "usdc": round_amount(usdc_amount) if not is_dolo_exercise else None,
             "vedolo": round_amount(vedolo_amount) if vedolo_amount else None,
             "price": price_per_vedolo,

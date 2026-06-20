@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PORTFOLIO_HTML = ROOT / "portfolio-preview.html"
 EXERCISERS_JSON = ROOT / "exercisers_by_address.json"
+GENERATE_EXERCISERS = ROOT / "generate_exercisers.py"
 
 
 class PortfolioPreviewContractsTest(unittest.TestCase):
@@ -167,6 +168,8 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("fmtExerciseDateMeta(r)", self.html)
         self.assertIn("fmtExerciseRelativeTime", self.html)
         self.assertIn("fmtExerciseClockTime", self.html)
+        self.assertIn("const exerciseSortTimeMs = row =>", self.html)
+        self.assertIn('return num > 0 ? (num > 1e12 ? num : num * 1000) : 0;', self.html)
         self.assertIn("flowByHash", self.html)
         self.assertIn("timestamp: exerciseTimeMs(tx) || exerciseTimeMs(flow)", self.html)
         self.assertIn("timestamp: exerciseTimeMs(lock)", self.html)
@@ -222,6 +225,9 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
             places=1,
         )
         self.assertTrue(all(tx.get("dolo_paid") for tx in pair_txs))
+        self.assertTrue(all(isinstance(tx.get("timestamp"), int) and tx["timestamp"] > 0 for tx in txs))
+        generator = GENERATE_EXERCISERS.read_text(encoding="utf-8")
+        self.assertIn('"timestamp": timestamp', generator)
 
     def test_hash_update_stays_on_portfolio_route_under_base_tag(self):
         self.assertIn('history.replaceState(null, "", `${location.pathname}${location.search}#${addr}`);', self.html)
