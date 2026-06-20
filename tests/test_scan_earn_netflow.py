@@ -16,7 +16,10 @@ class ScanEarnNetflowTest(unittest.TestCase):
 
     def test_reduced_chunk_size_never_goes_below_minimum(self):
         self.assertEqual(_reduced_chunk_size(49_999), 24_999)
-        self.assertEqual(_reduced_chunk_size(500), MIN_BLOCK_CHUNK)
+        self.assertEqual(_reduced_chunk_size(100), MIN_BLOCK_CHUNK)
+
+    def test_ethereum_uses_public_fallback_compatible_chunk(self):
+        self.assertEqual(scan_earn_netflow.CHAINS["ethereum"]["max_block_chunk"], 50)
 
     def test_main_returns_failure_when_chain_scan_fails(self):
         fake_chains = {
@@ -33,8 +36,28 @@ class ScanEarnNetflowTest(unittest.TestCase):
              patch("sys.argv", ["scan_earn_netflow.py", "testchain"]), \
              redirect_stdout(stdout), \
              redirect_stderr(stderr):
-            self.assertEqual(scan_earn_netflow.main(), 1)
+                self.assertEqual(scan_earn_netflow.main(), 1)
         self.assertIn("Scan failed for testchain: rpc_failed", stderr.getvalue())
+
+    def test_main_treats_no_progress_with_existing_output_as_checkpoint(self):
+        fake_chains = {
+            "testchain": {
+                "margin": "0x0000000000000000000000000000000000000000",
+                "rpcs": ["https://example.invalid"],
+                "start_block": 1,
+            }
+        }
+        stdout = StringIO()
+        with patch.object(scan_earn_netflow, "CHAINS", fake_chains), \
+             patch.object(scan_earn_netflow, "scan_chain", return_value={
+                 "completed": False,
+                 "reason": "soft_runtime_no_progress",
+                 "hasExistingOutput": True,
+             }), \
+             patch("sys.argv", ["scan_earn_netflow.py", "testchain"]), \
+             redirect_stdout(stdout):
+            self.assertEqual(scan_earn_netflow.main(), 0)
+        self.assertIn("preserving the existing public netflow file", stdout.getvalue())
 
 
 if __name__ == "__main__":

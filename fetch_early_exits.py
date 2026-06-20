@@ -46,6 +46,9 @@ OUTPUT_FILE = os.path.join(DATA_DIR, "early_exits.json")
 CACHE_FILE = os.path.join(DATA_DIR, "early_exits_cache.json")
 
 API_KEY = os.environ.get("BERASCAN_API_KEY", "")
+LOG_INITIAL_STEP = int(os.environ.get("EARLY_EXITS_LOG_INITIAL_STEP") or "50000")
+LOG_MIN_STEP = int(os.environ.get("EARLY_EXITS_LOG_MIN_STEP") or "250")
+LOG_MIN_STEP_FAILURES = int(os.environ.get("EARLY_EXITS_LOG_MIN_STEP_FAILURES") or "3")
 
 
 def rpc_call(method, params, retries=3):
@@ -81,7 +84,9 @@ def fetch_withdraw_events(start_block=0):
 
     all_logs = []
     block = start_block
-    step = 50000  # 50K block pages
+    step = max(LOG_MIN_STEP, LOG_INITIAL_STEP)
+    min_step_failures = 0
+    small_window_successes = 0
 
     while block <= latest_block:
         to_block = min(block + step - 1, latest_block)
@@ -97,15 +102,43 @@ def fetch_withdraw_events(start_block=0):
         # checkpoint — otherwise events in this window would be skipped
         # forever, silently understating early-exit stats.
         if result is None:
+            if step > LOG_MIN_STEP:
+                next_step = max(LOG_MIN_STEP, step // 2)
+                print(
+                    f"  ⚠️ Reducing Withdraw log window from {step:,} to {next_step:,} blocks "
+                    f"after RPC failure at {block:,}-{to_block:,}",
+                    flush=True,
+                )
+                step = next_step
+                small_window_successes = 0
+                time.sleep(0.5)
+                continue
+            min_step_failures += 1
+            if min_step_failures < LOG_MIN_STEP_FAILURES:
+                delay = min(8, 2 * min_step_failures)
+                print(
+                    f"  ⚠️ Minimum Withdraw log window ({step:,} blocks) failed at "
+                    f"{block:,}-{to_block:,}; retrying in {delay}s "
+                    f"({min_step_failures}/{LOG_MIN_STEP_FAILURES})",
+                    flush=True,
+                )
+                small_window_successes = 0
+                time.sleep(delay)
+                continue
             raise SystemExit(
                 f"❌ eth_getLogs failed for blocks {block:,}-{to_block:,} on all endpoints; "
                 "aborting without advancing last_scanned_block"
             )
+        min_step_failures = 0
+        small_window_successes += 1
         all_logs.extend(result)
         if len(result) > 0:
             print(f"  Block {block:,}-{to_block:,}: {len(result)} events (total: {len(all_logs)})")
 
         block = to_block + 1
+        if len(result) < 25 and step < LOG_INITIAL_STEP and small_window_successes >= 4:
+            step = min(LOG_INITIAL_STEP, step * 2)
+            small_window_successes = 0
 
         # Small delay to avoid rate limits
         if block % 500000 == 0:
