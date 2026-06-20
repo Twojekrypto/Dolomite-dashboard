@@ -47,6 +47,10 @@ CHAINS = {
             "https://eth.llamarpc.com/",
         ],
         "start_block": 22_790_000,
+        # 1rpc's public Ethereum endpoint rejects eth_getLogs ranges above 50
+        # blocks. Keep scheduled catch-up chunks inside that fallback limit so
+        # Alchemy rate limits do not stall the whole netflow workflow.
+        "max_block_chunk": 50,
     },
     "berachain": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
@@ -163,7 +167,7 @@ SECOND_OWNER_EVENTS = [
 ]
 
 BLOCK_CHUNK = 49999  # blocks per getLogs request (RPC max is typically 50k)
-MIN_BLOCK_CHUNK = 500
+MIN_BLOCK_CHUNK = 50
 ADDRESS_FILTER_CHUNK = 500000
 MAX_RETRIES = 3
 OUTPUT_DIR = Path(__file__).parent / "data" / "earn-netflow"
@@ -910,7 +914,12 @@ def scan_chain(
         if soft_deadline is not None and time.monotonic() >= soft_deadline:
             if current <= start_block:
                 print(f"  ✗ Soft runtime limit reached before scanning any block at {current:,}")
-                return {"completed": False, "reason": "soft_runtime_no_progress", "lastBlock": current}
+                return {
+                    "completed": False,
+                    "reason": "soft_runtime_no_progress",
+                    "lastBlock": current,
+                    "hasExistingOutput": output_file.exists(),
+                }
             if not target_addresses:
                 save_progress(
                     chain_id,
@@ -1055,13 +1064,15 @@ def scan_chain(
             
         except Exception as e:
             error_msg = str(e)
+            if _is_chunk_too_large_error(error_msg):
+                reduced_chunk_size = _reduced_chunk_size(chunk_size)
+                if reduced_chunk_size < chunk_size:
+                    chunk_size = reduced_chunk_size
+                    print(f"  ⚠ Block range too large, reducing to {chunk_size}")
+                    continue
             if "Too Many" in error_msg or "rate" in error_msg.lower():
                 print(f"  ⚠ Rate limited, waiting 5s...")
                 time.sleep(5)
-                continue
-            elif _is_chunk_too_large_error(error_msg):
-                chunk_size = _reduced_chunk_size(chunk_size)
-                print(f"  ⚠ Block range too large, reducing to {chunk_size}")
                 continue
             else:
                 reduced_chunk_size = _reduced_chunk_size(chunk_size)
@@ -1151,6 +1162,16 @@ def main():
             print("Soft runtime limit reached; stopping remaining chains until next scheduled run")
             break
         if isinstance(result, dict) and result.get("completed") is False:
+            if (
+                result.get("reason") == "soft_runtime_no_progress"
+                and result.get("hasExistingOutput")
+                and not target_addresses
+            ):
+                print(
+                    f"No new {chain_id} blocks were scanned before the soft runtime limit; "
+                    "preserving the existing public netflow file and retrying on the next scheduled run."
+                )
+                break
             print(f"Scan failed for {chain_id}: {result.get('reason') or 'unknown'}", file=sys.stderr)
             return 1
     
