@@ -14211,7 +14211,7 @@
 
             body.innerHTML = pageRows.map(row => {
                 const chain = row.chain || '';
-                const chainLabel = CHAIN_DISPLAY_NAMES[chain] || row.chainLabel || chain || '—';
+                const chainLabel = CHAIN_SHORT_LABELS[chain] || row.chainLabel || chain || '—';
                 const chainIcon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
                 const txHref = row.txHash ? `${getSupplyTxExplorer(chain)}${row.txHash}` : '';
                 return `<tr>
