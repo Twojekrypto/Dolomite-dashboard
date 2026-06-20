@@ -9,6 +9,11 @@ import validate_data
 
 
 class TestOdoloExerciseMetrics(unittest.TestCase):
+    def test_round_amount_preserves_dust_exercises(self):
+        self.assertEqual(generate_exercisers.round_amount(0.000673978684860832), 0.000674)
+        self.assertGreater(generate_exercisers.round_amount(0.000673978684860832), 0)
+        self.assertEqual(generate_exercisers.round_amount(1234.5678), 1234.57)
+
     def test_generator_splits_usdc_exercise_from_dolo_pairing(self):
         exercisers = [{
             "txs": [

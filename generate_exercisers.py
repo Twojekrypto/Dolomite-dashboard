@@ -50,6 +50,17 @@ CACHE_FILE = os.path.join(DATA_DIR, "exercisers_cache.json")
 OUTPUT_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json")
 
 
+def round_amount(value, decimals=2, tiny_decimals=6):
+    """Keep dust-sized valid exercises from rounding down to zero."""
+    if value is None:
+        return None
+    if value == 0:
+        return 0
+    places = tiny_decimals if abs(value) < 1 else decimals
+    rounded = round(value, places)
+    return rounded if rounded != 0 else value
+
+
 def has_valid_existing_output():
     """Return True when the last generated production output is safe to keep."""
     if not os.path.exists(OUTPUT_FILE):
@@ -117,6 +128,39 @@ def load_cache():
         except Exception as exc:
             print(f"⚠️ load_cache: failed to read {CACHE_FILE} ({exc}); starting full resync", flush=True)
     return {}
+
+
+def seed_cache_from_existing_output():
+    """Recover receipt cache entries from the last generated JSON snapshot."""
+    if not os.path.exists(OUTPUT_FILE):
+        return {}
+    try:
+        with open(OUTPUT_FILE) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"⚠️ seed_cache: failed to read {OUTPUT_FILE} ({exc}); skipping seed", flush=True)
+        return {}
+
+    exercisers = data.get("exercisers")
+    if not isinstance(exercisers, list):
+        return {}
+
+    seed = {}
+    for exerciser in exercisers:
+        for tx in exerciser.get("txs", []):
+            tx_hash = tx.get("hash")
+            vedolo = tx.get("vedolo")
+            if not tx_hash or vedolo is None:
+                continue
+            paid_token = tx.get("paid_token") or ("DOLO" if tx.get("dolo_paid") else "USDC.e")
+            seed[tx_hash] = {
+                "usdc": tx.get("usdc"),
+                "odolo": vedolo,
+                "lock_days": tx.get("lock_days"),
+                "dolo_paid": tx.get("dolo_paid"),
+                "paid_token": paid_token,
+            }
+    return seed
 
 
 def save_cache(cache):
@@ -236,11 +280,21 @@ def main():
 
     # Load receipt cache
     cache = load_cache()
+    seeded_cache = seed_cache_from_existing_output()
+    seeded_count = 0
+    for tx_hash, entry in seeded_cache.items():
+        if tx_hash not in cache:
+            cache[tx_hash] = entry
+            seeded_count += 1
+    if seeded_count:
+        print(f"  🌱 Seeded {seeded_count} cached receipts from existing exercisers_by_address.json")
+        save_cache(cache)
     cached_count = len(cache)
     if cached_count:
         print(f"  📦 Loaded {cached_count} cached tx receipts")
 
-    # One-time cache invalidation: evict entries with wrong DOLO-as-USDC data
+    # One-time cache invalidation: evict entries with wrong DOLO-as-USDC
+    # data or old dust-rounded oDOLO amounts that were saved as zero.
     evicted = 0
     evict_keys = []
     for tx_hash, entry in cache.items():
@@ -249,6 +303,8 @@ def main():
             odolo = entry.get("odolo") or 0
             if usdc > 0 and odolo > 0 and abs(usdc - odolo) < 1:
                 evict_keys.append(tx_hash)
+        elif entry.get("odolo") == 0:
+            evict_keys.append(tx_hash)
     for k in evict_keys:
         del cache[k]
         evicted += 1
@@ -298,10 +354,10 @@ def main():
 
         if usdc_amount is not None or dolo_amount is not None or odolo_amount is not None:
             cache[tx_hash] = {
-                "usdc": round(usdc_amount, 2) if usdc_amount else None,
-                "odolo": round(odolo_amount, 2) if odolo_amount else None,
+                "usdc": round_amount(usdc_amount) if usdc_amount else None,
+                "odolo": round_amount(odolo_amount) if odolo_amount else None,
                 "lock_days": lock_days,
-                "dolo_paid": round(dolo_amount, 2) if dolo_amount else None,
+                "dolo_paid": round_amount(dolo_amount) if dolo_amount else None,
                 # Classify by the tx's method id (authoritative), not by which
                 # transfer logs happened to be found in the receipt.
                 "paid_token": "DOLO" if str(tx.get("methodId") or tx.get("input", "")[:10]) == "0xf3621c90" else "USDC.e",
@@ -335,13 +391,13 @@ def main():
                 recovered += 1
                 errors -= 1
                 cache[tx_hash] = {
-                    "usdc": round(usdc_amount, 2) if usdc_amount else None,
-                    "odolo": round(odolo_amount, 2) if odolo_amount else None,
+                    "usdc": round_amount(usdc_amount) if usdc_amount else None,
+                    "odolo": round_amount(odolo_amount) if odolo_amount else None,
                     "lock_days": lock_days,
-                    "dolo_paid": round(dolo_amount, 2) if dolo_amount else None,
+                    "dolo_paid": round_amount(dolo_amount) if dolo_amount else None,
                     # Classify by the tx's method id (authoritative), not by which
-                # transfer logs happened to be found in the receipt.
-                "paid_token": "DOLO" if str(tx.get("methodId") or tx.get("input", "")[:10]) == "0xf3621c90" else "USDC.e",
+                    # transfer logs happened to be found in the receipt.
+                    "paid_token": "DOLO" if str(tx.get("methodId") or tx.get("input", "")[:10]) == "0xf3621c90" else "USDC.e",
                 }
 
             if (i + 1) % 25 == 0 or i == len(failed_txs) - 1:
@@ -399,14 +455,14 @@ def main():
         tx_entry = {
             "hash": tx_hash,
             "date": date_str,
-            "usdc": round(usdc_amount, 2) if not is_dolo_exercise else None,
-            "vedolo": round(vedolo_amount, 2) if vedolo_amount else None,
+            "usdc": round_amount(usdc_amount) if not is_dolo_exercise else None,
+            "vedolo": round_amount(vedolo_amount) if vedolo_amount else None,
             "price": price_per_vedolo,
             "lock_days": lock_days,
             "paid_token": paid_token,
         }
         if is_dolo_exercise:
-            tx_entry["dolo_paid"] = round(dolo_paid, 2) if dolo_paid else None
+            tx_entry["dolo_paid"] = round_amount(dolo_paid) if dolo_paid else None
 
         d["txs"].append(tx_entry)
 

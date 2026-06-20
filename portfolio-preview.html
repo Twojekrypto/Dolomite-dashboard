@@ -1581,6 +1581,16 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border-color:var(--pf-ex-line);
 }
 #pf-exercises-section .pf-exercise-route-filter .dd-opt.active .dd-ico svg{color:var(--pf-ex-green)}
+#pf-exercises-section .pf-exercise-route-filter .dd-opt-count{
+  margin-left:auto;
+  padding-left:10px;
+  font-family:var(--mono);
+  font-size:10px;
+  font-weight:800;
+  color:var(--fg-4);
+  white-space:nowrap;
+}
+#pf-exercises-section .pf-exercise-route-filter .dd-opt.active .dd-opt-count{color:var(--pf-ex-green)}
 #pf-exercises-section .flow-route-head{text-align:left}
 #pf-exercises-section .pf-route-cell{text-align:left}
 #pf-exercises-section .pf-route-tag{
@@ -2696,6 +2706,23 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     base.patched_flow_count = changedIds.size;
     return base;
   }
+  function paidTokenKey(tx){
+    return String((tx && (tx.paid_token || tx.paidToken || tx.payment_token || tx.paymentToken)) || "").trim().toUpperCase();
+  }
+  function isDoloPairExerciseTx(tx){
+    if (!tx) return false;
+    if (paidTokenKey(tx) === "DOLO") return true;
+    const methodId = String(tx.methodId || tx.method_id || tx.method || "").toLowerCase();
+    if (methodId === "0xf3621c90") return true;
+    const doloPaid = Number(tx.dolo_paid ?? tx.doloPaid ?? tx.dolo_paired ?? tx.pairedDolo ?? 0);
+    return doloPaid > 0 && tx.usdc == null;
+  }
+  function isStableExerciseTx(tx){
+    return !!tx && !isDoloPairExerciseTx(tx) && tx.usdc != null;
+  }
+  function pairedDoloAmount(tx){
+    return Number(tx?.dolo_paid ?? tx?.doloPaid ?? tx?.dolo_paired ?? tx?.pairedDolo ?? tx?.vedolo ?? 0) || 0;
+  }
   function buildExerciseRows(exer, flows, addr, currentVedolo){
     const seen = new Set();
     const seenTokenIds = new Set();
@@ -2711,12 +2738,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       if (!prev || exerciseTimeMs(lock) >= exerciseTimeMs(prev)) lockByTokenId.set(tokenId, lock);
     });
     const rows = ((exer && exer.txs) || [])
-      .filter(tx => tx && (tx.usdc != null || String(tx.paid_token || "").toUpperCase() === "DOLO"))
+      .filter(tx => isStableExerciseTx(tx) || isDoloPairExerciseTx(tx))
       .map(tx => {
-      const paidToken = tx.paid_token || (tx.usdc ? "USDC.e" : "DOLO");
-      const isPair = String(paidToken || "").toUpperCase() === "DOLO";
+      const isPair = isDoloPairExerciseTx(tx);
+      const paidToken = isPair ? "DOLO" : (tx.paid_token || tx.paidToken || (tx.usdc ? "USDC.e" : ""));
       const usdc = isPair ? 0 : (Number(tx.usdc) || 0);
-      const doloPaired = isPair ? (Number(tx.dolo_paid) || Number(tx.vedolo) || 0) : 0;
+      const doloPaired = isPair ? pairedDoloAmount(tx) : 0;
       const hash = tx.hash || "";
       const flow = hash ? flowByHash.get(hash.toLowerCase()) : null;
       const tokenId = flow && flow.tokenId != null ? String(flow.tokenId) : "";
@@ -3038,9 +3065,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       return;
     }
     el.style.display = "flex";
+    const routeCounts = rows.reduce((counts, row) => {
+      const route = row && row.route ? row.route : "odolo";
+      counts[route] = (counts[route] || 0) + 1;
+      return counts;
+    }, {});
     let opts = "";
     EXERCISE_ROUTES.forEach(route => {
-      opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span></div>`;
+      opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span><span class="dd-opt-count">${(routeCounts[route.key] || 0).toLocaleString("en-US")}</span></div>`;
     });
     el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter"><button class="dd-btn${filterState.routes.size!==EXERCISE_ROUTES.length?" filtered":""}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
     const btn = el.querySelector("[data-dd-btn]");
