@@ -5035,6 +5035,12 @@
         .positions-table tbody td {
             height: 38px;
         }
+        body.route-liquidation .liquidation-table-surface .table-card-inner,
+        body.route-liquidation .liquidation-history-card .table-card-inner,
+        body.route-liquidation .liquidation-table-container,
+        body.route-liquidation .liquidation-history-container {
+            background: var(--bg-2) !important;
+        }
         body.route-liquidation .liquidation-table-container {
             border-bottom: 0 !important;
             border-radius: 0 !important;
@@ -5073,10 +5079,13 @@
         body.route-liquidation #positions-table tbody tr,
         body.route-liquidation #positions-table tbody tr.critical-row,
         body.route-liquidation #positions-table tbody tr.danger-row {
-            cursor: pointer !important;
+            cursor: default !important;
             background: transparent !important;
             box-shadow: none !important;
             transition: background .15s var(--ease), color .15s var(--ease) !important;
+        }
+        body.route-liquidation #positions-table tbody tr.has-token-overflow {
+            cursor: pointer !important;
         }
         body.route-liquidation #positions-table tbody td {
             position: relative !important;
@@ -5085,7 +5094,10 @@
             color: var(--fg-2) !important;
         }
         body.route-liquidation #positions-table tbody tr:nth-child(even) td {
-            background: rgba(255,255,255,.014) !important;
+            background: transparent !important;
+        }
+        body.route-liquidation #liquidation-history-table tbody tr:nth-child(even) td {
+            background: transparent !important;
         }
         body.route-liquidation #positions-table tbody tr:hover,
         body.route-liquidation #positions-table tbody tr.critical-row:hover,
@@ -5139,8 +5151,9 @@
         }
         body.route-liquidation #positions-table tbody td,
         body.route-liquidation #liquidation-history-table tbody td {
-            min-height: 68px !important;
-            padding: 12px 14px !important;
+            height: auto !important;
+            min-height: 0 !important;
+            padding: 12px 18px !important;
             font-size: 12px !important;
             line-height: 1.25 !important;
             vertical-align: middle !important;
@@ -5154,6 +5167,51 @@
             gap: 8px !important;
             min-width: 0 !important;
         }
+        body.route-liquidation #liquidation-history-table .liquidation-history-wallet {
+            display: inline-flex !important;
+            align-items: center !important;
+            max-width: 100% !important;
+        }
+        body.route-liquidation #positions-table .known-address-cell,
+        body.route-liquidation #liquidation-history-table .known-address-cell {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 4px !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            line-height: 1.2 !important;
+        }
+        body.route-liquidation #positions-table .known-address-main,
+        body.route-liquidation #positions-table .known-address-sub,
+        body.route-liquidation #liquidation-history-table .known-address-main,
+        body.route-liquidation #liquidation-history-table .known-address-sub {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            flex-wrap: nowrap !important;
+        }
+        body.route-liquidation #positions-table .known-address-label,
+        body.route-liquidation #liquidation-history-table .known-address-label {
+            color: var(--fg-1) !important;
+            font-family: inherit !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            letter-spacing: -.1px !important;
+            line-height: 1.2 !important;
+            max-width: 150px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            text-decoration: none !important;
+        }
+        body.route-liquidation #positions-table .known-address-label:hover,
+        body.route-liquidation #liquidation-history-table .known-address-label:hover {
+            color: var(--fg-1) !important;
+            text-shadow: none !important;
+        }
         body.route-liquidation #positions-table .address-cell a.addr-tooltip-wrap,
         body.route-liquidation #liquidation-history-table .liquidation-history-address {
             font-family: var(--mono) !important;
@@ -5162,18 +5220,33 @@
             color: var(--fg-3) !important;
             letter-spacing: .1px !important;
         }
+        body.route-liquidation #positions-table .known-address-sub a.addr-tooltip-wrap,
+        body.route-liquidation #liquidation-history-table .known-address-sub a.addr-tooltip-wrap {
+            font-family: var(--mono) !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            line-height: 1.2 !important;
+            color: var(--fg-3) !important;
+            letter-spacing: .1px !important;
+            max-width: 116px !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            text-decoration: none !important;
+        }
+        body.route-liquidation #positions-table .known-address-main .known-address-label.addr-tooltip-wrap,
+        body.route-liquidation #liquidation-history-table .known-address-main .known-address-label.addr-tooltip-wrap {
+            color: var(--fg-1) !important;
+            font-family: inherit !important;
+            font-size: 13px !important;
+            font-weight: 600 !important;
+            line-height: 1.2 !important;
+            letter-spacing: -.1px !important;
+        }
         body.route-liquidation #positions-table .address-cell a.addr-tooltip-wrap:hover,
         body.route-liquidation #liquidation-history-table .liquidation-history-address:hover,
         body.route-liquidation #liquidation-history-table .liquidation-history-address:focus-visible {
             color: var(--fg-1) !important;
-        }
-        body.route-liquidation #positions-table .known-address-label {
-            font-size: 13px !important;
-            line-height: 1.15 !important;
-        }
-        body.route-liquidation #positions-table .known-address-sub a.addr-tooltip-wrap {
-            font-size: 12px !important;
-            color: var(--fg-3) !important;
         }
         body.route-liquidation #positions-table .watchlist-star {
             margin-right: 1px !important;
@@ -5193,22 +5266,43 @@
         }
         body.route-liquidation #positions-table .pos-merged .token-pills,
         body.route-liquidation #liquidation-history-table .pos-merged .token-pills {
-            flex-direction: row !important;
-            flex-wrap: wrap !important;
-            align-items: center !important;
-            gap: 4px 6px !important;
+            flex-direction: column !important;
+            flex-wrap: nowrap !important;
+            align-items: flex-start !important;
+            gap: 2px !important;
         }
         body.route-liquidation #positions-table .pos-merged .usd-value,
         body.route-liquidation #liquidation-history-table .pos-merged .usd-value {
             font-size: 13px !important;
             line-height: 1.12 !important;
         }
+        body.route-liquidation #positions-table .pos-value-line {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 7px !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+        }
+        body.route-liquidation #positions-table .position-more-hint {
+            color: var(--gold) !important;
+            font-family: var(--mono) !important;
+            font-size: 10px !important;
+            font-weight: 650 !important;
+            line-height: 1 !important;
+            white-space: nowrap !important;
+        }
         body.route-liquidation #positions-table .pos-merged .token-pill,
         body.route-liquidation #liquidation-history-table .pos-merged .token-pill {
-            min-height: 21px !important;
-            padding: 2px 6px !important;
-            font-size: 10.25px !important;
-            border-radius: 6px !important;
+            min-height: 0 !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+            font-size: 10px !important;
+            line-height: 1.25 !important;
+        }
+        body.route-liquidation #positions-table tbody tr.position-row-expanded td {
+            background: rgba(255,255,255,.018) !important;
         }
         body.route-liquidation #positions-table .chain-badge,
         body.route-liquidation #liquidation-history-table .chain-badge {
@@ -11725,6 +11819,7 @@
         let liqCollTokenFilter = new Set();
         let liqCollMin = null, liqCollMax = null;
         let availableChainCount = 0;
+        const expandedPositionRows = new Set();
 
         const ROUTE_MODE = (() => {
             const explicit = String(window.__DOLO_ROUTE || '').toLowerCase();
@@ -13313,21 +13408,23 @@
             const shortAddr = supplyEscapeHtml(options.short || shortDoloAddress(address));
             const info = getDoloAddressInfo(address);
             const debankClass = options.debankClass ? ` ${supplyEscapeHtml(options.debankClass)}` : '';
+            const forceLabel = !!options.forceLabel;
             const toolsHtml = `
                 <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${safeAddress}',this)">${COPY_SVG}</span>
                 <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon${debankClass}"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
             `;
 
-            if (!info) {
+            if (!info && !forceLabel) {
                 return `<a href="${safeHref}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${shortAddr}</a>${toolsHtml}`;
             }
 
-            const label = supplyEscapeHtml(info.label || 'Wallet');
-            const type = supplyEscapeHtml(info.type || 'label');
+            const label = supplyEscapeHtml(info?.label || 'Wallet');
+            const type = info?.type ? supplyEscapeHtml(info.type) : '';
+            const typeHtml = type ? `<span class="addr-label-mini ${type}">${type.toUpperCase()}</span>` : '';
             return `<div class="known-address-cell">
                 <div class="known-address-main">
                     <a href="${safeHref}" target="_blank" rel="noopener" class="known-address-label addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${label}</a>
-                    <span class="addr-label-mini ${type}">${type.toUpperCase()}</span>
+                    ${typeHtml}
                 </div>
                 <div class="known-address-sub">
                     <a href="${safeHref}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${shortAddr}</a>
@@ -13353,6 +13450,20 @@
             } else {
                 showCopied();
             }
+        }
+
+        function getPositionRowKey(position) {
+            return [
+                position?.chain || '',
+                String(position?.address || '').toLowerCase(),
+                String(position?.accountNumber || '0'),
+            ].join(':');
+        }
+
+        function shouldIgnorePositionExpandClick(target) {
+            return !!target?.closest?.(
+                'a, button, input, select, textarea, .watchlist-star, .copy-addr-icon, .debank-icon, .col-filter-btn, .col-filter-clear, .addr-tooltip-wrap'
+            );
         }
 
         function resetLendingTableScroll() {
@@ -13811,16 +13922,29 @@
                 const acctLabel = (p.accountNumber && p.accountNumber !== '0') ? ` #${p.accountNumber.length > 6 ? p.accountNumber.slice(0,4) + '…' : p.accountNumber}` : '';
                 const debankChain = CHAIN_DEBANK_IDS[p.chain] || 'bera';
                 const debankUrl = `https://debank.com/profile/${p.address}?chain=${debankChain}`;
-                const addressTools = renderDoloAddressTools(p.address, p.explorer, { debankUrl, short: shortAddr });
+                const addressTools = renderDoloAddressTools(p.address, p.explorer, { debankUrl, short: shortAddr, forceLabel: true });
+                const rowKey = getPositionRowKey(p);
+                const hasTokenOverflow = (p.collateralTokens || []).length > 3 || (p.debtTokens || []).length > 3;
+                const isExpanded = expandedPositionRows.has(rowKey);
+                const rowStateClass = `${hasTokenOverflow ? ' has-token-overflow' : ''}${isExpanded ? ' position-row-expanded' : ''}`;
+                const rowExpandAttrs = hasTokenOverflow
+                    ? ` data-position-row-key="${supplyEscapeHtml(rowKey)}" tabindex="0" aria-expanded="${isExpanded ? 'true' : 'false'}"`
+                    : '';
+                const collateralMoreHint = !isExpanded && (p.collateralTokens || []).length > 3
+                    ? `<span class="position-more-hint" data-tooltip="Click row to show all assets">+${(p.collateralTokens || []).length - 3} more</span>`
+                    : '';
+                const debtMoreHint = !isExpanded && (p.debtTokens || []).length > 3
+                    ? `<span class="position-more-hint" data-tooltip="Click row to show all assets">+${(p.debtTokens || []).length - 3} more</span>`
+                    : '';
 
                 const collateralClass = p.collateralUSD < 0.01 ? 'zero' : '';
                 const debtClass = p.debtUSD < 0.01 ? 'zero' : '';
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : formatUSD(p.collateralUSD);
                 const collateralTokensHtml = p.collateralTokens && p.collateralTokens.length > 0
-                    ? renderTokenPills(p.collateralTokens)
+                    ? renderTokenPills(p.collateralTokens, { limit: 3, expanded: isExpanded })
                     : `<span class="pos-merged-empty">—</span>`;
                 const debtTokensHtml = p.debtTokens && p.debtTokens.length > 0
-                    ? renderTokenPills(p.debtTokens)
+                    ? renderTokenPills(p.debtTokens, { limit: 3, expanded: isExpanded })
                     : `<span class="pos-merged-empty">—</span>`;
 
                 const FLAME_SVG = '<svg class="emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
@@ -13830,7 +13954,7 @@
 
                 const emodeRowClass = p.eMode ? ' emode-row' : '';
 
-                return `<tr class="${rowClass}${emodeRowClass}">
+                return `<tr class="${rowClass}${emodeRowClass}${rowStateClass}"${rowExpandAttrs}>
                     <td><span class="chain-badge ${p.chain}"><img class="chain-icon" src="${chainIcon}" alt="">${chainLabel}</span></td>
                     <td><div class="address-cell">
                         <span class="watchlist-star${watchlist.has(p.address) ? ' starred' : ''}" data-addr="${p.address}" onclick="event.stopPropagation();toggleStar('${p.address}',this)"><svg viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
@@ -13840,11 +13964,11 @@
                     <td style="text-align:center">${emodeCell}</td>
                     <td class="col-spacer"></td>
                     <td><div class="pos-merged">
-                        <span class="usd-value collateral ${collateralClass}">${collateralDisplay}</span>
+                        <span class="pos-value-line"><span class="usd-value collateral ${collateralClass}">${collateralDisplay}</span>${collateralMoreHint}</span>
                         <div class="token-pills">${collateralTokensHtml}</div>
                     </div></td>
                     <td><div class="pos-merged">
-                        <span class="usd-value debt ${debtClass}">${p.debtUSD < 0.01 ? '$0.00' : formatUSD(p.debtUSD)}</span>
+                        <span class="pos-value-line"><span class="usd-value debt ${debtClass}">${p.debtUSD < 0.01 ? '$0.00' : formatUSD(p.debtUSD)}</span>${debtMoreHint}</span>
                         <div class="token-pills">${debtTokensHtml}</div>
                     </div></td>
                 </tr>`;
@@ -13954,13 +14078,8 @@
             const href = `${getSupplyAddressExplorer(chain)}${safeAddress}`;
             const debankChain = CHAIN_DEBANK_IDS[chain] || 'eth';
             const debankUrl = `https://debank.com/profile/${safeAddress}?chain=${debankChain}`;
-            const safeHref = supplyEscapeHtml(href);
-            const safeDebankUrl = supplyEscapeHtml(debankUrl);
-            const escapedAddress = supplyEscapeHtml(safeAddress);
             return `<div class="liquidation-history-wallet">
-                <a href="${safeHref}" target="_blank" rel="noopener" class="addr-tooltip-wrap liquidation-history-address" data-full-addr="${escapedAddress}" onclick="event.stopPropagation()">${supplyEscapeHtml(supplyShortAddr(safeAddress))}</a>
-                <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${escapedAddress}',this)">${COPY_SVG}</span>
-                <a href="${safeDebankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon"><img src="https://debank.com/favicon.ico" width="13" height="13" onerror="this.parentElement.style.display='none'"></a>
+                ${renderDoloAddressTools(safeAddress, href, { debankUrl, short: supplyShortAddr(safeAddress), forceLabel: true })}
             </div>`;
         }
 
@@ -14245,11 +14364,14 @@
             return allTokens.some(t => NO_SOFT_LIQ_TOKENS.includes(t.symbol));
         }
 
-        function renderTokenPills(tokens) {
-            if (!tokens || tokens.length === 0) return '<span style="color:var(--text-muted)">—</span>';
+        function renderTokenPills(tokens, options = {}) {
+            const rows = Array.isArray(tokens) ? tokens : [];
+            if (rows.length === 0) return '<span style="color:var(--text-muted)">—</span>';
             const PLVGLP_TOKENS = ['dplvGLP', 'plvGLP', 'mGLP'];
             const PLVGLP_TIP = 'GLP exploit affected — bad debt covered by Dolomite team. Position pending resolution.';
-            return tokens.map(t => {
+            const limit = Number.isFinite(options.limit) ? Math.max(0, options.limit) : rows.length;
+            const visibleRows = !options.expanded && rows.length > limit ? rows.slice(0, limit) : rows;
+            return visibleRows.map(t => {
                 const icon = getTokenIcon(t.symbol);
                 const iconHtml = icon
                     ? `<span class="token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${(t.symbol||'?').slice(0,2)}'"></span>`
@@ -14845,6 +14967,28 @@
                 th.querySelector('.sort-arrow').textContent = sortDirection === 'asc' ? '▲' : '▼';
                 applyFilters();
             });
+        });
+
+        document.getElementById('table-body')?.addEventListener('click', event => {
+            const row = event.target.closest('tr.has-token-overflow[data-position-row-key]');
+            if (!row || shouldIgnorePositionExpandClick(event.target)) return;
+            const key = row.dataset.positionRowKey;
+            if (!key) return;
+            if (expandedPositionRows.has(key)) expandedPositionRows.delete(key);
+            else expandedPositionRows.add(key);
+            renderTable();
+        });
+
+        document.getElementById('table-body')?.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const row = event.target.closest('tr.has-token-overflow[data-position-row-key]');
+            if (!row) return;
+            event.preventDefault();
+            const key = row.dataset.positionRowKey;
+            if (!key) return;
+            if (expandedPositionRows.has(key)) expandedPositionRows.delete(key);
+            else expandedPositionRows.add(key);
+            renderTable();
         });
 
         // ─── Keyboard Shortcuts ──────────────────────────────────────────────
