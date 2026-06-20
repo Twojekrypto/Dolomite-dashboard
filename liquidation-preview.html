@@ -5137,10 +5137,20 @@
         body.route-liquidation #positions-table,
         body.route-liquidation #liquidation-history-table {
             font-size: 13px !important;
+            min-width: 1180px !important;
         }
-        body.route-liquidation #positions-table colgroup col:nth-child(5) { width: 19.9% !important; }
+        body.route-liquidation #positions-table colgroup col:nth-child(2) { width: 19% !important; }
+        body.route-liquidation #positions-table colgroup col:nth-child(3) { width: 11.7% !important; }
+        body.route-liquidation #positions-table colgroup col:nth-child(4) { width: 9.1% !important; }
+        body.route-liquidation #positions-table colgroup col:nth-child(5) { width: 17.1% !important; }
         body.route-liquidation #positions-table colgroup col:nth-child(6) { width: 20% !important; }
         body.route-liquidation #positions-table colgroup col:nth-child(7) { width: 15.3% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 11.5% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19.5% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 13.5% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 23% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 17.5% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 15% !important; }
         body.route-liquidation #positions-table thead th,
         body.route-liquidation #liquidation-history-table thead th {
             padding: 12px 14px !important;
@@ -5157,6 +5167,13 @@
             font-size: 12px !important;
             line-height: 1.25 !important;
             vertical-align: middle !important;
+        }
+        body.route-liquidation #positions-table tbody tr,
+        body.route-liquidation #liquidation-history-table tbody tr {
+            height: 86px !important;
+        }
+        body.route-liquidation #positions-table tbody tr.position-row-expanded {
+            height: auto !important;
         }
         body.route-liquidation #positions-table tbody tr:hover td,
         body.route-liquidation #liquidation-history-table tbody tr:hover td {
@@ -5228,11 +5245,12 @@
             line-height: 1.2 !important;
             color: var(--fg-3) !important;
             letter-spacing: .1px !important;
-            max-width: 116px !important;
+            max-width: 132px !important;
             overflow: hidden !important;
             text-overflow: ellipsis !important;
             white-space: nowrap !important;
             text-decoration: none !important;
+            flex: 0 0 auto !important;
         }
         body.route-liquidation #positions-table .known-address-main .known-address-label.addr-tooltip-wrap,
         body.route-liquidation #liquidation-history-table .known-address-main .known-address-label.addr-tooltip-wrap {
@@ -5290,6 +5308,33 @@
             font-weight: 650 !important;
             line-height: 1 !important;
             white-space: nowrap !important;
+            opacity: 1 !important;
+            transition: opacity .18s ease, transform .18s ease, max-width .18s ease !important;
+        }
+        body.route-liquidation #positions-table tbody tr.position-row-expanded .position-more-hint {
+            max-width: 0 !important;
+            opacity: 0 !important;
+            overflow: hidden !important;
+            transform: translateY(-2px) !important;
+        }
+        body.route-liquidation #positions-table .token-pill-extra-wrap {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 2px !important;
+            max-height: 0 !important;
+            margin-top: -2px !important;
+            opacity: 0 !important;
+            overflow: hidden !important;
+            transform: translateY(-3px) !important;
+            transition: max-height .24s ease, opacity .18s ease, transform .24s ease !important;
+            will-change: max-height, opacity, transform;
+        }
+        body.route-liquidation #positions-table tbody tr.position-row-expanded .token-pill-extra-wrap {
+            max-height: 360px !important;
+            margin-top: 0 !important;
+            opacity: 1 !important;
+            transform: translateY(0) !important;
         }
         body.route-liquidation #positions-table .pos-merged .token-pill,
         body.route-liquidation #liquidation-history-table .pos-merged .token-pill {
@@ -5309,6 +5354,9 @@
             min-height: 24px !important;
             padding: 5px 8px !important;
             border-radius: 7px !important;
+            max-width: none !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
         }
 
         /* Assets-compatible interaction layer: filters, popovers, hover explanations */
@@ -13466,6 +13514,22 @@
             );
         }
 
+        function setPositionRowExpanded(row, expanded) {
+            const key = row?.dataset?.positionRowKey;
+            if (!key) return;
+            if (expanded) expandedPositionRows.add(key);
+            else expandedPositionRows.delete(key);
+            row.classList.toggle('position-row-expanded', expanded);
+            row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            row.querySelectorAll('.token-pill-extra-wrap').forEach(el => {
+                el.setAttribute('aria-hidden', expanded ? 'false' : 'true');
+            });
+        }
+
+        function togglePositionRowExpanded(row) {
+            setPositionRowExpanded(row, !row.classList.contains('position-row-expanded'));
+        }
+
         function resetLendingTableScroll() {
             const tableContainer = document.querySelector('.liquidation-table-container');
             if (tableContainer) tableContainer.scrollTop = 0;
@@ -13930,10 +13994,10 @@
                 const rowExpandAttrs = hasTokenOverflow
                     ? ` data-position-row-key="${supplyEscapeHtml(rowKey)}" tabindex="0" aria-expanded="${isExpanded ? 'true' : 'false'}"`
                     : '';
-                const collateralMoreHint = !isExpanded && (p.collateralTokens || []).length > 3
+                const collateralMoreHint = (p.collateralTokens || []).length > 3
                     ? `<span class="position-more-hint" data-tooltip="Click row to show all assets">+${(p.collateralTokens || []).length - 3} more</span>`
                     : '';
-                const debtMoreHint = !isExpanded && (p.debtTokens || []).length > 3
+                const debtMoreHint = (p.debtTokens || []).length > 3
                     ? `<span class="position-more-hint" data-tooltip="Click row to show all assets">+${(p.debtTokens || []).length - 3} more</span>`
                     : '';
 
@@ -13941,10 +14005,10 @@
                 const debtClass = p.debtUSD < 0.01 ? 'zero' : '';
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : formatUSD(p.collateralUSD);
                 const collateralTokensHtml = p.collateralTokens && p.collateralTokens.length > 0
-                    ? renderTokenPills(p.collateralTokens, { limit: 3, expanded: isExpanded })
+                    ? renderTokenPills(p.collateralTokens, { limit: 3, expanded: isExpanded, collapsible: hasTokenOverflow })
                     : `<span class="pos-merged-empty">—</span>`;
                 const debtTokensHtml = p.debtTokens && p.debtTokens.length > 0
-                    ? renderTokenPills(p.debtTokens, { limit: 3, expanded: isExpanded })
+                    ? renderTokenPills(p.debtTokens, { limit: 3, expanded: isExpanded, collapsible: hasTokenOverflow })
                     : `<span class="pos-merged-empty">—</span>`;
 
                 const FLAME_SVG = '<svg class="emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
@@ -14147,7 +14211,7 @@
 
             body.innerHTML = pageRows.map(row => {
                 const chain = row.chain || '';
-                const chainLabel = CHAIN_SHORT_LABELS[chain] || row.chainLabel || chain || '—';
+                const chainLabel = CHAIN_DISPLAY_NAMES[chain] || row.chainLabel || chain || '—';
                 const chainIcon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
                 const txHref = row.txHash ? `${getSupplyTxExplorer(chain)}${row.txHash}` : '';
                 return `<tr>
@@ -14370,8 +14434,7 @@
             const PLVGLP_TOKENS = ['dplvGLP', 'plvGLP', 'mGLP'];
             const PLVGLP_TIP = 'GLP exploit affected — bad debt covered by Dolomite team. Position pending resolution.';
             const limit = Number.isFinite(options.limit) ? Math.max(0, options.limit) : rows.length;
-            const visibleRows = !options.expanded && rows.length > limit ? rows.slice(0, limit) : rows;
-            return visibleRows.map(t => {
+            const renderRow = t => {
                 const icon = getTokenIcon(t.symbol);
                 const iconHtml = icon
                     ? `<span class="token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${(t.symbol||'?').slice(0,2)}'"></span>`
@@ -14385,7 +14448,14 @@
                 const short = truncateTokenName(t.symbol);
                 const titleAttr = short !== t.symbol ? ` data-tooltip="${t.symbol}"` : '';
                 return `<span class="token-pill"${titleAttr}>${iconHtml}${short}<span class="token-usd">${formatUSDCompact(t.usd)}</span>${badge}</span>`;
-            }).join('');
+            };
+            if (options.collapsible && rows.length > limit) {
+                const primaryRows = rows.slice(0, limit).map(renderRow).join('');
+                const extraRows = rows.slice(limit).map(renderRow).join('');
+                return `${primaryRows}<span class="token-pill-extra-wrap" aria-hidden="${options.expanded ? 'false' : 'true'}">${extraRows}</span>`;
+            }
+            const visibleRows = !options.expanded && rows.length > limit ? rows.slice(0, limit) : rows;
+            return visibleRows.map(renderRow).join('');
         }
 
         // ─── Formatting ─────────────────────────────────────────────────────
@@ -14972,11 +15042,7 @@
         document.getElementById('table-body')?.addEventListener('click', event => {
             const row = event.target.closest('tr.has-token-overflow[data-position-row-key]');
             if (!row || shouldIgnorePositionExpandClick(event.target)) return;
-            const key = row.dataset.positionRowKey;
-            if (!key) return;
-            if (expandedPositionRows.has(key)) expandedPositionRows.delete(key);
-            else expandedPositionRows.add(key);
-            renderTable();
+            togglePositionRowExpanded(row);
         });
 
         document.getElementById('table-body')?.addEventListener('keydown', event => {
@@ -14984,11 +15050,7 @@
             const row = event.target.closest('tr.has-token-overflow[data-position-row-key]');
             if (!row) return;
             event.preventDefault();
-            const key = row.dataset.positionRowKey;
-            if (!key) return;
-            if (expandedPositionRows.has(key)) expandedPositionRows.delete(key);
-            else expandedPositionRows.add(key);
-            renderTable();
+            togglePositionRowExpanded(row);
         });
 
         // ─── Keyboard Shortcuts ──────────────────────────────────────────────

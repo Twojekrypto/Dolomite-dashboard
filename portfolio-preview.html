@@ -1618,6 +1618,11 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border-color:rgba(201,162,39,.24);
   background:rgba(201,162,39,.075);
 }
+#pf-exercises-section .pf-route-tag.pair{
+  color:#d8c17a;
+  border-color:rgba(216,193,122,.26);
+  background:rgba(216,193,122,.08);
+}
 #pf-exercises-section .pf-route-tag.airdrop{
   color:#c7d98b;
   border-color:rgba(199,217,139,.26);
@@ -1631,6 +1636,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-exercises-section .pf-ex-ve{color:var(--pf-ex-green)}
 #pf-exercises-section .pf-ex-usdc{color:var(--gold-hi)}
+#pf-exercises-section .pf-ex-pair{color:#d8c17a}
 #pf-exercises-section .pf-ex-price{color:#9ab7c2}
 #pf-exercises-section .pf-ex-muted{font-family:var(--mono);font-size:13px;color:var(--fg-4)}
 #pf-exercises-section .pf-ex-lock{
@@ -1680,7 +1686,7 @@ body:not(.pf-active) #pf-results{display:none}
   .pf-table{table-layout:auto}
   .pf-table thead th:nth-child(1),.pf-table td:nth-child(1){display:none}
   .pf-table.pf-borrow-positions{min-width:960px}
-  .pf-table.pf-exercise-table{min-width:820px}
+  .pf-table.pf-exercise-table{min-width:940px}
   .pf-table.pf-borrow-positions thead th:nth-child(1),.pf-table.pf-borrow-positions td:nth-child(1),
   .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1){display:table-cell}
   .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:none}
@@ -1875,8 +1881,8 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
-          <colgroup><col style="width:148px"><col style="width:160px"><col style="width:116px"><col style="width:118px"><col style="width:96px"><col style="width:88px"></colgroup>
-          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th></tr></thead>
+          <colgroup><col style="width:148px"><col style="width:160px"><col style="width:116px"><col style="width:118px"><col style="width:118px"><col style="width:96px"><col style="width:88px"></colgroup>
+          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="pair" data-table="ex">DOLO Paired<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th></tr></thead>
           <tbody id="pf-exercises-body"></tbody>
         </table>
       </div>
@@ -2704,29 +2710,35 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const prev = lockByTokenId.get(tokenId);
       if (!prev || exerciseTimeMs(lock) >= exerciseTimeMs(prev)) lockByTokenId.set(tokenId, lock);
     });
-    const rows = ((exer && exer.txs) || []).filter(tx => tx.usdc != null).map(tx => {
+    const rows = ((exer && exer.txs) || [])
+      .filter(tx => tx && (tx.usdc != null || String(tx.paid_token || "").toUpperCase() === "DOLO"))
+      .map(tx => {
       const paidToken = tx.paid_token || (tx.usdc ? "USDC.e" : "DOLO");
-      const usdc = Number(tx.usdc) || 0;
+      const isPair = String(paidToken || "").toUpperCase() === "DOLO";
+      const usdc = isPair ? 0 : (Number(tx.usdc) || 0);
+      const doloPaired = isPair ? (Number(tx.dolo_paid) || Number(tx.vedolo) || 0) : 0;
       const hash = tx.hash || "";
       const flow = hash ? flowByHash.get(hash.toLowerCase()) : null;
       const tokenId = flow && flow.tokenId != null ? String(flow.tokenId) : "";
       if (hash) seen.add(hash.toLowerCase());
-      if (tokenId) seenTokenIds.add(tokenId);
+      if (tokenId && !isPair) seenTokenIds.add(tokenId);
       return {
         chain: "berachain",
         date: tx.date || "",
         timestamp: exerciseTimeMs(tx) || exerciseTimeMs(flow),
         hash,
-        action: "Exercise oDOLO",
-        actionSub: `Paid ${paidToken || "stablecoin"}`,
-        route: "odolo",
+        action: isPair ? "Pair oDOLO + DOLO" : "Exercise oDOLO",
+        actionSub: isPair ? "Paired oDOLO with DOLO before veDOLO claim" : `Paid ${paidToken || "stablecoin"}`,
+        route: isPair ? "pair" : "odolo",
         vedolo: Number(tx.vedolo) || 0,
         lockDays: Number(tx.lock_days) || 0,
         paid: usdc,
+        pairedDolo: doloPaired,
         paidToken,
         price: tx.price == null ? null : Number(tx.price) || 0,
         tokenId,
-        isStableClaim: true,
+        isStableClaim: !isPair,
+        isPair,
       };
     });
     const a = normAddr(addr);
@@ -2750,6 +2762,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         vedolo: Number(lock.dolo) || 0,
         lockDays: Number(lock.lockDays) || 0,
         paid: 0,
+        pairedDolo: 0,
         paidToken: "",
         price: null,
         tokenId,
@@ -2779,6 +2792,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         vedolo: Number(lock && lock.dolo) || Number(transfer.dolo) || 0,
         lockDays: Number(lock && lock.lockDays) || 0,
         paid: 0,
+        pairedDolo: 0,
         paidToken: "",
         price: null,
         isStableClaim: false,
@@ -2810,6 +2824,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         vedolo: Number(pos.dolo) || Number(lock.dolo) || 0,
         lockDays: Number(lock.lockDays) || 0,
         paid: 0,
+        pairedDolo: 0,
         paidToken: "",
         price: null,
         isStableClaim: false,
@@ -2831,7 +2846,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     vedoloCurrent: null,
     depFilter: { chains: new Set(), q: "" },
     borFilter: { chains: new Set(), q: "", hideDust: true },
-    exFilter: { routes: new Set(["odolo", "airdrop", "direct", "transfer"]) },
+    exFilter: { routes: new Set(["odolo", "pair", "airdrop", "direct", "transfer"]) },
     depSort: { key: "usd", desc: true },
     borSort: { key: "debt", desc: true },
     exSort: { key: "date", desc: true },
@@ -2892,6 +2907,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   const AIRDROP_ICON = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5A2.5 2.5 0 1 1 12 4.5V7z"/><path d="M12 7h4.5A2.5 2.5 0 1 0 12 4.5V7z"/></svg>`;
   const EXERCISE_ROUTES = [
     { key: "odolo", label: "Exercise", icon: "odolo-logo-official.svg", cls: "cyan", title: "oDOLO Exercise", body: "Wallet exercised oDOLO and received a new veDOLO position." },
+    { key: "pair", label: "Pair", icon: "odolo-logo-official.svg", cls: "pair", title: "Pair oDOLO + DOLO", body: "Wallet paired oDOLO with DOLO before claiming the vesting position into veDOLO." },
     { key: "airdrop", label: "Airdrop", svg: AIRDROP_ICON, cls: "airdrop", title: "DOLO Airdrop Claim", body: "Wallet claimed a DOLO allocation where part was minted as 2-year locked veDOLO." },
     { key: "direct", label: "Direct", icon: "", cls: "up", title: "Direct veDOLO", body: "Wallet created a new veDOLO position by locking DOLO directly. This is a mint/deposit, not a wallet-to-wallet transfer." },
     { key: "transfer", label: "Transfer", svg: TRANSFER_ICON, cls: "gold", title: "veDOLO Transfer", body: "Existing veDOLO position moved between wallets. USDC price is not shown because this is not an exercise or purchase." },
@@ -3071,6 +3087,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       else if (s.key === "route"){ av = a.route || ""; bv = b.route || ""; }
       else if (s.key === "vedolo"){ av = a.vedolo; bv = b.vedolo; }
       else if (s.key === "lock"){ av = a.lockDays; bv = b.lockDays; }
+      else if (s.key === "pair"){ av = a.pairedDolo || 0; bv = b.pairedDolo || 0; }
       else if (s.key === "paid"){ av = a.paid; bv = b.paid; }
       else if (s.key === "price"){ av = a.price || 0; bv = b.price || 0; }
       else if (s.key === "amount"){ av = a.amount; bv = b.amount; }
@@ -3234,7 +3251,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const claimVe = claimRows.reduce((s, r) => s + r.vedolo, 0);
     const claimPaid = claimRows.reduce((s, r) => s + r.paid, 0);
     const avgClaimPrice = claimVe ? claimPaid / claimVe : 0;
-    const activityLocked = rows.filter(r => r.route !== "transfer").reduce((s, r) => s + r.vedolo, 0);
+    const activityLocked = rows.filter(r => r.route !== "transfer" && r.route !== "pair").reduce((s, r) => s + r.vedolo, 0);
     const lockedVe = currentVe || activityLocked;
     el.innerHTML = [
       exerciseSummaryItem(
@@ -3272,8 +3289,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   function renderExerciseTable(){
     const rows = sortRows(applyExerciseFilter(state.exercises, state.exFilter), state.exSort);
     const currentVe = Number(state.vedoloCurrent && state.vedoloCurrent.total_dolo) || 0;
-    const totalVe = currentVe || rows.filter(r => r.route !== "transfer").reduce((s, r) => s + r.vedolo, 0);
+    const totalVe = currentVe || rows.filter(r => r.route !== "transfer" && r.route !== "pair").reduce((s, r) => s + r.vedolo, 0);
     const totalPaid = rows.reduce((s, r) => s + (r.isStableClaim ? r.paid : 0), 0);
+    const totalPaired = rows.reduce((s, r) => s + (r.isPair ? r.pairedDolo : 0), 0);
     $("#pf-exercises-count").textContent = rows.length ? `${rows.length.toLocaleString("en-US")} event${rows.length!==1?"s":""}` : "";
     $("#pf-exercises-count").style.display = rows.length ? "" : "none";
     $("#pf-exercises-total").innerHTML = rows.length ? `${fmtCompact(totalVe)}<span class="unit">veDOLO</span>` : "—";
@@ -3283,7 +3301,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     if (!rows.length){
       $("#pf-exercises-foot").style.display = "none";
       const emptyText = state.exercises.length ? "No activity rows match the selected route." : "No veDOLO position activity found for this wallet.";
-      body.innerHTML = `<tr><td colspan="6"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${emptyText}</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${emptyText}</div></td></tr>`;
       return;
     }
     const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -3297,14 +3315,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         ? `<a class="pf-latest-tx" href="${tx}" target="_blank" rel="noopener" aria-label="Open transaction ${esc(hashLabel)}">${TX_EXTERNAL_ICON}</a>`
         : "";
       const paidHtml = r.isStableClaim ? `<span class="pf-ex-val pf-ex-usdc">${fmtUSD(r.paid)}</span>` : `<span class="pf-ex-muted">—</span>`;
+      const pairHtml = r.isPair ? `<span class="pf-ex-val pf-ex-pair">${fmtToken(r.pairedDolo)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const priceHtml = r.price ? `<span class="pf-ex-val pf-ex-price">$${r.price.toFixed(4)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const lockHtml = r.lockDays ? `<span class="pf-ex-lock ${exerciseLockBucket(r.lockDays)}">${fmtLockDays(r.lockDays)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const dateTop = fmtIsoDate(r.date);
-      const dateMeta = r.fallbackCurrent && r.route === "transfer" ? "position date · tx pending" : fmtExerciseDateMeta(r);
+      const dateMeta = r.route === "pair" ? "paired oDOLO + DOLO" : (r.fallbackCurrent && r.route === "transfer" ? "position date · tx pending" : fmtExerciseDateMeta(r));
       return `<tr class="pf-row">
         <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${dateTop}</strong>${txLink}</div><span>${esc(dateMeta)}</span></div></td>
         <td class="pf-route-cell">${exerciseRouteTag(r.route, r)}</td>
         <td class="num"><span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
+        <td class="num">${pairHtml}</td>
         <td class="num">${paidHtml}</td>
         <td class="num">${priceHtml}</td>
         <td class="num">${lockHtml}</td>
@@ -3313,10 +3333,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     if (totalPages > 1 && pageRows.length < PAGE_SIZE){
       const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 58;
       body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
-        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="6" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="7" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
     }
     $("#pf-exercises-foot").style.display = "";
-    $("#pf-exercises-info").textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length.toLocaleString("en-US")}${totalPaid ? ` · ${fmtUSD(totalPaid)} paid` : ""}`;
+    $("#pf-exercises-info").textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length.toLocaleString("en-US")}${totalPaid ? ` · ${fmtUSD(totalPaid)} paid` : ""}${totalPaired ? ` · ${fmtToken(totalPaired)} DOLO paired` : ""}`;
     renderPager($("#pf-exercises-pager"), state.exPage + 1, totalPages, p => { state.exPage = p; renderAll(); });
   }
 
@@ -3330,7 +3350,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const tk = th.dataset.table, key = th.dataset.sort;
       const sort = tk === "dep" ? state.depSort : tk === "bor" ? state.borSort : state.exSort;
       if (sort.key === key) sort.desc = !sort.desc;
-      else { sort.key = key; sort.desc = ["usd","amount","debt","collateral","hf","date","vedolo","lock","paid","price"].includes(key); }
+      else { sort.key = key; sort.desc = ["usd","amount","debt","collateral","hf","date","vedolo","pair","lock","paid","price"].includes(key); }
       if (tk === "dep") state.depPage = 0;
       else if (tk === "bor") state.borPage = 0;
       else state.exPage = 0;
@@ -3341,7 +3361,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   function setLoadingTables(){
     const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
     const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:96px"></span></td><td><span class="pf-skel" style="width:50px"></span></td><td><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td class="pf-col-spacer"></td><td><span class="pf-skel" style="width:104px"></span></td><td><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
-    const exSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:86px"></span></td><td><span class="pf-skel" style="width:150px"></span></td><td class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
+    const exSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:86px"></span></td><td><span class="pf-skel" style="width:150px"></span></td><td class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:78px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;
     $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none"; $("#pf-exercises-foot").style.display = "none";
     $("#pf-deposits-count").style.display = "none"; $("#pf-borrows-count").style.display = "none"; $("#pf-exercises-count").style.display = "none";

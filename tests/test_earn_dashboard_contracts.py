@@ -698,6 +698,22 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("availableBelow", popover_helper)
         self.assertNotIn("preferAbove", popover_helper)
 
+    def test_liquidation_tables_keep_address_and_expand_contracts(self):
+        source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
+        self.assertIn("body.route-liquidation #positions-table colgroup col:nth-child(2) { width: 19% !important; }", source)
+        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19.5% !important; }", source)
+        self.assertIn("body.route-liquidation #positions-table tbody tr,\n        body.route-liquidation #liquidation-history-table tbody tr {\n            height: 86px !important;", source)
+        self.assertIn("max-width: 132px !important;", source)
+        self.assertIn("const chainLabel = CHAIN_DISPLAY_NAMES[chain] || row.chainLabel || chain || '—';", source)
+        self.assertIn("function setPositionRowExpanded(row, expanded)", source)
+        self.assertIn("token-pill-extra-wrap", source)
+        self.assertIn("renderTokenPills(p.collateralTokens, { limit: 3, expanded: isExpanded, collapsible: hasTokenOverflow })", source)
+        start = source.index("document.getElementById('table-body')?.addEventListener('click'")
+        end = source.index("// ─── Keyboard Shortcuts", start)
+        toggle_block = source[start:end]
+        self.assertIn("togglePositionRowExpanded(row);", toggle_block)
+        self.assertNotIn("renderTable();", toggle_block)
+
 
 if __name__ == "__main__":
     unittest.main()
