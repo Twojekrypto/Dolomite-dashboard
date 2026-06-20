@@ -318,7 +318,7 @@ h1{
   filter:drop-shadow(0 0 7px rgba(201,162,39,.16));
   transition:opacity .15s var(--ease),stroke-width .15s var(--ease);
 }
-.revenue-chart-line.fees,.revenue-chart-line.odoloUsdc,.revenue-chart-line.liquidatorEarnings{filter:none}
+.revenue-chart-line.fees,.revenue-chart-line.odoloUsdc{filter:none}
 .revenue-chart-line.is-muted{opacity:.24}
 .revenue-chart-line.is-active{stroke-width:2.9;opacity:1}
 .revenue-hover-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
@@ -384,7 +384,6 @@ h1{
 .revenue-chart-panel .legend-swatch{width:22px;height:4px}
 .legend-swatch.fees{background:#9ab7c2}
 .legend-swatch.odolo-usdc{background:#8aa37b}
-.legend-swatch.liquidator-earnings{background:#b4796b}
 .table-panel{margin-top:18px;overflow:hidden}
 .chain-panel-head{align-items:flex-start}
 .chain-range-tools{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;justify-content:flex-end;position:relative}
@@ -813,13 +812,9 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Borrow Interest Over Time</div>
-          <div class="panel-sub">Gross interest paid by borrowers and liquidation rewards earned by liquidators.</div>
+          <div class="panel-sub">Gross interest paid by borrowers over time.</div>
         </div>
         <div class="revenue-series-control">
-          <div class="revenue-series-toggles" aria-label="Borrow interest chart filter">
-            <button class="revenue-series-toggle" type="button" data-series="fees" aria-pressed="false" aria-label="Toggle borrow interest series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch fees"></span><span>Borrow Interest</span></button>
-            <button class="revenue-series-toggle" type="button" data-series="liquidatorEarnings" aria-pressed="false" aria-label="Toggle liquidator earnings series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch liquidator-earnings"></span><span>Liquidator Earnings</span></button>
-          </div>
           <div class="revenue-mode-toggles" aria-label="Borrow interest chart mode">
             <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
             <button class="revenue-mode-toggle" type="button" data-chart-mode="cumulative" aria-pressed="false"><span>Cumulative</span></button>
@@ -964,10 +959,10 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260619-liquidator-earnings";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260619-liquidator-earnings";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260620-borrow-interest-only";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260620-borrow-interest-only";
   const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
-  const BORROW_INTEREST_SERIES_KEYS = ["fees", "liquidatorEarnings"];
+  const BORROW_INTEREST_SERIES_KEYS = ["fees"];
   const DEFAULT_SERIES_KEYS = STREAM_SERIES_KEYS;
   let revenueData = null;
   let odoloExerciseData = null;
@@ -981,8 +976,7 @@ h1{
   const SERIES = {
     revenue: { key: "revenue", label: "Borrow Interest Revenue", shortLabel: "Borrow Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
     odoloUsdc: { key: "odoloUsdc", label: "oDOLO Exercise USDC", shortLabel: "oDOLO Exercise USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
-    fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" },
-    liquidatorEarnings: { key: "liquidatorEarnings", label: "Liquidator Earnings", shortLabel: "Liquidator Earnings", field: "liquidatorEarningsUSD", cumulativeField: "liquidatorEarningsCumulativeUSD", color: "#b4796b" }
+    fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" }
   };
   const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
   const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1209,7 +1203,6 @@ h1{
     const dailyOdolo = odoloExerciseDailyMap();
     let revenueCumulative = 0;
     let feesCumulative = 0;
-    let liquidatorEarningsCumulative = 0;
     let odoloUsdcCumulative = 0;
     return (revenueData?.series || [])
       .map(row => ({ ...row, ts: rowTs(row) }))
@@ -1220,14 +1213,12 @@ h1{
         const odoloUsdcUSD = dailyOdolo.get(date) || 0;
         revenueCumulative += n(row.revenueUSD);
         feesCumulative += n(row.feesUSD);
-        liquidatorEarningsCumulative += n(row.liquidatorEarningsUSD);
         odoloUsdcCumulative += odoloUsdcUSD;
         return {
           ...row,
           odoloUsdcUSD,
           revenueCumulativeUSD: revenueCumulative,
           feesCumulativeUSD: feesCumulative,
-          liquidatorEarningsCumulativeUSD: liquidatorEarningsCumulative,
           odoloUsdcCumulativeUSD: odoloUsdcCumulative
         };
       });
