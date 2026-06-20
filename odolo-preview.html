@@ -1983,13 +1983,21 @@ function fmtUpdated(ts){
 function sum(arr, pick){
   return (arr || []).reduce((s, item) => s + (Number(pick(item)) || 0), 0);
 }
-function txUsd(tx){ return tx && tx.paid_token !== "DOLO" ? (Number(tx.usdc) || 0) : 0; }
-function txVedolo(tx){ return tx && tx.paid_token !== "DOLO" ? (Number(tx.vedolo) || 0) : 0; }
+function isDoloPairTx(tx){
+  return String(tx?.paid_token || "").toUpperCase() === "DOLO";
+}
+function isUsdcExerciseTx(tx){
+  if(!tx || isDoloPairTx(tx)) return false;
+  const token = String(tx.paid_token || "").toUpperCase();
+  return token.includes("USDC") || Number(tx.usdc) > 0;
+}
+function txUsd(tx){ return isUsdcExerciseTx(tx) ? (Number(tx.usdc) || 0) : 0; }
+function txVedolo(tx){ return isUsdcExerciseTx(tx) ? (Number(tx.vedolo) || 0) : 0; }
 function summarizeOdoloExercise(json){
   const txs = [];
   (json?.exercisers || []).forEach(item => (item.txs || []).forEach(tx => txs.push(tx)));
-  const usdcPaid = txs.filter(tx => tx && tx.paid_token !== "DOLO" && Number(tx.vedolo) > 0);
-  const doloPaired = txs.filter(tx => tx && tx.paid_token === "DOLO" && Number(tx.vedolo) > 0);
+  const usdcPaid = txs.filter(tx => isUsdcExerciseTx(tx) && Number(tx.vedolo) > 0);
+  const doloPaired = txs.filter(tx => isDoloPairTx(tx) && Number(tx.vedolo) > 0);
   return {
     odolo: finiteNum(json?.total_odolo_exercised) || sum(usdcPaid, tx => tx.vedolo),
     exercises: finiteNum(json?.total_odolo_exercised_exercises) || usdcPaid.length,
@@ -2815,7 +2823,7 @@ function getLatestExerciseRows(){
     const label = item.label || meta.label || "";
     if(q && !addr.toLowerCase().includes(q) && !label.toLowerCase().includes(q)) return;
     (item.txs || []).forEach(tx => {
-      if(!tx || tx.paid_token === "DOLO" || !tx.date) return;
+      if(!tx || !isUsdcExerciseTx(tx) || !tx.date) return;
       if(cutoff && tx.date < cutoff) return;
       const usdc = txUsd(tx);
       const vedolo = txVedolo(tx);
@@ -2986,7 +2994,7 @@ function getLatestPairRows(){
     const label = item.label || meta.label || "";
     if(q && !addr.toLowerCase().includes(q) && !label.toLowerCase().includes(q)) return;
     (item.txs || []).forEach(tx => {
-      if(!tx || String(tx.paid_token || "").toUpperCase() !== "DOLO" || !tx.date) return;
+      if(!tx || !isDoloPairTx(tx) || !tx.date) return;
       if(cutoff && tx.date < cutoff) return;
       const odolo = finiteNum(tx.vedolo);
       const dolo = finiteNum(tx.dolo_paid);
@@ -3140,7 +3148,7 @@ function renderLatestPairs(){
   }));
 }
 function renderExerciserDetailRow(r){
-  const txs = sortExerciseTxs((r.txs || []).filter(tx => tx && tx.paid_token !== "DOLO"));
+  const txs = sortExerciseTxs((r.txs || []).filter(tx => isUsdcExerciseTx(tx)));
   const rows = txs.map((tx, i) => {
     const usd = txUsd(tx);
     const vedolo = txVedolo(tx);
@@ -3881,27 +3889,26 @@ function syncLiveExercisersForPeriod(){
   const cutoff = periodCutoff(state.exPeriod);
   const rows = (json.exercisers || []).map(item => {
     const meta = addressMeta(item.address);
-    // Both exercise methods count: USDC-paid and DOLO-paid. USDC columns sum
-    // only the USDC legs; veDOLO/lock stats cover every exercise.
+    // Top Exercisers is a real-payment leaderboard: count only USDC.e-paid
+    // oDOLO exercises. DOLO pair transactions live in the separate pair table.
     const txs = (item.txs || []).filter(tx => !cutoff || (tx.date && tx.date >= cutoff));
-    if(cutoff && !txs.length) return null;
-    const usdcTxs = txs.filter(tx => tx.paid_token !== "DOLO");
+    const usdcTxs = txs.filter(isUsdcExerciseTx);
+    if(cutoff && !usdcTxs.length) return null;
     const usdc = sum(usdcTxs, txUsd);
     const usdcVedolo = sum(usdcTxs, txVedolo);
-    const vedolo = sum(txs, txVedolo);
-    const lockDays = txs.length ? sum(txs, tx => Number(tx.lock_days) || 0) / txs.length : (Number(item.avg_lock_days) || 0);
+    const lockDays = usdcTxs.length ? sum(usdcTxs, tx => Number(tx.lock_days) || 0) / usdcTxs.length : (Number(item.avg_lock_days) || 0);
     return {
       addr:item.address,
       label:meta.label,
       type:meta.type,
       usdc,
       usdcVedolo,
-      vedolo,
-      exercises:txs.length || Number(item.exercises) || 0,
+      vedolo:usdcVedolo,
+      exercises:usdcTxs.length,
       lockDays,
-      txs,
+      txs:usdcTxs,
     };
-  }).filter(Boolean).filter(r => r.usdc > 0 || r.vedolo > 0);
+  }).filter(Boolean).filter(r => r.usdc > 0 || r.usdcVedolo > 0 || r.exercises > 0);
   applyRows(EXERCISERS, rows);
 }
 
