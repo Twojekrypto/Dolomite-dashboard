@@ -3,6 +3,7 @@ import sys
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -173,6 +174,38 @@ class TestBoundedHolderRefresh(unittest.TestCase):
         self.assertEqual(len(fetched_ids.intersection({1, 2, 3, 4})), 2)
         self.assertEqual(cache["7"]["amount"], 35.5)
         self.assertEqual(cache["7"]["source"], "vedolo_flows_recent_lock")
+
+
+class TestVedoloMulticall(unittest.TestCase):
+    def test_make_batch_call_uses_multicall_fast_path(self):
+        # locked() returns (int128 amount, uint end). Positive + a negative
+        # int128 (sign handling must mirror the existing hex decode).
+        pos = (100 * 10**18).to_bytes(32, "big") + (1700000000).to_bytes(32, "big")
+        neg = (2**128 - 50 * 10**18).to_bytes(32, "big") + (0).to_bytes(32, "big")
+
+        with patch.object(update_data, "_multicall_vedolo_reads", return_value={7: pos, 9: neg}), \
+             patch.object(update_data.requests, "Session") as session:
+            out, failed = update_data.make_batch_call([7, 9])
+
+        session.assert_not_called()  # Multicall3 resolved everyone; no per-call batch
+        self.assertEqual(failed, [])
+        self.assertEqual(out[7], {"amount": 100.0, "end": 1700000000})
+        self.assertEqual(out[9]["amount"], -50.0)
+
+    def test_make_vote_batch_call_uses_multicall_fast_path(self):
+        with patch.object(update_data, "_multicall_vedolo_reads",
+                          return_value={7: (42 * 10**18).to_bytes(32, "big")}), \
+             patch.object(update_data.requests, "Session") as session:
+            out, failed = update_data.make_vote_batch_call([7])
+
+        session.assert_not_called()
+        self.assertEqual(failed, [])
+        self.assertEqual(out[7], 42.0)
+
+    def test_multicall_vedolo_reads_without_web3_returns_empty(self):
+        with patch.dict(sys.modules, {"web3": None}):
+            result = update_data._multicall_vedolo_reads([1, 2], update_data.LOCKED_SELECTOR)
+        self.assertEqual(result, {})
 
 
 if __name__ == "__main__":
