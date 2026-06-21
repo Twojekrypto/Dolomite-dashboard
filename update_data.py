@@ -10,9 +10,17 @@ import requests
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+
+def env_int(name, default, minimum=0):
+    try:
+        return max(minimum, int(os.environ.get(name, default)))
+    except (TypeError, ValueError):
+        return default
+
+
 # Global timeout: abort gracefully before CI kills us
 SCRIPT_START = time.time()
-MAX_RUNTIME_SECONDS = 50 * 60  # 50 minutes (CI timeout = 90 min)
+MAX_RUNTIME_SECONDS = env_int("VEDOLO_MAX_RUNTIME_SECONDS", 50 * 60)  # CI timeout = 90 min
 
 def check_timeout(phase=""):
     """Check if script has exceeded max runtime. Exit gracefully if so."""
@@ -277,6 +285,80 @@ def save_cache(cache):
 
 CACHE_MAX_AGE = 86400  # 24 hours in seconds
 VOTE_CACHE_MAX_AGE = 21600  # 6 hours — vote weights decay, need fresher data
+FALLBACK_CACHE_MAX_AGE = 21600  # retry recent flow fallbacks sooner than RPC-verified cache
+LOCKED_STALE_REFRESH_LIMIT = env_int("VEDOLO_LOCKED_STALE_REFRESH_LIMIT", 1200)
+LOCKED_FAILED_RETRY_LIMIT = env_int("VEDOLO_LOCKED_FAILED_RETRY_LIMIT", 200)
+LOCKED_ZERO_RETRY_LIMIT = env_int("VEDOLO_LOCKED_ZERO_RETRY_LIMIT", 200)
+VOTE_STALE_REFRESH_LIMIT = env_int("VEDOLO_VOTE_STALE_REFRESH_LIMIT", 1200)
+VOTE_FAILED_RETRY_LIMIT = env_int("VEDOLO_VOTE_FAILED_RETRY_LIMIT", 200)
+VOTE_ZERO_RETRY_LIMIT = env_int("VEDOLO_VOTE_ZERO_RETRY_LIMIT", 200)
+FLOW_FALLBACK_LOOKBACK_SECONDS = env_int("VEDOLO_FLOW_FALLBACK_LOOKBACK_SECONDS", 14 * 86400)
+
+
+def dedupe_ids(*groups):
+    out = []
+    seen = set()
+    for group in groups:
+        for raw in group or []:
+            try:
+                tid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if tid in seen:
+                continue
+            seen.add(tid)
+            out.append(tid)
+    return out
+
+
+def oldest_cached_ids(token_ids, cache, timestamp_key, limit):
+    if limit <= 0:
+        return []
+    return sorted(
+        token_ids,
+        key=lambda tid: cache.get(str(tid), {}).get(timestamp_key, 0)
+    )[:limit]
+
+
+def load_recent_flow_lock_fallbacks(path=None, now_ts=None, lookback_seconds=None):
+    """Recent veDOLO lock rows used only when RPC has no cache for a fresh NFT."""
+    path = path or os.path.join(DATA_DIR, "vedolo_flows.json")
+    now_ts = int(now_ts or time.time())
+    lookback_seconds = FLOW_FALLBACK_LOOKBACK_SECONDS if lookback_seconds is None else lookback_seconds
+    min_ts = now_ts - lookback_seconds
+    if not os.path.exists(path):
+        return {}
+
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except Exception as exc:
+        print(f"  ⚠️ Could not read veDOLO flow fallback data: {exc}", flush=True)
+        return {}
+
+    fallbacks = {}
+    for row in data.get("locks", []):
+        try:
+            tid = int(row.get("tokenId"))
+            ts = int(row.get("timestamp") or 0)
+            amount = float(row.get("dolo") or 0)
+            end = int(row.get("locktime") or 0)
+        except (TypeError, ValueError):
+            continue
+        if ts < min_ts or amount <= 0 or end <= 0:
+            continue
+        entry = fallbacks.setdefault(tid, {
+            "amount": 0.0,
+            "end": 0,
+            "fetched_at": now_ts,
+            "source": "vedolo_flows_recent_lock",
+            "flow_timestamp": ts,
+        })
+        # Deposit events are incremental, so sum amounts and keep the latest end.
+        entry["amount"] += amount
+        entry["end"] = max(entry["end"], end)
+        entry["flow_timestamp"] = max(entry["flow_timestamp"], ts)
+    return fallbacks
 
 
 def fetch_contract_dolo_balance():
@@ -298,36 +380,57 @@ def fetch_contract_dolo_balance():
     return 0
 
 
-def fetch_locked_dolo(all_token_ids, vote_weights=None):
-    """Fetch locked DOLO for all token IDs.
-    If vote_weights is provided, cross-validates: tokens with vote_weight > 0
-    but cached amount = 0 are treated as suspicious and re-fetched."""
+def fetch_locked_dolo(all_token_ids, vote_weights=None, priority_token_ids=None, fallback_locks=None):
+    """Fetch locked DOLO with bounded stale refresh so snapshots can publish.
+
+    Missing/currently changed token IDs are always prioritized. Old stale cache
+    is refreshed in a rotating sample; if RPC is degraded, existing cache remains
+    usable and recent flow rows can fill brand-new tokens that have no cache yet.
+    """
     print(f"\n🔒 Phase 2: Fetching locked DOLO for {len(all_token_ids):,} tokens...")
 
     cache = load_cache()
     now_ts = int(time.time())
+    active_ids = set(all_token_ids)
+    priority_ids = [tid for tid in dedupe_ids(priority_token_ids) if tid in active_ids]
+    fallback_locks = fallback_locks or {}
 
-    # Identify tokens that need fetching: not cached OR cached > 24h ago
     missing = []
     stale = []
-    suspicious_zero = []  # Tokens with vote_weight > 0 but cached amount = 0
+    suspicious_zero = []
     for tid in all_token_ids:
         entry = cache.get(str(tid))
         if entry is None:
             missing.append(tid)
+        elif entry.get("source") == "vedolo_flows_recent_lock" and now_ts - entry.get("fetched_at", 0) > FALLBACK_CACHE_MAX_AGE:
+            stale.append(tid)
         elif now_ts - entry.get("fetched_at", 0) > CACHE_MAX_AGE:
             stale.append(tid)
         elif vote_weights and vote_weights.get(tid, 0) > 0 and entry.get("amount", 0) == 0:
-            # Vote weight > 0 but locked amount = 0 — likely a stale/bad cache entry
             suspicious_zero.append(tid)
 
-    to_fetch = missing + stale + suspicious_zero
+    priority_stale = [tid for tid in priority_ids if tid in stale]
+    stale_limited = oldest_cached_ids(
+        [tid for tid in stale if tid not in set(priority_stale)],
+        cache,
+        "fetched_at",
+        LOCKED_STALE_REFRESH_LIMIT,
+    )
+    to_fetch = dedupe_ids(missing, suspicious_zero, priority_stale, stale_limited)
+    to_fetch_set = set(to_fetch)
+    deferred_stale = len([tid for tid in stale if tid not in to_fetch_set])
+
     print(f"  Cached: {len(all_token_ids) - len(missing):,}/{len(all_token_ids):,}")
     print(f"  New: {len(missing):,}  |  Stale (>24h): {len(stale):,}")
+    if priority_stale:
+        print(f"  Priority stale from recent flows: {len(priority_stale):,}")
+    if deferred_stale:
+        print(f"  Deferred stale refresh: {deferred_stale:,} (budget {LOCKED_STALE_REFRESH_LIMIT:,}/run)")
     if suspicious_zero:
         print(f"  🔍 Suspicious zeros (vote>0, dolo=0): {len(suspicious_zero):,}")
     print(f"  To fetch: {len(to_fetch):,}")
 
+    timed_out = False
     if to_fetch:
         chunks = [to_fetch[i:i+BATCH_SIZE] for i in range(0, len(to_fetch), BATCH_SIZE)]
         errors = 0
@@ -356,29 +459,54 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
                 save_cache(cache)
             if check_timeout("Phase2-locked"):
                 save_cache(cache)
+                timed_out = True
                 break
-            time.sleep(0.3)  # Slower to avoid rate limitin
+            time.sleep(0.3)
 
-        # Retry failed tokens in smaller batches
-        if all_failed:
-            print(f"  ⚠️  {len(all_failed)} tokens failed initial fetch, retrying in small batches...")
-            retry_chunks = [all_failed[i:i+10] for i in range(0, len(all_failed), 10)]
+        if all_failed and not timed_out:
+            failed_set = set(all_failed)
+            retry_ids = dedupe_ids(
+                [tid for tid in missing if tid in failed_set],
+                [tid for tid in priority_ids if tid in failed_set],
+                all_failed,
+            )[:LOCKED_FAILED_RETRY_LIMIT]
+            skipped_retry = max(0, len(failed_set) - len(retry_ids))
+            print(f"  ⚠️  {len(failed_set):,} tokens failed initial fetch; retrying {len(retry_ids):,}.")
+            if skipped_retry:
+                print(f"     Deferred failed retries: {skipped_retry:,} (budget {LOCKED_FAILED_RETRY_LIMIT:,}/run)")
+            retry_chunks = [retry_ids[i:i+10] for i in range(0, len(retry_ids), 10)]
             fixed = 0
             for chunk in retry_chunks:
+                if check_timeout("Phase2-failed-retry"):
+                    timed_out = True
+                    break
                 results, still_failed = make_batch_call(chunk)
                 for tid, data_item in results.items():
                     data_item["fetched_at"] = now_ts
                     cache[str(tid)] = data_item
                     fixed += 1
                 time.sleep(0.2)
-            print(f"  ✅ Retry fixed {fixed}/{len(all_failed)} tokens.")
+            print(f"  ✅ Retry fixed {fixed}/{len(retry_ids)} tokens.")
+
+        fallback_applied = 0
+        for tid, data_item in fallback_locks.items():
+            if tid not in active_ids:
+                continue
+            existing = cache.get(str(tid))
+            if existing and existing.get("amount", 0) > 0 and existing.get("end", 0) > 0:
+                continue
+            if tid not in missing and existing is not None:
+                continue
+            cache[str(tid)] = dict(data_item)
+            fallback_applied += 1
+        if fallback_applied:
+            print(f"  🧩 Applied veDOLO flow fallback for {fallback_applied:,} fresh token(s).", flush=True)
 
         save_cache(cache)
         print(f"  ✅ Done. Errors: {errors}/{len(to_fetch):,}")
     else:
         print("  ✅ All cached & fresh!")
 
-    # --- Ground truth validation: compare our sum vs on-chain DOLO balance ---
     our_total = sum(cache.get(str(tid), {}).get("amount", 0) for tid in all_token_ids)
     onchain_balance = fetch_contract_dolo_balance()
 
@@ -389,44 +517,53 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None):
         print(f"     On-chain:       {onchain_balance:>16,.2f} DOLO")
         print(f"     Discrepancy:    {discrepancy_pct:.2f}%")
 
-        # Convergence-based retry: keep going until <5% discrepancy or stalled
         MAX_ROUNDS = 3
-        TARGET_DISCREPANCY = 5.0  # %
+        TARGET_DISCREPANCY = 5.0
 
         for round_num in range(MAX_ROUNDS):
             if discrepancy_pct <= TARGET_DISCREPANCY:
                 print(f"  ✅ Data accuracy within {TARGET_DISCREPANCY}% — good enough!")
                 break
 
-            # Find tokens still at 0 (most likely to be wrong)
             zero_tokens = [tid for tid in all_token_ids
                            if cache.get(str(tid), {}).get("amount", 0) == 0]
             if not zero_tokens:
                 print(f"  ℹ️  No zero-amount tokens left to retry")
                 break
 
-            print(f"  🔄 Round {round_num + 1}/{MAX_ROUNDS}: Retrying {len(zero_tokens):,} zero-amount tokens...")
-            # Use smaller batches (5) and rotate through RPCs with delays
-            retry_chunks = [zero_tokens[i:i+5] for i in range(0, len(zero_tokens), 5)]
+            zero_set = set(zero_tokens)
+            retry_ids = dedupe_ids(
+                [tid for tid in missing if tid in zero_set],
+                [tid for tid in priority_ids if tid in zero_set],
+                oldest_cached_ids(zero_tokens, cache, "fetched_at", LOCKED_ZERO_RETRY_LIMIT),
+            )[:LOCKED_ZERO_RETRY_LIMIT]
+            if not retry_ids:
+                print("  ℹ️  Zero-token retry budget is 0; deferring convergence retry")
+                break
+
+            print(f"  🔄 Round {round_num + 1}/{MAX_ROUNDS}: Retrying {len(retry_ids):,}/{len(zero_tokens):,} zero-amount tokens...")
+            retry_chunks = [retry_ids[i:i+5] for i in range(0, len(retry_ids), 5)]
             fixed = 0
             for chunk in retry_chunks:
+                if check_timeout("Phase2-convergence"):
+                    timed_out = True
+                    break
                 results, failed = make_batch_call(chunk)
                 for tid, data_item in results.items():
                     if data_item.get("amount", 0) > 0:
                         data_item["fetched_at"] = now_ts
                         cache[str(tid)] = data_item
                         fixed += 1
-                time.sleep(0.25)  # Longer delay to avoid rate limiting
+                time.sleep(0.25)
 
             our_total = sum(cache.get(str(tid), {}).get("amount", 0) for tid in all_token_ids)
             discrepancy_pct = abs(our_total - onchain_balance) / onchain_balance * 100
             print(f"     Fixed {fixed:,} tokens. New total: {our_total:,.2f} DOLO ({discrepancy_pct:.2f}% off)", flush=True)
             save_cache(cache)
 
-            if check_timeout("Phase2-convergence"):
+            if timed_out or check_timeout("Phase2-convergence"):
                 break
 
-            # If no progress at all in this round, wait longer before next attempt
             if fixed == 0:
                 print(f"  ⏳ No progress this round — waiting 3s before next attempt...")
                 time.sleep(3)
@@ -502,43 +639,64 @@ def make_vote_batch_call(token_ids):
     return out, list(token_ids)
 
 
-def fetch_vote_weights(all_token_ids, locked_cache=None):
+def fetch_vote_weights(all_token_ids, locked_cache=None, priority_token_ids=None):
     """Fetch current vote weights for all tokens using true JSON-RPC batch calls.
     Uses locked_cache to store/retrieve cached vote weights (key: 'vote_weight', 'vote_fetched_at').
-    Only re-fetches tokens with missing or stale (>6h) vote weights."""
+    Re-fetches missing weights plus a bounded stale sample so snapshots publish."""
     print(f"\n⚖️  Phase 3: Fetching vote weights for {len(all_token_ids):,} tokens...")
 
     now_ts = int(time.time())
     vote_weights = {}
-    to_fetch = []
+    active_ids = set(all_token_ids)
+    priority_ids = [tid for tid in dedupe_ids(priority_token_ids) if tid in active_ids]
+    missing = []
+    stale = []
 
     # Check cache for existing vote weights
     if locked_cache:
         for tid in all_token_ids:
             entry = locked_cache.get(str(tid))
             if entry and "vote_weight" in entry:
+                vote_weights[tid] = entry["vote_weight"]
                 vote_age = now_ts - entry.get("vote_fetched_at", 0)
-                if vote_age <= VOTE_CACHE_MAX_AGE:
-                    vote_weights[tid] = entry["vote_weight"]
-                    continue
-            to_fetch.append(tid)
+                if vote_age > VOTE_CACHE_MAX_AGE:
+                    stale.append(tid)
+            else:
+                missing.append(tid)
     else:
-        to_fetch = list(all_token_ids)
+        missing = list(all_token_ids)
 
-    print(f"  Cached (fresh): {len(vote_weights):,}/{len(all_token_ids):,}")
+    priority_stale = [tid for tid in priority_ids if tid in stale]
+    stale_limited = oldest_cached_ids(
+        [tid for tid in stale if tid not in set(priority_stale)],
+        locked_cache or {},
+        "vote_fetched_at",
+        VOTE_STALE_REFRESH_LIMIT,
+    )
+    to_fetch = dedupe_ids(missing, priority_stale, stale_limited)
+    deferred_stale = len([tid for tid in stale if tid not in set(to_fetch)])
+
+    print(f"  Cached: {len(vote_weights):,}/{len(all_token_ids):,}")
+    print(f"  Missing: {len(missing):,}  |  Stale (>6h): {len(stale):,}")
+    if priority_stale:
+        print(f"  Priority stale vote weights: {len(priority_stale):,}")
+    if deferred_stale:
+        print(f"  Deferred stale vote refresh: {deferred_stale:,} (budget {VOTE_STALE_REFRESH_LIMIT:,}/run)")
     print(f"  To fetch: {len(to_fetch):,}")
 
     if not to_fetch:
-        print("  ✅ All vote weights cached & fresh!")
+        print("  ✅ Vote weights available from cache!")
         for tid in all_token_ids:
             if tid not in vote_weights:
                 vote_weights[tid] = 0.0
         return vote_weights
 
     all_failed = []
+    fetched_vote_ids = set()
     chunks = [to_fetch[i:i+BATCH_SIZE] for i in range(0, len(to_fetch), BATCH_SIZE)]
     done = 0
     chunk_idx = 0
+    timed_out = False
 
     while chunk_idx < len(chunks):
         window = chunks[chunk_idx:chunk_idx + MAX_WORKERS]
@@ -549,22 +707,39 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
                 results, failed = future.result()
                 for tid, weight in results.items():
                     vote_weights[tid] = weight
+                    fetched_vote_ids.add(tid)
                     done += 1
                 all_failed.extend(failed)
 
         chunk_idx += len(window)
         pct = (done / len(to_fetch)) * 100 if to_fetch else 100
         print(f"  Progress: {pct:.0f}% ({done:,}/{len(to_fetch):,})")
+        if check_timeout("Phase3-votes"):
+            timed_out = True
+            break
         time.sleep(0.1)
 
     # --- Retry 1: retry all tokens that failed the initial pass ---
-    if all_failed:
-        print(f"  ⚠️  {len(all_failed)} tokens failed initial fetch, retrying...")
-        retry_chunks = [all_failed[i:i+25] for i in range(0, len(all_failed), 25)]
+    if all_failed and not timed_out:
+        failed_set = set(all_failed)
+        retry_ids = dedupe_ids(
+            [tid for tid in missing if tid in failed_set],
+            [tid for tid in priority_ids if tid in failed_set],
+            all_failed,
+        )[:VOTE_FAILED_RETRY_LIMIT]
+        skipped_retry = max(0, len(failed_set) - len(retry_ids))
+        print(f"  ⚠️  {len(failed_set):,} tokens failed initial vote fetch; retrying {len(retry_ids):,}.")
+        if skipped_retry:
+            print(f"     Deferred failed vote retries: {skipped_retry:,} (budget {VOTE_FAILED_RETRY_LIMIT:,}/run)")
+        retry_chunks = [retry_ids[i:i+25] for i in range(0, len(retry_ids), 25)]
         for chunk in retry_chunks:
+            if check_timeout("Phase3-failed-retry"):
+                timed_out = True
+                break
             results, still_failed = make_vote_batch_call(chunk)
             for tid, weight in results.items():
                 vote_weights[tid] = weight
+                fetched_vote_ids.add(tid)
             time.sleep(0.2)
 
     # --- Retry 2: validate against locked DOLO data ---
@@ -591,26 +766,40 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
                                 and vote_weights.get(tid, 0) == 0]
             if not zero_vote_active:
                 break
-            print(f"  🔄 Vote round {round_num + 1}/{MAX_VOTE_ROUNDS}: Retrying {len(zero_vote_active):,} zero-vote tokens...")
-            retry_chunks = [zero_vote_active[i:i+5] for i in range(0, len(zero_vote_active), 5)]
+            zero_set = set(zero_vote_active)
+            retry_ids = dedupe_ids(
+                [tid for tid in missing if tid in zero_set],
+                [tid for tid in priority_ids if tid in zero_set],
+                oldest_cached_ids(zero_vote_active, locked_cache or {}, "vote_fetched_at", VOTE_ZERO_RETRY_LIMIT),
+            )[:VOTE_ZERO_RETRY_LIMIT]
+            if not retry_ids:
+                print("  ℹ️  Zero-vote retry budget is 0; deferring convergence retry")
+                break
+            print(f"  🔄 Vote round {round_num + 1}/{MAX_VOTE_ROUNDS}: Retrying {len(retry_ids):,}/{len(zero_vote_active):,} zero-vote tokens...")
+            retry_chunks = [retry_ids[i:i+5] for i in range(0, len(retry_ids), 5)]
             fixed = 0
             for chunk in retry_chunks:
+                if check_timeout("Phase3-convergence"):
+                    timed_out = True
+                    break
                 for rpc_url in RPC_URLS:
                     results, failed = _single_rpc_vote_batch(chunk, rpc_url)
                     for tid, weight in results.items():
                         if weight > 0:
                             vote_weights[tid] = weight
+                            fetched_vote_ids.add(tid)
                             fixed += 1
                         elif tid not in vote_weights:
                             vote_weights[tid] = weight
+                            fetched_vote_ids.add(tid)
                     if not failed:
                         break
                 time.sleep(0.25)
-            print(f"     Fixed {fixed}/{len(zero_vote_active)} tokens.")
+            print(f"     Fixed {fixed}/{len(retry_ids)} tokens.")
             if fixed == 0:
                 print(f"  ⏳ No progress — waiting 3s before next attempt...", flush=True)
                 time.sleep(3)
-            if check_timeout("Phase3-convergence"):
+            if timed_out or check_timeout("Phase3-convergence"):
                 break
 
     # Fill any still-missing tokens with 0
@@ -627,7 +816,8 @@ def fetch_vote_weights(all_token_ids, locked_cache=None):
             if key not in locked_cache:
                 locked_cache[key] = {}
             locked_cache[key]["vote_weight"] = vw
-            locked_cache[key]["vote_fetched_at"] = now_ts
+            if tid in fetched_vote_ids or "vote_fetched_at" not in locked_cache[key]:
+                locked_cache[key]["vote_fetched_at"] = now_ts
         save_cache(locked_cache)
         print(f"  💾 Vote weights saved to cache")
 
@@ -701,12 +891,24 @@ def main():
 
     # Collect all active token IDs
     all_token_ids = sorted({tid for h in holders for tid in h["token_ids"]})
+    recent_lock_fallbacks = load_recent_flow_lock_fallbacks()
+    recent_lock_ids = [tid for tid in recent_lock_fallbacks if tid in set(all_token_ids)]
+    if recent_lock_ids:
+        print(f"\n🧭 Recent veDOLO flow hints: {len(recent_lock_ids):,} active token(s)")
 
     # Phase 2: Fetch locked DOLO FIRST (cached — more reliable)
-    cache = fetch_locked_dolo(all_token_ids)
+    cache = fetch_locked_dolo(
+        all_token_ids,
+        priority_token_ids=recent_lock_ids,
+        fallback_locks=recent_lock_fallbacks,
+    )
 
     # Phase 3: Fetch vote weights (uses locked cache to cross-validate zeros)
-    vote_weights = fetch_vote_weights(all_token_ids, locked_cache=cache)
+    vote_weights = fetch_vote_weights(
+        all_token_ids,
+        locked_cache=cache,
+        priority_token_ids=recent_lock_ids,
+    )
 
     # Merge locked DOLO + vote weights into holders
     print("\n📊 Merging data...")
