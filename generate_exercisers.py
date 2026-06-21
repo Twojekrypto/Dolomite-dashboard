@@ -48,6 +48,7 @@ MAX_RETRIES = 3
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "exercisers_cache.json")
 OUTPUT_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json")
+VEDOLO_HOLDERS_FILE = os.path.join(DATA_DIR, "vedolo_holders.json")
 
 
 def round_amount(value, decimals=2, tiny_decimals=6):
@@ -116,6 +117,47 @@ def summarize_exercise_totals(exercisers):
     return {
         key: round(value, 2) if isinstance(value, float) else value
         for key, value in totals.items()
+    }
+
+
+def load_vedolo_holder_lookup(path=VEDOLO_HOLDERS_FILE):
+    """Load current veDOLO holder totals for wallet-level reconciliation."""
+    if not os.path.exists(path):
+        print("  ℹ️ vedolo_holders.json not found; skipping current-lock reconciliation", flush=True)
+        return {}, None
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"  ⚠️ failed to read vedolo_holders.json ({exc}); skipping current-lock reconciliation", flush=True)
+        return {}, None
+
+    lookup = {}
+    for holder in data.get("holders", []):
+        addr = str(holder.get("address") or "").lower()
+        if not addr.startswith("0x"):
+            continue
+        lookup[addr] = {
+            "total_dolo": float(holder.get("total_dolo") or 0),
+            "nft_count": int(holder.get("nft_count") or len(holder.get("token_ids") or [])),
+            "total_vote_weight": float(holder.get("total_vote_weight") or 0),
+        }
+    return lookup, data.get("timestamp") or data.get("updated") or data.get("updated_at")
+
+
+def holder_reconciliation_fields(address_totals, holder):
+    """Compare historical oDOLO activity with the wallet's current veDOLO position."""
+    current_locked = float(holder.get("total_dolo") or holder.get("current_vedolo_locked") or 0)
+    current_positions = int(holder.get("nft_count") or holder.get("current_vedolo_positions") or 0)
+    current_vote_weight = float(holder.get("total_vote_weight") or holder.get("current_vedolo_vote_weight") or 0)
+    usdc_exercised = float(address_totals.get("total_odolo_exercised") or 0)
+    all_method_history = float(address_totals.get("total_vedolo") or 0)
+    return {
+        "current_vedolo_locked": round(current_locked, 2),
+        "current_vedolo_positions": current_positions,
+        "current_vedolo_vote_weight": round(current_vote_weight, 4),
+        "current_locked_delta_vs_usdc_exercise": round(current_locked - usdc_exercised, 2),
+        "current_locked_delta_vs_all_exercise_history": round(current_locked - all_method_history, 2),
     }
 
 
@@ -292,6 +334,7 @@ def main():
     cached_count = len(cache)
     if cached_count:
         print(f"  📦 Loaded {cached_count} cached tx receipts")
+    holder_lookup, holder_snapshot_ts = load_vedolo_holder_lookup()
 
     # One-time cache invalidation: evict entries with wrong DOLO-as-USDC
     # data or old dust-rounded oDOLO amounts that were saved as zero.
@@ -476,9 +519,19 @@ def main():
             continue  # skip addresses with no valid exercises
 
         avg_lock = round(d["lock_days_sum"] / d["lock_count"], 1) if d["lock_count"] > 0 else None
+        address_totals = summarize_exercise_totals([{"txs": valid_txs}])
+        holder_fields = holder_reconciliation_fields(address_totals, holder_lookup.get(addr, {}))
         exercisers.append({
             "address": addr,
             "total_usdc": round(d["total_usdc"], 2),
+            "total_vedolo": address_totals["total_vedolo"],
+            "total_odolo_exercised": address_totals["total_odolo_exercised"],
+            "total_odolo_exercise_usdc_paid": address_totals["total_odolo_exercise_usdc_paid"],
+            "total_odolo_exercised_exercises": address_totals["total_odolo_exercised_exercises"],
+            "total_dolo_pair_vedolo": address_totals["total_dolo_pair_vedolo"],
+            "total_dolo_pair_exercises": address_totals["total_dolo_pair_exercises"],
+            "total_dolo_paired": address_totals["total_dolo_paired"],
+            **holder_fields,
             "exercises": len(valid_txs),
             "avg_lock_days": avg_lock,
             "first": d["first"],
@@ -501,6 +554,8 @@ def main():
         "total_dolo_pair_vedolo": totals["total_dolo_pair_vedolo"],
         "total_dolo_pair_exercises": totals["total_dolo_pair_exercises"],
         "total_dolo_paired": totals["total_dolo_paired"],
+        "vedolo_holder_reconciliation_updated": holder_snapshot_ts,
+        "holderReconciliationMethodology": "Per-address current_vedolo_locked is imported from vedolo_holders.json and kept separate from historical USDC-paid oDOLO exercise and DOLO-pair activity.",
         "exerciseMetricMethodology": "total_odolo_exercised counts USDC-paid exercises only; DOLO pairing method is tracked separately",
         "total_exercises": sum(e["exercises"] for e in exercisers),
         "exercisers": exercisers

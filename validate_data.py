@@ -196,6 +196,34 @@ def _odolo_exerciser_totals_reconcile(data):
     )
 
 
+def _odolo_exerciser_address_totals_reconcile(data):
+    required_current_keys = [
+        "current_vedolo_locked",
+        "current_vedolo_positions",
+        "current_vedolo_vote_weight",
+        "current_locked_delta_vs_usdc_exercise",
+        "current_locked_delta_vs_all_exercise_history",
+    ]
+    for exerciser in data.get("exercisers", []):
+        if any(key not in exerciser for key in required_current_keys):
+            return False
+        totals = _odolo_exerciser_totals({"exercisers": [exerciser]})
+        current_locked = float(exerciser.get("current_vedolo_locked") or 0)
+        if not (
+            _nearly_equal(exerciser.get("total_vedolo"), totals["total_vedolo"], abs_tol=2.0)
+            and _nearly_equal(exerciser.get("total_odolo_exercised"), totals["total_odolo_exercised"], abs_tol=2.0)
+            and _nearly_equal(exerciser.get("total_odolo_exercise_usdc_paid"), totals["total_odolo_exercise_usdc_paid"], abs_tol=2.0)
+            and int(exerciser.get("total_odolo_exercised_exercises", -1)) == totals["total_odolo_exercised_exercises"]
+            and _nearly_equal(exerciser.get("total_dolo_pair_vedolo"), totals["total_dolo_pair_vedolo"], abs_tol=2.0)
+            and int(exerciser.get("total_dolo_pair_exercises", -1)) == totals["total_dolo_pair_exercises"]
+            and _nearly_equal(exerciser.get("total_dolo_paired"), totals["total_dolo_paired"], abs_tol=2.0)
+            and _nearly_equal(exerciser.get("current_locked_delta_vs_usdc_exercise"), current_locked - totals["total_odolo_exercised"], abs_tol=2.0)
+            and _nearly_equal(exerciser.get("current_locked_delta_vs_all_exercise_history"), current_locked - totals["total_vedolo"], abs_tol=2.0)
+        ):
+            return False
+    return True
+
+
 def _current_chain_tvls(data):
     current = data.get("currentChainTvls", {})
     return {
@@ -601,6 +629,7 @@ RULES = {
         "checks": [
             ("exercisers must have entries", lambda d: len(d.get("exercisers", [])) >= 5),
             ("oDOLO exercise totals must exclude DOLO pairing", _odolo_exerciser_totals_reconcile),
+            ("per-address oDOLO exercise totals must reconcile", _odolo_exerciser_address_totals_reconcile),
         ],
         "min_bytes": 50_000,
     },
