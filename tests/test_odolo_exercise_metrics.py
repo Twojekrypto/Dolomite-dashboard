@@ -68,6 +68,34 @@ class TestOdoloExerciseMetrics(unittest.TestCase):
         self.assertEqual(fields["current_vedolo_vote_weight"], 751718.697)
         self.assertEqual(fields["current_locked_delta_vs_usdc_exercise"], 418734.91)
         self.assertEqual(fields["current_locked_delta_vs_all_exercise_history"], -319410.69)
+        self.assertFalse(fields["current_vedolo_route_breakdown_available"])
+
+    def test_holder_reconciliation_splits_current_positions_by_route(self):
+        totals = {
+            "total_vedolo": 3000.0,
+            "total_odolo_exercised": 2000.0,
+        }
+        holder = {
+            "total_dolo": 2500.0,
+            "nft_count": 2,
+            "total_vote_weight": 1800.0,
+            "token_ids": [101, 999],
+            "token_amounts": {101: 1500.0, 999: 1000.0},
+        }
+        txs = [
+            {"paid_token": "USDC.e", "vedolo": 1000.0, "token_ids": [101]},
+            {"paid_token": "USDC.e", "vedolo": 1000.0, "token_ids": [102]},
+            {"paid_token": "DOLO", "vedolo": 1000.0, "dolo_paid": 1000.0},
+        ]
+
+        fields = generate_exercisers.holder_reconciliation_fields(totals, holder, txs)
+
+        self.assertTrue(fields["current_vedolo_route_breakdown_available"])
+        self.assertEqual(fields["current_usdc_exercise_positions"], 1)
+        self.assertEqual(fields["current_usdc_exercise_locked"], 1500.0)
+        self.assertEqual(fields["current_other_vedolo_positions"], 1)
+        self.assertEqual(fields["current_other_vedolo_locked"], 1000.0)
+        self.assertEqual(fields["current_exercise_positions_missing_from_holder_snapshot"], 1)
 
     def test_validation_requires_per_address_reconciliation_fields(self):
         data = {

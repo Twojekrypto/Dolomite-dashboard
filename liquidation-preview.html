@@ -2353,6 +2353,10 @@
         .liquidation-history-table tbody td:nth-child(3) {
             overflow: visible;
         }
+        .liquidation-history-table tbody td:first-child {
+            overflow: visible;
+            text-overflow: clip;
+        }
         /* Amount columns (Collateral seized, Debt repaid) — pos-merged display, left-aligned, right group */
         .liquidation-history-table tbody td:nth-child(5),
         .liquidation-history-table tbody td:nth-child(6) {
@@ -5355,10 +5359,17 @@
         }
         body.route-liquidation #positions-table .chain-badge,
         body.route-liquidation #liquidation-history-table .chain-badge {
+            width: max-content !important;
+            min-width: 58px !important;
+            flex: 0 0 auto !important;
             min-height: 24px !important;
             padding: 5px 8px !important;
             border-radius: 7px !important;
             max-width: none !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+        }
+        body.route-liquidation #liquidation-history-table tbody td:first-child {
             overflow: visible !important;
             text-overflow: clip !important;
         }
@@ -13377,12 +13388,18 @@
         // Short labels for compact table badges
         const CHAIN_SHORT_LABELS = {
             'berachain': 'BERA',
+            'bera': 'BERA',
             'arbitrum': 'ARB',
+            'arb': 'ARB',
             'mantle': 'MNT',
+            'mnt': 'MNT',
             'ethereum': 'ETH',
+            'eth': 'ETH',
             'base': 'BOT',
+            'botanix': 'BOT',
             'xlayer': 'XL',
-            'polygon_zkevm': 'ZKEVM'
+            'polygon_zkevm': 'ZKEVM',
+            'polygonzkevm': 'ZKEVM'
         };
 
         // Chain icon URLs (same as EARN tab)
@@ -13413,6 +13430,24 @@
             'xlayer': 'xlayer',
             'polygon_zkevm': 'pzkevm'
         };
+
+        const CHAIN_KEY_ALIASES = {
+            bera: 'berachain',
+            arb: 'arbitrum',
+            eth: 'ethereum',
+            mnt: 'mantle',
+            botanix: 'base',
+            polygonzkevm: 'polygon_zkevm',
+            polygon_zkevm: 'polygon_zkevm',
+        };
+        function normalizeDisplayChainKey(chain) {
+            const key = String(chain || '').toLowerCase();
+            return CHAIN_KEY_ALIASES[key] || key;
+        }
+        function getCompactChainLabel(chain, fallback = '') {
+            const key = normalizeDisplayChainKey(chain);
+            return CHAIN_SHORT_LABELS[key] || CHAIN_SHORT_LABELS[String(chain || '').toLowerCase()] || fallback || CHAIN_DISPLAY_NAMES[key] || chain || '—';
+        }
 
         const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
         window.DOLO_ADDR_LABELS = DOLO_ADDR_LABELS;
@@ -14214,9 +14249,10 @@
             const pageRows = filteredLiquidationHistory.slice(start, start + LIQUIDATION_HISTORY_PAGE_SIZE);
 
             body.innerHTML = pageRows.map(row => {
-                const chain = row.chain || '';
-                const chainLabel = CHAIN_SHORT_LABELS[chain] || row.chainLabel || chain || '—';
-                const chainIcon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
+                const rawChain = row.chain || '';
+                const chain = normalizeDisplayChainKey(rawChain);
+                const chainLabel = getCompactChainLabel(rawChain, row.chainLabel);
+                const chainIcon = CHAIN_ICONS[chain] || CHAIN_ICONS[rawChain] || 'dolomite-logo.svg';
                 const txHref = row.txHash ? `${getSupplyTxExplorer(chain)}${row.txHash}` : '';
                 return `<tr>
                     <td><span class="chain-badge ${supplyEscapeHtml(chain)}"><img class="chain-icon" src="${supplyEscapeHtml(chainIcon)}" alt="">${supplyEscapeHtml(chainLabel)}</span></td>

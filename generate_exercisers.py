@@ -49,6 +49,7 @@ DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "exercisers_cache.json")
 OUTPUT_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json")
 VEDOLO_HOLDERS_FILE = os.path.join(DATA_DIR, "vedolo_holders.json")
+VEDOLO_FLOWS_FILE = os.path.join(DATA_DIR, "vedolo_flows.json")
 
 
 def round_amount(value, decimals=2, tiny_decimals=6):
@@ -137,28 +138,105 @@ def load_vedolo_holder_lookup(path=VEDOLO_HOLDERS_FILE):
         addr = str(holder.get("address") or "").lower()
         if not addr.startswith("0x"):
             continue
+        token_ids = []
+        for token_id in holder.get("token_ids") or []:
+            try:
+                token_ids.append(int(token_id))
+            except (TypeError, ValueError):
+                continue
+        token_amounts = {}
+        for detail in holder.get("token_details") or []:
+            try:
+                token_amounts[int(detail.get("id"))] = float(detail.get("dolo") or 0)
+            except (TypeError, ValueError):
+                continue
         lookup[addr] = {
             "total_dolo": float(holder.get("total_dolo") or 0),
-            "nft_count": int(holder.get("nft_count") or len(holder.get("token_ids") or [])),
+            "nft_count": int(holder.get("nft_count") or len(token_ids)),
             "total_vote_weight": float(holder.get("total_vote_weight") or 0),
+            "token_ids": token_ids,
+            "token_amounts": token_amounts,
         }
     return lookup, data.get("timestamp") or data.get("updated") or data.get("updated_at")
 
 
-def holder_reconciliation_fields(address_totals, holder):
+def load_vedolo_lock_token_lookup(path=VEDOLO_FLOWS_FILE):
+    """Map veDOLO lock tx hash to minted token ids for route-level reconciliation."""
+    if not os.path.exists(path):
+        print("  ℹ️ vedolo_flows.json not found; skipping route-level current-lock split", flush=True)
+        return {}
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"  ⚠️ failed to read vedolo_flows.json ({exc}); skipping route-level current-lock split", flush=True)
+        return {}
+
+    lookup = defaultdict(list)
+    for lock in data.get("locks", []) or []:
+        tx_hash = str(lock.get("txHash") or lock.get("hash") or "").lower()
+        if not tx_hash.startswith("0x"):
+            continue
+        try:
+            token_id = int(lock.get("tokenId"))
+        except (TypeError, ValueError):
+            continue
+        lookup[tx_hash].append(token_id)
+    return {tx_hash: sorted(set(token_ids)) for tx_hash, token_ids in lookup.items()}
+
+
+def holder_reconciliation_fields(address_totals, holder, txs=None):
     """Compare historical oDOLO activity with the wallet's current veDOLO position."""
     current_locked = float(holder.get("total_dolo") or holder.get("current_vedolo_locked") or 0)
     current_positions = int(holder.get("nft_count") or holder.get("current_vedolo_positions") or 0)
     current_vote_weight = float(holder.get("total_vote_weight") or holder.get("current_vedolo_vote_weight") or 0)
     usdc_exercised = float(address_totals.get("total_odolo_exercised") or 0)
     all_method_history = float(address_totals.get("total_vedolo") or 0)
-    return {
+    fields = {
         "current_vedolo_locked": round(current_locked, 2),
         "current_vedolo_positions": current_positions,
         "current_vedolo_vote_weight": round(current_vote_weight, 4),
         "current_locked_delta_vs_usdc_exercise": round(current_locked - usdc_exercised, 2),
         "current_locked_delta_vs_all_exercise_history": round(current_locked - all_method_history, 2),
     }
+    holder_token_ids = set(holder.get("token_ids") or [])
+    token_amounts = holder.get("token_amounts") or {}
+    txs = txs or []
+    def tx_token_ids(tx):
+        for token_id in tx.get("token_ids", []) or []:
+            try:
+                yield int(token_id)
+            except (TypeError, ValueError):
+                continue
+    usdc_token_ids = {
+        token_id
+        for tx in txs
+        if tx.get("paid_token") != "DOLO"
+        for token_id in tx_token_ids(tx)
+    }
+    pair_token_ids = {
+        token_id
+        for tx in txs
+        if tx.get("paid_token") == "DOLO"
+        for token_id in tx_token_ids(tx)
+    }
+    route_available = bool(holder_token_ids and (usdc_token_ids or pair_token_ids))
+    fields["current_vedolo_route_breakdown_available"] = route_available
+    if route_available:
+        current_usdc = holder_token_ids & usdc_token_ids
+        current_pair = holder_token_ids & pair_token_ids
+        routed = current_usdc | current_pair
+        current_other = holder_token_ids - routed
+        fields.update({
+            "current_usdc_exercise_positions": len(current_usdc),
+            "current_usdc_exercise_locked": round(sum(token_amounts.get(token_id, 0) for token_id in current_usdc), 2),
+            "current_dolo_pair_positions": len(current_pair),
+            "current_dolo_pair_locked": round(sum(token_amounts.get(token_id, 0) for token_id in current_pair), 2),
+            "current_other_vedolo_positions": len(current_other),
+            "current_other_vedolo_locked": round(sum(token_amounts.get(token_id, 0) for token_id in current_other), 2),
+            "current_exercise_positions_missing_from_holder_snapshot": len(usdc_token_ids - holder_token_ids),
+        })
+    return fields
 
 
 def load_cache():
@@ -335,6 +413,7 @@ def main():
     if cached_count:
         print(f"  📦 Loaded {cached_count} cached tx receipts")
     holder_lookup, holder_snapshot_ts = load_vedolo_holder_lookup()
+    lock_token_lookup = load_vedolo_lock_token_lookup()
 
     # One-time cache invalidation: evict entries with wrong DOLO-as-USDC
     # data or old dust-rounded oDOLO amounts that were saved as zero.
@@ -507,6 +586,11 @@ def main():
         }
         if is_dolo_exercise:
             tx_entry["dolo_paid"] = round_amount(dolo_paid) if dolo_paid else None
+        token_ids = lock_token_lookup.get(tx_hash.lower()) or []
+        if token_ids:
+            tx_entry["token_ids"] = token_ids
+            if len(token_ids) == 1:
+                tx_entry["token_id"] = token_ids[0]
 
         d["txs"].append(tx_entry)
 
@@ -520,7 +604,7 @@ def main():
 
         avg_lock = round(d["lock_days_sum"] / d["lock_count"], 1) if d["lock_count"] > 0 else None
         address_totals = summarize_exercise_totals([{"txs": valid_txs}])
-        holder_fields = holder_reconciliation_fields(address_totals, holder_lookup.get(addr, {}))
+        holder_fields = holder_reconciliation_fields(address_totals, holder_lookup.get(addr, {}), valid_txs)
         exercisers.append({
             "address": addr,
             "total_usdc": round(d["total_usdc"], 2),
