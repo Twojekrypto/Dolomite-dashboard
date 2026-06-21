@@ -45,6 +45,26 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 odolo_flows.fetch_transfer_logs(100, 200)
 
+    def test_detect_contracts_uses_batch_results(self):
+        contract = "0x" + "a" * 40
+        wallet = "0x" + "b" * 40
+
+        def fake_batch(_rpcs, payloads, **_kwargs):
+            out = {}
+            for payload in payloads:
+                request_id = payload["id"]
+                result = "0x6000" if payload["params"][0] == contract else "0x"
+                out[request_id] = {"jsonrpc": "2.0", "id": request_id, "result": result}
+            return out, []
+
+        with patch.object(odolo_flows, "RPC_URLS", ["https://rpc.example"]), \
+             patch.object(odolo_flows, "rpc_batch_requests", side_effect=fake_batch), \
+             patch.object(odolo_flows, "rpc_single_request") as single:
+            contracts = odolo_flows.detect_contracts_batch([contract, wallet])
+
+        single.assert_not_called()
+        self.assertEqual(contracts, {contract})
+
 
 if __name__ == "__main__":
     unittest.main()

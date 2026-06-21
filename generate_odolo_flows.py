@@ -76,7 +76,10 @@ EXCLUDED_ADDRS = {
 
 # Single source of truth for endpoints (env-injected Alchemy keys first).
 from rpc_client import (
+    RpcError,
     get_endpoints as _rpc_endpoints,
+    rpc_batch_requests,
+    rpc_single_request,
     safe_host as _rpc_safe_host,
     sanitize_error as _rpc_sanitize_error,
 )
@@ -98,6 +101,8 @@ PERIODS = {
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "odolo_flows.json")
 STATE_FILE = os.path.join(DATA_DIR, "odolo_flows_state.json")
+RPC_BATCH_SIZE = int(os.environ.get("ODOLO_FLOW_RPC_BATCH_SIZE", "50"))
+RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("ODOLO_FLOW_RPC_RETRIES_PER_ENDPOINT", "2"))
 
 def load_state():
     """Load incremental sync state (cached transfers + last block)."""
@@ -242,20 +247,49 @@ def fetch_transfer_logs(start_block, end_block):
 
 def detect_contracts_batch(addresses):
     contracts = set()
-    for addr in addresses:
-        for rpc in RPC_URLS:
+    payloads = []
+    meta_by_id = {}
+    for idx, addr in enumerate(addresses):
+        request_id = f"code:{idx}"
+        payloads.append({
+            "jsonrpc": "2.0",
+            "method": "eth_getCode",
+            "params": [addr, "latest"],
+            "id": request_id,
+        })
+        meta_by_id[request_id] = addr
+
+    try:
+        responses, missing_ids = rpc_batch_requests(
+            RPC_URLS,
+            payloads,
+            timeout=5,
+            retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+            batch_size=RPC_BATCH_SIZE,
+            quiet=True,
+            describe="oDOLO eth_getCode",
+        )
+    except RpcError:
+        responses, missing_ids = {}, [payload["id"] for payload in payloads]
+
+    for payload in payloads:
+        request_id = payload["id"]
+        response = responses.get(request_id)
+        if request_id in missing_ids or not isinstance(response, dict) or response.get("error") or "result" not in response:
             try:
-                resp = requests.post(rpc, json={
-                    "jsonrpc": "2.0", "method": "eth_getCode",
-                    "params": [addr, "latest"], "id": 1
-                }, timeout=5, headers={"Content-Type": "application/json"})
-                code = resp.json().get("result", "0x")
-                if code and len(code) > 4:
-                    contracts.add(addr)
-                break
-            except Exception:
-                time.sleep(0.3)
-        time.sleep(0.03)
+                response = rpc_single_request(
+                    RPC_URLS,
+                    payload,
+                    timeout=5,
+                    retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                    quiet=True,
+                    describe="oDOLO eth_getCode fallback",
+                )
+            except RpcError:
+                continue
+        code = str(response.get("result", "0x") if isinstance(response, dict) else "0x")
+        if code and len(code) > 4:
+            contracts.add(meta_by_id[request_id])
     return contracts
 
 

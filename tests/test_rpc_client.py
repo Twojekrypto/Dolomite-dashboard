@@ -6,7 +6,15 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import rpc_client
-from rpc_client import RpcClient, RpcError, decode_uint256, get_endpoints, safe_host
+from rpc_client import (
+    RpcClient,
+    RpcError,
+    decode_uint256,
+    get_endpoints,
+    rpc_batch_requests,
+    rpc_single_request,
+    safe_host,
+)
 
 
 def _response(json_data, status=200):
@@ -103,6 +111,38 @@ class TestRpcClient(unittest.TestCase):
         with mock.patch.object(rpc_client.requests, "post", return_value=_response(bad)):
             with self.assertRaises(RpcError):
                 client.eth_call_batch([("0xT", "0xd1"), ("0xT", "0xd2")])
+
+    def test_generic_batch_returns_missing_ids_for_partial_response(self):
+        payloads = [
+            {"jsonrpc": "2.0", "method": "eth_call", "params": [], "id": "a"},
+            {"jsonrpc": "2.0", "method": "eth_call", "params": [], "id": "b"},
+        ]
+        with mock.patch.object(
+            rpc_client.requests,
+            "post",
+            return_value=_response([{"jsonrpc": "2.0", "id": "a", "result": "0x1"}]),
+        ):
+            responses, missing = rpc_batch_requests(
+                ["https://a.example"],
+                payloads,
+                quiet=True,
+                retries_per_endpoint=1,
+            )
+
+        self.assertEqual(responses["a"]["result"], "0x1")
+        self.assertEqual(missing, ["b"])
+
+    def test_generic_single_request_rotates_to_next_endpoint(self):
+        ok = _response({"jsonrpc": "2.0", "id": 1, "result": "0x7"})
+        with mock.patch.object(rpc_client.requests, "post", side_effect=[Exception("down"), ok]):
+            out = rpc_single_request(
+                ["https://a.example", "https://b.example"],
+                {"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1},
+                quiet=True,
+                retries_per_endpoint=1,
+            )
+
+        self.assertEqual(out["result"], "0x7")
 
 
 if __name__ == "__main__":

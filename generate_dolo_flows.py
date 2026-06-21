@@ -8,9 +8,14 @@ import json, time, os, sys, signal, re, shutil, subprocess
 import requests
 from datetime import datetime, timedelta, timezone
 
-ALCHEMY_BERA_RPC = os.environ.get("ALCHEMY_BERACHAIN_RPC", "")
-ALCHEMY_BERA_RPC_2 = os.environ.get("ALCHEMY_BERACHAIN_RPC_2", "")
-ALCHEMY_BERA_RPC_3 = os.environ.get("ALCHEMY_BERACHAIN_RPC_3", "")
+from rpc_client import (
+    RpcError,
+    decode_uint256,
+    get_endpoints as _rpc_endpoints,
+    rpc_batch_requests,
+    rpc_single_request,
+)
+
 ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY", "").strip()
 BERASCAN_API_KEY = os.environ.get("BERASCAN_API_KEY", "").strip()
 
@@ -99,25 +104,14 @@ EXCLUDED_ADDRS = {
 CHAINS = {
     "eth": {
         "name": "Ethereum",
-        "rpcs": [
-            "https://eth.drpc.org/",
-            "https://ethereum-rpc.publicnode.com/",
-            "https://rpc.ankr.com/eth",
-        ],
+        "rpcs": _rpc_endpoints("ethereum"),
         "block_time": 12,   # ~12 seconds per block
         "chunk_size": 50_000,
         "deploy_block": 21_500_000,  # DOLO deployed ~Jan 2025
     },
     "bera": {
         "name": "Berachain",
-        "rpcs": [
-            *([] if not ALCHEMY_BERA_RPC else [ALCHEMY_BERA_RPC]),
-            *([] if not ALCHEMY_BERA_RPC_2 else [ALCHEMY_BERA_RPC_2]),
-            *([] if not ALCHEMY_BERA_RPC_3 else [ALCHEMY_BERA_RPC_3]),
-            "https://berachain-rpc.publicnode.com/",
-            "https://berachain.drpc.org/",
-            "https://rpc.berachain.com/",
-        ],
+        "rpcs": _rpc_endpoints("berachain"),
         "block_time": 2,    # ~2 seconds per block
         "chunk_size": 100_000,  # Berachain: keep ranges small enough to avoid dropped log chunks
         "deploy_block": 2_900_000,   # DOLO deployed on Berachain ~block 2,925,727 (Mar 2025)
@@ -190,6 +184,8 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
 # dolo_flows.json stays small for first render; the UI lazy-loads this one.
 WALLET_HISTORY_JSON = os.path.join(DATA_DIR, "dolo_holder_wallet_history.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_flows_state.json")
+RPC_BATCH_SIZE = int(os.environ.get("DOLO_FLOWS_RPC_BATCH_SIZE", "50"))
+RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT", "2"))
 
 MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
 # Cache ALL transfers from genesis — state file lives only in Actions cache (10 GB limit),
@@ -380,22 +376,120 @@ def detect_contracts_batch(addresses, chain_key):
     rpcs = cfg["rpcs"]
     contracts = set()
 
-    for addr in addresses:
-        for rpc in rpcs:
+    payloads = []
+    meta_by_id = {}
+    for idx, addr in enumerate(addresses):
+        request_id = f"{chain_key}:code:{idx}"
+        payloads.append({
+            "jsonrpc": "2.0",
+            "method": "eth_getCode",
+            "params": [addr, "latest"],
+            "id": request_id,
+        })
+        meta_by_id[request_id] = addr
+
+    try:
+        responses, missing_ids = rpc_batch_requests(
+            rpcs,
+            payloads,
+            timeout=5,
+            retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+            batch_size=RPC_BATCH_SIZE,
+            quiet=True,
+            describe=f"{cfg['name']} flow eth_getCode",
+        )
+    except RpcError:
+        responses, missing_ids = {}, [payload["id"] for payload in payloads]
+
+    for payload in payloads:
+        request_id = payload["id"]
+        response = responses.get(request_id)
+        if request_id in missing_ids or not isinstance(response, dict) or response.get("error") or "result" not in response:
             try:
-                resp = requests.post(rpc, json={
-                    "jsonrpc": "2.0", "method": "eth_getCode",
-                    "params": [addr, "latest"], "id": 1
-                }, timeout=5, headers={"Content-Type": "application/json"})
-                code = resp.json().get("result", "0x")
-                if code and len(code) > 4:
-                    contracts.add(addr)
-                break
-            except Exception:
-                time.sleep(0.3)
-        time.sleep(0.03)
+                response = rpc_single_request(
+                    rpcs,
+                    payload,
+                    timeout=5,
+                    retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                    quiet=True,
+                    describe=f"{cfg['name']} flow eth_getCode fallback",
+                )
+            except RpcError:
+                continue
+        code = str(response.get("result", "0x") if isinstance(response, dict) else "0x")
+        if code and len(code) > 4:
+            contracts.add(meta_by_id[request_id])
 
     return contracts
+
+
+def fetch_dolo_balances(addresses):
+    """Fetch current DOLO balances across tracked chains using JSON-RPC batches."""
+    unique = sorted({addr.lower() for addr in addresses if addr})
+    balances = {}
+    failed_addrs = set()
+    failures = 0
+    if not unique:
+        return balances, failures, failed_addrs
+
+    bal_selector = "0x70a08231"  # balanceOf(address)
+    totals = {addr: 0.0 for addr in unique}
+
+    for chain_key, cfg in CHAINS.items():
+        payloads = []
+        meta_by_id = {}
+        for idx, addr in enumerate(unique):
+            padded = addr.replace("0x", "").lower().zfill(64)
+            request_id = f"{chain_key}:{idx}"
+            payload = {
+                "jsonrpc": "2.0",
+                "method": "eth_call",
+                "params": [{"to": DOLO_CONTRACT, "data": bal_selector + padded}, "latest"],
+                "id": request_id,
+            }
+            payloads.append(payload)
+            meta_by_id[request_id] = addr
+
+        try:
+            responses, missing_ids = rpc_batch_requests(
+                cfg["rpcs"],
+                payloads,
+                timeout=10,
+                retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                batch_size=RPC_BATCH_SIZE,
+                quiet=True,
+                describe=f"{cfg['name']} DOLO balanceOf",
+            )
+        except RpcError:
+            responses, missing_ids = {}, [payload["id"] for payload in payloads]
+
+        for payload in payloads:
+            request_id = payload["id"]
+            addr = meta_by_id[request_id]
+            response = responses.get(request_id)
+            if request_id in missing_ids or not isinstance(response, dict) or response.get("error") or "result" not in response:
+                try:
+                    response = rpc_single_request(
+                        cfg["rpcs"],
+                        payload,
+                        timeout=10,
+                        retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                        quiet=True,
+                        describe=f"{cfg['name']} DOLO balanceOf fallback",
+                    )
+                except RpcError:
+                    failures += 1
+                    failed_addrs.add(addr)
+                    continue
+            if not isinstance(response, dict) or response.get("error"):
+                failures += 1
+                failed_addrs.add(addr)
+                continue
+            totals[addr] += decode_uint256(response.get("result", "0x0")) / 1e18
+
+    for addr, value in totals.items():
+        balances[addr] = round(value, 2)
+    return balances, failures, failed_addrs
 
 
 def calculate_flows(transfers, excluded):
@@ -2100,44 +2194,7 @@ def main():
                 all_addrs.add(entry["address"])
 
     print(f"\n💰 Fetching DOLO balances for {len(all_addrs)} addresses...")
-    balances = {}
-    bal_selector = "0x70a08231"  # balanceOf(address)
-    bal_failures = 0
-    bal_failed_addrs = set()  # Track which addresses had RPC failures (for fallback)
-    for i, addr in enumerate(all_addrs):
-        padded = addr.replace("0x", "").lower().zfill(64)
-        total_bal = 0
-        for chain_key, cfg in CHAINS.items():
-            chain_bal = 0
-            got_balance = False
-            for attempt in range(3):  # 3 retry attempts
-                for rpc in cfg["rpcs"]:
-                    try:
-                        resp = requests.post(rpc, json={
-                            "jsonrpc": "2.0", "method": "eth_call",
-                            "params": [{"to": DOLO_CONTRACT, "data": bal_selector + padded}, "latest"],
-                            "id": 1
-                        }, timeout=10, headers={"Content-Type": "application/json"})
-                        r = resp.json()
-                        if "error" in r:
-                            continue
-                        result = r.get("result", "0x0")
-                        chain_bal = int(result, 16) / (10 ** 18) if result and result != "0x" else 0
-                        got_balance = True
-                        break
-                    except Exception:
-                        time.sleep(0.3)
-                if got_balance:
-                    break
-                time.sleep(0.5)  # backoff between retry attempts
-            if not got_balance:
-                bal_failures += 1
-                bal_failed_addrs.add(addr)
-            total_bal += chain_bal
-        balances[addr] = round(total_bal, 2)
-        time.sleep(0.05)
-        if (i + 1) % 50 == 0:
-            print(f"  ... {i + 1}/{len(all_addrs)} balances fetched")
+    balances, bal_failures, bal_failed_addrs = fetch_dolo_balances(all_addrs)
     if bal_failures:
         print(f"  ⚠️ {bal_failures} balance lookups failed across all retries")
 

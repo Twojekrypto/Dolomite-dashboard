@@ -9,7 +9,13 @@ import requests
 from datetime import datetime
 
 # Single source of truth for endpoints (env-injected Alchemy keys first).
-from rpc_client import get_endpoints as _rpc_endpoints
+from rpc_client import (
+    RpcError,
+    decode_uint256,
+    get_endpoints as _rpc_endpoints,
+    rpc_batch_requests,
+    rpc_single_request,
+)
 
 # ===== CONFIG =====
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654"
@@ -37,6 +43,8 @@ DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_holders.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_holders_state.json")
 MIN_BALANCE = 100.0  # 100 DOLO
+RPC_BATCH_SIZE = int(os.environ.get("DOLO_HOLDERS_RPC_BATCH_SIZE", "50"))
+RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_HOLDERS_RPC_RETRIES_PER_ENDPOINT", "2"))
 
 
 def load_state():
@@ -255,49 +263,84 @@ def verify_top_balances(holders, eth_balances, bera_balances, forced_addrs, max_
 
     BALANCE_OF_SEL = "0x70a08231"
     RPCs = {
-        "eth": "https://eth.drpc.org/",
-        "bera": _rpc_endpoints("berachain")[0],
+        "eth": CHAINS["eth"]["rpcs"],
+        "bera": CHAINS["bera"]["rpcs"],
     }
 
     to_check = holders[:max_check]
     corrections = 0
 
-    for chain, rpc_url in RPCs.items():
-        for h in to_check:
+    def apply_balance(chain, holder, onchain_bal):
+        nonlocal corrections
+        addr = holder["address"].lower()
+        bal_key = f"balance_{chain}"
+        old_bal = holder.get(bal_key, 0)
+
+        if old_bal > 0 and abs(onchain_bal - old_bal) / max(old_bal, 1) > 0.01:
+            holder[bal_key] = round(onchain_bal, 4)
+            corrections += 1
+            if chain == "eth":
+                eth_balances[addr] = onchain_bal
+            else:
+                bera_balances[addr] = onchain_bal
+        elif old_bal == 0 and onchain_bal >= MIN_BALANCE:
+            holder[bal_key] = round(onchain_bal, 4)
+            if chain not in holder["chains"]:
+                holder["chains"].append(chain)
+            corrections += 1
+            if chain == "eth":
+                eth_balances[addr] = onchain_bal
+            else:
+                bera_balances[addr] = onchain_bal
+
+    for chain, rpcs in RPCs.items():
+        payloads = []
+        meta_by_id = {}
+        for idx, h in enumerate(to_check):
             addr = h["address"].lower()
             data_hex = BALANCE_OF_SEL + addr.replace("0x", "").zfill(64)
-            for retry in range(2):
-                try:
-                    resp = requests.post(rpc_url, json={
-                        "jsonrpc": "2.0", "method": "eth_call",
-                        "params": [{"to": DOLO_CONTRACT, "data": data_hex}, "latest"], "id": 1
-                    }, timeout=10, headers={"Content-Type": "application/json"})
-                    r = resp.json()
-                    if "error" not in r:
-                        onchain_bal = int(r.get("result", "0x0"), 16) / 1e18
-                        bal_key = f"balance_{chain}"
-                        old_bal = h.get(bal_key, 0)
+            request_id = f"{chain}:{idx}"
+            payloads.append({
+                "jsonrpc": "2.0",
+                "method": "eth_call",
+                "params": [{"to": DOLO_CONTRACT, "data": data_hex}, "latest"],
+                "id": request_id,
+            })
+            meta_by_id[request_id] = h
 
-                        if old_bal > 0 and abs(onchain_bal - old_bal) / max(old_bal, 1) > 0.01:
-                            h[bal_key] = round(onchain_bal, 4)
-                            corrections += 1
-                            if chain == "eth":
-                                eth_balances[addr] = onchain_bal
-                            else:
-                                bera_balances[addr] = onchain_bal
-                        elif old_bal == 0 and onchain_bal >= MIN_BALANCE:
-                            h[bal_key] = round(onchain_bal, 4)
-                            if chain not in h["chains"]:
-                                h["chains"].append(chain)
-                            corrections += 1
-                            if chain == "eth":
-                                eth_balances[addr] = onchain_bal
-                            else:
-                                bera_balances[addr] = onchain_bal
-                    break
-                except Exception:
-                    time.sleep(0.5)
-            time.sleep(0.03)
+        try:
+            responses, missing_ids = rpc_batch_requests(
+                rpcs,
+                payloads,
+                timeout=10,
+                retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                batch_size=RPC_BATCH_SIZE,
+                quiet=True,
+                describe=f"{chain} DOLO balanceOf",
+            )
+        except RpcError:
+            responses, missing_ids = {}, [payload["id"] for payload in payloads]
+
+        for payload in payloads:
+            request_id = payload["id"]
+            h = meta_by_id[request_id]
+            r = responses.get(request_id)
+            if request_id in missing_ids or not isinstance(r, dict) or r.get("error") or "result" not in r:
+                try:
+                    r = rpc_single_request(
+                        rpcs,
+                        payload,
+                        timeout=10,
+                        retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                        quiet=True,
+                        describe=f"{chain} DOLO balanceOf fallback",
+                    )
+                except RpcError:
+                    continue
+            if not isinstance(r, dict) or r.get("error"):
+                continue
+            onchain_bal = decode_uint256(r.get("result", "0x0")) / 1e18
+            apply_balance(chain, h, onchain_bal)
 
     for h in holders[:max_check]:
         h["balance"] = round(h.get("balance_eth", 0) + h.get("balance_bera", 0), 4)
@@ -321,39 +364,109 @@ def detect_contracts(holders, max_check=200):
     print(f"\n🔍 Detecting contracts in top {max_check} holders...")
 
     RPC_URLS = [
-        ("eth", "https://eth.drpc.org/"),
-        ("bera", _rpc_endpoints("berachain")[0]),
+        ("eth", CHAINS["eth"]["rpcs"]),
+        ("bera", CHAINS["bera"]["rpcs"]),
     ]
 
     to_check = holders[:max_check]
     contract_addrs = set()
     contract_wallet_types = {}
 
-    for chain, rpc_url in RPC_URLS:
-        for h in to_check:
+    for chain, rpcs in RPC_URLS:
+        code_payloads = []
+        meta_by_id = {}
+        for idx, h in enumerate(to_check):
             addr = h["address"]
-            for retry in range(2):
+            request_id = f"{chain}:code:{idx}"
+            code_payloads.append({
+                "jsonrpc": "2.0",
+                "method": "eth_getCode",
+                "params": [addr, "latest"],
+                "id": request_id,
+            })
+            meta_by_id[request_id] = addr
+
+        try:
+            code_responses, code_missing = rpc_batch_requests(
+                rpcs,
+                code_payloads,
+                timeout=5,
+                retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                batch_size=RPC_BATCH_SIZE,
+                quiet=True,
+                describe=f"{chain} eth_getCode",
+            )
+        except RpcError:
+            code_responses, code_missing = {}, [payload["id"] for payload in code_payloads]
+
+        chain_contract_addrs = []
+        for payload in code_payloads:
+            request_id = payload["id"]
+            addr = meta_by_id[request_id]
+            response = code_responses.get(request_id)
+            if request_id in code_missing or not isinstance(response, dict) or response.get("error") or "result" not in response:
                 try:
-                    resp = requests.post(rpc_url, json={
-                        "jsonrpc": "2.0", "method": "eth_getCode",
-                        "params": [addr, "latest"], "id": 1
-                    }, timeout=5, headers={"Content-Type": "application/json"})
-                    code = resp.json().get("result", "0x")
-                    if code and len(code) > 4:
-                        key = addr.lower()
-                        contract_addrs.add(key)
-                        storage_resp = requests.post(rpc_url, json={
-                            "jsonrpc": "2.0", "method": "eth_getStorageAt",
-                            "params": [addr, "0x0", "latest"], "id": 1
-                        }, timeout=5, headers={"Content-Type": "application/json"})
-                        slot0 = str(storage_resp.json().get("result", "0x") or "").lower()
-                        singleton = "0x" + slot0[-40:] if len(slot0) >= 42 else ""
-                        if singleton in SAFE_SINGLETON_ADDRS:
-                            contract_wallet_types[key] = "safe"
-                    break
-                except Exception:
-                    time.sleep(0.3)
-            time.sleep(0.03)
+                    response = rpc_single_request(
+                        rpcs,
+                        payload,
+                        timeout=5,
+                        retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                        quiet=True,
+                        describe=f"{chain} eth_getCode fallback",
+                    )
+                except RpcError:
+                    continue
+            code = str(response.get("result", "0x") if isinstance(response, dict) else "0x")
+            if code and len(code) > 4:
+                key = addr.lower()
+                contract_addrs.add(key)
+                chain_contract_addrs.append(addr)
+
+        storage_payloads = []
+        storage_meta = {}
+        for idx, addr in enumerate(chain_contract_addrs):
+            request_id = f"{chain}:storage:{idx}"
+            storage_payloads.append({
+                "jsonrpc": "2.0",
+                "method": "eth_getStorageAt",
+                "params": [addr, "0x0", "latest"],
+                "id": request_id,
+            })
+            storage_meta[request_id] = addr.lower()
+
+        if storage_payloads:
+            try:
+                storage_responses, storage_missing = rpc_batch_requests(
+                    rpcs,
+                    storage_payloads,
+                    timeout=5,
+                    retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                    batch_size=RPC_BATCH_SIZE,
+                    quiet=True,
+                    describe=f"{chain} eth_getStorageAt",
+                )
+            except RpcError:
+                storage_responses, storage_missing = {}, [payload["id"] for payload in storage_payloads]
+
+            for payload in storage_payloads:
+                request_id = payload["id"]
+                response = storage_responses.get(request_id)
+                if request_id in storage_missing or not isinstance(response, dict) or response.get("error") or "result" not in response:
+                    try:
+                        response = rpc_single_request(
+                            rpcs,
+                            payload,
+                            timeout=5,
+                            retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                            quiet=True,
+                            describe=f"{chain} eth_getStorageAt fallback",
+                        )
+                    except RpcError:
+                        continue
+                slot0 = str(response.get("result", "0x") if isinstance(response, dict) else "0x").lower()
+                singleton = "0x" + slot0[-40:] if len(slot0) >= 42 else ""
+                if singleton in SAFE_SINGLETON_ADDRS:
+                    contract_wallet_types[storage_meta[request_id]] = "safe"
 
     for h in holders:
         key = h["address"].lower()
