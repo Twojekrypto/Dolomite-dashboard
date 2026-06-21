@@ -581,7 +581,8 @@ def fetch_block_timestamp(chain_key, config, block_number):
     return fetch_block_timestamps(chain_key, config, [block_number]).get(block_number, 0)
 
 
-def claim_events_from_logs(chain_key, config, logs, distributor_tokens):
+def claim_events_from_logs(chain_key, config, logs, distributor_tokens, known_timestamps=None):
+    known_timestamps = known_timestamps or {}
     decoded = []
     block_numbers = []
     for log in logs:
@@ -619,9 +620,13 @@ def claim_events_from_logs(chain_key, config, logs, distributor_tokens):
             "source": "RewardClaimed",
         })
 
-    timestamps = fetch_block_timestamps(chain_key, config, block_numbers)
+    # Block timestamps are immutable: reuse any already resolved in earlier runs
+    # and fetch only blocks we have never seen (data-identical, fewer RPC calls).
+    unknown_blocks = [b for b in set(block_numbers) if int(known_timestamps.get(b) or 0) <= 0]
+    fetched = fetch_block_timestamps(chain_key, config, unknown_blocks) if unknown_blocks else {}
     for event in decoded:
-        event["timestamp"] = timestamps.get(event["blockNumber"], 0)
+        block = event["blockNumber"]
+        event["timestamp"] = int(known_timestamps.get(block) or 0) or int(fetched.get(block) or 0)
     return decoded
 
 
@@ -992,7 +997,14 @@ def main():
             distributors = sorted(set(fetch_claim_distributors(config)) | existing_distributors | event_distributors)
             distributor_tokens = resolve_distributor_tokens(config, distributors)
             new_logs = fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distributors)
-            new_events = claim_events_from_logs(chain_key, config, new_logs, distributor_tokens)
+            known_timestamps = {
+                int(event.get("blockNumber") or 0): int(event.get("timestamp") or 0)
+                for event in existing_events_for_chain(existing, chain_key)
+                if int(event.get("blockNumber") or 0) > 0 and int(event.get("timestamp") or 0) > 0
+            }
+            new_events = claim_events_from_logs(
+                chain_key, config, new_logs, distributor_tokens, known_timestamps
+            )
             all_events = merge_events(all_events, new_events)
             all_events = apply_distributor_token_metadata(all_events, chain_key, config, distributor_tokens)
             chains_payload[chain_key] = build_chain_payload(

@@ -45,6 +45,52 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 odolo_flows.fetch_transfer_logs(100, 200)
 
+    def test_fetch_odolo_balances_uses_multicall_fast_path(self):
+        addr = "0x" + "c" * 40
+
+        def fake_multicall(rpcs, addrs):
+            return {a.lower(): 1234 * 10**18 for a in addrs}, []
+
+        with patch.object(odolo_flows, "RPC_URLS", ["https://rpc.example"]), \
+             patch.object(odolo_flows, "_multicall_odolo_balances", side_effect=fake_multicall), \
+             patch.object(odolo_flows.requests, "post") as post, \
+             patch.object(odolo_flows.time, "sleep"):
+            balances = odolo_flows.fetch_odolo_balances([addr])
+
+        post.assert_not_called()  # Multicall3 resolved everyone; no per-address calls
+        self.assertEqual(balances[addr.lower()], 1234.0)
+
+    def test_fetch_odolo_balances_falls_back_when_multicall_unresolved(self):
+        addr = "0x" + "d" * 40
+        word = "0x" + hex(50 * 10**18)[2:].zfill(64)
+
+        def fake_post(url, json=None, **kwargs):
+            resp = Mock()
+            if isinstance(json, list):
+                resp.json.return_value = [
+                    {"jsonrpc": "2.0", "id": item["id"], "result": word} for item in json
+                ]
+            else:
+                resp.json.return_value = {"jsonrpc": "2.0", "id": json["id"], "result": word}
+            return resp
+
+        with patch.object(odolo_flows, "RPC_URLS", ["https://rpc.example"]), \
+             patch.object(odolo_flows, "_multicall_odolo_balances",
+                          side_effect=lambda rpcs, addrs: ({}, list(addrs))), \
+             patch.object(odolo_flows.requests, "post", side_effect=fake_post), \
+             patch.object(odolo_flows.time, "sleep"):
+            balances = odolo_flows.fetch_odolo_balances([addr])
+
+        self.assertEqual(balances[addr.lower()], 50.0)
+
+    def test_multicall_odolo_balances_without_web3_defers_to_fallback(self):
+        import sys
+        a, b = "0x" + "e" * 40, "0x" + "f" * 40
+        with patch.dict(sys.modules, {"web3": None}):
+            resolved, unresolved = odolo_flows._multicall_odolo_balances(["https://rpc"], [a, b])
+        self.assertEqual(resolved, {})
+        self.assertEqual(unresolved, [a, b])
+
     def test_detect_contracts_uses_batch_results(self):
         contract = "0x" + "a" * 40
         wallet = "0x" + "b" * 40

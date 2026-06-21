@@ -39,11 +39,30 @@ RPC_URL = "https://rpc.berachain.com/"
 # Endpoint list comes from the shared client (env-injected Alchemy keys first,
 # then public fallbacks) — single source of truth for RPC endpoints.
 from rpc_client import get_endpoints as _rpc_endpoints
+
+import rpc_usage
+
 RPC_URLS = _rpc_endpoints("berachain")
 LOCKED_SELECTOR = "0xb45a3c0e"  # locked(uint256)
 BALANCE_OF_NFT_SELECTOR = "0xe7e242d4"  # balanceOfNFT(uint256) — current vote weight
 BALANCE_OF_SELECTOR = "0x70a08231"  # balanceOf(address) — ERC20
 DOLO_TOKEN = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654"  # Underlying DOLO token
+# Multicall3 (same address on every EVM chain) batches many per-tokenId reads
+# into ONE eth_call. JSON-RPC batching does NOT cut compute units; Multicall3 does.
+MULTICALL3_ADDR = "0xcA11bde05977b3631167028862bE2a173976CA11"
+MULTICALL3_AGG3_ABI = [{
+    "inputs": [{"components": [
+        {"name": "target", "type": "address"},
+        {"name": "allowFailure", "type": "bool"},
+        {"name": "callData", "type": "bytes"},
+    ], "name": "calls", "type": "tuple[]"}],
+    "name": "aggregate3",
+    "outputs": [{"components": [
+        {"name": "success", "type": "bool"},
+        {"name": "returnData", "type": "bytes"},
+    ], "name": "returnData", "type": "tuple[]"}],
+    "stateMutability": "payable", "type": "function",
+}]
 
 BATCH_SIZE = 25
 MAX_WORKERS = 3
@@ -209,9 +228,75 @@ def build_ownership(txs):
 
 # ===== PHASE 2: Fetch locked DOLO + PHASE 3: Fetch vote weights =====
 
+def _multicall_vedolo_reads(token_ids, selector):
+    """Multicall3 fast path for VEDOLO_CONTRACT read `selector`(uint256 tokenId).
+
+    Returns {token_id: returnData_bytes} for ids the multicall resolved
+    successfully. Ids absent from the result must be resolved by the per-call
+    JSON-RPC fallback, which preserves the failed-vs-zero handling. The caller
+    decodes the raw bytes per method. If web3 is unavailable, returns {} so every
+    id defers to the fallback. Data-identical to individual eth_calls.
+    """
+    ids = list(token_ids)
+    out = {}
+    if not ids:
+        return out
+    try:
+        from web3 import Web3
+    except ImportError:
+        return out
+    rpc_list = [r for r in RPC_URLS if r]
+    if not rpc_list:
+        return out
+
+    target = Web3.to_checksum_address(VEDOLO_CONTRACT)
+    multicall_addr = Web3.to_checksum_address(MULTICALL3_ADDR)
+    sel = selector[2:] if selector.startswith("0x") else selector
+    rpc_idx = 0
+
+    for start in range(0, len(ids), max(1, BATCH_SIZE)):
+        chunk = ids[start:start + max(1, BATCH_SIZE)]
+        calls = [(target, True, bytes.fromhex(sel + hex(tid)[2:].zfill(64))) for tid in chunk]
+        results = None
+        for attempt in range(len(rpc_list)):
+            rpc = rpc_list[(rpc_idx + attempt) % len(rpc_list)]
+            try:
+                w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": RPC_TIMEOUT_SECONDS}))
+                multicall = w3.eth.contract(address=multicall_addr, abi=MULTICALL3_AGG3_ABI)
+                results = multicall.functions.aggregate3(calls).call()
+                rpc_usage.record_request("eth_call")  # one aggregate3 == one eth_call
+                rpc_idx = (rpc_idx + attempt) % len(rpc_list)
+                break
+            except Exception:
+                results = None
+                continue
+        if not results or len(results) != len(chunk):
+            continue  # whole chunk unresolved -> per-call fallback handles it
+        for tid, item in zip(chunk, results):
+            data = bytes(item[1]) if item[1] is not None else b""
+            if bool(item[0]) and len(data) >= 32:
+                out[tid] = data
+            # else: leave unresolved -> fallback (failed call, not a trusted zero)
+    return out
+
+
 def make_batch_call(token_ids):
     """Batch RPC call for locked(uint256) with RPC failover.
     Returns (results_dict, failed_ids) to distinguish errors from real zeros."""
+    out = {}
+    responded_ids = set()
+    # Fast path: Multicall3 resolves most ids in one eth_call per chunk
+    # (data-identical; ids it can't resolve fall through to the batch below).
+    for tid, data in _multicall_vedolo_reads(token_ids, LOCKED_SELECTOR).items():
+        amount_raw = int.from_bytes(data[0:32], "big")
+        if amount_raw >= 2**127:
+            amount_raw -= 2**128
+        out[tid] = {"amount": amount_raw / 1e18, "end": int.from_bytes(data[32:64], "big")}
+        responded_ids.add(tid)
+    token_ids = [tid for tid in token_ids if tid not in responded_ids]
+    if not token_ids:
+        return out, []
+
     s = requests.Session()
     batch = []
     for i, tid in enumerate(token_ids):
@@ -223,8 +308,6 @@ def make_batch_call(token_ids):
             "id": i
         })
 
-    out = {}
-    responded_ids = set()
     for rpc_url in RPC_URLS:
         for retry in range(RPC_RETRIES):
             try:
@@ -581,6 +664,17 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None, priority_token_ids=None,
 def make_vote_batch_call(token_ids):
     """True JSON-RPC batch call for balanceOfNFT(uint256).
     Returns (results_dict, failed_ids) to distinguish real zeros from errors."""
+    out = {}
+    responded_ids = set()
+    # Fast path: Multicall3 resolves most ids in one eth_call per chunk
+    # (data-identical; ids it can't resolve fall through to the batch below).
+    for tid, data in _multicall_vedolo_reads(token_ids, BALANCE_OF_NFT_SELECTOR).items():
+        out[tid] = int.from_bytes(data[:32], "big") / 1e18
+        responded_ids.add(tid)
+    token_ids = [tid for tid in token_ids if tid not in responded_ids]
+    if not token_ids:
+        return out, []
+
     s = requests.Session()
     batch = []
     for i, tid in enumerate(token_ids):
@@ -592,8 +686,6 @@ def make_vote_batch_call(token_ids):
             "id": i
         })
 
-    out = {}
-    responded_ids = set()
     for rpc_url in RPC_URLS:
         for retry in range(RPC_RETRIES):
             try:

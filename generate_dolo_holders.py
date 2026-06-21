@@ -17,10 +17,28 @@ from rpc_client import (
     rpc_single_request,
 )
 
+import rpc_usage
+
 # ===== CONFIG =====
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654"
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ZERO = "0x0000000000000000000000000000000000000000"
+# Multicall3 (same address on every EVM chain) batches many balanceOf reads into
+# ONE eth_call. JSON-RPC batching does NOT cut compute units; Multicall3 does.
+MULTICALL3_ADDR = "0xcA11bde05977b3631167028862bE2a173976CA11"
+MULTICALL3_AGG3_ABI = [{
+    "inputs": [{"components": [
+        {"name": "target", "type": "address"},
+        {"name": "allowFailure", "type": "bool"},
+        {"name": "callData", "type": "bytes"},
+    ], "name": "calls", "type": "tuple[]"}],
+    "name": "aggregate3",
+    "outputs": [{"components": [
+        {"name": "success", "type": "bool"},
+        {"name": "returnData", "type": "bytes"},
+    ], "name": "returnData", "type": "tuple[]"}],
+    "stateMutability": "payable", "type": "function",
+}]
 # Single source of truth for Safe singleton addresses (all versions).
 from safe_wallets import SAFE_SINGLETON_ADDRS
 
@@ -256,6 +274,68 @@ def merge_holders(eth_balances, bera_balances, forced_addrs):
     return holders
 
 
+def _multicall_dolo_balances(rpcs, addresses):
+    """Fast path: DOLO balanceOf via Multicall3 aggregate3 — ONE eth_call per
+    chunk instead of one per address.
+
+    Returns (resolved, unresolved): `resolved` maps address -> raw uint256
+    balance; `unresolved` lists addresses Multicall3 could not cleanly resolve
+    (reverted/short sub-call or unreachable endpoint), which the caller sends
+    through the per-address fallback so the failed-vs-zero handling still
+    applies. Data-identical to individual balanceOf calls — only request count
+    drops. If web3 is unavailable, every address defers to the fallback.
+    """
+    addresses = list(addresses)
+    if not addresses:
+        return {}, []
+    try:
+        from web3 import Web3
+    except ImportError:
+        return {}, addresses
+    rpc_list = [r for r in (rpcs or []) if r]
+    if not rpc_list:
+        return {}, addresses
+
+    token = Web3.to_checksum_address(DOLO_CONTRACT)
+    multicall_addr = Web3.to_checksum_address(MULTICALL3_ADDR)
+    selector = "70a08231"  # balanceOf(address)
+    chunk_size = max(1, RPC_BATCH_SIZE)
+    resolved = {}
+    unresolved = []
+    rpc_idx = 0
+
+    for start in range(0, len(addresses), chunk_size):
+        chunk = addresses[start:start + chunk_size]
+        calls = [
+            (token, True, bytes.fromhex(selector + a.replace("0x", "").lower().zfill(64)))
+            for a in chunk
+        ]
+        results = None
+        for attempt in range(len(rpc_list)):
+            rpc = rpc_list[(rpc_idx + attempt) % len(rpc_list)]
+            try:
+                w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 30}))
+                multicall = w3.eth.contract(address=multicall_addr, abi=MULTICALL3_AGG3_ABI)
+                results = multicall.functions.aggregate3(calls).call()
+                rpc_usage.record_request("eth_call")  # one aggregate3 == one eth_call
+                rpc_idx = (rpc_idx + attempt) % len(rpc_list)
+                break
+            except Exception:
+                results = None
+                continue
+        if not results or len(results) != len(chunk):
+            unresolved.extend(chunk)
+            continue
+        for addr, item in zip(chunk, results):
+            success = bool(item[0])
+            data = bytes(item[1]) if item[1] is not None else b""
+            if success and len(data) >= 32:
+                resolved[addr] = int.from_bytes(data[:32], "big")
+            else:
+                unresolved.append(addr)
+    return resolved, unresolved
+
+
 def verify_top_balances(holders, eth_balances, bera_balances, forced_addrs, max_check=200):
     """Verify top holders' balances against on-chain balanceOf().
     Fixes any residual discrepancies."""
@@ -294,9 +374,21 @@ def verify_top_balances(holders, eth_balances, bera_balances, forced_addrs, max_
                 bera_balances[addr] = onchain_bal
 
     for chain, rpcs in RPCs.items():
+        # Fast path: Multicall3 batches balanceOf into one eth_call per chunk.
+        resolved, unresolved = _multicall_dolo_balances(rpcs, [h["address"].lower() for h in to_check])
+        for h in to_check:
+            raw = resolved.get(h["address"].lower())
+            if raw is not None:
+                apply_balance(chain, h, raw / 1e18)
+        if not unresolved:
+            continue
+        pending_set = set(unresolved)
+        pending_holders = [h for h in to_check if h["address"].lower() in pending_set]
+
+        # Fallback (unchanged): per-address eth_call for holders Multicall3 missed.
         payloads = []
         meta_by_id = {}
-        for idx, h in enumerate(to_check):
+        for idx, h in enumerate(pending_holders):
             addr = h["address"].lower()
             data_hex = BALANCE_OF_SEL + addr.replace("0x", "").zfill(64)
             request_id = f"{chain}:{idx}"

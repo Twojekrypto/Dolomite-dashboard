@@ -40,7 +40,11 @@ class GenerateDoloHoldersRpcBatchTests(unittest.TestCase):
                 out[request_id] = {"jsonrpc": "2.0", "id": request_id, "result": uint256_hex(amount)}
             return out, []
 
-        with patch.object(holders, "rpc_batch_requests", side_effect=fake_batch), \
+        # Force the per-address fallback (multicall resolves nothing) so this
+        # test exercises the JSON-RPC batch path exactly as before.
+        with patch.object(holders, "_multicall_dolo_balances",
+                          side_effect=lambda rpcs, addrs: ({}, list(addrs))), \
+             patch.object(holders, "rpc_batch_requests", side_effect=fake_batch), \
              patch.object(holders, "rpc_single_request") as single:
             out_rows, out_eth, _out_bera = holders.verify_top_balances(
                 rows,
@@ -56,6 +60,58 @@ class GenerateDoloHoldersRpcBatchTests(unittest.TestCase):
         self.assertEqual(out_eth[ALICE], 1200)
         self.assertEqual(out_rows[1]["balance_eth"], 150)
         self.assertIn("eth", out_rows[1]["chains"])
+
+    def test_verify_top_balances_uses_multicall_fast_path(self):
+        # When Multicall3 resolves the holders, the per-address eth_call path
+        # is never touched (the compute-unit win).
+        rows = [{"address": ALICE, "balance": 1000, "balance_eth": 1000,
+                 "balance_bera": 0, "chains": ["eth"]}]
+
+        def fake_multicall(rpcs, addrs):
+            return {a.lower(): 1200 * 10**18 for a in addrs}, []
+
+        with patch.object(holders, "_multicall_dolo_balances", side_effect=fake_multicall), \
+             patch.object(holders, "rpc_batch_requests") as batch, \
+             patch.object(holders, "rpc_single_request") as single:
+            out_rows, out_eth, _ = holders.verify_top_balances(
+                rows, {ALICE: 1000}, {}, forced_addrs=set(), max_check=1,
+            )
+
+        batch.assert_not_called()
+        single.assert_not_called()
+        self.assertEqual(out_rows[0]["balance_eth"], 1200)
+        self.assertEqual(out_eth[ALICE], 1200)
+
+    def test_verify_top_balances_falls_back_when_multicall_unresolved(self):
+        # Holders Multicall3 cannot resolve fall through to the per-address path.
+        rows = [{"address": ALICE, "balance": 1000, "balance_eth": 1000,
+                 "balance_bera": 0, "chains": ["eth"]}]
+
+        def fake_batch(_rpcs, payloads, **_kwargs):
+            out = {}
+            for payload in payloads:
+                rid = payload["id"]
+                amount = 1200 * 10**18 if rid.startswith("eth") else 0
+                out[rid] = {"jsonrpc": "2.0", "id": rid, "result": uint256_hex(amount)}
+            return out, []
+
+        with patch.object(holders, "_multicall_dolo_balances",
+                          side_effect=lambda rpcs, addrs: ({}, list(addrs))), \
+             patch.object(holders, "rpc_batch_requests", side_effect=fake_batch), \
+             patch.object(holders, "rpc_single_request") as single:
+            out_rows, out_eth, _ = holders.verify_top_balances(
+                rows, {ALICE: 1000}, {}, forced_addrs=set(), max_check=1,
+            )
+
+        single.assert_not_called()
+        self.assertEqual(out_rows[0]["balance_eth"], 1200)
+
+    def test_multicall_dolo_balances_without_web3_defers_to_fallback(self):
+        # No web3 -> fast path is a no-op, every address returned for fallback.
+        with patch.dict(sys.modules, {"web3": None}):
+            resolved, unresolved = holders._multicall_dolo_balances(["https://rpc"], [ALICE, BOB])
+        self.assertEqual(resolved, {})
+        self.assertEqual(unresolved, [ALICE, BOB])
 
     def test_detect_contracts_batches_code_and_safe_storage(self):
         singleton = "0x" + "1" * 40
