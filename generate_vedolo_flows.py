@@ -41,6 +41,10 @@ STATE_FILE = os.path.join(DATA_DIR, "vedolo_flows_state.json")
 RUN_STATUS_FILE = os.path.join(DATA_DIR, "vedolo_flows_run_status.json")
 EXERCISERS_BY_ADDRESS_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json")
 
+
+class EventLogFetchError(RuntimeError):
+    """Raised when an event range cannot be fetched completely."""
+
 # Historical wallet-to-wallet veDOLO NFT transfers verified by receipt on
 # Berachain. Some public RPC log scans missed this narrow July 2025 range, so
 # keep these rows as an explicit backfill until the upstream scan is rebuilt.
@@ -342,6 +346,7 @@ def fetch_event_logs(start_block, end_block, topic):
         chunk_end = min(current + chunk_size - 1, end_block)
 
         success = False
+        last_error = ""
         for attempt in range(len(RPC_URLS) * 2):
             rpc = RPC_URLS[attempt % len(RPC_URLS)]
             try:
@@ -358,6 +363,7 @@ def fetch_event_logs(start_block, end_block, topic):
                 r = resp.json()
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
+                    last_error = err_msg or str(r["error"])
                     if "range" in err_msg.lower() or "limit" in err_msg.lower():
                         chunk_size = max(chunk_size // 2, 1000)
                         chunk_end = min(current + chunk_size - 1, end_block)
@@ -369,17 +375,20 @@ def fetch_event_logs(start_block, end_block, topic):
                 all_logs.extend(logs)
                 success = True
                 break
-            except requests.exceptions.Timeout:
+            except requests.exceptions.Timeout as exc:
+                last_error = f"timeout: {exc}"
                 chunk_size = max(chunk_size // 2, 1000)
                 chunk_end = min(current + chunk_size - 1, end_block)
                 time.sleep(1)
-            except Exception:
+            except Exception as exc:
+                last_error = str(exc)
                 time.sleep(0.5)
 
         if not success:
-            print(f"    ⚠️ Failed at block {current}, skipping chunk")
-            current = chunk_end + 1
-            continue
+            raise EventLogFetchError(
+                f"Failed to fetch veDOLO logs for topic {topic} "
+                f"from block {current:,} to {chunk_end:,}: {last_error or 'unknown RPC error'}"
+            )
 
         current = chunk_end + 1
         chunks_done += 1
