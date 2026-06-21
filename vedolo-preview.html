@@ -216,6 +216,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .tag.down{color:var(--down);background:var(--down-wash);border-color:var(--down-line)}
 .tag.gold{color:var(--gold);background:var(--gold-wash);border-color:var(--gold-line)}
 .tag.cyan{color:var(--cyan);background:rgba(143,183,200,.09);border-color:var(--cyan-line)}
+.tag.neutral{color:var(--fg-2);background:rgba(255,255,255,.035);border-color:var(--line-2)}
 .flow-source-tag{cursor:help;outline:0;transition:border-color .15s var(--ease),background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease)}
 .flow-source-tag:hover,.flow-source-tag:focus-visible{box-shadow:0 0 0 3px rgba(201,162,39,.07)}
 .tbl-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
@@ -279,8 +280,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table .holder-detail-title{font-size:15px;font-weight:700;color:var(--fg-1);letter-spacing:0;line-height:1.25}
 #holders-table .holder-detail-meta{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap}
 #holders-table .holder-detail-scroll{max-height:330px;overflow:auto;position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;background:rgba(0,0,0,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 0 rgba(255,255,255,.025);scrollbar-color:rgba(201,162,39,.34) rgba(255,255,255,.055);scrollbar-width:thin}
-#holders-table .holder-detail-table{width:100%;min-width:700px;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed}
+#holders-table .holder-detail-table{width:100%;min-width:780px;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed}
 #holders-table .holder-detail-table .detail-col-rank{width:44px}
+#holders-table .holder-detail-table .detail-col-route{width:112px}
 #holders-table .holder-detail-table .detail-col-dolo{width:126px}
 #holders-table .holder-detail-table .detail-col-vote{width:126px}
 #holders-table .holder-detail-table .detail-col-remaining{width:94px}
@@ -300,6 +302,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table .holder-detail-table > tbody > tr:hover > td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block}
 #holders-table .holder-detail-table td.mono{font-family:var(--mono)}
 #holders-table .holder-detail-rank{color:var(--fg-4);font-weight:600;text-align:right}
+#holders-table .holder-detail-route .flow-source-tag{justify-content:center;max-width:100%}
 #holders-table .holder-position-id{display:inline-flex;align-items:center;justify-content:center;min-width:54px;padding:4px 7px;border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-wash);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--gold)}
 #holders-table .holder-detail-lock{display:inline-flex;align-items:center;justify-content:center;min-width:42px;padding:4px 7px;border-radius:999px;border:1px solid var(--line-2);background:rgba(255,255,255,.025);font-family:var(--mono);font-size:11px;font-weight:700}
 #holders-table .holder-detail-lock.short{color:var(--down);border-color:rgba(180,121,107,.28);background:rgba(180,121,107,.08)}
@@ -605,6 +608,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .exit-suite #dd-exit-period .dd-btn{width:auto;min-width:96px}
   .exit-suite #dd-exit-period .dd-panel{left:auto;right:0}
   .holders-card .toolbar .tb-left{width:auto;flex:1 1 220px;min-width:200px}
+  #holders-table .holder-detail-row > td{padding:0 8px 14px!important}
+  #holders-table .holder-detail-panel{width:calc(100vw - 56px);max-width:calc(100vw - 56px)}
   #holders-table .holder-detail-head{padding:15px 16px}
   #holders-table .holder-detail-scroll{max-height:420px;margin:0 10px 14px 12px;padding:12px 0}
   #holders-table .holder-detail-table{min-width:0}
@@ -1055,7 +1060,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 </div>
 <script>
 const state = {
-  stats:{}, holders:[], exits:[], locks:[], unlocks:[], expiry:null, price:null,
+  stats:{}, holders:[], exits:[], locks:[], unlocks:[], transfers:[], expiry:null, price:null,
+  lockEventsByToken:new Map(), transferEventsByToken:new Map(),
   lockedHistory:[], lockedBrush:{from:0,to:0}, lockedBrushReady:false,
   holder:{q:"",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
@@ -1531,16 +1537,47 @@ const FLOW_SOURCE_META = {
     title:"via oDOLO",
     body:"Lock came from an oDOLO exercise and was attributed to the exercising wallet from oDOLO metadata."
   },
+  airdrop:{
+    label:"Airdrop",
+    cls:"gold",
+    title:"Airdrop Claim",
+    body:"Position was created through the DOLO airdrop claim flow."
+  },
+  transfer:{
+    label:"Transfer",
+    cls:"cyan",
+    title:"Transferred Position",
+    body:"Current wallet received this veDOLO NFT from another wallet."
+  },
+  mixed:{
+    label:"Mixed",
+    cls:"neutral",
+    title:"Mixed Route",
+    body:"This position has more than one source route across its lock or increase events."
+  },
+  merge:{
+    label:"Merge",
+    cls:"neutral",
+    title:"Merge Route",
+    body:"Position includes a merge or migration deposit event carrying DOLO."
+  },
   protocol:{
     label:"Protocol",
     cls:"gold",
     title:"Protocol Route",
     body:"oDOLO-routed lock where the wallet could not be resolved from exercise metadata yet, so it is shown under the protocol contract route."
+  },
+  unknown:{
+    label:"Unknown",
+    cls:"neutral",
+    title:"Unknown Route",
+    body:"No matching lock or transfer event was found for this active position in the loaded flow data."
   }
 };
-function flowSourceTag(kind){
+function flowSourceTag(kind, tooltipText=""){
   const meta = FLOW_SOURCE_META[kind] || FLOW_SOURCE_META.direct;
-  return `<span class="tag flow-source-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(`${meta.title}: ${meta.body}`)}" aria-label="${esc(`${meta.title}: ${meta.body}`)}">${esc(meta.label)}</span>`;
+  const tip = tooltipText || `${meta.title}: ${meta.body}`;
+  return `<span class="tag flow-source-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(tip)}" aria-label="${esc(tip)}">${esc(meta.label)}</span>`;
 }
 function flowDateLine(date, txHash, timestamp){
   const label = eventDateLabel(date, timestamp);
@@ -1590,17 +1627,84 @@ function holderLockBucket(ts){
   if(days < 180) return "medium";
   return "long";
 }
-function holderPositionSortValue(p, key){
+function normalizeAddress(addr){
+  return String(addr || "").trim().toLowerCase();
+}
+function tokenKey(value){
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? String(Math.trunc(n)) : "";
+}
+function buildPositionRouteIndexes(){
+  state.lockEventsByToken = new Map();
+  state.transferEventsByToken = new Map();
+  (state.locks || []).forEach(lock => {
+    const key = tokenKey(lock.tokenId);
+    if(!key) return;
+    if(!state.lockEventsByToken.has(key)) state.lockEventsByToken.set(key, []);
+    state.lockEventsByToken.get(key).push(lock);
+  });
+  (state.transfers || []).forEach(transfer => {
+    const key = tokenKey(transfer.tokenId);
+    if(!key) return;
+    if(!state.transferEventsByToken.has(key)) state.transferEventsByToken.set(key, []);
+    state.transferEventsByToken.get(key).push(transfer);
+  });
+  const byTime = (a,b) => num(a.timestamp) - num(b.timestamp);
+  state.lockEventsByToken.forEach(rows => rows.sort(byTime));
+  state.transferEventsByToken.forEach(rows => rows.sort(byTime));
+}
+function routeKeyFromLock(lock){
+  const depositType = Number(lock?.depositType || 0);
+  if(lock?.claimSource === "airdrop" || lock?.isAirdropClaim) return "airdrop";
+  if(lock?.isOdolo) return lock.addressSource === "odolo-vester-fallback" ? "protocol" : "odolo";
+  if(depositType === 4 || depositType === 5) return "merge";
+  if(depositType === 3) return "";
+  return "direct";
+}
+function routeLabel(kind){
+  return (FLOW_SOURCE_META[kind] || FLOW_SOURCE_META.unknown).label;
+}
+function holderPositionRoute(h, p){
+  const key = tokenKey(p?.id);
+  const owner = normalizeAddress(h?.address);
+  const transfers = key ? (state.transferEventsByToken.get(key) || []) : [];
+  const latestTransfer = transfers[transfers.length - 1];
+  if(latestTransfer && normalizeAddress(latestTransfer.to) === owner){
+    const from = normalizeAddress(latestTransfer.from);
+    const label = from ? `Transferred Position: Current wallet received this veDOLO NFT from ${shortAddr(from)}.` : FLOW_SOURCE_META.transfer.body;
+    return {kind:"transfer", label:routeLabel("transfer"), tooltip:label};
+  }
+
+  const sourceKeys = new Set();
+  (key ? (state.lockEventsByToken.get(key) || []) : []).forEach(lock => {
+    const route = routeKeyFromLock(lock);
+    if(route) sourceKeys.add(route);
+  });
+  if(sourceKeys.size === 0) return {kind:"unknown", label:routeLabel("unknown"), tooltip:`${FLOW_SOURCE_META.unknown.title}: ${FLOW_SOURCE_META.unknown.body}`};
+  if(sourceKeys.size > 1){
+    const labels = [...sourceKeys].map(routeLabel).sort((a,b) => a.localeCompare(b));
+    return {kind:"mixed", label:routeLabel("mixed"), tooltip:`Mixed Route: ${labels.join(" + ")}.`};
+  }
+  const kind = [...sourceKeys][0];
+  const meta = FLOW_SOURCE_META[kind] || FLOW_SOURCE_META.unknown;
+  return {kind, label:meta.label, tooltip:`${meta.title}: ${meta.body}`};
+}
+function holderPositionSortValue(p, h, key){
   if(key === "id") return num(p.id);
   if(key === "dolo") return num(p.dolo);
   if(key === "vote") return num(p.vote_weight);
   if(key === "unlock" || key === "remaining") return num(p.end);
+  if(key === "route") return holderPositionRoute(h, p).label.toLowerCase();
   return 0;
 }
 function sortedHolderPositions(h){
   const {detailSort, detailAsc} = state.holder;
   return [...(h.token_details || [])].sort((a,b) => {
-    const diff = holderPositionSortValue(a, detailSort) - holderPositionSortValue(b, detailSort);
+    const va = holderPositionSortValue(a, h, detailSort);
+    const vb = holderPositionSortValue(b, h, detailSort);
+    let diff = 0;
+    if(typeof va === "string" || typeof vb === "string") diff = String(va).localeCompare(String(vb));
+    else diff = va - vb;
     if(diff) return detailAsc ? diff : -diff;
     return num(a.id) - num(b.id);
   });
@@ -1615,8 +1719,10 @@ function holderDetailSortHeader(key, label, cls=""){
 function renderHolderDetailRow(h){
   const rows = sortedHolderPositions(h).map((p,i) => {
     const lockClass = holderLockBucket(p.end);
+    const route = holderPositionRoute(h, p);
     return `<tr>
       <td class="mono holder-detail-rank" data-label="#">${i + 1}</td>
+      <td class="holder-detail-route" data-label="Route">${flowSourceTag(route.kind, route.tooltip)}</td>
       <td class="mono" data-label="Unlock Date">${esc(holderEndDate(p.end))}</td>
       <td class="num mono" data-label="DOLO"><span class="holder-value">${fmtDolo(p.dolo)}</span></td>
       <td class="num mono" data-label="Vote Weight"><span class="holder-value vote">${fmtCompact(p.vote_weight)}</span></td>
@@ -1628,6 +1734,7 @@ function renderHolderDetailRow(h){
     <table class="holder-detail-table">
       <colgroup>
         <col class="detail-col-rank">
+        <col class="detail-col-route">
         <col class="detail-col-unlock">
         <col class="detail-col-dolo">
         <col class="detail-col-vote">
@@ -1636,6 +1743,7 @@ function renderHolderDetailRow(h){
       </colgroup>
       <thead><tr>
         <th>#</th>
+        ${holderDetailSortHeader("route", "Route")}
         ${holderDetailSortHeader("unlock", "Unlock Date")}
         ${holderDetailSortHeader("dolo", "DOLO", "num")}
         ${holderDetailSortHeader("vote", "Vote Weight", "num")}
@@ -2124,7 +2232,7 @@ function wireHolderDetails(){
       e.stopPropagation();
       const key = th.dataset.holderDetailSort;
       if(state.holder.detailSort === key) state.holder.detailAsc = !state.holder.detailAsc;
-      else { state.holder.detailSort = key; state.holder.detailAsc = key === "id" || key === "unlock" || key === "remaining"; }
+      else { state.holder.detailSort = key; state.holder.detailAsc = key === "id" || key === "unlock" || key === "remaining" || key === "route"; }
       renderHolders();
       wireCopyButtons();
     });
@@ -2742,6 +2850,8 @@ async function boot(){
     state.exits = early?.recent_exits || [];
     state.locks = (flows?.locks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.unlocks = (flows?.unlocks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
+    state.transfers = (flows?.transfers || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
+    buildPositionRouteIndexes();
     state.expiry = expiry;
     buildLockedHistory();
     initLockedBrush();

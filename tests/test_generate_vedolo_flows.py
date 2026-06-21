@@ -1,6 +1,8 @@
 import unittest
+from unittest.mock import patch
 
 from generate_vedolo_flows import (
+    EventLogFetchError,
     ODOLO_EXERCISE_TOPIC,
     ODOLO_VESTER,
     TRANSFER_TOPIC,
@@ -9,6 +11,7 @@ from generate_vedolo_flows import (
     check_odolo_exercise_batch,
     decode_transfer,
     extract_odolo_receipt_beneficiary,
+    fetch_event_logs,
     remap_odolo_lock_beneficiaries,
 )
 
@@ -237,6 +240,17 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
 
         self.assertIsNone(decode_transfer(mint))
         self.assertIsNone(decode_transfer(burn))
+
+    def test_fetch_event_logs_fails_instead_of_skipping_unreadable_chunk(self):
+        class RpcErrorResponse:
+            def json(self):
+                return {"error": {"message": "temporary RPC failure"}}
+
+        with patch("generate_vedolo_flows.RPC_URLS", ["https://rpc.example"]):
+            with patch("generate_vedolo_flows.requests.post", return_value=RpcErrorResponse()):
+                with patch("generate_vedolo_flows.time.sleep", return_value=None):
+                    with self.assertRaisesRegex(EventLogFetchError, "from block 1 to 2"):
+                        fetch_event_logs(1, 2, TRANSFER_TOPIC)
 
 
 if __name__ == "__main__":

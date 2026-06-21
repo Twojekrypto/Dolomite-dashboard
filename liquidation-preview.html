@@ -2293,11 +2293,12 @@
             border-spacing: 0 !important;
             table-layout: fixed;
         }
-        .liquidation-history-table colgroup col:nth-child(1) { width: 9%; }    /* Chain */
-        .liquidation-history-table colgroup col:nth-child(2) { width: 15%; }   /* Date */
-        .liquidation-history-table colgroup col:nth-child(3) { width: 23%; }   /* Liquidated wallet */
-        .liquidation-history-table colgroup col:nth-child(4) { width: 27%; }   /* Collateral seized */
-        .liquidation-history-table colgroup col:nth-child(5) { width: 26%; }   /* Debt repaid */
+        .liquidation-history-table colgroup col:nth-child(1) { width: 7.8%; }  /* Chain */
+        .liquidation-history-table colgroup col:nth-child(2) { width: 14%; }   /* Date */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 19%; }   /* Liquidated wallet */
+        .liquidation-history-table colgroup col:nth-child(4) { width: 25%; }   /* Spacer — gap before money */
+        .liquidation-history-table colgroup col:nth-child(5) { width: 18.2%; } /* Collateral seized */
+        .liquidation-history-table colgroup col:nth-child(6) { width: 16%; }   /* Debt repaid */
         .liquidation-history-table thead th {
             position: sticky;
             top: 0;
@@ -2353,8 +2354,8 @@
             overflow: visible;
         }
         /* Amount columns (Collateral seized, Debt repaid) — pos-merged display, left-aligned, right group */
-        .liquidation-history-table tbody td:nth-child(4),
-        .liquidation-history-table tbody td:nth-child(5) {
+        .liquidation-history-table tbody td:nth-child(5),
+        .liquidation-history-table tbody td:nth-child(6) {
             overflow: visible;
             white-space: normal;
             text-align: left;
@@ -5144,11 +5145,12 @@
         body.route-liquidation #positions-table colgroup col:nth-child(5) { width: 17.1% !important; }
         body.route-liquidation #positions-table colgroup col:nth-child(6) { width: 20% !important; }
         body.route-liquidation #positions-table colgroup col:nth-child(7) { width: 15.3% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 9% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 15% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 23% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 27% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 26% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 7.8% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 14% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 19% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 25% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 18.2% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 16% !important; }
         body.route-liquidation #positions-table thead th,
         body.route-liquidation #liquidation-history-table thead th {
             padding: 12px 14px !important;
@@ -5165,6 +5167,10 @@
             font-size: 12px !important;
             line-height: 1.25 !important;
             vertical-align: middle !important;
+        }
+        body.route-liquidation #liquidation-history-table thead th.col-spacer,
+        body.route-liquidation #liquidation-history-table tbody td.col-spacer {
+            padding: 0 !important;
         }
         body.route-liquidation #positions-table tbody tr,
         body.route-liquidation #liquidation-history-table tbody tr {
@@ -10059,13 +10065,14 @@
                     </div>
                     <table class="liquidation-history-table" id="liquidation-history-table" style="display:none;">
                         <colgroup>
-                            <col><col><col><col><col>
+                            <col><col><col><col><col><col>
                         </colgroup>
                         <thead>
                             <tr>
                                 <th>Chain</th>
                                 <th>Date</th>
                                 <th>Liquidated wallet</th>
+                                <th class="col-spacer" aria-hidden="true"></th>
                                 <th style="text-align:left; overflow:visible">
                                     <span class="col-header-group">
                                         Collateral seized
@@ -14196,7 +14203,7 @@
             if (totalUsd) { const txt = totalUsd.querySelector('.lh-total-text') || totalUsd; txt.textContent = `Debt repaid: ${formatUSDCompact(filteredDebtUsd)}`; }
 
             if (!filteredTotal) {
-                body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
                 pager.innerHTML = '';
                 return;
             }
@@ -14220,6 +14227,7 @@
                         </div>
                     </td>
                     <td>${renderLiquidationHistoryAddress(row.liquidatedAddress, chain)}</td>
+                    <td class="col-spacer" aria-hidden="true"></td>
                     <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD, 'collateral')}</td>
                     <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD, 'debt')}</td>
                 </tr>`;
@@ -14227,7 +14235,7 @@
 
             if (pageRows.length < LIQUIDATION_HISTORY_PAGE_SIZE) {
                 for (let i = 0; i < (LIQUIDATION_HISTORY_PAGE_SIZE - pageRows.length); i++) {
-                    body.innerHTML += '<tr><td colspan="5" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
+                    body.innerHTML += '<tr><td colspan="6" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
                 }
             }
 
