@@ -19,6 +19,8 @@ import urllib.request
 import urllib.error
 from decimal import Decimal, getcontext
 
+import rpc_usage  # stdlib-only RPC/CU accounting
+
 
 def sanitize_symbol(value):
     """HTML-escape token symbols/names at the pipeline boundary.
@@ -654,6 +656,7 @@ def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallba
         batch_ok = False
         try:
             results = multicall.functions.aggregate3(calls).call()
+            rpc_usage.record_request("eth_call")  # Multicall3 aggregate3 = 1 eth_call
             batch_ok = True
             
             for j, (success, return_data) in enumerate(results):
@@ -683,6 +686,7 @@ def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallba
                         margin_override, _ = retry_setter.functions.getAccountRiskOverride(
                             (Web3.to_checksum_address(owner), account_num)
                         ).call()
+                        rpc_usage.record_request("eth_call")
                         mr = margin_override[0] / 10**18
                         if mr > 0:
                             overrides[account_id] = mr
@@ -806,6 +810,7 @@ def fetch_live_interest_indices(rpc_url, dolomite_margin_address, interest_indic
             
             print(f"  🔗 Fetching live interest indices via Multicall3 ({len(market_ids)} markets)...")
             results = multicall.functions.aggregate3(calls).call()
+            rpc_usage.record_request("eth_call")  # Multicall3 aggregate3 = 1 eth_call
             
             updated_count = 0
             for i, (success, return_data) in enumerate(results):
@@ -913,6 +918,7 @@ def fetch_live_oracle_prices(rpc_url, dolomite_margin_address, oracle_prices, ma
             
             print(f"  🔗 Fetching live oracle prices via Multicall3 ({len(market_ids)} markets)...")
             results = multicall.functions.aggregate3(calls).call()
+            rpc_usage.record_request("eth_call")  # Multicall3 aggregate3 = 1 eth_call
             
             updated_count = 0
             for i, (success, return_data) in enumerate(results):

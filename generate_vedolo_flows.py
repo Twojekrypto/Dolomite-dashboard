@@ -7,6 +7,7 @@ Uses incremental sync — first run scans all, subsequent runs fetch only new bl
 import argparse
 import json, time, os, sys
 import requests
+import rpc_usage
 from datetime import datetime, timezone
 
 
@@ -329,8 +330,24 @@ def get_current_block():
 
 
 
+def _logs_with_topic0(logs, topic0):
+    """Subset of `logs` whose topic0 equals `topic0` (case-insensitive)."""
+    target = str(topic0).lower()
+    return [
+        log for log in logs
+        if str((log.get("topics") or [None])[0]).lower() == target
+    ]
+
+
 def fetch_event_logs(start_block, end_block, topic):
-    """Fetch event logs for a specific topic from veDOLO contract."""
+    """Fetch event logs from the veDOLO contract.
+
+    `topic` may be a single topic0 (str) or a list of topic0 values. A list is
+    sent as an OR-match so several event types share ONE eth_getLogs request
+    (e.g. Deposit + Withdraw), then the caller splits by topic0. A single string
+    is wrapped to an exact match, so existing callers are unchanged.
+    """
+    topic0_filter = list(topic) if isinstance(topic, (list, tuple)) else [topic]
     chunk_size = CHUNK_SIZE
     if start_block >= end_block:
         return []
@@ -354,7 +371,7 @@ def fetch_event_logs(start_block, end_block, topic):
                     "jsonrpc": "2.0", "method": "eth_getLogs",
                     "params": [{
                         "address": VEDOLO_CONTRACT,
-                        "topics": [topic],
+                        "topics": [topic0_filter],
                         "fromBlock": hex(current),
                         "toBlock": hex(chunk_end),
                     }], "id": 1
@@ -373,6 +390,7 @@ def fetch_event_logs(start_block, end_block, topic):
 
                 logs = r.get("result", [])
                 all_logs.extend(logs)
+                rpc_usage.record_request("eth_getLogs")
                 success = True
                 break
             except requests.exceptions.Timeout as exc:
@@ -751,15 +769,19 @@ def main():
                 new_withdraw_logs = []
                 new_deposit_logs = []
             else:
-                print(f"\n📡 Fetching Withdraw events (unlocks)...")
-                new_withdraw_logs = fetch_event_logs(fetch_start, current_block, WITHDRAW_TOPIC)
-                print(f"\n📡 Fetching Deposit events (locks)...")
-                new_deposit_logs = fetch_event_logs(fetch_start, current_block, DEPOSIT_TOPIC)
+                print(f"\n📡 Fetching Deposit + Withdraw events (locks & unlocks)...")
+                lock_unlock_logs = fetch_event_logs(
+                    fetch_start, current_block, [WITHDRAW_TOPIC, DEPOSIT_TOPIC]
+                )
+                new_withdraw_logs = _logs_with_topic0(lock_unlock_logs, WITHDRAW_TOPIC)
+                new_deposit_logs = _logs_with_topic0(lock_unlock_logs, DEPOSIT_TOPIC)
         else:
-            print(f"\n📡 Fetching ALL Withdraw events (unlocks) from block {DEPLOY_BLOCK:,}...")
-            new_withdraw_logs = fetch_event_logs(DEPLOY_BLOCK, current_block, WITHDRAW_TOPIC)
-            print(f"\n📡 Fetching ALL Deposit events (locks) from block {DEPLOY_BLOCK:,}...")
-            new_deposit_logs = fetch_event_logs(DEPLOY_BLOCK, current_block, DEPOSIT_TOPIC)
+            print(f"\n📡 Fetching ALL Deposit + Withdraw events from block {DEPLOY_BLOCK:,}...")
+            lock_unlock_logs = fetch_event_logs(
+                DEPLOY_BLOCK, current_block, [WITHDRAW_TOPIC, DEPOSIT_TOPIC]
+            )
+            new_withdraw_logs = _logs_with_topic0(lock_unlock_logs, WITHDRAW_TOPIC)
+            new_deposit_logs = _logs_with_topic0(lock_unlock_logs, DEPOSIT_TOPIC)
             cached_unlocks = []
             cached_locks = []
 

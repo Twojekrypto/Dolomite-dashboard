@@ -21,6 +21,8 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
+import rpc_usage  # stdlib-only RPC/CU accounting (safe without `requests`)
+
 # --- Chain configs ---
 CHAINS = {
     "arbitrum": {
@@ -48,9 +50,10 @@ CHAINS = {
         ],
         "start_block": 22_790_000,
         # 1rpc's public Ethereum endpoint rejects eth_getLogs ranges above 50
-        # blocks. Keep scheduled catch-up chunks inside that fallback limit so
-        # Alchemy rate limits do not stall the whole netflow workflow.
-        "max_block_chunk": 50,
+        # blocks. That is a single-endpoint quirk, now enforced per-endpoint via
+        # ENDPOINT_BLOCK_CAPS (rpc_call skips 1rpc for wider getLogs) so capable
+        # endpoints (Alchemy/publicnode/llama) scan full BLOCK_CHUNK ranges
+        # instead of the whole chain being throttled to 50 blocks per request.
     },
     "berachain": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
@@ -168,6 +171,13 @@ SECOND_OWNER_EVENTS = [
 
 BLOCK_CHUNK = 49999  # blocks per getLogs request (RPC max is typically 50k)
 MIN_BLOCK_CHUNK = 50
+# Endpoints that reject (or unreliably serve) large eth_getLogs ranges. The
+# per-request block span is capped ONLY for these (matched by hostname
+# substring); capable providers keep using the full BLOCK_CHUNK. rpc_call skips
+# a capped endpoint for any wider getLogs so it can never silently truncate one.
+ENDPOINT_BLOCK_CAPS = (
+    ("1rpc.io", 50),
+)
 ADDRESS_FILTER_CHUNK = 500000
 MAX_RETRIES = 3
 OUTPUT_DIR = Path(__file__).parent / "data" / "earn-netflow"
@@ -177,6 +187,23 @@ PROGRESS_VERSION = 2
 rpc_id = 1
 
 
+def _endpoint_block_cap(url):
+    """Max eth_getLogs block span an endpoint can serve, or None for no cap."""
+    for needle, cap in ENDPOINT_BLOCK_CAPS:
+        if needle in (url or ""):
+            return cap
+    return None
+
+
+def _getlogs_span(params):
+    """Number of blocks covered by an eth_getLogs params list (None if unknown)."""
+    try:
+        flt = params[0]
+        return int(flt["toBlock"], 16) - int(flt["fromBlock"], 16) + 1
+    except (KeyError, IndexError, TypeError, ValueError):
+        return None
+
+
 def rpc_call(rpcs, method, params, rpc_idx_ref):
     """Make an RPC call with failover across multiple endpoints."""
     global rpc_id
@@ -184,6 +211,16 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
     for attempt in range(MAX_RETRIES * len(rpcs)):
         idx = rpc_idx_ref[0] % len(rpcs)
         rpc_url = rpcs[idx]
+        # Never hand a capped endpoint (e.g. 1rpc) a getLogs range wider than it
+        # can serve — rotate past it so a too-large range can't be silently
+        # truncated into missing events (lessons.md: silent chunk failures).
+        if method == "eth_getLogs":
+            cap = _endpoint_block_cap(rpc_url)
+            span = _getlogs_span(params)
+            if cap is not None and span is not None and span > cap:
+                recent_errors.append(f"{rpc_url}: getLogs range {span} exceeds cap {cap}")
+                rpc_idx_ref[0] += 1
+                continue
         payload = json.dumps({
             "jsonrpc": "2.0",
             "method": method,
@@ -206,6 +243,7 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
                     rpc_idx_ref[0] += 1
                     time.sleep(0.5)
                     continue
+                rpc_usage.record_request(method)
                 return data.get("result")
         except (URLError, HTTPError, TimeoutError, OSError) as e:
             message = f"RPC failed ({rpc_url}): {e}"
