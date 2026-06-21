@@ -108,6 +108,116 @@ class RpcError(Exception):
     """All endpoints failed for a request."""
 
 
+def _endpoint_attempts(endpoints, retries_per_endpoint):
+    n = len(endpoints)
+    for round_no in range(retries_per_endpoint):
+        for offset in range(n):
+            yield endpoints[offset], round_no * n + offset
+
+
+def rpc_single_request(endpoints, payload, timeout=DEFAULT_TIMEOUT,
+                       retries_per_endpoint=DEFAULT_RETRIES_PER_ENDPOINT,
+                       quiet=False, describe="request"):
+    """Run one JSON-RPC payload across endpoint fallbacks."""
+    endpoints = list(endpoints or [])
+    if not endpoints:
+        raise RpcError(f"No RPC endpoints configured for {describe}")
+
+    last_error = None
+    n = len(endpoints)
+    for url, attempt in _endpoint_attempts(endpoints, retries_per_endpoint):
+        try:
+            resp = requests.post(url, json=payload, timeout=timeout)
+            resp.raise_for_status()
+            data = resp.json()
+            if isinstance(data, dict):
+                return data
+            raise ValueError("JSON-RPC response was not an object")
+        except Exception as exc:
+            last_error = exc
+            if not quiet:
+                print(
+                    f"⚠️ RPC {describe} failed on {safe_host(url)} "
+                    f"(attempt {attempt + 1}): {type(exc).__name__}: {sanitize_error(exc)}",
+                    flush=True,
+                )
+            if (attempt + 1) % n == 0:
+                delay = BACKOFF_BASE_SECONDS * (2 ** ((attempt + 1) // n - 1))
+                time.sleep(delay + random.uniform(0, 0.4))
+
+    raise RpcError(
+        f"All RPC endpoints failed for {describe}: "
+        f"{type(last_error).__name__}: {sanitize_error(last_error)}"
+    )
+
+
+def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
+                       retries_per_endpoint=DEFAULT_RETRIES_PER_ENDPOINT,
+                       batch_size=50, quiet=False, describe="batch"):
+    """Run JSON-RPC batch payloads with endpoint fallback.
+
+    Returns (responses_by_id, missing_ids). Error entries are returned to the
+    caller so it can decide whether to retry individually or treat them as data.
+    """
+    endpoints = list(endpoints or [])
+    if not endpoints:
+        raise RpcError(f"No RPC endpoints configured for {describe}")
+
+    responses_by_id = {}
+    missing_ids = []
+    payloads = list(payloads or [])
+    if not payloads:
+        return responses_by_id, missing_ids
+
+    for start in range(0, len(payloads), max(1, int(batch_size or 1))):
+        chunk = payloads[start:start + max(1, int(batch_size or 1))]
+        chunk_ids = [payload.get("id") for payload in chunk]
+        chunk_responses = {}
+        last_error = None
+        n = len(endpoints)
+
+        for url, attempt in _endpoint_attempts(endpoints, retries_per_endpoint):
+            try:
+                resp = requests.post(url, json=chunk, timeout=timeout)
+                resp.raise_for_status()
+                data = resp.json()
+                if isinstance(data, dict):
+                    data = [data]
+                if not isinstance(data, list):
+                    raise ValueError("JSON-RPC batch response was not a list")
+                by_id = {
+                    item.get("id"): item
+                    for item in data
+                    if isinstance(item, dict) and item.get("id") in chunk_ids
+                }
+                if by_id:
+                    chunk_responses = by_id
+                    break
+                raise ValueError("JSON-RPC batch response contained no matching ids")
+            except Exception as exc:
+                last_error = exc
+                if not quiet:
+                    print(
+                        f"⚠️ RPC {describe} failed on {safe_host(url)} "
+                        f"(attempt {attempt + 1}): {type(exc).__name__}: {sanitize_error(exc)}",
+                        flush=True,
+                    )
+                if (attempt + 1) % n == 0:
+                    delay = BACKOFF_BASE_SECONDS * (2 ** ((attempt + 1) // n - 1))
+                    time.sleep(delay + random.uniform(0, 0.4))
+
+        responses_by_id.update(chunk_responses)
+        missing_ids.extend([item_id for item_id in chunk_ids if item_id not in chunk_responses])
+        if not chunk_responses and last_error and not quiet:
+            print(
+                f"⚠️ RPC {describe} batch chunk {start // max(1, int(batch_size or 1)) + 1} "
+                f"failed completely: {type(last_error).__name__}: {sanitize_error(last_error)}",
+                flush=True,
+            )
+
+    return responses_by_id, missing_ids
+
+
 class RpcClient:
     def __init__(self, chain=None, endpoints=None, timeout=DEFAULT_TIMEOUT,
                  retries_per_endpoint=DEFAULT_RETRIES_PER_ENDPOINT, quiet=False):

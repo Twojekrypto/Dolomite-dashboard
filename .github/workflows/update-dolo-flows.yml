@@ -73,9 +73,14 @@ jobs:
           PYTHONUNBUFFERED: '1'
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           BERASCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
+          ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
+          ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
+          ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          DOLO_HOLDERS_RPC_BATCH_SIZE: '50'
+          DOLO_HOLDERS_RPC_RETRIES_PER_ENDPOINT: '2'
         run: python3 generate_dolo_holders.py
 
       - name: Generate DOLO flows data
@@ -84,9 +89,14 @@ jobs:
           PYTHONUNBUFFERED: '1'
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           BERASCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
+          ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
+          ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
+          ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          DOLO_FLOWS_RPC_BATCH_SIZE: '50'
+          DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT: '2'
           FRESH_WALLET_AUDIT_VERBOSE: ${{ github.event.inputs.fresh_wallet_audit_verbose || '0' }}
         run: python3 generate_dolo_flows.py
 
