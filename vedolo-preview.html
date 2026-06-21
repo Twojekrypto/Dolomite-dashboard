@@ -1722,8 +1722,8 @@ function renderHolderDetailRow(h){
     const route = holderPositionRoute(h, p);
     return `<tr>
       <td class="mono holder-detail-rank" data-label="#">${i + 1}</td>
-      <td class="holder-detail-route" data-label="Route">${flowSourceTag(route.kind, route.tooltip)}</td>
       <td class="mono" data-label="Unlock Date">${esc(holderEndDate(p.end))}</td>
+      <td class="holder-detail-route" data-label="Route">${flowSourceTag(route.kind, route.tooltip)}</td>
       <td class="num mono" data-label="DOLO"><span class="holder-value">${fmtDolo(p.dolo)}</span></td>
       <td class="num mono" data-label="Vote Weight"><span class="holder-value vote">${fmtCompact(p.vote_weight)}</span></td>
       <td class="num mono" data-label="Remaining"><span class="holder-detail-lock ${lockClass}">${esc(holderRemainingLabel(p.end))}</span></td>
@@ -1734,8 +1734,8 @@ function renderHolderDetailRow(h){
     <table class="holder-detail-table">
       <colgroup>
         <col class="detail-col-rank">
-        <col class="detail-col-route">
         <col class="detail-col-unlock">
+        <col class="detail-col-route">
         <col class="detail-col-dolo">
         <col class="detail-col-vote">
         <col class="detail-col-remaining">
@@ -1743,8 +1743,8 @@ function renderHolderDetailRow(h){
       </colgroup>
       <thead><tr>
         <th>#</th>
-        ${holderDetailSortHeader("route", "Route")}
         ${holderDetailSortHeader("unlock", "Unlock Date")}
+        ${holderDetailSortHeader("route", "Route")}
         ${holderDetailSortHeader("dolo", "DOLO", "num")}
         ${holderDetailSortHeader("vote", "Vote Weight", "num")}
         ${holderDetailSortHeader("remaining", "Remaining", "num")}

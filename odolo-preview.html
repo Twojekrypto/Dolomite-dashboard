@@ -511,11 +511,6 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 .bal-val.usd{color:var(--gold-hi)}
 .bal-val.price{color:#9ab7c2}
 .bal-val.total{color:var(--fg-1);font-weight:600}
-#tbl-ex .ex-amount-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:0}
-#tbl-ex .ex-cell-sub{font-family:var(--sans);font-size:10px;line-height:1.15;color:var(--fg-3);white-space:nowrap;font-variant-numeric:tabular-nums}
-#tbl-ex .ex-cell-sub.warn{color:#d9b86c}
-#tbl-ex .ex-cell-sub strong{font-family:var(--mono);font-size:10.5px;font-weight:650;color:var(--fg-2)}
-#tbl-ex .ex-cell-sub.warn strong{color:#e4c879}
 
 /* lock-duration cell — small chip + bar */
 .lock-cell{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
@@ -552,10 +547,6 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
   display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px 12px;
 }
 .ex-detail-history-head .ex-detail-eyebrow{color:var(--gold)}
-.ex-detail-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 14px 12px 16px}
-.ex-detail-stat{border:1px solid var(--line-1);background:rgba(255,255,255,.014);border-radius:7px;padding:9px 10px;min-width:0}
-.ex-detail-stat span{display:block;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);font-weight:700;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ex-detail-stat strong{display:block;margin-top:5px;font-family:var(--mono);font-size:12px;line-height:1.15;color:var(--fg-1);font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ex-detail-scroll{
   max-height:330px;overflow:auto;position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;
   background:rgba(0,0,0,.16);
@@ -620,7 +611,6 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 @media (max-width:760px){
   .ex-detail-panel{margin-left:0;width:calc(100vw - 48px);max-width:calc(100vw - 48px)}
   .ex-detail-history-head{padding:15px 16px}
-  .ex-detail-summary{grid-template-columns:1fr;margin:0 12px 12px}
   .ex-detail-scroll{max-height:420px;margin:0 10px 14px 12px;padding:12px 0}
   #tbl-ex .ex-detail-table{min-width:0}
   #tbl-ex .ex-detail-table thead{display:none}
@@ -1837,16 +1827,6 @@ const fmtDate = value => {
   if(Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" });
 };
-const parseSnapshotMs = value => {
-  if(!value) return 0;
-  const t = Date.parse(String(value));
-  return Number.isFinite(t) ? t : 0;
-};
-const fmtSnapshotDate = value => {
-  const t = parseSnapshotMs(value);
-  if(!t) return "";
-  return new Date(t).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" });
-};
 const exerciseTimeMs = tx => {
   const raw = tx?.timestamp ?? tx?.block_timestamp ?? tx?.blockTimestamp ?? tx?.time ?? tx?.datetime ?? tx?.date_time;
   if(raw != null && raw !== ""){
@@ -1860,12 +1840,6 @@ const exerciseTimeMs = tx => {
     if(Number.isFinite(parsed)) return parsed;
   }
   return 0;
-};
-const latestExerciseMs = item => Math.max(0, ...(item?.txs || []).map(exerciseTimeMs));
-const holderSnapshotIsStale = (item, snapshotValue) => {
-  const snapshotMs = parseSnapshotMs(snapshotValue);
-  const latestMs = latestExerciseMs(item);
-  return snapshotMs > 0 && latestMs > snapshotMs + 60_000;
 };
 const fmtRelativeTime = ms => {
   if(!Number.isFinite(ms) || ms <= 0) return "—";
@@ -2803,30 +2777,6 @@ function sortExercisers(rows){
     return dir==="asc"?va-vb:vb-va;
   });
 }
-function exerciserLockedSubline(row){
-  const currentLocked = Number(row?.currentLocked) || 0;
-  if(currentLocked <= 0) return "";
-  const stale = !!row?.holderSnapshotStale;
-  const routeReady = !!row?.currentRouteBreakdownAvailable;
-  let label = "current all-route snapshot";
-  if(routeReady){
-    const activeExercisePositions = Number(row.currentUsdcExercisePositions) || 0;
-    const otherPositions = Number(row.currentOtherPositions) || 0;
-    label = `${activeExercisePositions}/${Number(row.exercises) || 0} exercise positions`;
-    if(otherPositions > 0) label += ` · ${otherPositions} other`;
-  }
-  if(stale) label += " · stale";
-  const tipParts = [
-    "Current veDOLO comes from the holder snapshot and can include airdrop, direct, transfer, or other non-USDC-exercise positions.",
-  ];
-  if(row?.holderSnapshotUpdated) tipParts.push(`Holder snapshot: ${fmtSnapshotDate(row.holderSnapshotUpdated) || row.holderSnapshotUpdated}.`);
-  if(stale) tipParts.push("This snapshot is older than the latest exercise for this wallet, so current positions can lag fresh oDOLO exercise activity.");
-  if(routeReady && Number(row.currentExerciseMissingPositions) > 0){
-    tipParts.push(`${Number(row.currentExerciseMissingPositions)} USDC-paid exercise position(s) are not present in the current holder snapshot yet.`);
-  }
-  const className = stale ? "ex-cell-sub warn" : "ex-cell-sub";
-  return `<span class="${className}" data-tooltip="${esc(tipParts.join(" "))}"><strong>${fmtNum(currentLocked)}</strong> ${esc(label)}</span>`;
-}
 function exerciseTxPrice(tx){
   const rawPrice = Number(tx?.price);
   if(Number.isFinite(rawPrice) && rawPrice > 0) return rawPrice;
@@ -3199,26 +3149,6 @@ function renderLatestPairs(){
 }
 function renderExerciserDetailRow(r){
   const txs = sortExerciseTxs((r.txs || []).filter(tx => isUsdcExerciseTx(tx)));
-  const currentLocked = Number(r.currentLocked) || 0;
-  const currentDelta = Math.max(0, Number(r.currentDeltaUsdc) || 0);
-  const routeReady = !!r.currentRouteBreakdownAvailable;
-  const holderSnapshot = r.holderSnapshotUpdated ? (fmtSnapshotDate(r.holderSnapshotUpdated) || r.holderSnapshotUpdated) : "";
-  const summaryItems = [
-    ["USDC-paid oDOLO", fmtTokenFull(r.vedolo || 0)],
-    ["USDC paid", fmtUsdFull(r.usdc || 0)],
-    currentLocked > 0 ? ["Current veDOLO", `${fmtTokenFull(currentLocked)} · ${Number(r.currentPositions) || 0} positions`] : null,
-    holderSnapshot ? ["Holder snapshot", `${holderSnapshot}${r.holderSnapshotStale ? " · stale" : ""}`] : null,
-    routeReady ? ["Active exercise positions", `${Number(r.currentUsdcExercisePositions) || 0} / ${Number(r.exercises) || 0}`] : null,
-    routeReady && Number(r.currentOtherPositions) > 0 ? ["Other current positions", `${Number(r.currentOtherPositions) || 0} · ${fmtTokenFull(r.currentOtherLocked || 0)}`] : null,
-    routeReady && Number(r.currentExerciseMissingPositions) > 0 ? ["Exercise not in snapshot", `${Number(r.currentExerciseMissingPositions) || 0} positions`] : null,
-    !routeReady && currentDelta > 1 ? ["Current-USDC delta", fmtTokenFull(currentDelta)] : null,
-    Number(r.pairVedolo) > 0 ? ["DOLO pair history", fmtTokenFull(r.pairVedolo)] : null,
-  ].filter(Boolean);
-  const summaryHtml = summaryItems.length ? `
-    <div class="ex-detail-summary">
-      ${summaryItems.map(([label, value]) => `<div class="ex-detail-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("")}
-    </div>
-  ` : "";
   const rows = txs.map((tx, i) => {
     const usd = txUsd(tx);
     const vedolo = txVedolo(tx);
@@ -3283,7 +3213,6 @@ function renderExerciserDetailRow(r){
               <div class="ex-detail-title">USDC.e exercise history</div>
             </div>
           </div>
-          ${summaryHtml}
           ${txTable}
         </div>
       </td>
@@ -3341,7 +3270,7 @@ function renderExercisers(){
             <div class="addr-line bot"><span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(r.addr)}">${esc(shorten(r.addr))}</span>${actions}</div>
           </div>
         </td>
-        <td class="num"><div class="ex-amount-cell"><span class="bal-val">${fmtNum(r.vedolo)}</span>${exerciserLockedSubline(r)}</div></td>
+        <td class="num"><span class="bal-val">${fmtNum(r.vedolo)}</span></td>
         <td class="num"><span class="bal-val usd">${fmtUsd(r.usdc)}</span></td>
         <td class="num"><span class="bal-val price">${fmtPrice(avgPrice)}</span></td>
         <td class="num"><span class="bal-val">${r.exercises.toLocaleString()}</span></td>
@@ -3361,7 +3290,7 @@ function renderExercisers(){
       <tr class="tbl-spacer-row" aria-hidden="true" tabindex="-1">
         <td class="rank">0</td>
         <td><div class="addr-cell"><div class="addr-line top"><span class="addr-name">Placeholder</span><span class="type-tag type-eoa">EOA</span></div><div class="addr-line bot"><span class="addr-mono">0x0000…0000</span></div></div></td>
-        <td class="num"><div class="ex-amount-cell"><span class="bal-val">0</span><span class="ex-cell-sub"><strong>0</strong> current snapshot</span></div></td>
+        <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-val">0</span></td>
@@ -3958,7 +3887,6 @@ function syncLiveExercisersForPeriod(){
   const json = LIVE.exercisers;
   if(!json) return;
   const cutoff = periodCutoff(state.exPeriod);
-  const holderSnapshotUpdated = json.vedolo_holder_reconciliation_updated || "";
   const rows = (json.exercisers || []).map(item => {
     const meta = addressMeta(item.address);
     // Top Exercisers is a real-payment leaderboard: count only USDC.e-paid
@@ -3969,7 +3897,6 @@ function syncLiveExercisersForPeriod(){
     const usdc = sum(usdcTxs, txUsd);
     const usdcVedolo = sum(usdcTxs, txVedolo);
     const lockDays = usdcTxs.length ? sum(usdcTxs, tx => Number(tx.lock_days) || 0) / usdcTxs.length : (Number(item.avg_lock_days) || 0);
-    const showCurrentLocked = !cutoff;
     return {
       addr:item.address,
       label:meta.label,
@@ -3980,23 +3907,6 @@ function syncLiveExercisersForPeriod(){
       exercises:usdcTxs.length,
       lockDays,
       txs:usdcTxs,
-      pairVedolo: showCurrentLocked ? (Number(item.total_dolo_pair_vedolo) || 0) : sum(txs.filter(isDoloPairTx), tx => Number(tx.vedolo) || 0),
-      pairCount: showCurrentLocked ? (Number(item.total_dolo_pair_exercises) || 0) : txs.filter(isDoloPairTx).length,
-      currentLocked: showCurrentLocked ? (Number(item.current_vedolo_locked) || 0) : 0,
-      currentPositions: showCurrentLocked ? (Number(item.current_vedolo_positions) || 0) : 0,
-      currentVoteWeight: showCurrentLocked ? (Number(item.current_vedolo_vote_weight) || 0) : 0,
-      currentDeltaUsdc: showCurrentLocked ? (Number(item.current_locked_delta_vs_usdc_exercise) || 0) : 0,
-      currentDeltaAllHistory: showCurrentLocked ? (Number(item.current_locked_delta_vs_all_exercise_history) || 0) : 0,
-      currentRouteBreakdownAvailable: showCurrentLocked && !!item.current_vedolo_route_breakdown_available,
-      currentUsdcExercisePositions: showCurrentLocked ? (Number(item.current_usdc_exercise_positions) || 0) : 0,
-      currentUsdcExerciseLocked: showCurrentLocked ? (Number(item.current_usdc_exercise_locked) || 0) : 0,
-      currentDoloPairPositions: showCurrentLocked ? (Number(item.current_dolo_pair_positions) || 0) : 0,
-      currentDoloPairLocked: showCurrentLocked ? (Number(item.current_dolo_pair_locked) || 0) : 0,
-      currentOtherPositions: showCurrentLocked ? (Number(item.current_other_vedolo_positions) || 0) : 0,
-      currentOtherLocked: showCurrentLocked ? (Number(item.current_other_vedolo_locked) || 0) : 0,
-      currentExerciseMissingPositions: showCurrentLocked ? (Number(item.current_exercise_positions_missing_from_holder_snapshot) || 0) : 0,
-      holderSnapshotUpdated,
-      holderSnapshotStale: showCurrentLocked ? holderSnapshotIsStale(item, holderSnapshotUpdated) : false,
     };
   }).filter(Boolean).filter(r => r.usdc > 0 || r.usdcVedolo > 0 || r.exercises > 0);
   applyRows(EXERCISERS, rows);
