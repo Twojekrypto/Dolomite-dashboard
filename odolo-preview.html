@@ -513,7 +513,9 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 .bal-val.total{color:var(--fg-1);font-weight:600}
 #tbl-ex .ex-amount-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:0}
 #tbl-ex .ex-cell-sub{font-family:var(--sans);font-size:10px;line-height:1.15;color:var(--fg-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+#tbl-ex .ex-cell-sub.warn{color:#d9b86c}
 #tbl-ex .ex-cell-sub strong{font-family:var(--mono);font-size:10.5px;font-weight:650;color:var(--fg-2)}
+#tbl-ex .ex-cell-sub.warn strong{color:#e4c879}
 
 /* lock-duration cell — small chip + bar */
 .lock-cell{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
@@ -1835,6 +1837,16 @@ const fmtDate = value => {
   if(Number.isNaN(d.getTime())) return value;
   return d.toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" });
 };
+const parseSnapshotMs = value => {
+  if(!value) return 0;
+  const t = Date.parse(String(value));
+  return Number.isFinite(t) ? t : 0;
+};
+const fmtSnapshotDate = value => {
+  const t = parseSnapshotMs(value);
+  if(!t) return "";
+  return new Date(t).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"UTC" });
+};
 const exerciseTimeMs = tx => {
   const raw = tx?.timestamp ?? tx?.block_timestamp ?? tx?.blockTimestamp ?? tx?.time ?? tx?.datetime ?? tx?.date_time;
   if(raw != null && raw !== ""){
@@ -1848,6 +1860,12 @@ const exerciseTimeMs = tx => {
     if(Number.isFinite(parsed)) return parsed;
   }
   return 0;
+};
+const latestExerciseMs = item => Math.max(0, ...(item?.txs || []).map(exerciseTimeMs));
+const holderSnapshotIsStale = (item, snapshotValue) => {
+  const snapshotMs = parseSnapshotMs(snapshotValue);
+  const latestMs = latestExerciseMs(item);
+  return snapshotMs > 0 && latestMs > snapshotMs + 60_000;
 };
 const fmtRelativeTime = ms => {
   if(!Number.isFinite(ms) || ms <= 0) return "—";
@@ -2788,9 +2806,26 @@ function sortExercisers(rows){
 function exerciserLockedSubline(row){
   const currentLocked = Number(row?.currentLocked) || 0;
   if(currentLocked <= 0) return "";
-  const delta = Number(row?.currentDeltaUsdc) || 0;
-  const extra = delta > 1 ? ` · +${fmtNum(delta)} other` : "";
-  return `<span class="ex-cell-sub"><strong>${fmtNum(currentLocked)}</strong> locked${extra}</span>`;
+  const stale = !!row?.holderSnapshotStale;
+  const routeReady = !!row?.currentRouteBreakdownAvailable;
+  let label = "current all-route snapshot";
+  if(routeReady){
+    const activeExercisePositions = Number(row.currentUsdcExercisePositions) || 0;
+    const otherPositions = Number(row.currentOtherPositions) || 0;
+    label = `${activeExercisePositions}/${Number(row.exercises) || 0} exercise positions`;
+    if(otherPositions > 0) label += ` · ${otherPositions} other`;
+  }
+  if(stale) label += " · stale";
+  const tipParts = [
+    "Current veDOLO comes from the holder snapshot and can include airdrop, direct, transfer, or other non-USDC-exercise positions.",
+  ];
+  if(row?.holderSnapshotUpdated) tipParts.push(`Holder snapshot: ${fmtSnapshotDate(row.holderSnapshotUpdated) || row.holderSnapshotUpdated}.`);
+  if(stale) tipParts.push("This snapshot is older than the latest exercise for this wallet, so current positions can lag fresh oDOLO exercise activity.");
+  if(routeReady && Number(row.currentExerciseMissingPositions) > 0){
+    tipParts.push(`${Number(row.currentExerciseMissingPositions)} USDC-paid exercise position(s) are not present in the current holder snapshot yet.`);
+  }
+  const className = stale ? "ex-cell-sub warn" : "ex-cell-sub";
+  return `<span class="${className}" data-tooltip="${esc(tipParts.join(" "))}"><strong>${fmtNum(currentLocked)}</strong> ${esc(label)}</span>`;
 }
 function exerciseTxPrice(tx){
   const rawPrice = Number(tx?.price);
@@ -3166,11 +3201,17 @@ function renderExerciserDetailRow(r){
   const txs = sortExerciseTxs((r.txs || []).filter(tx => isUsdcExerciseTx(tx)));
   const currentLocked = Number(r.currentLocked) || 0;
   const currentDelta = Math.max(0, Number(r.currentDeltaUsdc) || 0);
+  const routeReady = !!r.currentRouteBreakdownAvailable;
+  const holderSnapshot = r.holderSnapshotUpdated ? (fmtSnapshotDate(r.holderSnapshotUpdated) || r.holderSnapshotUpdated) : "";
   const summaryItems = [
     ["USDC-paid oDOLO", fmtTokenFull(r.vedolo || 0)],
     ["USDC paid", fmtUsdFull(r.usdc || 0)],
-    currentLocked > 0 ? ["Current locked", `${fmtTokenFull(currentLocked)} · ${Number(r.currentPositions) || 0} NFT`] : null,
-    currentDelta > 1 ? ["Other current locks", fmtTokenFull(currentDelta)] : null,
+    currentLocked > 0 ? ["Current veDOLO", `${fmtTokenFull(currentLocked)} · ${Number(r.currentPositions) || 0} positions`] : null,
+    holderSnapshot ? ["Holder snapshot", `${holderSnapshot}${r.holderSnapshotStale ? " · stale" : ""}`] : null,
+    routeReady ? ["Active exercise positions", `${Number(r.currentUsdcExercisePositions) || 0} / ${Number(r.exercises) || 0}`] : null,
+    routeReady && Number(r.currentOtherPositions) > 0 ? ["Other current positions", `${Number(r.currentOtherPositions) || 0} · ${fmtTokenFull(r.currentOtherLocked || 0)}`] : null,
+    routeReady && Number(r.currentExerciseMissingPositions) > 0 ? ["Exercise not in snapshot", `${Number(r.currentExerciseMissingPositions) || 0} positions`] : null,
+    !routeReady && currentDelta > 1 ? ["Current-USDC delta", fmtTokenFull(currentDelta)] : null,
     Number(r.pairVedolo) > 0 ? ["DOLO pair history", fmtTokenFull(r.pairVedolo)] : null,
   ].filter(Boolean);
   const summaryHtml = summaryItems.length ? `
@@ -3320,7 +3361,7 @@ function renderExercisers(){
       <tr class="tbl-spacer-row" aria-hidden="true" tabindex="-1">
         <td class="rank">0</td>
         <td><div class="addr-cell"><div class="addr-line top"><span class="addr-name">Placeholder</span><span class="type-tag type-eoa">EOA</span></div><div class="addr-line bot"><span class="addr-mono">0x0000…0000</span></div></div></td>
-        <td class="num"><div class="ex-amount-cell"><span class="bal-val">0</span><span class="ex-cell-sub"><strong>0</strong> locked</span></div></td>
+        <td class="num"><div class="ex-amount-cell"><span class="bal-val">0</span><span class="ex-cell-sub"><strong>0</strong> current snapshot</span></div></td>
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-val">0</span></td>
@@ -3917,6 +3958,7 @@ function syncLiveExercisersForPeriod(){
   const json = LIVE.exercisers;
   if(!json) return;
   const cutoff = periodCutoff(state.exPeriod);
+  const holderSnapshotUpdated = json.vedolo_holder_reconciliation_updated || "";
   const rows = (json.exercisers || []).map(item => {
     const meta = addressMeta(item.address);
     // Top Exercisers is a real-payment leaderboard: count only USDC.e-paid
@@ -3945,6 +3987,16 @@ function syncLiveExercisersForPeriod(){
       currentVoteWeight: showCurrentLocked ? (Number(item.current_vedolo_vote_weight) || 0) : 0,
       currentDeltaUsdc: showCurrentLocked ? (Number(item.current_locked_delta_vs_usdc_exercise) || 0) : 0,
       currentDeltaAllHistory: showCurrentLocked ? (Number(item.current_locked_delta_vs_all_exercise_history) || 0) : 0,
+      currentRouteBreakdownAvailable: showCurrentLocked && !!item.current_vedolo_route_breakdown_available,
+      currentUsdcExercisePositions: showCurrentLocked ? (Number(item.current_usdc_exercise_positions) || 0) : 0,
+      currentUsdcExerciseLocked: showCurrentLocked ? (Number(item.current_usdc_exercise_locked) || 0) : 0,
+      currentDoloPairPositions: showCurrentLocked ? (Number(item.current_dolo_pair_positions) || 0) : 0,
+      currentDoloPairLocked: showCurrentLocked ? (Number(item.current_dolo_pair_locked) || 0) : 0,
+      currentOtherPositions: showCurrentLocked ? (Number(item.current_other_vedolo_positions) || 0) : 0,
+      currentOtherLocked: showCurrentLocked ? (Number(item.current_other_vedolo_locked) || 0) : 0,
+      currentExerciseMissingPositions: showCurrentLocked ? (Number(item.current_exercise_positions_missing_from_holder_snapshot) || 0) : 0,
+      holderSnapshotUpdated,
+      holderSnapshotStale: showCurrentLocked ? holderSnapshotIsStale(item, holderSnapshotUpdated) : false,
     };
   }).filter(Boolean).filter(r => r.usdc > 0 || r.usdcVedolo > 0 || r.exercises > 0);
   applyRows(EXERCISERS, rows);
