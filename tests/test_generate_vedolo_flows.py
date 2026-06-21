@@ -1,13 +1,17 @@
 import unittest
 from unittest.mock import patch
 
+import rpc_usage
 from generate_vedolo_flows import (
+    DEPOSIT_TOPIC,
     EventLogFetchError,
     ODOLO_EXERCISE_TOPIC,
     ODOLO_VESTER,
     TRANSFER_TOPIC,
     VEDOLO_CONTRACT,
+    WITHDRAW_TOPIC,
     ZERO_TOPIC,
+    _logs_with_topic0,
     check_odolo_exercise_batch,
     decode_transfer,
     extract_odolo_receipt_beneficiary,
@@ -240,6 +244,56 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
 
         self.assertIsNone(decode_transfer(mint))
         self.assertIsNone(decode_transfer(burn))
+
+    def test_fetch_event_logs_accepts_topic_list_as_or_filter(self):
+        captured = {}
+
+        class _Resp:
+            def __init__(self, logs):
+                self._logs = logs
+
+            def json(self):
+                return {"result": self._logs}
+
+        w_log = {"topics": [WITHDRAW_TOPIC], "blockNumber": "0x1"}
+        d_log = {"topics": [DEPOSIT_TOPIC], "blockNumber": "0x2"}
+
+        def _fake_post(url, json=None, **kwargs):
+            captured["topics"] = json["params"][0]["topics"]
+            return _Resp([w_log, d_log])
+
+        rpc_usage.reset_usage()
+        with patch("generate_vedolo_flows.CHUNK_SIZE", 10_000_000), \
+             patch("generate_vedolo_flows.RPC_URLS", ["https://rpc.example"]), \
+             patch("generate_vedolo_flows.requests.post", side_effect=_fake_post), \
+             patch("generate_vedolo_flows.time.sleep", return_value=None):
+            logs = fetch_event_logs(1, 100, [WITHDRAW_TOPIC, DEPOSIT_TOPIC])
+
+        # Both event types travel in ONE getLogs request (OR-matched topic0).
+        self.assertEqual(captured["topics"], [[WITHDRAW_TOPIC, DEPOSIT_TOPIC]])
+        self.assertEqual(rpc_usage.usage_summary()["by_method"].get("eth_getLogs"), 1)
+        # Caller splits the merged result back into per-type lists (data-identical).
+        self.assertEqual(_logs_with_topic0(logs, WITHDRAW_TOPIC), [w_log])
+        self.assertEqual(_logs_with_topic0(logs, DEPOSIT_TOPIC), [d_log])
+
+    def test_fetch_event_logs_single_topic_stays_exact_match(self):
+        captured = {}
+
+        class _Resp:
+            def json(self):
+                return {"result": []}
+
+        def _fake_post(url, json=None, **kwargs):
+            captured["topics"] = json["params"][0]["topics"]
+            return _Resp()
+
+        with patch("generate_vedolo_flows.CHUNK_SIZE", 10_000_000), \
+             patch("generate_vedolo_flows.RPC_URLS", ["https://rpc.example"]), \
+             patch("generate_vedolo_flows.requests.post", side_effect=_fake_post), \
+             patch("generate_vedolo_flows.time.sleep", return_value=None):
+            fetch_event_logs(1, 100, TRANSFER_TOPIC)
+
+        self.assertEqual(captured["topics"], [[TRANSFER_TOPIC]])
 
     def test_fetch_event_logs_fails_instead_of_skipping_unreadable_chunk(self):
         class RpcErrorResponse:

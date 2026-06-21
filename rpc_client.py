@@ -23,6 +23,8 @@ from urllib.parse import urlparse
 
 import requests
 
+import rpc_usage
+
 DEFAULT_TIMEOUT = 15
 DEFAULT_RETRIES_PER_ENDPOINT = 2
 BACKOFF_BASE_SECONDS = 0.8
@@ -131,6 +133,7 @@ def rpc_single_request(endpoints, payload, timeout=DEFAULT_TIMEOUT,
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, dict):
+                rpc_usage.record_methods(rpc_usage.methods_from_payload(payload))
                 return data
             raise ValueError("JSON-RPC response was not an object")
         except Exception as exc:
@@ -192,6 +195,7 @@ def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
                 }
                 if by_id:
                     chunk_responses = by_id
+                    _record_methods(_methods_from_payload(chunk))
                     break
                 raise ValueError("JSON-RPC batch response contained no matching ids")
             except Exception as exc:
@@ -256,6 +260,7 @@ class RpcClient:
                 result = self._post(url, payload)
                 self._idx = self.endpoints.index(url)
                 self.last_endpoint = url
+                rpc_usage.record_methods(rpc_usage.methods_from_payload(payload))
                 return result
             except Exception as exc:  # requests errors, JSON errors, HTTP errors
                 last_error = exc
