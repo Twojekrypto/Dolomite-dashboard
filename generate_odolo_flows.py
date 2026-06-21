@@ -14,11 +14,14 @@ ODOLO_CONTRACT = "0x02E513b5B54eE216Bf836ceb471507488fC89543".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ZERO = "0x0000000000000000000000000000000000000000"
 TOP_N = 100
+# Future rewards / distribution wallet. It is the claim source, not a user flow row.
+REWARDS_CONTRACT = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
 
 # Known contract addresses to exclude
 EXCLUDED_ADDRS = {
     ZERO,
     ODOLO_CONTRACT,
+    REWARDS_CONTRACT,
     "0x0000000000000000000000000000000000000001",
     # oDOLO Vester
     "0x3e9b9a16743551da49b5e136c716bba7932d2cec",
@@ -72,11 +75,15 @@ EXCLUDED_ADDRS = {
 }
 
 # Single source of truth for endpoints (env-injected Alchemy keys first).
-from rpc_client import get_endpoints as _rpc_endpoints
+from rpc_client import (
+    get_endpoints as _rpc_endpoints,
+    safe_host as _rpc_safe_host,
+    sanitize_error as _rpc_sanitize_error,
+)
 RPC_URLS = _rpc_endpoints("berachain")
 
 BLOCK_TIME = 2  # ~2 seconds per block on Berachain
-CHUNK_SIZE = 50_000
+CHUNK_SIZE = max(1000, int(os.environ.get("ODOLO_FLOW_CHUNK_SIZE", "10000")))
 DEPLOY_BLOCK = 3_500_000  # oDOLO deployed on Berachain mainnet
 
 PERIODS = {
@@ -85,15 +92,12 @@ PERIODS = {
     "30d": 86400 * 30,
     "90d": 86400 * 90,
     "180d": 86400 * 180,
-    "all": 86400 * 365,        # 1 year — covers full oDOLO history
+    "all": None,
 }
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "odolo_flows.json")
 STATE_FILE = os.path.join(DATA_DIR, "odolo_flows_state.json")
-
-MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
-
 
 def load_state():
     """Load incremental sync state (cached transfers + last block)."""
@@ -115,16 +119,40 @@ def save_state(state):
 
 
 def get_current_block():
+    errors = []
     for rpc in RPC_URLS:
         for _ in range(3):
             try:
                 resp = requests.post(rpc, json={
                     "jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 1
                 }, timeout=10, headers={"Content-Type": "application/json"})
-                return int(resp.json().get("result", "0x0"), 16)
-            except Exception:
+                resp.raise_for_status()
+                result = resp.json().get("result")
+                block = int(result, 16)
+                if block >= DEPLOY_BLOCK:
+                    return block
+                errors.append(f"{_rpc_safe_host(rpc)} returned invalid block {block}")
+            except Exception as exc:
+                errors.append(f"{_rpc_safe_host(rpc)}: {type(exc).__name__}: {_rpc_sanitize_error(exc)}")
                 time.sleep(1)
-    return 0
+    raise RuntimeError("Unable to fetch a valid Berachain block number; refusing to generate oDOLO flows. "
+                       + " | ".join(errors[-5:]))
+
+
+def build_cutoff_blocks(current_block):
+    if not isinstance(current_block, int) or current_block < DEPLOY_BLOCK:
+        raise RuntimeError(
+            f"Invalid Berachain current block {current_block!r}; "
+            "refusing to collapse oDOLO flow windows to deploy block."
+        )
+    cutoffs = {}
+    for period, seconds in PERIODS.items():
+        if seconds is None:
+            cutoffs[period] = DEPLOY_BLOCK
+        else:
+            blocks_back = seconds // BLOCK_TIME
+            cutoffs[period] = max(current_block - blocks_back, DEPLOY_BLOCK)
+    return cutoffs
 
 
 def fetch_transfer_logs(start_block, end_block):
@@ -143,6 +171,7 @@ def fetch_transfer_logs(start_block, end_block):
         chunk_end = min(current + chunk_size - 1, end_block)
 
         success = False
+        last_error = None
         for attempt in range(len(RPC_URLS) * 2):
             rpc = RPC_URLS[attempt % len(RPC_URLS)]
             try:
@@ -159,6 +188,7 @@ def fetch_transfer_logs(start_block, end_block):
                 r = resp.json()
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
+                    last_error = f"{_rpc_safe_host(rpc)}: {err_msg or r['error']}"
                     if "range" in err_msg.lower() or "limit" in err_msg.lower():
                         chunk_size = max(chunk_size // 2, 1000)
                         chunk_end = min(current + chunk_size - 1, end_block)
@@ -179,16 +209,20 @@ def fetch_transfer_logs(start_block, end_block):
                 success = True
                 break
             except requests.exceptions.Timeout:
+                last_error = f"{_rpc_safe_host(rpc)}: timeout"
                 chunk_size = max(chunk_size // 2, 1000)
                 chunk_end = min(current + chunk_size - 1, end_block)
                 time.sleep(1)
-            except Exception:
+            except Exception as exc:
+                last_error = f"{_rpc_safe_host(rpc)}: {type(exc).__name__}: {_rpc_sanitize_error(exc)}"
                 time.sleep(0.5)
 
         if not success:
-            print(f"    ⚠️ Failed at block {current}, skipping chunk")
-            current = chunk_end + 1
-            continue
+            raise RuntimeError(
+                f"Failed to fetch complete oDOLO Transfer logs for block range "
+                f"{current:,} → {chunk_end:,}; refusing to write partial flow data. "
+                f"Last error: {last_error or 'unknown'}"
+            )
 
         current = chunk_end + 1
         chunks_done += 1
@@ -406,15 +440,11 @@ def main():
     current_block = get_current_block()
     print(f"  Berachain: block {current_block:,}")
 
-    # Calculate cutoff blocks
-    cutoff_blocks = {}
-    for period, seconds in PERIODS.items():
-        blocks_back = seconds // BLOCK_TIME
-        cutoff_blocks[period] = max(current_block - blocks_back, DEPLOY_BLOCK)
+    # Calculate cutoff blocks. If current_block is invalid, fail before touching data.
+    cutoff_blocks = build_cutoff_blocks(current_block)
 
     # Fetch transfers — incremental: only new blocks since last run
-    max_period = max(PERIODS.keys(), key=lambda k: PERIODS[k])
-    oldest_needed = cutoff_blocks[max_period]
+    oldest_needed = min(cutoff_blocks.values())
     print("\n📡 Fetching Transfer events...")
 
     cached_transfers = state.get("transfers", [])
@@ -432,14 +462,26 @@ def main():
         # Convert cached transfers back from lists to tuples
         restored = [tuple(t) for t in cached_transfers]
 
-        # Merge: cached + new
-        merged = restored + new_transfers
+        # If a previous rolling-window cache pruned early history, backfill it so
+        # "all" really means from deployment, not the last 365 days.
+        if restored:
+            cached_min_block = min(t[3] for t in restored)
+        else:
+            cached_min_block = 0
+        historical_backfill = []
+        if cached_min_block and cached_min_block > oldest_needed:
+            print(f"  Berachain: backfilling missing all-time range {oldest_needed:,} → {cached_min_block - 1:,}")
+            historical_backfill = fetch_transfer_logs(oldest_needed, cached_min_block - 1)
+
+        # Merge: historical backfill + cached + new
+        merged = historical_backfill + restored + new_transfers
 
         # Prune: drop transfers from blocks older than the oldest needed
         merged = [t for t in merged if t[3] >= oldest_needed]
 
         all_transfers = merged
-        print(f"  Berachain: {len(new_transfers):,} new + {len(restored):,} cached → {len(merged):,} total (after pruning)")
+        print(f"  Berachain: {len(historical_backfill):,} backfilled + {len(new_transfers):,} new + "
+              f"{len(restored):,} cached → {len(merged):,} total (after pruning)")
     else:
         # Full scan from the oldest needed block
         all_transfers = fetch_transfer_logs(oldest_needed, current_block)
@@ -461,7 +503,6 @@ def main():
     print(f"  Excluded {len(contracts)} contract(s)")
 
     # ── Identify claimer wallets first (needed for per-period filtering) ──
-    REWARDS_CONTRACT = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
     SKIP_ADDRS_CB = {ZERO, ODOLO_CONTRACT, "0x0000000000000000000000000000000000000001"}
     claims_by_wallet = {}
     for from_addr, to_addr, value_wei, _ in all_transfers:
@@ -690,6 +731,16 @@ def main():
 
     output = {
         "timestamp": datetime.utcnow().isoformat(),
+        "current_block": current_block,
+        "deploy_block": DEPLOY_BLOCK,
+        "cutoff_blocks": cutoff_blocks,
+        "transfer_coverage": {
+            "oldest_needed_block": oldest_needed,
+            "scanned_from_block": oldest_needed,
+            "min_cached_block": min((t[3] for t in all_transfers), default=0),
+            "max_cached_block": max((t[3] for t in all_transfers), default=0),
+            "transfer_count": len(all_transfers),
+        },
         "periods": existing_periods if existing_periods else output_periods,
         "claimer_behavior": existing_cb if existing_cb else claimer_behavior,
         "claimer_periods": existing_cp if existing_cp else claimer_periods,
