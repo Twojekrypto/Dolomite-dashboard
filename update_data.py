@@ -20,7 +20,7 @@ def env_int(name, default, minimum=0):
 
 # Global timeout: abort gracefully before CI kills us
 SCRIPT_START = time.time()
-MAX_RUNTIME_SECONDS = env_int("VEDOLO_MAX_RUNTIME_SECONDS", 50 * 60)  # CI timeout = 90 min
+MAX_RUNTIME_SECONDS = env_int("VEDOLO_MAX_RUNTIME_SECONDS", 18 * 60)  # CI timeout = 90 min
 
 def check_timeout(phase=""):
     """Check if script has exceeded max runtime. Exit gracefully if so."""
@@ -47,6 +47,8 @@ DOLO_TOKEN = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654"  # Underlying DOLO tok
 
 BATCH_SIZE = 25
 MAX_WORKERS = 3
+RPC_TIMEOUT_SECONDS = env_int("VEDOLO_RPC_TIMEOUT_SECONDS", 8, minimum=1)
+RPC_RETRIES = env_int("VEDOLO_RPC_RETRIES", 2, minimum=1)
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "locked_cache.json")
 OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_holders.json")
@@ -224,9 +226,9 @@ def make_batch_call(token_ids):
     out = {}
     responded_ids = set()
     for rpc_url in RPC_URLS:
-        for retry in range(3):
+        for retry in range(RPC_RETRIES):
             try:
-                resp = s.post(rpc_url, json=batch, timeout=20,
+                resp = s.post(rpc_url, json=batch, timeout=RPC_TIMEOUT_SECONDS,
                               headers={"Content-Type": "application/json"})
                 if resp.status_code == 429:
                     time.sleep(1 * (retry + 1))
@@ -258,7 +260,7 @@ def make_batch_call(token_ids):
                 failed = [tid for tid in token_ids if tid not in responded_ids]
                 return out, failed
             except Exception as e:
-                if retry < 1:
+                if retry < RPC_RETRIES - 1:
                     time.sleep(0.3 * (retry + 1))
         # If this RPC failed entirely, try next one
         if out:
@@ -286,12 +288,12 @@ def save_cache(cache):
 CACHE_MAX_AGE = 86400  # 24 hours in seconds
 VOTE_CACHE_MAX_AGE = 21600  # 6 hours — vote weights decay, need fresher data
 FALLBACK_CACHE_MAX_AGE = 21600  # retry recent flow fallbacks sooner than RPC-verified cache
-LOCKED_STALE_REFRESH_LIMIT = env_int("VEDOLO_LOCKED_STALE_REFRESH_LIMIT", 1200)
-LOCKED_FAILED_RETRY_LIMIT = env_int("VEDOLO_LOCKED_FAILED_RETRY_LIMIT", 200)
-LOCKED_ZERO_RETRY_LIMIT = env_int("VEDOLO_LOCKED_ZERO_RETRY_LIMIT", 200)
-VOTE_STALE_REFRESH_LIMIT = env_int("VEDOLO_VOTE_STALE_REFRESH_LIMIT", 1200)
-VOTE_FAILED_RETRY_LIMIT = env_int("VEDOLO_VOTE_FAILED_RETRY_LIMIT", 200)
-VOTE_ZERO_RETRY_LIMIT = env_int("VEDOLO_VOTE_ZERO_RETRY_LIMIT", 200)
+LOCKED_STALE_REFRESH_LIMIT = env_int("VEDOLO_LOCKED_STALE_REFRESH_LIMIT", 100)
+LOCKED_FAILED_RETRY_LIMIT = env_int("VEDOLO_LOCKED_FAILED_RETRY_LIMIT", 20)
+LOCKED_ZERO_RETRY_LIMIT = env_int("VEDOLO_LOCKED_ZERO_RETRY_LIMIT", 20)
+VOTE_STALE_REFRESH_LIMIT = env_int("VEDOLO_VOTE_STALE_REFRESH_LIMIT", 100)
+VOTE_FAILED_RETRY_LIMIT = env_int("VEDOLO_VOTE_FAILED_RETRY_LIMIT", 20)
+VOTE_ZERO_RETRY_LIMIT = env_int("VEDOLO_VOTE_ZERO_RETRY_LIMIT", 20)
 FLOW_FALLBACK_LOOKBACK_SECONDS = env_int("VEDOLO_FLOW_FALLBACK_LOOKBACK_SECONDS", 14 * 86400)
 
 
@@ -371,7 +373,7 @@ def fetch_contract_dolo_balance():
                 "method": "eth_call",
                 "params": [{"to": DOLO_TOKEN, "data": BALANCE_OF_SELECTOR + padded_addr}, "latest"],
                 "id": 1
-            }, timeout=15)
+            }, timeout=RPC_TIMEOUT_SECONDS)
             r = resp.json()
             if "result" in r and r["result"]:
                 return int(r["result"], 16) / 1e18
@@ -593,9 +595,9 @@ def make_vote_batch_call(token_ids):
     out = {}
     responded_ids = set()
     for rpc_url in RPC_URLS:
-        for retry in range(3):
+        for retry in range(RPC_RETRIES):
             try:
-                resp = s.post(rpc_url, json=batch, timeout=20,
+                resp = s.post(rpc_url, json=batch, timeout=RPC_TIMEOUT_SECONDS,
                               headers={"Content-Type": "application/json"})
                 if resp.status_code == 429:
                     time.sleep(1 * (retry + 1))
@@ -628,7 +630,7 @@ def make_vote_batch_call(token_ids):
                 else:
                     break  # All items errored on this RPC, try next one
             except Exception as e:
-                if retry < 2:
+                if retry < RPC_RETRIES - 1:
                     time.sleep(0.5 * (retry + 1))
         # If this RPC got partial results, return them
         if responded_ids:
@@ -839,9 +841,9 @@ def _single_rpc_vote_batch(token_ids, rpc_url):
 
     out = {}
     responded = set()
-    for retry in range(3):
+    for retry in range(RPC_RETRIES):
         try:
-            resp = s.post(rpc_url, json=batch, timeout=30,
+            resp = s.post(rpc_url, json=batch, timeout=RPC_TIMEOUT_SECONDS,
                           headers={"Content-Type": "application/json"})
             if resp.status_code == 429:
                 time.sleep(2 * (retry + 1))
@@ -864,7 +866,8 @@ def _single_rpc_vote_batch(token_ids, rpc_url):
             failed = [tid for tid in token_ids if tid not in responded]
             return out, failed
         except Exception:
-            time.sleep(1 * (retry + 1))
+            if retry < RPC_RETRIES - 1:
+                time.sleep(1 * (retry + 1))
     return out, [tid for tid in token_ids if tid not in responded]
 
 
