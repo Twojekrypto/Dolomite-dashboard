@@ -89,6 +89,73 @@ def _odolo_circulating_reconciles(data):
     return _nearly_equal(in_circulation, expected, abs_tol=2.0)
 
 
+ODOLO_FLOW_PERIOD_ORDER = ["1d", "7d", "30d", "90d", "180d", "all"]
+
+
+def _odolo_flow_period_counts(data):
+    periods = data.get("periods") or {}
+    counts = []
+    for key in ODOLO_FLOW_PERIOD_ORDER:
+        if key not in periods:
+            return []
+        try:
+            counts.append(int(periods[key].get("total_transfers")))
+        except (TypeError, ValueError):
+            return []
+    return counts
+
+
+def _odolo_flow_windows_are_monotonic(data):
+    counts = _odolo_flow_period_counts(data)
+    return bool(counts) and all(a <= b for a, b in zip(counts, counts[1:]))
+
+
+def _odolo_flow_windows_are_not_collapsed(data):
+    counts = _odolo_flow_period_counts(data)
+    if not counts:
+        return False
+    # oDOLO is a mature dataset. If every window has the same non-trivial
+    # transfer count, current_block/cutoff logic almost certainly collapsed to
+    # DEPLOY_BLOCK and every range became all-time.
+    if counts[-1] >= 1000 and len(set(counts)) == 1:
+        return False
+    return True
+
+
+def _odolo_flow_block_metadata_is_valid(data):
+    try:
+        current_block = int(data.get("current_block"))
+        deploy_block = int(data.get("deploy_block"))
+        cutoffs = data.get("cutoff_blocks") or {}
+        coverage = data.get("transfer_coverage") or {}
+        oldest_needed = int(coverage.get("oldest_needed_block"))
+        scanned_from = int(coverage.get("scanned_from_block"))
+        min_cached = int(coverage.get("min_cached_block"))
+        max_cached = int(coverage.get("max_cached_block"))
+    except (TypeError, ValueError):
+        return False
+    if deploy_block <= 0 or current_block < deploy_block:
+        return False
+    if oldest_needed != deploy_block or scanned_from > oldest_needed or max_cached > current_block:
+        return False
+    if min_cached and min_cached < scanned_from:
+        return False
+    last_cutoff = -1
+    for key in ODOLO_FLOW_PERIOD_ORDER:
+        if key not in cutoffs:
+            return False
+        try:
+            cutoff = int(cutoffs[key])
+        except (TypeError, ValueError):
+            return False
+        if cutoff < deploy_block or cutoff > current_block:
+            return False
+        if last_cutoff != -1 and cutoff > last_cutoff:
+            return False
+        last_cutoff = cutoff
+    return int(cutoffs["all"]) == deploy_block
+
+
 def _odolo_exerciser_totals(data):
     totals = {
         "total_vedolo": 0.0,
@@ -464,9 +531,12 @@ RULES = {
         "min_bytes": 100_000,
     },
     "odolo_flows.json": {
-        "required_keys": ["timestamp", "periods"],
+        "required_keys": ["timestamp", "current_block", "deploy_block", "cutoff_blocks", "transfer_coverage", "periods"],
         "checks": [
             ("periods must have data", lambda d: len(d.get("periods", {})) >= 3),
+            ("period transfer counts must be monotonic by window", _odolo_flow_windows_are_monotonic),
+            ("period windows must not collapse to all-time", _odolo_flow_windows_are_not_collapsed),
+            ("block metadata must prove full all-time coverage", _odolo_flow_block_metadata_is_valid),
         ],
         "min_bytes": 50_000,
     },
