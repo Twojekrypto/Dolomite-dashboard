@@ -76,6 +76,70 @@ OUTPUT_CSV = os.path.join(DATA_DIR, "vedolo_holders.csv")
 API_KEY = os.environ.get("BERASCAN_API_KEY", "")
 
 
+class IncompleteNftTransferFetch(RuntimeError):
+    """Raised when the explorer returns only partial veDOLO NFT history."""
+
+
+def preserve_existing_vedolo_snapshot(reason):
+    """Keep the previous holder snapshot instead of publishing partial data."""
+    print(f"\n⚠️  {reason}", flush=True)
+    if os.path.exists(OUTPUT_JSON):
+        print(f"   Preserving existing {os.path.basename(OUTPUT_JSON)}; no partial holder data will be written.", flush=True)
+        sys.exit(0)
+    print(f"   No existing {os.path.basename(OUTPUT_JSON)} to preserve.", flush=True)
+    sys.exit(1)
+
+
+def nft_transfer_coverage_stats(txs):
+    blocks = []
+    for tx in txs:
+        try:
+            blocks.append(int(tx.get("blockNumber", 0)))
+        except (TypeError, ValueError):
+            continue
+    return {
+        "nft_transfer_count": len(txs),
+        "nft_transfer_min_block": min(blocks) if blocks else 0,
+        "nft_transfer_max_block": max(blocks) if blocks else 0,
+    }
+
+
+def ownership_snapshot_issues(stats, path=OUTPUT_JSON):
+    """Detect impossible drops that indicate a partial NFT transfer fetch."""
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path) as f:
+            previous = json.load(f)
+    except Exception as exc:
+        print(f"   ⚠️ Could not read previous veDOLO holder snapshot for ownership guard: {exc}", flush=True)
+        return []
+
+    prev_stats = previous.get("stats", {}) if isinstance(previous, dict) else {}
+    issues = []
+
+    monotonic_fields = (
+        ("total_minted", "minted veDOLO positions"),
+        ("total_burned", "burned veDOLO positions"),
+        ("nft_transfer_count", "NFT transfer events"),
+        ("nft_transfer_max_block", "latest NFT transfer block"),
+    )
+    for field, label in monotonic_fields:
+        prev_val = prev_stats.get(field)
+        new_val = stats.get(field)
+        if prev_val is None or new_val is None:
+            continue
+        try:
+            prev_num = int(prev_val)
+            new_num = int(new_val)
+        except (TypeError, ValueError):
+            continue
+        if prev_num > 0 and new_num < prev_num:
+            issues.append(f"{label} decreased from {prev_num:,} to {new_num:,}")
+
+    return issues
+
+
 # ===== PHASE 1: Fetch all NFT transfers via Etherscan V2 API =====
 
 def fetch_all_nft_transfers():
@@ -148,7 +212,10 @@ def fetch_all_nft_transfers():
                     print(f"  Rate limited, waiting {2*(retry+1)}s...", flush=True)
                     time.sleep(2 * (retry + 1))
                     if check_timeout("Phase1-rate-limit"):
-                        return all_txs
+                        raise IncompleteNftTransferFetch(
+                            f"Timed out while fetching veDOLO NFT transfers after {len(all_txs):,} rows "
+                            f"(current start block {start_block:,})"
+                        )
                     continue
 
                 else:
@@ -158,7 +225,10 @@ def fetch_all_nft_transfers():
                         return all_txs
                     print(f"  ⚠️ API: {data.get('message')}: {str(data.get('result',''))[:100]}")
                     if all_txs:
-                        return all_txs
+                        raise IncompleteNftTransferFetch(
+                            f"Explorer returned an API warning after {len(all_txs):,} veDOLO NFT transfer rows "
+                            f"(current start block {start_block:,})"
+                        )
                     sys.exit(1)
 
             except Exception as e:
@@ -166,9 +236,14 @@ def fetch_all_nft_transfers():
                 time.sleep(2 * (retry + 1))
         else:
             print(f"  ❌ Failed after 3 retries at block {start_block}")
-            break
+            raise IncompleteNftTransferFetch(
+                f"Failed to fetch complete veDOLO NFT transfer history after {len(all_txs):,} rows "
+                f"(failed at block {start_block:,})"
+            )
 
-    return all_txs
+    raise IncompleteNftTransferFetch(
+        f"Stopped before completing veDOLO NFT transfer history after {len(all_txs):,} rows"
+    )
 
 
 
@@ -972,13 +1047,23 @@ def main():
     print("=" * 60)
 
     # Phase 1: Fetch all NFT transfers
-    txs = fetch_all_nft_transfers()
+    try:
+        txs = fetch_all_nft_transfers()
+    except IncompleteNftTransferFetch as exc:
+        preserve_existing_vedolo_snapshot(str(exc))
 
     if not txs:
         print("⚠️  No transfers found! Keeping existing data.")
         sys.exit(0)
 
     holders, stats = build_ownership(txs)
+    stats.update(nft_transfer_coverage_stats(txs))
+
+    ownership_issues = ownership_snapshot_issues(stats)
+    if ownership_issues:
+        preserve_existing_vedolo_snapshot(
+            "veDOLO ownership snapshot looks incomplete: " + "; ".join(ownership_issues)
+        )
 
     if not holders:
         print("⚠️  No holders found!")
