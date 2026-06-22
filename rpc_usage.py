@@ -143,9 +143,13 @@ def emit_usage_summary():
             f"{method}×{count}"
             for method, count in sorted(summary["by_method"].items(), key=lambda kv: -kv[1])
         )
+        # Write to stderr, never stdout: several pipelines capture a child
+        # process's stdout and json.loads() it (e.g. run_earn_canonical_history_
+        # refresh.py), so a summary line on stdout would corrupt that JSON.
         print(
             f"📊 RPC usage [{_script_name()}]: {summary['requests']} requests, "
             f"~{summary['estimated_cu']:,} CU est. [{top}]",
+            file=sys.stderr,
             flush=True,
         )
     log_path = os.environ.get("RPC_USAGE_LOG", "").strip()

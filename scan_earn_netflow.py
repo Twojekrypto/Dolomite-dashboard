@@ -21,8 +21,6 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
-import rpc_usage  # stdlib-only RPC/CU accounting (safe without `requests`)
-
 # --- Chain configs ---
 CHAINS = {
     "arbitrum": {
@@ -246,7 +244,6 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
                     rpc_idx_ref[0] += 1
                     time.sleep(0.5)
                     continue
-                rpc_usage.record_request(method)
                 return data.get("result")
         except (URLError, HTTPError, TimeoutError, OSError) as e:
             message = f"RPC failed ({rpc_url}): {e}"
