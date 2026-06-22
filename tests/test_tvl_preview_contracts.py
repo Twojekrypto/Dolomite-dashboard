@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TVL_PREVIEW = ROOT / "tvl-preview.html"
 TVL_ROUTE = ROOT / "tvl" / "index.html"
+TVL_WORKFLOW = ROOT / ".github" / "workflows" / "update-tvl-data.yml"
 
 
 def run_tvl_js_probe(probe):
@@ -51,6 +52,15 @@ def run_tvl_js_probe(probe):
 
 
 class TvlPreviewContractsTest(unittest.TestCase):
+    def test_tvl_workflow_has_redundant_schedule_and_push_retry_budget(self):
+        workflow = TVL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("ref: master", workflow)
+        self.assertIn("fetch-depth: 1", workflow)
+        self.assertIn("cron: '13 * * * *'", workflow)
+        self.assertIn("cron: '43 * * * *'", workflow)
+        self.assertIn("for i in $(seq 1 12)", workflow)
+        self.assertIn("Failed to push after 12 attempts.", workflow)
+
     def test_tvl_route_busts_preview_cache_for_wlfi_fallback_fix(self):
         route = TVL_ROUTE.read_text(encoding="utf-8")
         self.assertIn("wlfi-fallback-20260616", route)
