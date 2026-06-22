@@ -26,11 +26,14 @@ class ScanEarnNetflowTest(unittest.TestCase):
         effective = int(scan_earn_netflow.CHAINS["ethereum"].get("max_block_chunk")
                         or scan_earn_netflow.BLOCK_CHUNK)
         self.assertEqual(effective, scan_earn_netflow.BLOCK_CHUNK)
-        # Only the known-limited public endpoint is capped; keyed providers are not.
+        # Only the Ethereum 1rpc path is capped; keyed providers are not, and the
+        # cap must NOT leak to 1rpc on other chains (that regressed berachain EARN).
         self.assertEqual(scan_earn_netflow._endpoint_block_cap("https://1rpc.io/eth"), 50)
         self.assertIsNone(
             scan_earn_netflow._endpoint_block_cap("https://eth-mainnet.g.alchemy.com/v2/key")
         )
+        self.assertIsNone(scan_earn_netflow._endpoint_block_cap("https://1rpc.io/berachain"))
+        self.assertIsNone(scan_earn_netflow._endpoint_block_cap("https://1rpc.io/arb"))
 
     def test_rpc_call_skips_capped_endpoint_for_oversized_getlogs(self):
         # A getLogs range wider than an endpoint's cap must rotate past that
