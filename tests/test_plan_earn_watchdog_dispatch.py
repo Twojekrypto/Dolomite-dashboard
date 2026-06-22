@@ -174,6 +174,51 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
             rows[0],
         )
 
+    def test_generic_active_run_title_does_not_block_specific_secondary_chain(self):
+        generic_run = {
+            "displayTitle": "Refresh Secondary Canonical EARN History",
+            "name": "Refresh Secondary Canonical EARN History",
+        }
+        polygon_run = {
+            "displayTitle": "Refresh Secondary Canonical EARN History [polygonzkevm]",
+            "name": "Refresh Secondary Canonical EARN History",
+        }
+        all_run = {
+            "displayTitle": "Refresh Secondary Canonical EARN History [all]",
+            "name": "Refresh Secondary Canonical EARN History",
+        }
+
+        self.assertFalse(
+            plan_earn_watchdog_dispatch.run_covers_requested_chain(
+                generic_run,
+                "polygonzkevm",
+            )
+        )
+        self.assertTrue(
+            plan_earn_watchdog_dispatch.run_covers_requested_chain(
+                polygon_run,
+                "polygonzkevm",
+            )
+        )
+        self.assertFalse(
+            plan_earn_watchdog_dispatch.run_covers_requested_chain(
+                polygon_run,
+                "xlayer",
+            )
+        )
+        self.assertTrue(
+            plan_earn_watchdog_dispatch.run_covers_requested_chain(
+                all_run,
+                "xlayer",
+            )
+        )
+        self.assertTrue(
+            plan_earn_watchdog_dispatch.run_covers_requested_chain(
+                generic_run,
+                "",
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

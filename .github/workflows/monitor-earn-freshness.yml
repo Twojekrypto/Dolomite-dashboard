@@ -136,12 +136,14 @@ jobs:
             active="$(python3 - "$workflow" "${chain:-}" <<'PY'
           import json
           import os
+          import re
           import subprocess
           import sys
 
           workflow = sys.argv[1]
           chain = (sys.argv[2] if len(sys.argv) > 2 else "").strip().lower()
           repo = os.environ["GITHUB_REPOSITORY"]
+          chain_label_pattern = re.compile(r"\[([^\]]+)\]")
 
           def active_runs(status):
               try:
@@ -171,11 +173,17 @@ jobs:
           def covers_requested_chain(run):
               if not chain:
                   return True
-              title = str(run.get("displayTitle") or run.get("name") or "").lower()
-              if f"[{chain}]" in title or "[all]" in title:
-                  return True
-              # Old active runs may not have a chain-aware run-name yet; be conservative.
-              return "[" not in title
+              title = " ".join(
+                  str(run.get(key) or "").strip().lower()
+                  for key in ("displayTitle", "name")
+                  if str(run.get(key) or "").strip()
+              )
+              labels = {
+                  label.strip().lower()
+                  for label in chain_label_pattern.findall(title)
+                  if label.strip()
+              }
+              return chain in labels or "all" in labels
 
           matches = [
               run

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
@@ -12,6 +13,7 @@ from typing import Any, Dict, Iterable, List
 ALL_CHAINS_SENTINEL = "__all__"
 DEFAULT_PRIORITY = 50
 DEFAULT_MODE = "catchup"
+CHAIN_LABEL_PATTERN = re.compile(r"\[([^\]]+)\]")
 
 
 def _clean_tsv_field(value: Any) -> str:
@@ -23,6 +25,23 @@ def _safe_priority(value: Any) -> int:
         return int(value)
     except (TypeError, ValueError):
         return DEFAULT_PRIORITY
+
+
+def run_covers_requested_chain(run: Dict[str, Any], requested_chain: str) -> bool:
+    chain = str(requested_chain or "").strip().lower()
+    if not chain:
+        return True
+    title = " ".join(
+        str(run.get(key) or "").strip().lower()
+        for key in ("displayTitle", "name")
+        if str(run.get(key) or "").strip()
+    )
+    labels = {
+        label.strip().lower()
+        for label in CHAIN_LABEL_PATTERN.findall(title)
+        if label.strip()
+    }
+    return chain in labels or "all" in labels
 
 
 def _raw_jobs(payload: Dict[str, Any]) -> Iterable[Dict[str, Any]]:
