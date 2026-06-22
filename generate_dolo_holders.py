@@ -4,7 +4,7 @@ DOLO Token Holders — ERC-20 holder generator (ETH + Berachain)
 Uses eth_getLogs for 100% accuracy (catches DEX swaps, internal transfers, etc.)
 With incremental sync: saves last processed block per chain.
 """
-import json, time, os, sys
+import json, time, os, sys, re
 import requests
 from datetime import datetime
 
@@ -60,9 +60,11 @@ CHAINS = {
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_holders.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_holders_state.json")
+FLOW_RECONCILE_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
 MIN_BALANCE = 100.0  # 100 DOLO
 RPC_BATCH_SIZE = int(os.environ.get("DOLO_HOLDERS_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_HOLDERS_RPC_RETRIES_PER_ENDPOINT", "2"))
+ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
 
 
 def load_state():
@@ -94,6 +96,48 @@ def load_investors():
     except Exception as e:
         print(f"  ⚠️ Could not load vesting_investors.json: {e}")
         return set()
+
+
+def _lower_address(value):
+    value = str(value or "").strip()
+    return value.lower() if ADDRESS_RE.match(value) else None
+
+
+def load_flow_reconciliation_candidates(path=FLOW_RECONCILE_JSON):
+    """Load address candidates from DOLO flow output for holder self-healing.
+
+    The holder state is incremental. If an old cache missed a historical log
+    range before gap tracking existed, that wallet can stay absent forever even
+    though the flow pipeline later sees it and fetches its current balance. Use
+    the compact flow JSON as a candidate set, then verify every candidate with
+    on-chain balanceOf before adding anything to the holder list.
+    """
+    if not os.path.exists(path):
+        return set()
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except Exception as exc:
+        print(f"  ⚠️ Could not load flow reconciliation candidates: {exc}")
+        return set()
+
+    candidates = set()
+
+    def walk(obj):
+        if isinstance(obj, dict):
+            addr = _lower_address(obj.get("address") or obj.get("addr"))
+            if addr:
+                candidates.add(addr)
+            for value in obj.values():
+                if isinstance(value, (dict, list)):
+                    walk(value)
+        elif isinstance(obj, list):
+            for item in obj:
+                if isinstance(item, (dict, list)):
+                    walk(item)
+
+    walk(data)
+    return candidates
 
 
 def get_current_block(rpc_url):
@@ -334,6 +378,97 @@ def _multicall_dolo_balances(rpcs, addresses):
             else:
                 unresolved.append(addr)
     return resolved, unresolved
+
+
+def fetch_chain_dolo_balances(chain, addresses):
+    """Fetch current DOLO balances for candidate addresses on one chain."""
+    unique = sorted({_lower_address(addr) for addr in addresses if _lower_address(addr)})
+    if not unique:
+        return {}
+
+    cfg = CHAINS[chain]
+    balances = {}
+
+    # Fast path: Multicall3 batches balanceOf into one eth_call per chunk.
+    resolved, pending_addrs = _multicall_dolo_balances(cfg["rpcs"], unique)
+    for addr, raw_balance in resolved.items():
+        balances[addr] = raw_balance / 1e18
+    if not pending_addrs:
+        return balances
+
+    bal_selector = "0x70a08231"  # balanceOf(address)
+    payloads = []
+    meta_by_id = {}
+    for idx, addr in enumerate(pending_addrs):
+        data_hex = bal_selector + addr.replace("0x", "").zfill(64)
+        request_id = f"{chain}:{idx}"
+        payloads.append({
+            "jsonrpc": "2.0",
+            "method": "eth_call",
+            "params": [{"to": DOLO_CONTRACT, "data": data_hex}, "latest"],
+            "id": request_id,
+        })
+        meta_by_id[request_id] = addr
+
+    try:
+        responses, missing_ids = rpc_batch_requests(
+            cfg["rpcs"],
+            payloads,
+            timeout=10,
+            retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+            batch_size=RPC_BATCH_SIZE,
+            quiet=True,
+            describe=f"{chain} DOLO balanceOf reconciliation",
+        )
+    except RpcError:
+        responses, missing_ids = {}, [payload["id"] for payload in payloads]
+
+    for payload in payloads:
+        request_id = payload["id"]
+        addr = meta_by_id[request_id]
+        response = responses.get(request_id)
+        if request_id in missing_ids or not isinstance(response, dict) or response.get("error") or "result" not in response:
+            try:
+                response = rpc_single_request(
+                    cfg["rpcs"],
+                    payload,
+                    timeout=10,
+                    retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                    quiet=True,
+                    describe=f"{chain} DOLO balanceOf reconciliation fallback",
+                )
+            except RpcError:
+                continue
+        if not isinstance(response, dict) or response.get("error"):
+            continue
+        balances[addr] = decode_uint256(response.get("result", "0x0")) / 1e18
+
+    return balances
+
+
+def reconcile_candidate_balances(eth_balances, bera_balances, candidate_addrs):
+    """Patch holder state with verified current balances for flow candidates."""
+    candidates = {_lower_address(addr) for addr in candidate_addrs if _lower_address(addr)}
+    if not candidates:
+        return eth_balances, bera_balances, {"candidates": 0, "added": 0, "updated": 0}
+
+    print(f"\n🧩 Reconciling {len(candidates):,} flow candidate addresses with on-chain balanceOf()...")
+    stats = {"candidates": len(candidates), "added": 0, "updated": 0}
+
+    for chain, target in (("eth", eth_balances), ("bera", bera_balances)):
+        chain_balances = fetch_chain_dolo_balances(chain, candidates)
+        for addr, onchain_bal in chain_balances.items():
+            old_bal = float(target.get(addr, 0) or 0)
+            if abs(onchain_bal - old_bal) <= 0.0001:
+                continue
+            if old_bal < MIN_BALANCE <= onchain_bal:
+                stats["added"] += 1
+            else:
+                stats["updated"] += 1
+            target[addr] = onchain_bal
+
+    print(f"  ✅ Reconciled candidates: {stats['added']} added, {stats['updated']} updated")
+    return eth_balances, bera_balances, stats
 
 
 def verify_top_balances(holders, eth_balances, bera_balances, forced_addrs, max_check=200):
@@ -651,6 +786,13 @@ def main():
     forced_addrs = load_investors()
     if forced_addrs:
         print(f"  📌 Forcing inclusion of {len(forced_addrs)} investor addresses even if balance is 0")
+
+    flow_candidates = load_flow_reconciliation_candidates()
+    eth_balances, bera_balances, _reconcile_stats = reconcile_candidate_balances(
+        eth_balances,
+        bera_balances,
+        flow_candidates,
+    )
 
     # Merge
     print("\n🔀 Merging holders across chains...")
