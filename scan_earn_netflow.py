@@ -172,11 +172,14 @@ SECOND_OWNER_EVENTS = [
 BLOCK_CHUNK = 49999  # blocks per getLogs request (RPC max is typically 50k)
 MIN_BLOCK_CHUNK = 50
 # Endpoints that reject (or unreliably serve) large eth_getLogs ranges. The
-# per-request block span is capped ONLY for these (matched by hostname
-# substring); capable providers keep using the full BLOCK_CHUNK. rpc_call skips
-# a capped endpoint for any wider getLogs so it can never silently truncate one.
+# per-request block span is capped ONLY for these (matched by URL substring);
+# capable providers keep the full BLOCK_CHUNK, and rpc_call skips a capped
+# endpoint for any wider getLogs so it can never silently truncate one.
+# Scope this to the Ethereum 1rpc path only ("1rpc.io/eth"): a bare "1rpc.io"
+# match also caught berachain/arbitrum/mantle (1rpc.io/<chain>) and regressed
+# those EARN scans — only Ethereum's 1rpc endpoint has the 50-block limit.
 ENDPOINT_BLOCK_CAPS = (
-    ("1rpc.io", 50),
+    ("1rpc.io/eth", 50),
 )
 ADDRESS_FILTER_CHUNK = 500000
 MAX_RETRIES = 3
