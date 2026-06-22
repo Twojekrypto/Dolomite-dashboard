@@ -145,6 +145,33 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             gh_args = capture.read_text(encoding="utf-8").splitlines()
             self.assertEqual(gh_args, ["workflow", "run", "pages.yml", "--ref", "master"])
 
+    def test_no_data_change_still_publishes_freshness_status(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _remote, work = self._prepare_repo(Path(tmp))
+
+            env = {
+                **dict(os.environ),
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
+            }
+            _run(
+                ["bash", "scripts/commit_with_fresh_earn_status.sh", "status only"],
+                cwd=work,
+                env=env,
+            )
+
+            self.assertEqual(
+                '{"status":"ok"}\n',
+                (work / "data" / "earn-freshness" / "status.json").read_text(encoding="utf-8"),
+            )
+            latest_subject = _run(
+                ["git", "log", "-1", "--pretty=%s"],
+                cwd=work,
+            ).stdout.strip()
+            self.assertEqual("status only", latest_subject)
+
 
 if __name__ == "__main__":
     unittest.main()

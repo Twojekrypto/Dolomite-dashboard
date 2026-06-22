@@ -88,6 +88,15 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("Fresh chain data", self.source)
         self.assertIn("chainStatus?.canonical?.coverageCatchup === true", self.source)
 
+    def test_earn_freshness_pill_wraps_inside_mobile_width(self):
+        self.assertIn(".earn-data-freshness-pill", self.source)
+        start = self.source.index(".earn-data-freshness-pill {")
+        end = self.source.index(".earn-data-freshness-pill.visible", start)
+        rules = self.source[start:end]
+        self.assertIn("max-width: 100%;", rules)
+        self.assertIn("white-space: normal;", rules)
+        self.assertIn("overflow-wrap: anywhere;", rules)
+
     def test_earn_monitor_publishes_quality_status(self):
         workflow = EARN_FRESHNESS_WORKFLOW.read_text(encoding="utf-8")
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")

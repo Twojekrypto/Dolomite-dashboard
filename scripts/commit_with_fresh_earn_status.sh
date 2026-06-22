@@ -12,8 +12,21 @@ git_remote="${EARN_GIT_REMOTE:-origin}"
 git_branch="${EARN_GIT_BRANCH:-master}"
 
 if git diff --staged --quiet; then
-  echo "No staged changes to commit"
-  exit 0
+  freshness_script="update_earn_freshness_status.py"
+  refresh_args=(python3 "$freshness_script" --output "$status_output")
+  if [ -n "$actions_output" ]; then
+    refresh_args+=(--actions-output "$actions_output")
+  fi
+  "${refresh_args[@]}"
+  git add "$status_output"
+  if [ -f build_earn_quality_status.py ]; then
+    python3 build_earn_quality_status.py --output "$quality_output"
+    git add "$quality_output"
+  fi
+  if git diff --staged --quiet; then
+    echo "No staged changes to commit"
+    exit 0
+  fi
 fi
 
 ledger_chains="$(
