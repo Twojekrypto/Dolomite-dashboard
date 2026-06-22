@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 import unittest
 from unittest.mock import Mock, patch
 
@@ -110,6 +113,84 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
 
         single.assert_not_called()
         self.assertEqual(contracts, {contract})
+
+    def test_existing_flow_snapshot_addresses_are_reconciliation_candidates(self):
+        acc = "0x" + "1" * 40
+        claimer = "0x" + "2" * 40
+        payload = {
+            "periods": {
+                "all": {
+                    "accumulators": [{"address": acc}],
+                    "sellers": [],
+                }
+            },
+            "claimer_behavior": {
+                "all_claimers": [{"address": claimer}],
+            },
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump(payload, f)
+            path = f.name
+        try:
+            candidates = odolo_flows.load_existing_flow_candidates(path)
+        finally:
+            os.unlink(path)
+
+        self.assertIn(acc, candidates)
+        self.assertIn(claimer, candidates)
+        self.assertEqual(candidates[acc], {"previous_odolo_flows"})
+        self.assertEqual(candidates[claimer], {"previous_odolo_claimers"})
+
+    def test_reward_claim_events_self_heal_missing_transfer_claimers(self):
+        wallet = "0x" + "3" * 40
+        payload = {
+            "token": {"symbol": "oDOLO"},
+            "events": [
+                {
+                    "user": wallet,
+                    "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                    "amountWei": str(42 * 10**18),
+                }
+            ],
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump(payload, f)
+            path = f.name
+        try:
+            event_claims = odolo_flows.load_reward_claims(path)
+        finally:
+            os.unlink(path)
+
+        merged, stats = odolo_flows.merge_claim_sources({}, event_claims)
+
+        self.assertEqual(merged[wallet], 42.0)
+        self.assertEqual(stats["added"], 1)
+        self.assertEqual(stats["updated"], 0)
+
+    def test_merge_claim_sources_keeps_larger_total_instead_of_double_counting(self):
+        wallet = "0x" + "4" * 40
+
+        merged, stats = odolo_flows.merge_claim_sources({wallet: 100.0}, {wallet: 80.0})
+        self.assertEqual(merged[wallet], 100.0)
+        self.assertEqual(stats["updated"], 0)
+
+        merged, stats = odolo_flows.merge_claim_sources({wallet: 100.0}, {wallet: 125.0})
+        self.assertEqual(merged[wallet], 125.0)
+        self.assertEqual(stats["updated"], 1)
+
+    def test_current_holder_rows_include_self_healing_balance_candidates(self):
+        wallet = "0x" + "5" * 40
+        candidates = {}
+        odolo_flows.add_candidate(candidates, wallet, "previous_odolo_claimers")
+
+        rows = odolo_flows.build_current_holder_rows({wallet: 12.345}, candidates)
+
+        self.assertEqual(rows, [{
+            "address": wallet,
+            "balance": 12.35,
+            "sources": ["previous_odolo_claimers"],
+            "rank": 1,
+        }])
 
 
 if __name__ == "__main__":

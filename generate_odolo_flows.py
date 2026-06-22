@@ -4,8 +4,9 @@ oDOLO Token Flows — Top Accumulators & Sellers (1d / 7d / 30d)
 Berachain only. Fetches ERC-20 Transfer events via eth_getLogs,
 calculates net inflow/outflow per address, outputs top 5 each.
 """
-import json, time, os, sys
+import json, time, os, sys, re
 import requests
+from decimal import Decimal, InvalidOperation
 from datetime import datetime
 
 
@@ -104,6 +105,10 @@ PERIODS = {
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "odolo_flows.json")
 STATE_FILE = os.path.join(DATA_DIR, "odolo_flows_state.json")
+ODOLO_CLAIM_EVENTS_JSON = os.path.join(DATA_DIR, "data", "odolo-claim-events.json")
+REWARD_CLAIM_EVENTS_BERA_JSON = os.path.join(DATA_DIR, "data", "reward-claim-events", "berachain.json")
+EXERCISERS_BY_ADDRESS_JSON = os.path.join(DATA_DIR, "exercisers_by_address.json")
+VEDOLO_FLOWS_JSON = os.path.join(DATA_DIR, "vedolo_flows.json")
 RPC_BATCH_SIZE = int(os.environ.get("ODOLO_FLOW_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("ODOLO_FLOW_RPC_RETRIES_PER_ENDPOINT", "2"))
 # Multicall3 (same address on every EVM chain) batches many balanceOf reads into
@@ -122,6 +127,164 @@ MULTICALL3_AGG3_ABI = [{
     ], "name": "returnData", "type": "tuple[]"}],
     "stateMutability": "payable", "type": "function",
 }]
+
+ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
+
+
+def normalize_address(value):
+    address = str(value or "").strip().lower()
+    if ADDRESS_RE.match(address):
+        return address
+    return None
+
+
+def amount_to_float(value, decimals=18):
+    try:
+        return float(Decimal(str(value)) / (Decimal(10) ** decimals))
+    except (InvalidOperation, ValueError, TypeError):
+        return 0.0
+
+
+def read_json_file(path, default=None):
+    if default is None:
+        default = {}
+    if not path or not os.path.exists(path):
+        return default
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception as exc:
+        print(f"⚠️ Could not read {os.path.basename(path)} for reconciliation: {exc}", flush=True)
+        return default
+
+
+def add_candidate(candidates, address, source):
+    address = normalize_address(address)
+    if not address or address in EXCLUDED_ADDRS:
+        return
+    candidates.setdefault(address, set()).add(source)
+
+
+def collect_addresses_from_value(value, candidates, source):
+    """Recursively collect address-looking fields from a local snapshot."""
+    if isinstance(value, dict):
+        for nested in value.values():
+            collect_addresses_from_value(nested, candidates, source)
+    elif isinstance(value, list):
+        for item in value:
+            collect_addresses_from_value(item, candidates, source)
+    elif isinstance(value, str):
+        add_candidate(candidates, value, source)
+
+
+def load_existing_flow_candidates(path=OUTPUT_JSON):
+    candidates = {}
+    payload = read_json_file(path)
+    if payload:
+        collect_addresses_from_value(payload.get("periods", {}), candidates, "previous_odolo_flows")
+        collect_addresses_from_value(payload.get("claimer_behavior", {}), candidates, "previous_odolo_claimers")
+        collect_addresses_from_value(payload.get("claimer_periods", {}), candidates, "previous_odolo_claimers")
+    return candidates
+
+
+def load_exerciser_candidates(path=EXERCISERS_BY_ADDRESS_JSON):
+    candidates = {}
+    payload = read_json_file(path)
+    for entry in payload.get("exercisers", []) or []:
+        add_candidate(candidates, entry.get("address"), "odolo_exercisers")
+    return candidates
+
+
+def load_vedolo_odolo_route_candidates(path=VEDOLO_FLOWS_JSON):
+    candidates = {}
+    payload = read_json_file(path)
+    for lock in payload.get("locks", []) or []:
+        if not lock.get("isOdolo"):
+            continue
+        add_candidate(candidates, lock.get("address"), "vedolo_odolo_route")
+        add_candidate(candidates, lock.get("beneficiaryAddress"), "vedolo_odolo_route")
+    return candidates
+
+
+def load_reward_claims(path):
+    """Load oDOLO RewardClaimed amounts by wallet from a generated event index."""
+    payload = read_json_file(path)
+    claims = {}
+    events = payload.get("events", []) if isinstance(payload, dict) else []
+    for event in events or []:
+        token = normalize_address(event.get("tokenAddress"))
+        symbol = str(event.get("tokenSymbol") or payload.get("token", {}).get("symbol") or "").lower()
+        if token and token != ODOLO_CONTRACT:
+            continue
+        if token is None and symbol != "odolo":
+            continue
+        wallet = normalize_address(event.get("user"))
+        if not wallet or wallet in EXCLUDED_ADDRS:
+            continue
+        if event.get("amountWei") is not None:
+            amount = amount_to_float(event.get("amountWei"))
+        else:
+            try:
+                amount = float(Decimal(str(event.get("amount") or "0")))
+            except (InvalidOperation, ValueError, TypeError):
+                amount = 0.0
+        if amount > 0:
+            claims[wallet] = claims.get(wallet, 0) + amount
+    return claims
+
+
+def merge_claim_sources(primary, secondary):
+    """Use event-indexed claim totals as a self-healing supplement.
+
+    When both sources see the same wallet, keep the larger total instead of
+    summing; ERC20 Transfer logs and RewardClaimed logs can describe the same
+    claim from different angles.
+    """
+    merged = dict(primary)
+    added = 0
+    updated = 0
+    for wallet, amount in secondary.items():
+        current = merged.get(wallet, 0)
+        if amount > current:
+            merged[wallet] = amount
+            if current > 0:
+                updated += 1
+            else:
+                added += 1
+    return merged, {"added": added, "updated": updated, "source_wallets": len(secondary)}
+
+
+def merge_candidate_maps(*maps):
+    merged = {}
+    for candidate_map in maps:
+        for address, sources in (candidate_map or {}).items():
+            for source in sources:
+                add_candidate(merged, address, source)
+    return merged
+
+
+def collect_transfer_candidates(transfers):
+    candidates = {}
+    for from_addr, to_addr, _, _ in transfers:
+        add_candidate(candidates, from_addr, "transfer_ledger")
+        add_candidate(candidates, to_addr, "transfer_ledger")
+    return candidates
+
+
+def build_current_holder_rows(balances, candidate_sources):
+    rows = []
+    for address, balance in balances.items():
+        if address in EXCLUDED_ADDRS or balance < 0.005:
+            continue
+        rows.append({
+            "address": address,
+            "balance": round(balance, 2),
+            "sources": sorted(candidate_sources.get(address, set())),
+        })
+    rows.sort(key=lambda row: row["balance"], reverse=True)
+    for idx, row in enumerate(rows, 1):
+        row["rank"] = idx
+    return rows
 
 def load_state():
     """Load incremental sync state (cached transfers + last block)."""
@@ -633,8 +796,20 @@ def main():
         if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS_CB and to_addr not in EXCLUDED_ADDRS:
             val = value_wei / (10 ** 18)
             claims_by_wallet[to_addr] = claims_by_wallet.get(to_addr, 0) + val
+
+    event_claims = {}
+    for claim_path in (ODOLO_CLAIM_EVENTS_JSON, REWARD_CLAIM_EVENTS_BERA_JSON):
+        for wallet, amount in load_reward_claims(claim_path).items():
+            event_claims[wallet] = max(event_claims.get(wallet, 0), amount)
+    claims_by_wallet, claim_reconciliation = merge_claim_sources(claims_by_wallet, event_claims)
     claimer_addrs = set(claims_by_wallet.keys())
     print(f"  Found {len(claimer_addrs)} claimer wallets")
+    if event_claims:
+        print(
+            "  Claim-event reconciliation: "
+            f"{claim_reconciliation['added']} added, {claim_reconciliation['updated']} updated "
+            f"from {claim_reconciliation['source_wallets']} event-indexed wallet(s)"
+        )
 
     # Calculate flows for each period
     print("\n📊 Calculating flows...")
@@ -673,11 +848,26 @@ def main():
         for entry in period_data["accumulators"] + period_data["sellers"]:
             all_addrs.add(entry["address"])
 
-    # Fetch current oDOLO balances for flow addresses and every claimer.
+    transfer_candidates = collect_transfer_candidates(all_transfers)
+    existing_flow_candidates = load_existing_flow_candidates()
+    exerciser_candidates = load_exerciser_candidates()
+    vedolo_route_candidates = load_vedolo_odolo_route_candidates()
+    claim_candidates = {}
+    for addr in claimer_addrs:
+        add_candidate(claim_candidates, addr, "odolo_claims")
+    candidate_sources = merge_candidate_maps(
+        transfer_candidates,
+        existing_flow_candidates,
+        exerciser_candidates,
+        vedolo_route_candidates,
+        claim_candidates,
+    )
+
+    # Fetch current oDOLO balances for every known candidate.
     # Claimer Breakdown "Held" is intended to mean the wallet's current balance,
     # not the residual amount inferred from claim/exercise/outflow history.
-    balance_addrs = all_addrs | claimer_addrs
-    print(f"\n💰 Fetching current oDOLO balances for {len(balance_addrs)} addresses...")
+    balance_addrs = set(candidate_sources.keys()) | all_addrs | claimer_addrs
+    print(f"\n💰 Fetching current oDOLO balances for {len(balance_addrs)} reconciled addresses...")
     ledger_balances = calculate_balances_from_transfers(all_transfers, balance_addrs)
     balances = fetch_odolo_balances(balance_addrs)
     missing_balances = [addr for addr in balance_addrs if addr.lower() not in balances]
@@ -685,6 +875,27 @@ def main():
         print(f"  ⚠️ RPC missed {len(missing_balances)} balances; using Transfer-ledger fallback")
         for addr in missing_balances:
             balances[addr.lower()] = ledger_balances.get(addr.lower(), 0)
+
+    current_holders = build_current_holder_rows(balances, candidate_sources)
+    balance_reconciliation = {
+        "methodology": (
+            "Current oDOLO balances are fetched with balanceOf(wallet) for every address seen in "
+            "the Transfer ledger plus self-healing candidates from previous oDOLO snapshots, "
+            "oDOLO claim events, exerciser history, and oDOLO-routed veDOLO locks."
+        ),
+        "candidate_addresses": len(balance_addrs),
+        "transfer_ledger_candidates": len(transfer_candidates),
+        "previous_snapshot_candidates": len(existing_flow_candidates),
+        "exerciser_candidates": len(exerciser_candidates),
+        "vedolo_odolo_route_candidates": len(vedolo_route_candidates),
+        "claim_candidates": len(claim_candidates),
+        "claim_event_wallets": claim_reconciliation["source_wallets"],
+        "claim_event_added": claim_reconciliation["added"],
+        "claim_event_updated": claim_reconciliation["updated"],
+        "rpc_balances": len(balances) - len(missing_balances),
+        "ledger_fallback_balances": len(missing_balances),
+        "current_holder_rows": len(current_holders),
+    }
 
     # Add balances to all entries
     for period_data in output_periods.values():
@@ -708,13 +919,6 @@ def main():
     # For each claimer: exercised (→ Vester), outflow (→ others), held
     print("\n📊 Analyzing claimer behavior...")
     SKIP_ADDRS = {ZERO, ODOLO_CONTRACT, "0x0000000000000000000000000000000000000001"}
-
-    # Find claims: FROM rewards contract TO wallets
-    claims_by_wallet = {}
-    for from_addr, to_addr, value_wei, _ in all_transfers:
-        if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS and to_addr not in EXCLUDED_ADDRS:
-            val = value_wei / (10 ** 18)
-            claims_by_wallet[to_addr] = claims_by_wallet.get(to_addr, 0) + val
 
     # For each claimer, track outgoing transfers
     claimer_stats = {}
@@ -786,10 +990,13 @@ def main():
         cutoff = cutoff_blocks[period]
         p_transfers = [t for t in all_transfers if t[3] >= cutoff]
 
-        p_claims = {}
-        for from_addr, to_addr, value_wei, _ in p_transfers:
-            if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS and to_addr not in EXCLUDED_ADDRS:
-                p_claims[to_addr] = p_claims.get(to_addr, 0) + value_wei / (10 ** 18)
+        if period == "all":
+            p_claims = dict(claims_by_wallet)
+        else:
+            p_claims = {}
+            for from_addr, to_addr, value_wei, _ in p_transfers:
+                if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS and to_addr not in EXCLUDED_ADDRS:
+                    p_claims[to_addr] = p_claims.get(to_addr, 0) + value_wei / (10 ** 18)
 
         p_all = []
         for wallet, claimed in p_claims.items():
@@ -868,6 +1075,8 @@ def main():
         "periods": existing_periods if existing_periods else output_periods,
         "claimer_behavior": existing_cb if existing_cb else claimer_behavior,
         "claimer_periods": existing_cp if existing_cp else claimer_periods,
+        "current_holders": current_holders,
+        "balance_reconciliation": balance_reconciliation,
     }
 
     with open(OUTPUT_JSON, "w") as f:
