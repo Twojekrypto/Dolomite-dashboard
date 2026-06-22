@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -112,6 +113,38 @@ class GenerateDoloHoldersRpcBatchTests(unittest.TestCase):
             resolved, unresolved = holders._multicall_dolo_balances(["https://rpc"], [ALICE, BOB])
         self.assertEqual(resolved, {})
         self.assertEqual(unresolved, [ALICE, BOB])
+
+    def test_flow_reconciliation_candidates_read_nested_flow_addresses(self):
+        with tempfile.NamedTemporaryFile("w+", suffix=".json") as f:
+            f.write(
+                '{"periods":{"7d":{"bera":{"accumulators":['
+                '{"address":"%s","balance":1969.67}]}}}}' % ALICE
+            )
+            f.flush()
+
+            candidates = holders.load_flow_reconciliation_candidates(f.name)
+
+        self.assertEqual(candidates, {ALICE})
+
+    def test_reconcile_candidate_balances_adds_missing_flow_holder(self):
+        def fake_fetch(chain, addresses):
+            if chain == "bera":
+                return {ALICE: 1969.6699}
+            return {ALICE: 0}
+
+        with patch.object(holders, "fetch_chain_dolo_balances", side_effect=fake_fetch):
+            eth_balances, bera_balances, stats = holders.reconcile_candidate_balances(
+                {},
+                {},
+                {ALICE},
+            )
+
+        rows = holders.merge_holders(eth_balances, bera_balances, forced_addrs=set())
+        self.assertEqual(stats["added"], 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["address"], ALICE)
+        self.assertEqual(rows[0]["balance_bera"], 1969.6699)
+        self.assertEqual(rows[0]["chains"], ["bera"])
 
     def test_detect_contracts_batches_code_and_safe_storage(self):
         singleton = "0x" + "1" * 40
