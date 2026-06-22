@@ -81,6 +81,45 @@ class TestBuildOwnership(unittest.TestCase):
         ])
         self.assertEqual(holders[0]["address"], ALICE)
 
+    def test_nft_transfer_coverage_stats_record_count_and_block_range(self):
+        stats = update_data.nft_transfer_coverage_stats([
+            tx(1, ZERO, ALICE, 100),
+            tx(2, ZERO, BOB, 250),
+        ])
+
+        self.assertEqual(stats, {
+            "nft_transfer_count": 2,
+            "nft_transfer_min_block": 100,
+            "nft_transfer_max_block": 250,
+        })
+
+    def test_ownership_snapshot_guard_rejects_impossible_drops(self):
+        previous = {
+            "stats": {
+                "total_minted": 10,
+                "total_burned": 4,
+                "nft_transfer_count": 20,
+                "nft_transfer_max_block": 500,
+            }
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump(previous, f)
+            path = f.name
+        try:
+            issues = update_data.ownership_snapshot_issues({
+                "total_minted": 9,
+                "total_burned": 4,
+                "nft_transfer_count": 19,
+                "nft_transfer_max_block": 499,
+            }, path=path)
+        finally:
+            os.unlink(path)
+
+        self.assertEqual(len(issues), 3)
+        self.assertTrue(any("minted veDOLO positions decreased" in issue for issue in issues))
+        self.assertTrue(any("NFT transfer events decreased" in issue for issue in issues))
+        self.assertTrue(any("latest NFT transfer block decreased" in issue for issue in issues))
+
 
 class TestRpcEndpoints(unittest.TestCase):
     def test_shared_endpoint_source(self):
