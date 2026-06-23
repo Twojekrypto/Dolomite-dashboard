@@ -13578,13 +13578,13 @@
 
         const EARN_SNAPSHOT_TIMEOUT_MS = 12000;
         const EARN_CANONICAL_LOOKUP_BLOCK_LAG_TOLERANCE_BY_CHAIN = {
-            ethereum: 900n, // ~3h at 12s blocks
-            berachain: 5400n, // ~3h at 2s blocks
-            arbitrum: 43200n, // ~3h at ~0.25s blocks
-            botanix: 1800n, // ~3h at 6s blocks
-            mantle: 5400n, // ~3h at 2s blocks
-            polygonzkevm: 3400n, // ~3h at ~3.2s blocks
-            xlayer: 10800n, // ~3h at 1s blocks
+            ethereum: 600n, // ~2h at 12s blocks
+            berachain: 3600n, // ~2h at 2s blocks
+            arbitrum: 28800n, // ~2h at ~0.25s blocks
+            botanix: 1200n, // ~2h at 6s blocks
+            mantle: 3600n, // ~2h at 2s blocks
+            polygonzkevm: 2250n, // ~2h at ~3.2s blocks
+            xlayer: 7200n, // ~2h at 1s blocks
             default: 64n,
         };
 

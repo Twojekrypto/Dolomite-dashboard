@@ -6,12 +6,36 @@ from tempfile import TemporaryDirectory
 from run_earn_canonical_history_refresh import (
     RefreshIncomplete,
     _has_complete_baseline,
+    _target_lag_exceeds_resume_budget,
     _status_payload,
     _write_status_output,
 )
 
 
 class RunEarnCanonicalHistoryRefreshTest(unittest.TestCase):
+    def test_target_lag_guard_refreshes_old_incomplete_incremental_cycle(self):
+        self.assertTrue(
+            _target_lag_exceeds_resume_budget(
+                {"targetBlock": 1_000},
+                current_target_block=1_601,
+                max_resume_target_lag_blocks=600,
+            )
+        )
+        self.assertFalse(
+            _target_lag_exceeds_resume_budget(
+                {"targetBlock": 1_000},
+                current_target_block=1_600,
+                max_resume_target_lag_blocks=600,
+            )
+        )
+        self.assertFalse(
+            _target_lag_exceeds_resume_budget(
+                {"targetBlock": 1_000},
+                current_target_block=1_601,
+                max_resume_target_lag_blocks=0,
+            )
+        )
+
     def test_has_complete_baseline_requires_each_selected_wallet_at_manifest_block(self):
         selected = "0x1111111111111111111111111111111111111111"
         stale = "0x2222222222222222222222222222222222222222"

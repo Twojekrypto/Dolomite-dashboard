@@ -8,12 +8,27 @@ from typing import Optional
 from update_earn_freshness_status import (
     CHAIN_POLICIES,
     NETFLOW_WORKFLOW,
+    REFRESH_AFTER_MINUTES,
+    STALE_AFTER_HOURS,
+    VERIFIED_AFTER_HOURS,
     build_status,
     write_actions_output,
 )
 
 
 class EarnFreshnessStatusTest(unittest.TestCase):
+    def test_policy_targets_two_hour_verified_window(self):
+        self.assertEqual(30, REFRESH_AFTER_MINUTES)
+        self.assertEqual(2, VERIFIED_AFTER_HOURS)
+        self.assertEqual(3, STALE_AFTER_HOURS)
+        self.assertEqual(600, CHAIN_POLICIES["ethereum"]["verifiedBlockLag"])
+        self.assertEqual(28_800, CHAIN_POLICIES["arbitrum"]["verifiedBlockLag"])
+        self.assertEqual(3_600, CHAIN_POLICIES["berachain"]["verifiedBlockLag"])
+        self.assertEqual(3_600, CHAIN_POLICIES["mantle"]["verifiedBlockLag"])
+        self.assertEqual(2_250, CHAIN_POLICIES["polygonzkevm"]["verifiedBlockLag"])
+        self.assertEqual(7_200, CHAIN_POLICIES["xlayer"]["verifiedBlockLag"])
+        self.assertEqual(1_200, CHAIN_POLICIES["botanix"]["verifiedBlockLag"])
+
     def _write_json(self, root: Path, rel: str, payload: dict) -> None:
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -48,8 +63,8 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 {
                     "chains": {
                         "arbitrum": {
-                            "lastBlock": 1_000_000,
-                            "updatedAt": "2026-05-08T11:00:00Z",
+                        "lastBlock": 1_014_400,
+                        "updatedAt": "2026-05-08T11:00:00Z",
                         },
                         "ethereum": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
                         "berachain": {"lastBlock": 0, "updatedAt": "2026-05-08T11:59:00Z"},
@@ -76,7 +91,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 "earn-netflow/arbitrum.json",
                 {
                     "chain": "arbitrum",
-                    "lastBlock": 1_021_600,
+                        "lastBlock": 1_036_000,
                     "updatedAt": "2026-05-08T11:30:00Z",
                     "addressCount": 10,
                 },
@@ -106,7 +121,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
 
         arbitrum = status["chains"]["arbitrum"]
         self.assertEqual(arbitrum["canonical"]["status"], "verified")
-        self.assertEqual(arbitrum["canonical"]["estimatedLagMinutes"], 180.0)
+        self.assertEqual(arbitrum["canonical"]["estimatedLagMinutes"], 120.0)
         self.assertTrue(arbitrum["canonical"]["refreshRecommended"])
         self.assertEqual(arbitrum["canonical"]["refreshMode"], "background")
         self.assertEqual(arbitrum["status"], "verified")
@@ -131,7 +146,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["arbitrum"]["supportMode"], "canonical-ledger")
-        self.assertEqual(report["arbitrum"]["canonicalLagMinutes"], 180.0)
+        self.assertEqual(report["arbitrum"]["canonicalLagMinutes"], 120.0)
         self.assertEqual(report["arbitrum"]["weakPoint"], "canonical background refresh due")
 
     def test_missing_supported_canonical_history_triggers_refresh(self):
@@ -182,7 +197,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             self._write_json(
                 root,
                 "earn-netflow/berachain.json",
-                {"chain": "berachain", "lastBlock": 4_400, "updatedAt": "2026-05-08T10:30:00Z"},
+                {"chain": "berachain", "lastBlock": 5_500, "updatedAt": "2026-05-08T10:30:00Z"},
             )
             self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
 
