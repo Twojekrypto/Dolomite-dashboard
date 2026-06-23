@@ -242,6 +242,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_ethereum_canonical_workflow_rebuilds_verified_ledger_on_fresh_history(self):
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '12,42 * * * *'", workflow)
+        for env_name in (
+            "ALCHEMY_ETHEREUM_RPC_KAT",
+            "ALCHEMY_ETHEREUM_RPC_DAN",
+            "ALCHEMY_ETHEREUM_RPC_ZEN",
+        ):
+            self.assertIn(env_name, workflow)
         self.assertIn("Build Ethereum verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
@@ -274,6 +280,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '24' }}", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
+        self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_KAT", workflow)
+        self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_DAN", workflow)
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn('--max-steps "$CHECKPOINT_STEPS"', workflow)
         self.assertIn('--command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS"', workflow)
@@ -635,6 +643,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
             self.assertIn(f'"{chain}"', workflow)
         self.assertNotIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix,polygonzkevm --max-runtime-seconds 19800", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}", workflow)
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}", workflow)
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_DAN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_DAN }}", workflow)
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}", workflow)
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}", workflow)
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}", workflow)
         self.assertIn("ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}", workflow)
         self.assertIn("DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}", workflow)
         self.assertIn("XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}", workflow)
@@ -648,6 +661,19 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}", workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
         self.assertNotIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
+
+    def test_earn_freshness_workflow_exposes_all_dedicated_arbitrum_and_ethereum_rpc_secrets(self):
+        workflow = EARN_FRESHNESS_WORKFLOW.read_text(encoding="utf-8")
+
+        for env_name in (
+            "ALCHEMY_ARBITRUM_RPC_KAT",
+            "ALCHEMY_ARBITRUM_RPC_DAN",
+            "ALCHEMY_ARBITRUM_RPC_ZEN",
+            "ALCHEMY_ETHEREUM_RPC_KAT",
+            "ALCHEMY_ETHEREUM_RPC_DAN",
+            "ALCHEMY_ETHEREUM_RPC_ZEN",
+        ):
+            self.assertIn(f"{env_name}: ${{{{ secrets.{env_name} }}}}", workflow)
         scanner = NETFLOW_SCANNER.read_text(encoding="utf-8")
         self.assertIn('os.environ.get("MANTLE_RPC")', scanner)
         self.assertIn('os.environ.get("QUICKNODE_MANTLE_RPC")', scanner)

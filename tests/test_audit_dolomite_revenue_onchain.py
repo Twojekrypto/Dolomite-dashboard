@@ -180,6 +180,11 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
 
     def test_rpc_client_includes_revenue_audit_archive_secret_fallbacks(self):
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN", CHAIN_ENV_KEYS["arbitrum"])
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_KAT", CHAIN_ENV_KEYS["arbitrum"])
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_DAN", CHAIN_ENV_KEYS["arbitrum"])
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_ZEN", CHAIN_ENV_KEYS["ethereum"])
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_KAT", CHAIN_ENV_KEYS["ethereum"])
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_DAN", CHAIN_ENV_KEYS["ethereum"])
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2", CHAIN_ENV_KEYS["berachain"])
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN", CHAIN_ENV_KEYS["berachain"])
 
@@ -250,6 +255,11 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertIn("data/dolomite-revenue-onchain-audit.json", workflow)
         self.assertIn("git add data/dolomite-revenue-onchain-audit.json dolomite_revenue.json", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_KAT", workflow)
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_DAN", workflow)
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_ZEN", workflow)
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_KAT", workflow)
+        self.assertIn("ALCHEMY_ETHEREUM_RPC_DAN", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN", workflow)
 

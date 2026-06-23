@@ -92,6 +92,9 @@ CHAIN_CONFIGS = {
         },
         "rpcUrls": [
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC") else [os.environ["ALCHEMY_ARBITRUM_RPC"]]),
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_KAT") else [os.environ["ALCHEMY_ARBITRUM_RPC_KAT"]]),
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_DAN") else [os.environ["ALCHEMY_ARBITRUM_RPC_DAN"]]),
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_ZEN") else [os.environ["ALCHEMY_ARBITRUM_RPC_ZEN"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_2") else [os.environ["ALCHEMY_ARBITRUM_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_3") else [os.environ["ALCHEMY_ARBITRUM_RPC_3"]]),
             "https://arb1.arbitrum.io/rpc",

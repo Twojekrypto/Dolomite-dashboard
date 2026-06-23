@@ -2,10 +2,13 @@ import json
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
+from pathlib import Path
 from unittest.mock import patch
 
 import scan_earn_netflow
 from scan_earn_netflow import MIN_BLOCK_CHUNK, _is_chunk_too_large_error, _reduced_chunk_size
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class ScanEarnNetflowTest(unittest.TestCase):
@@ -34,6 +37,19 @@ class ScanEarnNetflowTest(unittest.TestCase):
         )
         self.assertIsNone(scan_earn_netflow._endpoint_block_cap("https://1rpc.io/berachain"))
         self.assertIsNone(scan_earn_netflow._endpoint_block_cap("https://1rpc.io/arb"))
+
+    def test_scanner_reads_all_dedicated_arbitrum_and_ethereum_rpc_secrets(self):
+        source = (ROOT / "scan_earn_netflow.py").read_text(encoding="utf-8")
+
+        for env_name in (
+            "ALCHEMY_ARBITRUM_RPC_KAT",
+            "ALCHEMY_ARBITRUM_RPC_DAN",
+            "ALCHEMY_ARBITRUM_RPC_ZEN",
+            "ALCHEMY_ETHEREUM_RPC_KAT",
+            "ALCHEMY_ETHEREUM_RPC_DAN",
+            "ALCHEMY_ETHEREUM_RPC_ZEN",
+        ):
+            self.assertIn(env_name, source)
 
     def test_rpc_call_skips_capped_endpoint_for_oversized_getlogs(self):
         # A getLogs range wider than an endpoint's cap must rotate past that
