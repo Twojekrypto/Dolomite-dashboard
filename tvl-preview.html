@@ -1557,8 +1557,8 @@ const TOKEN_PALETTE = [
 const VISIBLE_TOKEN_LIMIT = 20;
 const INDIVIDUAL_TOKEN_LIMIT = VISIBLE_TOKEN_LIMIT - 1;
 const OTHER_COLOR = "#6f7480";
-// Multi-select chain filter: a Set of chain keys (empty/full = "all chains")
-let tokenState = { chains: new Set(CHAINS.map(c=>c.key)), focus: null };
+// Multi-select chain filter: an empty Set means "All Chains"
+let tokenState = { chains: new Set(), focus: null };
 
 function chainTotalSupply(chain){
   return Number(chain?.tvl || 0) + Number(chain?.borrowed || 0);
@@ -1618,8 +1618,8 @@ function visibleTokens(){
 }
 
 /* Multi-select chain filter — checkbox-style rows like the assets page.
-   Default: all chains selected. Click toggles individual chain.
-   "All Chains" row resets the full selection. Chain icons match
+   Default: All Chains selected, with individual chain rows unchecked.
+   "All Chains" row resets to the empty all-chain selection. Chain icons match
    the rest of the page (icons.llamao.fi). Per-chain counts come from
    chainTokensInUsd so small networks remain selectable. */
 const CHECK_SVG = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>';
@@ -1660,8 +1660,7 @@ function renderChainDropdown(){
   const rows = sortChainsByTotalSupply(CHAINS)
     .map(c=>{
       const n = counts[c.key]||0;
-      const checked  = tokenState.chains.has(c.key) && !allActive ? true
-                     : (allActive && n>0) ? true : false;
+      const checked = !allActive && tokenState.chains.has(c.key);
       // a chain with 0 tokens can still be in the set (no effect on filter),
       // but visually we mark it as empty so users know there's nothing to show
       const disabled = n===0;
@@ -1684,7 +1683,7 @@ function renderChainDropdown(){
   const selectedChains = allActive ? totalChains : tokenState.chains.size;
   if (allActive){
     lbl.textContent = "All Chains";
-    cnt.textContent = `${totalChains}/${totalChains}`;
+    cnt.textContent = `${totalChains}`;
     btn.classList.remove("filtered");
     setTvlChainTriggerIcon(null);
   } else {
@@ -1706,14 +1705,14 @@ function renderChainDropdown(){
       e.stopPropagation();
       const key = opt.dataset.chain;
       if (key === "__all"){
-        tokenState.chains = new Set(CHAINS.map(c=>c.key));
+        tokenState.chains = new Set();
       } else {
         if (opt.dataset.empty === "1") return; // empty rows can't be toggled
         if (isAllChains()) {
           tokenState.chains = new Set([key]);
         } else if (tokenState.chains.has(key)) {
           tokenState.chains.delete(key);
-          if (tokenState.chains.size === 0) tokenState.chains = new Set(CHAINS.map(c=>c.key));
+          if (tokenState.chains.size === 0) tokenState.chains = new Set();
         } else {
           tokenState.chains.add(key);
         }
@@ -1743,7 +1742,7 @@ function initChainDropdown(){
   });
   clr.addEventListener("click", e=>{
     e.stopPropagation();
-    tokenState.chains = new Set(CHAINS.map(c=>c.key));
+    tokenState.chains = new Set();
     tokenState.focus = null;
     renderTokens();
   });
@@ -2234,7 +2233,7 @@ async function bootTvlDashboard(){
   } catch (error) {
     console.warn("TVL: using embedded fallback snapshot", error);
   }
-  tokenState = { chains: new Set(CHAINS.map(c=>c.key)), focus: null };
+  tokenState = { chains: new Set(), focus: null };
   chainsExpanded = false;
   renderChains();
   initChainDropdown();

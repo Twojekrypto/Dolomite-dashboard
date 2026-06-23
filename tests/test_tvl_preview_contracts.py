@@ -166,6 +166,13 @@ class TvlPreviewContractsTest(unittest.TestCase):
         self.assertEqual(result["usdc"], 95000000)
         self.assertEqual(result["arbSupply"], 115000000)
 
+    def test_all_chains_filter_leaves_individual_chains_unchecked(self):
+        text = TVL_PREVIEW.read_text(encoding="utf-8")
+        self.assertIn("let tokenState = { chains: new Set(), focus: null };", text)
+        self.assertIn('const checked = !allActive && tokenState.chains.has(c.key);', text)
+        self.assertNotIn("(allActive && n>0)", text)
+        self.assertIn('tokenState.chains = new Set();', text)
+
 
 if __name__ == "__main__":
     unittest.main()
