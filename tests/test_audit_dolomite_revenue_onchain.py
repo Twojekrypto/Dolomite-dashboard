@@ -1,16 +1,76 @@
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 from audit_dolomite_revenue_onchain import (
     audit_window_for_date,
     build_audit_report,
+    check_endpoint_budget,
     classify_chain_result,
     default_target_date,
+    env_positive_int,
+    resolve_token_price,
+    standard_market_state_from_getters,
 )
+from rpc_client import CHAIN_ENV_KEYS
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class _FakeCall:
+    def __init__(self, value):
+        self.value = value
+        self.blocks = []
+
+    def call(self, block_identifier=None):
+        self.blocks.append(block_identifier)
+        return self.value
+
+
+class _FakeMarketFunctions:
+    def __init__(self):
+        self.start_index = (1_000, 2_000, 100)
+        self.end_index = (1_100, 2_100, 200)
+        self.with_info_called = False
+
+    def getMarket(self, market_id):
+        market = [
+            "0x0000000000000000000000000000000000000001",
+            False,
+            (50, 500),
+            (999, 999, 0),
+            "0x0000000000000000000000000000000000000000",
+            "0x0000000000000000000000000000000000000000",
+            (0,),
+            (0,),
+            (False, 0),
+            (False, 0),
+            (750_000_000_000_000_000,),
+        ]
+        return _FakeCall(market)
+
+    def getMarketTokenAddress(self, market_id):
+        return _FakeCall("0x0000000000000000000000000000000000000002")
+
+    def getMarketTotalPar(self, market_id):
+        return _FakeCall((123, 456))
+
+    def getMarketCurrentIndex(self, market_id):
+        class _IndexCall:
+            def call(_, block_identifier=None):
+                return self.start_index if block_identifier == 100 else self.end_index
+        return _IndexCall()
+
+    def getMarketWithInfo(self, market_id):
+        self.with_info_called = True
+        raise AssertionError("getMarketWithInfo should not be used for revenue audit state")
+
+
+class _FakeContract:
+    def __init__(self):
+        self.functions = _FakeMarketFunctions()
 
 
 class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
@@ -42,12 +102,13 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         result = classify_chain_result(
             "Ethereum",
             defillama={"feesUSD": 10_000.0, "revenueUSD": 2_000.0},
-            onchain={"feesUSD": 10_100.0, "revenueUSD": 2_015.0, "protocolCut": 0.1995},
+            onchain={"feesUSD": 10_100.0, "revenueUSD": 2_015.0, "protocolCut": 0.1995, "priceFallbackCount": 1},
             tolerance_pct=0.02,
             protocol_cut_tolerance=0.002,
         )
 
         self.assertEqual(result["status"], "pass")
+        self.assertEqual(result["priceFallbackCount"], 1)
 
     def test_missing_defillama_chain_total_is_zero_baseline(self):
         result = classify_chain_result(
@@ -73,6 +134,54 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertEqual(result["status"], "warn")
         self.assertIsNone(result["revenueDiffPct"])
         self.assertTrue(result["revenueDiffUnbounded"])
+
+    def test_standard_market_state_uses_getters_without_price_oracle_info(self):
+        contract = _FakeContract()
+
+        state = standard_market_state_from_getters(
+            contract,
+            market_id=6,
+            from_block=100,
+            to_block=200,
+            default_earnings_rate=850_000_000_000_000_000,
+        )
+
+        self.assertFalse(contract.functions.with_info_called)
+        self.assertEqual(state["token"], "0x0000000000000000000000000000000000000002")
+        self.assertEqual(state["borrowPar"], 123)
+        self.assertEqual(state["startBorrowIndex"], 1_000)
+        self.assertEqual(state["endBorrowIndex"], 1_100)
+        self.assertEqual(state["earningsRate"], 750_000_000_000_000_000)
+
+    def test_stable_symbol_price_fallback_is_explicit(self):
+        price, source = resolve_token_price({"symbol": "USDa"}, None)
+
+        self.assertEqual(str(price), "1")
+        self.assertEqual(source, "stable-symbol-fallback")
+
+    def test_non_stable_missing_price_stays_missing(self):
+        price, source = resolve_token_price({"symbol": "WBERA"}, None)
+
+        self.assertIsNone(price)
+        self.assertIsNone(source)
+
+    def test_endpoint_budget_marks_slow_rpc_as_failed_endpoint(self):
+        with mock.patch("audit_dolomite_revenue_onchain.REVENUE_AUDIT_ENDPOINT_BUDGET_SECONDS", 10), \
+             mock.patch("audit_dolomite_revenue_onchain.time.monotonic", return_value=25):
+            with self.assertRaises(TimeoutError) as exc:
+                check_endpoint_budget(endpoint_started_at=10, stage="reading market 7")
+
+        self.assertIn("endpoint budget exceeded", str(exc.exception))
+        self.assertIn("reading market 7", str(exc.exception))
+
+    def test_env_positive_int_ignores_invalid_values(self):
+        with mock.patch.dict("os.environ", {"REVENUE_AUDIT_RPC_TIMEOUT_SECONDS": "oops"}):
+            self.assertEqual(env_positive_int("REVENUE_AUDIT_RPC_TIMEOUT_SECONDS", 20), 20)
+
+    def test_rpc_client_includes_revenue_audit_archive_secret_fallbacks(self):
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN", CHAIN_ENV_KEYS["arbitrum"])
+        self.assertIn("QUICKNODE_BERACHAIN_RPC_2", CHAIN_ENV_KEYS["berachain"])
+        self.assertIn("DRPC_BERACHAIN_RPC_ZEN", CHAIN_ENV_KEYS["berachain"])
 
     def test_report_is_partial_when_only_some_chains_are_audited(self):
         report = build_audit_report(
@@ -140,6 +249,9 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertIn("python3 audit_dolomite_revenue_onchain.py", workflow)
         self.assertIn("data/dolomite-revenue-onchain-audit.json", workflow)
         self.assertIn("git add data/dolomite-revenue-onchain-audit.json dolomite_revenue.json", workflow)
+        self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
+        self.assertIn("QUICKNODE_BERACHAIN_RPC_2", workflow)
+        self.assertIn("DRPC_BERACHAIN_RPC_ZEN", workflow)
 
     def test_pages_redeploys_after_revenue_audit_workflow(self):
         workflow = (ROOT / ".github/workflows/pages.yml").read_text(encoding="utf-8")

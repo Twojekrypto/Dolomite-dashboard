@@ -31,10 +31,58 @@ DEFAULT_OUTPUT_FILE = os.path.join(ROOT, "data", "dolomite-revenue-onchain-audit
 SECONDS_PER_DAY = 86_400
 ONE = Decimal(10) ** 18
 
+
+def env_positive_int(name, default):
+    try:
+        value = int(os.environ.get(name, "") or default)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+REVENUE_AUDIT_RPC_TIMEOUT_SECONDS = env_positive_int("REVENUE_AUDIT_RPC_TIMEOUT_SECONDS", 20)
+REVENUE_AUDIT_ENDPOINT_BUDGET_SECONDS = env_positive_int("REVENUE_AUDIT_ENDPOINT_BUDGET_SECONDS", 180)
+STABLE_PRICE_FALLBACK_SYMBOL_KEYS = {
+    "HONEY",
+    "NECT",
+}
+
 DOLOMITE_MARGIN_ABI = [
     {"inputs": [], "name": "getNumMarkets", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
     {"inputs": [], "name": "getEarningsRate", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
     {"inputs": [{"type": "uint256", "name": "marketId"}], "name": "getMarketTokenAddress", "outputs": [{"type": "address"}], "stateMutability": "view", "type": "function"},
+    {
+        "inputs": [{"type": "uint256", "name": "marketId"}],
+        "name": "getMarket",
+        "outputs": [
+            {
+                "components": [
+                    {"name": "token", "type": "address"},
+                    {"name": "isClosing", "type": "bool"},
+                    {
+                        "components": [{"name": "borrow", "type": "uint128"}, {"name": "supply", "type": "uint128"}],
+                        "name": "totalPar",
+                        "type": "tuple",
+                    },
+                    {
+                        "components": [{"name": "borrow", "type": "uint112"}, {"name": "supply", "type": "uint112"}, {"name": "lastUpdate", "type": "uint32"}],
+                        "name": "index",
+                        "type": "tuple",
+                    },
+                    {"name": "priceOracle", "type": "address"},
+                    {"name": "interestSetter", "type": "address"},
+                    {"components": [{"name": "value", "type": "uint256"}], "name": "marginPremium", "type": "tuple"},
+                    {"components": [{"name": "value", "type": "uint256"}], "name": "liquidationSpreadPremium", "type": "tuple"},
+                    {"components": [{"name": "sign", "type": "bool"}, {"name": "value", "type": "uint256"}], "name": "maxSupplyWei", "type": "tuple"},
+                    {"components": [{"name": "sign", "type": "bool"}, {"name": "value", "type": "uint256"}], "name": "maxBorrowWei", "type": "tuple"},
+                    {"components": [{"name": "value", "type": "uint256"}], "name": "earningsRateOverride", "type": "tuple"},
+                ],
+                "type": "tuple",
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function",
+    },
     {
         "inputs": [{"type": "uint256", "name": "marketId"}],
         "name": "getMarketTotalPar",
@@ -208,6 +256,7 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
         "protocolCutDiff": round(protocol_cut_diff, 8),
         "rawTokenCount": len(onchain.get("rawTokens") or []),
         "rawTokens": onchain.get("rawTokens") or [],
+        "priceFallbackCount": int(onchain.get("priceFallbackCount") or 0),
     }
     if defillama_chain_missing:
         result["defillamaChainMissing"] = True
@@ -296,14 +345,26 @@ def revenue_chain_totals(revenue_data, target_date):
     raise ValueError(f"No dolomite_revenue.json row for target date {target_date}")
 
 
+def check_endpoint_budget(endpoint_started_at, stage):
+    if not endpoint_started_at or REVENUE_AUDIT_ENDPOINT_BUDGET_SECONDS <= 0:
+        return
+    elapsed = time.monotonic() - endpoint_started_at
+    if elapsed > REVENUE_AUDIT_ENDPOINT_BUDGET_SECONDS:
+        raise TimeoutError(
+            f"endpoint budget exceeded after {elapsed:.1f}s "
+            f"while {stage} (limit {REVENUE_AUDIT_ENDPOINT_BUDGET_SECONDS}s)"
+        )
+
+
 def block_timestamp(w3, block_number):
     return int(w3.eth.get_block(int(block_number))["timestamp"])
 
 
-def find_block_at_or_before(w3, timestamp):
+def find_block_at_or_before(w3, timestamp, endpoint_started_at=None):
     low = 1
     high = int(w3.eth.block_number)
     while low < high:
+        check_endpoint_budget(endpoint_started_at, "searching historical block")
         mid = (low + high + 1) // 2
         if block_timestamp(w3, mid) <= timestamp:
             low = mid
@@ -313,7 +374,7 @@ def find_block_at_or_before(w3, timestamp):
 
 
 def make_web3(endpoint, config):
-    w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": 25}))
+    w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": REVENUE_AUDIT_RPC_TIMEOUT_SECONDS}))
     if config.get("poa"):
         w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
     return w3
@@ -330,6 +391,41 @@ def token_metadata(w3, token, block_identifier):
     except Exception:
         decimals = 18
     return str(symbol), decimals
+
+
+def decimal_struct_value(value):
+    if isinstance(value, (list, tuple)) and value:
+        return int(value[0])
+    return int(value or 0)
+
+
+def standard_market_state_from_getters(contract, market_id, from_block, to_block, default_earnings_rate):
+    market = contract.functions.getMarket(market_id).call(block_identifier=from_block)
+    token = contract.functions.getMarketTokenAddress(market_id).call(block_identifier=to_block)
+    total_par = contract.functions.getMarketTotalPar(market_id).call(block_identifier=from_block)
+    start_index = contract.functions.getMarketCurrentIndex(market_id).call(block_identifier=from_block)
+    end_index = contract.functions.getMarketCurrentIndex(market_id).call(block_identifier=to_block)
+    override = decimal_struct_value(market[10]) if len(market) > 10 else 0
+    return {
+        "token": token,
+        "borrowPar": int(total_par[0]),
+        "startBorrowIndex": int(start_index[0]),
+        "endBorrowIndex": int(end_index[0]),
+        "earningsRate": override if override else default_earnings_rate,
+    }
+
+
+def normalized_symbol(symbol):
+    return "".join(ch for ch in str(symbol or "").upper() if ch.isalnum())
+
+
+def resolve_token_price(row, price):
+    if price is not None:
+        return price, "coins-llama"
+    symbol_key = normalized_symbol(row.get("symbol"))
+    if symbol_key in STABLE_PRICE_FALLBACK_SYMBOL_KEYS or symbol_key.startswith("USD") or symbol_key.endswith("USD"):
+        return Decimal("1"), "stable-symbol-fallback"
+    return None, None
 
 
 def fetch_historical_prices(timestamp, coin_ids):
@@ -350,14 +446,17 @@ def fetch_historical_prices(timestamp, coin_ids):
     return prices
 
 
-def market_interest_rows(w3, config, from_block, to_block):
+def market_interest_rows(w3, config, from_block, to_block, endpoint_started_at=None):
     margin = Web3.to_checksum_address(config["margin"])
     contract = w3.eth.contract(address=margin, abi=DOLOMITE_MARGIN_ABI)
+    check_endpoint_budget(endpoint_started_at, "reading market count")
     market_count = int(contract.functions.getNumMarkets().call(block_identifier=from_block))
+    check_endpoint_budget(endpoint_started_at, "reading default earnings rate")
     default_earnings_rate = int(contract.functions.getEarningsRate().call(block_identifier=from_block))
     rows = []
 
     for market_id in range(market_count):
+        check_endpoint_budget(endpoint_started_at, f"reading market {market_id}")
         if config["mode"] == "arbitrum":
             token = contract.functions.getMarketTokenAddress(market_id).call(block_identifier=to_block)
             total_par = contract.functions.getMarketTotalPar(market_id).call(block_identifier=from_block)
@@ -368,22 +467,17 @@ def market_interest_rows(w3, config, from_block, to_block):
             end_borrow_index = int(end_index[0])
             earnings_rate = default_earnings_rate
         else:
-            start = contract.functions.getMarketWithInfo(market_id).call(block_identifier=from_block)
-            end = contract.functions.getMarketWithInfo(market_id).call(block_identifier=to_block)
-            start_market = start[0]
-            end_market = end[0]
-            start_current_index = start[1]
-            end_current_index = end[1]
-            token = end_market[0]
-            borrow_par = int(start_market[2][0])
-            start_borrow_index = int(start_current_index[0])
-            end_borrow_index = int(end_current_index[0])
-            override = int(start_market[10][0])
-            earnings_rate = override if override else default_earnings_rate
+            state = standard_market_state_from_getters(contract, market_id, from_block, to_block, default_earnings_rate)
+            token = state["token"]
+            borrow_par = state["borrowPar"]
+            start_borrow_index = state["startBorrowIndex"]
+            end_borrow_index = state["endBorrowIndex"]
+            earnings_rate = state["earningsRate"]
 
         interest_raw = (end_borrow_index - start_borrow_index) * borrow_par // 10**18
         if interest_raw <= 0:
             continue
+        check_endpoint_budget(endpoint_started_at, f"reading token metadata for market {market_id}")
         symbol, decimals = token_metadata(w3, token, to_block)
         amount = Decimal(interest_raw) / (Decimal(10) ** decimals)
         protocol_fraction = (ONE - Decimal(earnings_rate)) / ONE
@@ -413,23 +507,27 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
     last_error = None
     for endpoint in endpoints:
         try:
+            endpoint_started_at = time.monotonic()
             w3 = make_web3(endpoint, config)
-            from_block = find_block_at_or_before(w3, window_start_timestamp)
-            to_block = find_block_at_or_before(w3, target_timestamp)
-            rows = market_interest_rows(w3, config, from_block, to_block)
+            from_block = find_block_at_or_before(w3, window_start_timestamp, endpoint_started_at)
+            to_block = find_block_at_or_before(w3, target_timestamp, endpoint_started_at)
+            rows = market_interest_rows(w3, config, from_block, to_block, endpoint_started_at)
             coin_ids = [f"{config['coinChain']}:{row['token'].lower()}" for row in rows]
             prices = fetch_historical_prices(target_timestamp, coin_ids)
             fee_usd = Decimal(0)
             revenue_usd = Decimal(0)
             raw_tokens = []
             missing_price_count = 0
+            price_fallback_count = 0
             for row, coin_id in zip(rows, coin_ids):
-                price = prices.get(coin_id)
+                price, price_source = resolve_token_price(row, prices.get(coin_id))
                 fee_amount = row["borrowInterestAmount"]
                 revenue_amount = row["protocolRevenueAmount"]
                 if price is not None:
                     fee_usd += fee_amount * price
                     revenue_usd += revenue_amount * price
+                    if price_source != "coins-llama":
+                        price_fallback_count += 1
                 else:
                     missing_price_count += 1
                 raw_tokens.append({
@@ -439,6 +537,7 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
                     "borrowInterestAmount": str(row["borrowInterestAmount"]),
                     "protocolRevenueAmount": str(row["protocolRevenueAmount"]),
                     "priceUSD": float(price) if price is not None else None,
+                    "priceSource": price_source,
                 })
             if missing_price_count:
                 return {
@@ -447,6 +546,7 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
                     "fromBlock": from_block,
                     "toBlock": to_block,
                     "rawTokens": raw_tokens,
+                    "priceFallbackCount": price_fallback_count,
                     "rpcHost": rpc_client.safe_host(endpoint),
                 }
             protocol_cut = revenue_usd / fee_usd if fee_usd else Decimal(0)
@@ -458,6 +558,7 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
                 "revenueUSD": float(revenue_usd),
                 "protocolCut": float(protocol_cut),
                 "rawTokens": raw_tokens,
+                "priceFallbackCount": price_fallback_count,
                 "rpcHost": rpc_client.safe_host(endpoint),
             }
         except Exception as exc:
