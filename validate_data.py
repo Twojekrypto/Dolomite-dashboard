@@ -440,6 +440,46 @@ def _dolomite_revenue_liquidator_earnings_match_history(data):
     return True
 
 
+def _dolomite_revenue_onchain_audit_valid(data):
+    statuses = {"pass", "warn", "partial", "missing"}
+    status = data.get("status")
+    chains = data.get("chains")
+    summary = data.get("summary") or {}
+    if (
+        data.get("schemaVersion") != 1
+        or status not in statuses
+        or not _is_iso_datetime(data.get("generatedAt"))
+        or not isinstance(chains, dict)
+        or not chains
+    ):
+        return False
+
+    chain_statuses = [item.get("status") for item in chains.values() if isinstance(item, dict)]
+    if len(chain_statuses) != len(chains) or any(item not in statuses for item in chain_statuses):
+        return False
+
+    audited = sum(1 for item in chain_statuses if item in {"pass", "warn"})
+    warn = chain_statuses.count("warn")
+    missing = chain_statuses.count("missing")
+    passed = chain_statuses.count("pass")
+    expected_summary = {
+        "auditedChainCount": audited,
+        "passChainCount": passed,
+        "warnChainCount": warn,
+        "missingChainCount": missing,
+    }
+    if any(summary.get(key) != value for key, value in expected_summary.items()):
+        return False
+
+    if status == "warn":
+        return warn > 0
+    if status == "partial":
+        return audited > 0 and missing > 0 and warn == 0
+    if status == "pass":
+        return audited > 0 and missing == 0 and warn == 0
+    return audited == 0
+
+
 def _dolomite_revenue_totals_valid(data):
     totals = data.get("totals", {})
     latest = data.get("latest", {})
@@ -717,6 +757,13 @@ RULES = {
             ("liquidator earnings must match liquidation history", _dolomite_revenue_liquidator_earnings_match_history),
         ],
         "min_bytes": 10_000,
+    },
+    "dolomite-revenue-onchain-audit.json": {
+        "required_keys": ["schemaVersion", "generatedAt", "targetDate", "targetTimestamp", "windowStartTimestamp", "windowEndTimestamp", "tolerancePct", "status", "summary", "methodology", "chains"],
+        "checks": [
+            ("onchain audit shape and status rollup must be valid", _dolomite_revenue_onchain_audit_valid),
+        ],
+        "min_bytes": 500,
     },
     "vedolo_stats.json": {
         "required_keys": ["stats", "timestamp"],

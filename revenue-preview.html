@@ -217,6 +217,10 @@ h1{
 .hero-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
 .hero-live{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:inline-flex;align-items:center;gap:6px}
 .hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.hero-live.audit-warn{color:#f0b35a}
+.hero-live.audit-warn .dot{background:#f59e0b;box-shadow:0 0 8px rgba(245,158,11,.65)}
+.hero-live.audit-pass{color:#8ad7b0}
+.hero-live.audit-pass .dot{background:#10b981;box-shadow:0 0 8px rgba(16,185,129,.55)}
 .hero-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .hero-value{
   font-family:var(--mono);font-size:clamp(44px,6vw,62px);
@@ -1930,6 +1934,7 @@ h1{
   }
   function renderHero(){
     const totals = revenueData.totals || {};
+    const assurance = revenueData.assurance || {};
     const dailyRevenue = n(totals.dailyRevenueUSD);
     const previousRevenue = n(totals.previousDailyRevenueUSD);
     const change = previousRevenue > 0 ? (dailyRevenue - previousRevenue) / previousRevenue : 0;
@@ -1951,7 +1956,17 @@ h1{
     const fresh = qs("freshPill");
     if (fresh) {
       const text = fresh.querySelector("span:last-child");
-      if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt) + " · DeFiLlama estimate";
+      const status = String(assurance.onchainAuditStatus || "not_run").toLowerCase();
+      const auditLabel = status === "pass"
+        ? "onchain audit PASS"
+        : status === "warn"
+          ? "onchain audit WARN"
+          : status === "partial"
+            ? "onchain audit PARTIAL"
+            : "onchain audit pending";
+      fresh.classList.toggle("audit-pass", status === "pass");
+      fresh.classList.toggle("audit-warn", status === "warn" || status === "partial");
+      if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt) + " · DeFiLlama estimate · " + auditLabel;
     }
   }
   function renderChains(){

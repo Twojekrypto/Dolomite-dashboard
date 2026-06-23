@@ -1,0 +1,76 @@
+name: Audit Dolomite Revenue Onchain
+
+on:
+  schedule:
+    - cron: '37 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: audit-dolomite-revenue-onchain
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run onchain revenue audit
+        run: python3 audit_dolomite_revenue_onchain.py
+        env:
+          ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
+          ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
+          ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 }}
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+          ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
+          ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
+          ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
+          ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
+          ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
+          ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}
+          DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}
+          POLYGONZKEVM_RPC: ${{ secrets.POLYGONZKEVM_RPC }}
+          POLYGONZKEVM_RPC_2: ${{ secrets.POLYGONZKEVM_RPC_2 }}
+
+      - name: Rebuild revenue data with audit assurance
+        run: python3 fetch_dolomite_revenue.py
+
+      - name: Validate revenue data
+        run: python3 validate_data.py data/dolomite-revenue-onchain-audit.json dolomite_revenue.json
+
+      - name: Commit & push audit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/dolomite-revenue-onchain-audit.json dolomite_revenue.json
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Audit Dolomite revenue onchain: $(date -u '+%Y-%m-%d %H:%M UTC')"
+          pushed=false
+          for i in $(seq 1 12); do
+            if git pull --rebase -X theirs origin master && git push origin HEAD:master; then pushed=true; break; fi
+            sleep_for=$((5 + i))
+            if [ "$sleep_for" -gt 30 ]; then sleep_for=30; fi
+            sleep_for=$((sleep_for + (RANDOM % 4)))
+            echo "Push attempt $i failed, retrying after ${sleep_for}s..."
+            sleep "$sleep_for"
+          done
+          if [ "$pushed" != "true" ]; then echo "::error::Failed to push after 12 attempts. Revenue audit NOT published"; exit 1; fi
