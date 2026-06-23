@@ -477,6 +477,20 @@ def _incremental_prior_cycle_complete(args: argparse.Namespace) -> bool:
         return True
     if not isinstance(status, dict) or not status:
         return True
+    max_delta_scan_blocks_per_task = int(getattr(args, "max_delta_scan_blocks_per_task", 0) or 0)
+    if not status.get("complete") and max_delta_scan_blocks_per_task > 0:
+        state = _read_json(args.history_dir / ".incremental-plans" / f"{args.chain}-runner-state.json", {})
+        plan_path = Path(str(state.get("planPath") or ""))
+        if _incomplete_cycle_exceeds_scan_task_span(
+            plan_path,
+            max_delta_scan_blocks_per_task=max_delta_scan_blocks_per_task,
+        ):
+            print(
+                f"♻️ {args.chain}: incomplete cycle scan tasks exceed "
+                f"{max_delta_scan_blocks_per_task} blocks; starting smaller-block plan",
+                flush=True,
+            )
+            return True
     max_resume_target_lag_blocks = int(getattr(args, "max_resume_target_lag_blocks", 0) or 0)
     if not status.get("complete") and max_resume_target_lag_blocks > 0:
         try:
@@ -516,6 +530,24 @@ def _target_lag_exceeds_resume_budget(
     return (int(current_target_block) - prior_target_block) > int(max_resume_target_lag_blocks)
 
 
+def _incomplete_cycle_exceeds_scan_task_span(
+    plan_path: Path,
+    *,
+    max_delta_scan_blocks_per_task: int,
+) -> bool:
+    if max_delta_scan_blocks_per_task <= 0 or not plan_path.exists():
+        return False
+    plan = _read_json(plan_path, {})
+    for task in (plan.get("scanTasks") or []):
+        try:
+            span = int(task.get("toBlock")) - int(task.get("fromBlock")) + 1
+        except Exception:
+            continue
+        if span > int(max_delta_scan_blocks_per_task):
+            return True
+    return False
+
+
 def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]) -> dict:
     complete = False
     payload: Optional[dict] = None
@@ -539,6 +571,8 @@ def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]
             str(args.max_incremental_apply_workers),
             "--max-new-backfill-workers",
             str(args.max_new_backfill_workers),
+            "--max-scan-blocks-per-task",
+            str(args.max_delta_scan_blocks_per_task),
             "--json",
         ]
         if step == 0 and start_fresh_plan:
@@ -589,6 +623,7 @@ def main() -> int:
     parser.add_argument("--sleep-seconds", type=int, default=20)
     parser.add_argument("--command-timeout-seconds", type=int, default=600)
     parser.add_argument("--max-resume-target-lag-blocks", type=int, default=0)
+    parser.add_argument("--max-delta-scan-blocks-per-task", type=int, default=0)
     parser.add_argument("--min-fresh-ratio", type=float, default=1.0)
     parser.add_argument("--allow-empty", action="store_true")
     parser.add_argument("--skip-unsupported-start-block", action="store_true")

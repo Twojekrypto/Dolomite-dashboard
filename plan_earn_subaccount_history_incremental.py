@@ -119,6 +119,7 @@ def build_incremental_plan(
     max_apply_workers: Optional[int],
     max_new_backfill_workers: Optional[int],
     selection_address_file: Optional[Path] = None,
+    max_scan_blocks_per_task: Optional[int] = None,
 ) -> dict:
     known_addresses = sorted(set(_load_known_addresses(chain)))
     selected_addresses = _read_address_file(selection_address_file)
@@ -174,17 +175,21 @@ def build_incremental_plan(
     scan_workers = _worker_counts(max_scan_workers)[-1]
     apply_workers = _worker_counts(max_apply_workers)[-1]
     new_backfill_workers = _worker_counts(max_new_backfill_workers)[-1]
+    scan_block_span = int(max_scan_blocks_per_task or 0)
 
     scan_tasks = []
     if delta_required and tracked_addresses:
         total_blocks = target_block - delta_from_block + 1
-        shard_size = math.ceil(total_blocks / max(1, scan_workers))
+        scan_task_count = scan_workers
+        if scan_block_span > 0:
+            scan_task_count = max(scan_workers, math.ceil(total_blocks / scan_block_span))
+        shard_size = math.ceil(total_blocks / max(1, scan_task_count))
         current_start = delta_from_block
-        for idx in range(scan_workers):
+        for idx in range(scan_task_count):
             shard_end = min(target_block, current_start + shard_size - 1)
             if current_start > shard_end:
                 break
-            progress_key = f"d{idx + 1}of{scan_workers}"
+            progress_key = f"d{idx + 1}of{scan_task_count}"
             scan_tasks.append({
                 "progressKey": progress_key,
                 "fromBlock": int(current_start),
@@ -270,6 +275,8 @@ def build_incremental_plan(
         "trackedAddressFile": str(tracked_address_file),
         "selectionAddressFile": str(selection_address_file) if selection_address_file else None,
         "selectionAddressCount": len(current_known),
+        "maxScanWorkers": int(scan_workers),
+        "maxScanBlocksPerTask": int(scan_block_span) if scan_block_span > 0 else None,
         "scanTasks": scan_tasks,
         "newAddressTasks": new_address_tasks,
         "applyTasks": apply_tasks,
