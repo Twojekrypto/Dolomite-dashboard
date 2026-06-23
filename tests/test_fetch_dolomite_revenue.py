@@ -90,13 +90,14 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             onchain_audit={
                 "status": "warn",
                 "targetDate": "2026-06-21",
-                "summary": {"maxRevenueDiffPct": 0.031},
+                "summary": {"maxRevenueDiffPct": 0.031, "revenueDiffUnbounded": True},
             },
         )
 
         self.assertEqual(output["assurance"]["onchainAuditStatus"], "warn")
         self.assertEqual(output["assurance"]["onchainAuditTargetDate"], "2026-06-21")
         self.assertEqual(output["assurance"]["onchainAuditMaxRevenueDiffPct"], 0.031)
+        self.assertTrue(output["assurance"]["onchainAuditRevenueDiffUnbounded"])
 
     def test_validator_rejects_stale_liquidator_earnings_snapshot(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)

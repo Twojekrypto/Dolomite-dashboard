@@ -235,8 +235,8 @@ def build_audit_report(target_date, target_timestamp, window_start_timestamp, ch
         for result in chain_results.values()
         if result.get("status") in {"pass", "warn"} and not result.get("feesDiffUnbounded")
     ]
-    max_revenue_diff = None if revenue_unbounded else round(max(revenue_diffs or [0.0]), 8)
-    max_fees_diff = None if fees_unbounded else round(max(fees_diffs or [0.0]), 8)
+    max_revenue_diff = round(max(revenue_diffs or [0.0]), 8)
+    max_fees_diff = round(max(fees_diffs or [0.0]), 8)
     if warn_count:
         status = "warn"
     elif audited_count and missing_count:
