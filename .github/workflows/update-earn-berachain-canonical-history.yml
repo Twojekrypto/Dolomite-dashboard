@@ -34,6 +34,7 @@ jobs:
       CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '24' }}
       CHECKPOINT_SLEEP_SECONDS: '20'
       COMMAND_TIMEOUT_SECONDS: '180'
+      MAX_RESUME_TARGET_LAG_BLOCKS: '3600'
       ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
       QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
       DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
@@ -120,6 +121,9 @@ jobs:
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           )
+          if [ "$has_public_baseline" = "true" ]; then
+            selector_args+=(--existing-history-only)
+          fi
           "${selector_args[@]}"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
@@ -139,6 +143,7 @@ jobs:
             --max-steps "$CHECKPOINT_STEPS" \
             --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \
             --command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS" \
+            --max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS" \
             --allow-empty \
             --skip-unsupported-start-block \
             --allow-checkpoint-incomplete \

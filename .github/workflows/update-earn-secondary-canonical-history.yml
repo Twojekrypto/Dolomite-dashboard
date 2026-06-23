@@ -74,6 +74,7 @@ jobs:
                   "incremental_scan_workers": 6,
                   "incremental_apply_workers": 6,
                   "checkpoint_steps": positive_int(checkpoint_steps_override, 30),
+                  "max_resume_target_lag_blocks": 3600,
               },
               "botanix": {
                   "chain": "botanix",
@@ -84,6 +85,7 @@ jobs:
                   "incremental_scan_workers": 4,
                   "incremental_apply_workers": 4,
                   "checkpoint_steps": positive_int(checkpoint_steps_override, 45),
+                  "max_resume_target_lag_blocks": 1200,
               },
               "polygonzkevm": {
                   "chain": "polygonzkevm",
@@ -94,6 +96,7 @@ jobs:
                   "incremental_scan_workers": 5,
                   "incremental_apply_workers": 5,
                   "checkpoint_steps": positive_int(checkpoint_steps_override, 45),
+                  "max_resume_target_lag_blocks": 2250,
               },
               "xlayer": {
                   "chain": "xlayer",
@@ -104,6 +107,7 @@ jobs:
                   "incremental_scan_workers": 5,
                   "incremental_apply_workers": 5,
                   "checkpoint_steps": positive_int(checkpoint_steps_override, 45),
+                  "max_resume_target_lag_blocks": 7200,
               },
           }
           event_name = os.environ.get("EVENT_NAME") or ""
@@ -156,6 +160,7 @@ jobs:
       INCREMENTAL_SCAN_WORKERS: ${{ matrix.incremental_scan_workers }}
       INCREMENTAL_APPLY_WORKERS: ${{ matrix.incremental_apply_workers }}
       CHECKPOINT_STEPS: ${{ matrix.checkpoint_steps }}
+      MAX_RESUME_TARGET_LAG_BLOCKS: ${{ matrix.max_resume_target_lag_blocks }}
       CHECKPOINT_SLEEP_SECONDS: '20'
       COMMAND_TIMEOUT_SECONDS: '180'
       MANTLE_RPC: ${{ secrets.MANTLE_RPC }}
@@ -251,6 +256,7 @@ jobs:
             --limit "$HOT_LIMIT" \
             --priority-address-file config/earn_canonical_priority_addresses.txt \
             --include-priority-even-if-unknown \
+            --existing-history-only \
             --prefer-stale-history \
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
@@ -272,6 +278,7 @@ jobs:
             --max-steps "$CHECKPOINT_STEPS" \
             --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \
             --command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS" \
+            --max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS" \
             --allow-empty \
             --skip-unsupported-start-block \
             --allow-checkpoint-incomplete \

@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from build_earn_subaccount_history import _read_json
+from plan_earn_data_correctness import _resolve_target_block
 from scan_earn_netflow import CHAINS
 
 
@@ -476,7 +477,43 @@ def _incremental_prior_cycle_complete(args: argparse.Namespace) -> bool:
         return True
     if not isinstance(status, dict) or not status:
         return True
+    max_resume_target_lag_blocks = int(getattr(args, "max_resume_target_lag_blocks", 0) or 0)
+    if not status.get("complete") and max_resume_target_lag_blocks > 0:
+        try:
+            current_target_block = int(_resolve_target_block(args.chain, None))
+        except Exception as exc:
+            print(f"⚠️ target-lag guard failed ({exc}); resuming existing cycle", flush=True)
+        else:
+            if _target_lag_exceeds_resume_budget(
+                status,
+                current_target_block=current_target_block,
+                max_resume_target_lag_blocks=max_resume_target_lag_blocks,
+            ):
+                print(
+                    f"♻️ {args.chain}: incomplete cycle target is stale "
+                    f"(target={status.get('targetBlock')}, current={current_target_block}, "
+                    f"budget={max_resume_target_lag_blocks} blocks); starting fresh plan",
+                    flush=True,
+                )
+                return True
     return bool(status.get("complete"))
+
+
+def _target_lag_exceeds_resume_budget(
+    status: dict,
+    *,
+    current_target_block: int,
+    max_resume_target_lag_blocks: int,
+) -> bool:
+    if max_resume_target_lag_blocks <= 0:
+        return False
+    try:
+        prior_target_block = int(status.get("targetBlock") or 0)
+    except Exception:
+        return False
+    if prior_target_block <= 0 or current_target_block <= prior_target_block:
+        return False
+    return (int(current_target_block) - prior_target_block) > int(max_resume_target_lag_blocks)
 
 
 def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]) -> dict:
@@ -551,6 +588,7 @@ def main() -> int:
     parser.add_argument("--max-steps", type=int, default=720)
     parser.add_argument("--sleep-seconds", type=int, default=20)
     parser.add_argument("--command-timeout-seconds", type=int, default=600)
+    parser.add_argument("--max-resume-target-lag-blocks", type=int, default=0)
     parser.add_argument("--min-fresh-ratio", type=float, default=1.0)
     parser.add_argument("--allow-empty", action="store_true")
     parser.add_argument("--skip-unsupported-start-block", action="store_true")

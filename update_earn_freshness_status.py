@@ -2,7 +2,7 @@
 """Build the public EARN freshness status and watchdog trigger plan.
 
 The dashboard treats canonical EARN history as verified while it is within the
-per-chain three-hour block window. This script turns that rule into an
+per-chain two-hour block window. This script turns that rule into an
 operational status file and tells GitHub Actions which refresh workflows should
 be triggered when data starts drifting.
 """
@@ -21,15 +21,15 @@ from scan_earn_netflow import CHAINS, get_block_number
 ROOT = Path(__file__).resolve().parent
 DEFAULT_OUTPUT = ROOT / "data" / "earn-freshness" / "status.json"
 
-REFRESH_AFTER_MINUTES = 60
-VERIFIED_AFTER_HOURS = 3
-STALE_AFTER_HOURS = 4
+REFRESH_AFTER_MINUTES = 30
+VERIFIED_AFTER_HOURS = 2
+STALE_AFTER_HOURS = 3
 
 CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "ethereum": {
         "label": "Ethereum",
         "blockTimeSeconds": 12.0,
-        "verifiedBlockLag": 900,
+        "verifiedBlockLag": 600,
         "canonicalWorkflow": "update-earn-ethereum-canonical-history.yml",
         "canonicalSupported": True,
         "canonicalCoverageCompleteness": "required",
@@ -37,8 +37,8 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "berachain": {
         "label": "Berachain",
         "blockTimeSeconds": 2.0,
-        "verifiedBlockLag": 5400,
-        "refreshAfterMinutes": 60,
+        "verifiedBlockLag": 3600,
+        "refreshAfterMinutes": 30,
         "canonicalWorkflow": "update-earn-berachain-canonical-history.yml",
         "netflowWorkflow": "update-earn-berachain-netflow.yml",
         "canonicalSupported": True,
@@ -47,7 +47,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "arbitrum": {
         "label": "Arbitrum",
         "blockTimeSeconds": 0.25,
-        "verifiedBlockLag": 43200,
+        "verifiedBlockLag": 28800,
         "canonicalWorkflow": "update-earn-arbitrum-canonical-history.yml",
         "canonicalSupported": True,
         "canonicalCoverageCompleteness": "advisory",
@@ -55,7 +55,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "botanix": {
         "label": "Botanix",
         "blockTimeSeconds": 6.0,
-        "verifiedBlockLag": 1800,
+        "verifiedBlockLag": 1200,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "botanix"},
         "canonicalSupported": True,
@@ -64,7 +64,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "mantle": {
         "label": "Mantle",
         "blockTimeSeconds": 2.0,
-        "verifiedBlockLag": 5400,
+        "verifiedBlockLag": 3600,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "mantle"},
         "canonicalSupported": True,
@@ -73,7 +73,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "polygonzkevm": {
         "label": "Polygon zkEVM",
         "blockTimeSeconds": 3.2,
-        "verifiedBlockLag": 3400,
+        "verifiedBlockLag": 2250,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "polygonzkevm"},
         "canonicalSupported": True,
@@ -82,7 +82,7 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "xlayer": {
         "label": "X Layer",
         "blockTimeSeconds": 1.0,
-        "verifiedBlockLag": 10800,
+        "verifiedBlockLag": 7200,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "xlayer"},
         "canonicalSupported": True,
