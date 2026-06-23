@@ -79,6 +79,25 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
+    def test_build_output_embeds_latest_onchain_audit_status(self):
+        revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
+        fees_data = metric_payload(total24h=500, latest_value=500, step=10)
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            {},
+            onchain_audit={
+                "status": "warn",
+                "targetDate": "2026-06-21",
+                "summary": {"maxRevenueDiffPct": 0.031},
+            },
+        )
+
+        self.assertEqual(output["assurance"]["onchainAuditStatus"], "warn")
+        self.assertEqual(output["assurance"]["onchainAuditTargetDate"], "2026-06-21")
+        self.assertEqual(output["assurance"]["onchainAuditMaxRevenueDiffPct"], 0.031)
+
     def test_validator_rejects_stale_liquidator_earnings_snapshot(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
         fees_data = metric_payload(total24h=500, latest_value=500, step=10)

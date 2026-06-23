@@ -37,6 +37,7 @@ CHAIN_ENV_KEYS = {
     "mantle": ["ALCHEMY_MANTLE_RPC", "ALCHEMY_MANTLE_RPC_2"],
     "xlayer": ["ALCHEMY_XLAYER_RPC"],
     "botanix": ["ALCHEMY_BOTANIX_RPC", "ALCHEMY_BOTANIX_RPC_2", "ALCHEMY_BOTANIX_RPC_3"],
+    "polygon_zkevm": ["ALCHEMY_POLYGONZKEVM_RPC_ZEN", "DRP_POLYGONZKEVM_RPC_TWO", "POLYGONZKEVM_RPC", "POLYGONZKEVM_RPC_2"],
 }
 
 PUBLIC_ENDPOINTS = {
@@ -68,6 +69,10 @@ PUBLIC_ENDPOINTS = {
         # ankr is a fallback that can reject large ranges.
         "https://rpc.botanixlabs.com",
         "https://rpc.ankr.com/botanix_mainnet",
+    ],
+    "polygon_zkevm": [
+        "https://zkevm-rpc.com/",
+        "https://polygon-zkevm-rpc.publicnode.com/",
     ],
 }
 

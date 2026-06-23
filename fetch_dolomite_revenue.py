@@ -17,6 +17,7 @@ import requests
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_revenue.json")
 LIQUIDATION_HISTORY_FILE = os.path.join(DATA_DIR, "liquidation_history.json")
+ONCHAIN_AUDIT_FILE = os.path.join(DATA_DIR, "data", "dolomite-revenue-onchain-audit.json")
 BASE_URL = "https://api.llama.fi/summary/fees/dolomite"
 REQUEST_TIMEOUTS = (
     (10, 45),
@@ -192,6 +193,33 @@ def latest_series_value(series, key, fallback):
     return safe_number(fallback)
 
 
+def load_onchain_audit(path=ONCHAIN_AUDIT_FILE):
+    try:
+        with open(path) as f:
+            payload = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def onchain_audit_assurance(onchain_audit):
+    if not onchain_audit:
+        return {
+            "onchainAuditStatus": "not_run",
+            "onchainAuditTargetDate": None,
+            "onchainAuditMaxRevenueDiffPct": None,
+            "onchainAuditMaxFeesDiffPct": None,
+        }
+    summary = onchain_audit.get("summary") or {}
+    return {
+        "onchainAuditStatus": str(onchain_audit.get("status") or "missing"),
+        "onchainAuditTargetDate": onchain_audit.get("targetDate"),
+        "onchainAuditMaxRevenueDiffPct": summary.get("maxRevenueDiffPct"),
+        "onchainAuditMaxFeesDiffPct": summary.get("maxFeesDiffPct"),
+        "onchainAuditGeneratedAt": onchain_audit.get("generatedAt"),
+    }
+
+
 def metric_totals(revenue_data, fees_data, series, liquidator_earnings=None):
     # DeFiLlama aggregate windows can briefly lag or revise while the chart rows
     # are updating. Keep every displayed total tied to the same saved series that
@@ -222,12 +250,14 @@ def metric_totals(revenue_data, fees_data, series, liquidator_earnings=None):
     }
 
 
-def build_output(revenue_data, fees_data, liquidator_earnings=None):
+def build_output(revenue_data, fees_data, liquidator_earnings=None, onchain_audit=None):
     series = merge_series(revenue_data, fees_data, liquidator_earnings)
     if len(series) < 30:
         raise ValueError("Merged revenue series has too few rows")
 
     latest = series[-1]
+    if onchain_audit is None:
+        onchain_audit = load_onchain_audit()
     return {
         "schemaVersion": 1,
         "protocol": "Dolomite",
@@ -238,6 +268,7 @@ def build_output(revenue_data, fees_data, liquidator_earnings=None):
             "adapter": "https://github.com/DefiLlama/dimension-adapters/tree/master/fees/dolomite",
             "liquidatorEarnings": "liquidation_history.json",
             "liquidationDocs": "https://docs.dolomite.io/risk-management",
+            "onchainAudit": "data/dolomite-revenue-onchain-audit.json",
         },
         "generatedAt": utc_now_iso(),
         "lastUpdated": utc_now_iso(),
@@ -260,6 +291,7 @@ def build_output(revenue_data, fees_data, liquidator_earnings=None):
             "classification": "adapter-estimated protocol borrow-interest revenue plus liquidation rewards earned by liquidators",
             "confidence": "high for retained borrow-interest direction/split and high for liquidator reward values present in Dolomite liquidation history; not a protocol liquidation-rake revenue split",
             "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest; liquidator earnings are top-level daily stream values",
+            **onchain_audit_assurance(onchain_audit),
         },
         "totals": metric_totals(revenue_data, fees_data, series, liquidator_earnings),
         "latest": latest,
