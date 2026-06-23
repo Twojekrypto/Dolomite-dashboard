@@ -528,6 +528,12 @@ def _should_build_fresh_plan(*, status: dict, refresh_plan: bool) -> bool:
         return True
     if status.get("complete"):
         return False
+    scan_complete = bool((status.get("scan") or {}).get("complete"))
+    new_address_complete = bool((status.get("newAddressBackfill") or {}).get("complete"))
+    apply_complete = bool((status.get("apply") or {}).get("complete"))
+    coverage_complete = bool((status.get("coverage") or {}).get("complete"))
+    if scan_complete and new_address_complete and apply_complete and not coverage_complete:
+        return True
     return False
 
 
