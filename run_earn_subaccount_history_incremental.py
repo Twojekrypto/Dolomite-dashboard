@@ -158,6 +158,7 @@ def _resolve_current_plan(
     max_scan_workers: Optional[int],
     max_apply_workers: Optional[int],
     max_new_backfill_workers: Optional[int],
+    max_scan_blocks_per_task: Optional[int],
     selection_address_file: Optional[Path],
     refresh: bool,
 ) -> dict:
@@ -177,6 +178,7 @@ def _resolve_current_plan(
         max_scan_workers=max_scan_workers,
         max_apply_workers=max_apply_workers,
         max_new_backfill_workers=max_new_backfill_workers,
+        max_scan_blocks_per_task=max_scan_blocks_per_task,
         selection_address_file=selection_address_file,
     )
     _persist_plan_state(plan_dir, chain, payload)
@@ -193,6 +195,7 @@ def _build_fresh_plan(
     max_scan_workers: Optional[int],
     max_apply_workers: Optional[int],
     max_new_backfill_workers: Optional[int],
+    max_scan_blocks_per_task: Optional[int],
     selection_address_file: Optional[Path],
 ) -> dict:
     payload = build_incremental_plan(
@@ -204,6 +207,7 @@ def _build_fresh_plan(
         max_scan_workers=max_scan_workers,
         max_apply_workers=max_apply_workers,
         max_new_backfill_workers=max_new_backfill_workers,
+        max_scan_blocks_per_task=max_scan_blocks_per_task,
         selection_address_file=selection_address_file,
     )
     _persist_plan_state(plan_dir, chain, payload)
@@ -542,6 +546,8 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
     launch_path = _launch_path(plan, "scan")
     launch = _load_launch(launch_path)
     runs = _runs_by_key(launch)
+    max_concurrent = int(plan.get("maxScanWorkers") or len(tasks) or 1)
+    alive_count = sum(1 for run in runs.values() if _is_launch_run_alive(run))
     started = []
     skipped = []
     for task in tasks:
@@ -554,10 +560,14 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
         if existing and _is_launch_run_alive(existing):
             skipped.append({"progressKey": key, "reason": "already_running", "pid": existing.get("pid")})
             continue
+        if alive_count >= max_concurrent:
+            skipped.append({"progressKey": key, "reason": "queued"})
+            continue
         log_path = _cycle_log_dir(plan) / f"scan-{key}.log"
         argv = _scan_task_argv(plan, chain, task)
         pid = _start_task(argv, cwd=ROOT, log_path=log_path)
         runs[key] = _task_run_payload(key, pid, argv, log_path)
+        alive_count += 1
         started.append({"progressKey": key, "pid": pid})
     _save_launch(launch_path, {
         "chain": chain,
@@ -703,6 +713,7 @@ def main() -> int:
     common.add_argument("--max-scan-workers", type=int, default=12)
     common.add_argument("--max-apply-workers", type=int, default=12)
     common.add_argument("--max-new-backfill-workers", type=int, default=12)
+    common.add_argument("--max-scan-blocks-per-task", type=int, default=0)
     common.add_argument("--selection-address-file", default=None)
 
     plan_cmd = subparsers.add_parser("plan", parents=[common], help="Build and persist a fresh incremental cycle plan")
@@ -731,6 +742,7 @@ def main() -> int:
             max_scan_workers=args.max_scan_workers,
             max_apply_workers=args.max_apply_workers,
             max_new_backfill_workers=args.max_new_backfill_workers,
+            max_scan_blocks_per_task=args.max_scan_blocks_per_task,
             selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         )
         if args.json:
@@ -755,6 +767,7 @@ def main() -> int:
         max_scan_workers=args.max_scan_workers,
         max_apply_workers=args.max_apply_workers,
         max_new_backfill_workers=args.max_new_backfill_workers,
+        max_scan_blocks_per_task=args.max_scan_blocks_per_task,
         selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         refresh=False,
     )
@@ -777,6 +790,7 @@ def main() -> int:
             max_scan_workers=args.max_scan_workers,
             max_apply_workers=args.max_apply_workers,
             max_new_backfill_workers=args.max_new_backfill_workers,
+            max_scan_blocks_per_task=args.max_scan_blocks_per_task,
             selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         )
         status = build_incremental_status(plan, chain, history_dir=history_dir)

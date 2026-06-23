@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from run_earn_canonical_history_refresh import (
     RefreshIncomplete,
     _has_complete_baseline,
+    _incomplete_cycle_exceeds_scan_task_span,
     _target_lag_exceeds_resume_budget,
     _status_payload,
     _write_status_output,
@@ -35,6 +36,36 @@ class RunEarnCanonicalHistoryRefreshTest(unittest.TestCase):
                 max_resume_target_lag_blocks=0,
             )
         )
+
+    def test_scan_task_span_guard_refreshes_old_large_incremental_plan(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            plan_path = root / "plans" / "ethereum-f1-t1000" / "incremental-plan.json"
+            plan_path.parent.mkdir(parents=True)
+            plan_path.write_text(
+                json.dumps(
+                    {
+                        "scanTasks": [
+                            {"fromBlock": 1, "toBlock": 1_000},
+                            {"fromBlock": 1_001, "toBlock": 2_000},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            self.assertTrue(
+                _incomplete_cycle_exceeds_scan_task_span(
+                    plan_path,
+                    max_delta_scan_blocks_per_task=500,
+                )
+            )
+            self.assertFalse(
+                _incomplete_cycle_exceeds_scan_task_span(
+                    plan_path,
+                    max_delta_scan_blocks_per_task=1_000,
+                )
+            )
 
     def test_has_complete_baseline_requires_each_selected_wallet_at_manifest_block(self):
         selected = "0x1111111111111111111111111111111111111111"
