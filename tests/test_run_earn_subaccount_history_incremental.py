@@ -24,6 +24,20 @@ class RunEarnSubaccountHistoryIncrementalTest(unittest.TestCase):
             )
         )
 
+    def test_complete_stages_with_incomplete_coverage_start_new_cycle(self):
+        self.assertTrue(
+            _should_build_fresh_plan(
+                status={
+                    "complete": False,
+                    "scan": {"complete": True},
+                    "newAddressBackfill": {"complete": True},
+                    "apply": {"complete": True},
+                    "coverage": {"complete": False},
+                },
+                refresh_plan=False,
+            )
+        )
+
     def test_selection_address_file_limits_incremental_plan_scope(self):
         selected = "0x1111111111111111111111111111111111111111"
         other = "0x2222222222222222222222222222222222222222"
