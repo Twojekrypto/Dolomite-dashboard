@@ -7,10 +7,11 @@ PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
 
 
 class PagesWorkflowContractTests(unittest.TestCase):
-    def test_pages_redeploys_after_vedolo_data_workflows(self):
+    def test_pages_redeploys_after_holder_data_workflows(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("workflow_run:", workflow)
+        self.assertIn("Update DOLO Flows Data", workflow)
         self.assertIn("Update veDOLO Data", workflow)
         self.assertIn("Update veDOLO Flows", workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
