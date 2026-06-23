@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from unittest import mock
 
@@ -97,6 +98,8 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertEqual(result["status"], "warn")
         self.assertGreater(result["revenueDiffPct"], 0.02)
         self.assertGreater(result["feesDiffPct"], 0.02)
+        self.assertIn("fees_diff_exceeds_tolerance", result["warnReasons"])
+        self.assertIn("revenue_diff_exceeds_tolerance", result["warnReasons"])
 
     def test_chain_result_passes_inside_tolerance(self):
         result = classify_chain_result(
@@ -134,6 +137,20 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertEqual(result["status"], "warn")
         self.assertIsNone(result["revenueDiffPct"])
         self.assertTrue(result["revenueDiffUnbounded"])
+        self.assertIn("defillama_chain_missing_onchain_nonzero", result["warnReasons"])
+
+    def test_chain_result_warns_when_immaterial_tokens_are_omitted(self):
+        result = classify_chain_result(
+            "Arbitrum",
+            defillama={"feesUSD": 100.0, "revenueUSD": 20.0},
+            onchain={"feesUSD": 100.0, "revenueUSD": 20.0, "protocolCut": 0.2, "priceOmissionCount": 1},
+            tolerance_pct=0.02,
+            protocol_cut_tolerance=0.002,
+        )
+
+        self.assertEqual(result["status"], "warn")
+        self.assertEqual(result["priceOmissionCount"], 1)
+        self.assertIn("unpriced_tokens_omitted_immaterial", result["warnReasons"])
 
     def test_standard_market_state_uses_getters_without_price_oracle_info(self):
         contract = _FakeContract()
@@ -161,6 +178,24 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
 
     def test_non_stable_missing_price_stays_missing(self):
         price, source = resolve_token_price({"symbol": "WBERA"}, None)
+
+        self.assertIsNone(price)
+        self.assertIsNone(source)
+
+    def test_immaterial_missing_price_token_is_omitted_explicitly(self):
+        price, source = resolve_token_price(
+            {"symbol": "DPX", "protocolRevenueAmount": Decimal("0.0000085667284406504")},
+            None,
+        )
+
+        self.assertEqual(price, Decimal("0"))
+        self.assertEqual(source, "omitted-immaterial-missing-price")
+
+    def test_material_missing_price_token_stays_missing(self):
+        price, source = resolve_token_price(
+            {"symbol": "DPX", "protocolRevenueAmount": Decimal("0.01")},
+            None,
+        )
 
         self.assertIsNone(price)
         self.assertIsNone(source)

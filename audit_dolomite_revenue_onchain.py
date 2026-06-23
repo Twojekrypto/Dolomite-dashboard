@@ -14,7 +14,7 @@ import math
 import os
 import time
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, getcontext
+from decimal import Decimal, InvalidOperation, getcontext
 
 import requests
 from web3 import Web3
@@ -45,6 +45,11 @@ REVENUE_AUDIT_ENDPOINT_BUDGET_SECONDS = env_positive_int("REVENUE_AUDIT_ENDPOINT
 STABLE_PRICE_FALLBACK_SYMBOL_KEYS = {
     "HONEY",
     "NECT",
+}
+OMITTED_IMMATERIAL_PRICE_SOURCE = "omitted-immaterial-missing-price"
+IMMATERIAL_MISSING_PRICE_PROTOCOL_REVENUE_CAPS = {
+    "DPX": Decimal("0.001"),
+    "MATIC": Decimal("0.000001"),
 }
 
 DOLOMITE_MARGIN_ABI = [
@@ -208,6 +213,11 @@ def serializable_diff(diff):
     return round(diff, 8) if math.isfinite(diff) else None
 
 
+def add_unique(items, value):
+    if value not in items:
+        items.append(value)
+
+
 def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protocol_cut_tolerance=0.002):
     defillama_chain_missing = not isinstance(defillama, dict)
     if defillama_chain_missing:
@@ -223,6 +233,15 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
         if onchain and onchain.get("rawTokens"):
             result["rawTokenCount"] = len(onchain.get("rawTokens") or [])
             result["rawTokens"] = onchain.get("rawTokens") or []
+        if onchain and onchain.get("priceOmissionCount"):
+            result["priceOmissionCount"] = int(onchain.get("priceOmissionCount") or 0)
+        missing_reasons = []
+        if onchain and "missing historical prices" in str(onchain.get("error") or ""):
+            missing_reasons.append("missing_historical_prices")
+        if defillama_chain_missing:
+            missing_reasons.append("defillama_chain_missing")
+        if missing_reasons:
+            result["missingReasons"] = missing_reasons
         if defillama_chain_missing:
             result["defillamaChainMissing"] = True
         return result
@@ -232,13 +251,27 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
     defillama_fees = float(defillama.get("feesUSD") or 0)
     defillama_cut = float(defillama.get("revenueUSD") or 0) / defillama_fees if defillama_fees > 0 else 0.0
     protocol_cut_diff = abs(float(onchain.get("protocolCut") or 0) - defillama_cut)
-    status = "warn" if (
-        not math.isfinite(fees_diff)
-        or not math.isfinite(revenue_diff)
-        or fees_diff > tolerance_pct
-        or revenue_diff > tolerance_pct
-        or protocol_cut_diff > protocol_cut_tolerance
-    ) else "pass"
+    price_omission_count = int(onchain.get("priceOmissionCount") or 0)
+    warn_reasons = []
+    if not math.isfinite(fees_diff):
+        if defillama_chain_missing and float(onchain.get("feesUSD") or 0) != 0:
+            add_unique(warn_reasons, "defillama_chain_missing_onchain_nonzero")
+        else:
+            add_unique(warn_reasons, "fees_diff_unbounded")
+    elif fees_diff > tolerance_pct:
+        add_unique(warn_reasons, "fees_diff_exceeds_tolerance")
+    if not math.isfinite(revenue_diff):
+        if defillama_chain_missing and float(onchain.get("revenueUSD") or 0) != 0:
+            add_unique(warn_reasons, "defillama_chain_missing_onchain_nonzero")
+        else:
+            add_unique(warn_reasons, "revenue_diff_unbounded")
+    elif revenue_diff > tolerance_pct:
+        add_unique(warn_reasons, "revenue_diff_exceeds_tolerance")
+    if protocol_cut_diff > protocol_cut_tolerance:
+        add_unique(warn_reasons, "protocol_cut_diff_exceeds_tolerance")
+    if price_omission_count:
+        add_unique(warn_reasons, "unpriced_tokens_omitted_immaterial")
+    status = "warn" if warn_reasons else "pass"
 
     result = {
         "chain": chain,
@@ -257,7 +290,10 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
         "rawTokenCount": len(onchain.get("rawTokens") or []),
         "rawTokens": onchain.get("rawTokens") or [],
         "priceFallbackCount": int(onchain.get("priceFallbackCount") or 0),
+        "priceOmissionCount": price_omission_count,
     }
+    if warn_reasons:
+        result["warnReasons"] = warn_reasons
     if defillama_chain_missing:
         result["defillamaChainMissing"] = True
     return result
@@ -272,6 +308,7 @@ def build_audit_report(target_date, target_timestamp, window_start_timestamp, ch
     warn_count = statuses.count("warn")
     missing_count = statuses.count("missing")
     pass_count = statuses.count("pass")
+    price_omission_count = sum(int(result.get("priceOmissionCount") or 0) for result in chain_results.values())
     revenue_unbounded = any(result.get("revenueDiffUnbounded") for result in chain_results.values())
     fees_unbounded = any(result.get("feesDiffUnbounded") for result in chain_results.values())
     revenue_diffs = [
@@ -314,11 +351,13 @@ def build_audit_report(target_date, target_timestamp, window_start_timestamp, ch
             "maxFeesDiffPct": max_fees_diff,
             "revenueDiffUnbounded": revenue_unbounded,
             "feesDiffUnbounded": fees_unbounded,
+            "priceOmissionCount": price_omission_count,
         },
         "methodology": {
             "rawOnchainFormula": "borrowInterest = (borrowIndexEnd - borrowIndexStart) * borrowParStart / 1e18; protocolRevenue = borrowInterest * (1 - earningsRate)",
             "window": "Each DeFiLlama row date is audited as that named UTC day, from 00:00 UTC on the date to 00:00 UTC the next day.",
             "usdPricing": "Raw token amounts are independently replayed from DolomiteMargin; USD totals use historical token prices and should be compared with tolerance.",
+            "immaterialMissingPricePolicy": "Only explicitly allowlisted legacy/dust tokens below strict protocol-revenue amount caps may be priced as 0 USD; this keeps the chain audited but forces WARN.",
             "archiveRpcRequirement": "Historical eth_call requires archive-capable RPC. Chains without archive access are marked missing, not pass.",
         },
         "chains": chain_results,
@@ -419,12 +458,25 @@ def normalized_symbol(symbol):
     return "".join(ch for ch in str(symbol or "").upper() if ch.isalnum())
 
 
+def decimal_from_value(value):
+    if value is None:
+        return None
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+
+
 def resolve_token_price(row, price):
     if price is not None:
         return price, "coins-llama"
     symbol_key = normalized_symbol(row.get("symbol"))
     if symbol_key in STABLE_PRICE_FALLBACK_SYMBOL_KEYS or symbol_key.startswith("USD") or symbol_key.endswith("USD"):
         return Decimal("1"), "stable-symbol-fallback"
+    cap = IMMATERIAL_MISSING_PRICE_PROTOCOL_REVENUE_CAPS.get(symbol_key)
+    revenue_amount = decimal_from_value(row.get("protocolRevenueAmount"))
+    if cap is not None and revenue_amount is not None and abs(revenue_amount) <= cap:
+        return Decimal("0"), OMITTED_IMMATERIAL_PRICE_SOURCE
     return None, None
 
 
@@ -519,6 +571,7 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
             raw_tokens = []
             missing_price_count = 0
             price_fallback_count = 0
+            price_omission_count = 0
             for row, coin_id in zip(rows, coin_ids):
                 price, price_source = resolve_token_price(row, prices.get(coin_id))
                 fee_amount = row["borrowInterestAmount"]
@@ -526,7 +579,9 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
                 if price is not None:
                     fee_usd += fee_amount * price
                     revenue_usd += revenue_amount * price
-                    if price_source != "coins-llama":
+                    if price_source == OMITTED_IMMATERIAL_PRICE_SOURCE:
+                        price_omission_count += 1
+                    elif price_source != "coins-llama":
                         price_fallback_count += 1
                 else:
                     missing_price_count += 1
@@ -547,6 +602,7 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
                     "toBlock": to_block,
                     "rawTokens": raw_tokens,
                     "priceFallbackCount": price_fallback_count,
+                    "priceOmissionCount": price_omission_count,
                     "rpcHost": rpc_client.safe_host(endpoint),
                 }
             protocol_cut = revenue_usd / fee_usd if fee_usd else Decimal(0)
@@ -559,6 +615,7 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
                 "protocolCut": float(protocol_cut),
                 "rawTokens": raw_tokens,
                 "priceFallbackCount": price_fallback_count,
+                "priceOmissionCount": price_omission_count,
                 "rpcHost": rpc_client.safe_host(endpoint),
             }
         except Exception as exc:
