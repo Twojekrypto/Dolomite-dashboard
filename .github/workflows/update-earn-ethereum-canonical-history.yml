@@ -12,7 +12,7 @@ on:
       checkpoint_steps:
         description: 'Polling steps before checkpointing this run.'
         required: false
-        default: '90'
+        default: '1500'
 
 concurrency:
   group: earn-ethereum-canonical-history
@@ -30,7 +30,7 @@ jobs:
       PYTHONUNBUFFERED: '1'
       CHAIN: ethereum
       HOT_LIMIT: ${{ github.event.inputs.hot_limit || '80' }}
-      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '90' }}
+      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1500' }}
       CHECKPOINT_SLEEP_SECONDS: '2'
       COMMAND_TIMEOUT_SECONDS: '180'
       MAX_RESUME_TARGET_LAG_BLOCKS: '600'
@@ -94,7 +94,7 @@ jobs:
             --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --max-scan-workers 8 \
             --max-materialize-workers 8 \
-            --max-incremental-scan-workers 8 \
+            --max-incremental-scan-workers 16 \
             --max-incremental-apply-workers 8 \
             --max-new-backfill-workers 4 \
             --max-steps "$CHECKPOINT_STEPS" \
