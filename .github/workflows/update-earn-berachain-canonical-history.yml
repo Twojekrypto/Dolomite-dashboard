@@ -12,7 +12,7 @@ on:
       checkpoint_steps:
         description: 'Polling steps before checkpointing this run.'
         required: false
-        default: '24'
+        default: '150'
 
 concurrency:
   group: earn-berachain-canonical-history
@@ -25,13 +25,13 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: berachain
       BOOTSTRAP_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '180' }}
       STEADY_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '180' }}
-      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '24' }}
+      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '150' }}
       CHECKPOINT_SLEEP_SECONDS: '20'
       COMMAND_TIMEOUT_SECONDS: '180'
       MAX_RESUME_TARGET_LAG_BLOCKS: '3600'
