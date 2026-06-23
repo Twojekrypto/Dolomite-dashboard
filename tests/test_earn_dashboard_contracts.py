@@ -255,7 +255,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
-        self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '25'", workflow)
+        self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '100'", workflow)
         self.assertIn("--max-incremental-scan-workers 16", workflow)
         self.assertIn('--max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS"', workflow)
         self.assertIn('--max-delta-scan-blocks-per-task "$MAX_DELTA_SCAN_BLOCKS_PER_TASK"', workflow)
