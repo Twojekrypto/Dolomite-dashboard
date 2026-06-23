@@ -441,6 +441,49 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             priority=0,
         )
 
+    def test_ethereum_stale_canonical_dispatch_uses_long_catchup_checkpoint(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        "ethereum": {
+                            "lastBlock": 1_000_000,
+                            "updatedAt": "2026-05-08T08:00:00Z",
+                            "addressCount": 10,
+                            "selectionAddressCount": 10,
+                        }
+                    }
+                },
+            )
+            self._write_json(root, "earn-netflow/ethereum.json", {"lastBlock": 1_001_000})
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={
+                    "ethereum": 1_003_000,
+                    "arbitrum": None,
+                    "berachain": None,
+                    "botanix": None,
+                    "mantle": None,
+                    "polygonzkevm": None,
+                    "xlayer": None,
+                },
+                now=now,
+            )
+
+        self._assert_refresh_job(
+            status["summary"]["refreshJobs"],
+            workflow="update-earn-ethereum-canonical-history.yml",
+            inputs={"hot_limit": "80", "checkpoint_steps": "90"},
+            mode="catchup",
+            priority=0,
+        )
+
     def test_advisory_global_canonical_backlog_does_not_downgrade_fresh_chain(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         wallet = "0x2222222222222222222222222222222222222222"

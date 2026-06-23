@@ -242,6 +242,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_ethereum_canonical_workflow_rebuilds_verified_ledger_on_fresh_history(self):
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '12,42 * * * *'", workflow)
+        self.assertIn("timeout-minutes: 60", workflow)
+        self.assertIn("default: '90'", workflow)
+        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '90' }}", workflow)
         for env_name in (
             "ALCHEMY_ETHEREUM_RPC_KAT",
             "ALCHEMY_ETHEREUM_RPC_DAN",
@@ -299,11 +302,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_berachain_canonical_workflow_runs_in_checkpointed_chunks(self):
         workflow = BERACHAIN_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '7,37 * * * *'", workflow)
-        self.assertIn("timeout-minutes: 75", workflow)
+        self.assertIn("timeout-minutes: 90", workflow)
         self.assertIn("default: '180'", workflow)
         self.assertIn("BOOTSTRAP_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '180' }}", workflow)
         self.assertIn("STEADY_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '180' }}", workflow)
-        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '24' }}", workflow)
+        self.assertIn("default: '150'", workflow)
+        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '150' }}", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("has_public_baseline", workflow)
