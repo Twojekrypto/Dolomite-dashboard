@@ -5,7 +5,7 @@ import fetch_dolomite_tvl
 
 
 class FetchDolomiteTvlTest(unittest.TestCase):
-    def test_snapshot_uses_usd_token_liquidity_and_clean_symbols(self):
+    def test_snapshot_uses_official_token_amounts_and_price_map(self):
         payloads = {
             "Arbitrum": {
                 "tokens": [
@@ -41,35 +41,63 @@ class FetchDolomiteTvlTest(unittest.TestCase):
                 },
             }
         }
-        clean_symbols = {
+        api_tokens = {
+            "Arbitrum": [
+                {
+                    "id": "0x505582242757f16d72f8c4462a616e388ca1b074",
+                    "marketId": "33",
+                    "symbol": "dGM",
+                    "cleanSymbol": "gmETH-USD",
+                    "supplyLiquidity": "2",
+                    "borrowLiquidity": "0",
+                },
+                {
+                    "id": "0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef",
+                    "marketId": "32",
+                    "symbol": "dGM",
+                    "cleanSymbol": "gmBTC-USD",
+                    "supplyLiquidity": "1",
+                    "borrowLiquidity": "0.2",
+                },
+                {
+                    "id": "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                    "marketId": "5",
+                    "symbol": "USDT",
+                    "cleanSymbol": "USDT",
+                    "supplyLiquidity": "0.5",
+                    "borrowLiquidity": "0",
+                },
+            ]
+        }
+        prices = {
             "Arbitrum": {
-                "0x505582242757f16d72f8c4462a616e388ca1b074": "gmETH-USD",
-                "33": "gmETH-USD",
-                "0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef": "gmBTC-USD",
-                "32": "gmBTC-USD",
+                "0x505582242757f16d72f8c4462a616e388ca1b074": "40",
+                "0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef": "50",
+                "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": "1",
             }
         }
 
-        snapshot = fetch_dolomite_tvl.build_snapshot_from_token_liquidity(
+        snapshot = fetch_dolomite_tvl.build_snapshot_from_official_liquidity(
             payloads,
-            clean_symbols,
+            api_tokens,
+            prices,
             now=datetime(2026, 7, 1, tzinfo=timezone.utc),
         )
 
-        self.assertEqual(151.0, snapshot["supplyLiquidity"])
-        self.assertEqual(141.0, snapshot["totalTvl"])
+        self.assertEqual(130.5, snapshot["supplyLiquidity"])
+        self.assertEqual(120.5, snapshot["totalTvl"])
         self.assertEqual(10.0, snapshot["totalBorrowed"])
-        self.assertEqual(141.0, snapshot["currentChainTvls"]["Arbitrum"])
+        self.assertEqual(120.5, snapshot["currentChainTvls"]["Arbitrum"])
         self.assertEqual(10.0, snapshot["currentChainTvls"]["Arbitrum-borrowed"])
 
         arbitrum_tokens = snapshot["chainTokensInUsd"]["Arbitrum"]
-        self.assertEqual(100.0, arbitrum_tokens["gmETH-USD"])
-        self.assertEqual(50.5, arbitrum_tokens["gmBTC-USD"])
+        self.assertEqual(80.0, arbitrum_tokens["gmETH-USD"])
+        self.assertEqual(50.0, arbitrum_tokens["gmBTC-USD"])
         self.assertNotIn("dGM", arbitrum_tokens)
 
         token_totals = snapshot["tokensInUsd"][0]["tokens"]
-        self.assertEqual(100.0, token_totals["gmETH-USD"])
-        self.assertEqual(50.5, token_totals["gmBTC-USD"])
+        self.assertEqual(80.0, token_totals["gmETH-USD"])
+        self.assertEqual(50.0, token_totals["gmBTC-USD"])
         self.assertNotIn("dGM", token_totals)
 
     def test_clean_symbol_falls_back_to_raw_symbol_when_missing(self):
@@ -90,14 +118,82 @@ class FetchDolomiteTvlTest(unittest.TestCase):
                 },
             }
         }
+        api_tokens = {
+            "Berachain": [
+                {
+                    "id": "0x779ded0c9e1022225f8e0630b35a9b54be713736",
+                    "marketId": "5",
+                    "symbol": "USD₮0",
+                    "supplyLiquidity": "20",
+                    "borrowLiquidity": "4",
+                }
+            ]
+        }
+        prices = {
+            "Berachain": {
+                "0x779ded0c9e1022225f8e0630b35a9b54be713736": "1",
+            }
+        }
 
-        snapshot = fetch_dolomite_tvl.build_snapshot_from_token_liquidity(
+        snapshot = fetch_dolomite_tvl.build_snapshot_from_official_liquidity(
             payloads,
-            {},
+            api_tokens,
+            prices,
             now=datetime(2026, 7, 1, tzinfo=timezone.utc),
         )
 
         self.assertEqual(20.0, snapshot["chainTokensInUsd"]["Berachain"]["USD₮0"])
+
+    def test_berachain_stbtc_uses_official_exchange_rate_price(self):
+        stbtc = "0xf6718b2701d4a6498ef77d7c152b2137ab28b8a3"
+        payloads = {
+            "Berachain": {
+                "tokens": [
+                    {
+                        "id": stbtc,
+                        "marketId": "11",
+                        "symbol": "stBTC",
+                        "supplyLiquidityUSD": "25741782.384404124",
+                        "borrowLiquidityUSD": "0",
+                    }
+                ],
+                "_meta": {
+                    "block": {"number": 789, "hash": "0xghi", "timestamp": 1_783_728_000},
+                    "deployment": "dolomite-berachain",
+                },
+            }
+        }
+        api_tokens = {
+            "Berachain": [
+                {
+                    "id": stbtc,
+                    "marketId": "11",
+                    "symbol": "stBTC",
+                    "cleanSymbol": "stBTC",
+                    "supplyLiquidity": "247.229050532267004551",
+                    "borrowLiquidity": "0",
+                }
+            ]
+        }
+        prices = {
+            "Berachain": {
+                stbtc: "62320.603136",
+            }
+        }
+
+        snapshot = fetch_dolomite_tvl.build_snapshot_from_official_liquidity(
+            payloads,
+            api_tokens,
+            prices,
+            now=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertAlmostEqual(
+            15407463.541911501,
+            snapshot["chainTokensInUsd"]["Berachain"]["stBTC"],
+            places=6,
+        )
+        self.assertLess(snapshot["chainTokensInUsd"]["Berachain"]["stBTC"], 16000000)
 
 
 if __name__ == "__main__":
