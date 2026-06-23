@@ -106,6 +106,34 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
 
         self.assertEqual(report["status"], "warn")
 
+    def test_report_keeps_finite_max_when_another_diff_is_unbounded(self):
+        report = build_audit_report(
+            target_date="2026-06-21",
+            target_timestamp=1782000000,
+            window_start_timestamp=1782000000,
+            chain_results={
+                "Ethereum": {
+                    "status": "warn",
+                    "feesDiffPct": 0.022,
+                    "revenueDiffPct": 0.031,
+                    "feesDiffUnbounded": False,
+                    "revenueDiffUnbounded": False,
+                },
+                "Mantle": {
+                    "status": "warn",
+                    "feesDiffPct": None,
+                    "revenueDiffPct": None,
+                    "feesDiffUnbounded": True,
+                    "revenueDiffUnbounded": True,
+                },
+            },
+            tolerance_pct=0.02,
+            protocol_cut_tolerance=0.002,
+        )
+
+        self.assertEqual(report["summary"]["maxRevenueDiffPct"], 0.031)
+        self.assertTrue(report["summary"]["revenueDiffUnbounded"])
+
     def test_workflow_runs_audit_and_commits_output(self):
         workflow = (ROOT / ".github/workflows/audit-dolomite-revenue-onchain.yml").read_text(encoding="utf-8")
 

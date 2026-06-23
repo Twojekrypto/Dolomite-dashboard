@@ -209,6 +209,8 @@ def onchain_audit_assurance(onchain_audit):
             "onchainAuditTargetDate": None,
             "onchainAuditMaxRevenueDiffPct": None,
             "onchainAuditMaxFeesDiffPct": None,
+            "onchainAuditRevenueDiffUnbounded": False,
+            "onchainAuditFeesDiffUnbounded": False,
         }
     summary = onchain_audit.get("summary") or {}
     return {
@@ -216,6 +218,8 @@ def onchain_audit_assurance(onchain_audit):
         "onchainAuditTargetDate": onchain_audit.get("targetDate"),
         "onchainAuditMaxRevenueDiffPct": summary.get("maxRevenueDiffPct"),
         "onchainAuditMaxFeesDiffPct": summary.get("maxFeesDiffPct"),
+        "onchainAuditRevenueDiffUnbounded": bool(summary.get("revenueDiffUnbounded")),
+        "onchainAuditFeesDiffUnbounded": bool(summary.get("feesDiffUnbounded")),
         "onchainAuditGeneratedAt": onchain_audit.get("generatedAt"),
     }
 
