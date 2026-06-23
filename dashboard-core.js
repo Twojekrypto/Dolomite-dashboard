@@ -5225,11 +5225,11 @@
         }
 
         const ASSETS_CHAINS = {
+            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn', explorer: 'https://etherscan.io/address/' },
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn', explorer: 'https://berascan.com/address/' },
             arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn', explorer: 'https://arbiscan.io/address/' },
-            ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn', explorer: 'https://etherscan.io/address/' },
-            botanix: { id: 3637, name: 'Botanix', short: 'BOT', icon: 'https://icons.llamao.fi/icons/chains/rsz_botanix.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn', explorer: 'https://botanixscan.io/address/', tokenExplorer: 'https://botanixscan.io/token/' },
             mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn', explorer: 'https://mantlescan.xyz/address/' },
+            botanix: { id: 3637, name: 'Botanix', short: 'BOT', icon: 'https://icons.llamao.fi/icons/chains/rsz_botanix.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn', explorer: 'https://botanixscan.io/address/', tokenExplorer: 'https://botanixscan.io/token/' },
             polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn', explorer: 'https://zkevm.polygonscan.com/address/', tokenExplorer: 'https://zkevm.polygonscan.com/token/' },
             xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn', explorer: 'https://www.okx.com/web3/explorer/xlayer/address/' },
         };
@@ -7012,7 +7012,7 @@
         }
 
         // ===== EARN TAB NAMESPACE =====
-        // Chains sorted by TVL (descending)
+        // Chains sorted by total supply (descending)
         const EARN_CHAINS = {
             ethereum: {
                 name: 'Ethereum',
@@ -7050,6 +7050,17 @@
                 rpcIdx: 0,
                 logStartBlock: 29750000,
             },
+            mantle: {
+                name: 'Mantle',
+                icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg',
+                twChain: 'mantle',
+                explorer: 'https://mantlescan.xyz',
+                margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8',
+                rpcs: ['https://rpc.mantle.xyz/', 'https://mantle-rpc.publicnode.com/', 'https://mantle.drpc.org/'],
+                rpcIdx: 0,
+                llamaPlatform: 'mantle',
+                logStartBlock: 64046000,
+            },
             botanix: {
                 name: 'Botanix',
                 icon: 'https://icons.llamao.fi/icons/chains/rsz_botanix.jpg',
@@ -7070,17 +7081,6 @@
                 rpcs: ['https://zkevm-rpc.com/', 'https://polygon-zkevm.drpc.org/'],
                 rpcIdx: 0,
                 logStartBlock: 9860000,
-            },
-            mantle: {
-                name: 'Mantle',
-                icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg',
-                twChain: 'mantle',
-                explorer: 'https://mantlescan.xyz',
-                margin: '0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8',
-                rpcs: ['https://rpc.mantle.xyz/', 'https://mantle-rpc.publicnode.com/', 'https://mantle.drpc.org/'],
-                rpcIdx: 0,
-                llamaPlatform: 'mantle',
-                logStartBlock: 64046000,
             },
             xlayer: {
                 name: 'X Layer',
@@ -9006,7 +9006,7 @@
         _regToken(['berachain'], '0xac03caba51e17c86c921e1f6cbfbdc91f8bb2e6b', 'stBERA', 18, DOLO_CDN + 'BERA.a24a9b40b3447dde7ea1d2cab4dd59e9.svg');
         // DOLO appears on multiple chains
         _regToken(['berachain'], '0x0f81001ef0a83ecce5ccebf63eb302c70a39a654', 'DOLO', 18, 'dolo-logo.svg');
-        _regToken(['berachain'], '0x05e4e2a79e3bcab250e8706c3fcc4e45c940c1ef', 'USDT', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
+        _regToken(['berachain'], '0x05e4e2a79e3bcab250e8706c3fcc4e45c940c1ef', 'USDT', 6, 'icons/usdt.png');
         _regToken(['berachain'], '0x2577d24a26f8fa19c1058a8b0106e2c7303454a4', 'weETH', 18, DOLO_CDN + 'weETH.ac3fd68b653520508855e997e756d116.svg');
         _regToken(['berachain'], '0x6e1e9896e93f7a71ecb33d4386b49deed67a231a', 'SolvBTC', 18, DOLO_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg');
         // ---- Arbitrum tokens ----
@@ -9014,7 +9014,7 @@
         _regToken(['arbitrum'], '0xaf88d065e77c8cc2239327c5edb3a432268e5831', 'USDC', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
         _regToken(['arbitrum'], '0x82af49447d8a07e3bd95bd0d56f35241523fbab1', 'WETH', 18, DOLO_CDN + 'WETH.8f785563e47cbf373160.png');
         _regToken(['arbitrum'], '0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f', 'WBTC', 8, DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png');
-        _regToken(['arbitrum'], '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9', 'USDT', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
+        _regToken(['arbitrum'], '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9', 'USDT', 6, 'icons/usdt.png');
         _regToken(['arbitrum'], '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1', 'DAI', 18, 'icons/dai.svg');
         _regToken(['arbitrum'], '0x912ce59144191c1204e64559fe8253a0e49e6548', 'ARB', 18, DOLO_CDN + 'ARB.f8b26a91d3f23a571be6398aa1a1f119.svg');
         _regToken(['arbitrum'], '0x5979d7b546e38e414f7e9822514be443a4800529', 'wstETH', 18, DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg');
@@ -9025,7 +9025,7 @@
         _regToken(['arbitrum'], '0x6694340fc020c5e6b96567843da2df01b2ce1eb6', 'STG', 18, 'https://coin-images.coingecko.com/coins/images/24413/small/STG_LOGO.png');
         // ---- Ethereum tokens ----
         _regToken(['ethereum'], '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', 'USDC', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
-        _regToken(['ethereum'], '0xdac17f958d2ee523a2206206994597c13d831ec7', 'USDT', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
+        _regToken(['ethereum'], '0xdac17f958d2ee523a2206206994597c13d831ec7', 'USDT', 6, 'icons/usdt.png');
         _regToken(['ethereum'], '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2', 'WETH', 18, DOLO_CDN + 'WETH.8f785563e47cbf373160.png');
         _regToken(['ethereum'], '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599', 'WBTC', 8, DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png');
         _regToken(['ethereum'], '0x6b175474e89094c44da98b954eedeac495271d0f', 'DAI', 18, 'icons/dai.svg');
@@ -9049,7 +9049,7 @@
         _regToken(['ethereum'], '0xd3fd63209fa2d55b07a0f6db36c2f43900be3094', 'wsrUSD', 18, DOLO_CDN + 'srUSD.bef2b101351c2021e25a96dc70122077.svg');
         // ---- Mantle tokens ----
         _regToken(['mantle'], '0x09bc4e0d10e52d0e37747b0c03f35c15e5517002', 'USDC', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
-        _regToken(['mantle'], '0x201eba5cc46d216ce6dc03f6a759e8e766e956ae', 'USDT', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
+        _regToken(['mantle'], '0x201eba5cc46d216ce6dc03f6a759e8e766e956ae', 'USDT', 6, 'icons/usdt.png');
         _regToken(['mantle'], '0xdeaddeaddeaddeaddeaddeaddeaddeaddead1111', 'WETH', 18, DOLO_CDN + 'WETH.8f785563e47cbf373160.png');
         _regToken(['mantle'], '0x78c1b0c915c4faa5fffa6cabf0219da63d7f4cb8', 'WMNT', 18, DOLO_CDN + 'WMNT.a58988c614392a216cc8937be5ab96db.svg');
         _regToken(['mantle'], '0xcda86a272531e8640cd7f1a92c01839911b90bb0', 'mETH', 18, DOLO_CDN + 'mETH.589d7c134eea64fa2033e80dced1e34d.svg');
@@ -9063,7 +9063,7 @@
         _regToken(['mantle'], '0x6b68bdccb22931937d7d11e556d95a07e02fe3ce', 'dWMNT', 18, DOLO_CDN + 'WMNT.a58988c614392a216cc8937be5ab96db.svg');
         // ---- Polygon zkEVM tokens ----
         _regToken(['polygonzkevm'], '0xa8ce8aee21bc2a48a5ef670afcc9274c7bbbc035', 'USDC', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
-        _regToken(['polygonzkevm'], '0x1e4a5963abfd975d8c9021ce480b42188849d41d', 'USDT', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
+        _regToken(['polygonzkevm'], '0x1e4a5963abfd975d8c9021ce480b42188849d41d', 'USDT', 6, 'icons/usdt.png');
         _regToken(['polygonzkevm'], '0x4f9a0e7fd2bf6067db6994cf12e4495df938e6e9', 'WETH', 18, DOLO_CDN + 'WETH.8f785563e47cbf373160.png');
         _regToken(['polygonzkevm'], '0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1', 'WBTC', 8, DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png');
         _regToken(['polygonzkevm'], '0xc5015b9d9161dca7e18e32f6f25c4ad850731fd4', 'DAI', 18, 'icons/dai.svg');
@@ -9073,7 +9073,7 @@
         _regToken(['polygonzkevm'], '0x22b21beddef74fe62f031d2c5c8f7a9f8a4b304d', 'POL', 18, 'https://coin-images.coingecko.com/coins/images/4713/small/polygon.png');
         // ---- X Layer tokens ----
         _regToken(['xlayer'], '0x74b7f16337b8972027f6196a17a631ac6de26d22', 'USDC', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
-        _regToken(['xlayer'], '0x1e4a5963abfd975d8c9021ce480b42188849d41d', 'USDT', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
+        _regToken(['xlayer'], '0x1e4a5963abfd975d8c9021ce480b42188849d41d', 'USDT', 6, 'icons/usdt.png');
         _regToken(['xlayer'], '0x5a77f1443d16ee5761d310e38b7308aded93506c', 'WETH', 18, DOLO_CDN + 'WETH.8f785563e47cbf373160.png');
         _regToken(['xlayer'], '0x5a77f1443d16ee5761d310e38b62f77f726bc71c', 'WETH', 18, DOLO_CDN + 'WETH.8f785563e47cbf373160.png');
         _regToken(['xlayer'], '0xea034fb02eb1808c2cc3adbc15f447b93cbe08e1', 'WBTC', 8, DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png');
@@ -9167,7 +9167,7 @@
         _regToken(['berachain'], '0xc2c7ded5837f911b7efe5984b52182036fd66a20', 'PT-iBGT', 18, DOLO_CDN + 'PT-iBGT.45a4b4c47be320270ac8d1ce32439d2a.svg');
         _regToken(['berachain'], '0xa1b644aec990ad6023811ced36e6a2d6d128c7c9', 'IR', 18, DOLO_CDN + 'IR.4f115e858cbe4dbe82da00a8443ab1af.svg');
         _regToken(['berachain'], '0xc0d1ac00a30fa4e30e44afc7313d6312c87e21df', 'KDK', 18, DOLO_CDN + 'KDK.31acd6ac4abb4a8c30812380c009f685.svg');
-        _regToken(['berachain'], '0x779ded0c9e1022225f8e0630b35a9b54be713736', 'USDT', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
+        _regToken(['berachain'], '0x779ded0c9e1022225f8e0630b35a9b54be713736', 'USDT', 6, 'icons/usdt.png');
         _regToken(['berachain'], '0x18878df23e2a36f81e820e4b47b4a40576d3159c', 'OHM', 9, DOLO_CDN + 'OHM.2df913d6b9413f26311c1df9718d1461.svg');
         _regToken(['berachain'], '0x91a6af4c8cb1673ab0d776828b6b271ac3da9dcb', 'USD0', 18, 'icons/usd0.png');
         _regToken(['berachain'], '0x30ea2d525ef7c234f8aa6e3a8909b88f71244cb0', 'USD0++', 18, 'icons/usd0.png');
@@ -9185,7 +9185,7 @@
         _regToken(['botanix'], '0x0d2437f93fed6ea64ef01ccde385fb1263910c56', 'pBTC', 18, DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png');
         _regToken(['botanix'], '0x29ee6138dd4c9815f46d34a4a1ed48f46758a402', 'USDC.e', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
         _regToken(['botanix'], '0xf4586028ffda7eca636864f80f8a3f2589e33795', 'stBTC', 18, DOLO_CDN + 'WBTC.f3c8718835179e7543b5.png');
-        _regToken(['botanix'], '0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189', 'oUSDT', 6, DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg');
+        _regToken(['botanix'], '0x1217bfe6c773eec6cc4a38b5dc45b92292b6e189', 'oUSDT', 6, 'icons/usdt.png');
 
         // ---- Berachain market ID → token address map (for Earn History) ----
         const BERACHAIN_MARKET_TOKENS = {
@@ -9329,8 +9329,8 @@
             'USDC': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
             'USDC.e': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
             'USDC.E': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
-            'USDT': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
-            'USDT0': DOLO_CDN + 'USDC.5f67b2404ca2e547fb00b70128d132cd.svg',
+            'USDT': 'icons/usdt.png',
+            'USDT0': 'icons/usdt.png',
             'DAI': 'icons/dai.svg',
             'MIM': DOLO_CDN + 'MIM.3926602167b2dc6b73725f1cbd641130.svg',
             'USDM': DOLO_CDN + 'USDM.6c74738cd3a3499145fda4386f94cb8f.svg',
