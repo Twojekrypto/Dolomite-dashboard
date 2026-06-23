@@ -80,6 +80,15 @@ def clean_symbol_map_from_api_tokens(tokens):
     return clean_symbols
 
 
+def clean_price_map_from_api_prices(prices):
+    clean_prices = {}
+    for token_id, price in (prices or {}).items():
+        token_id = str(token_id or "").strip().lower()
+        if token_id:
+            clean_prices[token_id] = price
+    return clean_prices
+
+
 def fetch_clean_symbol_map(chain_name):
     chain_id = DOLOMITE_TOKEN_API_CHAINS[chain_name]
     url = f"https://api.dolomite.io/tokens/{chain_id}"
@@ -87,6 +96,24 @@ def fetch_clean_symbol_map(chain_name):
     resp.raise_for_status()
     payload = resp.json()
     return clean_symbol_map_from_api_tokens(payload.get("tokens", []))
+
+
+def fetch_token_liquidity_payload(chain_name):
+    chain_id = DOLOMITE_TOKEN_API_CHAINS[chain_name]
+    url = f"https://api.dolomite.io/tokens/{chain_id}"
+    resp = requests.get(url, timeout=20)
+    resp.raise_for_status()
+    payload = resp.json()
+    return payload.get("tokens", [])
+
+
+def fetch_price_map(chain_name):
+    chain_id = DOLOMITE_TOKEN_API_CHAINS[chain_name]
+    url = f"https://api.dolomite.io/tokens/{chain_id}/prices"
+    resp = requests.get(url, timeout=20)
+    resp.raise_for_status()
+    payload = resp.json()
+    return clean_price_map_from_api_prices(payload.get("prices", {}))
 
 
 def resolve_token_symbol(token, clean_symbols):
@@ -98,6 +125,116 @@ def resolve_token_symbol(token, clean_symbols):
         or str(token.get("symbol") or "UNKNOWN").strip()
         or "UNKNOWN"
     )
+
+
+def resolve_api_token_symbol(token):
+    return (
+        str(token.get("cleanSymbol") or token.get("symbol") or "").strip()
+        or "UNKNOWN"
+    )
+
+
+def build_snapshot_from_official_liquidity(chain_payloads, token_payloads, price_maps, now=None):
+    global_tvl = Decimal("0")
+    global_borrows = Decimal("0")
+    global_supply = Decimal("0")
+    chain_tvls = {}
+    chain_borrows = {}
+    tokens_in_usd = {}
+    chain_tokens_in_usd = {}
+    chain_meta = {}
+    missing_price_tokens = {}
+    now_dt = now or datetime.now(timezone.utc)
+    now_ts = int(now_dt.timestamp())
+
+    for chain_name, api_tokens in token_payloads.items():
+        chain_supplied = Decimal("0")
+        chain_borrowed = Decimal("0")
+        per_chain_tokens = {}
+        price_map = price_maps.get(chain_name, {})
+
+        for token in api_tokens or []:
+            token_id = str(token.get("id") or "").strip().lower()
+            has_price = token_id in price_map
+            price = as_decimal(price_map.get(token_id))
+            supply_units = as_decimal(token.get("supplyLiquidity"))
+            borrow_units = as_decimal(token.get("borrowLiquidity"))
+            supply_usd = supply_units * price
+            borrow_usd = borrow_units * price
+
+            if not has_price and (supply_units > 0 or borrow_units > 0):
+                missing_price_tokens.setdefault(chain_name, []).append(resolve_api_token_symbol(token))
+
+            if supply_usd <= 0 and borrow_usd <= 0:
+                continue
+
+            symbol = resolve_api_token_symbol(token)
+            chain_supplied += supply_usd
+            chain_borrowed += borrow_usd
+
+            if supply_usd > Decimal("1"):
+                tokens_in_usd[symbol] = tokens_in_usd.get(symbol, Decimal("0")) + supply_usd
+                per_chain_tokens[symbol] = per_chain_tokens.get(symbol, Decimal("0")) + supply_usd
+
+        chain_net_tvl = chain_supplied - chain_borrowed
+        chain_tvls[chain_name] = chain_net_tvl
+        chain_borrows[chain_name] = chain_borrowed
+        global_supply += chain_supplied
+        global_tvl += chain_net_tvl
+        global_borrows += chain_borrowed
+
+        if per_chain_tokens:
+            chain_tokens_in_usd[chain_name] = per_chain_tokens
+
+        meta = (chain_payloads.get(chain_name, {}) or {}).get("_meta", {}) or {}
+        block = meta.get("block", {}) or {}
+        chain_meta[chain_name] = {
+            "blockNumber": block.get("number"),
+            "blockHash": block.get("hash"),
+            "blockTimestamp": block.get("timestamp"),
+            "deployment": meta.get("deployment"),
+        }
+
+    stale_chains = []
+    for chain_name, meta in chain_meta.items():
+        block_ts = meta.get("blockTimestamp")
+        if not isinstance(block_ts, int) or now_ts - block_ts > STALE_CHAIN_SECONDS:
+            stale_chains.append(chain_name)
+
+    output_currentTvls = {}
+    for c, tvl in chain_tvls.items():
+        output_currentTvls[c] = to_float(tvl)
+        output_currentTvls[f"{c}-borrowed"] = to_float(chain_borrows.get(c, Decimal("0")))
+    output_currentTvls["borrowed"] = to_float(global_borrows)
+
+    token_output = {
+        symbol: to_float(value)
+        for symbol, value in tokens_in_usd.items()
+    }
+    chain_token_output = {
+        chain: {
+            symbol: to_float(value)
+            for symbol, value in tokens.items()
+        }
+        for chain, tokens in chain_tokens_in_usd.items()
+    }
+
+    output = {
+        "currentChainTvls": output_currentTvls,
+        "tokensInUsd": [{"tokens": token_output}],
+        "chainTokensInUsd": chain_token_output,
+        "chainMeta": chain_meta,
+        "staleChains": stale_chains,
+        "freshnessMaxAgeSeconds": STALE_CHAIN_SECONDS,
+        "source": "dolomite_api_token_liquidity_prices",
+        "supplyLiquidity": to_float(global_supply),
+        "totalTvl": to_float(global_tvl),
+        "totalBorrowed": to_float(global_borrows),
+        "last_updated": now_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    }
+    if missing_price_tokens:
+        output["missingPriceTokens"] = missing_price_tokens
+    return output
 
 
 def build_snapshot_from_token_liquidity(chain_payloads, clean_symbol_maps, now=None):
@@ -191,10 +328,11 @@ def build_snapshot_from_token_liquidity(chain_payloads, clean_symbol_maps, now=N
 
 
 def main():
-    print("📡 Fetching official Dolomite TVL from token liquidity fields...")
+    print("📡 Fetching official Dolomite TVL from token liquidity and price APIs...")
 
     chain_payloads = {}
-    clean_symbol_maps = {}
+    token_payloads = {}
+    price_maps = {}
     failed_chains = []
     
     for chain_name, url in ASSETS_CHAINS.items():
@@ -208,9 +346,13 @@ def main():
             if not data:
                 raise RuntimeError("empty GraphQL data")
 
-            clean_symbol_maps[chain_name] = fetch_clean_symbol_map(chain_name)
+            token_payloads[chain_name] = fetch_token_liquidity_payload(chain_name)
+            price_maps[chain_name] = fetch_price_map(chain_name)
             chain_payloads[chain_name] = data
-            print(f"✅ {chain_name}: {len(data.get('tokens', []))} markets | {len(clean_symbol_maps[chain_name])} clean symbol keys")
+            print(
+                f"✅ {chain_name}: {len(token_payloads[chain_name])} token API markets | "
+                f"{len(price_maps[chain_name])} prices | subgraph block {data.get('_meta', {}).get('block', {}).get('number')}"
+            )
 
         except Exception as e:
             print(f"⚠️ Failed to fetch {chain_name}: {e}")
@@ -223,9 +365,10 @@ def main():
             f"failed={failed_chains}, missing={missing}"
         )
 
-    output = build_snapshot_from_token_liquidity(
+    output = build_snapshot_from_official_liquidity(
         chain_payloads,
-        clean_symbol_maps,
+        token_payloads,
+        price_maps,
         now=datetime.now(timezone.utc),
     )
 
