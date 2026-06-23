@@ -55,6 +55,13 @@ def _selection_hash(addresses: Sequence[str]) -> str:
     return digest.hexdigest()
 
 
+def _initial_rpc_index(rpcs: Sequence[str], progress_key: Optional[str]) -> int:
+    if not rpcs or not progress_key:
+        return 0
+    digest = hashlib.sha256(str(progress_key).encode("utf-8")).hexdigest()
+    return int(digest[:8], 16) % len(rpcs)
+
+
 def _sort_logs(logs: Sequence[dict]) -> List[dict]:
     return sorted(
         logs,
@@ -256,7 +263,7 @@ def scan_chain_to_event_shards(
     config = CHAINS[chain]
     contract = config["margin"]
     rpcs = config["rpcs"]
-    rpc_idx = [0]
+    rpc_idx = [_initial_rpc_index(rpcs, progress_key)]
     latest_chain_block = int(get_block_number(rpcs, rpc_idx))
     resolved_from_block = int(config["start_block"] if from_block is None else from_block)
     resolved_to_block = min(int(to_block) if to_block is not None else latest_chain_block, latest_chain_block)
