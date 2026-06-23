@@ -1,11 +1,14 @@
 import os
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import generate_reward_claim_events as rce
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _log(block):
@@ -75,6 +78,16 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
 
         self.assertEqual(fetch_calls, [[300]])
         self.assertEqual(events[0]["timestamp"], 7300)
+
+    def test_reward_claim_scanner_reads_all_dedicated_arbitrum_rpc_secrets(self):
+        source = (ROOT / "generate_reward_claim_events.py").read_text(encoding="utf-8")
+
+        for env_name in (
+            "ALCHEMY_ARBITRUM_RPC_KAT",
+            "ALCHEMY_ARBITRUM_RPC_DAN",
+            "ALCHEMY_ARBITRUM_RPC_ZEN",
+        ):
+            self.assertIn(env_name, source)
 
 
 if __name__ == "__main__":
