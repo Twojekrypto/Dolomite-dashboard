@@ -26,11 +26,11 @@ CHAINS = {
     "arbitrum": {
         "margin": "0x6bd780e7fDf01D77e4d475c821f1e7AE05409072",
         "rpcs": [
-            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC") else [os.environ["ALCHEMY_ARBITRUM_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_KAT") else [os.environ["ALCHEMY_ARBITRUM_RPC_KAT"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_DAN") else [os.environ["ALCHEMY_ARBITRUM_RPC_DAN"]]),
-            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_2") else [os.environ["ALCHEMY_ARBITRUM_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_ZEN") else [os.environ["ALCHEMY_ARBITRUM_RPC_ZEN"]]),
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC") else [os.environ["ALCHEMY_ARBITRUM_RPC"]]),
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_2") else [os.environ["ALCHEMY_ARBITRUM_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_3") else [os.environ["ALCHEMY_ARBITRUM_RPC_3"]]),
             "https://arbitrum-one-rpc.publicnode.com/",
             "https://1rpc.io/arb",
@@ -41,10 +41,10 @@ CHAINS = {
     "ethereum": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
         "rpcs": [
-            *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC") else [os.environ["ALCHEMY_ETHEREUM_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_KAT") else [os.environ["ALCHEMY_ETHEREUM_RPC_KAT"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_DAN") else [os.environ["ALCHEMY_ETHEREUM_RPC_DAN"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_ZEN") else [os.environ["ALCHEMY_ETHEREUM_RPC_ZEN"]]),
+            *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC") else [os.environ["ALCHEMY_ETHEREUM_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_2") else [os.environ["ALCHEMY_ETHEREUM_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_3") else [os.environ["ALCHEMY_ETHEREUM_RPC_3"]]),
             "https://ethereum-rpc.publicnode.com/",
