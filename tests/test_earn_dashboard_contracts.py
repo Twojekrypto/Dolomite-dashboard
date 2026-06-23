@@ -243,8 +243,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '12,42 * * * *'", workflow)
         self.assertIn("timeout-minutes: 60", workflow)
-        self.assertIn("default: '90'", workflow)
-        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '90' }}", workflow)
+        self.assertIn("default: '1500'", workflow)
+        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1500' }}", workflow)
         for env_name in (
             "ALCHEMY_ETHEREUM_RPC_KAT",
             "ALCHEMY_ETHEREUM_RPC_DAN",
@@ -256,6 +256,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '25'", workflow)
+        self.assertIn("--max-incremental-scan-workers 16", workflow)
         self.assertIn('--max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS"', workflow)
         self.assertIn('--max-delta-scan-blocks-per-task "$MAX_DELTA_SCAN_BLOCKS_PER_TASK"', workflow)
         self.assertIn("Build Ethereum verified ledger cache", workflow)
