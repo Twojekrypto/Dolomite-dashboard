@@ -33,6 +33,18 @@ class TestBuildOwnership(unittest.TestCase):
         })
         self.assertEqual(holders, [{"address": ALICE, "nft_count": 1, "token_ids": [1]}])
 
+    def test_token_zero_transfers_are_ignored(self):
+        holders, stats = update_data.build_ownership([
+            tx(0, ZERO, update_data.VEDOLO_CONTRACT, 100),
+            tx(1, ZERO, ALICE, 101),
+        ])
+
+        self.assertEqual(stats, {
+            "total_minted": 1, "total_burned": 0,
+            "active_nfts": 1, "unique_holders": 1,
+        })
+        self.assertEqual(holders, [{"address": ALICE, "nft_count": 1, "token_ids": [1]}])
+
     def test_transfer_moves_ownership(self):
         holders, stats = update_data.build_ownership([
             tx(1, ZERO, ALICE, 100),

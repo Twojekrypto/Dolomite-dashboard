@@ -261,6 +261,8 @@ def build_ownership(txs):
 
     for tx in txs:
         token_id = int(tx.get("tokenID", 0))
+        if token_id <= 0:
+            continue
         from_addr = tx.get("from", "").lower()
         to_addr = tx.get("to", "").lower()
 
