@@ -179,6 +179,14 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
             self.assertEqual(env_positive_int("REVENUE_AUDIT_RPC_TIMEOUT_SECONDS", 20), 20)
 
     def test_rpc_client_includes_revenue_audit_archive_secret_fallbacks(self):
+        self.assertLess(
+            CHAIN_ENV_KEYS["arbitrum"].index("ALCHEMY_ARBITRUM_RPC_ZEN"),
+            CHAIN_ENV_KEYS["arbitrum"].index("ALCHEMY_ARBITRUM_RPC"),
+        )
+        self.assertLess(
+            CHAIN_ENV_KEYS["ethereum"].index("ALCHEMY_ETHEREUM_RPC_ZEN"),
+            CHAIN_ENV_KEYS["ethereum"].index("ALCHEMY_ETHEREUM_RPC"),
+        )
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN", CHAIN_ENV_KEYS["arbitrum"])
         self.assertIn("ALCHEMY_ARBITRUM_RPC_KAT", CHAIN_ENV_KEYS["arbitrum"])
         self.assertIn("ALCHEMY_ARBITRUM_RPC_DAN", CHAIN_ENV_KEYS["arbitrum"])

@@ -91,10 +91,10 @@ CHAIN_CONFIGS = {
             ARB_OARB_DISTRIBUTOR: {"symbol": "oARB", "address": "0xcbed801b4162bf2a19b06968663438b5165a6a93", "decimals": 18},
         },
         "rpcUrls": [
-            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC") else [os.environ["ALCHEMY_ARBITRUM_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_KAT") else [os.environ["ALCHEMY_ARBITRUM_RPC_KAT"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_DAN") else [os.environ["ALCHEMY_ARBITRUM_RPC_DAN"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_ZEN") else [os.environ["ALCHEMY_ARBITRUM_RPC_ZEN"]]),
+            *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC") else [os.environ["ALCHEMY_ARBITRUM_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_2") else [os.environ["ALCHEMY_ARBITRUM_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_ARBITRUM_RPC_3") else [os.environ["ALCHEMY_ARBITRUM_RPC_3"]]),
             "https://arb1.arbitrum.io/rpc",
