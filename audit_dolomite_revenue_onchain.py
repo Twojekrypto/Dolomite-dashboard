@@ -18,6 +18,7 @@ from decimal import Decimal, getcontext
 
 import requests
 from web3 import Web3
+from web3.middleware import ExtraDataToPOAMiddleware
 
 import rpc_client
 
@@ -114,12 +115,14 @@ CHAIN_CONFIGS = {
         "coinChain": "mantle",
         "mode": "standard",
         "margin": "0xE6Ef4f0B2455bAB92ce7cC78E35324ab58917De8",
+        "poa": True,
     },
     "polygon_zkevm": {
         "name": "Polygon zkEVM",
         "coinChain": "polygon_zkevm",
         "mode": "standard",
         "margin": "0x836b557Cf9eF29fcF49C776841191782df34e4e5",
+        "poa": True,
     },
 }
 
@@ -309,6 +312,13 @@ def find_block_at_or_before(w3, timestamp):
     return low
 
 
+def make_web3(endpoint, config):
+    w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": 25}))
+    if config.get("poa"):
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+    return w3
+
+
 def token_metadata(w3, token, block_identifier):
     contract = w3.eth.contract(address=Web3.to_checksum_address(token), abi=ERC20_ABI)
     try:
@@ -403,7 +413,7 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
     last_error = None
     for endpoint in endpoints:
         try:
-            w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": 25}))
+            w3 = make_web3(endpoint, config)
             from_block = find_block_at_or_before(w3, window_start_timestamp)
             to_block = find_block_at_or_before(w3, target_timestamp)
             rows = market_interest_rows(w3, config, from_block, to_block)
