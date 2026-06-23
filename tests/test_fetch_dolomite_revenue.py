@@ -1,15 +1,25 @@
 import unittest
+import contextlib
+import io
+import json
+import os
+import tempfile
+from pathlib import Path
 
 from fetch_dolomite_revenue import build_output
 from validate_data import (
+    RULES,
+    ValidationResult,
     _dolomite_revenue_chain_windows_valid,
     _dolomite_revenue_totals_valid,
     _dolomite_revenue_window_totals_valid,
+    validate_file,
 )
 
 
 START_TS = 1_700_000_000
 DAY_SECONDS = 86_400
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def metric_payload(total24h, latest_value, step):
@@ -68,6 +78,42 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+
+    def test_validator_rejects_stale_liquidator_earnings_snapshot(self):
+        revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
+        fees_data = metric_payload(total24h=500, latest_value=500, step=10)
+        output = build_output(revenue_data, fees_data, {})
+
+        with tempfile.TemporaryDirectory() as tmp:
+            previous_cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                with open("dolomite_revenue.json", "w") as f:
+                    json.dump(output, f)
+                with open("liquidation_history.json", "w") as f:
+                    json.dump({
+                        "liquidationHistory": [{
+                            "timestamp": START_TS + 30 * DAY_SECONDS,
+                            "liquidationRewardUSD": 4.5,
+                        }]
+                    }, f)
+
+                rules = {**RULES["dolomite_revenue.json"], "min_bytes": 0}
+                result = ValidationResult()
+                with contextlib.redirect_stdout(io.StringIO()):
+                    validate_file("dolomite_revenue.json", rules, result)
+            finally:
+                os.chdir(previous_cwd)
+
+        self.assertGreater(result.failed, 0)
+        self.assertTrue(any("liquidator earnings" in error for error in result.errors))
+
+    def test_liquidation_workflow_refreshes_revenue_when_history_changes(self):
+        workflow = (ROOT / ".github/workflows/update-liquidation-risk.yml").read_text()
+
+        self.assertIn("git diff --quiet -- liquidation_history.json", workflow)
+        self.assertIn("python3 fetch_dolomite_revenue.py", workflow)
+        self.assertIn("dolomite_revenue.json", workflow)
 
 
 if __name__ == "__main__":

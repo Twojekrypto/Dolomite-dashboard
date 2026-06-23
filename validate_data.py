@@ -77,6 +77,31 @@ def _safe_number(value):
     return 0.0
 
 
+def _date_key_from_timestamp(value):
+    try:
+        return datetime.fromtimestamp(int(value), tz=timezone.utc).strftime("%Y-%m-%d")
+    except (TypeError, ValueError, OSError):
+        return ""
+
+
+def _liquidator_earnings_daily_from_history(path="liquidation_history.json"):
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path) as f:
+            payload = json.load(f)
+    except (OSError, ValueError):
+        return None
+
+    daily = {}
+    for row in payload.get("liquidationHistory", []) or []:
+        day = _date_key_from_timestamp(row.get("timestamp"))
+        amount = _safe_number(row.get("liquidationRewardUSD"))
+        if day and amount > 0:
+            daily[day] = daily.get(day, 0.0) + amount
+    return daily
+
+
 def _odolo_circulating_reconciles(data):
     try:
         total_supply = float(data.get("totalSupply"))
@@ -394,6 +419,27 @@ def _dolomite_revenue_chain_windows_valid(data):
     return True
 
 
+def _dolomite_revenue_liquidator_earnings_match_history(data):
+    daily = _liquidator_earnings_daily_from_history()
+    if daily is None:
+        return True
+
+    rows = data.get("series", [])
+    totals = data.get("totals", {})
+    expected_all_time = sum(daily.values())
+    if not _nearly_equal(totals.get("liquidatorEarningsAllTimeUSD", 0), expected_all_time, abs_tol=0.01):
+        return False
+
+    for row in rows:
+        day = row.get("date") or _date_key_from_timestamp(row.get("timestamp"))
+        if not day:
+            return False
+        expected = daily.get(day, 0.0)
+        if not _nearly_equal(row.get("liquidatorEarningsUSD", 0), expected, abs_tol=0.01):
+            return False
+    return True
+
+
 def _dolomite_revenue_totals_valid(data):
     totals = data.get("totals", {})
     latest = data.get("latest", {})
@@ -668,6 +714,7 @@ RULES = {
             ("revenue rolling windows must reconcile with series", _dolomite_revenue_window_totals_valid),
             ("revenue chain windows must reconcile with series", _dolomite_revenue_chain_windows_valid),
             ("revenue history must be sorted and populated", _dolomite_revenue_series_valid),
+            ("liquidator earnings must match liquidation history", _dolomite_revenue_liquidator_earnings_match_history),
         ],
         "min_bytes": 10_000,
     },
