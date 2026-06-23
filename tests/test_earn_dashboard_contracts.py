@@ -129,16 +129,14 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("for i in $(seq 1 12)", workflow)
         self.assertIn("Failed to push after 12 attempts.", workflow)
 
-    def test_pages_workflow_deploys_from_push_without_duplicate_workflow_runs(self):
+    def test_pages_workflow_keeps_earn_deploys_out_of_workflow_run(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("push:", workflow)
         self.assertIn("- master", workflow)
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertNotIn("workflow_run:", workflow)
-        self.assertNotIn("github.event.workflow_run.conclusion", workflow)
-        self.assertNotIn("- Update Data", workflow)
-        self.assertNotIn("- Update DOLO Flows\n", workflow)
         self.assertNotIn("- Update EARN Snapshots", workflow)
+        self.assertNotIn("- Update Earn snapshots", workflow)
+        self.assertNotIn("- Update Earn freshness and quality status", workflow)
         self.assertNotIn("- Update oDOLO Contract Data", workflow)
 
     def test_earn_commit_helper_dispatches_pages_after_action_token_push(self):
