@@ -124,6 +124,14 @@ def _tail_text(value: str, limit: int = 4000) -> str:
     return value[-limit:]
 
 
+def _tail_file(path: object, *, limit: int = 2000) -> Optional[str]:
+    try:
+        payload = Path(str(path)).read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return None
+    return _tail_text(payload, limit=limit)
+
+
 def _run_json(argv: List[str], *, timeout_seconds: Optional[int] = None) -> dict:
     print("+ " + " ".join(argv), flush=True)
     proc = subprocess.Popen(
@@ -305,7 +313,16 @@ def _terminate_launch_processes(path: Path) -> List[dict]:
             except OSError:
                 continue
         run["terminatedAt"] = _utc_now_iso()
-        terminated.append({"pid": pid, "progressKey": run.get("progressKey"), "launchPath": str(path)})
+        row = {
+            "pid": pid,
+            "progressKey": run.get("progressKey"),
+            "launchPath": str(path),
+            "logPath": run.get("logPath"),
+        }
+        log_tail = _tail_file(run.get("logPath"))
+        if log_tail:
+            row["logTail"] = log_tail
+        terminated.append(row)
         changed = True
     if changed:
         _write_json(path, launch)
@@ -594,6 +611,8 @@ def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]
             str(args.max_new_backfill_workers),
             "--max-scan-blocks-per-task",
             str(args.max_delta_scan_blocks_per_task),
+            "--max-scan-worker-runtime-seconds",
+            str(args.max_incremental_scan_worker_runtime_seconds),
             "--json",
         ]
         if step == 0 and start_fresh_plan:
@@ -648,6 +667,7 @@ def main() -> int:
     parser.add_argument("--max-incremental-scan-workers", type=int, default=8)
     parser.add_argument("--max-incremental-apply-workers", type=int, default=8)
     parser.add_argument("--max-new-backfill-workers", type=int, default=4)
+    parser.add_argument("--max-incremental-scan-worker-runtime-seconds", type=int, default=0)
     parser.add_argument("--max-steps", type=int, default=720)
     parser.add_argument("--sleep-seconds", type=int, default=20)
     parser.add_argument("--command-timeout-seconds", type=int, default=600)

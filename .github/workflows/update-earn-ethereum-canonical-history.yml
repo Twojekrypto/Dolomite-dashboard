@@ -35,6 +35,7 @@ jobs:
       COMMAND_TIMEOUT_SECONDS: '180'
       MAX_RESUME_TARGET_LAG_BLOCKS: '600'
       MAX_DELTA_SCAN_BLOCKS_PER_TASK: '25'
+      MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS: '300'
       ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
       ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
       ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}
@@ -102,6 +103,7 @@ jobs:
             --command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS" \
             --max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS" \
             --max-delta-scan-blocks-per-task "$MAX_DELTA_SCAN_BLOCKS_PER_TASK" \
+            --max-incremental-scan-worker-runtime-seconds "$MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS" \
             --allow-checkpoint-incomplete \
             --status-output "$status_path"
           cat "$status_path"

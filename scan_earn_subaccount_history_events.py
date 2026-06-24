@@ -62,6 +62,63 @@ def _initial_rpc_index(rpcs: Sequence[str], progress_key: Optional[str]) -> int:
     return int(digest[:8], 16) % len(rpcs)
 
 
+def _should_fallback_to_single_topics(exc: Exception) -> bool:
+    message = str(exc).lower()
+    if "too many" in message or "rate" in message:
+        return False
+    return any(
+        needle in message
+        for needle in (
+            "all rpcs failed",
+            "exceed",
+            "payload",
+            "query returned",
+            "result",
+            "timeout",
+            "timed out",
+            "topic",
+            "method not available",
+            "request entity too large",
+        )
+    )
+
+
+def _get_logs_with_topic_fallback(
+    rpcs: Sequence[str],
+    rpc_idx: List[int],
+    contract: str,
+    event_topics: Sequence[str],
+    from_block: int,
+    to_block: int,
+) -> List[dict]:
+    """Fetch a range once, falling back to per-topic calls for heavy Ethereum ranges."""
+    try:
+        return get_logs(rpcs, rpc_idx, contract, [list(event_topics)], from_block, to_block) or []
+    except Exception as exc:
+        if not _should_fallback_to_single_topics(exc):
+            raise
+        print(
+            f"eth_getLogs combined-topic query failed for blocks "
+            f"{from_block:,}-{to_block:,}; retrying one topic at a time: {exc}",
+            flush=True,
+        )
+
+    combined: List[dict] = []
+    errors: List[str] = []
+    for topic in event_topics:
+        try:
+            combined.extend(get_logs(rpcs, rpc_idx, contract, [[topic]], from_block, to_block) or [])
+        except Exception as topic_exc:
+            errors.append(f"{topic}: {topic_exc}")
+    if errors:
+        tail = " | ".join(errors[-3:])
+        raise RuntimeError(
+            f"eth_getLogs failed for combined topics and {len(errors)} fallback topic(s) "
+            f"over blocks {from_block}-{to_block}; recent topic errors: {tail}"
+        )
+    return combined
+
+
 def _sort_logs(logs: Sequence[dict]) -> List[dict]:
     return sorted(
         logs,
@@ -302,7 +359,9 @@ def scan_chain_to_event_shards(
     while current <= resolved_to_block:
         chunk_end = min(current + adaptive_chunk_size - 1, resolved_to_block)
         try:
-            logs = _sort_logs(_dedupe_logs(get_logs(rpcs, rpc_idx, contract, [ALL_EVENTS], current, chunk_end) or []))
+            logs = _sort_logs(_dedupe_logs(
+                _get_logs_with_topic_fallback(rpcs, rpc_idx, contract, ALL_EVENTS, current, chunk_end)
+            ))
             owners: Dict[str, List[dict]] = {}
             decoded_entry_count = 0
             selected_event_count = 0
