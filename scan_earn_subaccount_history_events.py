@@ -64,6 +64,8 @@ def _initial_rpc_index(rpcs: Sequence[str], progress_key: Optional[str]) -> int:
 
 def _should_fallback_to_single_topics(exc: Exception) -> bool:
     message = str(exc).lower()
+    if "bad request" in message or "http error 400" in message:
+        return True
     if "too many" in message or "rate" in message:
         return False
     return any(

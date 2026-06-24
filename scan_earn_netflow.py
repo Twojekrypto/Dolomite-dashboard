@@ -261,7 +261,20 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
                     time.sleep(0.5)
                     continue
                 return data.get("result")
-        except (URLError, HTTPError, TimeoutError, OSError) as e:
+        except HTTPError as e:
+            body = ""
+            try:
+                body = e.read().decode("utf-8", errors="replace")
+            except Exception:
+                body = ""
+            body = body.strip()
+            body_tail = f" body={body[-500:]}" if body else ""
+            message = f"RPC failed ({rpc_url}): {e}{body_tail}"
+            recent_errors.append(message)
+            print(f"  {message}", file=sys.stderr)
+            rpc_idx_ref[0] += 1
+            time.sleep(1)
+        except (URLError, TimeoutError, OSError) as e:
             message = f"RPC failed ({rpc_url}): {e}"
             recent_errors.append(message)
             print(f"  {message}", file=sys.stderr)

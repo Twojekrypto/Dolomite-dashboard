@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 import scan_earn_subaccount_history_events as scanner
-from scan_earn_subaccount_history_events import _initial_rpc_index
+from scan_earn_subaccount_history_events import _initial_rpc_index, _should_fallback_to_single_topics
 
 
 class ScanEarnSubaccountHistoryEventsTest(unittest.TestCase):
@@ -18,6 +18,24 @@ class ScanEarnSubaccountHistoryEventsTest(unittest.TestCase):
     def test_initial_rpc_index_defaults_to_first_endpoint_without_progress_key(self):
         self.assertEqual(_initial_rpc_index(["rpc-a", "rpc-b"], None), 0)
         self.assertEqual(_initial_rpc_index([], "d1of4"), 0)
+
+    def test_topic_fallback_allows_mixed_bad_request_and_rate_limit_tail(self):
+        exc = RuntimeError(
+            "All RPCs failed after 9 attempts; recent errors: "
+            "RPC failed (https://alchemy.example): HTTP Error 400: Bad Request | "
+            "RPC failed (https://alchemy-2.example): HTTP Error 429: Too Many Requests"
+        )
+
+        self.assertTrue(_should_fallback_to_single_topics(exc))
+
+    def test_topic_fallback_does_not_expand_pure_rate_limit_tail(self):
+        exc = RuntimeError(
+            "All RPCs failed after 3 attempts; recent errors: "
+            "RPC failed (https://alchemy.example): HTTP Error 429: Too Many Requests | "
+            "RPC failed (https://alchemy-2.example): rate limited"
+        )
+
+        self.assertFalse(_should_fallback_to_single_topics(exc))
 
     def test_get_logs_falls_back_to_single_topics_when_combined_topic_query_fails(self):
         calls = []
