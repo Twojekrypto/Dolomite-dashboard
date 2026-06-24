@@ -12,7 +12,7 @@ on:
       checkpoint_steps:
         description: 'Polling steps before checkpointing this run.'
         required: false
-        default: '1500'
+        default: '2400'
 
 concurrency:
   group: earn-ethereum-canonical-history
@@ -25,16 +25,16 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: ethereum
       HOT_LIMIT: ${{ github.event.inputs.hot_limit || '80' }}
-      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1500' }}
+      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '2400' }}
       CHECKPOINT_SLEEP_SECONDS: '2'
       COMMAND_TIMEOUT_SECONDS: '180'
       MAX_RESUME_TARGET_LAG_BLOCKS: '600'
-      MAX_DELTA_SCAN_BLOCKS_PER_TASK: '100'
+      MAX_DELTA_SCAN_BLOCKS_PER_TASK: '25'
       ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
       ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
       ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}
