@@ -242,9 +242,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_ethereum_canonical_workflow_rebuilds_verified_ledger_on_fresh_history(self):
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '12,42 * * * *'", workflow)
-        self.assertIn("timeout-minutes: 60", workflow)
-        self.assertIn("default: '1500'", workflow)
-        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1500' }}", workflow)
+        self.assertIn("timeout-minutes: 90", workflow)
+        self.assertIn("default: '2400'", workflow)
+        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '2400' }}", workflow)
         for env_name in (
             "ALCHEMY_ETHEREUM_RPC_KAT",
             "ALCHEMY_ETHEREUM_RPC_DAN",
@@ -255,7 +255,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
-        self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '100'", workflow)
+        self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '25'", workflow)
         self.assertIn("--max-incremental-scan-workers 16", workflow)
         self.assertIn('--max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS"', workflow)
         self.assertIn('--max-delta-scan-blocks-per-task "$MAX_DELTA_SCAN_BLOCKS_PER_TASK"', workflow)
