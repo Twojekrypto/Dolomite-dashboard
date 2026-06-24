@@ -110,6 +110,7 @@ EXCLUDED_ADDRS = {
     "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74",  # EOA bot, 51k nonce
     "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3",  # EOA bot, 35k nonce
     "0x278d858f05b94576c1e6f73285886876ff6ef8d2",  # Contract bot, 53k DOLO txs
+    "0xf10f81795b359f8a72682cc2a39444bf818ef4ca",  # EOA Bot/MM, 13.9k nonce, 1.9k DOLO transfer rows (2026-06-24)
     "0x9e7728077f753dfdf53c2236097e27c743890992",  # DEX/router contract, 327M throughput
     # --- MM / CEX relay cluster (verified 2026-03-24) ---
     "0x0002810d2b1d621f3ae6c8a7af9e2f09efa1f8bb",  # MM relay: receives DOLO from CEX → sends to bridge

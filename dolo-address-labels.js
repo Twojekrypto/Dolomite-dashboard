@@ -118,6 +118,7 @@
     "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74": {label:"Bot / MM", type:"bot"},
     "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3": {label:"Bot / MM", type:"bot"},
     "0x601d9ad1b431577e3635a23b7eb3bcc46bcc648b": {label:"Bot / MM", type:"bot"},
+    "0xf10f81795b359f8a72682cc2a39444bf818ef4ca": {label:"Bot / MM", type:"bot"},
     "0x278d858f05b94576c1e6f73285886876ff6ef8d2": {label:"Bot (CA)", type:"bot"},
     "0x1ff6b8e1192eb0369006bbad76da9068b68961b2": {label:"Liquidator", type:"liquidator"},
     "0xb7131fc8cdc43060a6210257f537dba5fcae6aed": {label:"MEV / Liquidator Bot", type:"liquidator"},
