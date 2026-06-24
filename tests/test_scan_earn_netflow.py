@@ -1,8 +1,9 @@
 import json
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
-from io import StringIO
+from io import BytesIO, StringIO
 from pathlib import Path
+from urllib.error import HTTPError
 from unittest.mock import patch
 
 import scan_earn_netflow
@@ -99,6 +100,27 @@ class ScanEarnNetflowTest(unittest.TestCase):
 
         self.assertEqual(seen, rpcs)
         self.assertEqual(timeouts, [15, 15, 15])
+
+    def test_rpc_call_includes_http_error_body_in_recent_errors(self):
+        def _fake(req, timeout=None):
+            raise HTTPError(
+                req.full_url,
+                400,
+                "Bad Request",
+                hdrs=None,
+                fp=BytesIO(b'{"error":{"message":"Log response size exceeded"}}'),
+            )
+
+        with patch.object(scan_earn_netflow, "urlopen", side_effect=_fake):
+            with self.assertRaisesRegex(Exception, "Log response size exceeded"):
+                scan_earn_netflow.get_logs(
+                    ["https://rpc-a.example"],
+                    [0],
+                    "0xC",
+                    [scan_earn_netflow.ALL_EVENTS],
+                    100,
+                    124,
+                )
 
     def test_main_returns_failure_when_chain_scan_fails(self):
         fake_chains = {
