@@ -152,13 +152,15 @@ def _run_json(argv: List[str], *, timeout_seconds: Optional[int] = None) -> dict
         raise CommandTimedOut(argv, int(timeout_seconds or 0), stdout=stdout, stderr=stderr) from exc
     if stderr:
         print(stderr, end="" if stderr.endswith("\n") else "\n", flush=True)
-    if stdout:
-        print(stdout, end="" if stdout.endswith("\n") else "\n", flush=True)
     if proc.returncode != 0:
+        if stdout:
+            print(stdout, end="" if stdout.endswith("\n") else "\n", flush=True)
         raise RuntimeError(f"Command failed with exit code {proc.returncode}: {' '.join(argv)}")
     try:
         return json.loads(stdout)
     except json.JSONDecodeError as exc:
+        if stdout:
+            print(stdout, end="" if stdout.endswith("\n") else "\n", flush=True)
         raise RuntimeError(f"Command did not return JSON: {' '.join(argv)}") from exc
 
 
@@ -199,6 +201,17 @@ def _summarize_progress(payload: Optional[dict]) -> dict:
         "materializeComplete": bool(payload.get("materializeComplete")),
         "repairComplete": bool(payload.get("repairComplete")),
     }
+
+
+def _print_progress_summary(*, chain: str, phase: str, step: int, max_steps: int, payload: Optional[dict]) -> None:
+    summary = {
+        "chain": chain,
+        "phase": phase,
+        "step": int(step) + 1,
+        "maxSteps": int(max_steps),
+        "progress": _summarize_progress(payload),
+    }
+    print(json.dumps(summary, ensure_ascii=True, indent=2), flush=True)
 
 
 def _status_payload(
@@ -426,6 +439,14 @@ def _bootstrap_baseline(args: argparse.Namespace, selected_addresses: List[str])
             and payload.get("materializeComplete")
             and payload.get("repairComplete")
         )
+        if complete or step == 0 or (step + 1) % 30 == 0:
+            _print_progress_summary(
+                chain=args.chain,
+                phase="bootstrap",
+                step=step,
+                max_steps=args.max_steps,
+                payload=payload,
+            )
         if complete:
             break
         time.sleep(max(1, int(args.sleep_seconds)))
@@ -590,6 +611,14 @@ def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]
         coverage = status.get("coverage") or {}
         ratio = float(coverage.get("freshCoverageRatio") or 0)
         complete = bool(status.get("complete") and ratio >= float(args.min_fresh_ratio))
+        if complete or step == 0 or (step + 1) % 30 == 0:
+            _print_progress_summary(
+                chain=args.chain,
+                phase="incremental",
+                step=step,
+                max_steps=args.max_steps,
+                payload=payload,
+            )
         if complete:
             break
         time.sleep(max(1, int(args.sleep_seconds)))
