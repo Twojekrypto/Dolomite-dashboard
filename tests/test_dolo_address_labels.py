@@ -148,6 +148,27 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertNotIn("CEX/MM", info["label"])
                 self.assertEqual(info["confidence"], "confirmed")
 
+    def test_behavioral_bot_labels_are_confirmed(self):
+        expected = {
+            "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109": "Bot / MM",
+            "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74": "Bot / MM",
+            "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3": "Bot / MM",
+            "0x601d9ad1b431577e3635a23b7eb3bcc46bcc648b": "Bot / MM",
+            "0xf10f81795b359f8a72682cc2a39444bf818ef4ca": "Bot / MM",
+            "0x278d858f05b94576c1e6f73285886876ff6ef8d2": "Bot (CA)",
+            "0x9cb677f2a8daa9511ae79c2ba56395552b5d030d": "Active Trader/Bot",
+        }
+        for address, label in expected.items():
+            with self.subTest(address=address):
+                info = self.labels[address]
+                self.assertEqual(info["label"], label)
+                self.assertEqual(info["type"], "bot")
+                self.assertEqual(info["source"], "behavioral-label")
+                self.assertEqual(info["confidence"], "confirmed")
+
+        generator = (ROOT / "generate_dolo_flows.py").read_text()
+        self.assertIn("0xf10f81795b359f8a72682cc2a39444bf818ef4ca", generator)
+
     def test_public_explorer_labels_are_current(self):
         expected = {
             "0x000000000004444c5dc75cb358380d2e3de08a90": ("Uniswap V4 Pool Manager", "contract"),
