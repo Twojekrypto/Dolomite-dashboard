@@ -193,6 +193,16 @@ PROGRESS_VERSION = 2
 rpc_id = 1
 
 
+def _rpc_max_attempts(method, rpcs):
+    if method == "eth_getLogs":
+        return max(1, len(rpcs))
+    return MAX_RETRIES * len(rpcs)
+
+
+def _rpc_timeout_seconds(method):
+    return 15 if method == "eth_getLogs" else 30
+
+
 def _endpoint_block_cap(url):
     """Max eth_getLogs block span an endpoint can serve, or None for no cap."""
     for needle, cap in ENDPOINT_BLOCK_CAPS:
@@ -214,7 +224,8 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
     """Make an RPC call with failover across multiple endpoints."""
     global rpc_id
     recent_errors = []
-    for attempt in range(MAX_RETRIES * len(rpcs)):
+    max_attempts = _rpc_max_attempts(method, rpcs)
+    for attempt in range(max_attempts):
         idx = rpc_idx_ref[0] % len(rpcs)
         rpc_url = rpcs[idx]
         # Never hand a capped endpoint (e.g. 1rpc) a getLogs range wider than it
@@ -240,7 +251,7 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
             "Accept": "application/json",
         })
         try:
-            with urlopen(req, timeout=30) as response:
+            with urlopen(req, timeout=_rpc_timeout_seconds(method)) as response:
                 data = json.loads(response.read())
                 if "error" in data:
                     message = f"RPC error from {rpc_url}: {data['error']}"
@@ -258,7 +269,7 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
             time.sleep(1)
     error_tail = " | ".join(recent_errors[-len(rpcs):])
     detail = f"; recent errors: {error_tail}" if error_tail else ""
-    raise Exception(f"All RPCs failed after {MAX_RETRIES * len(rpcs)} attempts{detail}")
+    raise Exception(f"All RPCs failed after {max_attempts} attempts{detail}")
 
 
 def get_block_number(rpcs, rpc_idx):

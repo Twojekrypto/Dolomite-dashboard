@@ -83,6 +83,23 @@ class ScanEarnNetflowTest(unittest.TestCase):
 
         self.assertEqual(seen, ["https://strong.example/v2/key", "https://1rpc.io/eth"])
 
+    def test_getlogs_failover_tries_each_endpoint_once_with_short_timeout(self):
+        rpcs = ["https://rpc-a.example", "https://rpc-b.example", "https://rpc-c.example"]
+        seen = []
+        timeouts = []
+
+        def _fake(req, timeout=None):
+            seen.append(req.full_url)
+            timeouts.append(timeout)
+            raise TimeoutError("slow getLogs")
+
+        with patch.object(scan_earn_netflow, "urlopen", side_effect=_fake):
+            with self.assertRaisesRegex(Exception, "All RPCs failed after 3 attempts"):
+                scan_earn_netflow.get_logs(rpcs, [0], "0xC", [scan_earn_netflow.ALL_EVENTS], 100, 124)
+
+        self.assertEqual(seen, rpcs)
+        self.assertEqual(timeouts, [15, 15, 15])
+
     def test_main_returns_failure_when_chain_scan_fails(self):
         fake_chains = {
             "testchain": {

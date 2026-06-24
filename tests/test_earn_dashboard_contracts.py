@@ -738,7 +738,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         event_scanner = SUBACCOUNT_EVENT_SCANNER.read_text(encoding="utf-8")
         history_builder = SUBACCOUNT_HISTORY_BUILDER.read_text(encoding="utf-8")
         self.assertIn('max_chunk_size = int(config.get("max_block_chunk") or BLOCK_CHUNK)', event_scanner)
-        self.assertIn("adaptive_chunk_size = min(max_chunk_size, max(1_000, int(chunk_size)))", event_scanner)
+        self.assertIn("adaptive_chunk_size = min(max_chunk_size, max(1, int(chunk_size)), max(1, range_span))", event_scanner)
         self.assertIn("adaptive_chunk_size = min(max_chunk_size, adaptive_chunk_size * 2)", event_scanner)
         self.assertIn('CHAINS[args.chain].get("max_block_chunk")', event_scanner)
         self.assertIn('default_block_chunk = int(config.get("max_block_chunk") or DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK)', history_builder)
