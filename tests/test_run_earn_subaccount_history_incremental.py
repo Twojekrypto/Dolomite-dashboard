@@ -258,6 +258,69 @@ class RunEarnSubaccountHistoryIncrementalTest(unittest.TestCase):
         queued = [row for row in result["skipped"] if row["reason"] == "queued"]
         self.assertEqual(len(queued), 3)
 
+    def test_scan_launcher_restarts_stale_alive_scan_worker(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            cycle_root = root / "cycle"
+            progress_dir = cycle_root / ".progress"
+            progress_dir.mkdir(parents=True)
+            old_log = cycle_root / ".logs" / "scan-d1of2.log"
+            old_log.parent.mkdir(parents=True)
+            old_log.write_text("old worker output\n", encoding="utf-8")
+            launch_path = progress_dir / "scan-launch.json"
+            launch_path.write_text(
+                """
+                {
+                  "runs": [
+                    {
+                      "progressKey": "d1of2",
+                      "pid": 123,
+                      "startedAt": "2000-01-01T00:00:00Z",
+                      "runnerSessionId": "%s",
+                      "logPath": "%s"
+                    }
+                  ]
+                }
+                """
+                % (incremental_runner.RUNNER_SESSION_ID, old_log),
+                encoding="utf-8",
+            )
+            address_file = root / "addresses.txt"
+            address_file.write_text("0x1111111111111111111111111111111111111111\n", encoding="utf-8")
+            plan = {
+                "chain": "ethereum",
+                "cycleId": "ethereum-f1-t100",
+                "cycleRoot": str(cycle_root),
+                "deltaEventsDir": str(cycle_root / "events"),
+                "targetBlock": 100,
+                "maxScanWorkers": 1,
+                "maxScanWorkerRuntimeSeconds": 300,
+                "scanTasks": [
+                    {
+                        "progressKey": "d1of2",
+                        "fromBlock": 1,
+                        "toBlock": 25,
+                        "addressFile": str(address_file),
+                    },
+                    {
+                        "progressKey": "d2of2",
+                        "fromBlock": 26,
+                        "toBlock": 50,
+                        "addressFile": str(address_file),
+                    },
+                ],
+            }
+
+            with patch.object(incremental_runner, "_is_pid_alive", return_value=True), \
+                 patch.object(incremental_runner, "_terminate_pid", return_value=True) as terminate_pid, \
+                 patch.object(incremental_runner, "_start_task", return_value=456) as start_task:
+                result = incremental_runner._ensure_scan_running(plan, "ethereum")
+
+        terminate_pid.assert_called_once_with(123)
+        start_task.assert_called_once()
+        self.assertEqual(result["terminated"][0]["progressKey"], "d1of2")
+        self.assertEqual(result["started"][0]["progressKey"], "d1of2")
+
 
 if __name__ == "__main__":
     unittest.main()

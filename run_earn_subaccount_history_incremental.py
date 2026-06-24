@@ -17,8 +17,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import subprocess
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
@@ -69,6 +71,39 @@ def _is_pid_alive(pid: Optional[int]) -> bool:
         return True
     except OSError:
         return False
+
+
+def _terminate_pid(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.killpg(int(pid), signal.SIGTERM)
+        return True
+    except OSError:
+        try:
+            os.kill(int(pid), signal.SIGTERM)
+            return True
+        except OSError:
+            return False
+
+
+def _started_at_epoch(run: dict) -> Optional[float]:
+    raw = str(run.get("startedAt") or "")
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc).timestamp()
+    except ValueError:
+        return None
+
+
+def _is_stale_launch_run(run: dict, *, max_runtime_seconds: int) -> bool:
+    if max_runtime_seconds <= 0:
+        return False
+    started = _started_at_epoch(run)
+    if started is None:
+        return False
+    return (time.time() - started) > max_runtime_seconds
 
 
 def _launch_run_belongs_to_session(run: dict) -> bool:
@@ -547,7 +582,25 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
     launch = _load_launch(launch_path)
     runs = _runs_by_key(launch)
     max_concurrent = int(plan.get("maxScanWorkers") or len(tasks) or 1)
-    alive_count = sum(1 for run in runs.values() if _is_launch_run_alive(run))
+    max_runtime_seconds = int(plan.get("maxScanWorkerRuntimeSeconds") or 0)
+    terminated = []
+    for key, run in list(runs.items()):
+        if not _is_launch_run_alive(run):
+            continue
+        if not _is_stale_launch_run(run, max_runtime_seconds=max_runtime_seconds):
+            continue
+        pid = int(run.get("pid") or 0)
+        if _terminate_pid(pid):
+            run["terminatedAt"] = _utc_now_iso()
+            run["terminationReason"] = "stale_scan_worker_runtime"
+            terminated.append({
+                "progressKey": key,
+                "pid": pid,
+                "reason": "stale_scan_worker_runtime",
+                "startedAt": run.get("startedAt"),
+                "logPath": run.get("logPath"),
+            })
+    alive_count = sum(1 for run in runs.values() if _is_launch_run_alive(run) and not run.get("terminationReason"))
     started = []
     skipped = []
     for task in tasks:
@@ -557,7 +610,7 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
             skipped.append({"progressKey": key, "reason": "completed"})
             continue
         existing = runs.get(key)
-        if existing and _is_launch_run_alive(existing):
+        if existing and not existing.get("terminationReason") and _is_launch_run_alive(existing):
             skipped.append({"progressKey": key, "reason": "already_running", "pid": existing.get("pid")})
             continue
         if alive_count >= max_concurrent:
@@ -577,7 +630,7 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
         "runnerSessionId": RUNNER_SESSION_ID,
         "runs": list(runs.values()),
     })
-    return {"started": started, "skipped": skipped, "launchPath": str(launch_path)}
+    return {"started": started, "skipped": skipped, "terminated": terminated, "launchPath": str(launch_path)}
 
 
 def _ensure_new_address_running(plan: dict, chain: str, *, history_dir: Path) -> dict:
@@ -714,6 +767,7 @@ def main() -> int:
     common.add_argument("--max-apply-workers", type=int, default=12)
     common.add_argument("--max-new-backfill-workers", type=int, default=12)
     common.add_argument("--max-scan-blocks-per-task", type=int, default=0)
+    common.add_argument("--max-scan-worker-runtime-seconds", type=int, default=0)
     common.add_argument("--selection-address-file", default=None)
 
     plan_cmd = subparsers.add_parser("plan", parents=[common], help="Build and persist a fresh incremental cycle plan")
@@ -771,6 +825,8 @@ def main() -> int:
         selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         refresh=False,
     )
+    if int(args.max_scan_worker_runtime_seconds or 0) > 0:
+        plan["maxScanWorkerRuntimeSeconds"] = int(args.max_scan_worker_runtime_seconds)
     status = build_incremental_status(plan, chain, history_dir=history_dir)
 
     if args.command == "status":
@@ -793,6 +849,8 @@ def main() -> int:
             max_scan_blocks_per_task=args.max_scan_blocks_per_task,
             selection_address_file=Path(args.selection_address_file) if args.selection_address_file else None,
         )
+        if int(args.max_scan_worker_runtime_seconds or 0) > 0:
+            plan["maxScanWorkerRuntimeSeconds"] = int(args.max_scan_worker_runtime_seconds)
         status = build_incremental_status(plan, chain, history_dir=history_dir)
 
     scan_launch = _ensure_scan_running(plan, chain)
