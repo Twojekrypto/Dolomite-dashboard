@@ -279,7 +279,8 @@ def scan_chain_to_event_shards(
     total_selected_event_count = 0
     shard_count = 0
     max_chunk_size = int(config.get("max_block_chunk") or BLOCK_CHUNK)
-    adaptive_chunk_size = min(max_chunk_size, max(1_000, int(chunk_size)))
+    range_span = resolved_to_block - resolved_from_block + 1
+    adaptive_chunk_size = min(max_chunk_size, max(1, int(chunk_size)), max(1, range_span))
 
     progress = None if no_resume else _load_progress(output_dir, chain, progress_key)
     if progress:
@@ -384,10 +385,14 @@ def scan_chain_to_event_shards(
                 time.sleep(5)
                 continue
             if "range" in error_msg.lower() or "10000" in error_msg or "exceed" in error_msg.lower():
-                adaptive_chunk_size = max(1_000, adaptive_chunk_size // 2)
+                adaptive_chunk_size = max(1, adaptive_chunk_size // 2)
                 print(f"[{chain}] block range too large, reducing to {adaptive_chunk_size:,}")
                 continue
-            print(f"[{chain}] error at block {current:,}: {exc}")
+            if adaptive_chunk_size > 1:
+                adaptive_chunk_size = max(1, adaptive_chunk_size // 2)
+                print(f"[{chain}] error at block {current:,}: {exc}; reducing chunk size to {adaptive_chunk_size:,}")
+            else:
+                print(f"[{chain}] error at block {current:,}: {exc}")
             time.sleep(2)
             rpc_idx[0] += 1
 
