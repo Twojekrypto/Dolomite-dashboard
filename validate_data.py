@@ -322,23 +322,31 @@ def _dolomite_revenue_series_valid(data):
         timestamp = row.get("timestamp")
         fees = row.get("feesUSD")
         revenue = row.get("revenueUSD")
+        gross_revenue = row.get("grossRevenueUSD", revenue)
+        rebate = row.get("borrowFeeRebateUSD", 0)
         supply_side = row.get("supplySideRevenueUSD")
         if not isinstance(timestamp, int) or timestamp <= previous:
             return False
-        if not all(isinstance(value, (int, float)) for value in (fees, revenue, supply_side)):
+        if not all(isinstance(value, (int, float)) for value in (fees, revenue, gross_revenue, rebate, supply_side)):
             return False
-        if fees < 0 or revenue < 0 or revenue > fees + 1:
+        if fees < 0 or revenue < 0 or gross_revenue < 0 or rebate < 0 or revenue > gross_revenue + 1 or gross_revenue > fees + 1:
             return False
-        if not _nearly_equal(fees, revenue + supply_side, abs_tol=1):
+        if not _nearly_equal(gross_revenue, revenue + rebate, abs_tol=1):
+            return False
+        if not _nearly_equal(fees, gross_revenue + supply_side, abs_tol=1):
             return False
         chain_values = row.get("chains", {})
         if not isinstance(chain_values, dict):
             return False
         chain_fees = sum(_safe_number(chain.get("feesUSD")) for chain in chain_values.values())
+        chain_gross = sum(_safe_number(chain.get("grossRevenueUSD", chain.get("revenueUSD"))) for chain in chain_values.values())
+        chain_rebate = sum(_safe_number(chain.get("borrowFeeRebateUSD")) for chain in chain_values.values())
         chain_revenue = sum(_safe_number(chain.get("revenueUSD")) for chain in chain_values.values())
         chain_supply_side = sum(_safe_number(chain.get("supplySideRevenueUSD")) for chain in chain_values.values())
         if chain_values and (
             not _nearly_equal(fees, chain_fees, abs_tol=1)
+            or not _nearly_equal(gross_revenue, chain_gross, abs_tol=1)
+            or not _nearly_equal(rebate, chain_rebate, abs_tol=1)
             or not _nearly_equal(revenue, chain_revenue, abs_tol=1)
             or not _nearly_equal(supply_side, chain_supply_side, abs_tol=1)
         ):
@@ -356,8 +364,12 @@ def _dolomite_revenue_window_totals_valid(data):
         return False
     checks = (
         ("revenue7dUSD", "revenueUSD", 7),
+        ("grossRevenue7dUSD", "grossRevenueUSD", 7),
+        ("borrowFeeRebate7dUSD", "borrowFeeRebateUSD", 7),
         ("fees7dUSD", "feesUSD", 7),
         ("revenue30dUSD", "revenueUSD", 30),
+        ("grossRevenue30dUSD", "grossRevenueUSD", 30),
+        ("borrowFeeRebate30dUSD", "borrowFeeRebateUSD", 30),
         ("fees30dUSD", "feesUSD", 30),
     )
     return all(
@@ -374,10 +386,14 @@ def _dolomite_revenue_chain_windows_valid(data):
             for chain, payload in (row.get("chains") or {}).items():
                 item = expected.setdefault(chain, {
                     "feesUSD": 0.0,
+                    "grossRevenueUSD": 0.0,
+                    "borrowFeeRebateUSD": 0.0,
                     "revenueUSD": 0.0,
                     "supplySideRevenueUSD": 0.0,
                 })
                 item["feesUSD"] += _safe_number(payload.get("feesUSD"))
+                item["grossRevenueUSD"] += _safe_number(payload.get("grossRevenueUSD", payload.get("revenueUSD")))
+                item["borrowFeeRebateUSD"] += _safe_number(payload.get("borrowFeeRebateUSD"))
                 item["revenueUSD"] += _safe_number(payload.get("revenueUSD"))
                 item["supplySideRevenueUSD"] += _safe_number(payload.get("supplySideRevenueUSD"))
         actual = data.get(key, {})
@@ -436,20 +452,28 @@ def _dolomite_revenue_totals_valid(data):
     latest = data.get("latest", {})
     daily_fees = totals.get("dailyFeesUSD")
     daily_revenue = totals.get("dailyRevenueUSD")
+    daily_gross_revenue = totals.get("dailyGrossRevenueUSD", daily_revenue)
+    daily_rebate = totals.get("dailyBorrowFeeRebateUSD", 0)
     daily_supply_side = totals.get("dailySupplySideRevenueUSD")
     daily_cut = totals.get("dailyProtocolCut")
     latest_fees = latest.get("feesUSD")
     latest_revenue = latest.get("revenueUSD")
-    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, daily_supply_side, daily_cut, latest_fees, latest_revenue)):
+    latest_gross_revenue = latest.get("grossRevenueUSD", latest_revenue)
+    latest_rebate = latest.get("borrowFeeRebateUSD", 0)
+    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, daily_gross_revenue, daily_rebate, daily_supply_side, daily_cut, latest_fees, latest_revenue, latest_gross_revenue, latest_rebate)):
         return False
     expected_cut = daily_revenue / daily_fees if daily_fees > 0 else 0
     return (
         daily_fees > 0
-        and 0 <= daily_revenue <= daily_fees
-        and _nearly_equal(daily_fees, daily_revenue + daily_supply_side, abs_tol=1)
+        and 0 <= daily_revenue <= daily_gross_revenue <= daily_fees
+        and daily_rebate >= 0
+        and _nearly_equal(daily_gross_revenue, daily_revenue + daily_rebate, abs_tol=1)
+        and _nearly_equal(daily_fees, daily_gross_revenue + daily_supply_side, abs_tol=1)
         and _nearly_equal(daily_cut, expected_cut, abs_tol=0.0001)
         and _nearly_equal(daily_fees, latest_fees, abs_tol=500)
         and _nearly_equal(daily_revenue, latest_revenue, abs_tol=500)
+        and _nearly_equal(daily_gross_revenue, latest_gross_revenue, abs_tol=500)
+        and _nearly_equal(daily_rebate, latest_rebate, abs_tol=500)
     )
 
 

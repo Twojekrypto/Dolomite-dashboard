@@ -43,6 +43,41 @@ def metric_payload(total24h, latest_value, step):
     }
 
 
+def metric_payload_with_berachain(total24h, latest_value, step, latest_berachain_value):
+    payload = metric_payload(total24h, latest_value, step)
+    for index, row in enumerate(payload["totalDataChart"]):
+        value = row[1]
+        berachain_value = latest_berachain_value if index == 30 else min(value, latest_berachain_value)
+        ethereum_value = max(value - berachain_value, 0)
+        payload["totalDataChartBreakdown"][index][1] = {
+            "Berachain": {"interest": berachain_value},
+            "Ethereum": {"interest": ethereum_value},
+        }
+    return payload
+
+
+def borrow_fee_rebate_metadata():
+    return {
+        "veDoloStartTimestamp": 1779321600,
+        "veDoloHoldingFactor": "5.000000000000000000",
+        "currentEpochIndex": 6,
+        "currentEpochStartTimestamp": 1782345600,
+        "onchainFeeRebateEpochIndexMap": {"80094": 4},
+        "onchainRollingClaimsEpochIndexMap": {"80094": 4},
+        "allChainRebateInfo": {
+            "80094": {
+                "startEpoch": 1,
+                "claimsEnabled": False,
+                "rebatePercentage": "0.100000000000000006",
+                "marketToRebateInfo": {
+                    "0": {"startEpoch": 1, "endEpoch": None},
+                    "1": {"startEpoch": 1, "endEpoch": None},
+                },
+            }
+        },
+    }
+
+
 class FetchDolomiteRevenueTest(unittest.TestCase):
     def test_daily_totals_follow_latest_series_when_total24h_lags(self):
         revenue_data = metric_payload(total24h=9_999, latest_value=100, step=2)
@@ -72,7 +107,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("liquidatorEarnings30dUSD", output["totals"])
         self.assertNotIn("liquidatorEarningsAllTimeUSD", output["totals"])
         self.assertEqual(output["assurance"]["classification"], "adapter-estimated protocol borrow-interest revenue")
-        self.assertTrue(any("veDOLO borrow-fee rebates are not netted" in item for item in output["methodology"]["sourceLimitations"]))
+        self.assertTrue(any("Current unfinalized rebate epochs remain gross until the weekly claim data is published" in item for item in output["methodology"]["sourceLimitations"]))
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
@@ -129,7 +164,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(output["assurance"]["onchainAuditChains"]["Berachain"]["status"], "warn")
         self.assertEqual(output["assurance"]["onchainAuditChains"]["Berachain"]["warnReasons"], ["revenue_diff_exceeds_tolerance"])
 
-    def test_build_output_embeds_berachain_borrow_fee_rebate_metadata_without_netting(self):
+    def test_build_output_embeds_berachain_borrow_fee_rebate_metadata(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
         fees_data = metric_payload(total24h=500, latest_value=500, step=10)
 
@@ -137,32 +172,70 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             revenue_data,
             fees_data,
             onchain_audit={},
-            borrow_fee_rebate_metadata={
-                "veDoloStartTimestamp": 1779321600,
-                "veDoloHoldingFactor": "5.000000000000000000",
-                "currentEpochIndex": 6,
-                "currentEpochStartTimestamp": 1782345600,
-                "onchainFeeRebateEpochIndexMap": {"80094": 4},
-                "onchainRollingClaimsEpochIndexMap": {"80094": 4},
-                "allChainRebateInfo": {
-                    "80094": {
-                        "startEpoch": 1,
-                        "claimsEnabled": False,
-                        "rebatePercentage": "0.100000000000000006",
-                        "marketToRebateInfo": {
-                            "0": {"startEpoch": 1, "endEpoch": None},
-                            "1": {"startEpoch": 1, "endEpoch": None},
-                        },
-                    }
-                },
-            },
+            borrow_fee_rebate_metadata=borrow_fee_rebate_metadata(),
         )
 
         self.assertEqual(output["borrowFeeRebates"]["status"], "active")
         self.assertEqual(output["borrowFeeRebates"]["chains"]["Berachain"]["rebatePercentage"], 0.1)
         self.assertEqual(output["borrowFeeRebates"]["chains"]["Berachain"]["marketCount"], 2)
-        self.assertEqual(output["assurance"]["borrowFeeRebateStatus"], "active_pre_rebate_not_netted")
+        self.assertEqual(output["assurance"]["borrowFeeRebateStatus"], "active_no_closed_epoch_rebates")
         self.assertIn("borrowFeeRebates", output["sourceUrls"])
+
+    def test_build_output_nets_berachain_borrow_fee_rebates_from_closed_epochs(self):
+        revenue_data = metric_payload_with_berachain(
+            total24h=100,
+            latest_value=100,
+            step=2,
+            latest_berachain_value=20,
+        )
+        fees_data = metric_payload_with_berachain(
+            total24h=500,
+            latest_value=500,
+            step=10,
+            latest_berachain_value=100,
+        )
+        latest_ts = START_TS + 30 * DAY_SECONDS
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={},
+            borrow_fee_rebate_metadata=borrow_fee_rebate_metadata(),
+            borrow_fee_rebate_data={
+                "status": "ok",
+                "chains": {
+                    "Berachain": {
+                        "status": "ok",
+                        "source": "FeeRebateRollingClaims.MarketIdToMerkleRootSet",
+                        "epochRebates": [{
+                            "epoch": 1,
+                            "periodStartTimestamp": latest_ts,
+                            "periodEndTimestamp": latest_ts + DAY_SECONDS,
+                            "rebateUSD": 5.0,
+                            "marketCount": 2,
+                        }],
+                    }
+                },
+            },
+        )
+
+        self.assertEqual(output["latest"]["grossRevenueUSD"], 100)
+        self.assertEqual(output["latest"]["borrowFeeRebateUSD"], 5)
+        self.assertEqual(output["latest"]["revenueUSD"], 95)
+        self.assertEqual(output["latest"]["supplySideRevenueUSD"], 400)
+        self.assertEqual(output["latest"]["chains"]["Berachain"]["grossRevenueUSD"], 20)
+        self.assertEqual(output["latest"]["chains"]["Berachain"]["borrowFeeRebateUSD"], 5)
+        self.assertEqual(output["latest"]["chains"]["Berachain"]["revenueUSD"], 15)
+        self.assertEqual(output["totals"]["dailyGrossRevenueUSD"], 100)
+        self.assertEqual(output["totals"]["dailyBorrowFeeRebateUSD"], 5)
+        self.assertEqual(output["totals"]["dailyRevenueUSD"], 95)
+        self.assertEqual(output["totals"]["dailySupplySideRevenueUSD"], 400)
+        self.assertEqual(output["borrowFeeRebates"]["netting"], "netted_closed_epochs")
+        self.assertEqual(output["borrowFeeRebates"]["chains"]["Berachain"]["totalRebateUSD"], 5)
+        self.assertEqual(output["assurance"]["borrowFeeRebateStatus"], "active_netted_closed_epochs")
+        self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
     def test_validator_does_not_depend_on_liquidation_history_for_revenue(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
@@ -198,12 +271,29 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("python3 fetch_dolomite_revenue.py", workflow)
         self.assertNotIn("dolomite_revenue.json", workflow)
 
+    def test_revenue_workflows_pass_berachain_rpc_for_rebate_netting(self):
+        update_tvl = (ROOT / ".github/workflows/update-tvl-data.yml").read_text()
+        audit = (ROOT / ".github/workflows/audit-dolomite-revenue-onchain.yml").read_text()
+
+        for workflow in (update_tvl, audit):
+            self.assertIn("python3 fetch_dolomite_revenue.py", workflow)
+            self.assertIn("ALCHEMY_BERACHAIN_RPC", workflow)
+            self.assertIn("QUICKNODE_BERACHAIN_RPC_2", workflow)
+            self.assertIn("DRPC_BERACHAIN_RPC_ZEN", workflow)
+            self.assertIn("ALCHEMY_BERACHAIN_RPC_2", workflow)
+            self.assertIn("ALCHEMY_BERACHAIN_RPC_3", workflow)
+
     def test_revenue_ui_surfaces_per_chain_audit_status(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
 
         self.assertIn("auditStatusForChain", html)
         self.assertIn("onchainAuditChains", html)
         self.assertIn("onchain audit STALE", html)
+        self.assertIn("Net Borrow Revenue", html)
+        self.assertIn("gross ${usdFull(gross)}", html)
+        self.assertIn('id="veBorrowSavings"', html)
+        self.assertIn("renderVeBorrowSavings", html)
+        self.assertIn("borrowFeeRebateUSD", html)
 
 
 if __name__ == "__main__":

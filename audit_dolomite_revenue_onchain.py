@@ -402,7 +402,18 @@ def write_json(path, payload):
 def revenue_chain_totals(revenue_data, target_date):
     for row in revenue_data.get("series", []):
         if row.get("date") == target_date:
-            return row.get("chains", {})
+            chains = row.get("chains", {})
+            if not isinstance(chains, dict):
+                return {}
+            gross_baseline = {}
+            for chain, payload in chains.items():
+                if not isinstance(payload, dict):
+                    continue
+                item = dict(payload)
+                item["netRevenueUSD"] = payload.get("revenueUSD")
+                item["revenueUSD"] = payload.get("grossRevenueUSD", payload.get("revenueUSD"))
+                gross_baseline[chain] = item
+            return gross_baseline
     raise ValueError(f"No dolomite_revenue.json row for target date {target_date}")
 
 
