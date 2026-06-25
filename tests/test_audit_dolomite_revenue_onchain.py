@@ -11,6 +11,7 @@ from audit_dolomite_revenue_onchain import (
     classify_chain_result,
     default_target_date,
     env_positive_int,
+    revenue_chain_totals,
     resolve_token_price,
     standard_market_state_from_getters,
 )
@@ -85,6 +86,29 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
 
         self.assertEqual(start, 1782000000)
         self.assertEqual(end, 1782086400)
+
+    def test_revenue_chain_totals_uses_gross_revenue_for_audit_baseline(self):
+        totals = revenue_chain_totals(
+            {
+                "series": [{
+                    "date": "2026-06-21",
+                    "chains": {
+                        "Berachain": {
+                            "feesUSD": 100.0,
+                            "grossRevenueUSD": 20.0,
+                            "borrowFeeRebateUSD": 5.0,
+                            "revenueUSD": 15.0,
+                            "supplySideRevenueUSD": 80.0,
+                        }
+                    },
+                }]
+            },
+            "2026-06-21",
+        )
+
+        self.assertEqual(totals["Berachain"]["revenueUSD"], 20.0)
+        self.assertEqual(totals["Berachain"]["netRevenueUSD"], 15.0)
+        self.assertEqual(totals["Berachain"]["borrowFeeRebateUSD"], 5.0)
 
     def test_chain_result_warns_when_usd_diff_exceeds_tolerance(self):
         result = classify_chain_result(

@@ -489,6 +489,19 @@ h1{
 .chain-date-popover[data-side="left"]{right:auto;left:0}
 .chain-date-popover[data-side="right"]{right:0;left:auto}
 .table-wrap{overflow:auto}
+.veborrow-savings{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 20px 20px;padding:16px 18px;
+  border:1px solid var(--line-2);border-radius:8px;background:linear-gradient(180deg,rgba(201,162,39,.085),rgba(255,255,255,.025));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.035)
+}
+.veborrow-kicker{font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--gold)}
+.veborrow-title{margin-top:4px;color:var(--fg-1);font-size:15px;font-weight:800}
+.veborrow-title b{color:var(--gold);font-family:var(--mono);font-size:18px}
+.veborrow-sub{margin-top:4px;color:var(--fg-3);font-size:12px;line-height:1.4}
+.veborrow-side{display:grid;grid-template-columns:repeat(2,minmax(96px,1fr));gap:8px;flex:0 0 auto}
+.veborrow-mini{padding:10px 12px;border:1px solid var(--line-1);border-radius:8px;background:rgba(0,0,0,.16)}
+.veborrow-mini span{display:block;color:var(--fg-4);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.6px}
+.veborrow-mini b{display:block;margin-top:4px;color:var(--fg-1);font-family:var(--mono);font-size:14px;font-weight:800}
 .revenue-table{width:100%;min-width:820px;border-collapse:separate!important;border-spacing:0!important;table-layout:fixed;font-size:12px}
 .revenue-table th{
   padding:11px 16px;background:#101012;border-bottom:1px solid var(--line-2);
@@ -646,6 +659,8 @@ h1{
   .chain-date-popover,
   .chain-date-popover[data-side="left"],
   .chain-date-popover[data-side="right"]{left:0;right:0;width:auto;top:calc(100% + 8px)}
+  .veborrow-savings{align-items:stretch;flex-direction:column;margin:0 16px 16px}
+  .veborrow-side{grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
   .revenue-chart-wrap{padding:18px 16px 14px}
   .revenue-chart-svg{height:280px}
   .revenue-brush-wrap{padding:4px 16px 16px}
@@ -724,7 +739,7 @@ h1{
       </div>
       <div class="hero-token-text">
         <div class="hero-token-title">Dolomite Revenue</div>
-        <div class="hero-token-sub"><b>Dolomite</b> · pre-rebate protocol-retained borrow interest</div>
+        <div class="hero-token-sub"><b>Dolomite</b> · net protocol-retained borrow interest</div>
       </div>
       <div class="hero-meta">
         <div class="hero-live" id="freshPill"><span class="dot"></span><span>Loading adapter data</span></div>
@@ -756,7 +771,7 @@ h1{
           Protocol Cut
         </div>
         <div class="hc-value gold skeleton" id="protocolCut">0%</div>
-        <div class="hc-sub">protocol revenue / borrow interest</div>
+        <div class="hc-sub">net revenue / borrow interest</div>
         <div class="hero-bar"><span id="protocolCutBar"></span></div>
       </div>
       <div class="hero-card">
@@ -765,7 +780,7 @@ h1{
           7D Protocol Revenue
         </div>
         <div class="hc-value skeleton" id="revenue7d">$0</div>
-        <div class="hc-sub">rolling protocol revenue</div>
+        <div class="hc-sub">rolling net protocol revenue</div>
       </div>
       <div class="hero-card">
         <div class="hc-label">
@@ -773,7 +788,7 @@ h1{
           30D Protocol Revenue
         </div>
         <div class="hc-value skeleton" id="revenue30d">$0</div>
-        <div class="hc-sub">retained by protocol</div>
+        <div class="hc-sub">net retained by protocol</div>
       </div>
     </div>
   </section>
@@ -783,11 +798,11 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Dolomite Revenue Over Time</div>
-          <div class="panel-sub">Pre-rebate protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
+          <div class="panel-sub">Net protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
         </div>
         <div class="revenue-series-control">
           <div class="revenue-series-toggles" aria-label="Revenue stream chart filter">
-            <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle borrow interest revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Borrow Interest Revenue</span></button>
+            <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle net borrow interest revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Net Borrow Revenue</span></button>
             <button class="revenue-series-toggle" type="button" data-series="odoloUsdc" aria-pressed="false" aria-label="Toggle oDOLO exercise USDC series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch odolo-usdc"></span><span>oDOLO Exercise USDC</span></button>
           </div>
           <div class="revenue-mode-toggles" aria-label="Revenue chart mode">
@@ -861,7 +876,7 @@ h1{
     <div class="panel-head chain-panel-head">
       <div>
         <div class="panel-title">Protocol Revenue by Chain</div>
-        <div class="panel-sub">Chain breakdown of pre-rebate protocol-retained revenue for selected date range.</div>
+        <div class="panel-sub">Chain breakdown of net protocol-retained revenue for selected date range.</div>
       </div>
       <div class="chain-range-tools" aria-label="Protocol Revenue by Chain date range">
         <div class="chain-date-field">
@@ -932,6 +947,17 @@ h1{
         </tbody>
       </table>
     </div>
+    <div class="veborrow-savings" id="veBorrowSavings" aria-live="polite">
+      <div>
+        <div class="veborrow-kicker">veDOLO borrow fee rebates</div>
+        <div class="veborrow-title">Users saved <b>$0</b></div>
+        <div class="veborrow-sub">Published closed epochs · selected range</div>
+      </div>
+      <div class="veborrow-side">
+        <div class="veborrow-mini"><span>All published</span><b>$0</b></div>
+        <div class="veborrow-mini"><span>Latest epoch</span><b>-</b></div>
+      </div>
+    </div>
   </section>
 
   <section class="proto">
@@ -971,7 +997,7 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260625-audit-status";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260625-borrow-fee-rebate-net";
   const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260625-audit-status";
   const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
   const BORROW_INTEREST_SERIES_KEYS = ["fees"];
@@ -986,7 +1012,7 @@ h1{
   const BORROW_INTEREST_CHART_KEY = "borrowInterest";
   let revenueChartModes = { streams: "daily", borrowInterest: "daily" };
   const SERIES = {
-    revenue: { key: "revenue", label: "Borrow Interest Revenue", shortLabel: "Borrow Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
+    revenue: { key: "revenue", label: "Net Borrow Revenue", shortLabel: "Net Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
     odoloUsdc: { key: "odoloUsdc", label: "oDOLO Exercise USDC", shortLabel: "oDOLO Exercise USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
     fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" }
   };
@@ -2023,8 +2049,31 @@ h1{
       fresh.classList.toggle("audit-pass", status === "pass");
       fresh.classList.toggle("audit-warn", status === "warn" || status === "partial");
       fresh.classList.toggle("audit-stale", status === "stale");
-      if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt) + " · DeFiLlama estimate · " + auditLabel;
+      if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt) + " · DeFiLlama gross + rebate netting · " + auditLabel;
     }
+  }
+  function renderVeBorrowSavings(selected, days){
+    const wrap = qs("veBorrowSavings");
+    if (!wrap) return;
+    const rows = Array.isArray(selected) ? selected : [];
+    const selectedSaved = rows.reduce((sum, row) => sum + n(row.borrowFeeRebateUSD), 0);
+    const rebateInfo = revenueData?.borrowFeeRebates?.chains?.Berachain || {};
+    const allPublished = n(rebateInfo.totalRebateUSD || revenueData?.totals?.borrowFeeRebateAllTimeUSD);
+    const latestDate = rebateInfo.latestRebateDate ? formatRangeDay(Math.floor(Date.parse(rebateInfo.latestRebateDate + "T00:00:00Z") / 1000)) : "-";
+    const label = selectedSaved > 0
+      ? `${days}D selected range`
+      : "No published rebate in selected range";
+    wrap.innerHTML = `
+      <div>
+        <div class="veborrow-kicker">veDOLO borrow fee rebates</div>
+        <div class="veborrow-title">Users saved <b>${usdFull(selectedSaved)}</b></div>
+        <div class="veborrow-sub">${esc(label)} · Berachain closed epochs</div>
+      </div>
+      <div class="veborrow-side">
+        <div class="veborrow-mini"><span>All published</span><b>${usdFull(allPublished)}</b></div>
+        <div class="veborrow-mini"><span>Latest epoch</span><b>${esc(latestDate)}</b></div>
+      </div>
+    `;
   }
   function renderChains(){
     const body = qs("chainRows");
@@ -2037,16 +2086,19 @@ h1{
     selected.forEach(row => {
       Object.entries(row.chains || {}).forEach(([chain, values]) => {
         if (!totals.has(chain)) {
-          totals.set(chain, { chain, revenueUSD: 0, feesUSD: 0, supplySideRevenueUSD: 0 });
+          totals.set(chain, { chain, revenueUSD: 0, grossRevenueUSD: 0, borrowFeeRebateUSD: 0, feesUSD: 0, supplySideRevenueUSD: 0 });
         }
         const item = totals.get(chain);
         item.revenueUSD += n(values.revenueUSD);
+        item.grossRevenueUSD += n(values.grossRevenueUSD ?? values.revenueUSD);
+        item.borrowFeeRebateUSD += n(values.borrowFeeRebateUSD);
         item.feesUSD += n(values.feesUSD);
         item.supplySideRevenueUSD += n(values.supplySideRevenueUSD);
       });
     });
     const totalRevenue = Array.from(totals.values()).reduce((sum, item) => sum + n(item.revenueUSD), 0);
     const chains = Array.from(totals.values()).sort((a,b) => n(b.revenueUSD) - n(a.revenueUSD));
+    renderVeBorrowSavings(selected, days);
     if (!chains.length) {
       body.innerHTML = '<tr><td colspan="6" class="empty-state">No protocol revenue available for selected range.</td></tr>';
       return;
@@ -2057,15 +2109,20 @@ h1{
       const shareWidth = Math.max(0, Math.min(100, share * 100)).toFixed(1);
       const icon = chainIcon(row.chain);
       const abbr = chainAbbr(row.chain);
+      const rebate = n(row.borrowFeeRebateUSD);
+      const gross = n(row.grossRevenueUSD || row.revenueUSD);
+      const revenueSub = rebate > 0
+        ? `gross ${usdFull(gross)} · rebate ${usdFull(rebate)}`
+        : `${days}D net retained`;
       const badge = icon
         ? `<img src="${icon}" alt="" onerror="this.parentElement.classList.add('fallback');this.parentElement.textContent='${abbr}';">`
         : chainAbbr(row.chain);
       return `<tr>
         <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${abbr} · Dolomite adapter</div>${auditStatusHtml(row.chain)}</div></div></td>
-        <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="revenue-share-track" aria-hidden="true"><span style="width:${shareWidth}%"></span></div><div class="num-sub">${days}D retained</div></div></td>
+        <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="revenue-share-track" aria-hidden="true"><span style="width:${shareWidth}%"></span></div><div class="num-sub">${esc(revenueSub)}</div></div></td>
         <td><div class="num-main">${usdFull(row.feesUSD)}</div><div class="num-sub">gross</div></td>
         <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div><div class="num-sub">lender share</div></td>
-        <td><div class="num-main">${pct(cut)}</div><div class="num-sub">retained</div></td>
+        <td><div class="num-main">${pct(cut)}</div><div class="num-sub">net retained</div></td>
         <td><div class="num-main">${pct(share)}</div><div class="num-sub">of protocol total</div></td>
       </tr>`;
     }).join("");
