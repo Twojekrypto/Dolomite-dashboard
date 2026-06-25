@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Build the ETH + Arbitrum veBorrow simulation data used by revenue-preview.html.
+Build the Ethereum + Arbitrum + Berachain veBorrow simulation data used by revenue-preview.html.
 
 This is not a claim generator. It snapshots current borrower debt by wallet and
-current veDOLO vote weight, so the static UI can model what users would save if
-the Berachain-style veBorrow rebate rules were enabled on other networks.
+current veDOLO vote weight, so the static UI can show the active Berachain
+baseline beside the modeled ETH/Arbitrum rollout.
 """
 
 import json
@@ -28,7 +28,7 @@ BERACHAIN_VEDOLO_CONTRACT = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
 GET_VOTES_SELECTOR = "0x9ab24eb0"
 PROTOCOL_RESERVE_FACTOR = Decimal("0.20")
 
-DISPLAY_SIMULATION_CHAINS = ["Ethereum", "Arbitrum"]
+DISPLAY_SIMULATION_CHAINS = ["Ethereum", "Arbitrum", "Berachain"]
 ELIGIBILITY_CHAINS = ["Ethereum", "Arbitrum", "Berachain"]
 
 CHAIN_CONFIGS = {
@@ -696,10 +696,10 @@ def build_snapshot():
         "generatedAt": generated_at,
         "status": status,
         "methodology": {
-            "summary": "Current borrower debt by wallet is read from Dolomite subgraphs. The revenue UI allocates a selected ETH/ARB borrow-interest period by current debt share, then applies the official veBorrow rebate formula against current veDOLO vote weight. Active Berachain borrow load is included in the wallet eligibility threshold.",
+            "summary": "Current borrower debt by wallet is read from Dolomite subgraphs. The revenue UI allocates a selected Ethereum, Arbitrum, and Berachain borrow-interest period by current debt share, then applies the official veBorrow rebate formula against current veDOLO vote weight. Berachain is the active rebate baseline; Ethereum and Arbitrum remain modeled rollout scenarios.",
             "officialFormulaSource": OFFICIAL_REBATE_SCRIPT_URL,
             "limitations": [
-                "Ethereum and Arbitrum are simulation-only until Dolomite enables veBorrow rebates on those networks.",
+                "Ethereum and Arbitrum are simulation-only until Dolomite enables veBorrow rebates on those networks; Berachain is already active and is shown as the current baseline.",
                 "Borrower debt is a current snapshot, so historical selected ranges are estimated by current debt share, not historical per-wallet borrow ledgers.",
                 "Current veDOLO vote weight is fetched from Berachain veDOLO.getVotes(address) when RPC succeeds, with vedolo_holders.json used only as a fallback.",
                 "Official closed epochs use historical per-wallet borrow ledgers and getPastVotes at epoch end, so this file is a current-footprint simulation, not a claim generator.",
