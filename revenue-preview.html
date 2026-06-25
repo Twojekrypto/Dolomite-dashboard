@@ -583,13 +583,13 @@ h1{
 .veborrow-wallet-address-tools{display:inline-flex;align-items:center;gap:5px;max-width:100%}
 .veborrow-wallet-address-link{font-family:var(--mono);font-size:12px;font-weight:800;color:var(--fg-1);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .veborrow-wallet-address-link:hover{color:var(--gold)}
-.copy-addr-icon,.debank-icon{width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;flex:0 0 auto;border:1px solid transparent;background:transparent;color:var(--fg-4);cursor:pointer;transition:background .15s var(--ease),border-color .15s var(--ease),color .15s var(--ease),opacity .15s var(--ease)}
-.copy-addr-icon{padding:0}
-.copy-addr-icon svg{width:13px;height:13px;display:block}
-.copy-addr-icon:hover,.copy-addr-icon.copied,.debank-icon:hover{background:rgba(255,255,255,.055);border-color:var(--line-2);color:var(--fg-1)}
-.copy-addr-icon.copied{color:#8ad7b0}
-.debank-icon img{width:14px;height:14px;border-radius:3px;display:block;opacity:.88}
-.debank-icon:hover img{opacity:1}
+.veborrow-wallet-address-tools .copy-addr-icon,.veborrow-wallet-address-tools .debank-icon{width:22px;height:22px;border-radius:6px;display:inline-grid;place-items:center;flex:0 0 auto;border:1px solid transparent;background:transparent;color:var(--fg-4);cursor:pointer;transition:background .15s var(--ease),border-color .15s var(--ease),color .15s var(--ease),opacity .15s var(--ease)}
+.veborrow-wallet-address-tools .copy-addr-icon{padding:0}
+.veborrow-wallet-address-tools .copy-addr-icon svg{width:13px;height:13px;display:block}
+.veborrow-wallet-address-tools .copy-addr-icon:hover,.veborrow-wallet-address-tools .copy-addr-icon.copied,.veborrow-wallet-address-tools .debank-icon:hover{background:rgba(255,255,255,.055);border-color:var(--line-2);color:var(--fg-1)}
+.veborrow-wallet-address-tools .copy-addr-icon.copied{color:#8ad7b0}
+.veborrow-wallet-address-tools .debank-icon img{width:14px;height:14px;border-radius:3px;display:block;opacity:.88}
+.veborrow-wallet-address-tools .debank-icon:hover img{opacity:1}
 .veborrow-wallet-chain-list{display:flex;align-items:center;justify-content:flex-start;gap:6px;flex-wrap:wrap}
 .veborrow-wallet-chain-chip{display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:3px 7px;border-radius:6px;border:1px solid var(--line-2);background:rgba(255,255,255,.025);color:var(--fg-2);font-family:var(--mono);font-size:10px;font-weight:800;white-space:nowrap}
 .veborrow-wallet-chain-chip img{width:16px;height:16px;border-radius:50%;object-fit:cover;display:block}
@@ -597,7 +597,7 @@ h1{
 .veborrow-wallet-sort{appearance:none;border:0;background:transparent;color:inherit;padding:0;width:100%;display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;max-width:100%;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
 .veborrow-sim-table th:first-child .veborrow-wallet-sort,.veborrow-sim-table th:nth-child(2) .veborrow-wallet-sort{justify-content:flex-start}
 .veborrow-wallet-sort:hover,.veborrow-wallet-sort.active{color:var(--fg-1)}
-.veborrow-wallet-sort .sort-arrow{width:10px;display:inline-flex;justify-content:center;color:var(--fg-4);font-size:9px;line-height:1}
+.veborrow-wallet-sort .sort-arrow{width:10px;display:inline-flex;justify-content:center;color:var(--fg-4);font-size:9px;line-height:1;text-transform:none;letter-spacing:0}
 .veborrow-wallet-sort.active .sort-arrow{color:var(--gold)}
 .veborrow-wallet-pager{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
 .flow-pager-btn{min-width:28px;height:28px;border-radius:7px;border:1px solid var(--line-2);background:rgba(255,255,255,.025);color:var(--fg-2);font-family:var(--mono);font-size:12px;font-weight:800;display:inline-grid;place-items:center;transition:background .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease)}
@@ -2562,7 +2562,7 @@ h1{
     const address = String(row?.address || "").toLowerCase();
     if (!address) return "https://debank.com";
     const chainId = veBorrowDebankChainId(primaryVeBorrowWalletChain(row));
-    return `https://debank.com/profile/${address}${chainId ? `?chain=${chainId}` : ""}`;
+    return `https://debank.com/profile/${encodeURIComponent(address)}${chainId ? `?chain=${chainId}` : ""}`;
   }
   function renderVeBorrowWalletAddress(row){
     const address = String(row?.address || "").toLowerCase();
@@ -2659,6 +2659,10 @@ h1{
     const arrow = active ? (veBorrowWalletSortDesc ? "v" : "^") : "-";
     return `<button class="veborrow-wallet-sort${active ? " active" : ""}" type="button" onclick="setVeBorrowWalletSort('${key}')" aria-label="Sort ${esc(label)}"><span>${esc(label)}</span><span class="sort-arrow" aria-hidden="true">${arrow}</span></button>`;
   }
+  function veBorrowWalletAriaSort(key){
+    if (veBorrowWalletSortKey !== key) return "none";
+    return veBorrowWalletSortDesc ? "descending" : "ascending";
+  }
   function goVeBorrowWalletPage(page, totalPages){
     const pages = Math.max(1, Number(totalPages || 1));
     veBorrowWalletPage = Math.max(1, Math.min(pages, Number(page || 1)));
@@ -2714,12 +2718,12 @@ h1{
           </colgroup>
           <thead>
             <tr>
-              <th data-veborrow-wallet-sort="chain">${veBorrowWalletSortHeader("chain", "Chain")}</th>
-              <th data-veborrow-wallet-sort="address">${veBorrowWalletSortHeader("address", "Address")}</th>
-              <th data-veborrow-wallet-sort="borrowInterest">${veBorrowWalletSortHeader("borrowInterest", "Borrow interest")}</th>
-              <th data-veborrow-wallet-sort="vedolo">${veBorrowWalletSortHeader("vedolo", "Current veDOLO")}</th>
-              <th data-veborrow-wallet-sort="saved">${veBorrowWalletSortHeader("saved", "Users saved")}</th>
-              <th data-veborrow-wallet-sort="missing">${veBorrowWalletSortHeader("missing", "Missing for max")}</th>
+              <th data-veborrow-wallet-sort="chain" aria-sort="${veBorrowWalletAriaSort("chain")}">${veBorrowWalletSortHeader("chain", "Chain")}</th>
+              <th data-veborrow-wallet-sort="address" aria-sort="${veBorrowWalletAriaSort("address")}">${veBorrowWalletSortHeader("address", "Address")}</th>
+              <th data-veborrow-wallet-sort="borrowInterest" aria-sort="${veBorrowWalletAriaSort("borrowInterest")}">${veBorrowWalletSortHeader("borrowInterest", "Borrow interest")}</th>
+              <th data-veborrow-wallet-sort="vedolo" aria-sort="${veBorrowWalletAriaSort("vedolo")}">${veBorrowWalletSortHeader("vedolo", "Current veDOLO")}</th>
+              <th data-veborrow-wallet-sort="saved" aria-sort="${veBorrowWalletAriaSort("saved")}">${veBorrowWalletSortHeader("saved", "Users saved")}</th>
+              <th data-veborrow-wallet-sort="missing" aria-sort="${veBorrowWalletAriaSort("missing")}">${veBorrowWalletSortHeader("missing", "Missing for max")}</th>
             </tr>
           </thead>
           <tbody>

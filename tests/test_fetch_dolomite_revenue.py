@@ -402,6 +402,14 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("copyVeBorrowAddress", html)
         self.assertIn("copy-addr-icon", html)
         self.assertIn("debank-icon", html)
+        self.assertIn("encodeURIComponent(address)", html)
+        self.assertIn("veBorrowWalletAriaSort", html)
+        self.assertIn('aria-sort="${veBorrowWalletAriaSort("chain")}"', html)
+        self.assertIn(
+            ".veborrow-wallet-address-tools .copy-addr-icon,.veborrow-wallet-address-tools .debank-icon",
+            html,
+        )
+        self.assertNotIn(".copy-addr-icon,.debank-icon{", html)
         borrow_interest_index = html.index('<div class="tt-row active"><span>Borrow interest</span>')
         user_saved_index = html.index('<div class="tt-row"><span>Users saved</span>')
         cumulative_index = html.index('<div class="tt-row"><span>Cumulative saved</span>')
