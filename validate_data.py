@@ -447,6 +447,29 @@ def _dolomite_revenue_onchain_audit_valid(data):
     return audited == 0
 
 
+def _veborrow_simulation_valid(data):
+    if data.get("schemaVersion") != 1 or not _is_iso_datetime(data.get("generatedAt")):
+        return False
+    config = data.get("config") or {}
+    chains = data.get("chains") or {}
+    borrowers = data.get("borrowers")
+    totals = data.get("totals") or {}
+    if not isinstance(chains, dict) or not isinstance(borrowers, list) or not isinstance(totals, dict):
+        return False
+    if not {"Ethereum", "Arbitrum"}.issubset(set(chains)):
+        return False
+    if _safe_number(config.get("rebatePercentage")) <= 0 or _safe_number(config.get("veDoloHoldingFactor")) <= 0:
+        return False
+    if _safe_number(config.get("doloPriceUSD")) <= 0:
+        return False
+    if not all(isinstance(chains.get(chain), dict) and chains[chain].get("status") in {"ok", "error"} for chain in ("Ethereum", "Arbitrum")):
+        return False
+    ok_chains = [chain for chain in ("Ethereum", "Arbitrum") if chains[chain].get("status") == "ok"]
+    if not ok_chains:
+        return False
+    return _safe_number(totals.get("borrowerCount")) == len(borrowers)
+
+
 def _dolomite_revenue_totals_valid(data):
     totals = data.get("totals", {})
     latest = data.get("latest", {})
@@ -727,6 +750,13 @@ RULES = {
             ("revenue history must be sorted and populated", _dolomite_revenue_series_valid),
         ],
         "min_bytes": 10_000,
+    },
+    "veborrow_simulation.json": {
+        "required_keys": ["schemaVersion", "generatedAt", "status", "methodology", "sourceUrls", "config", "chains", "totals", "borrowers"],
+        "checks": [
+            ("veBorrow simulation shape must be valid", _veborrow_simulation_valid),
+        ],
+        "min_bytes": 500,
     },
     "dolomite-revenue-onchain-audit.json": {
         "required_keys": ["schemaVersion", "generatedAt", "targetDate", "targetTimestamp", "windowStartTimestamp", "windowEndTimestamp", "tolerancePct", "status", "summary", "methodology", "chains"],
