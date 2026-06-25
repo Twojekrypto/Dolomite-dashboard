@@ -3168,7 +3168,7 @@ h1{
     selected.forEach(row => {
       Object.entries(row.chains || {}).forEach(([chain, values]) => {
         if (!totals.has(chain)) {
-          totals.set(chain, { chain, revenueUSD: 0, grossRevenueUSD: 0, borrowFeeRebateUSD: 0, feesUSD: 0, supplySideRevenueUSD: 0 });
+          totals.set(chain, { chain, revenueUSD: 0, grossRevenueUSD: 0, borrowFeeRebateUSD: 0, feesUSD: 0, supplySideRevenueUSD: 0, onchainCurrentIndexDays: 0 });
         }
         const item = totals.get(chain);
         item.revenueUSD += n(values.revenueUSD);
@@ -3176,6 +3176,7 @@ h1{
         item.borrowFeeRebateUSD += n(values.borrowFeeRebateUSD);
         item.feesUSD += n(values.feesUSD);
         item.supplySideRevenueUSD += n(values.supplySideRevenueUSD);
+        if (values.source === "onchain-current-index-audit") item.onchainCurrentIndexDays += 1;
       });
     });
     const totalRevenue = Array.from(totals.values()).reduce((sum, item) => sum + n(item.revenueUSD), 0);
@@ -3197,8 +3198,11 @@ h1{
       const badge = icon
         ? `<img src="${icon}" alt="" onerror="this.parentElement.classList.add('fallback');this.parentElement.textContent='${abbr}';">`
         : chainAbbr(row.chain);
+      const chainSub = n(row.onchainCurrentIndexDays) > 0
+        ? `${abbr} · current-index onchain ${Math.round(n(row.onchainCurrentIndexDays))}/${days}D`
+        : `${abbr} · Dolomite adapter`;
       return `<tr>
-        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${abbr} · Dolomite adapter</div>${auditStatusHtml(row.chain)}</div></div></td>
+        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${esc(chainSub)}</div>${auditStatusHtml(row.chain)}</div></div></td>
         <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="num-sub">${esc(revenueSub)}</div></div></td>
         <td><div class="num-main">${usdFull(row.feesUSD)}</div><div class="num-sub">gross</div></td>
         <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div><div class="num-sub">lender share</div></td>

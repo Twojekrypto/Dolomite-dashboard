@@ -106,7 +106,9 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(output["totals"]["fees30dUSD"], expected_fees_30d)
         self.assertNotIn("liquidatorEarnings30dUSD", output["totals"])
         self.assertNotIn("liquidatorEarningsAllTimeUSD", output["totals"])
-        self.assertEqual(output["assurance"]["classification"], "adapter-estimated protocol borrow-interest revenue")
+        self.assertEqual(output["assurance"]["classification"], "hybrid adapter/current-index protocol borrow-interest revenue")
+        self.assertEqual(output["assurance"]["berachainRevenueSource"], "current-index onchain audit for audited daily rows; DeFiLlama adapter fallback outside audited coverage")
+        self.assertTrue(any("Berachain uses the independent current-index onchain audit" in item for item in output["methodology"]["sourceLimitations"]))
         self.assertTrue(any("Current unfinalized rebate epochs remain gross until the weekly claim data is published" in item for item in output["methodology"]["sourceLimitations"]))
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
@@ -163,6 +165,100 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(output["assurance"]["onchainAuditRevenueDiffUnbounded"])
         self.assertEqual(output["assurance"]["onchainAuditChains"]["Berachain"]["status"], "warn")
         self.assertEqual(output["assurance"]["onchainAuditChains"]["Berachain"]["warnReasons"], ["revenue_diff_exceeds_tolerance"])
+
+    def test_build_output_uses_berachain_current_index_audit_values(self):
+        revenue_data = metric_payload_with_berachain(
+            total24h=100,
+            latest_value=100,
+            step=2,
+            latest_berachain_value=20,
+        )
+        fees_data = metric_payload_with_berachain(
+            total24h=500,
+            latest_value=500,
+            step=10,
+            latest_berachain_value=100,
+        )
+        target_timestamp = START_TS + 30 * DAY_SECONDS
+        target_date = datetime.fromtimestamp(target_timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={
+                "status": "warn",
+                "generatedAt": "2026-06-25T09:00:00Z",
+                "targetDate": target_date,
+                "chains": {
+                    "Berachain": {
+                        "status": "warn",
+                        "feesUSD": 80.0,
+                        "revenueUSD": 16.0,
+                        "defillamaFeesUSD": 100.0,
+                        "defillamaRevenueUSD": 20.0,
+                        "revenueDiffPct": 0.2,
+                        "feesDiffPct": 0.2,
+                        "warnReasons": ["fees_diff_exceeds_tolerance", "revenue_diff_exceeds_tolerance"],
+                    }
+                },
+            },
+        )
+
+        bera = output["latest"]["chains"]["Berachain"]
+        self.assertEqual(bera["feesUSD"], 80.0)
+        self.assertEqual(bera["grossRevenueUSD"], 16.0)
+        self.assertEqual(bera["revenueUSD"], 16.0)
+        self.assertEqual(bera["defillamaFeesUSD"], 100.0)
+        self.assertEqual(bera["defillamaGrossRevenueUSD"], 20.0)
+        self.assertEqual(bera["source"], "onchain-current-index-audit")
+        self.assertEqual(output["latest"]["feesUSD"], 480.0)
+        self.assertEqual(output["latest"]["grossRevenueUSD"], 96.0)
+        self.assertEqual(output["latest"]["revenueUSD"], 96.0)
+        self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+
+    def test_build_output_uses_saved_berachain_onchain_override_history(self):
+        revenue_data = metric_payload_with_berachain(
+            total24h=100,
+            latest_value=100,
+            step=2,
+            latest_berachain_value=20,
+        )
+        fees_data = metric_payload_with_berachain(
+            total24h=500,
+            latest_value=500,
+            step=10,
+            latest_berachain_value=100,
+        )
+        target_timestamp = START_TS + 29 * DAY_SECONDS
+        target_date = datetime.fromtimestamp(target_timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={},
+            onchain_revenue_overrides={
+                "schemaVersion": 1,
+                "overrides": [{
+                    "chain": "Berachain",
+                    "date": target_date,
+                    "feesUSD": 70.0,
+                    "revenueUSD": 14.0,
+                    "defillamaFeesUSD": 100.0,
+                    "defillamaGrossRevenueUSD": 20.0,
+                    "source": "onchain-current-index-audit",
+                }],
+            },
+        )
+
+        bera = output["series"][29]["chains"]["Berachain"]
+        self.assertEqual(bera["feesUSD"], 70.0)
+        self.assertEqual(bera["grossRevenueUSD"], 14.0)
+        self.assertEqual(bera["source"], "onchain-current-index-audit")
+        self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
     def test_build_output_embeds_berachain_borrow_fee_rebate_metadata(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
@@ -330,6 +426,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
 
         for workflow in (update_tvl, audit):
             self.assertIn("python3 fetch_dolomite_revenue.py", workflow)
+            self.assertIn("data/dolomite-revenue-onchain-overrides.json", workflow)
             self.assertIn("ALCHEMY_BERACHAIN_RPC", workflow)
             self.assertIn("QUICKNODE_BERACHAIN_RPC_2", workflow)
             self.assertIn("DRPC_BERACHAIN_RPC_ZEN", workflow)
@@ -363,6 +460,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("Pending rebate data", html)
         self.assertIn("Striped bars = pending veBorrow rebate data, not zero savings", html)
         self.assertIn("renderVeBorrowChart", html)
+        self.assertIn('values.source === "onchain-current-index-audit"', html)
+        self.assertIn("current-index onchain", html)
         self.assertIn("borrowFeeRebateCumulativeUSD", html)
         self.assertIn("borrowFeeRebateUSD", html)
         self.assertIn('<div class="tt-row active"><span>Borrow interest</span>', html)
