@@ -4,9 +4,10 @@ import io
 import json
 import os
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
-from fetch_dolomite_revenue import build_output
+from fetch_dolomite_revenue import build_output, onchain_audit_assurance
 from validate_data import (
     RULES,
     ValidationResult,
@@ -47,11 +48,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         revenue_data = metric_payload(total24h=9_999, latest_value=100, step=2)
         fees_data = metric_payload(total24h=8_888, latest_value=500, step=10)
 
-        output = build_output(
-            revenue_data,
-            fees_data,
-            {"2023-12-14": 4.5},
-        )
+        output = build_output(revenue_data, fees_data, onchain_audit=None)
 
         expected_revenue_7d = 100 + sum((index + 1) * 2 for index in range(24, 30))
         expected_fees_7d = 500 + sum((index + 1) * 10 for index in range(24, 30))
@@ -60,24 +57,42 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
 
         self.assertEqual(output["latest"]["revenueUSD"], 100)
         self.assertEqual(output["latest"]["feesUSD"], 500)
-        self.assertEqual(output["latest"]["liquidatorEarningsUSD"], 4.5)
+        self.assertNotIn("liquidatorEarningsUSD", output["latest"])
         self.assertEqual(output["totals"]["dailyRevenueUSD"], 100)
         self.assertEqual(output["totals"]["dailyFeesUSD"], 500)
-        self.assertEqual(output["totals"]["dailyLiquidatorEarningsUSD"], 4.5)
+        self.assertNotIn("dailyLiquidatorEarningsUSD", output["totals"])
         self.assertEqual(output["totals"]["dailySupplySideRevenueUSD"], 400)
         self.assertEqual(output["totals"]["previousDailyRevenueUSD"], 60)
         self.assertEqual(output["totals"]["previousDailyFeesUSD"], 300)
         self.assertEqual(output["totals"]["revenue7dUSD"], expected_revenue_7d)
         self.assertEqual(output["totals"]["fees7dUSD"], expected_fees_7d)
-        self.assertEqual(output["totals"]["liquidatorEarnings7dUSD"], 4.5)
+        self.assertNotIn("liquidatorEarnings7dUSD", output["totals"])
         self.assertEqual(output["totals"]["revenue30dUSD"], expected_revenue_30d)
         self.assertEqual(output["totals"]["fees30dUSD"], expected_fees_30d)
-        self.assertEqual(output["totals"]["liquidatorEarnings30dUSD"], 4.5)
-        self.assertEqual(output["totals"]["liquidatorEarningsAllTimeUSD"], 4.5)
-        self.assertEqual(output["assurance"]["classification"], "adapter-estimated protocol borrow-interest revenue plus liquidation rewards earned by liquidators")
+        self.assertNotIn("liquidatorEarnings30dUSD", output["totals"])
+        self.assertNotIn("liquidatorEarningsAllTimeUSD", output["totals"])
+        self.assertEqual(output["assurance"]["classification"], "adapter-estimated protocol borrow-interest revenue")
+        self.assertTrue(any("veDOLO borrow-fee rebates are not netted" in item for item in output["methodology"]["sourceLimitations"]))
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+
+    def test_onchain_audit_assurance_marks_stale_target_date(self):
+        assurance = onchain_audit_assurance(
+            {
+                "status": "warn",
+                "generatedAt": "2026-06-24T10:04:22Z",
+                "targetDate": "2026-06-22",
+                "summary": {"maxRevenueDiffPct": 0.031, "revenueDiffUnbounded": True},
+            },
+            now=datetime(2026, 6, 25, 12, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(assurance["onchainAuditStatus"], "stale")
+        self.assertEqual(assurance["onchainAuditRawStatus"], "warn")
+        self.assertEqual(assurance["onchainAuditTargetDate"], "2026-06-22")
+        self.assertEqual(assurance["onchainAuditExpectedTargetDate"], "2026-06-23")
+        self.assertTrue(assurance["onchainAuditStale"])
 
     def test_build_output_embeds_latest_onchain_audit_status(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
@@ -86,23 +101,73 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         output = build_output(
             revenue_data,
             fees_data,
-            {},
             onchain_audit={
                 "status": "warn",
-                "targetDate": "2026-06-21",
+                "generatedAt": "2026-06-25T09:00:00Z",
+                "targetDate": "2026-06-23",
                 "summary": {"maxRevenueDiffPct": 0.031, "revenueDiffUnbounded": True},
+                "chains": {
+                    "Berachain": {
+                        "status": "warn",
+                        "feesUSD": 100.0,
+                        "revenueUSD": 15.0,
+                        "defillamaFeesUSD": 90.0,
+                        "defillamaRevenueUSD": 13.5,
+                        "revenueDiffPct": 0.11111111,
+                        "feesDiffPct": 0.11111111,
+                        "warnReasons": ["revenue_diff_exceeds_tolerance"],
+                    }
+                },
             },
+            now=datetime(2026, 6, 25, 12, tzinfo=timezone.utc),
         )
 
         self.assertEqual(output["assurance"]["onchainAuditStatus"], "warn")
-        self.assertEqual(output["assurance"]["onchainAuditTargetDate"], "2026-06-21")
+        self.assertEqual(output["assurance"]["onchainAuditTargetDate"], "2026-06-23")
         self.assertEqual(output["assurance"]["onchainAuditMaxRevenueDiffPct"], 0.031)
         self.assertTrue(output["assurance"]["onchainAuditRevenueDiffUnbounded"])
+        self.assertEqual(output["assurance"]["onchainAuditChains"]["Berachain"]["status"], "warn")
+        self.assertEqual(output["assurance"]["onchainAuditChains"]["Berachain"]["warnReasons"], ["revenue_diff_exceeds_tolerance"])
 
-    def test_validator_rejects_stale_liquidator_earnings_snapshot(self):
+    def test_build_output_embeds_berachain_borrow_fee_rebate_metadata_without_netting(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
         fees_data = metric_payload(total24h=500, latest_value=500, step=10)
-        output = build_output(revenue_data, fees_data, {})
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={},
+            borrow_fee_rebate_metadata={
+                "veDoloStartTimestamp": 1779321600,
+                "veDoloHoldingFactor": "5.000000000000000000",
+                "currentEpochIndex": 6,
+                "currentEpochStartTimestamp": 1782345600,
+                "onchainFeeRebateEpochIndexMap": {"80094": 4},
+                "onchainRollingClaimsEpochIndexMap": {"80094": 4},
+                "allChainRebateInfo": {
+                    "80094": {
+                        "startEpoch": 1,
+                        "claimsEnabled": False,
+                        "rebatePercentage": "0.100000000000000006",
+                        "marketToRebateInfo": {
+                            "0": {"startEpoch": 1, "endEpoch": None},
+                            "1": {"startEpoch": 1, "endEpoch": None},
+                        },
+                    }
+                },
+            },
+        )
+
+        self.assertEqual(output["borrowFeeRebates"]["status"], "active")
+        self.assertEqual(output["borrowFeeRebates"]["chains"]["Berachain"]["rebatePercentage"], 0.1)
+        self.assertEqual(output["borrowFeeRebates"]["chains"]["Berachain"]["marketCount"], 2)
+        self.assertEqual(output["assurance"]["borrowFeeRebateStatus"], "active_pre_rebate_not_netted")
+        self.assertIn("borrowFeeRebates", output["sourceUrls"])
+
+    def test_validator_does_not_depend_on_liquidation_history_for_revenue(self):
+        revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
+        fees_data = metric_payload(total24h=500, latest_value=500, step=10)
+        output = build_output(revenue_data, fees_data, onchain_audit=None)
 
         with tempfile.TemporaryDirectory() as tmp:
             previous_cwd = os.getcwd()
@@ -125,15 +190,20 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             finally:
                 os.chdir(previous_cwd)
 
-        self.assertGreater(result.failed, 0)
-        self.assertTrue(any("liquidator earnings" in error for error in result.errors))
+        self.assertEqual(result.failed, 0)
 
-    def test_liquidation_workflow_refreshes_revenue_when_history_changes(self):
+    def test_liquidation_workflow_no_longer_refreshes_revenue(self):
         workflow = (ROOT / ".github/workflows/update-liquidation-risk.yml").read_text()
 
-        self.assertIn("git diff --quiet -- liquidation_history.json", workflow)
-        self.assertIn("python3 fetch_dolomite_revenue.py", workflow)
-        self.assertIn("dolomite_revenue.json", workflow)
+        self.assertNotIn("python3 fetch_dolomite_revenue.py", workflow)
+        self.assertNotIn("dolomite_revenue.json", workflow)
+
+    def test_revenue_ui_surfaces_per_chain_audit_status(self):
+        html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
+
+        self.assertIn("auditStatusForChain", html)
+        self.assertIn("onchainAuditChains", html)
+        self.assertIn("onchain audit STALE", html)
 
 
 if __name__ == "__main__":

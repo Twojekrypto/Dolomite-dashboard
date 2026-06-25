@@ -221,6 +221,8 @@ h1{
 .hero-live.audit-warn .dot{background:#f59e0b;box-shadow:0 0 8px rgba(245,158,11,.65)}
 .hero-live.audit-pass{color:#8ad7b0}
 .hero-live.audit-pass .dot{background:#10b981;box-shadow:0 0 8px rgba(16,185,129,.55)}
+.hero-live.audit-stale{color:#f0b35a}
+.hero-live.audit-stale .dot{background:#f59e0b;box-shadow:0 0 8px rgba(245,158,11,.65)}
 .hero-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .hero-value{
   font-family:var(--mono);font-size:clamp(44px,6vw,62px);
@@ -523,6 +525,12 @@ h1{
 .chain-badge.fallback{font-family:var(--mono)}
 .chain-name{font-size:14px;font-weight:820;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chain-sub{margin-top:3px;color:var(--text-3);font-size:12px}
+.chain-audit{margin-top:6px;display:inline-flex;align-items:center;gap:5px;max-width:100%;height:20px;padding:0 7px;border-radius:5px;border:1px solid var(--line-2);background:rgba(255,255,255,.025);font-family:var(--mono);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.45px;color:var(--fg-3);white-space:nowrap}
+.chain-audit::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9;flex:0 0 auto}
+.chain-audit.pass{color:#8ad7b0;border-color:rgba(138,215,176,.24);background:rgba(16,185,129,.055)}
+.chain-audit.warn,.chain-audit.partial,.chain-audit.stale{color:#f0b35a;border-color:rgba(240,179,90,.24);background:rgba(245,158,11,.055)}
+.chain-audit.missing,.chain-audit.not-run{color:var(--fg-4)}
+.chain-audit-detail{margin-top:3px;max-width:210px;color:var(--fg-4);font-size:10.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .revenue-col-inner{display:inline-flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:128px}
 .revenue-primary{font-family:var(--mono);font-size:14px;font-weight:900;color:var(--gold);text-shadow:0 0 14px rgba(201,162,39,.12)}
 .revenue-share-track{width:100%;height:3px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
@@ -716,7 +724,7 @@ h1{
       </div>
       <div class="hero-token-text">
         <div class="hero-token-title">Dolomite Revenue</div>
-        <div class="hero-token-sub"><b>Dolomite</b> · protocol-retained borrow interest</div>
+        <div class="hero-token-sub"><b>Dolomite</b> · pre-rebate protocol-retained borrow interest</div>
       </div>
       <div class="hero-meta">
         <div class="hero-live" id="freshPill"><span class="dot"></span><span>Loading adapter data</span></div>
@@ -775,7 +783,7 @@ h1{
       <div class="panel-head">
         <div>
           <div class="panel-title">Dolomite Revenue Over Time</div>
-          <div class="panel-sub">Protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
+          <div class="panel-sub">Pre-rebate protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
         </div>
         <div class="revenue-series-control">
           <div class="revenue-series-toggles" aria-label="Revenue stream chart filter">
@@ -853,7 +861,7 @@ h1{
     <div class="panel-head chain-panel-head">
       <div>
         <div class="panel-title">Protocol Revenue by Chain</div>
-        <div class="panel-sub">Chain breakdown of protocol-retained revenue for selected date range.</div>
+        <div class="panel-sub">Chain breakdown of pre-rebate protocol-retained revenue for selected date range.</div>
       </div>
       <div class="chain-range-tools" aria-label="Protocol Revenue by Chain date range">
         <div class="chain-date-field">
@@ -963,8 +971,8 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260620-borrow-interest-only";
-  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260620-borrow-interest-only";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260625-audit-status";
+  const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260625-audit-status";
   const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
   const BORROW_INTEREST_SERIES_KEYS = ["fees"];
   const DEFAULT_SERIES_KEYS = STREAM_SERIES_KEYS;
@@ -1112,6 +1120,52 @@ h1{
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "fresh data";
     return d.toLocaleString("en-US", { month:"short", day:"2-digit", year:"numeric", hour:"numeric", minute:"2-digit" });
+  }
+  function auditStatusLabel(status){
+    const key = String(status || "missing").toLowerCase().replace(/_/g, "-");
+    if (key === "pass") return "Audit PASS";
+    if (key === "warn") return "Audit WARN";
+    if (key === "partial") return "Audit PARTIAL";
+    if (key === "stale") return "Audit STALE";
+    if (key === "not-run") return "Audit pending";
+    return "Audit missing";
+  }
+  function auditReasonLabel(reason){
+    const key = String(reason || "");
+    if (!key) return "";
+    if (key === "defillama_chain_missing_onchain_immaterial") return "small onchain-only value";
+    if (key === "protocol_cut_diff_ignored_immaterial_missing_chain") return "small onchain-only value";
+    if (key === "revenue_diff_exceeds_tolerance") return "revenue diff > tolerance";
+    if (key === "fees_diff_exceeds_tolerance") return "fees diff > tolerance";
+    if (key === "defillama_chain_missing_onchain_nonzero") return "missing in DeFiLlama chain rows";
+    if (key === "unpriced_tokens_omitted_immaterial") return "unpriced dust token omitted";
+    return key.replace(/_/g, " ");
+  }
+  function auditStatusForChain(chain){
+    const assurance = revenueData?.assurance || {};
+    const chains = assurance.onchainAuditChains || {};
+    const row = chains[chain];
+    const globalStatus = String(assurance.onchainAuditStatus || "not_run").toLowerCase();
+    const stale = globalStatus === "stale" || Boolean(assurance.onchainAuditStale);
+    const target = assurance.onchainAuditTargetDate || "not run";
+    const expected = assurance.onchainAuditExpectedTargetDate || "T-2";
+    if (!row) {
+      const status = stale ? "stale" : "missing";
+      const detail = stale ? `target ${target}, expected ${expected}` : "no per-chain audit row";
+      return { status, label: auditStatusLabel(status), detail };
+    }
+    const rawStatus = String(row.status || "missing").toLowerCase();
+    const status = stale ? "stale" : rawStatus;
+    const reasons = row.warnReasons || row.infoReasons || row.missingReasons || [];
+    const detail = stale
+      ? `target ${target}, expected ${expected}`
+      : auditReasonLabel(reasons[0]) || `target ${target}`;
+    return { status, label: auditStatusLabel(status), detail };
+  }
+  function auditStatusHtml(chain){
+    const audit = auditStatusForChain(chain);
+    const cls = String(audit.status || "missing").toLowerCase().replace(/_/g, "-");
+    return `<div class="chain-audit ${esc(cls)}">${esc(audit.label)}</div><div class="chain-audit-detail">${esc(audit.detail)}</div>`;
   }
   function formatDay(ts, compact){
     const opts = compact
@@ -1963,9 +2017,12 @@ h1{
           ? "onchain audit WARN"
           : status === "partial"
             ? "onchain audit PARTIAL"
+            : status === "stale"
+              ? "onchain audit STALE"
             : "onchain audit pending";
       fresh.classList.toggle("audit-pass", status === "pass");
       fresh.classList.toggle("audit-warn", status === "warn" || status === "partial");
+      fresh.classList.toggle("audit-stale", status === "stale");
       if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt) + " · DeFiLlama estimate · " + auditLabel;
     }
   }
@@ -2004,7 +2061,7 @@ h1{
         ? `<img src="${icon}" alt="" onerror="this.parentElement.classList.add('fallback');this.parentElement.textContent='${abbr}';">`
         : chainAbbr(row.chain);
       return `<tr>
-        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${abbr} · Dolomite adapter</div></div></div></td>
+        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${abbr} · Dolomite adapter</div>${auditStatusHtml(row.chain)}</div></div></td>
         <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="revenue-share-track" aria-hidden="true"><span style="width:${shareWidth}%"></span></div><div class="num-sub">${days}D retained</div></div></td>
         <td><div class="num-main">${usdFull(row.feesUSD)}</div><div class="num-sub">gross</div></td>
         <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div><div class="num-sub">lender share</div></td>

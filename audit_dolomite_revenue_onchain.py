@@ -51,6 +51,8 @@ IMMATERIAL_MISSING_PRICE_PROTOCOL_REVENUE_CAPS = {
     "DPX": Decimal("0.001"),
     "MATIC": Decimal("0.000001"),
 }
+IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP = 5.0
+IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP = 1.0
 
 DOLOMITE_MARGIN_ABI = [
     {"inputs": [], "name": "getNumMarkets", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
@@ -248,27 +250,44 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
 
     fees_diff = pct_diff(onchain.get("feesUSD"), defillama.get("feesUSD"))
     revenue_diff = pct_diff(onchain.get("revenueUSD"), defillama.get("revenueUSD"))
+    onchain_fees = float(onchain.get("feesUSD") or 0)
+    onchain_revenue = float(onchain.get("revenueUSD") or 0)
     defillama_fees = float(defillama.get("feesUSD") or 0)
     defillama_cut = float(defillama.get("revenueUSD") or 0) / defillama_fees if defillama_fees > 0 else 0.0
     protocol_cut_diff = abs(float(onchain.get("protocolCut") or 0) - defillama_cut)
     price_omission_count = int(onchain.get("priceOmissionCount") or 0)
+    missing_chain_immaterial = (
+        defillama_chain_missing
+        and abs(onchain_fees) <= IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP
+        and abs(onchain_revenue) <= IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP
+    )
     warn_reasons = []
+    info_reasons = []
     if not math.isfinite(fees_diff):
-        if defillama_chain_missing and float(onchain.get("feesUSD") or 0) != 0:
-            add_unique(warn_reasons, "defillama_chain_missing_onchain_nonzero")
+        if defillama_chain_missing and onchain_fees != 0:
+            if missing_chain_immaterial:
+                add_unique(info_reasons, "defillama_chain_missing_onchain_immaterial")
+            else:
+                add_unique(warn_reasons, "defillama_chain_missing_onchain_nonzero")
         else:
             add_unique(warn_reasons, "fees_diff_unbounded")
     elif fees_diff > tolerance_pct:
         add_unique(warn_reasons, "fees_diff_exceeds_tolerance")
     if not math.isfinite(revenue_diff):
-        if defillama_chain_missing and float(onchain.get("revenueUSD") or 0) != 0:
-            add_unique(warn_reasons, "defillama_chain_missing_onchain_nonzero")
+        if defillama_chain_missing and onchain_revenue != 0:
+            if missing_chain_immaterial:
+                add_unique(info_reasons, "defillama_chain_missing_onchain_immaterial")
+            else:
+                add_unique(warn_reasons, "defillama_chain_missing_onchain_nonzero")
         else:
             add_unique(warn_reasons, "revenue_diff_unbounded")
     elif revenue_diff > tolerance_pct:
         add_unique(warn_reasons, "revenue_diff_exceeds_tolerance")
     if protocol_cut_diff > protocol_cut_tolerance:
-        add_unique(warn_reasons, "protocol_cut_diff_exceeds_tolerance")
+        if missing_chain_immaterial:
+            add_unique(info_reasons, "protocol_cut_diff_ignored_immaterial_missing_chain")
+        else:
+            add_unique(warn_reasons, "protocol_cut_diff_exceeds_tolerance")
     if price_omission_count:
         add_unique(warn_reasons, "unpriced_tokens_omitted_immaterial")
     status = "warn" if warn_reasons else "pass"
@@ -294,6 +313,8 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
     }
     if warn_reasons:
         result["warnReasons"] = warn_reasons
+    if info_reasons:
+        result["infoReasons"] = info_reasons
     if defillama_chain_missing:
         result["defillamaChainMissing"] = True
     return result
@@ -358,6 +379,7 @@ def build_audit_report(target_date, target_timestamp, window_start_timestamp, ch
             "window": "Each DeFiLlama row date is audited as that named UTC day, from 00:00 UTC on the date to 00:00 UTC the next day.",
             "usdPricing": "Raw token amounts are independently replayed from DolomiteMargin; USD totals use historical token prices and should be compared with tolerance.",
             "immaterialMissingPricePolicy": "Only explicitly allowlisted legacy/dust tokens below strict protocol-revenue amount caps may be priced as 0 USD; this keeps the chain audited but forces WARN.",
+            "immaterialMissingChainPolicy": f"DeFiLlama-missing chain rows are informational when independent onchain totals are below ${IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP:g} revenue and ${IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP:g} fees.",
             "archiveRpcRequirement": "Historical eth_call requires archive-capable RPC. Chains without archive access are marked missing, not pass.",
         },
         "chains": chain_results,

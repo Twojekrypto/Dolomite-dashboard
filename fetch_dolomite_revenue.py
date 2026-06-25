@@ -9,16 +9,17 @@ Revenue tab instead of calling the API from every visitor's browser.
 import json
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import requests
 
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_revenue.json")
-LIQUIDATION_HISTORY_FILE = os.path.join(DATA_DIR, "liquidation_history.json")
 ONCHAIN_AUDIT_FILE = os.path.join(DATA_DIR, "data", "dolomite-revenue-onchain-audit.json")
 BASE_URL = "https://api.llama.fi/summary/fees/dolomite"
+BORROW_FEE_REBATE_METADATA_URL = "https://api.dolomite.io/liquidity-mining/ve-dolo-rebate/metadata"
+BERACHAIN_CHAIN_ID = "80094"
 REQUEST_TIMEOUTS = (
     (10, 45),
     (10, 75),
@@ -40,6 +41,17 @@ def safe_number(value):
     if isinstance(value, (int, float)):
         return float(value)
     return 0.0
+
+
+def safe_decimal_number(value):
+    if isinstance(value, bool):
+        return 0.0
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def chain_value(breakdown, chain):
@@ -77,6 +89,22 @@ def fetch_metric(data_type):
     raise RuntimeError(f"Unable to fetch {data_type}: {last_error}")
 
 
+def fetch_borrow_fee_rebate_metadata():
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "dolomite-dashboard-revenue/1.0",
+    }
+    try:
+        response = requests.get(BORROW_FEE_REBATE_METADATA_URL, timeout=(10, 30), headers=headers)
+        response.raise_for_status()
+        payload = response.json()
+    except (requests.RequestException, ValueError) as exc:
+        print(f"   Borrow fee rebate metadata unavailable: {exc}")
+        return None
+    metadata = payload.get("metadata") if isinstance(payload, dict) else None
+    return metadata if isinstance(metadata, dict) else None
+
+
 def chart_map(rows):
     out = {}
     for row in rows or []:
@@ -95,32 +123,11 @@ def breakdown_map(rows):
     return out
 
 
-def liquidator_earnings_daily(path=LIQUIDATION_HISTORY_FILE):
-    daily = {}
-    try:
-        with open(path) as f:
-            payload = json.load(f)
-    except (OSError, ValueError):
-        return daily
-
-    for row in payload.get("liquidationHistory", []) or []:
-        amount = safe_number(row.get("liquidationRewardUSD"))
-        if amount <= 0:
-            continue
-        timestamp = row.get("timestamp")
-        if not isinstance(timestamp, (int, float)):
-            continue
-        day = day_from_timestamp(timestamp)
-        daily[day] = daily.get(day, 0.0) + amount
-    return daily
-
-
-def merge_series(revenue_data, fees_data, liquidator_earnings=None):
+def merge_series(revenue_data, fees_data):
     revenue_chart = chart_map(revenue_data.get("totalDataChart"))
     fees_chart = chart_map(fees_data.get("totalDataChart"))
     revenue_breakdowns = breakdown_map(revenue_data.get("totalDataChartBreakdown"))
     fees_breakdowns = breakdown_map(fees_data.get("totalDataChartBreakdown"))
-    liquidator_earnings = liquidator_earnings or {}
     timestamps = sorted(set(revenue_chart) | set(fees_chart))
     chains = sorted({
         chain
@@ -134,7 +141,6 @@ def merge_series(revenue_data, fees_data, liquidator_earnings=None):
         revenue = revenue_chart.get(ts, 0.0)
         fees = fees_chart.get(ts, 0.0)
         day = day_from_timestamp(ts)
-        liquidator_earnings_usd = safe_number(liquidator_earnings.get(day))
         chain_rows = {}
         for chain in chains:
             chain_revenue = chain_value(revenue_breakdowns.get(ts, {}), chain)
@@ -151,7 +157,6 @@ def merge_series(revenue_data, fees_data, liquidator_earnings=None):
             "date": day,
             "feesUSD": round(fees, 6),
             "revenueUSD": round(revenue, 6),
-            "liquidatorEarningsUSD": round(liquidator_earnings_usd, 6),
             "supplySideRevenueUSD": round(max(fees - revenue, 0.0), 6),
             "protocolCut": round(revenue / fees, 8) if fees > 0 else 0,
             "chains": chain_rows,
@@ -202,66 +207,180 @@ def load_onchain_audit(path=ONCHAIN_AUDIT_FILE):
     return payload if isinstance(payload, dict) else None
 
 
-def onchain_audit_assurance(onchain_audit):
+def expected_onchain_audit_target_date(now=None):
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return (now.astimezone(timezone.utc).date() - timedelta(days=2)).isoformat()
+
+
+def date_is_before(left, right):
+    try:
+        left_date = datetime.fromisoformat(str(left)).date()
+        right_date = datetime.fromisoformat(str(right)).date()
+    except (TypeError, ValueError):
+        return False
+    return left_date < right_date
+
+
+def summarize_onchain_audit_chains(onchain_audit):
+    chains = onchain_audit.get("chains") if isinstance(onchain_audit, dict) else None
+    if not isinstance(chains, dict):
+        return {}
+
+    fields = (
+        "status",
+        "feesUSD",
+        "revenueUSD",
+        "defillamaFeesUSD",
+        "defillamaRevenueUSD",
+        "feesDiffPct",
+        "revenueDiffPct",
+        "feesDiffUnbounded",
+        "revenueDiffUnbounded",
+        "protocolCut",
+        "defillamaProtocolCut",
+        "protocolCutDiff",
+        "warnReasons",
+        "infoReasons",
+        "missingReasons",
+        "defillamaChainMissing",
+        "priceFallbackCount",
+        "priceOmissionCount",
+        "rawTokenCount",
+        "error",
+    )
+    summarized = {}
+    for chain, payload in sorted(chains.items()):
+        if not isinstance(payload, dict):
+            continue
+        summarized[str(chain)] = {field: payload[field] for field in fields if field in payload}
+    return summarized
+
+
+def int_or_none(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def normalized_borrow_fee_rebate_metadata(metadata):
+    if not isinstance(metadata, dict):
+        return {
+            "status": "not_available",
+            "netting": "not_netted",
+            "source": BORROW_FEE_REBATE_METADATA_URL,
+            "chains": {},
+        }
+
+    all_chain_info = metadata.get("allChainRebateInfo") or {}
+    berachain_info = all_chain_info.get(BERACHAIN_CHAIN_ID)
+    chains = {}
+    if isinstance(berachain_info, dict):
+        market_info = berachain_info.get("marketToRebateInfo") or {}
+        rebate_percentage = round(safe_decimal_number(berachain_info.get("rebatePercentage")), 8)
+        chains["Berachain"] = {
+            "chainId": int(BERACHAIN_CHAIN_ID),
+            "status": "active" if rebate_percentage > 0 else "inactive",
+            "startEpoch": int_or_none(berachain_info.get("startEpoch")),
+            "claimsEnabled": bool(berachain_info.get("claimsEnabled")),
+            "rebatePercentage": rebate_percentage,
+            "marketCount": len(market_info) if isinstance(market_info, dict) else 0,
+            "onchainFeeRebateEpoch": int_or_none((metadata.get("onchainFeeRebateEpochIndexMap") or {}).get(BERACHAIN_CHAIN_ID)),
+            "onchainRollingClaimsEpoch": int_or_none((metadata.get("onchainRollingClaimsEpochIndexMap") or {}).get(BERACHAIN_CHAIN_ID)),
+        }
+
+    status = "active" if any(chain.get("status") == "active" for chain in chains.values()) else "inactive"
+    return {
+        "status": status,
+        "netting": "not_netted",
+        "source": BORROW_FEE_REBATE_METADATA_URL,
+        "veDoloStartTimestamp": int_or_none(metadata.get("veDoloStartTimestamp")),
+        "veDoloHoldingFactor": round(safe_decimal_number(metadata.get("veDoloHoldingFactor")), 8),
+        "currentEpochIndex": int_or_none(metadata.get("currentEpochIndex")),
+        "currentEpochStartTimestamp": int_or_none(metadata.get("currentEpochStartTimestamp")),
+        "chains": chains,
+    }
+
+
+def borrow_fee_rebate_status(rebate_metadata):
+    if rebate_metadata.get("status") == "active":
+        return "active_pre_rebate_not_netted"
+    if rebate_metadata.get("status") == "inactive":
+        return "inactive"
+    return "not_available"
+
+
+def onchain_audit_assurance(onchain_audit, now=None):
+    expected_target = expected_onchain_audit_target_date(now)
     if not onchain_audit:
         return {
             "onchainAuditStatus": "not_run",
+            "onchainAuditRawStatus": "not_run",
             "onchainAuditTargetDate": None,
+            "onchainAuditExpectedTargetDate": expected_target,
+            "onchainAuditStale": False,
             "onchainAuditMaxRevenueDiffPct": None,
             "onchainAuditMaxFeesDiffPct": None,
             "onchainAuditRevenueDiffUnbounded": False,
             "onchainAuditFeesDiffUnbounded": False,
+            "onchainAuditChains": {},
         }
     summary = onchain_audit.get("summary") or {}
+    raw_status = str(onchain_audit.get("status") or "missing")
+    target_date = onchain_audit.get("targetDate")
+    stale = date_is_before(target_date, expected_target)
     return {
-        "onchainAuditStatus": str(onchain_audit.get("status") or "missing"),
-        "onchainAuditTargetDate": onchain_audit.get("targetDate"),
+        "onchainAuditStatus": "stale" if stale else raw_status,
+        "onchainAuditRawStatus": raw_status,
+        "onchainAuditTargetDate": target_date,
+        "onchainAuditExpectedTargetDate": expected_target,
+        "onchainAuditStale": stale,
         "onchainAuditMaxRevenueDiffPct": summary.get("maxRevenueDiffPct"),
         "onchainAuditMaxFeesDiffPct": summary.get("maxFeesDiffPct"),
         "onchainAuditRevenueDiffUnbounded": bool(summary.get("revenueDiffUnbounded")),
         "onchainAuditFeesDiffUnbounded": bool(summary.get("feesDiffUnbounded")),
         "onchainAuditGeneratedAt": onchain_audit.get("generatedAt"),
+        "onchainAuditChains": summarize_onchain_audit_chains(onchain_audit),
     }
 
 
-def metric_totals(revenue_data, fees_data, series, liquidator_earnings=None):
+def metric_totals(revenue_data, fees_data, series):
     # DeFiLlama aggregate windows can briefly lag or revise while the chart rows
     # are updating. Keep every displayed total tied to the same saved series that
     # powers the chart and chain breakdowns.
     fees_24h = latest_series_value(series, "feesUSD", fees_data.get("total24h"))
     revenue_24h = latest_series_value(series, "revenueUSD", revenue_data.get("total24h"))
-    liquidator_earnings_all_time = sum(safe_number(value) for value in (liquidator_earnings or {}).values())
     previous = series[-2] if len(series) >= 2 else {}
     previous_revenue = previous.get("revenueUSD", revenue_data.get("total48hto24h"))
     previous_fees = previous.get("feesUSD", fees_data.get("total48hto24h"))
     return {
         "dailyRevenueUSD": round(revenue_24h, 6),
         "dailyFeesUSD": round(fees_24h, 6),
-        "dailyLiquidatorEarningsUSD": round(latest_series_value(series, "liquidatorEarningsUSD", 0), 6),
         "dailySupplySideRevenueUSD": round(max(fees_24h - revenue_24h, 0.0), 6),
         "dailyProtocolCut": round(revenue_24h / fees_24h, 8) if fees_24h > 0 else 0,
         "previousDailyRevenueUSD": round(safe_number(previous_revenue), 6),
         "previousDailyFeesUSD": round(safe_number(previous_fees), 6),
         "revenue7dUSD": round(window_sum(series, 7, "revenueUSD"), 6),
         "fees7dUSD": round(window_sum(series, 7, "feesUSD"), 6),
-        "liquidatorEarnings7dUSD": round(window_sum(series, 7, "liquidatorEarningsUSD"), 6),
         "revenue30dUSD": round(window_sum(series, 30, "revenueUSD"), 6),
         "fees30dUSD": round(window_sum(series, 30, "feesUSD"), 6),
-        "liquidatorEarnings30dUSD": round(window_sum(series, 30, "liquidatorEarningsUSD"), 6),
         "revenueAllTimeUSD": round(safe_number(revenue_data.get("totalAllTime")), 6),
         "feesAllTimeUSD": round(safe_number(fees_data.get("totalAllTime")), 6),
-        "liquidatorEarningsAllTimeUSD": round(liquidator_earnings_all_time or window_sum(series, 0, "liquidatorEarningsUSD"), 6),
     }
 
 
-def build_output(revenue_data, fees_data, liquidator_earnings=None, onchain_audit=None):
-    series = merge_series(revenue_data, fees_data, liquidator_earnings)
+def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_metadata=None, now=None):
+    series = merge_series(revenue_data, fees_data)
     if len(series) < 30:
         raise ValueError("Merged revenue series has too few rows")
 
     latest = series[-1]
     if onchain_audit is None:
         onchain_audit = load_onchain_audit()
+    rebate_metadata = normalized_borrow_fee_rebate_metadata(borrow_fee_rebate_metadata)
+    generated_at = utc_now_iso()
     return {
         "schemaVersion": 1,
         "protocol": "Dolomite",
@@ -270,34 +389,35 @@ def build_output(revenue_data, fees_data, liquidator_earnings=None, onchain_audi
             "dailyRevenue": f"{BASE_URL}?dataType=dailyRevenue",
             "dailyFees": f"{BASE_URL}?dataType=dailyFees",
             "adapter": "https://github.com/DefiLlama/dimension-adapters/tree/master/fees/dolomite",
-            "liquidatorEarnings": "liquidation_history.json",
-            "liquidationDocs": "https://docs.dolomite.io/risk-management",
             "onchainAudit": "data/dolomite-revenue-onchain-audit.json",
+            "borrowFeeRebates": BORROW_FEE_REBATE_METADATA_URL,
+            "doloModuleDocs": "https://docs.dolomite.io/smart-contract-addresses/module-dolo",
         },
-        "generatedAt": utc_now_iso(),
-        "lastUpdated": utc_now_iso(),
+        "generatedAt": generated_at,
+        "lastUpdated": generated_at,
         "methodology": {
             "fees": "Interest paid by borrowers.",
-            "revenue": "The portion of borrower interest retained by the protocol.",
-            "liquidatorEarnings": "Liquidation rewards earned by liquidators, sourced from Dolomite liquidation history rows.",
+            "revenue": "Gross protocol-retained borrower interest before borrower rebate programs.",
             "supplySideRevenue": "The portion of borrower interest paid to lenders.",
-            "formula": "dailyRevenue = interestEarned * (1 - earningsRate); supplySideRevenue = dailyFees - dailyRevenue; liquidatorEarnings = sum(liquidationRewardUSD)",
-            "scope": "Dolomite borrow-interest economics plus liquidator rewards from confirmed liquidation events. Gas fees, token emissions, treasury transfers, trading spreads and protocol liquidation-rake attribution are excluded.",
+            "formula": "dailyRevenue = interestEarned * (1 - earningsRate); supplySideRevenue = dailyFees - dailyRevenue",
+            "scope": "Dolomite borrow-interest economics from the DeFiLlama adapter. Gas fees, token emissions, treasury transfers, trading spreads, liquidator earnings and protocol liquidation-rake attribution are excluded.",
             "sourceLimitations": [
                 "DeFiLlama adapter estimates daily interest from borrow index movement and borrowed principal snapshots.",
                 "This is protocol-retained borrow interest, not a direct treasury cashflow audit.",
-                "Liquidator earnings show rewards earned by liquidators and do not split out any amount retained by Dolomite.",
-                "Liquidator earnings chart rows are aligned to the DeFiLlama borrow-interest date range; all-time liquidator earnings use the full liquidation history snapshot.",
+                "Berachain veDOLO borrow-fee rebates are not netted from revenue yet; displayed revenue is pre-rebate gross retained borrow interest.",
                 "Current-day values can be revised by DeFiLlama until the adapter window fully settles.",
             ],
         },
         "assurance": {
-            "classification": "adapter-estimated protocol borrow-interest revenue plus liquidation rewards earned by liquidators",
-            "confidence": "high for retained borrow-interest direction/split and high for liquidator reward values present in Dolomite liquidation history; not a protocol liquidation-rake revenue split",
-            "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest; liquidator earnings are top-level daily stream values",
-            **onchain_audit_assurance(onchain_audit),
+            "classification": "adapter-estimated protocol borrow-interest revenue",
+            "confidence": "high for retained borrow-interest direction/split when the independent onchain audit is pass; warn/stale audit states should be treated as data-quality caveats",
+            "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest",
+            "netRevenueAfterBorrowFeeRebates": "not netted; Berachain veDOLO borrow-fee rebates are distributed by a separate rebate program",
+            "borrowFeeRebateStatus": borrow_fee_rebate_status(rebate_metadata),
+            **onchain_audit_assurance(onchain_audit, now=now),
         },
-        "totals": metric_totals(revenue_data, fees_data, series, liquidator_earnings),
+        "borrowFeeRebates": rebate_metadata,
+        "totals": metric_totals(revenue_data, fees_data, series),
         "latest": latest,
         "chainTotals7d": window_chain_totals(series, 7),
         "chainTotals30d": window_chain_totals(series, 30),
@@ -310,7 +430,8 @@ def main():
     try:
         revenue_data = fetch_metric("dailyRevenue")
         fees_data = fetch_metric("dailyFees")
-        output = build_output(revenue_data, fees_data, liquidator_earnings_daily())
+        rebate_metadata = fetch_borrow_fee_rebate_metadata()
+        output = build_output(revenue_data, fees_data, borrow_fee_rebate_metadata=rebate_metadata)
         with open(OUTPUT_FILE, "w") as f:
             json.dump(output, f, separators=(",", ":"))
 

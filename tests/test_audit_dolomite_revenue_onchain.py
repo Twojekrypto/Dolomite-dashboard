@@ -139,6 +139,20 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertTrue(result["revenueDiffUnbounded"])
         self.assertIn("defillama_chain_missing_onchain_nonzero", result["warnReasons"])
 
+    def test_missing_defillama_chain_total_is_info_when_onchain_revenue_is_immaterial(self):
+        result = classify_chain_result(
+            "Mantle",
+            defillama=None,
+            onchain={"feesUSD": 2.75, "revenueUSD": 0.41, "protocolCut": 0.14909091},
+            tolerance_pct=0.02,
+            protocol_cut_tolerance=0.002,
+        )
+
+        self.assertEqual(result["status"], "pass")
+        self.assertIsNone(result["revenueDiffPct"])
+        self.assertTrue(result["revenueDiffUnbounded"])
+        self.assertIn("defillama_chain_missing_onchain_immaterial", result["infoReasons"])
+
     def test_chain_result_warns_when_immaterial_tokens_are_omitted(self):
         result = classify_chain_result(
             "Arbitrum",
@@ -294,6 +308,7 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
     def test_workflow_runs_audit_and_commits_output(self):
         workflow = (ROOT / ".github/workflows/audit-dolomite-revenue-onchain.yml").read_text(encoding="utf-8")
 
+        self.assertGreaterEqual(workflow.count("cron:"), 2)
         self.assertIn("python3 audit_dolomite_revenue_onchain.py", workflow)
         self.assertIn("data/dolomite-revenue-onchain-audit.json", workflow)
         self.assertIn("git add data/dolomite-revenue-onchain-audit.json dolomite_revenue.json", workflow)

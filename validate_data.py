@@ -77,31 +77,6 @@ def _safe_number(value):
     return 0.0
 
 
-def _date_key_from_timestamp(value):
-    try:
-        return datetime.fromtimestamp(int(value), tz=timezone.utc).strftime("%Y-%m-%d")
-    except (TypeError, ValueError, OSError):
-        return ""
-
-
-def _liquidator_earnings_daily_from_history(path="liquidation_history.json"):
-    if not os.path.exists(path):
-        return None
-    try:
-        with open(path) as f:
-            payload = json.load(f)
-    except (OSError, ValueError):
-        return None
-
-    daily = {}
-    for row in payload.get("liquidationHistory", []) or []:
-        day = _date_key_from_timestamp(row.get("timestamp"))
-        amount = _safe_number(row.get("liquidationRewardUSD"))
-        if day and amount > 0:
-            daily[day] = daily.get(day, 0.0) + amount
-    return daily
-
-
 def _odolo_circulating_reconciles(data):
     try:
         total_supply = float(data.get("totalSupply"))
@@ -347,13 +322,12 @@ def _dolomite_revenue_series_valid(data):
         timestamp = row.get("timestamp")
         fees = row.get("feesUSD")
         revenue = row.get("revenueUSD")
-        liquidator_earnings = row.get("liquidatorEarningsUSD", 0)
         supply_side = row.get("supplySideRevenueUSD")
         if not isinstance(timestamp, int) or timestamp <= previous:
             return False
-        if not all(isinstance(value, (int, float)) for value in (fees, revenue, liquidator_earnings, supply_side)):
+        if not all(isinstance(value, (int, float)) for value in (fees, revenue, supply_side)):
             return False
-        if fees < 0 or revenue < 0 or liquidator_earnings < 0 or revenue > fees + 1:
+        if fees < 0 or revenue < 0 or revenue > fees + 1:
             return False
         if not _nearly_equal(fees, revenue + supply_side, abs_tol=1):
             return False
@@ -383,10 +357,8 @@ def _dolomite_revenue_window_totals_valid(data):
     checks = (
         ("revenue7dUSD", "revenueUSD", 7),
         ("fees7dUSD", "feesUSD", 7),
-        ("liquidatorEarnings7dUSD", "liquidatorEarningsUSD", 7),
         ("revenue30dUSD", "revenueUSD", 30),
         ("fees30dUSD", "feesUSD", 30),
-        ("liquidatorEarnings30dUSD", "liquidatorEarningsUSD", 30),
     )
     return all(
         _nearly_equal(totals.get(total_key), sum(_safe_number(row.get(row_key)) for row in rows[-days:]), abs_tol=1)
@@ -416,27 +388,6 @@ def _dolomite_revenue_chain_windows_valid(data):
             for value_key, expected_value in expected_values.items():
                 if not _nearly_equal(actual_values.get(value_key), expected_value, abs_tol=1):
                     return False
-    return True
-
-
-def _dolomite_revenue_liquidator_earnings_match_history(data):
-    daily = _liquidator_earnings_daily_from_history()
-    if daily is None:
-        return True
-
-    rows = data.get("series", [])
-    totals = data.get("totals", {})
-    expected_all_time = sum(daily.values())
-    if not _nearly_equal(totals.get("liquidatorEarningsAllTimeUSD", 0), expected_all_time, abs_tol=0.01):
-        return False
-
-    for row in rows:
-        day = row.get("date") or _date_key_from_timestamp(row.get("timestamp"))
-        if not day:
-            return False
-        expected = daily.get(day, 0.0)
-        if not _nearly_equal(row.get("liquidatorEarningsUSD", 0), expected, abs_tol=0.01):
-            return False
     return True
 
 
@@ -485,24 +436,20 @@ def _dolomite_revenue_totals_valid(data):
     latest = data.get("latest", {})
     daily_fees = totals.get("dailyFeesUSD")
     daily_revenue = totals.get("dailyRevenueUSD")
-    daily_liquidator_earnings = totals.get("dailyLiquidatorEarningsUSD", latest.get("liquidatorEarningsUSD", 0))
     daily_supply_side = totals.get("dailySupplySideRevenueUSD")
     daily_cut = totals.get("dailyProtocolCut")
     latest_fees = latest.get("feesUSD")
     latest_revenue = latest.get("revenueUSD")
-    latest_liquidator_earnings = latest.get("liquidatorEarningsUSD", 0)
-    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, daily_liquidator_earnings, daily_supply_side, daily_cut, latest_fees, latest_revenue, latest_liquidator_earnings)):
+    if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, daily_supply_side, daily_cut, latest_fees, latest_revenue)):
         return False
     expected_cut = daily_revenue / daily_fees if daily_fees > 0 else 0
     return (
         daily_fees > 0
         and 0 <= daily_revenue <= daily_fees
-        and daily_liquidator_earnings >= 0
         and _nearly_equal(daily_fees, daily_revenue + daily_supply_side, abs_tol=1)
         and _nearly_equal(daily_cut, expected_cut, abs_tol=0.0001)
         and _nearly_equal(daily_fees, latest_fees, abs_tol=500)
         and _nearly_equal(daily_revenue, latest_revenue, abs_tol=500)
-        and _nearly_equal(daily_liquidator_earnings, latest_liquidator_earnings, abs_tol=1)
     )
 
 
@@ -754,7 +701,6 @@ RULES = {
             ("revenue rolling windows must reconcile with series", _dolomite_revenue_window_totals_valid),
             ("revenue chain windows must reconcile with series", _dolomite_revenue_chain_windows_valid),
             ("revenue history must be sorted and populated", _dolomite_revenue_series_valid),
-            ("liquidator earnings must match liquidation history", _dolomite_revenue_liquidator_earnings_match_history),
         ],
         "min_bytes": 10_000,
     },
