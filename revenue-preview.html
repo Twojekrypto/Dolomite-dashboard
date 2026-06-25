@@ -489,19 +489,46 @@ h1{
 .chain-date-popover[data-side="left"]{right:auto;left:0}
 .chain-date-popover[data-side="right"]{right:0;left:auto}
 .table-wrap{overflow:auto}
-.veborrow-savings{
-  display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 20px 20px;padding:16px 18px;
-  border:1px solid var(--line-2);border-radius:8px;background:linear-gradient(180deg,rgba(201,162,39,.085),rgba(255,255,255,.025));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.035)
+.veborrow-panel{margin-top:18px;overflow:hidden}
+.veborrow-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.veborrow-panel-head > div:first-child{max-width:720px}
+.veborrow-mode-toggles{flex:0 0 auto}
+.veborrow-mode-toggle{
+  min-height:32px;padding:0 10px;border-radius:7px;
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--fg-3);font-family:var(--mono);font-size:11px;font-weight:700;
+  transition:background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease);
+  min-width:0
 }
-.veborrow-kicker{font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--gold)}
-.veborrow-title{margin-top:4px;color:var(--fg-1);font-size:15px;font-weight:800}
-.veborrow-title b{color:var(--gold);font-family:var(--mono);font-size:18px}
-.veborrow-sub{margin-top:4px;color:var(--fg-3);font-size:12px;line-height:1.4}
-.veborrow-side{display:grid;grid-template-columns:repeat(2,minmax(96px,1fr));gap:8px;flex:0 0 auto}
-.veborrow-mini{padding:10px 12px;border:1px solid var(--line-1);border-radius:8px;background:rgba(0,0,0,.16)}
-.veborrow-mini span{display:block;color:var(--fg-4);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.6px}
-.veborrow-mini b{display:block;margin-top:4px;color:var(--fg-1);font-family:var(--mono);font-size:14px;font-weight:800}
+.veborrow-mode-toggle > span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.veborrow-mode-toggle:hover{color:var(--fg-1);background:rgba(255,255,255,.04)}
+.veborrow-mode-toggle.active{color:var(--fg-1);background:rgba(201,162,39,.12);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.veborrow-summary{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;
+  margin:18px 20px 0;border:1px solid var(--line-1);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.018)
+}
+.veborrow-stat{padding:14px 16px;border-left:1px solid var(--line-1);min-width:0}
+.veborrow-stat:first-child{border-left:0}
+.veborrow-stat span{display:block;color:var(--fg-4);font-family:var(--mono);font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.veborrow-stat b{display:block;margin-top:6px;color:var(--fg-1);font-family:var(--mono);font-size:17px;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.veborrow-stat.primary b{color:var(--gold)}
+.veborrow-stat small{display:block;margin-top:5px;color:var(--fg-3);font-size:11px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.veborrow-chart-wrap{padding:22px 24px 10px;position:relative}
+.veborrow-chart-svg{width:100%;height:300px;display:block;overflow:visible}
+.veborrow-chart-grid line{stroke:var(--line-1);stroke-width:1}
+.veborrow-chart-grid text,.veborrow-chart-axis text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);font-weight:500}
+.veborrow-chart-bar{
+  fill:rgba(201,162,39,.78);stroke:rgba(255,219,121,.22);stroke-width:1;
+  transition:opacity .13s var(--ease),fill .13s var(--ease),filter .13s var(--ease)
+}
+.veborrow-chart-bar.empty{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.08)}
+.veborrow-chart-bar.is-muted{opacity:.34}
+.veborrow-chart-bar.is-active{opacity:1;fill:var(--gold);filter:drop-shadow(0 0 8px rgba(201,162,39,.26))}
+.veborrow-zero-line{stroke:var(--line-2);stroke-width:1}
+.veborrow-brush-wrap{padding-top:2px}
+.veborrow-table-wrap{border-top:1px solid var(--line-1)}
+.veborrow-table{min-width:820px}
+.veborrow-table .revenue-primary{color:var(--gold)}
 .revenue-table{width:100%;min-width:820px;border-collapse:separate!important;border-spacing:0!important;table-layout:fixed;font-size:12px}
 .revenue-table th{
   padding:11px 16px;background:#101012;border-bottom:1px solid var(--line-2);
@@ -659,8 +686,13 @@ h1{
   .chain-date-popover,
   .chain-date-popover[data-side="left"],
   .chain-date-popover[data-side="right"]{left:0;right:0;width:auto;top:calc(100% + 8px)}
-  .veborrow-savings{align-items:stretch;flex-direction:column;margin:0 16px 16px}
-  .veborrow-side{grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .veborrow-panel-head{display:block}
+  .veborrow-mode-toggles{margin-top:12px;width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .veborrow-summary{margin:16px 16px 0;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .veborrow-stat:nth-child(odd){border-left:0}
+  .veborrow-stat:nth-child(n+3){border-top:1px solid var(--line-1)}
+  .veborrow-chart-wrap{padding:18px 16px 10px}
+  .veborrow-chart-svg{height:260px}
   .revenue-chart-wrap{padding:18px 16px 14px}
   .revenue-chart-svg{height:280px}
   .revenue-brush-wrap{padding:4px 16px 16px}
@@ -947,16 +979,68 @@ h1{
         </tbody>
       </table>
     </div>
-    <div class="veborrow-savings" id="veBorrowSavings" aria-live="polite">
+  </section>
+
+  <section class="panel veborrow-panel" id="veBorrowPanel">
+    <div class="panel-head veborrow-panel-head">
       <div>
-        <div class="veborrow-kicker">veDOLO borrow fee rebates</div>
-        <div class="veborrow-title">Users saved <b>$0</b></div>
-        <div class="veborrow-sub">Published closed epochs · selected range</div>
+        <div class="panel-title">veDOLO Borrow Fee Rebates</div>
+        <div class="panel-sub">Daily Berachain user savings from closed veBorrow discount epochs.</div>
       </div>
-      <div class="veborrow-side">
-        <div class="veborrow-mini"><span>All published</span><b>$0</b></div>
-        <div class="veborrow-mini"><span>Latest epoch</span><b>-</b></div>
+      <div class="revenue-mode-toggles veborrow-mode-toggles" aria-label="veDOLO rebate savings chart mode">
+        <button class="veborrow-mode-toggle active" type="button" data-veborrow-mode="daily" aria-pressed="true"><span>Daily</span></button>
+        <button class="veborrow-mode-toggle" type="button" data-veborrow-mode="cumulative" aria-pressed="false"><span>Cumulative</span></button>
       </div>
+    </div>
+    <div class="veborrow-summary" id="veBorrowSummary" aria-live="polite">
+      <div class="veborrow-stat primary"><span>Users saved</span><b>$0</b><small>selected range</small></div>
+      <div class="veborrow-stat"><span>All published</span><b>$0</b><small>closed epochs</small></div>
+      <div class="veborrow-stat"><span>Latest epoch</span><b>-</b><small>published rebate</small></div>
+      <div class="veborrow-stat"><span>Coverage start</span><b>-</b><small>veBorrow discount</small></div>
+    </div>
+    <div class="veborrow-chart-wrap" id="veBorrowChartWrap">
+      <svg class="veborrow-chart-svg" id="veBorrowChart" viewBox="0 0 1000 300" preserveAspectRatio="none" role="img" aria-label="Daily veDOLO borrow fee rebate savings chart"></svg>
+      <div class="revenue-chart-tip" id="veBorrowChartTip">
+        <div class="tt-date">-</div>
+        <div class="tt-val">-</div>
+      </div>
+    </div>
+    <div class="revenue-brush-wrap veborrow-brush-wrap" id="veBorrowBrushWrap" data-brush-key="veBorrow">
+      <div class="revenue-brush-label" id="veBorrowBrushLabel"></div>
+      <div class="revenue-brush-stage">
+        <svg class="revenue-brush-svg" id="veBorrowBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="veDOLO rebate savings time range navigator"></svg>
+        <div class="revenue-brush-overlay" id="veBorrowBrushOverlay">
+          <div class="revenue-brush-dim l"></div>
+          <div class="revenue-brush-window">
+            <div class="revenue-brush-handle l"><div class="grip"><span></span><span></span></div></div>
+            <div class="revenue-brush-handle r"><div class="grip"><span></span><span></span></div></div>
+          </div>
+          <div class="revenue-brush-dim r"></div>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap veborrow-table-wrap">
+      <table class="revenue-table veborrow-table">
+        <colgroup>
+          <col style="width:22%">
+          <col style="width:20%">
+          <col style="width:20%">
+          <col style="width:19%">
+          <col style="width:19%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Users saved</th>
+            <th>Cumulative saved</th>
+            <th>Gross revenue</th>
+            <th>Net revenue</th>
+          </tr>
+        </thead>
+        <tbody id="veBorrowRows">
+          <tr><td colspan="5" class="empty-state">Loading veDOLO rebate savings...</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -1010,11 +1094,14 @@ h1{
   const REVENUE_CHART_KEYS = ["streams", "borrowInterest"];
   const STREAMS_CHART_KEY = "streams";
   const BORROW_INTEREST_CHART_KEY = "borrowInterest";
-  let revenueChartModes = { streams: "daily", borrowInterest: "daily" };
+  const VEBORROW_CHART_KEY = "veBorrow";
+  let veBorrowChartMode = "daily";
+  let revenueChartModes = { streams: "daily", borrowInterest: "daily", veBorrow: "daily" };
   const SERIES = {
     revenue: { key: "revenue", label: "Net Borrow Revenue", shortLabel: "Net Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
     odoloUsdc: { key: "odoloUsdc", label: "oDOLO Exercise USDC", shortLabel: "oDOLO Exercise USDC", field: "odoloUsdcUSD", cumulativeField: "odoloUsdcCumulativeUSD", color: "#8aa37b" },
-    fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" }
+    fees: { key: "fees", label: "Borrow Interest", shortLabel: "Borrow Interest", field: "feesUSD", cumulativeField: "feesCumulativeUSD", color: "#9ab7c2" },
+    veBorrow: { key: "veBorrow", label: "Users Saved", shortLabel: "Users Saved", field: "borrowFeeRebateUSD", cumulativeField: "borrowFeeRebateCumulativeUSD", color: "#c9a227" }
   };
   const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
   const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -1027,13 +1114,15 @@ h1{
   ];
   let revenueBrushSels = {
     streams: { from: 0, to: 0 },
-    borrowInterest: { from: 0, to: 0 }
+    borrowInterest: { from: 0, to: 0 },
+    veBorrow: { from: 0, to: 0 }
   };
   let chainRangeBrushKey = STREAMS_CHART_KEY;
   let revenueBrushInitialized = false;
   let revenueBrushDragging = null;
-  let revenueBrushDomainKeys = { streams: "", borrowInterest: "" };
+  let revenueBrushDomainKeys = { streams: "", borrowInterest: "", veBorrow: "" };
   let revenueBrushRows = [];
+  let revenueBrushRowsByKey = {};
   let revenueBrushRenderFrame = 0;
   let revenueBrushJustDragged = false;
   const chainCalendar = { open: "", monthTs: 0 };
@@ -1288,6 +1377,7 @@ h1{
     let revenueCumulative = 0;
     let feesCumulative = 0;
     let odoloUsdcCumulative = 0;
+    let borrowFeeRebateCumulative = 0;
     return (revenueData?.series || [])
       .map(row => ({ ...row, ts: rowTs(row) }))
       .filter(row => row.ts > 0)
@@ -1298,12 +1388,14 @@ h1{
         revenueCumulative += n(row.revenueUSD);
         feesCumulative += n(row.feesUSD);
         odoloUsdcCumulative += odoloUsdcUSD;
+        borrowFeeRebateCumulative += n(row.borrowFeeRebateUSD);
         return {
           ...row,
           odoloUsdcUSD,
           revenueCumulativeUSD: revenueCumulative,
           feesCumulativeUSD: feesCumulative,
-          odoloUsdcCumulativeUSD: odoloUsdcCumulative
+          odoloUsdcCumulativeUSD: odoloUsdcCumulative,
+          borrowFeeRebateCumulativeUSD: borrowFeeRebateCumulative
         };
       });
   }
@@ -1322,13 +1414,21 @@ h1{
     return defs.length ? defs : BORROW_INTEREST_SERIES_KEYS.map(key => SERIES[key]);
   }
   function revenueChartKey(key){
-    return key === BORROW_INTEREST_CHART_KEY ? BORROW_INTEREST_CHART_KEY : STREAMS_CHART_KEY;
+    if (key === BORROW_INTEREST_CHART_KEY) return BORROW_INTEREST_CHART_KEY;
+    if (key === VEBORROW_CHART_KEY) return VEBORROW_CHART_KEY;
+    return STREAMS_CHART_KEY;
   }
   function modeForRevenueChart(key){
+    if (revenueChartKey(key) === VEBORROW_CHART_KEY) return veBorrowChartMode;
     return revenueChartModes[revenueChartKey(key)] || "daily";
   }
   function setRevenueChartMode(key, mode){
     revenueChartModes[revenueChartKey(key)] = mode === "cumulative" ? "cumulative" : "daily";
+  }
+  function setVeBorrowMode(mode){
+    veBorrowChartMode = mode === "cumulative" ? "cumulative" : "daily";
+    revenueChartModes[VEBORROW_CHART_KEY] = veBorrowChartMode;
+    renderVeBorrowChart();
   }
   function seriesField(def, modeOrKey){
     const mode = modeOrKey === "cumulative" || modeOrKey === "daily" ? modeOrKey : modeForRevenueChart(modeOrKey);
@@ -1364,8 +1464,14 @@ h1{
     setSelectedSeriesForChart(chartKey, selected);
     renderRevenueChart();
   }
-  function revenueBrushDomain(){
-    const rows = revenueBrushRows.length ? revenueBrushRows : allRows();
+  function brushRowsFor(key){
+    const keyName = brushKey(key);
+    const keyed = revenueBrushRowsByKey[keyName];
+    if (Array.isArray(keyed) && keyed.length) return keyed;
+    return revenueBrushRows.length ? revenueBrushRows : allRows();
+  }
+  function revenueBrushDomain(key = chainRangeKey()){
+    const rows = brushRowsFor(key);
     const minX = rows[0]?.ts || 0;
     const maxX = rows[rows.length - 1]?.ts || (minX + 1);
     return { rows, minX, maxX, span: Math.max(1, maxX - minX) };
@@ -1584,11 +1690,11 @@ h1{
     if (next) next.disabled = chainCalendar.monthTs >= maxMonth;
   }
   function paintRevenueBrushWindow(key){
-    const { rows, minX, span } = revenueBrushDomain();
     const targetKey = key ? brushKey(key) : "";
     document.querySelectorAll(".revenue-brush-wrap").forEach(wrap => {
       const currentKey = brushKey(wrap.dataset.brushKey);
       if (targetKey && currentKey !== targetKey) return;
+      const { rows, minX, span } = revenueBrushDomain(currentKey);
       const win = wrap.querySelector(".revenue-brush-window");
       const dimL = wrap.querySelector(".revenue-brush-dim.l");
       const dimR = wrap.querySelector(".revenue-brush-dim.r");
@@ -1626,6 +1732,8 @@ h1{
   }
   function renderRevenueBrushes(rows){
     revenueBrushRows = rows;
+    revenueBrushRowsByKey[STREAMS_CHART_KEY] = rows;
+    revenueBrushRowsByKey[BORROW_INTEREST_CHART_KEY] = rows;
     REVENUE_CHART_KEYS.forEach(key => ensureRevenueBrushSelection(rows, key));
     renderRevenueBrushMini("streams", rows, activeSeriesDefs());
     renderRevenueBrushMini("borrowInterest", rows, activeBorrowInterestDefs());
@@ -1675,14 +1783,14 @@ h1{
         event.preventDefault();
         event.stopPropagation();
         revenueBrushJustDragged = false;
-        chainRangeBrushKey = key;
+        if (key !== VEBORROW_CHART_KEY) chainRangeBrushKey = key;
         const sel = brushSelFor(key);
         revenueBrushDragging = { key, kind, overlay, win, startX: event.clientX, startFrom: sel.from, startTo: sel.to };
         win.classList.add("dragging");
         document.body.style.userSelect = "none";
       };
       const pxToTime = px => {
-        const { minX, span } = revenueBrushDomain();
+        const { minX, span } = revenueBrushDomain(key);
         const width = Math.max(1, overlay.clientWidth);
         return minX + Math.max(0, Math.min(1, px / width)) * span;
       };
@@ -1694,7 +1802,7 @@ h1{
           revenueBrushJustDragged = false;
           return;
         }
-        const { minX, maxX } = revenueBrushDomain();
+        const { minX, maxX } = revenueBrushDomain(key);
         const rect = overlay.getBoundingClientRect();
         const center = pxToTime(event.clientX - rect.left);
         const sel = brushSelFor(key);
@@ -1703,7 +1811,7 @@ h1{
         let to = center + span / 2;
         if (from < minX) { from = minX; to = from + span; }
         if (to > maxX) { to = maxX; from = to - span; }
-        chainRangeBrushKey = key;
+        if (key !== VEBORROW_CHART_KEY) chainRangeBrushKey = key;
         setBrushSel(key, { from, to });
         paintRevenueBrushWindow(key);
         renderRevenueChart({ skipBrush: true });
@@ -1713,7 +1821,7 @@ h1{
     revenueBrushInitialized = true;
     document.addEventListener("pointermove", event => {
       if (!revenueBrushDragging) return;
-      const { minX, maxX, span } = revenueBrushDomain();
+      const { minX, maxX, span } = revenueBrushDomain(revenueBrushDragging.key);
       const width = Math.max(1, revenueBrushDragging.overlay?.clientWidth || 0);
       const delta = (event.clientX - revenueBrushDragging.startX) / width * span;
       const minWindow = Math.max(86400, span * 0.01);
@@ -1891,6 +1999,7 @@ h1{
     updateRevenueModeControls();
     bindRevenueControlHovers();
     renderChains();
+    renderVeBorrowChart({ skipBrush: options.skipBrush });
   }
   function renderRevenueChartPanel(config, rows, options = {}){
     const svg = qs(config.svgId);
@@ -2052,28 +2161,196 @@ h1{
       if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt) + " · DeFiLlama gross + rebate netting · " + auditLabel;
     }
   }
-  function renderVeBorrowSavings(selected, days){
-    const wrap = qs("veBorrowSavings");
+  function veBorrowRebateInfo(){
+    return revenueData?.borrowFeeRebates?.chains?.Berachain || {};
+  }
+  function veBorrowStartTimestamp(){
+    const configured = n(revenueData?.borrowFeeRebates?.veDoloStartTimestamp);
+    if (configured > 0) return configured;
+    return Math.floor(Date.parse("2026-05-21T00:00:00Z") / 1000);
+  }
+  function veBorrowRows(){
+    const start = veBorrowStartTimestamp();
+    let cumulative = 0;
+    return allRows()
+      .filter(row => row.ts >= start)
+      .map(row => {
+        cumulative += n(row.borrowFeeRebateUSD);
+        return { ...row, borrowFeeRebateCumulativeUSD: cumulative };
+      });
+  }
+  function selectedVeBorrowRows(rows){
+    ensureRevenueBrushSelection(rows, VEBORROW_CHART_KEY);
+    const sel = brushSelFor(VEBORROW_CHART_KEY);
+    return rows.filter(row => row.ts >= sel.from && row.ts <= sel.to);
+  }
+  function updateVeBorrowModeControls(){
+    document.querySelectorAll(".veborrow-mode-toggle").forEach(btn => {
+      const active = btn.dataset.veborrowMode === veBorrowChartMode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+  function renderVeBorrowSummary(selected, rows){
+    const wrap = qs("veBorrowSummary");
     if (!wrap) return;
-    const rows = Array.isArray(selected) ? selected : [];
-    const selectedSaved = rows.reduce((sum, row) => sum + n(row.borrowFeeRebateUSD), 0);
-    const rebateInfo = revenueData?.borrowFeeRebates?.chains?.Berachain || {};
-    const allPublished = n(rebateInfo.totalRebateUSD || revenueData?.totals?.borrowFeeRebateAllTimeUSD);
-    const latestDate = rebateInfo.latestRebateDate ? formatRangeDay(Math.floor(Date.parse(rebateInfo.latestRebateDate + "T00:00:00Z") / 1000)) : "-";
-    const label = selectedSaved > 0
-      ? `${days}D selected range`
-      : "No published rebate in selected range";
+    const selectedSaved = selected.reduce((sum, row) => sum + n(row.borrowFeeRebateUSD), 0);
+    const allPublished = n(veBorrowRebateInfo().totalRebateUSD || revenueData?.totals?.borrowFeeRebateAllTimeUSD);
+    const latest = veBorrowRebateInfo().latestRebateDate || "";
+    const latestDate = latest ? formatRangeDay(Math.floor(Date.parse(latest + "T00:00:00Z") / 1000)) : "-";
+    const startDate = rows[0]?.ts ? formatRangeDay(rows[0].ts) : formatRangeDay(veBorrowStartTimestamp());
+    const dayCount = selected.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
     wrap.innerHTML = `
-      <div>
-        <div class="veborrow-kicker">veDOLO borrow fee rebates</div>
-        <div class="veborrow-title">Users saved <b>${usdFull(selectedSaved)}</b></div>
-        <div class="veborrow-sub">${esc(label)} · Berachain closed epochs</div>
-      </div>
-      <div class="veborrow-side">
-        <div class="veborrow-mini"><span>All published</span><b>${usdFull(allPublished)}</b></div>
-        <div class="veborrow-mini"><span>Latest epoch</span><b>${esc(latestDate)}</b></div>
-      </div>
+      <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${dayCount.toLocaleString("en-US")} daily bars selected</small></div>
+      <div class="veborrow-stat"><span>All published</span><b>${usdFull(allPublished)}</b><small>Berachain closed epochs</small></div>
+      <div class="veborrow-stat"><span>Latest epoch</span><b>${esc(latestDate)}</b><small>published rebate</small></div>
+      <div class="veborrow-stat"><span>Coverage start</span><b>${esc(startDate)}</b><small>veBorrow discount</small></div>
     `;
+  }
+  function renderVeBorrowTable(selected){
+    const body = qs("veBorrowRows");
+    if (!body) return;
+    if (!selected.length) {
+      body.innerHTML = '<tr><td colspan="5" class="empty-state">No veDOLO rebate savings available for selected range.</td></tr>';
+      return;
+    }
+    const rows = [...selected].sort((a,b) => b.ts - a.ts);
+    const visible = rows.slice(0, 120);
+    const hidden = rows.length - visible.length;
+    const html = visible.map(row => {
+      const bera = row.chains?.Berachain || {};
+      const daily = n(row.borrowFeeRebateUSD);
+      return `<tr>
+        <td><div class="chain-name">${esc(formatRangeDay(row.ts))}</div><div class="chain-sub">Berachain closed-epoch rebate</div></td>
+        <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(daily)}</div><div class="num-sub">${daily > 0 ? "discount applied" : "no published rebate"}</div></div></td>
+        <td><div class="num-main">${usdFull(row.borrowFeeRebateCumulativeUSD)}</div><div class="num-sub">since start</div></td>
+        <td><div class="num-main">${usdFull(bera.grossRevenueUSD ?? row.grossRevenueUSD)}</div><div class="num-sub">before rebate</div></td>
+        <td><div class="num-main">${usdFull(bera.revenueUSD ?? row.revenueUSD)}</div><div class="num-sub">after rebate</div></td>
+      </tr>`;
+    }).join("");
+    const more = hidden > 0
+      ? `<tr><td colspan="5" class="empty-state">Showing latest 120 of ${rows.length.toLocaleString("en-US")} selected days.</td></tr>`
+      : "";
+    body.innerHTML = html + more;
+  }
+  function renderVeBorrowBrush(rows, options = {}){
+    revenueBrushRowsByKey[VEBORROW_CHART_KEY] = rows;
+    ensureRevenueBrushSelection(rows, VEBORROW_CHART_KEY);
+    if (!options.skipBrush) renderRevenueBrushMini(VEBORROW_CHART_KEY, rows, [SERIES.veBorrow]);
+    paintRevenueBrushWindow(VEBORROW_CHART_KEY);
+    initRevenueBrush();
+  }
+  function renderVeBorrowChart(options = {}){
+    const svg = qs("veBorrowChart");
+    if (!svg) return;
+    const rows = veBorrowRows();
+    renderVeBorrowBrush(rows, options);
+    const selected = selectedVeBorrowRows(rows);
+    renderVeBorrowSummary(selected, rows);
+    renderVeBorrowTable(selected);
+    updateVeBorrowModeControls();
+    const model = visibleRows(rows, VEBORROW_CHART_KEY);
+    if (!model.length) {
+      svg.innerHTML = '<text x="500" y="150" text-anchor="middle" fill="var(--fg-3)" font-size="12">No veDOLO rebate data available.</text>';
+      return;
+    }
+    const field = seriesField(SERIES.veBorrow, VEBORROW_CHART_KEY);
+    const W = 1000, H = 300, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
+    const chartW = W - P_L - P_R;
+    const chartH = H - P_T - P_B;
+    const xMin = model[0].ts;
+    const xMax = model[model.length - 1].ts;
+    const xRange = Math.max(1, xMax - xMin);
+    const maxValue = Math.max(1, ...model.map(row => n(row[field])));
+    const yMax = maxValue * 1.14;
+    const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
+    const zeroY = P_T + chartH;
+    const step = chartW / Math.max(1, model.length);
+    const gap = Math.min(5, Math.max(1, step * .22));
+    const barW = Math.max(1, step - gap);
+    const xAt = index => P_L + index * step + (step - barW) / 2;
+    const centerAt = index => P_L + index * step + step / 2;
+    const grid = [];
+    for (let i = 0; i <= 4; i++) {
+      const value = yMax * i / 4;
+      const y = yAt(value);
+      grid.push(`<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"></line>`);
+      grid.push(`<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${usd(value)}</text>`);
+    }
+    const spanDays = xRange / 86400;
+    const axis = [];
+    for (let i = 0; i <= 5; i++) {
+      const ts = xMin + xRange * i / 5;
+      const anchor = i === 0 ? "start" : i === 5 ? "end" : "middle";
+      const x = P_L + (ts - xMin) / xRange * chartW;
+      axis.push(`<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${formatAxisDate(ts, spanDays)}</text>`);
+    }
+    const bars = model.map((row, index) => {
+      const value = n(row[field]);
+      const h = value > 0 ? Math.max(1, zeroY - yAt(value)) : 1.5;
+      const y = zeroY - h;
+      return `<rect class="veborrow-chart-bar${value <= 0 ? " empty" : ""}" data-index="${index}" x="${xAt(index).toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" rx="2"></rect>`;
+    }).join("");
+    svg.innerHTML = [
+      `<g class="veborrow-chart-grid">${grid.join("")}</g>`,
+      `<line class="veborrow-zero-line" x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}"></line>`,
+      `<g class="veborrow-chart-bars">${bars}</g>`,
+      `<g class="veborrow-chart-axis">${axis.join("")}</g>`
+    ].join("");
+    attachVeBorrowHover(model, field, centerAt, yAt, W, H);
+  }
+  function attachVeBorrowHover(model, field, centerAt, yAt, W, H){
+    const svg = qs("veBorrowChart");
+    const wrap = qs("veBorrowChartWrap");
+    const tip = qs("veBorrowChartTip");
+    if (!svg || !wrap || !tip || !model.length) return;
+    const bars = Array.from(svg.querySelectorAll(".veborrow-chart-bar"));
+    const leave = () => {
+      tip.style.opacity = 0;
+      bars.forEach(bar => {
+        bar.classList.remove("is-active");
+        bar.classList.remove("is-muted");
+      });
+    };
+    svg.onmousemove = event => {
+      const rect = svg.getBoundingClientRect();
+      const px = (event.clientX - rect.left) / rect.width * W;
+      let nearestIndex = 0;
+      let best = Infinity;
+      model.forEach((row, index) => {
+        const dist = Math.abs(centerAt(index) - px);
+        if (dist < best) {
+          best = dist;
+          nearestIndex = index;
+        }
+      });
+      const row = model[nearestIndex];
+      const value = n(row[field]);
+      const x = centerAt(nearestIndex);
+      const y = yAt(value);
+      bars.forEach((bar, index) => {
+        const active = index === nearestIndex;
+        bar.classList.toggle("is-active", active);
+        bar.classList.toggle("is-muted", !active);
+      });
+      tip.innerHTML = `
+        <div class="tt-date">${formatRangeDay(row.ts)} · ${veBorrowChartMode === "cumulative" ? "Cumulative USD" : "Daily USD"}</div>
+        <div class="tt-table">
+          <div class="tt-row active"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
+          <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
+          <div class="tt-row"><span>Net Berachain revenue</span><b>${usdFull(row.chains?.Berachain?.revenueUSD ?? row.revenueUSD)}</b></div>
+        </div>
+      `;
+      tip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      const screenX = rect.left - wrapRect.left + (x / W) * rect.width;
+      const screenY = rect.top - wrapRect.top + (y / H) * rect.height;
+      const tipW = tip.offsetWidth;
+      const tipH = tip.offsetHeight;
+      tip.style.left = Math.min(Math.max(screenX - tipW / 2, 8), wrap.clientWidth - tipW - 8) + "px";
+      tip.style.top = Math.max(screenY - tipH - 12, 4) + "px";
+    };
+    svg.onmouseleave = leave;
   }
   function renderChains(){
     const body = qs("chainRows");
@@ -2098,7 +2375,6 @@ h1{
     });
     const totalRevenue = Array.from(totals.values()).reduce((sum, item) => sum + n(item.revenueUSD), 0);
     const chains = Array.from(totals.values()).sort((a,b) => n(b.revenueUSD) - n(a.revenueUSD));
-    renderVeBorrowSavings(selected, days);
     if (!chains.length) {
       body.innerHTML = '<tr><td colspan="6" class="empty-state">No protocol revenue available for selected range.</td></tr>';
       return;
@@ -2145,6 +2421,13 @@ h1{
       const key = btn.closest(".borrow-interest-panel") ? BORROW_INTEREST_CHART_KEY : STREAMS_CHART_KEY;
       setRevenueChartMode(key, mode);
       renderRevenueChart();
+    });
+  });
+  document.querySelectorAll(".veborrow-mode-toggle").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.veborrowMode;
+      if (mode !== "daily" && mode !== "cumulative") return;
+      setVeBorrowMode(mode);
     });
   });
   const chainRangeFrom = qs("chainRangeFrom");

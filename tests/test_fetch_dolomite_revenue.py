@@ -291,8 +291,15 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("onchain audit STALE", html)
         self.assertIn("Net Borrow Revenue", html)
         self.assertIn("gross ${usdFull(gross)}", html)
-        self.assertIn('id="veBorrowSavings"', html)
-        self.assertIn("renderVeBorrowSavings", html)
+        self.assertIn('id="veBorrowPanel"', html)
+        self.assertIn('id="veBorrowChart"', html)
+        self.assertIn('id="veBorrowBrushWrap"', html)
+        self.assertIn('data-brush-key="veBorrow"', html)
+        self.assertIn('data-veborrow-mode="daily"', html)
+        self.assertIn('data-veborrow-mode="cumulative"', html)
+        self.assertIn('id="veBorrowRows"', html)
+        self.assertIn("renderVeBorrowChart", html)
+        self.assertIn("borrowFeeRebateCumulativeUSD", html)
         self.assertIn("borrowFeeRebateUSD", html)
 
 
