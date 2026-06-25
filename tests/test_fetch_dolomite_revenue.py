@@ -297,10 +297,19 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('data-brush-key="veBorrow"', html)
         self.assertIn('data-veborrow-mode="daily"', html)
         self.assertIn('data-veborrow-mode="cumulative"', html)
-        self.assertIn('id="veBorrowRows"', html)
+        self.assertNotIn('id="veBorrowRows"', html)
+        self.assertNotIn("renderVeBorrowTable", html)
+        self.assertNotIn("veborrow-table", html)
+        self.assertIn("MIN_CHARTED_VEBORROW_REBATE_USD", html)
+        self.assertIn("veBorrowRewardStartTimestamp", html)
         self.assertIn("renderVeBorrowChart", html)
         self.assertIn("borrowFeeRebateCumulativeUSD", html)
         self.assertIn("borrowFeeRebateUSD", html)
+        user_saved_index = html.index('<div class="tt-row active"><span>Users saved</span>')
+        net_revenue_index = html.index('<div class="tt-row"><span>Net Berachain revenue</span>')
+        cumulative_index = html.index('<div class="tt-row"><span>Cumulative saved</span>')
+        self.assertLess(user_saved_index, net_revenue_index)
+        self.assertLess(net_revenue_index, cumulative_index)
 
 
 if __name__ == "__main__":

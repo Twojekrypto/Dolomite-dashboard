@@ -526,9 +526,6 @@ h1{
 .veborrow-chart-bar.is-active{opacity:1;fill:var(--gold);filter:drop-shadow(0 0 8px rgba(201,162,39,.26))}
 .veborrow-zero-line{stroke:var(--line-2);stroke-width:1}
 .veborrow-brush-wrap{padding-top:2px}
-.veborrow-table-wrap{border-top:1px solid var(--line-1)}
-.veborrow-table{min-width:820px}
-.veborrow-table .revenue-primary{color:var(--gold)}
 .revenue-table{width:100%;min-width:820px;border-collapse:separate!important;border-spacing:0!important;table-layout:fixed;font-size:12px}
 .revenue-table th{
   padding:11px 16px;background:#101012;border-bottom:1px solid var(--line-2);
@@ -1019,29 +1016,6 @@ h1{
         </div>
       </div>
     </div>
-    <div class="table-wrap veborrow-table-wrap">
-      <table class="revenue-table veborrow-table">
-        <colgroup>
-          <col style="width:22%">
-          <col style="width:20%">
-          <col style="width:20%">
-          <col style="width:19%">
-          <col style="width:19%">
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Users saved</th>
-            <th>Cumulative saved</th>
-            <th>Gross revenue</th>
-            <th>Net revenue</th>
-          </tr>
-        </thead>
-        <tbody id="veBorrowRows">
-          <tr><td colspan="5" class="empty-state">Loading veDOLO rebate savings...</td></tr>
-        </tbody>
-      </table>
-    </div>
   </section>
 
   <section class="proto">
@@ -1095,6 +1069,7 @@ h1{
   const STREAMS_CHART_KEY = "streams";
   const BORROW_INTEREST_CHART_KEY = "borrowInterest";
   const VEBORROW_CHART_KEY = "veBorrow";
+  const MIN_CHARTED_VEBORROW_REBATE_USD = 1;
   let veBorrowChartMode = "daily";
   let revenueChartModes = { streams: "daily", borrowInterest: "daily", veBorrow: "daily" };
   const SERIES = {
@@ -2169,8 +2144,16 @@ h1{
     if (configured > 0) return configured;
     return Math.floor(Date.parse("2026-05-21T00:00:00Z") / 1000);
   }
+  function veBorrowRewardStartTimestamp(){
+    const epoch = (veBorrowRebateInfo().epochRebates || [])
+      .filter(item => n(item?.periodStartTimestamp) > 0 && n(item?.rebateUSD) >= MIN_CHARTED_VEBORROW_REBATE_USD)
+      .sort((a,b) => n(a.periodStartTimestamp) - n(b.periodStartTimestamp))[0];
+    if (epoch) return n(epoch.periodStartTimestamp);
+    const positive = allRows().find(row => n(row.borrowFeeRebateUSD) > 0);
+    return positive?.ts || veBorrowStartTimestamp();
+  }
   function veBorrowRows(){
-    const start = veBorrowStartTimestamp();
+    const start = veBorrowRewardStartTimestamp();
     let cumulative = 0;
     return allRows()
       .filter(row => row.ts >= start)
@@ -2204,34 +2187,8 @@ h1{
       <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${dayCount.toLocaleString("en-US")} daily bars selected</small></div>
       <div class="veborrow-stat"><span>All published</span><b>${usdFull(allPublished)}</b><small>Berachain closed epochs</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>${esc(latestDate)}</b><small>published rebate</small></div>
-      <div class="veborrow-stat"><span>Coverage start</span><b>${esc(startDate)}</b><small>veBorrow discount</small></div>
+      <div class="veborrow-stat"><span>Chart starts</span><b>${esc(startDate)}</b><small>first material rebate</small></div>
     `;
-  }
-  function renderVeBorrowTable(selected){
-    const body = qs("veBorrowRows");
-    if (!body) return;
-    if (!selected.length) {
-      body.innerHTML = '<tr><td colspan="5" class="empty-state">No veDOLO rebate savings available for selected range.</td></tr>';
-      return;
-    }
-    const rows = [...selected].sort((a,b) => b.ts - a.ts);
-    const visible = rows.slice(0, 120);
-    const hidden = rows.length - visible.length;
-    const html = visible.map(row => {
-      const bera = row.chains?.Berachain || {};
-      const daily = n(row.borrowFeeRebateUSD);
-      return `<tr>
-        <td><div class="chain-name">${esc(formatRangeDay(row.ts))}</div><div class="chain-sub">Berachain closed-epoch rebate</div></td>
-        <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(daily)}</div><div class="num-sub">${daily > 0 ? "discount applied" : "no published rebate"}</div></div></td>
-        <td><div class="num-main">${usdFull(row.borrowFeeRebateCumulativeUSD)}</div><div class="num-sub">since start</div></td>
-        <td><div class="num-main">${usdFull(bera.grossRevenueUSD ?? row.grossRevenueUSD)}</div><div class="num-sub">before rebate</div></td>
-        <td><div class="num-main">${usdFull(bera.revenueUSD ?? row.revenueUSD)}</div><div class="num-sub">after rebate</div></td>
-      </tr>`;
-    }).join("");
-    const more = hidden > 0
-      ? `<tr><td colspan="5" class="empty-state">Showing latest 120 of ${rows.length.toLocaleString("en-US")} selected days.</td></tr>`
-      : "";
-    body.innerHTML = html + more;
   }
   function renderVeBorrowBrush(rows, options = {}){
     revenueBrushRowsByKey[VEBORROW_CHART_KEY] = rows;
@@ -2247,7 +2204,6 @@ h1{
     renderVeBorrowBrush(rows, options);
     const selected = selectedVeBorrowRows(rows);
     renderVeBorrowSummary(selected, rows);
-    renderVeBorrowTable(selected);
     updateVeBorrowModeControls();
     const model = visibleRows(rows, VEBORROW_CHART_KEY);
     if (!model.length) {
@@ -2337,8 +2293,8 @@ h1{
         <div class="tt-date">${formatRangeDay(row.ts)} · ${veBorrowChartMode === "cumulative" ? "Cumulative USD" : "Daily USD"}</div>
         <div class="tt-table">
           <div class="tt-row active"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
-          <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
           <div class="tt-row"><span>Net Berachain revenue</span><b>${usdFull(row.chains?.Berachain?.revenueUSD ?? row.revenueUSD)}</b></div>
+          <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
         </div>
       `;
       tip.style.opacity = 1;
