@@ -335,7 +335,7 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertGreaterEqual(workflow.count("cron:"), 2)
         self.assertIn("python3 audit_dolomite_revenue_onchain.py", workflow)
         self.assertIn("data/dolomite-revenue-onchain-audit.json", workflow)
-        self.assertIn("git add data/dolomite-revenue-onchain-audit.json dolomite_revenue.json", workflow)
+        self.assertIn("git add data/dolomite-revenue-onchain-audit.json data/dolomite-revenue-onchain-overrides.json dolomite_revenue.json", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_KAT", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_DAN", workflow)
