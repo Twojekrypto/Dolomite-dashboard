@@ -476,7 +476,12 @@ def apply_epoch_rebate_to_chain(series, chain, epoch_rebate):
     weights = []
     for row in rows:
         payload = row["chains"][chain]
-        weights.append(safe_number(payload.get("grossRevenueUSD", payload.get("revenueUSD"))))
+        weights.append(safe_number(payload.get("feesUSD")))
+    if sum(weights) <= 0:
+        weights = []
+        for row in rows:
+            payload = row["chains"][chain]
+            weights.append(safe_number(payload.get("grossRevenueUSD", payload.get("revenueUSD"))))
     total_weight = sum(weights)
     applied = 0.0
     for index, row in enumerate(rows):
@@ -826,7 +831,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "fees": "Interest paid by borrowers.",
             "revenue": "Net protocol-retained borrower interest after closed-epoch borrow-fee rebates.",
             "grossRevenue": "Protocol-retained borrower interest before borrower rebate programs.",
-            "borrowFeeRebates": "Claimable veDOLO borrow-fee rebates for closed weekly epochs, read from Berachain rolling-claims Merkle root totals and allocated across the earning period.",
+            "borrowFeeRebates": "Claimable veDOLO borrow-fee rebates for closed weekly epochs, read from Berachain rolling-claims Merkle root totals and allocated across the earning period by daily borrow-interest share.",
             "supplySideRevenue": "The portion of borrower interest paid to lenders.",
             "formula": "grossRevenue = interestEarned * (1 - earningsRate); revenue = grossRevenue - borrowFeeRebates; supplySideRevenue = dailyFees - grossRevenue",
             "scope": "Dolomite borrow-interest economics from the DeFiLlama adapter. Gas fees, token emissions, treasury transfers, trading spreads, liquidator earnings and protocol liquidation-rake attribution are excluded.",

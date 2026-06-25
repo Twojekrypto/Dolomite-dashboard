@@ -1072,7 +1072,7 @@ h1{
 
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260625-borrow-fee-rebate-net";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate";
   const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260625-audit-status";
   const STREAM_SERIES_KEYS = ["revenue", "odoloUsdc"];
   const BORROW_INTEREST_SERIES_KEYS = ["fees"];
@@ -2332,15 +2332,13 @@ h1{
       });
       const tooltipRows = pending
         ? `
-          <div class="tt-row active"><span>Users saved</span><b>Pending</b></div>
-          <div class="tt-row"><span>Net Berachain revenue</span><b>Pending</b></div>
+          <div class="tt-row active"><span>Borrow interest</span><b>${usdFull(row.chains?.Berachain?.feesUSD ?? row.feesUSD)}</b></div>
+          <div class="tt-row"><span>Users saved</span><b>Pending</b></div>
           <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)} published so far</b></div>
-          <div class="tt-row"><span>Gross Berachain revenue</span><b>${usdFull(row.chains?.Berachain?.grossRevenueUSD ?? row.grossRevenueUSD)}</b></div>
-          <div class="tt-row"><span>Status</span><b class="tt-note">Waiting for closed epoch rebate data</b></div>
         `
         : `
-          <div class="tt-row active"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
-          <div class="tt-row"><span>Net Berachain revenue</span><b>${usdFull(row.chains?.Berachain?.revenueUSD ?? row.revenueUSD)}</b></div>
+          <div class="tt-row active"><span>Borrow interest</span><b>${usdFull(row.chains?.Berachain?.feesUSD ?? row.feesUSD)}</b></div>
+          <div class="tt-row"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
           <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
         `;
       tip.innerHTML = `

@@ -237,6 +237,59 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
+    def test_borrow_fee_rebates_are_allocated_by_borrow_interest_share(self):
+        revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
+        fees_data = metric_payload(total24h=500, latest_value=500, step=10)
+        day_29_ts = START_TS + 29 * DAY_SECONDS
+        day_30_ts = START_TS + 30 * DAY_SECONDS
+        for payload, day_29_total, day_29_bera, day_30_total, day_30_bera in (
+            (revenue_data, 140, 120, 160, 80),
+            (fees_data, 1000, 300, 1000, 700),
+        ):
+            payload["totalDataChart"][29][1] = day_29_total
+            payload["totalDataChart"][30][1] = day_30_total
+            payload["totalDataChartBreakdown"][29][1] = {
+                "Berachain": {"interest": day_29_bera},
+                "Ethereum": {"interest": day_29_total - day_29_bera},
+            }
+            payload["totalDataChartBreakdown"][30][1] = {
+                "Berachain": {"interest": day_30_bera},
+                "Ethereum": {"interest": day_30_total - day_30_bera},
+            }
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={},
+            borrow_fee_rebate_metadata=borrow_fee_rebate_metadata(),
+            borrow_fee_rebate_data={
+                "status": "ok",
+                "chains": {
+                    "Berachain": {
+                        "status": "ok",
+                        "source": "FeeRebateRollingClaims.MarketIdToMerkleRootSet",
+                        "epochRebates": [{
+                            "epoch": 1,
+                            "periodStartTimestamp": day_29_ts,
+                            "periodEndTimestamp": day_30_ts + DAY_SECONDS,
+                            "rebateUSD": 100.0,
+                            "marketCount": 2,
+                        }],
+                    }
+                },
+            },
+        )
+
+        day_29 = output["series"][29]["chains"]["Berachain"]
+        day_30 = output["series"][30]["chains"]["Berachain"]
+        self.assertAlmostEqual(day_29["borrowFeeRebateUSD"], 30.0, places=6)
+        self.assertAlmostEqual(day_30["borrowFeeRebateUSD"], 70.0, places=6)
+        self.assertAlmostEqual(day_29["revenueUSD"], 90.0, places=6)
+        self.assertAlmostEqual(day_30["revenueUSD"], 10.0, places=6)
+        self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+
     def test_validator_does_not_depend_on_liquidation_history_for_revenue(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
         fees_data = metric_payload(total24h=500, latest_value=500, step=10)
@@ -307,15 +360,17 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("veborrow-chart-bar pending", html)
         self.assertIn("Pending rebate data", html)
         self.assertIn("Striped bars = pending veBorrow rebate data, not zero savings", html)
-        self.assertIn("Waiting for closed epoch rebate data", html)
         self.assertIn("renderVeBorrowChart", html)
         self.assertIn("borrowFeeRebateCumulativeUSD", html)
         self.assertIn("borrowFeeRebateUSD", html)
-        user_saved_index = html.index('<div class="tt-row active"><span>Users saved</span>')
-        net_revenue_index = html.index('<div class="tt-row"><span>Net Berachain revenue</span>')
+        self.assertIn('<div class="tt-row active"><span>Borrow interest</span>', html)
+        self.assertIn('<div class="tt-row"><span>Users saved</span>', html)
+        borrow_interest_index = html.index('<div class="tt-row active"><span>Borrow interest</span>')
+        user_saved_index = html.index('<div class="tt-row"><span>Users saved</span>')
         cumulative_index = html.index('<div class="tt-row"><span>Cumulative saved</span>')
-        self.assertLess(user_saved_index, net_revenue_index)
-        self.assertLess(net_revenue_index, cumulative_index)
+        self.assertLess(borrow_interest_index, user_saved_index)
+        self.assertLess(user_saved_index, cumulative_index)
+        self.assertNotIn("Net Berachain revenue", html)
 
 
 if __name__ == "__main__":
