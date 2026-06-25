@@ -428,6 +428,24 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertLess(user_saved_index, cumulative_index)
         self.assertNotIn("Net Berachain revenue", html)
 
+    def test_protocol_revenue_chain_range_uses_borrow_interest_brush_only(self):
+        html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
+
+        self.assertIn("let chainRangeBrushKey = BORROW_INTEREST_CHART_KEY;", html)
+        self.assertNotIn("let chainRangeBrushKey = STREAMS_CHART_KEY;", html)
+        self.assertIn("if (key === BORROW_INTEREST_CHART_KEY) chainRangeBrushKey = key;", html)
+        self.assertNotIn("if (key !== VEBORROW_CHART_KEY) chainRangeBrushKey = key;", html)
+
+    def test_protocol_revenue_column_has_no_inline_share_chart(self):
+        html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
+
+        self.assertNotIn("revenue-share-track", html)
+        self.assertNotIn("shareWidth", html)
+        self.assertIn(
+            '<td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="num-sub">${esc(revenueSub)}</div></div></td>',
+            html,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
