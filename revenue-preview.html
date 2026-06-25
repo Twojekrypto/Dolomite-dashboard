@@ -345,6 +345,7 @@ h1{
 .revenue-chart-tip .tt-row.total{margin-top:0;color:var(--fg-1);background:rgba(201,162,39,.08)}
 .revenue-chart-tip .tt-row b{color:var(--fg-1);font-weight:700}
 .revenue-chart-tip .tt-row.total b{color:var(--gold);font-size:13px}
+.revenue-chart-tip .tt-row .tt-note{max-width:190px;white-space:normal;text-align:right;line-height:1.25;color:#f0b35a}
 .revenue-brush-wrap{position:relative;padding:4px 24px 18px;user-select:none}
 .revenue-brush-stage{position:relative}
 .revenue-brush-svg{
@@ -522,9 +523,21 @@ h1{
   transition:opacity .13s var(--ease),fill .13s var(--ease),filter .13s var(--ease)
 }
 .veborrow-chart-bar.empty{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.08)}
+.veborrow-chart-bar.pending{fill:url(#veBorrowPendingStripe);stroke:rgba(255,255,255,.16);stroke-dasharray:3 2}
 .veborrow-chart-bar.is-muted{opacity:.34}
 .veborrow-chart-bar.is-active{opacity:1;fill:var(--gold);filter:drop-shadow(0 0 8px rgba(201,162,39,.26))}
+.veborrow-chart-bar.pending.is-active{fill:url(#veBorrowPendingStripeActive)}
 .veborrow-zero-line{stroke:var(--line-2);stroke-width:1}
+.veborrow-pending-label line{stroke:rgba(240,179,90,.55);stroke-width:1;stroke-dasharray:4 5}
+.veborrow-pending-label text{font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.45px;fill:#f0b35a;text-transform:uppercase}
+.veborrow-chart-note{
+  display:flex;align-items:center;gap:8px;margin:2px 24px 10px;color:var(--fg-3);
+  font-size:11px;line-height:1.35;font-family:var(--mono)
+}
+.veborrow-note-swatch{
+  width:22px;height:10px;border-radius:3px;border:1px solid rgba(255,255,255,.16);flex:0 0 auto;
+  background:repeating-linear-gradient(135deg,rgba(240,179,90,.30) 0 4px,rgba(255,255,255,.06) 4px 8px)
+}
 .veborrow-brush-wrap{padding-top:2px}
 .revenue-table{width:100%;min-width:820px;border-collapse:separate!important;border-spacing:0!important;table-layout:fixed;font-size:12px}
 .revenue-table th{
@@ -1001,6 +1014,10 @@ h1{
         <div class="tt-date">-</div>
         <div class="tt-val">-</div>
       </div>
+    </div>
+    <div class="veborrow-chart-note" id="veBorrowPendingNote">
+      <span class="veborrow-note-swatch" aria-hidden="true"></span>
+      <span>Striped bars = pending veBorrow rebate data, not zero savings.</span>
     </div>
     <div class="revenue-brush-wrap veborrow-brush-wrap" id="veBorrowBrushWrap" data-brush-key="veBorrow">
       <div class="revenue-brush-label" id="veBorrowBrushLabel"></div>
@@ -2152,6 +2169,15 @@ h1{
     const positive = allRows().find(row => n(row.borrowFeeRebateUSD) > 0);
     return positive?.ts || veBorrowStartTimestamp();
   }
+  function veBorrowPublishedThroughTimestamp(){
+    const latest = veBorrowRebateInfo().latestRebateDate || "";
+    const parsed = Date.parse(latest + "T00:00:00Z");
+    return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
+  }
+  function veBorrowPendingDataRow(row){
+    const publishedThrough = veBorrowPublishedThroughTimestamp();
+    return publishedThrough > 0 && n(row?.ts) >= publishedThrough;
+  }
   function veBorrowRows(){
     const start = veBorrowRewardStartTimestamp();
     let cumulative = 0;
@@ -2183,8 +2209,12 @@ h1{
     const latestDate = latest ? formatRangeDay(Math.floor(Date.parse(latest + "T00:00:00Z") / 1000)) : "-";
     const startDate = rows[0]?.ts ? formatRangeDay(rows[0].ts) : formatRangeDay(veBorrowStartTimestamp());
     const dayCount = selected.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
+    const pendingCount = selected.filter(row => veBorrowPendingDataRow(row)).length;
+    const selectedLabel = pendingCount > 0
+      ? `${dayCount.toLocaleString("en-US")} daily bars · ${pendingCount.toLocaleString("en-US")} pending`
+      : `${dayCount.toLocaleString("en-US")} daily bars selected`;
     wrap.innerHTML = `
-      <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${dayCount.toLocaleString("en-US")} daily bars selected</small></div>
+      <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${selectedLabel}</small></div>
       <div class="veborrow-stat"><span>All published</span><b>${usdFull(allPublished)}</b><small>Berachain closed epochs</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>${esc(latestDate)}</b><small>published rebate</small></div>
       <div class="veborrow-stat"><span>Chart starts</span><b>${esc(startDate)}</b><small>first material rebate</small></div>
@@ -2217,7 +2247,8 @@ h1{
     const xMin = model[0].ts;
     const xMax = model[model.length - 1].ts;
     const xRange = Math.max(1, xMax - xMin);
-    const maxValue = Math.max(1, ...model.map(row => n(row[field])));
+    const plottedValues = model.map(row => veBorrowPendingDataRow(row) ? 0 : n(row[field]));
+    const maxValue = Math.max(1, ...plottedValues);
     const yMax = maxValue * 1.14;
     const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
     const zeroY = P_T + chartH;
@@ -2241,16 +2272,25 @@ h1{
       const x = P_L + (ts - xMin) / xRange * chartW;
       axis.push(`<text x="${x.toFixed(1)}" y="${H-10}" text-anchor="${anchor}">${formatAxisDate(ts, spanDays)}</text>`);
     }
+    const pendingStartIndex = model.findIndex(row => veBorrowPendingDataRow(row));
+    const pendingLabel = pendingStartIndex >= 0
+      ? `<g class="veborrow-pending-label"><line x1="${centerAt(pendingStartIndex).toFixed(1)}" x2="${centerAt(pendingStartIndex).toFixed(1)}" y1="${(P_T+14).toFixed(1)}" y2="${zeroY.toFixed(1)}"></line><text x="${Math.min(W-P_R-8, centerAt(pendingStartIndex)+8).toFixed(1)}" y="${(P_T+11).toFixed(1)}">Pending rebate data</text></g>`
+      : "";
     const bars = model.map((row, index) => {
-      const value = n(row[field]);
-      const h = value > 0 ? Math.max(1, zeroY - yAt(value)) : 1.5;
+      const pending = veBorrowPendingDataRow(row);
+      const value = pending ? 0 : n(row[field]);
+      const h = pending ? 24 : value > 0 ? Math.max(1, zeroY - yAt(value)) : 1.5;
       const y = zeroY - h;
-      return `<rect class="veborrow-chart-bar${value <= 0 ? " empty" : ""}" data-index="${index}" x="${xAt(index).toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" rx="2"></rect>`;
+      const className = pending ? "veborrow-chart-bar pending" : `veborrow-chart-bar${value <= 0 ? " empty" : ""}`;
+      const fill = pending ? ' fill="url(#veBorrowPendingStripe)"' : "";
+      return `<rect class="${className}" data-index="${index}" x="${xAt(index).toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" rx="2"${fill}></rect>`;
     }).join("");
     svg.innerHTML = [
+      `<defs><pattern id="veBorrowPendingStripe" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" fill="rgba(255,255,255,.045)"></rect><rect width="3" height="8" fill="rgba(240,179,90,.38)"></rect></pattern><pattern id="veBorrowPendingStripeActive" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" fill="rgba(201,162,39,.10)"></rect><rect width="3" height="8" fill="rgba(240,179,90,.72)"></rect></pattern></defs>`,
       `<g class="veborrow-chart-grid">${grid.join("")}</g>`,
       `<line class="veborrow-zero-line" x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}"></line>`,
       `<g class="veborrow-chart-bars">${bars}</g>`,
+      pendingLabel,
       `<g class="veborrow-chart-axis">${axis.join("")}</g>`
     ].join("");
     attachVeBorrowHover(model, field, centerAt, yAt, W, H);
@@ -2281,21 +2321,31 @@ h1{
         }
       });
       const row = model[nearestIndex];
-      const value = n(row[field]);
+      const pending = veBorrowPendingDataRow(row);
+      const value = pending ? 0 : n(row[field]);
       const x = centerAt(nearestIndex);
-      const y = yAt(value);
+      const y = pending ? yAt(0) - 12 : yAt(value);
       bars.forEach((bar, index) => {
         const active = index === nearestIndex;
         bar.classList.toggle("is-active", active);
         bar.classList.toggle("is-muted", !active);
       });
-      tip.innerHTML = `
-        <div class="tt-date">${formatRangeDay(row.ts)} · ${veBorrowChartMode === "cumulative" ? "Cumulative USD" : "Daily USD"}</div>
-        <div class="tt-table">
+      const tooltipRows = pending
+        ? `
+          <div class="tt-row active"><span>Users saved</span><b>Pending</b></div>
+          <div class="tt-row"><span>Net Berachain revenue</span><b>Pending</b></div>
+          <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)} published so far</b></div>
+          <div class="tt-row"><span>Gross Berachain revenue</span><b>${usdFull(row.chains?.Berachain?.grossRevenueUSD ?? row.grossRevenueUSD)}</b></div>
+          <div class="tt-row"><span>Status</span><b class="tt-note">Waiting for closed epoch rebate data</b></div>
+        `
+        : `
           <div class="tt-row active"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
           <div class="tt-row"><span>Net Berachain revenue</span><b>${usdFull(row.chains?.Berachain?.revenueUSD ?? row.revenueUSD)}</b></div>
           <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
-        </div>
+        `;
+      tip.innerHTML = `
+        <div class="tt-date">${formatRangeDay(row.ts)} · ${pending ? "Pending rebate data" : veBorrowChartMode === "cumulative" ? "Cumulative USD" : "Daily USD"}</div>
+        <div class="tt-table">${tooltipRows}</div>
       `;
       tip.style.opacity = 1;
       const wrapRect = wrap.getBoundingClientRect();
