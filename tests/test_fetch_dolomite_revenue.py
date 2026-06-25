@@ -335,6 +335,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             self.assertIn("DRPC_BERACHAIN_RPC_ZEN", workflow)
             self.assertIn("ALCHEMY_BERACHAIN_RPC_2", workflow)
             self.assertIn("ALCHEMY_BERACHAIN_RPC_3", workflow)
+        self.assertIn("python3 fetch_veborrow_simulation.py", update_tvl)
+        self.assertIn("veborrow_simulation.json", update_tvl)
 
     def test_revenue_ui_surfaces_per_chain_audit_status(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
@@ -368,6 +370,12 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('id="veBorrowSimToggle"', html)
         self.assertIn('id="veBorrowSimulation"', html)
         self.assertIn("renderVeBorrowSimulation", html)
+        self.assertIn("veborrow_simulation.json", html)
+        self.assertIn("Current veDOLO", html)
+        self.assertIn("Current veDOLO saved", html)
+        self.assertIn("Max theoretical", html)
+        self.assertIn("currentVeDoloSavedUSD", html)
+        self.assertIn("renderVeBorrowSimulationMode", html)
         self.assertIn("Required locked DOLO", html)
         self.assertIn("Simulation only", html)
         self.assertIn("simulate ETH + ARB", html)
