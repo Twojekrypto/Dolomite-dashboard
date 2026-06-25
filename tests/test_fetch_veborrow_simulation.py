@@ -1,6 +1,8 @@
 import unittest
 
 from fetch_veborrow_simulation import (
+    DISPLAY_SIMULATION_CHAINS,
+    ELIGIBILITY_CHAINS,
     encode_get_votes_call,
     fetch_onchain_vedolo_vote_weights,
     merge_vedolo_vote_sources,
@@ -9,6 +11,10 @@ from fetch_veborrow_simulation import (
 
 
 class VeBorrowSimulationTest(unittest.TestCase):
+    def test_display_simulation_chains_include_active_berachain_baseline(self):
+        self.assertEqual(DISPLAY_SIMULATION_CHAINS, ["Ethereum", "Arbitrum", "Berachain"])
+        self.assertEqual(DISPLAY_SIMULATION_CHAINS, ELIGIBILITY_CHAINS)
+
     def test_encode_get_votes_call_uses_erc20_votes_selector_and_padded_address(self):
         call = encode_get_votes_call("0x000000000000000000000000000000000000dEaD")
 
