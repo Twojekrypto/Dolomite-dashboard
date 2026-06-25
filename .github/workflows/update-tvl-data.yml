@@ -50,6 +50,16 @@ jobs:
 
       - name: Fetch veBorrow Simulation
         run: python3 fetch_veborrow_simulation.py
+        env:
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+          ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          VEBORROW_VOTES_RPC_BATCH_SIZE: '50'
+          VEBORROW_VOTES_RPC_RETRIES_PER_ENDPOINT: '2'
+          VEBORROW_VOTES_CHUNK_RETRIES: '4'
+          VEBORROW_VOTES_RETRY_DELAY_SECONDS: '12'
 
       - name: Validate TVL data
         run: python3 validate_data.py defillama_data.json dolomite_tvl.json dolomite_revenue.json veborrow_simulation.json

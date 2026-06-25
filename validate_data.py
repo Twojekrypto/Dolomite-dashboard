@@ -456,16 +456,25 @@ def _veborrow_simulation_valid(data):
     totals = data.get("totals") or {}
     if not isinstance(chains, dict) or not isinstance(borrowers, list) or not isinstance(totals, dict):
         return False
-    if not {"Ethereum", "Arbitrum"}.issubset(set(chains)):
+    if not {"Ethereum", "Arbitrum", "Berachain"}.issubset(set(chains)):
+        return False
+    if config.get("displaySimulationChains") != ["Ethereum", "Arbitrum"]:
+        return False
+    if not {"Ethereum", "Arbitrum", "Berachain"}.issubset(set(config.get("eligibilityChains") or [])):
         return False
     if _safe_number(config.get("rebatePercentage")) <= 0 or _safe_number(config.get("veDoloHoldingFactor")) <= 0:
         return False
     if _safe_number(config.get("doloPriceUSD")) <= 0:
         return False
-    if not all(isinstance(chains.get(chain), dict) and chains[chain].get("status") in {"ok", "error"} for chain in ("Ethereum", "Arbitrum")):
+    if _safe_number(config.get("protocolReserveFactor")) <= 0:
+        return False
+    if not all(isinstance(chains.get(chain), dict) and chains[chain].get("status") in {"ok", "error"} for chain in ("Ethereum", "Arbitrum", "Berachain")):
         return False
     ok_chains = [chain for chain in ("Ethereum", "Arbitrum") if chains[chain].get("status") == "ok"]
     if not ok_chains:
+        return False
+    source_counts = totals.get("veDoloVoteSourceCounts") or {}
+    if not isinstance(source_counts, dict) or "onchain_getVotes" not in source_counts:
         return False
     return _safe_number(totals.get("borrowerCount")) == len(borrowers)
 
