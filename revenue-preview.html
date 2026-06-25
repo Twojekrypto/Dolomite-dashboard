@@ -2385,6 +2385,22 @@ h1{
   function veBorrowDisplayChainLabel(chains){
     return veBorrowUniqueChains(chains).map(chain => chainAbbr(chain)).join(" + ");
   }
+  function veBorrowRebatePercentagesByChain(config = {}, fallback = 0.10){
+    const source = config.rebatePercentagesByChain && typeof config.rebatePercentagesByChain === "object"
+      ? config.rebatePercentagesByChain
+      : {};
+    return VEBORROW_ELIGIBILITY_CHAINS.reduce((acc, chain) => {
+      acc[chain] = n(source[chain]) || fallback;
+      return acc;
+    }, {});
+  }
+  function veBorrowRebatePercentageForChain(chain, config){
+    return n(config?.rebatePercentagesByChain?.[chain]) || n(config?.rebatePercentage) || 0.10;
+  }
+  function veBorrowRebateLabel(config){
+    const values = veBorrowUniqueChains((config.displayChains || []).map(chain => veBorrowRebatePercentageForChain(chain, config).toFixed(8)));
+    return values.length === 1 ? pct(Number(values[0])) : "per-chain";
+  }
   function veBorrowSimulationConfig(){
     const rebateInfo = veBorrowRebateInfo();
     const rebatePercentage = n(veBorrowSimulationData?.config?.rebatePercentage) || n(rebateInfo.rebatePercentage) || 0.10;
@@ -2395,7 +2411,8 @@ h1{
     const eligibilityChains = Array.isArray(veBorrowSimulationData?.config?.eligibilityChains) && veBorrowSimulationData.config.eligibilityChains.length
       ? veBorrowSimulationData.config.eligibilityChains
       : VEBORROW_ELIGIBILITY_CHAINS;
-    return { rebatePercentage, veDoloHoldingFactor, doloPriceUSD, protocolReserveFactor, displayChains, eligibilityChains };
+    const rebatePercentagesByChain = veBorrowRebatePercentagesByChain(veBorrowSimulationData?.config || {}, rebatePercentage);
+    return { rebatePercentage, rebatePercentagesByChain, veDoloHoldingFactor, doloPriceUSD, protocolReserveFactor, displayChains, eligibilityChains };
   }
   function veBorrowSimulationRows(selected, dayCount, config){
     return config.displayChains.map(chain => {
@@ -2403,7 +2420,7 @@ h1{
       const grossProtocolRevenueUSD = selected.reduce((sum, row) => sum + n(row.chains?.[chain]?.grossRevenueUSD ?? row.chains?.[chain]?.revenueUSD), 0);
       const expectedProtocolRevenueUSD = borrowInterestUSD * config.protocolReserveFactor;
       const revenueFactor = expectedProtocolRevenueUSD > 0 ? Math.min(1, Math.max(0, grossProtocolRevenueUSD / expectedProtocolRevenueUSD)) : 1;
-      const eligibilityMaxUsersSavedUSD = borrowInterestUSD * config.rebatePercentage;
+      const eligibilityMaxUsersSavedUSD = borrowInterestUSD * veBorrowRebatePercentageForChain(chain, config);
       const maxUsersSavedUSD = eligibilityMaxUsersSavedUSD * revenueFactor;
       const simNetRevenueUSD = Math.max(grossProtocolRevenueUSD - maxUsersSavedUSD, 0);
       const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * config.veDoloHoldingFactor;
@@ -2477,7 +2494,7 @@ h1{
         const chainDebtTotal = n(debtTotals[chain]);
         if (debt <= 0 || chainDebtTotal <= 0 || n(borrowInterestByChain[chain]) <= 0) return;
         const chainInterest = n(borrowInterestByChain[chain]) * debt / chainDebtTotal;
-        const chainEligibilityMax = chainInterest * config.rebatePercentage;
+        const chainEligibilityMax = chainInterest * veBorrowRebatePercentageForChain(chain, config);
         const chainMax = chainEligibilityMax * n(revenueFactorByChain[chain] ?? 1);
         chainPayload[chain] = {
           borrowInterestUSD: chainInterest,
@@ -2799,12 +2816,13 @@ h1{
     const priceSource = veBorrowSimulationData?.config?.doloPriceSource || (doloPriceData?.source ? String(doloPriceData.source) : "price cache");
     const currentDataReady = Array.isArray(veBorrowSimulationData?.borrowers) && veBorrowSimulationData.borrowers.length > 0;
     const displayChainLabel = veBorrowDisplayChainLabel(config.displayChains);
+    const rebateLabel = veBorrowRebateLabel(config);
     if (rangeEl) {
       const rangeText = first && last ? `${formatRangeDay(first)} -> ${formatRangeDay(last)}` : "selected range";
       const eligibilityText = config.eligibilityChains.join(" + ");
       rangeEl.textContent = veBorrowSimulationMode === "current"
         ? `Simulation + active baseline · ${rangeText} · ${displayChainLabel} · current on-chain veDOLO votes · eligibility includes ${eligibilityText}.`
-        : `Simulation + active baseline · ${rangeText} · ${displayChainLabel} · assumes every borrower reaches max ${pct(config.rebatePercentage)} rebate · ${config.veDoloHoldingFactor.toFixed(1).replace(".0", "")}x veDOLO threshold.`;
+        : `Simulation + active baseline · ${rangeText} · ${displayChainLabel} · assumes every borrower reaches max ${rebateLabel} rebate · ${config.veDoloHoldingFactor.toFixed(1).replace(".0", "")}x veDOLO threshold.`;
     }
     if (priceEl) {
       priceEl.textContent = config.doloPriceUSD > 0
@@ -2822,7 +2840,7 @@ h1{
       } else {
         cardsEl.innerHTML = `
           <div class="veborrow-sim-card primary"><span>Max users saved</span><b>${usdFull(totals.maxUsersSavedUSD)}</b><small>after protocol revenue factor</small></div>
-          <div class="veborrow-sim-card"><span>Required locked DOLO</span><b>${config.doloPriceUSD > 0 ? tokenCompact(totals.requiredLockedDolo, " DOLO") : "-"}</b><small>${pct(config.rebatePercentage)} threshold value</small></div>
+          <div class="veborrow-sim-card"><span>Required locked DOLO</span><b>${config.doloPriceUSD > 0 ? tokenCompact(totals.requiredLockedDolo, " DOLO") : "-"}</b><small>${rebateLabel} threshold value</small></div>
           <div class="veborrow-sim-card"><span>Borrow interest</span><b>${usdFull(totals.borrowInterestUSD)}</b><small>${dayCount.toLocaleString("en-US")} selected daily bars</small></div>
           <div class="veborrow-sim-card"><span>Sim net revenue</span><b>${usdFull(totals.simNetRevenueUSD)}</b><small>after max user savings</small></div>
         `;
