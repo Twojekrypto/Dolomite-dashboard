@@ -34,22 +34,14 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
 
-      - name: Refresh Dolomite Revenue after liquidation history changes
-        run: |
-          if git diff --quiet -- liquidation_history.json; then
-            echo "liquidation_history.json unchanged; revenue liquidator earnings remain current"
-          else
-            python3 fetch_dolomite_revenue.py
-          fi
-
       - name: Validate generated data
-        run: python3 validate_data.py liquidation_risk.json liquidation_history.json dolomite_revenue.json
+        run: python3 validate_data.py liquidation_risk.json liquidation_history.json
 
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add liquidation_risk.json liquidation_history.json dolomite_revenue.json
+          git add liquidation_risk.json liquidation_history.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Liquidation risk update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           # Retry push with rebase up to 3 times to handle concurrent pushes
