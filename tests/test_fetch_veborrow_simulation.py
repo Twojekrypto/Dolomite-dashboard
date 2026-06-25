@@ -1,19 +1,69 @@
 import unittest
+from decimal import Decimal
 
 from fetch_veborrow_simulation import (
     DISPLAY_SIMULATION_CHAINS,
     ELIGIBILITY_CHAINS,
+    active_rebate_market_ids_by_chain,
+    debt_usd_for_token_value,
     encode_get_votes_call,
     fetch_onchain_vedolo_vote_weights,
     merge_vedolo_vote_sources,
     simulate_current_vedolo_rebates,
 )
+from validate_data import _veborrow_simulation_valid
 
 
 class VeBorrowSimulationTest(unittest.TestCase):
     def test_display_simulation_chains_include_active_berachain_baseline(self):
         self.assertEqual(DISPLAY_SIMULATION_CHAINS, ["Ethereum", "Arbitrum", "Berachain"])
         self.assertEqual(DISPLAY_SIMULATION_CHAINS, ELIGIBILITY_CHAINS)
+
+    def test_checked_in_snapshot_display_config_matches_code(self):
+        import json
+
+        with open("veborrow_simulation.json", "r", encoding="utf-8") as handle:
+            snapshot = json.load(handle)
+
+        self.assertEqual(snapshot["config"]["displaySimulationChains"], DISPLAY_SIMULATION_CHAINS)
+        self.assertEqual(snapshot["config"]["simulationChains"], DISPLAY_SIMULATION_CHAINS)
+        self.assertTrue(_veborrow_simulation_valid(snapshot))
+
+    def test_active_rebate_market_ids_only_include_currently_enabled_markets(self):
+        market_ids = active_rebate_market_ids_by_chain({
+            "currentEpochIndex": 6,
+            "allChainRebateInfo": {
+                "80094": {
+                    "startEpoch": 1,
+                    "marketToRebateInfo": {
+                        "0": {"startEpoch": 1, "endEpoch": None},
+                        "6": {"startEpoch": 1, "endEpoch": 5},
+                        "7": {"startEpoch": 7, "endEpoch": None},
+                    },
+                },
+                "1": None,
+            },
+        })
+
+        self.assertEqual(market_ids, {"Berachain": {"0"}})
+
+    def test_debt_usd_for_token_value_skips_non_eligible_active_market(self):
+        token_value = {
+            "valuePar": "-100",
+            "token": {
+                "id": "0x0000000000000000000000000000000000000001",
+                "marketId": "6",
+            },
+        }
+
+        debt = debt_usd_for_token_value(
+            token_value,
+            {"0x0000000000000000000000000000000000000001": Decimal("1")},
+            {"0x0000000000000000000000000000000000000001": Decimal("1")},
+            eligible_market_ids={"0"},
+        )
+
+        self.assertEqual(debt, Decimal("0"))
 
     def test_encode_get_votes_call_uses_erc20_votes_selector_and_padded_address(self):
         call = encode_get_votes_call("0x000000000000000000000000000000000000dEaD")

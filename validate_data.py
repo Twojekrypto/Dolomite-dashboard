@@ -458,9 +458,22 @@ def _veborrow_simulation_valid(data):
         return False
     if not {"Ethereum", "Arbitrum", "Berachain"}.issubset(set(chains)):
         return False
-    if config.get("displaySimulationChains") != ["Ethereum", "Arbitrum"]:
+    display_chains = config.get("displaySimulationChains")
+    if display_chains != ["Ethereum", "Arbitrum", "Berachain"]:
+        return False
+    if config.get("simulationChains") != display_chains:
         return False
     if not {"Ethereum", "Arbitrum", "Berachain"}.issubset(set(config.get("eligibilityChains") or [])):
+        return False
+    if config.get("activeRebateChains") != ["Berachain"]:
+        return False
+    rebate_percentages = config.get("rebatePercentagesByChain") or {}
+    if not isinstance(rebate_percentages, dict):
+        return False
+    if any(_safe_number(rebate_percentages.get(chain)) <= 0 for chain in display_chains):
+        return False
+    active_market_ids = ((config.get("activeRebateMarketIdsByChain") or {}).get("Berachain") or [])
+    if not isinstance(active_market_ids, list) or not active_market_ids:
         return False
     if _safe_number(config.get("rebatePercentage")) <= 0 or _safe_number(config.get("veDoloHoldingFactor")) <= 0:
         return False
@@ -470,8 +483,12 @@ def _veborrow_simulation_valid(data):
         return False
     if not all(isinstance(chains.get(chain), dict) and chains[chain].get("status") in {"ok", "error"} for chain in ("Ethereum", "Arbitrum", "Berachain")):
         return False
-    ok_chains = [chain for chain in ("Ethereum", "Arbitrum") if chains[chain].get("status") == "ok"]
-    if not ok_chains:
+    if chains["Berachain"].get("status") != "ok" or chains["Berachain"].get("debtMarketFilter") != "active_rebate_markets":
+        return False
+    if chains["Berachain"].get("eligibleRebateMarketIds") != active_market_ids:
+        return False
+    ok_simulation_chains = [chain for chain in ("Ethereum", "Arbitrum") if chains[chain].get("status") == "ok"]
+    if not ok_simulation_chains:
         return False
     source_counts = totals.get("veDoloVoteSourceCounts") or {}
     if not isinstance(source_counts, dict) or "onchain_getVotes" not in source_counts:

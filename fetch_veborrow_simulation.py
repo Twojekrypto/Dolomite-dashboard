@@ -49,6 +49,11 @@ CHAIN_CONFIGS = {
     },
 }
 
+CHAIN_ID_TO_NAME = {
+    str(config["chainId"]): chain
+    for chain, config in CHAIN_CONFIGS.items()
+}
+
 QUERY_MARKET_DATA = """
 {
   _meta {
@@ -339,25 +344,77 @@ def fetch_rebate_metadata():
 
     holding_factor = safe_decimal(metadata.get("veDoloHoldingFactor"), "5")
     all_chain_info = metadata.get("allChainRebateInfo") if isinstance(metadata.get("allChainRebateInfo"), dict) else {}
+    rebate_percentages_by_chain = rebate_percentages_by_chain_from_metadata(metadata)
+    active_market_ids_by_chain = active_rebate_market_ids_by_chain(metadata)
     rebate_percentage = Decimal("0.10")
-    for chain_info in all_chain_info.values():
-        if not isinstance(chain_info, dict):
-            continue
-        candidate = safe_decimal(chain_info.get("rebatePercentage"))
-        if candidate > 0:
-            rebate_percentage = candidate
-            break
+    positive_percentages = [
+        value
+        for value in rebate_percentages_by_chain.values()
+        if safe_decimal(value) > 0
+    ]
+    if positive_percentages:
+        rebate_percentage = safe_decimal(positive_percentages[0])
 
     return {
         "veDoloHoldingFactor": holding_factor,
         "rebatePercentage": rebate_percentage,
+        "rebatePercentagesByChain": rebate_percentages_by_chain,
+        "activeRebateMarketIdsByChain": active_market_ids_by_chain,
         "currentEpochIndex": metadata.get("currentEpochIndex"),
         "currentEpochStartTimestamp": metadata.get("currentEpochStartTimestamp"),
         "source": BORROW_FEE_REBATE_METADATA_URL,
     }
 
 
-def debt_usd_for_token_value(token_value, oracle_prices, interest_indices):
+def active_rebate_market_ids_by_chain(metadata):
+    all_chain_info = metadata.get("allChainRebateInfo") if isinstance(metadata.get("allChainRebateInfo"), dict) else {}
+    current_epoch = int(safe_decimal(metadata.get("currentEpochIndex")))
+    output = {}
+    for chain_id, chain_info in all_chain_info.items():
+        chain = CHAIN_ID_TO_NAME.get(str(chain_id))
+        if not chain or not isinstance(chain_info, dict):
+            continue
+        market_info = chain_info.get("marketToRebateInfo") if isinstance(chain_info.get("marketToRebateInfo"), dict) else {}
+        enabled = set()
+        for market_id, market_payload in market_info.items():
+            if not isinstance(market_payload, dict):
+                continue
+            start_epoch = int(safe_decimal(market_payload.get("startEpoch"), "0"))
+            end_value = market_payload.get("endEpoch")
+            end_epoch = None if end_value is None else int(safe_decimal(end_value, "0"))
+            if start_epoch and current_epoch >= start_epoch and (end_epoch is None or current_epoch <= end_epoch):
+                enabled.add(str(market_id))
+        output[chain] = enabled
+    return output
+
+
+def rebate_percentages_by_chain_from_metadata(metadata):
+    all_chain_info = metadata.get("allChainRebateInfo") if isinstance(metadata.get("allChainRebateInfo"), dict) else {}
+    output = {chain: Decimal("0.10") for chain in DISPLAY_SIMULATION_CHAINS}
+    for chain_id, chain_info in all_chain_info.items():
+        chain = CHAIN_ID_TO_NAME.get(str(chain_id))
+        if not chain or not isinstance(chain_info, dict):
+            continue
+        rebate_percentage = safe_decimal(chain_info.get("rebatePercentage"))
+        if rebate_percentage > 0:
+            output[chain] = rebate_percentage
+    return output
+
+
+def token_value_market_id(token_value):
+    token = token_value.get("token") if isinstance(token_value, dict) else {}
+    market_id = (token or {}).get("marketId")
+    return None if market_id is None else str(market_id)
+
+
+def market_id_sort_key(value):
+    text = str(value)
+    return (0, int(text)) if text.isdigit() else (1, text)
+
+
+def debt_usd_for_token_value(token_value, oracle_prices, interest_indices, eligible_market_ids=None):
+    if eligible_market_ids is not None and token_value_market_id(token_value) not in eligible_market_ids:
+        return Decimal("0")
     value_par = safe_decimal(token_value.get("valuePar"))
     if value_par >= 0:
         return Decimal("0")
@@ -371,7 +428,9 @@ def debt_usd_for_token_value(token_value, oracle_prices, interest_indices):
     return abs(value_par) * borrow_index * price
 
 
-def fetch_current_borrow_debt_for_chain(chain, chain_config, page_size=500):
+def fetch_current_borrow_debt_for_chain(chain, chain_config, page_size=500, eligible_market_ids=None):
+    if eligible_market_ids is not None:
+        eligible_market_ids = {str(item) for item in eligible_market_ids}
     url = subgraph_url(chain_config)
     market_data = graphql_request(url, QUERY_MARKET_DATA)
     oracle_prices = {}
@@ -405,7 +464,7 @@ def fetch_current_borrow_debt_for_chain(chain, chain_config, page_size=500):
             if not user:
                 continue
             debt = sum(
-                debt_usd_for_token_value(token_value, oracle_prices, interest_indices)
+                debt_usd_for_token_value(token_value, oracle_prices, interest_indices, eligible_market_ids)
                 for token_value in account.get("tokenValues") or []
             )
             if debt > 0:
@@ -593,13 +652,15 @@ def build_snapshot():
     dolo_price_usd, dolo_price_source = load_dolo_price()
     rebate_metadata = fetch_rebate_metadata()
     vedolo_snapshot = load_vedolo_vote_weights(dolo_price_usd=dolo_price_usd)
+    active_market_ids_by_chain = rebate_metadata.get("activeRebateMarketIdsByChain") or {}
 
     chains = {}
     current_debt_by_chain = {}
     errors = {}
     for chain, chain_config in CHAIN_CONFIGS.items():
         try:
-            result = fetch_current_borrow_debt_for_chain(chain, chain_config)
+            eligible_market_ids = active_market_ids_by_chain.get(chain)
+            result = fetch_current_borrow_debt_for_chain(chain, chain_config, eligible_market_ids=eligible_market_ids)
             current_debt_by_chain[chain] = result["debtByUser"]
             chains[chain] = {
                 "chainKey": chain_config["chainKey"],
@@ -611,6 +672,9 @@ def build_snapshot():
                 "subgraphBlockNumber": result["subgraphBlockNumber"],
                 "subgraphBlockTimestamp": result["subgraphBlockTimestamp"],
                 "subgraphUrl": result["subgraphUrl"],
+                "debtMarketFilter": "active_rebate_markets" if eligible_market_ids is not None else "all_borrow_markets",
+                "eligibleRebateMarketIds": sorted(eligible_market_ids, key=market_id_sort_key) if eligible_market_ids is not None else None,
+                "eligibleRebateMarketCount": len(eligible_market_ids) if eligible_market_ids is not None else None,
             }
         except RuntimeError as exc:
             errors[chain] = str(exc)
@@ -700,9 +764,11 @@ def build_snapshot():
             "officialFormulaSource": OFFICIAL_REBATE_SCRIPT_URL,
             "limitations": [
                 "Ethereum and Arbitrum are simulation-only until Dolomite enables veBorrow rebates on those networks; Berachain is already active and is shown as the current baseline.",
+                "Active rebate chains filter current debt to the markets enabled in the Dolomite rebate metadata. Simulation-only chains use all current borrow markets until official market eligibility exists.",
                 "Borrower debt is a current snapshot, so historical selected ranges are estimated by current debt share, not historical per-wallet borrow ledgers.",
                 "Current veDOLO vote weight is fetched from Berachain veDOLO.getVotes(address) when RPC succeeds, with vedolo_holders.json used only as a fallback.",
                 "Official closed epochs use historical per-wallet borrow ledgers and getPastVotes at epoch end, so this file is a current-footprint simulation, not a claim generator.",
+                "The official claim bot currently applies veDoloHoldingFactor to the finalized claim-period maximum rebate value; public docs also describe the threshold as annualized, so closed-epoch onchain roots remain the source of truth for actual revenue netting.",
             ],
         },
         "assurance": {
@@ -728,8 +794,17 @@ def build_snapshot():
             "eligibilityChains": ELIGIBILITY_CHAINS,
             "activeRebateChains": ["Berachain"],
             "rebatePercentage": round_number(rebate_metadata["rebatePercentage"], 8),
+            "rebatePercentagesByChain": {
+                chain: round_number(value, 8)
+                for chain, value in (rebate_metadata.get("rebatePercentagesByChain") or {}).items()
+            },
+            "activeRebateMarketIdsByChain": {
+                chain: sorted(market_ids, key=market_id_sort_key)
+                for chain, market_ids in active_market_ids_by_chain.items()
+            },
             "veDoloHoldingFactor": round_number(rebate_metadata["veDoloHoldingFactor"], 8),
             "protocolReserveFactor": round_number(PROTOCOL_RESERVE_FACTOR, 8),
+            "thresholdBasis": "official_claim_period_max_rebate",
             "doloPriceUSD": round_number(dolo_price_usd, 10),
             "doloPriceSource": dolo_price_source,
             "currentEpochIndex": rebate_metadata.get("currentEpochIndex"),
