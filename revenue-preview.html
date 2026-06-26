@@ -573,10 +573,11 @@ h1{
 .veborrow-sim-table{min-width:860px}
 .veborrow-sim-table th,.veborrow-sim-table td{padding:11px 12px}
 .veborrow-sim-table th:nth-child(2),.veborrow-sim-table td:nth-child(2){text-align:left}
-.veborrow-sim-wallets{margin-top:12px}
+.veborrow-wallet-panel{margin:0 20px 20px}
 .veborrow-wallet-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
 .veborrow-wallet-toolbar-main{display:flex;flex-direction:column;gap:8px;min-width:0}
-.veborrow-sim-wallet-title{margin:0;color:var(--fg-2);font-size:12px;font-weight:800}
+.veborrow-wallet-title{margin:0;color:var(--fg-2);font-size:12px;font-weight:800}
+.veborrow-wallet-sub{margin:-4px 0 0;color:var(--fg-3);font-size:11px;line-height:1.45;max-width:780px}
 .veborrow-wallet-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .veborrow-wallet-search{position:relative;display:flex;align-items:center;width:280px;height:36px;padding:0 12px 0 36px;border:1px solid var(--line-2);border-radius:10px;background:var(--bg-3);transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
 .veborrow-wallet-search:focus-within{border-color:var(--gold-line);box-shadow:0 0 0 3px rgba(201,162,39,.06)}
@@ -629,8 +630,10 @@ h1{
 .veborrow-wallet-chain-chip{display:inline-flex;align-items:center;gap:6px;min-height:24px;padding:3px 7px;border-radius:6px;border:1px solid var(--line-2);background:rgba(255,255,255,.025);color:var(--fg-2);font-family:var(--mono);font-size:10px;font-weight:800;white-space:nowrap}
 .veborrow-wallet-chain-chip img{width:16px;height:16px;border-radius:50%;object-fit:cover;display:block}
 .veborrow-wallet-chain-chip.fallback::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 7px rgba(201,162,39,.35)}
+.revenue-table.veborrow-wallet-table{min-width:1040px}
+.veborrow-wallet-table th:nth-child(2),.veborrow-wallet-table td:nth-child(2){text-align:left}
 .veborrow-wallet-sort{appearance:none;border:0;background:transparent;color:inherit;padding:0;width:100%;display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;max-width:100%;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
-.veborrow-sim-table th:first-child .veborrow-wallet-sort,.veborrow-sim-table th:nth-child(2) .veborrow-wallet-sort{justify-content:flex-start}
+.veborrow-wallet-table th:first-child .veborrow-wallet-sort,.veborrow-wallet-table th:nth-child(2) .veborrow-wallet-sort{justify-content:flex-start}
 .veborrow-wallet-sort:hover,.veborrow-wallet-sort.active{color:var(--fg-1)}
 .veborrow-wallet-sort .sort-arrow{width:10px;display:inline-flex;justify-content:center;color:var(--fg-4);font-size:9px;line-height:1;text-transform:none;letter-spacing:0}
 .veborrow-wallet-sort.active .sort-arrow{color:var(--gold)}
@@ -808,6 +811,7 @@ h1{
   .veborrow-chart-wrap{padding:18px 16px 10px}
   .veborrow-chart-svg{height:260px}
   .veborrow-simulation{margin:0 16px 16px;padding:14px}
+  .veborrow-wallet-panel{margin:0 16px 16px}
   .veborrow-sim-head{display:block}
   .veborrow-sim-price{display:inline-flex;margin-top:10px}
   .veborrow-sim-grid{grid-template-columns:1fr}
@@ -1189,8 +1193,10 @@ h1{
           </tbody>
         </table>
       </div>
-      <div class="veborrow-sim-wallets" id="veBorrowSimulationWallets"></div>
       <div class="veborrow-sim-note">Simulation only for Ethereum and Arbitrum rebates; Berachain is active today and shown as the baseline. Current veDOLO mode estimates ETH + ARB + BERA savings from today's debt share and on-chain current veDOLO vote weight; official closed epochs use historical per-wallet borrow ledgers and getPastVotes at epoch end.</div>
+    </div>
+    <div class="veborrow-wallet-panel" id="veBorrowCurrentWalletsPanel">
+      <div class="empty-state">Loading current borrower veDOLO savings...</div>
     </div>
   </section>
 
@@ -2744,7 +2750,7 @@ h1{
   window.setVeBorrowWalletSort = setVeBorrowWalletSort;
   function veBorrowWalletSortHeader(key, label){
     const active = veBorrowWalletSortKey === key;
-    const arrow = active ? (veBorrowWalletSortDesc ? "v" : "^") : "-";
+    const arrow = active ? (veBorrowWalletSortDesc ? "▼" : "▲") : "";
     return `<button class="veborrow-wallet-sort${active ? " active" : ""}" type="button" onclick="setVeBorrowWalletSort('${key}')" aria-label="Sort ${esc(label)}"><span>${esc(label)}</span><span class="sort-arrow" aria-hidden="true">${arrow}</span></button>`;
   }
   function veBorrowWalletAriaSort(key){
@@ -2828,15 +2834,11 @@ h1{
     renderVeBorrowChart({ skipBrush: true });
   }
   window.setVeBorrowWalletChainFilter = setVeBorrowWalletChainFilter;
-  function renderVeBorrowCurrentWallets(wallets){
-    const wrap = qs("veBorrowSimulationWallets");
+  function renderVeBorrowCurrentWalletTable(wallets){
+    const wrap = qs("veBorrowCurrentWalletsPanel");
     if (!wrap) return;
     const baseRows = (wallets || []).filter(row => n(row.borrowInterestUSD) > 0);
     const rows = sortVeBorrowWallets(filterVeBorrowWallets(baseRows));
-    if (veBorrowSimulationMode !== "current" || !baseRows.length) {
-      wrap.innerHTML = "";
-      return;
-    }
     const totalPages = Math.max(1, Math.ceil(rows.length / veBorrowWalletPageSize));
     if (veBorrowWalletPage > totalPages) veBorrowWalletPage = totalPages;
     if (veBorrowWalletPage < 1) veBorrowWalletPage = 1;
@@ -2865,7 +2867,8 @@ h1{
     wrap.innerHTML = `
       <div class="veborrow-wallet-toolbar">
         <div class="veborrow-wallet-toolbar-main">
-          <div class="veborrow-sim-wallet-title">Top users saved with current veDOLO</div>
+          <div class="veborrow-wallet-title">Top users saved with current veDOLO</div>
+          <div class="veborrow-wallet-sub">Search any current borrower to estimate their current veDOLO savings and how much veDOLO is still missing for the max rebate.</div>
           <div class="veborrow-wallet-filters">
             <label class="veborrow-wallet-search${veBorrowWalletSearchQuery ? " has-value" : ""}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -2892,7 +2895,7 @@ h1{
         <div class="veborrow-wallet-pager" id="veBorrowWalletPager"></div>
       </div>
       <div class="table-wrap veborrow-sim-table-wrap">
-        <table class="revenue-table veborrow-sim-table">
+        <table class="revenue-table veborrow-wallet-table">
           <colgroup>
             <col style="width:14%">
             <col style="width:22%">
@@ -3000,12 +3003,10 @@ h1{
     }
     if (veBorrowSimulationMode === "current" && !currentDataReady) {
       rowsEl.innerHTML = '<tr><td colspan="5" class="empty-state">Current borrower + veDOLO simulation data is not available yet.</td></tr>';
-      renderVeBorrowCurrentWallets([]);
       return;
     }
     if (!simRows.some(row => n(row.borrowInterestUSD) > 0)) {
       rowsEl.innerHTML = `<tr><td colspan="5" class="empty-state">No ${esc(config.displayChains.join(", "))} borrow interest in this selected range.</td></tr>`;
-      renderVeBorrowCurrentWallets([]);
       return;
     }
     rowsEl.innerHTML = simRows.map(row => {
@@ -3032,7 +3033,13 @@ h1{
         <td><div class="num-main">${config.doloPriceUSD > 0 ? tokenCompact(row.requiredLockedDolo, " DOLO") : "Price unavailable"}</div><div class="num-sub">${usdFull(row.requiredVeDoloValueUSD)} veDOLO value</div></td>
       </tr>`;
     }).join("");
-    renderVeBorrowCurrentWallets(currentModel.wallets);
+  }
+  function renderVeBorrowCurrentWalletTableForSelection(selected, rows){
+    const model = selected && selected.length ? selected : selectedVeBorrowRows(rows);
+    const dayCount = model.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
+    const config = veBorrowSimulationConfig();
+    const currentModel = veBorrowCurrentSimulationRows(model, config);
+    renderVeBorrowCurrentWalletTable(currentModel.wallets);
   }
   function renderVeBorrowBrush(rows, options = {}){
     revenueBrushRowsByKey[VEBORROW_CHART_KEY] = rows;
@@ -3048,6 +3055,7 @@ h1{
     renderVeBorrowBrush(rows, options);
     const selected = selectedVeBorrowRows(rows);
     renderVeBorrowSummary(selected, rows);
+    renderVeBorrowCurrentWalletTableForSelection(selected, rows);
     renderVeBorrowSimulation(selected, rows);
     updateVeBorrowModeControls();
     const model = visibleRows(rows, VEBORROW_CHART_KEY);
