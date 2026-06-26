@@ -332,7 +332,8 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
     def test_workflow_runs_audit_and_commits_output(self):
         workflow = (ROOT / ".github/workflows/audit-dolomite-revenue-onchain.yml").read_text(encoding="utf-8")
 
-        self.assertGreaterEqual(workflow.count("cron:"), 2)
+        self.assertGreaterEqual(workflow.count("cron:"), 3)
+        self.assertIn("cron: '37 1 * * *'", workflow)
         self.assertIn("python3 audit_dolomite_revenue_onchain.py", workflow)
         self.assertIn("data/dolomite-revenue-onchain-audit.json", workflow)
         self.assertIn("git add data/dolomite-revenue-onchain-audit.json data/dolomite-revenue-onchain-overrides.json dolomite_revenue.json", workflow)

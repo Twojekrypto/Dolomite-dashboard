@@ -7,7 +7,11 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fetch_dolomite_revenue import build_output, onchain_audit_assurance
+from fetch_dolomite_revenue import (
+    build_output,
+    expected_onchain_audit_target_date,
+    onchain_audit_assurance,
+)
 from validate_data import (
     RULES,
     ValidationResult,
@@ -130,6 +134,32 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(assurance["onchainAuditTargetDate"], "2026-06-22")
         self.assertEqual(assurance["onchainAuditExpectedTargetDate"], "2026-06-23")
         self.assertTrue(assurance["onchainAuditStale"])
+
+    def test_expected_onchain_audit_target_allows_morning_workflow_delay(self):
+        self.assertEqual(
+            expected_onchain_audit_target_date(datetime(2026, 6, 26, 8, 45, tzinfo=timezone.utc)),
+            "2026-06-23",
+        )
+        self.assertEqual(
+            expected_onchain_audit_target_date(datetime(2026, 6, 26, 12, 0, tzinfo=timezone.utc)),
+            "2026-06-24",
+        )
+
+    def test_onchain_audit_assurance_keeps_yesterdays_audit_fresh_during_grace_window(self):
+        assurance = onchain_audit_assurance(
+            {
+                "status": "warn",
+                "generatedAt": "2026-06-25T15:31:35Z",
+                "targetDate": "2026-06-23",
+                "summary": {"maxRevenueDiffPct": 0.031, "revenueDiffUnbounded": True},
+            },
+            now=datetime(2026, 6, 26, 8, 45, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual(assurance["onchainAuditStatus"], "warn")
+        self.assertEqual(assurance["onchainAuditTargetDate"], "2026-06-23")
+        self.assertEqual(assurance["onchainAuditExpectedTargetDate"], "2026-06-23")
+        self.assertFalse(assurance["onchainAuditStale"])
 
     def test_build_output_embeds_latest_onchain_audit_status(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)

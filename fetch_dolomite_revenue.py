@@ -25,6 +25,7 @@ DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_revenue.json")
 ONCHAIN_AUDIT_FILE = os.path.join(DATA_DIR, "data", "dolomite-revenue-onchain-audit.json")
 ONCHAIN_REVENUE_OVERRIDES_FILE = os.path.join(DATA_DIR, "data", "dolomite-revenue-onchain-overrides.json")
+ONCHAIN_AUDIT_EXPECTED_TARGET_AFTER_UTC_HOUR = 10
 BASE_URL = "https://api.llama.fi/summary/fees/dolomite"
 BORROW_FEE_REBATE_METADATA_URL = "https://api.dolomite.io/liquidity-mining/ve-dolo-rebate/metadata"
 BORROW_FEE_REBATE_DOCS_URL = "https://docs.dolomite.io/dolo/borrow-fee-rebates"
@@ -715,7 +716,9 @@ def expected_onchain_audit_target_date(now=None):
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
-    return (now.astimezone(timezone.utc).date() - timedelta(days=2)).isoformat()
+    utc_now = now.astimezone(timezone.utc)
+    lag_days = 2 if utc_now.hour >= ONCHAIN_AUDIT_EXPECTED_TARGET_AFTER_UTC_HOUR else 3
+    return (utc_now.date() - timedelta(days=lag_days)).isoformat()
 
 
 def date_is_before(left, right):
@@ -867,6 +870,7 @@ def onchain_audit_assurance(onchain_audit, now=None):
             "onchainAuditRawStatus": "not_run",
             "onchainAuditTargetDate": None,
             "onchainAuditExpectedTargetDate": expected_target,
+            "onchainAuditExpectedTargetAfterUtcHour": ONCHAIN_AUDIT_EXPECTED_TARGET_AFTER_UTC_HOUR,
             "onchainAuditStale": False,
             "onchainAuditMaxRevenueDiffPct": None,
             "onchainAuditMaxFeesDiffPct": None,
@@ -883,6 +887,7 @@ def onchain_audit_assurance(onchain_audit, now=None):
         "onchainAuditRawStatus": raw_status,
         "onchainAuditTargetDate": target_date,
         "onchainAuditExpectedTargetDate": expected_target,
+        "onchainAuditExpectedTargetAfterUtcHour": ONCHAIN_AUDIT_EXPECTED_TARGET_AFTER_UTC_HOUR,
         "onchainAuditStale": stale,
         "onchainAuditMaxRevenueDiffPct": summary.get("maxRevenueDiffPct"),
         "onchainAuditMaxFeesDiffPct": summary.get("maxFeesDiffPct"),
