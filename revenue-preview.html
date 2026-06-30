@@ -573,7 +573,7 @@ h1{
 .veborrow-sim-table{min-width:860px}
 .veborrow-sim-table th,.veborrow-sim-table td{padding:11px 12px}
 .veborrow-sim-table th:nth-child(2),.veborrow-sim-table td:nth-child(2){text-align:left}
-.veborrow-wallet-panel{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:visible;position:relative;margin:0 0 24px}
+.veborrow-wallet-panel{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:visible;position:relative;margin:24px 0 0}
 .veborrow-wallet-card-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
 .veborrow-wallet-heading{display:flex;align-items:center;gap:10px;min-width:0}
 .veborrow-wallet-title{margin:0;font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1);line-height:1.25}
@@ -649,11 +649,9 @@ h1{
 .veborrow-wallet-table .addr-line.top{gap:10px}
 .veborrow-wallet-table .addr-line.bot{gap:8px}
 .veborrow-wallet-table .addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
+.veborrow-wallet-table .addr-name.addr-generic{color:var(--fg-1);font-weight:600}
 .veborrow-wallet-table .addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2;text-decoration:none}
 .veborrow-wallet-table tbody tr:hover .addr-mono{color:var(--fg-2)}
-.veborrow-wallet-table .type-tag{display:inline-flex;align-items:center;font-size:9.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;padding:2px 6px;border-radius:4px;border:1px solid;white-space:nowrap}
-.veborrow-wallet-table .type-tag.type-veborrow{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
-.veborrow-wallet-table .type-tag.type-borrower{color:var(--fg-3);border-color:var(--line-2);background:var(--bg-3)}
 .veborrow-wallet-table .addr-copy,.veborrow-wallet-table .addr-debank{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;transition:all .15s var(--ease);cursor:pointer}
 .veborrow-wallet-table .addr-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .veborrow-wallet-table .addr-copy.copied{color:var(--up);border-color:rgba(138,163,123,.4)}
@@ -844,7 +842,7 @@ h1{
   .veborrow-chart-wrap{padding:18px 16px 10px}
   .veborrow-chart-svg{height:260px}
   .veborrow-simulation{margin:0 16px 16px;padding:14px}
-  .veborrow-wallet-panel{margin:0 0 16px}
+  .veborrow-wallet-panel{margin:16px 0 0}
   .veborrow-wallet-card-head{display:block}
   .veborrow-wallet-meta{margin-top:8px}
   .veborrow-sim-head{display:block}
@@ -1273,6 +1271,7 @@ h1{
   </section>
 </div>
 
+<script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
 <script>
 (function(){
   const DATA_URL = "dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate";
@@ -1296,6 +1295,24 @@ h1{
   const MIN_CHARTED_VEBORROW_REBATE_USD = 1;
   const VEBORROW_SIM_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
   const VEBORROW_ELIGIBILITY_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
+  const VEBORROW_WALLET_LABELS = window.cloneDoloAddressLabels
+    ? window.cloneDoloAddressLabels()
+    : (window.DOLO_ADDRESS_LABELS || {});
+  const VEBORROW_WALLET_TYPE_GENERIC = {
+    eoa: "Wallet",
+    multisig: "Safe Multisig",
+    safe: "Safe Multisig",
+    contract_wallet: "Safe Multisig",
+    ca: "Smart Contract / CA",
+    contract: "Smart Contract / CA",
+    protocol: "Smart Contract / CA",
+    cex: "Exchange",
+    investor: "Investor",
+    watch: "Potential custody/MM",
+    bot: "Trading bot",
+    liquidator: "Trading bot",
+    mm: "Market maker",
+  };
   let veBorrowChartMode = "daily";
   let veBorrowSimulationOpen = false;
   let veBorrowSimulationMode = "current";
@@ -2696,18 +2713,26 @@ h1{
     const chainId = veBorrowDebankChainId(primaryVeBorrowWalletChain(row));
     return `https://debank.com/profile/${encodeURIComponent(address)}${chainId ? `?chain=${chainId}` : ""}`;
   }
+  function veBorrowWalletLabelInfo(address){
+    const key = String(address || "").toLowerCase();
+    return key ? VEBORROW_WALLET_LABELS[key] || null : null;
+  }
+  function veBorrowWalletDisplayName(row){
+    const info = veBorrowWalletLabelInfo(row?.address);
+    if (info?.label) return { name: String(info.label), generic: false };
+    const type = String(info?.type || "eoa").toLowerCase();
+    return { name: VEBORROW_WALLET_TYPE_GENERIC[type] || "Wallet", generic: true };
+  }
   function renderVeBorrowWalletAddress(row){
     const address = String(row?.address || "").toLowerCase();
     const safeAddress = esc(address);
     const debankUrl = esc(veBorrowWalletDebankUrl(row));
-    const status = n(row?.currentVeDoloSavedUSD) > 0 ? "Current veDOLO saver" : "Current borrower";
-    const tagClass = n(row?.currentVeDoloSavedUSD) > 0 ? "type-veborrow" : "type-borrower";
-    const tagText = n(row?.currentVeDoloSavedUSD) > 0 ? "veDOLO" : "Borrower";
+    const displayName = veBorrowWalletDisplayName(row);
+    const nameClass = displayName.generic ? "addr-name addr-generic" : "addr-name";
     return `
       <div class="addr-cell">
         <div class="addr-line top">
-          <span class="addr-name">${esc(status)}</span>
-          <span class="type-tag ${tagClass}">${esc(tagText)}</span>
+          <span class="${nameClass}">${esc(displayName.name)}</span>
         </div>
         <div class="addr-line bot">
           <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="addr-mono addr-tooltip-wrap" data-full-addr="${safeAddress}" title="${safeAddress}">${esc(shortAddress(address))}</a>
@@ -2753,7 +2778,7 @@ h1{
   window.copyVeBorrowAddress = copyVeBorrowAddress;
   function veBorrowWalletSortValue(row, key){
     if (key === "chain") return veBorrowWalletChainSortValue(row);
-    if (key === "address") return String(row?.address || "").toLowerCase();
+    if (key === "address") return (veBorrowWalletDisplayName(row).name || String(row?.address || "")).toLowerCase();
     if (key === "borrowInterest") return n(row?.borrowInterestUSD);
     if (key === "vedolo") return n(row?.veDoloVoteWeight);
     if (key === "saved") return n(row?.currentVeDoloSavedUSD);
@@ -2792,7 +2817,7 @@ h1{
   function veBorrowWalletSortHeader(key, label){
     const active = veBorrowWalletSortKey === key;
     const arrow = active ? (veBorrowWalletSortDesc ? "▼" : "▲") : "";
-    return `<button class="veborrow-wallet-sort${active ? " active" : ""}" type="button" onclick="setVeBorrowWalletSort('${key}')" aria-label="Sort ${esc(label)}"><span>${esc(label)}</span><span class="sort-arrow" aria-hidden="true">${arrow}</span></button>`;
+    return `<button class="veborrow-wallet-sort${active ? " active" : ""}" type="button" onclick="setVeBorrowWalletSort('${key}')" aria-label="Sort ${esc(label)}"><span>${esc(label)}</span>${active ? `<span class="sort-arrow" aria-hidden="true">${arrow}</span>` : ""}</button>`;
   }
   function veBorrowWalletAriaSort(key){
     if (veBorrowWalletSortKey !== key) return "none";
@@ -2853,6 +2878,7 @@ h1{
       if (!query) return true;
       const haystack = [
         row.address,
+        veBorrowWalletDisplayName(row).name,
         ...Array.from(rowChains),
         ...Array.from(rowChains).map(chain => chainAbbr(chain))
       ].join(" ").toLowerCase();
