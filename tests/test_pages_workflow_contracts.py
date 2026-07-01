@@ -14,6 +14,7 @@ class PagesWorkflowContractTests(unittest.TestCase):
         self.assertIn("Update DOLO Flows Data", workflow)
         self.assertIn("Update veDOLO Data", workflow)
         self.assertIn("Update veDOLO Flows", workflow)
+        self.assertIn("Update TVL Data", workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
 
 
