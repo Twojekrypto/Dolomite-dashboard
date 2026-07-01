@@ -656,6 +656,14 @@ h1{
   text-align:right;white-space:nowrap;
 }
 .revenue-table th:first-child{text-align:left}
+.revenue-table th[data-chain-sort]{cursor:pointer;user-select:none;transition:color .15s var(--ease)}
+.revenue-table th[data-chain-sort]:hover{color:var(--fg-1)}
+.revenue-table th[data-chain-sort].sorted{color:var(--gold)}
+.revenue-chain-sort{appearance:none;border:0;background:transparent;color:inherit;padding:0;width:100%;display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;max-width:100%;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.revenue-table th:first-child .revenue-chain-sort{justify-content:flex-start}
+.revenue-chain-sort:hover,.revenue-chain-sort.active{color:var(--fg-1)}
+.revenue-chain-sort .sort-arrow{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:0;color:var(--fg-4);font-size:10px;line-height:1;transition:color .15s var(--ease)}
+.revenue-chain-sort.active .sort-arrow{color:var(--gold)}
 .revenue-table td{
   padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.055);
   font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap;
@@ -1092,17 +1100,17 @@ h1{
     <div class="table-wrap">
       <table class="revenue-table">
         <colgroup>
-          <col style="width:34%">
-          <col style="width:24%">
-          <col style="width:21%">
-          <col style="width:21%">
+          <col style="width:46%">
+          <col style="width:18%">
+          <col style="width:18%">
+          <col style="width:18%">
         </colgroup>
         <thead>
           <tr>
-            <th>Chain</th>
-            <th>Protocol revenue</th>
-            <th>Borrow interest</th>
-            <th>Lender payments</th>
+            <th data-chain-sort="chain" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('chain')" aria-label="Sort Chain" data-label="Chain"><span>Chain</span></button></th>
+            <th data-chain-sort="revenue" aria-sort="descending"><button class="revenue-chain-sort active" type="button" onclick="setChainSort('revenue')" aria-label="Sort Protocol revenue" data-label="Protocol revenue"><span>Protocol revenue</span><span class="sort-arrow" aria-hidden="true">▼</span></button></th>
+            <th data-chain-sort="fees" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('fees')" aria-label="Sort Borrow interest" data-label="Borrow interest"><span>Borrow interest</span></button></th>
+            <th data-chain-sort="supply" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('supply')" aria-label="Sort Supply payments" data-label="Supply payments"><span>Supply payments</span></button></th>
           </tr>
         </thead>
         <tbody id="chainRows">
@@ -1292,6 +1300,8 @@ h1{
   let veBorrowWalletSortDesc = true;
   let veBorrowWalletSearchQuery = "";
   let veBorrowWalletRefocus = false;
+  let chainSortKey = "revenue";
+  let chainSortDesc = true;
   let revenueChartModes = { streams: "daily", borrowInterest: "daily", veBorrow: "daily" };
   const SERIES = {
     revenue: { key: "revenue", label: "Net Borrow Revenue", shortLabel: "Net Revenue", field: "revenueUSD", cumulativeField: "revenueCumulativeUSD", color: "#c9a227" },
@@ -3165,9 +3175,55 @@ h1{
     };
     svg.onmouseleave = leave;
   }
+  function chainSortValue(row, key){
+    if (key === "chain") return String(row?.chain || "").toLowerCase();
+    if (key === "fees") return n(row?.feesUSD);
+    if (key === "supply") return n(row?.supplySideRevenueUSD);
+    return n(row?.revenueUSD);
+  }
+  function sortChainRows(rows){
+    return rows.sort((a,b) => {
+      const av = chainSortValue(a, chainSortKey);
+      const bv = chainSortValue(b, chainSortKey);
+      if (typeof av === "string" || typeof bv === "string") {
+        const cmp = String(av).localeCompare(String(bv));
+        return chainSortDesc ? -cmp : cmp;
+      }
+      const cmp = n(av) - n(bv);
+      return chainSortDesc ? -cmp : cmp;
+    });
+  }
+  function renderChainSortHeaders(){
+    document.querySelectorAll("[data-chain-sort]").forEach(th => {
+      const key = th.dataset.chainSort;
+      const active = key === chainSortKey;
+      const btn = th.querySelector(".revenue-chain-sort");
+      const label = btn?.dataset.label || th.textContent.trim();
+      th.classList.toggle("sorted", active);
+      th.setAttribute("aria-sort", active ? (chainSortDesc ? "descending" : "ascending") : "none");
+      if (btn) {
+        btn.classList.toggle("active", active);
+        btn.setAttribute("aria-label", `Sort ${label}`);
+        btn.innerHTML = `<span>${esc(label)}</span>${active ? `<span class="sort-arrow" aria-hidden="true">${chainSortDesc ? "▼" : "▲"}</span>` : ""}`;
+      }
+    });
+  }
+  function setChainSort(key){
+    const sortable = new Set(["chain", "revenue", "fees", "supply"]);
+    if (!sortable.has(key)) return;
+    if (chainSortKey === key) {
+      chainSortDesc = !chainSortDesc;
+    } else {
+      chainSortKey = key;
+      chainSortDesc = key !== "chain";
+    }
+    renderChains();
+  }
+  window.setChainSort = setChainSort;
   function renderChains(){
     const body = qs("chainRows");
     if (!body) return;
+    renderChainSortHeaders();
     const rows = allRows();
     const selected = selectedRevenueRows(rows);
     const totals = new Map();
@@ -3184,7 +3240,7 @@ h1{
         item.supplySideRevenueUSD += n(values.supplySideRevenueUSD);
       });
     });
-    const chains = Array.from(totals.values()).sort((a,b) => n(b.revenueUSD) - n(a.revenueUSD));
+    const chains = sortChainRows(Array.from(totals.values()));
     if (!chains.length) {
       body.innerHTML = '<tr><td colspan="4" class="empty-state">No protocol revenue available for selected range.</td></tr>';
       return;
