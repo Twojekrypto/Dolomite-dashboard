@@ -968,6 +968,79 @@ h1{
     </div>
   </section>
 
+  <section class="panel table-panel">
+    <div class="panel-head chain-panel-head">
+      <div>
+        <div class="panel-title">Protocol Revenue by Chain</div>
+        <div class="panel-sub">Chain breakdown of net protocol-retained revenue for selected date range.</div>
+      </div>
+      <div class="chain-range-tools" aria-label="Protocol Revenue by Chain date range">
+        <div class="chain-date-field">
+          <span>From</span>
+          <div class="chain-date-trigger" id="chainRangeFromShell">
+            <input class="chain-date-value chain-date-manual" id="chainRangeFromText" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="Protocol Revenue by Chain start date">
+            <button class="chain-date-icon-btn" id="chainRangeFromBtn" type="button" data-date-bound="from" aria-haspopup="dialog" aria-expanded="false" aria-label="Open start date calendar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+            </button>
+          </div>
+          <input class="chain-date-hidden" id="chainRangeFrom" type="hidden" autocomplete="off">
+        </div>
+        <span class="chain-date-sep">→</span>
+        <div class="chain-date-field">
+          <span>To</span>
+          <div class="chain-date-trigger" id="chainRangeToShell">
+            <input class="chain-date-value chain-date-manual" id="chainRangeToText" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="Protocol Revenue by Chain end date">
+            <button class="chain-date-icon-btn" id="chainRangeToBtn" type="button" data-date-bound="to" aria-haspopup="dialog" aria-expanded="false" aria-label="Open end date calendar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+            </button>
+          </div>
+          <input class="chain-date-hidden" id="chainRangeTo" type="hidden" autocomplete="off">
+        </div>
+        <div class="chain-date-popover" id="chainDatePopover" role="dialog" aria-label="Select revenue date" hidden>
+          <div class="chain-cal-head">
+            <div class="chain-cal-title">
+              <strong id="chainCalTitle">Month</strong>
+              <span id="chainCalSubtitle">Select date</span>
+            </div>
+            <div class="chain-cal-nav">
+              <button class="chain-cal-btn" id="chainCalPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+              <button class="chain-cal-btn" id="chainCalNext" type="button" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+            </div>
+          </div>
+          <div class="chain-cal-weekdays" aria-hidden="true">
+            <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+          </div>
+          <div class="chain-cal-grid" id="chainCalGrid"></div>
+          <div class="chain-cal-foot">
+            <span id="chainCalRange">-</span>
+            <button id="chainCalToday" type="button">Latest</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="revenue-table">
+        <colgroup>
+          <col style="width:46%">
+          <col style="width:18%">
+          <col style="width:18%">
+          <col style="width:18%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th data-chain-sort="chain" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('chain')" aria-label="Sort Chain" data-label="Chain"><span>Chain</span></button></th>
+            <th data-chain-sort="revenue" aria-sort="descending"><button class="revenue-chain-sort active" type="button" onclick="setChainSort('revenue')" aria-label="Sort Protocol revenue" data-label="Protocol revenue"><span>Protocol revenue</span><span class="sort-arrow" aria-hidden="true">▼</span></button></th>
+            <th data-chain-sort="fees" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('fees')" aria-label="Sort Borrow interest" data-label="Borrow interest"><span>Borrow interest</span></button></th>
+            <th data-chain-sort="supply" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('supply')" aria-label="Sort Supply payments" data-label="Supply payments"><span>Supply payments</span></button></th>
+          </tr>
+        </thead>
+        <tbody id="chainRows">
+          <tr><td colspan="4" class="empty-state">Loading protocol revenue...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
   <main class="grid-main revenue-chart-grid">
     <section class="panel revenue-chart-panel revenue-streams-panel">
       <div class="panel-head">
@@ -1046,79 +1119,6 @@ h1{
       </div>
     </section>
   </main>
-
-  <section class="panel table-panel">
-    <div class="panel-head chain-panel-head">
-      <div>
-        <div class="panel-title">Protocol Revenue by Chain</div>
-        <div class="panel-sub">Chain breakdown of net protocol-retained revenue for selected date range.</div>
-      </div>
-      <div class="chain-range-tools" aria-label="Protocol Revenue by Chain date range">
-        <div class="chain-date-field">
-          <span>From</span>
-          <div class="chain-date-trigger" id="chainRangeFromShell">
-            <input class="chain-date-value chain-date-manual" id="chainRangeFromText" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="Protocol Revenue by Chain start date">
-            <button class="chain-date-icon-btn" id="chainRangeFromBtn" type="button" data-date-bound="from" aria-haspopup="dialog" aria-expanded="false" aria-label="Open start date calendar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
-            </button>
-          </div>
-          <input class="chain-date-hidden" id="chainRangeFrom" type="hidden" autocomplete="off">
-        </div>
-        <span class="chain-date-sep">→</span>
-        <div class="chain-date-field">
-          <span>To</span>
-          <div class="chain-date-trigger" id="chainRangeToShell">
-            <input class="chain-date-value chain-date-manual" id="chainRangeToText" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="Protocol Revenue by Chain end date">
-            <button class="chain-date-icon-btn" id="chainRangeToBtn" type="button" data-date-bound="to" aria-haspopup="dialog" aria-expanded="false" aria-label="Open end date calendar">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
-            </button>
-          </div>
-          <input class="chain-date-hidden" id="chainRangeTo" type="hidden" autocomplete="off">
-        </div>
-        <div class="chain-date-popover" id="chainDatePopover" role="dialog" aria-label="Select revenue date" hidden>
-          <div class="chain-cal-head">
-            <div class="chain-cal-title">
-              <strong id="chainCalTitle">Month</strong>
-              <span id="chainCalSubtitle">Select date</span>
-            </div>
-            <div class="chain-cal-nav">
-              <button class="chain-cal-btn" id="chainCalPrev" type="button" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-              <button class="chain-cal-btn" id="chainCalNext" type="button" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
-            </div>
-          </div>
-          <div class="chain-cal-weekdays" aria-hidden="true">
-            <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
-          </div>
-          <div class="chain-cal-grid" id="chainCalGrid"></div>
-          <div class="chain-cal-foot">
-            <span id="chainCalRange">-</span>
-            <button id="chainCalToday" type="button">Latest</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table class="revenue-table">
-        <colgroup>
-          <col style="width:46%">
-          <col style="width:18%">
-          <col style="width:18%">
-          <col style="width:18%">
-        </colgroup>
-        <thead>
-          <tr>
-            <th data-chain-sort="chain" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('chain')" aria-label="Sort Chain" data-label="Chain"><span>Chain</span></button></th>
-            <th data-chain-sort="revenue" aria-sort="descending"><button class="revenue-chain-sort active" type="button" onclick="setChainSort('revenue')" aria-label="Sort Protocol revenue" data-label="Protocol revenue"><span>Protocol revenue</span><span class="sort-arrow" aria-hidden="true">▼</span></button></th>
-            <th data-chain-sort="fees" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('fees')" aria-label="Sort Borrow interest" data-label="Borrow interest"><span>Borrow interest</span></button></th>
-            <th data-chain-sort="supply" aria-sort="none"><button class="revenue-chain-sort" type="button" onclick="setChainSort('supply')" aria-label="Sort Supply payments" data-label="Supply payments"><span>Supply payments</span></button></th>
-          </tr>
-        </thead>
-        <tbody id="chainRows">
-          <tr><td colspan="4" class="empty-state">Loading protocol revenue...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
 
   <section class="panel veborrow-panel" id="veBorrowPanel">
     <div class="panel-head veborrow-panel-head">
@@ -1509,7 +1509,11 @@ h1{
   function auditStatusHtml(chain){
     const audit = auditStatusForChain(chain);
     const cls = String(audit.status || "missing").toLowerCase().replace(/_/g, "-");
-    return `<div class="chain-audit ${esc(cls)}">${esc(audit.label)}</div><div class="chain-audit-detail">${esc(audit.detail)}</div>`;
+    const detail = String(audit.detail || "");
+    const detailHtml = detail && !detail.startsWith("target ")
+      ? `<div class="chain-audit-detail">${esc(detail)}</div>`
+      : "";
+    return `<div class="chain-audit ${esc(cls)}">${esc(audit.label)}</div>${detailHtml}`;
   }
   function formatDay(ts, compact){
     const opts = compact

@@ -573,7 +573,11 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260701-ethereum-onchain-override', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260701-chain-table-sort-v3"', route_html)
+        self.assertIn('"version": "revenue-20260701-chain-table-first-v4"', route_html)
+        self.assertLess(
+            html.index("Protocol Revenue by Chain"),
+            html.index("Dolomite Revenue Over Time"),
+        )
         self.assertNotIn("<th>Protocol cut</th>", html)
         self.assertNotIn("<th>% of protocol total</th>", html)
         self.assertIn("Supply payments", html)
@@ -584,6 +588,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('class="revenue-chain-sort active"', html)
         self.assertIn("function setChainSort(key)", html)
         self.assertIn("renderChainSortHeaders", html)
+        self.assertIn('!detail.startsWith("target ")', html)
         self.assertIn('<tr><td colspan="4" class="empty-state">Loading protocol revenue...</td></tr>', html)
         self.assertIn('No protocol revenue available for selected range.', html)
         self.assertIn('Protocol revenue data could not be loaded.', html)
