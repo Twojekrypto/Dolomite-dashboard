@@ -693,7 +693,7 @@ h1{
 .chain-audit.missing,.chain-audit.not-run{color:var(--fg-4)}
 .chain-audit-detail{margin-top:3px;max-width:210px;color:var(--fg-4);font-size:10.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .revenue-col-inner{display:inline-flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:128px}
-.revenue-primary{font-family:var(--mono);font-size:14px;font-weight:900;color:var(--gold);text-shadow:0 0 14px rgba(201,162,39,.12)}
+.revenue-primary{font-family:var(--mono);font-size:14px;font-weight:900;color:#75b87b;text-shadow:0 0 14px rgba(117,184,123,.14)}
 .num-main{font-family:var(--mono);font-size:13px;font-weight:750;color:var(--fg-1)}
 .num-sub{margin-top:3px;color:var(--text-3);font-size:12px}
 .proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
@@ -1092,12 +1092,10 @@ h1{
     <div class="table-wrap">
       <table class="revenue-table">
         <colgroup>
-          <col style="width:25%">
-          <col style="width:16%">
-          <col style="width:16%">
-          <col style="width:16%">
-          <col style="width:14%">
-          <col style="width:13%">
+          <col style="width:34%">
+          <col style="width:24%">
+          <col style="width:21%">
+          <col style="width:21%">
         </colgroup>
         <thead>
           <tr>
@@ -1105,12 +1103,10 @@ h1{
             <th>Protocol revenue</th>
             <th>Borrow interest</th>
             <th>Lender payments</th>
-            <th>Protocol cut</th>
-            <th>% of protocol total</th>
           </tr>
         </thead>
         <tbody id="chainRows">
-          <tr><td colspan="6" class="empty-state">Loading protocol revenue...</td></tr>
+          <tr><td colspan="4" class="empty-state">Loading protocol revenue...</td></tr>
         </tbody>
       </table>
     </div>
@@ -1465,8 +1461,8 @@ h1{
     if (key === "unpriced_tokens_omitted_immaterial") return "unpriced dust token omitted";
     return key.replace(/_/g, " ");
   }
-  function hasBerachainRevenueOverride(){
-    return allRows().some(row => (row.chains?.Berachain?.source || "") === "onchain-current-index-audit");
+  function hasOnchainRevenueOverrideForChain(chain){
+    return allRows().some(row => (row.chains?.[chain]?.source || "") === "onchain-current-index-audit");
   }
   function isDustOnlyAuditWarn(row){
     const warnReasons = Array.isArray(row?.warnReasons) ? row.warnReasons : [];
@@ -1487,7 +1483,7 @@ h1{
       return { status, label: auditStatusLabel(status), detail };
     }
     const rawStatus = String(row.status || "missing").toLowerCase();
-    if (!stale && chain === "Berachain" && hasBerachainRevenueOverride()) {
+    if (!stale && hasOnchainRevenueOverrideForChain(chain)) {
       return { status: "pass", label: auditStatusLabel("pass"), detail: `target ${target}` };
     }
     if (!stale && rawStatus === "warn" && isDustOnlyAuditWarn(row)) {
@@ -3174,8 +3170,6 @@ h1{
     if (!body) return;
     const rows = allRows();
     const selected = selectedRevenueRows(rows);
-    const sel = chainBrushSel();
-    const days = rangeDays(sel.from, sel.to);
     const totals = new Map();
     selected.forEach(row => {
       Object.entries(row.chains || {}).forEach(([chain, values]) => {
@@ -3190,33 +3184,22 @@ h1{
         item.supplySideRevenueUSD += n(values.supplySideRevenueUSD);
       });
     });
-    const totalRevenue = Array.from(totals.values()).reduce((sum, item) => sum + n(item.revenueUSD), 0);
     const chains = Array.from(totals.values()).sort((a,b) => n(b.revenueUSD) - n(a.revenueUSD));
     if (!chains.length) {
-      body.innerHTML = '<tr><td colspan="6" class="empty-state">No protocol revenue available for selected range.</td></tr>';
+      body.innerHTML = '<tr><td colspan="4" class="empty-state">No protocol revenue available for selected range.</td></tr>';
       return;
     }
     body.innerHTML = chains.map(row => {
-      const cut = n(row.feesUSD) > 0 ? n(row.revenueUSD) / n(row.feesUSD) : 0;
-      const share = totalRevenue > 0 ? n(row.revenueUSD) / totalRevenue : 0;
       const icon = chainIcon(row.chain);
       const abbr = chainAbbr(row.chain);
-      const rebate = n(row.borrowFeeRebateUSD);
-      const gross = n(row.grossRevenueUSD || row.revenueUSD);
-      const revenueSub = rebate > 0
-        ? `gross ${usdFull(gross)} · rebate ${usdFull(rebate)}`
-        : `${days}D net retained`;
       const badge = icon
         ? `<img src="${icon}" alt="" onerror="this.parentElement.classList.add('fallback');this.parentElement.textContent='${abbr}';">`
         : chainAbbr(row.chain);
-      const chainSub = `${abbr} · Dolomite revenue`;
       return `<tr>
-        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${esc(chainSub)}</div>${auditStatusHtml(row.chain)}</div></div></td>
-        <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="num-sub">${esc(revenueSub)}</div></div></td>
-        <td><div class="num-main">${usdFull(row.feesUSD)}</div><div class="num-sub">gross</div></td>
-        <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div><div class="num-sub">lender share</div></td>
-        <td><div class="num-main">${pct(cut)}</div><div class="num-sub">net retained</div></td>
-        <td><div class="num-main">${pct(share)}</div><div class="num-sub">of protocol total</div></td>
+        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div>${auditStatusHtml(row.chain)}</div></div></td>
+        <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div></div></td>
+        <td><div class="num-main">${usdFull(row.feesUSD)}</div></td>
+        <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div></td>
       </tr>`;
     }).join("");
   }
@@ -3382,7 +3365,7 @@ h1{
         if (text) text.textContent = "Revenue data unavailable";
       }
       const chainRows = qs("chainRows");
-      if (chainRows) chainRows.innerHTML = '<tr><td colspan="6" class="empty-state">Protocol revenue data could not be loaded.</td></tr>';
+      if (chainRows) chainRows.innerHTML = '<tr><td colspan="4" class="empty-state">Protocol revenue data could not be loaded.</td></tr>';
     });
 })();
 </script>

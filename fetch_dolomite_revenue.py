@@ -31,6 +31,7 @@ BORROW_FEE_REBATE_METADATA_URL = "https://api.dolomite.io/liquidity-mining/ve-do
 BORROW_FEE_REBATE_DOCS_URL = "https://docs.dolomite.io/dolo/borrow-fee-rebates"
 BERACHAIN_CHAIN_ID = "80094"
 BERACHAIN_CHAIN_NAME = "Berachain"
+ONCHAIN_REVENUE_OVERRIDE_CHAINS = {BERACHAIN_CHAIN_NAME, "Ethereum"}
 ONCHAIN_CURRENT_INDEX_SOURCE = "onchain-current-index-audit"
 BERACHAIN_COIN_CHAIN = "berachain"
 BERACHAIN_MARGIN_ADDRESS = "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D"
@@ -470,7 +471,7 @@ def recompute_revenue_row_from_chains(row):
     return row
 
 
-def usable_berachain_onchain_revenue_row(row):
+def usable_onchain_revenue_row(row):
     if not isinstance(row, dict):
         return False
     if str(row.get("status") or "").lower() not in {"pass", "warn"}:
@@ -488,29 +489,37 @@ def apply_onchain_revenue_overrides(series, onchain_audit, overrides_payload=Non
     if not overrides:
         return series
 
-    overrides_by_date = {row["date"]: row for row in overrides if row.get("chain") == BERACHAIN_CHAIN_NAME}
+    overrides_by_chain_date = {
+        (row["chain"], row["date"]): row
+        for row in overrides
+        if row.get("chain") in ONCHAIN_REVENUE_OVERRIDE_CHAINS
+    }
     for row in series:
-        override = overrides_by_date.get(row.get("date"))
-        if not override:
-            continue
+        changed = False
         chain_rows = row.setdefault("chains", {})
-        payload = chain_rows.setdefault(BERACHAIN_CHAIN_NAME, {})
-        defillama_fees = safe_number(payload.get("feesUSD"))
-        defillama_revenue = safe_number(payload.get("revenueUSD"))
-        fees = safe_number(override.get("feesUSD"))
-        revenue = safe_number(override.get("revenueUSD"))
-        payload.update({
-            "feesUSD": round(fees, 6),
-            "revenueUSD": round(revenue, 6),
-            "supplySideRevenueUSD": round(max(fees - revenue, 0.0), 6),
-            "protocolCut": round(revenue / fees, 8) if fees > 0 else 0,
-            "source": ONCHAIN_CURRENT_INDEX_SOURCE,
-            "defillamaFeesUSD": round(safe_number(override.get("defillamaFeesUSD")) or defillama_fees, 6),
-            "defillamaGrossRevenueUSD": round(safe_number(override.get("defillamaGrossRevenueUSD")) or defillama_revenue, 6),
-            "onchainAuditTargetDate": override.get("date"),
-            "onchainAuditGeneratedAt": override.get("auditGeneratedAt"),
-        })
-        recompute_revenue_row_from_chains(row)
+        for chain in ONCHAIN_REVENUE_OVERRIDE_CHAINS:
+            override = overrides_by_chain_date.get((chain, row.get("date")))
+            if not override:
+                continue
+            payload = chain_rows.setdefault(chain, {})
+            defillama_fees = safe_number(payload.get("feesUSD"))
+            defillama_revenue = safe_number(payload.get("revenueUSD"))
+            fees = safe_number(override.get("feesUSD"))
+            revenue = safe_number(override.get("revenueUSD"))
+            payload.update({
+                "feesUSD": round(fees, 6),
+                "revenueUSD": round(revenue, 6),
+                "supplySideRevenueUSD": round(max(fees - revenue, 0.0), 6),
+                "protocolCut": round(revenue / fees, 8) if fees > 0 else 0,
+                "source": ONCHAIN_CURRENT_INDEX_SOURCE,
+                "defillamaFeesUSD": round(safe_number(override.get("defillamaFeesUSD")) or defillama_fees, 6),
+                "defillamaGrossRevenueUSD": round(safe_number(override.get("defillamaGrossRevenueUSD")) or defillama_revenue, 6),
+                "onchainAuditTargetDate": override.get("date"),
+                "onchainAuditGeneratedAt": override.get("auditGeneratedAt"),
+            })
+            changed = True
+        if changed:
+            recompute_revenue_row_from_chains(row)
     return series
 
 
@@ -645,23 +654,29 @@ def load_onchain_revenue_overrides(path=ONCHAIN_REVENUE_OVERRIDES_FILE):
 
 def onchain_audit_to_revenue_override(onchain_audit):
     if not isinstance(onchain_audit, dict):
-        return None
+        return []
     target_date = onchain_audit.get("targetDate")
-    berachain_audit = (onchain_audit.get("chains") or {}).get(BERACHAIN_CHAIN_NAME)
-    if not target_date or not usable_berachain_onchain_revenue_row(berachain_audit):
-        return None
-    return {
-        "chain": BERACHAIN_CHAIN_NAME,
-        "date": target_date,
-        "feesUSD": round(safe_number(berachain_audit.get("feesUSD")), 6),
-        "revenueUSD": round(safe_number(berachain_audit.get("revenueUSD")), 6),
-        "defillamaFeesUSD": round(safe_number(berachain_audit.get("defillamaFeesUSD")), 6),
-        "defillamaGrossRevenueUSD": round(safe_number(berachain_audit.get("defillamaRevenueUSD")), 6),
-        "source": ONCHAIN_CURRENT_INDEX_SOURCE,
-        "auditGeneratedAt": onchain_audit.get("generatedAt"),
-        "priceFallbackCount": int(berachain_audit.get("priceFallbackCount") or 0),
-        "rawTokenCount": int(berachain_audit.get("rawTokenCount") or 0),
-    }
+    if not target_date:
+        return []
+    current = []
+    chains = onchain_audit.get("chains") or {}
+    for chain in sorted(ONCHAIN_REVENUE_OVERRIDE_CHAINS):
+        chain_audit = chains.get(chain)
+        if not usable_onchain_revenue_row(chain_audit):
+            continue
+        current.append({
+            "chain": chain,
+            "date": target_date,
+            "feesUSD": round(safe_number(chain_audit.get("feesUSD")), 6),
+            "revenueUSD": round(safe_number(chain_audit.get("revenueUSD")), 6),
+            "defillamaFeesUSD": round(safe_number(chain_audit.get("defillamaFeesUSD")), 6),
+            "defillamaGrossRevenueUSD": round(safe_number(chain_audit.get("defillamaRevenueUSD")), 6),
+            "source": ONCHAIN_CURRENT_INDEX_SOURCE,
+            "auditGeneratedAt": onchain_audit.get("generatedAt"),
+            "priceFallbackCount": int(chain_audit.get("priceFallbackCount") or 0),
+            "rawTokenCount": int(chain_audit.get("rawTokenCount") or 0),
+        })
+    return current
 
 
 def normalized_onchain_revenue_overrides(overrides_payload, onchain_audit=None):
@@ -672,13 +687,14 @@ def normalized_onchain_revenue_overrides(overrides_payload, onchain_audit=None):
     for row in rows:
         if not isinstance(row, dict):
             continue
-        if row.get("chain") != BERACHAIN_CHAIN_NAME or row.get("source") != ONCHAIN_CURRENT_INDEX_SOURCE:
+        chain = row.get("chain")
+        if chain not in ONCHAIN_REVENUE_OVERRIDE_CHAINS or row.get("source") != ONCHAIN_CURRENT_INDEX_SOURCE:
             continue
         date = row.get("date")
         if not date or safe_number(row.get("feesUSD")) <= 0:
             continue
-        by_key[(BERACHAIN_CHAIN_NAME, date)] = {
-            "chain": BERACHAIN_CHAIN_NAME,
+        by_key[(chain, date)] = {
+            "chain": chain,
             "date": date,
             "feesUSD": round(safe_number(row.get("feesUSD")), 6),
             "revenueUSD": round(safe_number(row.get("revenueUSD")), 6),
@@ -690,10 +706,9 @@ def normalized_onchain_revenue_overrides(overrides_payload, onchain_audit=None):
             "rawTokenCount": int(row.get("rawTokenCount") or 0),
         }
 
-    current = onchain_audit_to_revenue_override(onchain_audit)
-    if current:
+    for current in onchain_audit_to_revenue_override(onchain_audit):
         by_key[(current["chain"], current["date"])] = current
-    return [by_key[key] for key in sorted(by_key, key=lambda item: item[1])]
+    return [by_key[key] for key in sorted(by_key, key=lambda item: (item[1], item[0]))]
 
 
 def merge_onchain_revenue_override_history(overrides_payload, onchain_audit):
@@ -701,7 +716,7 @@ def merge_onchain_revenue_override_history(overrides_payload, onchain_audit):
     return {
         "schemaVersion": 1,
         "generatedAt": utc_now_iso(),
-        "source": "Berachain current-index onchain revenue audit overrides",
+        "source": "current-index onchain revenue audit overrides",
         "overrides": overrides,
     }
 
@@ -958,7 +973,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
     return {
         "schemaVersion": 2,
         "protocol": "Dolomite",
-        "source": "DeFiLlama fees adapter with Berachain current-index onchain overrides",
+        "source": "DeFiLlama fees adapter with current-index onchain overrides",
         "sourceUrls": {
             "dailyRevenue": f"{BASE_URL}?dataType=dailyRevenue",
             "dailyFees": f"{BASE_URL}?dataType=dailyFees",
@@ -978,10 +993,10 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "borrowFeeRebates": "Claimable veDOLO borrow-fee rebates for closed weekly epochs, read from Berachain rolling-claims Merkle root totals and allocated across the earning period by daily borrow-interest share.",
             "supplySideRevenue": "The portion of borrower interest paid to lenders.",
             "formula": "grossRevenue = interestEarned * (1 - earningsRate); revenue = grossRevenue - borrowFeeRebates; supplySideRevenue = dailyFees - grossRevenue",
-            "scope": "Dolomite borrow-interest economics from the DeFiLlama adapter, with Berachain replaced by independent current-index onchain audit rows when available. Gas fees, token emissions, treasury transfers, trading spreads, liquidator earnings and protocol liquidation-rake attribution are excluded.",
+            "scope": "Dolomite borrow-interest economics from the DeFiLlama adapter, with audited Ethereum and Berachain rows replaced by independent current-index onchain audit rows when available. Gas fees, token emissions, treasury transfers, trading spreads, liquidator earnings and protocol liquidation-rake attribution are excluded.",
             "sourceLimitations": [
                 "DeFiLlama adapter estimates daily interest from borrow index movement and borrowed principal snapshots.",
-                "Berachain uses the independent current-index onchain audit for audited daily rows, because it better reflects accrued borrow interest than cached adapter indexes.",
+                "Ethereum and Berachain use the independent current-index onchain audit for audited daily rows, because it better reflects accrued borrow interest than cached adapter indexes.",
                 "This is protocol-retained borrow interest, not a direct treasury cashflow audit.",
                 "Current unfinalized rebate epochs remain gross until the weekly claim data is published onchain.",
                 "Current-day values can be revised by DeFiLlama until the adapter window fully settles.",
@@ -992,6 +1007,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "confidence": "high for retained borrow-interest direction/split when the independent onchain audit is pass; warn/stale audit states should be treated as data-quality caveats",
             "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest",
             "berachainRevenueSource": "current-index onchain audit for audited daily rows; DeFiLlama adapter fallback outside audited coverage",
+            "onchainOverrideRevenueSource": "current-index onchain audit for audited Ethereum/Berachain daily rows; DeFiLlama adapter fallback outside audited coverage",
             "netRevenueAfterBorrowFeeRebates": "closed-epoch Berachain veDOLO borrow-fee rebates are netted from displayed revenue; active/unpublished epochs remain gross",
             "borrowFeeRebateStatus": borrow_fee_rebate_status(rebate_metadata),
             **onchain_audit_assurance(onchain_audit, now=now),
