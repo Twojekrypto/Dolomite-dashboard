@@ -112,7 +112,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("liquidatorEarningsAllTimeUSD", output["totals"])
         self.assertEqual(output["assurance"]["classification"], "hybrid adapter/current-index protocol borrow-interest revenue")
         self.assertEqual(output["assurance"]["berachainRevenueSource"], "current-index onchain audit for audited daily rows; DeFiLlama adapter fallback outside audited coverage")
-        self.assertTrue(any("Berachain uses the independent current-index onchain audit" in item for item in output["methodology"]["sourceLimitations"]))
+        self.assertEqual(output["assurance"]["onchainOverrideRevenueSource"], "current-index onchain audit for audited Ethereum/Berachain daily rows; DeFiLlama adapter fallback outside audited coverage")
+        self.assertTrue(any("Ethereum and Berachain use the independent current-index onchain audit" in item for item in output["methodology"]["sourceLimitations"]))
         self.assertTrue(any("Current unfinalized rebate epochs remain gross until the weekly claim data is published" in item for item in output["methodology"]["sourceLimitations"]))
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
@@ -248,6 +249,58 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
+    def test_build_output_uses_ethereum_current_index_audit_values(self):
+        revenue_data = metric_payload_with_berachain(
+            total24h=100,
+            latest_value=100,
+            step=2,
+            latest_berachain_value=20,
+        )
+        fees_data = metric_payload_with_berachain(
+            total24h=500,
+            latest_value=500,
+            step=10,
+            latest_berachain_value=100,
+        )
+        target_timestamp = START_TS + 30 * DAY_SECONDS
+        target_date = datetime.fromtimestamp(target_timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={
+                "status": "warn",
+                "generatedAt": "2026-06-25T09:00:00Z",
+                "targetDate": target_date,
+                "chains": {
+                    "Ethereum": {
+                        "status": "warn",
+                        "feesUSD": 360.0,
+                        "revenueUSD": 72.0,
+                        "defillamaFeesUSD": 400.0,
+                        "defillamaRevenueUSD": 80.0,
+                        "revenueDiffPct": 0.1,
+                        "feesDiffPct": 0.1,
+                        "warnReasons": ["fees_diff_exceeds_tolerance", "revenue_diff_exceeds_tolerance"],
+                    }
+                },
+            },
+        )
+
+        eth = output["latest"]["chains"]["Ethereum"]
+        self.assertEqual(eth["feesUSD"], 360.0)
+        self.assertEqual(eth["grossRevenueUSD"], 72.0)
+        self.assertEqual(eth["revenueUSD"], 72.0)
+        self.assertEqual(eth["defillamaFeesUSD"], 400.0)
+        self.assertEqual(eth["defillamaGrossRevenueUSD"], 80.0)
+        self.assertEqual(eth["source"], "onchain-current-index-audit")
+        self.assertEqual(output["latest"]["feesUSD"], 460.0)
+        self.assertEqual(output["latest"]["grossRevenueUSD"], 92.0)
+        self.assertEqual(output["latest"]["revenueUSD"], 92.0)
+        self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+
     def test_build_output_uses_saved_berachain_onchain_override_history(self):
         revenue_data = metric_payload_with_berachain(
             total24h=100,
@@ -289,6 +342,49 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+
+    def test_build_output_uses_saved_ethereum_onchain_override_history(self):
+        revenue_data = metric_payload_with_berachain(
+            total24h=100,
+            latest_value=100,
+            step=2,
+            latest_berachain_value=20,
+        )
+        fees_data = metric_payload_with_berachain(
+            total24h=500,
+            latest_value=500,
+            step=10,
+            latest_berachain_value=100,
+        )
+        target_timestamp = START_TS + 29 * DAY_SECONDS
+        target_date = datetime.fromtimestamp(target_timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={},
+            onchain_revenue_overrides={
+                "schemaVersion": 1,
+                "overrides": [{
+                    "chain": "Ethereum",
+                    "date": target_date,
+                    "feesUSD": 360.0,
+                    "revenueUSD": 72.0,
+                    "defillamaFeesUSD": 400.0,
+                    "defillamaGrossRevenueUSD": 80.0,
+                    "source": "onchain-current-index-audit",
+                }],
+            },
+        )
+
+        eth = output["series"][29]["chains"]["Ethereum"]
+        self.assertEqual(eth["feesUSD"], 360.0)
+        self.assertEqual(eth["grossRevenueUSD"], 72.0)
+        self.assertEqual(eth["source"], "onchain-current-index-audit")
+        self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+
 
     def test_build_output_embeds_berachain_borrow_fee_rebate_metadata(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
@@ -474,7 +570,17 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("DeFiLlama gross + rebate netting", html)
         self.assertNotIn("onchain audit STALE", html)
         self.assertIn("Net Borrow Revenue", html)
-        self.assertIn("gross ${usdFull(gross)}", html)
+        self.assertNotIn("<th>Protocol cut</th>", html)
+        self.assertNotIn("<th>% of protocol total</th>", html)
+        self.assertIn('<tr><td colspan="4" class="empty-state">Loading protocol revenue...</td></tr>', html)
+        self.assertIn('No protocol revenue available for selected range.', html)
+        self.assertIn('Protocol revenue data could not be loaded.', html)
+        self.assertNotIn('<div class="num-sub">gross</div>', html)
+        self.assertNotIn('<div class="num-sub">lender share</div>', html)
+        self.assertNotIn('<div class="num-sub">net retained</div>', html)
+        self.assertNotIn('<div class="num-sub">of protocol total</div>', html)
+        self.assertNotIn('chainSub = `${abbr} · Dolomite revenue`', html)
+        self.assertIn(".revenue-primary{font-family:var(--mono);font-size:14px;font-weight:900;color:#75b87b", html)
         self.assertIn('id="veBorrowPanel"', html)
         self.assertIn('id="veBorrowChart"', html)
         self.assertIn('id="veBorrowBrushWrap"', html)
@@ -492,7 +598,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("Pending rebate data", html)
         self.assertIn("Striped bars = pending veBorrow rebate data, not zero savings", html)
         self.assertIn("renderVeBorrowChart", html)
-        self.assertIn("hasBerachainRevenueOverride", html)
+        self.assertIn("hasOnchainRevenueOverrideForChain", html)
         self.assertIn("isDustOnlyAuditWarn", html)
         self.assertNotIn("current-index onchain", html)
         self.assertIn("Dolomite revenue", html)
@@ -630,7 +736,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("revenue-share-track", html)
         self.assertNotIn("shareWidth", html)
         self.assertIn(
-            '<td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div><div class="num-sub">${esc(revenueSub)}</div></div></td>',
+            '<td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div></div></td>',
             html,
         )
 
