@@ -11,6 +11,7 @@ from fetch_dolomite_revenue import (
     build_output,
     expected_onchain_audit_target_date,
     onchain_audit_assurance,
+    preserve_previous_borrow_fee_rebate_data,
 )
 from validate_data import (
     RULES,
@@ -508,6 +509,72 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertAlmostEqual(day_30["borrowFeeRebateUSD"], 70.0, places=6)
         self.assertAlmostEqual(day_29["revenueUSD"], 90.0, places=6)
         self.assertAlmostEqual(day_30["revenueUSD"], 10.0, places=6)
+        self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+
+    def test_missing_rebate_fetch_preserves_previous_closed_epochs(self):
+        revenue_data = metric_payload_with_berachain(
+            total24h=100,
+            latest_value=100,
+            step=2,
+            latest_berachain_value=20,
+        )
+        fees_data = metric_payload_with_berachain(
+            total24h=500,
+            latest_value=500,
+            step=10,
+            latest_berachain_value=100,
+        )
+        latest_ts = START_TS + 30 * DAY_SECONDS
+        previous_output = {
+            "generatedAt": "2026-06-20T12:00:00Z",
+            "borrowFeeRebates": {
+                "status": "active",
+                "netting": "netted_closed_epochs",
+                "dataGeneratedAt": "2026-06-20T11:59:00Z",
+                "chains": {
+                    "Berachain": {
+                        "status": "active",
+                        "source": "FeeRebateRollingClaims.MarketIdToMerkleRootSet",
+                        "eventCount": 3,
+                        "pricedEventCount": 3,
+                        "missingPriceCount": 0,
+                        "priceFallbackCount": 0,
+                        "latestRebateDate": datetime.fromtimestamp(latest_ts + DAY_SECONDS, tz=timezone.utc).strftime("%Y-%m-%d"),
+                        "epochRebates": [{
+                            "epoch": 1,
+                            "periodStartTimestamp": latest_ts,
+                            "periodEndTimestamp": latest_ts + DAY_SECONDS,
+                            "rebateUSD": 5.0,
+                            "marketCount": 2,
+                        }],
+                    }
+                },
+            },
+        }
+
+        rebate_data = preserve_previous_borrow_fee_rebate_data(
+            {
+                "status": "missing",
+                "error": "TimeoutError: RPC unavailable",
+                "chains": {"Berachain": {"status": "missing", "error": "TimeoutError: RPC unavailable"}},
+            },
+            previous_output,
+        )
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={},
+            borrow_fee_rebate_metadata=borrow_fee_rebate_metadata(),
+            borrow_fee_rebate_data=rebate_data,
+        )
+
+        self.assertEqual(output["borrowFeeRebates"]["dataStatus"], "fallback_previous_closed_epochs")
+        self.assertEqual(output["borrowFeeRebates"]["chains"]["Berachain"]["totalRebateUSD"], 5)
+        self.assertEqual(output["latest"]["borrowFeeRebateUSD"], 5)
+        self.assertEqual(output["latest"]["revenueUSD"], 95)
+        self.assertEqual(output["assurance"]["borrowFeeRebateStatus"], "active_netted_closed_epochs")
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))

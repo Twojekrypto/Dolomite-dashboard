@@ -643,6 +643,78 @@ def load_onchain_audit(path=ONCHAIN_AUDIT_FILE):
     return payload if isinstance(payload, dict) else None
 
 
+def load_existing_revenue_output(path=OUTPUT_FILE):
+    try:
+        with open(path) as f:
+            payload = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def borrow_fee_rebate_epoch_rows(payload, chain=BERACHAIN_CHAIN_NAME):
+    chains = payload.get("chains") if isinstance(payload, dict) else None
+    chain_payload = chains.get(chain) if isinstance(chains, dict) else None
+    rows = chain_payload.get("epochRebates") if isinstance(chain_payload, dict) else None
+    return [row for row in rows if isinstance(row, dict)] if isinstance(rows, list) else []
+
+
+def borrow_fee_rebate_epoch_total(payload, chain=BERACHAIN_CHAIN_NAME):
+    return round(sum(safe_number(row.get("rebateUSD")) for row in borrow_fee_rebate_epoch_rows(payload, chain)), 6)
+
+
+def previous_borrow_fee_rebate_data(previous_output):
+    rebates = previous_output.get("borrowFeeRebates") if isinstance(previous_output, dict) else None
+    if not isinstance(rebates, dict) or borrow_fee_rebate_epoch_total(rebates) <= 0:
+        return None
+
+    chain_payload = (rebates.get("chains") or {}).get(BERACHAIN_CHAIN_NAME)
+    if not isinstance(chain_payload, dict):
+        return None
+
+    epoch_rebates = json.loads(json.dumps(borrow_fee_rebate_epoch_rows(rebates)))
+    previous_generated_at = previous_output.get("generatedAt") or rebates.get("dataGeneratedAt")
+    fallback_chain = {
+        "status": "fallback_previous_closed_epochs",
+        "source": chain_payload.get("source") or FEE_REBATE_EVENT_SOURCE,
+        "chainId": int(BERACHAIN_CHAIN_ID),
+        "feeRebateClaimer": chain_payload.get("feeRebateClaimer") or FEE_REBATE_CLAIMER_ADDRESS,
+        "feeRebateRollingClaims": chain_payload.get("feeRebateRollingClaims") or FEE_REBATE_ROLLING_CLAIMS_ADDRESS,
+        "eventCount": int(chain_payload.get("eventCount") or 0),
+        "pricedEventCount": int(chain_payload.get("pricedEventCount") or 0),
+        "missingPriceCount": int(chain_payload.get("missingPriceCount") or 0),
+        "priceFallbackCount": int(chain_payload.get("priceFallbackCount") or 0),
+        "latestRebateDate": chain_payload.get("latestRebateDate"),
+        "epochRebates": epoch_rebates,
+        "fallbackFromGeneratedAt": previous_generated_at,
+    }
+    return {
+        "status": "fallback_previous_closed_epochs",
+        "source": fallback_chain["source"],
+        "generatedAt": rebates.get("dataGeneratedAt") or previous_generated_at,
+        "fallbackFromGeneratedAt": previous_generated_at,
+        "fallbackReason": "current_rebate_fetch_has_no_closed_epochs",
+        "chains": {BERACHAIN_CHAIN_NAME: fallback_chain},
+    }
+
+
+def preserve_previous_borrow_fee_rebate_data(current_rebate_data, previous_output):
+    if borrow_fee_rebate_epoch_total(current_rebate_data) > 0:
+        return current_rebate_data
+
+    fallback = previous_borrow_fee_rebate_data(previous_output)
+    if not fallback:
+        return current_rebate_data
+
+    current_payload = current_rebate_data if isinstance(current_rebate_data, dict) else {}
+    current_chain = (current_payload.get("chains") or {}).get(BERACHAIN_CHAIN_NAME, {})
+    fallback["fallbackCurrentStatus"] = current_payload.get("status")
+    fallback["fallbackCurrentError"] = current_payload.get("error")
+    fallback["chains"][BERACHAIN_CHAIN_NAME]["fallbackCurrentStatus"] = current_chain.get("status")
+    fallback["chains"][BERACHAIN_CHAIN_NAME]["fallbackCurrentError"] = current_chain.get("error")
+    return fallback
+
+
 def load_onchain_revenue_overrides(path=ONCHAIN_REVENUE_OVERRIDES_FILE):
     try:
         with open(path) as f:
@@ -1024,10 +1096,16 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
 def main():
     print("Fetching Dolomite revenue data...")
     try:
+        previous_output = load_existing_revenue_output()
         revenue_data = fetch_metric("dailyRevenue")
         fees_data = fetch_metric("dailyFees")
         rebate_metadata = fetch_borrow_fee_rebate_metadata()
-        rebate_data = fetch_borrow_fee_rebate_data()
+        rebate_data = preserve_previous_borrow_fee_rebate_data(
+            fetch_borrow_fee_rebate_data(),
+            previous_output,
+        )
+        if rebate_data.get("status") == "fallback_previous_closed_epochs":
+            print("   Borrow fee rebate fetch unavailable; preserving previous closed-epoch rebate data")
         onchain_audit = load_onchain_audit()
         onchain_revenue_overrides = merge_onchain_revenue_override_history(
             load_onchain_revenue_overrides(),
