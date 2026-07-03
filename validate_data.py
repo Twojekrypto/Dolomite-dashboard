@@ -24,7 +24,7 @@ def _is_iso_datetime(value):
         return False
 
 
-EXPECTED_TVL_CHAINS = {
+ALL_TVL_CHAINS = {
     "Ethereum",
     "Berachain",
     "Botanix",
@@ -33,6 +33,10 @@ EXPECTED_TVL_CHAINS = {
     "Arbitrum",
     "X Layer",
 }
+RETIRED_TVL_CHAINS = {"Polygon zkEVM"}
+EXPECTED_TVL_CHAINS = ALL_TVL_CHAINS - RETIRED_TVL_CHAINS
+EXPECTED_ASSETS_LIVE_CHAIN_COUNT = 6
+RETIRED_ASSETS_LIVE_CHAINS = {"polygonzkevm"}
 ODOLO_FUTURE_REWARDS_WALLET = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
 NON_CHAIN_TVL_KEYS = {
     "borrowed",
@@ -248,6 +252,26 @@ def _has_expected_tvl_chains(data):
     return EXPECTED_TVL_CHAINS.issubset(set(_current_chain_tvls(data)))
 
 
+def _has_expected_tvl_retired_chains(data):
+    active = set(_current_chain_tvls(data))
+    retired = set(data.get("retiredChains", []))
+    return RETIRED_TVL_CHAINS.issubset(active | retired)
+
+
+def _has_expected_assets_live_chains(data):
+    try:
+        chain_count = int(data.get("chainCount"))
+    except (TypeError, ValueError):
+        return False
+    return chain_count >= EXPECTED_ASSETS_LIVE_CHAIN_COUNT and len(data.get("chains", [])) >= EXPECTED_ASSETS_LIVE_CHAIN_COUNT
+
+
+def _has_expected_assets_live_retired_chains(data):
+    active = set(data.get("chains", []))
+    retired = set(data.get("retiredChains", []))
+    return RETIRED_ASSETS_LIVE_CHAINS.issubset(active | retired)
+
+
 def _dolomite_tvl_totals_reconcile(data):
     chains = _current_chain_tvls(data)
     borrowed = _borrowed_chain_tvls(data)
@@ -294,7 +318,7 @@ def _dolomite_chain_meta_complete(data):
 
 def _dolomite_stale_chains_known(data):
     stale = set(data.get("staleChains", []))
-    return stale.issubset(EXPECTED_TVL_CHAINS)
+    return stale.issubset(ALL_TVL_CHAINS)
 
 
 def _defillama_history_valid(data):
@@ -750,6 +774,7 @@ RULES = {
             ("totalTvl must be positive", lambda d: d.get("totalTvl", 0) > 0),
             ("last_updated must be fresh", lambda d: _fresh_timestamp(d.get("last_updated"))),
             ("all expected TVL chains must be present", _has_expected_tvl_chains),
+            ("retired TVL chains must be recorded", _has_expected_tvl_retired_chains),
             ("chain metadata must be complete", _dolomite_chain_meta_complete),
             ("stale chain list must be known chains only", _dolomite_stale_chains_known),
             ("TVL totals must reconcile", _dolomite_tvl_totals_reconcile),
@@ -850,7 +875,8 @@ RULES = {
             ("generatedAt must be ISO datetime", lambda d: _is_iso_datetime(d.get("generatedAt"))),
             ("rows must have entries", lambda d: len(d.get("rows", [])) >= 50),
             ("rowCount must match rows", lambda d: d.get("rowCount") == len(d.get("rows", []))),
-            ("all configured chains must be present", lambda d: d.get("chainCount") >= 7 and len(d.get("chains", [])) >= 7),
+            ("all active configured chains must be present", _has_expected_assets_live_chains),
+            ("retired chains must be recorded", _has_expected_assets_live_retired_chains),
         ],
         "min_bytes": 10_000,
     },
