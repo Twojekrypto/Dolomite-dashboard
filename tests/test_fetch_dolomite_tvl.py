@@ -5,6 +5,30 @@ import fetch_dolomite_tvl
 
 
 class FetchDolomiteTvlTest(unittest.TestCase):
+    def test_retired_polygon_failure_does_not_block_active_tvl_snapshot(self):
+        payloads = {
+            chain: {}
+            for chain in fetch_dolomite_tvl.ASSETS_CHAINS
+            if chain != "Polygon zkEVM"
+        }
+
+        failed, missing = fetch_dolomite_tvl.blocking_tvl_failures(["Polygon zkEVM"], payloads)
+
+        self.assertEqual([], failed)
+        self.assertEqual([], missing)
+
+    def test_active_chain_failure_still_blocks_tvl_snapshot(self):
+        payloads = {
+            chain: {}
+            for chain in fetch_dolomite_tvl.ASSETS_CHAINS
+            if chain != "Arbitrum"
+        }
+
+        failed, missing = fetch_dolomite_tvl.blocking_tvl_failures(["Arbitrum"], payloads)
+
+        self.assertEqual(["Arbitrum"], failed)
+        self.assertEqual(["Arbitrum"], missing)
+
     def test_snapshot_uses_official_token_amounts_and_price_map(self):
         payloads = {
             "Arbitrum": {

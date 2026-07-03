@@ -49,6 +49,11 @@ const LIVE_CHAINS = {
     subgraph: "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn",
   },
 };
+const RETIRED_CHAIN_KEYS = new Set(["polygonzkevm"]);
+
+function activeChainKeys() {
+  return Object.keys(LIVE_CHAINS).filter((chainKey) => !RETIRED_CHAIN_KEYS.has(chainKey));
+}
 
 const STABLE_SYMBOLS = new Set([
   "USDC", "USDT", "USDT0", "USD\u20ae0", "DAI", "USDC.E", "HONEY",
@@ -256,7 +261,7 @@ async function fetchMarketDepth() {
   }`;
   const out = {};
   await Promise.all(
-    Object.keys(LIVE_CHAINS).map(async (chainKey) => {
+    activeChainKeys().map(async (chainKey) => {
       const data = await graphQuery(chainKey, query);
       const indexes = {};
       for (const row of data.interestIndexes || []) {
@@ -403,7 +408,7 @@ async function fetchRateRowsForChainWithFallback(chainKey, previousSnapshot) {
 async function buildAssets() {
   const previousSnapshot = await loadPreviousAssetsSnapshot();
   const depthPromise = fetchMarketDepth();
-  const chainEntries = Object.keys(LIVE_CHAINS);
+  const chainEntries = activeChainKeys();
   const chainRows = await Promise.all(
     chainEntries.map((chainKey) => fetchRateRowsForChainWithFallback(chainKey, previousSnapshot)),
   );
@@ -461,6 +466,7 @@ async function buildAssets() {
     chainCount,
     rowCount: rows.length,
     chains: chainEntries,
+    retiredChains: Object.keys(LIVE_CHAINS).filter((chainKey) => RETIRED_CHAIN_KEYS.has(chainKey)),
     rateFallbackChains: fallbackChains,
     rateFallbackSourceGeneratedAt: fallbackSourceGeneratedAt,
     rateFallbackMaxAgeMinutes,

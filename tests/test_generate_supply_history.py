@@ -15,6 +15,11 @@ import generate_supply_history as gsh
 
 
 class GenerateSupplyHistoryTests(unittest.TestCase):
+    def test_default_chain_list_skips_retired_polygon_zkevm(self):
+        self.assertIn("polygon_zkevm", gsh.GRAPH_ENDPOINTS)
+        self.assertIn("polygon_zkevm", gsh.RETIRED_GRAPH_CHAINS)
+        self.assertNotIn("polygon_zkevm", gsh.DEFAULT_GRAPH_CHAINS)
+
     def test_fetch_error_reuses_existing_static_history(self):
         token_id = "0x912ce59144191c1204e64559fe8253a0e49e6548"
         token = {

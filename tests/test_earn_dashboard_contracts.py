@@ -114,6 +114,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("rateFallbackSourceGeneratedAt", source)
         self.assertIn("rateFallbackMaxAgeMinutes", source)
         self.assertIn("cached-rate-fallback", source)
+        self.assertIn('const RETIRED_CHAIN_KEYS = new Set(["polygonzkevm"]);', source)
+        self.assertIn("function activeChainKeys()", source)
+        self.assertIn("retiredChains", source)
 
     def test_assets_live_workflow_warns_on_stale_cached_rate_fallback(self):
         workflow = ASSETS_LIVE_WORKFLOW.read_text(encoding="utf-8")
@@ -265,12 +268,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/ethereum", workflow)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum", workflow)
 
-    def test_snapshot_workflow_builds_polygon_verified_ledger_cache(self):
+    def test_snapshot_workflow_skips_retired_polygon_verified_ledger_cache(self):
         workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Build Ethereum verified ledger cache", workflow)
-        self.assertIn("Build Polygon zkEVM verified ledger cache", workflow)
-        self.assertIn("--chain polygonzkevm", workflow)
-        self.assertIn("data/earn-verified-ledger/polygonzkevm/", workflow)
+        self.assertNotIn("Build Polygon zkEVM verified ledger cache", workflow)
+        self.assertNotIn("--chain polygonzkevm", workflow)
+        self.assertNotIn("data/earn-verified-ledger/polygonzkevm/", workflow)
 
     def test_coverage_report_can_resolve_live_target_block(self):
         source = EARN_COVERAGE_REPORT.read_text(encoding="utf-8")

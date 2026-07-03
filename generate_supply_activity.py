@@ -31,6 +31,8 @@ GRAPH_ENDPOINTS = {
     "xlayer": f"{DOLOMITE_SUPPLY_BASE}/dolomite-x-layer/latest/gn",
     "polygon_zkevm": f"{DOLOMITE_SUPPLY_BASE}/dolomite-polygon-zkevm/latest/gn",
 }
+RETIRED_GRAPH_CHAINS = {"polygon_zkevm"}
+DEFAULT_GRAPH_CHAINS = [chain for chain in GRAPH_ENDPOINTS if chain not in RETIRED_GRAPH_CHAINS]
 
 RECENT_ACTIVITY_DAYS = 30
 
@@ -550,7 +552,7 @@ def merge_manifest(existing_manifest: Optional[Dict[str, Any]], refreshed_result
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate static Dolomite Supply activity history")
     parser.add_argument("--out-dir", default="data/supply-activity")
-    parser.add_argument("--chains", default=os.environ.get("SUPPLY_ACTIVITY_CHAINS", ",".join(GRAPH_ENDPOINTS.keys())))
+    parser.add_argument("--chains", default=os.environ.get("SUPPLY_ACTIVITY_CHAINS", ",".join(DEFAULT_GRAPH_CHAINS)))
     parser.add_argument("--token-limit", type=int, default=int(os.environ.get("SUPPLY_ACTIVITY_TOKEN_LIMIT", "8")))
     parser.add_argument("--tokens", default=os.environ.get("SUPPLY_ACTIVITY_TOKENS", ""))
     parser.add_argument("--symbols", default=os.environ.get("SUPPLY_ACTIVITY_SYMBOLS", ",".join(sorted(DEFAULT_ACTIVITY_SYMBOLS))))
