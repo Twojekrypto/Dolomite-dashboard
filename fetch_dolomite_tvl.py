@@ -22,6 +22,12 @@ ASSETS_CHAINS = {
     "Polygon zkEVM": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn",
     "X Layer": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"
 }
+RETIRED_ASSETS_CHAINS = {"Polygon zkEVM"}
+ACTIVE_ASSETS_CHAINS = {
+    chain: endpoint
+    for chain, endpoint in ASSETS_CHAINS.items()
+    if chain not in RETIRED_ASSETS_CHAINS
+}
 
 DOLOMITE_TOKEN_API_CHAINS = {
     "Berachain": 80094,
@@ -327,6 +333,12 @@ def build_snapshot_from_token_liquidity(chain_payloads, clean_symbol_maps, now=N
     }
 
 
+def blocking_tvl_failures(failed_chains, chain_payloads):
+    failed = [chain for chain in failed_chains if chain not in RETIRED_ASSETS_CHAINS]
+    missing = sorted(set(ACTIVE_ASSETS_CHAINS) - set(chain_payloads))
+    return failed, missing
+
+
 def main():
     print("📡 Fetching official Dolomite TVL from token liquidity and price APIs...")
 
@@ -335,7 +347,7 @@ def main():
     price_maps = {}
     failed_chains = []
     
-    for chain_name, url in ASSETS_CHAINS.items():
+    for chain_name, url in ACTIVE_ASSETS_CHAINS.items():
         try:
             resp = requests.post(url, json={"query": QUERY}, timeout=20)
             resp.raise_for_status()
@@ -358,11 +370,11 @@ def main():
             print(f"⚠️ Failed to fetch {chain_name}: {e}")
             failed_chains.append(chain_name)
 
-    if failed_chains or len(chain_payloads) != len(ASSETS_CHAINS):
-        missing = sorted(set(ASSETS_CHAINS) - set(chain_payloads))
+    blocking_failed, missing = blocking_tvl_failures(failed_chains, chain_payloads)
+    if blocking_failed or missing:
         raise RuntimeError(
             "Refusing to write partial Dolomite TVL snapshot. "
-            f"failed={failed_chains}, missing={missing}"
+            f"failed={blocking_failed}, missing={missing}"
         )
 
     output = build_snapshot_from_official_liquidity(
@@ -371,6 +383,8 @@ def main():
         price_maps,
         now=datetime.now(timezone.utc),
     )
+    if RETIRED_ASSETS_CHAINS:
+        output["retiredChains"] = sorted(RETIRED_ASSETS_CHAINS)
 
     with open(OUTPUT_FILE, "w") as f:
         json.dump(output, f)

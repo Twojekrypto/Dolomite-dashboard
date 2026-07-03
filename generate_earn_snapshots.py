@@ -31,6 +31,8 @@ CHAINS = {
     "polygonzkevm": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn",
     "xlayer": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn",
 }
+RETIRED_CHAINS = {"polygonzkevm"}
+DEFAULT_CHAINS = [chain for chain in CHAINS if chain not in RETIRED_CHAINS]
 
 INTEREST_INDEXES_QUERY = """
 query InterestIndexes {
@@ -261,6 +263,8 @@ def main():
     parser = argparse.ArgumentParser(description="Generate EARN snapshots from Dolomite subgraphs")
     parser.add_argument("--chain", action="append", choices=sorted(CHAINS.keys()),
                         help="Specific chain to scan (repeatable). Defaults to all supported chains.")
+    parser.add_argument("--include-retired", action="store_true",
+                        help="Include retired chains when scanning all chains.")
     parser.add_argument("--date", default="",
                         help="Snapshot date in YYYY-MM-DD. Defaults to current UTC date.")
     parser.add_argument("--page-size", type=int, default=250,
@@ -269,7 +273,7 @@ def main():
 
     date_str = args.date or _utc_now().strftime("%Y-%m-%d")
     timestamp = _isoformat(_utc_now())
-    chains = args.chain or list(CHAINS.keys())
+    chains = args.chain or (list(CHAINS.keys()) if args.include_retired else list(DEFAULT_CHAINS))
 
     chain_snapshots = {}
     for chain in chains:
