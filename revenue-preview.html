@@ -1271,6 +1271,7 @@ h1{
   const BORROW_INTEREST_CHART_KEY = "borrowInterest";
   const VEBORROW_CHART_KEY = "veBorrow";
   const MIN_CHARTED_VEBORROW_REBATE_USD = 1;
+  const VEBORROW_CLAIM_PERIOD_DAYS = 7;
   const VEBORROW_SIM_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
   const VEBORROW_ELIGIBILITY_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
   const VEBORROW_WALLET_LABELS = window.cloneDoloAddressLabels
@@ -2502,6 +2503,7 @@ h1{
     return { rebatePercentage, rebatePercentagesByChain, veDoloHoldingFactor, doloPriceUSD, protocolReserveFactor, displayChains, eligibilityChains };
   }
   function veBorrowSimulationRows(selected, dayCount, config){
+    const claimPeriodScale = veBorrowClaimPeriodScale(dayCount || selected.length);
     return config.displayChains.map(chain => {
       const borrowInterestUSD = selected.reduce((sum, row) => sum + n(row.chains?.[chain]?.feesUSD), 0);
       const grossProtocolRevenueUSD = selected.reduce((sum, row) => sum + n(row.chains?.[chain]?.grossRevenueUSD ?? row.chains?.[chain]?.revenueUSD), 0);
@@ -2510,7 +2512,7 @@ h1{
       const eligibilityMaxUsersSavedUSD = borrowInterestUSD * veBorrowRebatePercentageForChain(chain, config);
       const maxUsersSavedUSD = eligibilityMaxUsersSavedUSD * revenueFactor;
       const simNetRevenueUSD = Math.max(grossProtocolRevenueUSD - maxUsersSavedUSD, 0);
-      const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * config.veDoloHoldingFactor;
+      const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * claimPeriodScale * config.veDoloHoldingFactor;
       const requiredLockedDolo = config.doloPriceUSD > 0 ? requiredVeDoloValueUSD / config.doloPriceUSD : 0;
       return {
         chain,
@@ -2525,6 +2527,13 @@ h1{
         requiredLockedDolo
       };
     }).sort((a,b) => n(b.borrowInterestUSD) - n(a.borrowInterestUSD));
+  }
+  function veBorrowClaimPeriodScale(dayCount){
+    // Official claim bot applies veDoloHoldingFactor to ONE finalized 7-day
+    // claim-period max rebate, not to an arbitrary selected range. Normalize
+    // the threshold to a single claim period using range-average interest.
+    const days = Math.max(1, n(dayCount));
+    return Math.min(1, VEBORROW_CLAIM_PERIOD_DAYS / days);
   }
   function veBorrowSelectedBorrowInterestByChain(selected, chains){
     return (chains || VEBORROW_SIM_CHAINS).reduce((acc, chain) => {
@@ -2548,6 +2557,7 @@ h1{
   function veBorrowCurrentSimulationRows(selected, config){
     const borrowers = Array.isArray(veBorrowSimulationData?.borrowers) ? veBorrowSimulationData.borrowers : [];
     const displayChainSet = new Set(config.displayChains);
+    const claimPeriodScale = veBorrowClaimPeriodScale(selected.length);
     const borrowInterestByChain = veBorrowSelectedBorrowInterestByChain(selected, config.eligibilityChains);
     const revenueFactorByChain = veBorrowSelectedRevenueFactorByChain(selected, config.eligibilityChains, config);
     const debtTotals = config.eligibilityChains.reduce((acc, chain) => {
@@ -2597,7 +2607,7 @@ h1{
         }
       });
       if (displayMaxUsersSavedUSD <= 0 || eligibilityMaxUsersSavedUSD <= 0) return;
-      const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * config.veDoloHoldingFactor;
+      const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * claimPeriodScale * config.veDoloHoldingFactor;
       const requiredLockedDolo = config.doloPriceUSD > 0 ? requiredVeDoloValueUSD / config.doloPriceUSD : 0;
       const veDoloVoteWeight = n(row.veDoloVoteWeight);
       const veDoloValueUSD = veDoloVoteWeight * config.doloPriceUSD;
@@ -2610,7 +2620,7 @@ h1{
         chains[chain].maxUsersSavedUSD += n(values.maxUsersSavedUSD);
         chains[chain].eligibilityMaxUsersSavedUSD += n(values.eligibilityMaxUsersSavedUSD);
         chains[chain].currentVeDoloSavedUSD += chainSaved;
-        chains[chain].requiredLockedDolo += n(values.eligibilityMaxUsersSavedUSD) * config.veDoloHoldingFactor / Math.max(config.doloPriceUSD, 1e-18);
+        chains[chain].requiredLockedDolo += n(values.eligibilityMaxUsersSavedUSD) * claimPeriodScale * config.veDoloHoldingFactor / Math.max(config.doloPriceUSD, 1e-18);
         if (veDoloVoteWeight > 0) chains[chain].borrowersWithVeDoloCount += 1;
       });
       wallets.push({
@@ -2971,7 +2981,7 @@ h1{
       const eligibilityText = config.eligibilityChains.join(" + ");
       rangeEl.textContent = veBorrowSimulationMode === "current"
         ? `Simulation + active baseline · ${rangeText} · ${displayChainLabel} · current on-chain veDOLO votes · eligibility includes ${eligibilityText}.`
-        : `Simulation + active baseline · ${rangeText} · ${displayChainLabel} · assumes every borrower reaches max ${rebateLabel} rebate · ${config.veDoloHoldingFactor.toFixed(1).replace(".0", "")}x veDOLO threshold.`;
+        : `Simulation + active baseline · ${rangeText} · ${displayChainLabel} · assumes every borrower reaches max ${rebateLabel} rebate · ${config.veDoloHoldingFactor.toFixed(1).replace(".0", "")}x veDOLO threshold per 7d claim period.`;
     }
     if (priceEl) {
       priceEl.textContent = config.doloPriceUSD > 0
@@ -2989,7 +2999,7 @@ h1{
       } else {
         cardsEl.innerHTML = `
           <div class="veborrow-sim-card primary"><span>Max users saved</span><b>${usdFull(totals.maxUsersSavedUSD)}</b><small>after protocol revenue factor</small></div>
-          <div class="veborrow-sim-card"><span>Required locked DOLO</span><b>${config.doloPriceUSD > 0 ? tokenCompact(totals.requiredLockedDolo, " DOLO") : "-"}</b><small>${rebateLabel} threshold value</small></div>
+          <div class="veborrow-sim-card"><span>Required locked DOLO</span><b>${config.doloPriceUSD > 0 ? tokenCompact(totals.requiredLockedDolo, " DOLO") : "-"}</b><small>${rebateLabel} · per 7d claim period</small></div>
           <div class="veborrow-sim-card"><span>Borrow interest</span><b>${usdFull(totals.borrowInterestUSD)}</b><small>${dayCount.toLocaleString("en-US")} selected daily bars</small></div>
           <div class="veborrow-sim-card"><span>Sim net revenue</span><b>${usdFull(totals.simNetRevenueUSD)}</b><small>after max user savings</small></div>
         `;
@@ -3022,7 +3032,7 @@ h1{
           <td><div class="num-main">${usdFull(row.borrowInterestUSD)}</div><div class="num-sub">${n(row.borrowerCount).toLocaleString("en-US")} current borrowers</div></td>
           <td><div class="num-main">${usdFull(row.currentVeDoloSavedUSD)}</div><div class="num-sub">${n(row.borrowersWithVeDoloCount).toLocaleString("en-US")} borrowers with veDOLO</div></td>
           <td><div class="num-main">${usdFull(row.maxUsersSavedUSD)}</div><div class="num-sub">after revenue factor</div></td>
-          <td><div class="num-main">${pct(row.coverageRatio)}</div><div class="num-sub">${config.doloPriceUSD > 0 ? tokenCompact(row.requiredLockedDolo, " veDOLO") : "price unavailable"} chain threshold</div></td>
+          <td><div class="num-main">${pct(row.coverageRatio)}</div><div class="num-sub">${config.doloPriceUSD > 0 ? tokenCompact(row.requiredLockedDolo, " veDOLO") : "price unavailable"} 7d claim threshold</div></td>
         </tr>`;
       }
       return `<tr>
