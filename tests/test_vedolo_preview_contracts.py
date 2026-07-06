@@ -28,6 +28,32 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
     def test_vedolo_route_busts_preview_cache_for_expiry_search(self):
         self.assertIn("expiry-search-20260610", self.route)
 
+    def test_expired_claimable_vedolo_table_contract(self):
+        self.assertIn("Expired Claimable veDOLO", self.html)
+        self.assertIn('id="q-claimable"', self.html)
+        self.assertIn('id="claimable-table"', self.html)
+        self.assertIn('id="claimable-body"', self.html)
+        self.assertIn('id="claimable-info"', self.html)
+        self.assertIn('id="claimable-pager"', self.html)
+        self.assertIn("function buildExpiredClaimableRows()", self.html)
+        self.assertIn("end <= nowSec", self.html)
+        self.assertIn("function renderExpiredClaimable()", self.html)
+        self.assertIn("renderExpiredClaimable();", self.html)
+        self.assertIn("Ready to claim", self.html)
+
+    def test_expired_claimable_table_reuses_holder_ux_contracts(self):
+        self.assertIn("#claimable-table{table-layout:fixed;min-width:920px}", self.html)
+        self.assertIn("#claimable-table .holder-wallet", self.html)
+        self.assertIn("#claimable-table .holder-toggle", self.html)
+        self.assertIn('data-claimable-id="${esc(row.id)}"', self.html)
+        self.assertIn("tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 7)", self.html)
+        self.assertIn("syncSortHeader(\"#claimable-table\", st.sort, st.asc);", self.html)
+        self.assertIn("claimable:state.claimable", self.html)
+        self.assertIn('table === "claimable-table"', self.html)
+
+    def test_vedolo_route_busts_preview_cache_for_claimable_table(self):
+        self.assertIn("expired-claimable-20260706", self.route)
+
 
 if __name__ == "__main__":
     unittest.main()

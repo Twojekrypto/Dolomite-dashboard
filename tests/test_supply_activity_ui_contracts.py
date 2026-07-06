@@ -51,6 +51,19 @@ class SupplyActivityUiContractsTest(unittest.TestCase):
         self.assertIn("body.supply-draft-route #supply-table .known-address-label", css)
         self.assertIn("body.supply-draft-route #supply-table .known-address-sub a.addr-tooltip-wrap", css)
 
+    def test_supplier_wallet_labels_match_dolo_holder_white(self):
+        css = SUPPLY_DRAFT_CSS.read_text(encoding="utf-8")
+        self.assertIn(
+            "body.supply-draft-route #supply-table .known-address-label,\n"
+            "body.supply-draft-route #supply-activity-table .known-address-label {\n"
+            "  color: #fff !important;",
+            css,
+        )
+        self.assertGreater(
+            css.rfind("body.supply-draft-route #supply-table .known-address-label.addr-tooltip-wrap"),
+            css.rfind("body.supply-draft-route #supply-table .addr-mono,\nbody.supply-draft-route #supply-table .addr-tooltip-wrap"),
+        )
+
     def test_activity_period_dropdown_is_not_clipped_by_empty_table(self):
         css = SUPPLY_DRAFT_CSS.read_text(encoding="utf-8")
         self.assertIn(
