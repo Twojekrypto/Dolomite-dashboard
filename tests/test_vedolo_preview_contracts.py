@@ -48,10 +48,10 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("Ready to claim", self.html)
 
     def test_expired_claimable_table_reuses_holder_wallet_ux_contracts(self):
-        self.assertIn("#claimable-table{table-layout:fixed;min-width:920px}", self.html)
+        self.assertIn("#claimable-table{table-layout:fixed;min-width:1040px}", self.html)
         self.assertIn("#claimable-table .holder-wallet", self.html)
         self.assertIn('data-claimable-id="${esc(row.id)}"', self.html)
-        self.assertIn("tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 7)", self.html)
+        self.assertIn("tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 8)", self.html)
         self.assertIn("syncSortHeader(\"#claimable-table\", st.sort, st.asc);", self.html)
         self.assertIn("claimable:state.claimable", self.html)
         self.assertIn('table === "claimable-table"', self.html)
@@ -72,6 +72,17 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("#claimable-table th[data-sort=\"route\"] .th-content{justify-content:center}", self.html)
         self.assertIn("#claimable-table .claimable-route-cell .flow-source-tag{display:inline-flex;margin-inline:auto;justify-content:center;max-width:100%}", self.html)
 
+    def test_expired_claimable_table_includes_lock_term_column(self):
+        self.assertIn('<col class="claimable-lock-col">', self.claimable_table)
+        self.assertIn("Lock Term", self.claimable_table)
+        self.assertIn('data-sort="lock"', self.claimable_table)
+        self.assertIn("function claimableLockTermDays(row)", self.html)
+        self.assertIn("function claimableLockTermLabel(row)", self.html)
+        self.assertIn("claimableLockTermLabel(row)", self.html)
+        self.assertIn('if(sort === "lock"){ va = claimableLockTermDays(a); vb = claimableLockTermDays(b); }', self.html)
+        self.assertIn('key === "lock"', self.html)
+        self.assertIn('<td colspan="8">No expired claimable veDOLO positions match the current filters.</td>', self.html)
+
     def test_claimable_price_uses_exerciser_token_id_lookup(self):
         self.assertIn('fetchJson("exercisers_by_address.json").catch(() => null)', self.html)
         self.assertIn("exerciseEventsByToken:new Map()", self.html)
@@ -85,7 +96,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("flowSourceTag(row.route.kind, row.route.tooltip)", self.html)
 
     def test_vedolo_route_busts_preview_cache_for_claimable_table(self):
-        self.assertIn("claimable-route-exercise-price-20260706", self.route)
+        self.assertIn("claimable-lock-term-20260706", self.route)
 
 
 if __name__ == "__main__":
