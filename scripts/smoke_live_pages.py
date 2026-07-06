@@ -21,6 +21,7 @@ ROUTE_CHECKS = {
     "/borrow/": ("liquidation-preview.html", "Borrow"),
     "/supply/": ("liquidation-preview.html", "Supply"),
     "/revenue/": ("revenue-preview.html", "Revenue"),
+    "/rewards/": ("rewards-preview.html", "Rewards"),
     "/liquidation/": ("liquidation-preview.html", "Liquidations"),
 }
 
@@ -30,6 +31,7 @@ ASSET_CHECKS = {
     "/dashboard-core.html": ("dolo-address-labels.js", "Earn"),
     "/liquidation-preview.html": ("dolo-address-labels.js", "Supply"),
     "/revenue-preview.html": ("dolomite_revenue.json", "Revenue"),
+    "/rewards-preview.html": ("rewards_programs.json", "Reward Programs"),
 }
 
 

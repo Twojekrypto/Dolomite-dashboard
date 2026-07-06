@@ -1623,6 +1623,7 @@
       const result = originalSelectChain.apply(this, arguments);
       syncSupplyChainOptions();
       syncApplyButton();
+      setTimeout(renderSupplyHealthTable, 0);
       setTimeout(setAssetPlaceholder, 0);
       setTimeout(autoApplyDefaultSupplyAsset, 0);
       setTimeout(syncSupplyChainOptions, 0);
@@ -1644,11 +1645,321 @@
     }
   }
 
+  // ---- Supply Pool Health (community proposal, 2026-06-29) ----
+  // Static data from data/supply-health/latest.json (generate_supply_health.py).
+  const healthChainAliases = { base: 'botanix' };
+  const healthScoreWeights = [
+    { key: 'wallet', label: 'Wallet Distribution', weight: 25 },
+    { key: 'concentration', label: 'Concentration Risk', weight: 30 },
+    { key: 'stability', label: 'Supply Stability', weight: 20 },
+    { key: 'growth', label: 'Growth', weight: 15 },
+    { key: 'resilience', label: 'Exit Resilience', weight: 10 },
+  ];
+  let supplyHealthPayload = null;
+  let supplyHealthFetchState = 'idle';
+  let supplyHealthSortField = 'supplyUsd';
+  let supplyHealthSortAsc = false;
+  let supplyHealthExpandedKey = '';
+
+  function getHealthChainKey() {
+    const selected = document.getElementById('supply-chain-select')?.value || 'ethereum';
+    return healthChainAliases[selected] || selected;
+  }
+
+  function healthMarketKey(market) {
+    return `${market.chain}:${market.tokenId}`;
+  }
+
+  function formatHealthPct(value, digits = 1) {
+    const numeric = Number(value);
+    if (value == null || !Number.isFinite(numeric)) return '—';
+    return `${numeric.toFixed(digits)}%`;
+  }
+
+  function formatHealthSignedPct(value, digits = 1) {
+    const numeric = Number(value);
+    if (value == null || !Number.isFinite(numeric)) return '—';
+    const sign = numeric > 0 ? '+' : '';
+    return `${sign}${numeric.toFixed(digits)}%`;
+  }
+
+  function healthSignedClass(value) {
+    const numeric = Number(value);
+    if (value == null || !Number.isFinite(numeric) || numeric === 0) return 'neutral';
+    return numeric > 0 ? 'positive' : 'negative';
+  }
+
+  function healthGradeClass(grade) {
+    return `grade-${String(grade || 'x').toLowerCase()}`;
+  }
+
+  function shortHealthAddress(address) {
+    const text = String(address || '');
+    if (text.length < 12) return text;
+    return `${text.slice(0, 6)}…${text.slice(-4)}`;
+  }
+
+  function installSupplyHealthCard() {
+    const tab = document.querySelector('#tab-supply');
+    if (!tab || document.getElementById('supply-health-card')) return;
+    const anchor = document.querySelector('.supply-draft-empty') || tab.querySelector('.premium-supply-frame');
+    if (!anchor) return;
+
+    const card = document.createElement('section');
+    card.id = 'supply-health-card';
+    card.className = 'table-card-outer supply-health-card';
+    card.innerHTML = `
+      <div class="table-card-inner">
+        <div class="table-card-header supply-health-header">
+          <div class="supply-health-heading">
+            <h3><span>Supply Pool Health</span> <span class="header-count" id="supply-health-count"></span></h3>
+            <div class="supply-health-subtitle">Market depth, supplier breadth, and concentration per asset — with a weighted Supply Quality Score.</div>
+          </div>
+          <div class="supply-health-asof" id="supply-health-asof"></div>
+        </div>
+        <div class="table-scroll supply-health-scroll">
+          <div class="supply-health-state" id="supply-health-state">Loading pool health…</div>
+          <table class="positions-table supply-health-table" id="supply-health-table" style="display:none;">
+            <thead>
+              <tr>
+                <th data-health-sort="symbol">Asset</th>
+                <th class="num" data-health-sort="supplyUsd">Supply</th>
+                <th class="num" data-health-sort="wallets">Wallets</th>
+                <th class="num" data-health-sort="avgWalletUsd">Avg / Wallet</th>
+                <th class="num" data-health-sort="top10Pct">Top 10</th>
+                <th class="num" data-health-sort="largestPct">Largest</th>
+                <th class="num" data-health-sort="supply30dPct">30D Supply</th>
+                <th class="num" data-health-sort="scoreTotal">Score</th>
+              </tr>
+            </thead>
+            <tbody id="supply-health-table-body"></tbody>
+          </table>
+        </div>
+        <div class="supply-health-footnote">Wallet counts are on-chain addresses: one supplier can split funds across wallets, and vaults/protocol contracts count as a single wallet — treat concentration as an upper bound.</div>
+      </div>
+    `;
+    anchor.insertAdjacentElement('afterend', card);
+
+    card.querySelectorAll('th[data-health-sort]').forEach(th => {
+      th.classList.add('sortable');
+      th.addEventListener('click', () => {
+        const field = th.dataset.healthSort;
+        if (supplyHealthSortField === field) {
+          supplyHealthSortAsc = !supplyHealthSortAsc;
+        } else {
+          supplyHealthSortField = field;
+          supplyHealthSortAsc = field === 'symbol';
+        }
+        renderSupplyHealthTable();
+      });
+    });
+  }
+
+  function fetchSupplyHealth() {
+    if (supplyHealthFetchState === 'loading' || supplyHealthFetchState === 'ready') return;
+    supplyHealthFetchState = 'loading';
+    fetch('data/supply-health/latest.json', { cache: 'no-cache' })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(payload => {
+        if (!payload || !Array.isArray(payload.markets)) throw new Error('bad payload');
+        supplyHealthPayload = payload;
+        supplyHealthFetchState = 'ready';
+        renderSupplyHealthTable();
+      })
+      .catch(error => {
+        supplyHealthFetchState = 'error';
+        const state = document.getElementById('supply-health-state');
+        if (state) state.textContent = 'Pool health data is unavailable right now.';
+        console.error('supply health load failed', error);
+      });
+  }
+
+  function healthSortValue(market, field) {
+    switch (field) {
+      case 'symbol': return String(market.symbol || '').toUpperCase();
+      case 'supply30dPct': {
+        const value = Number(market.growth?.supply30dPct);
+        return Number.isFinite(value) ? value : -Infinity;
+      }
+      case 'scoreTotal': {
+        const value = Number(market.score?.total);
+        return Number.isFinite(value) ? value : -Infinity;
+      }
+      default: {
+        const value = Number(market[field]);
+        return Number.isFinite(value) ? value : -Infinity;
+      }
+    }
+  }
+
+  function renderSupplyHealthScoreBreakdown(market) {
+    const score = market.score || {};
+    const rows = healthScoreWeights.map(component => {
+      const value = score[component.key];
+      const numeric = Number(value);
+      const hasValue = value != null && Number.isFinite(numeric);
+      const width = hasValue ? Math.max(2, Math.min(100, numeric)) : 0;
+      return `
+        <div class="supply-health-component">
+          <div class="supply-health-component-label">${supplyDraftEscape(component.label)} <span>${component.weight}%</span></div>
+          <div class="supply-health-component-bar"><span style="width:${width}%"></span></div>
+          <div class="supply-health-component-value">${hasValue ? numeric.toFixed(0) : '—'}</div>
+        </div>
+      `;
+    }).join('');
+    return `<div class="supply-health-components">${rows}</div>`;
+  }
+
+  function renderSupplyHealthDetail(market) {
+    const growth = market.growth || {};
+    const top = Array.isArray(market.topWallets) ? market.topWallets.slice(0, 3) : [];
+    const topRows = top.map((wallet, index) => `
+      <div class="supply-health-top-wallet">
+        <span class="supply-health-top-rank">#${index + 1}</span>
+        <span class="supply-health-top-addr">${supplyDraftEscape(shortHealthAddress(wallet.address))}</span>
+        <span class="supply-health-top-share">${formatHealthPct(wallet.sharePct, 2)}</span>
+        <span class="supply-health-top-usd">${supplyDraftFormatUsd(wallet.usd)}</span>
+      </div>
+    `).join('');
+    const stats = [
+      { label: 'Median / Wallet', value: market.medianWalletUsd != null ? supplyDraftFormatUsd(market.medianWalletUsd) : '—' },
+      { label: 'Gini Coefficient', value: market.gini != null ? Number(market.gini).toFixed(3) : '—' },
+      { label: '7D Supply', value: formatHealthSignedPct(growth.supply7dPct), tone: healthSignedClass(growth.supply7dPct) },
+      { label: '30D Wallets', value: formatHealthSignedPct(growth.wallets30dPct), tone: healthSignedClass(growth.wallets30dPct) },
+      { label: 'Avg Daily Move 30D', value: formatHealthPct(growth.avgDailyChange30dPct) },
+      { label: 'Exit Impact', value: market.largestPct != null ? `−${formatHealthPct(market.largestPct)}` : '—' },
+    ].map(stat => `
+      <div class="supply-health-detail-stat">
+        <div class="supply-health-detail-stat-label">${supplyDraftEscape(stat.label)}</div>
+        <div class="supply-health-detail-stat-value ${stat.tone || ''}">${stat.value}</div>
+      </div>
+    `).join('');
+    return `
+      <div class="supply-health-detail">
+        <div class="supply-health-detail-col">
+          <div class="supply-health-detail-title">Score Breakdown</div>
+          ${renderSupplyHealthScoreBreakdown(market)}
+        </div>
+        <div class="supply-health-detail-col">
+          <div class="supply-health-detail-title">Market Signals</div>
+          <div class="supply-health-detail-stats">${stats}</div>
+        </div>
+        <div class="supply-health-detail-col">
+          <div class="supply-health-detail-title">Largest Suppliers</div>
+          ${topRows || '<div class="supply-health-detail-empty">No supplier data</div>'}
+          <button type="button" class="supply-health-open-market" data-health-open="${supplyDraftEscape(market.tokenId)}">Open market view</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSupplyHealthTable() {
+    const table = document.getElementById('supply-health-table');
+    const body = document.getElementById('supply-health-table-body');
+    const state = document.getElementById('supply-health-state');
+    const count = document.getElementById('supply-health-count');
+    const asof = document.getElementById('supply-health-asof');
+    if (!table || !body || !supplyHealthPayload) return;
+
+    const chain = getHealthChainKey();
+    const markets = supplyHealthPayload.markets.filter(market => market.chain === chain);
+    markets.sort((a, b) => {
+      const va = healthSortValue(a, supplyHealthSortField);
+      const vb = healthSortValue(b, supplyHealthSortField);
+      const cmp = typeof va === 'string' ? va.localeCompare(vb) : (va - vb);
+      return supplyHealthSortAsc ? cmp : -cmp;
+    });
+
+    if (count) count.textContent = markets.length ? `${markets.length} markets` : '';
+    if (asof && supplyHealthPayload.generatedAt) {
+      try {
+        const stamp = new Date(supplyHealthPayload.generatedAt);
+        asof.textContent = `as of ${stamp.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })} UTC`;
+      } catch (error) {}
+    }
+
+    table.querySelectorAll('th[data-health-sort]').forEach(th => {
+      const isActive = th.dataset.healthSort === supplyHealthSortField;
+      th.classList.toggle('sorted', isActive);
+      th.setAttribute('aria-sort', isActive ? (supplyHealthSortAsc ? 'ascending' : 'descending') : 'none');
+      const label = th.textContent.replace(/[▲▼]\s*$/, '').trim();
+      th.innerHTML = `<span class="th-content">${supplyDraftEscape(label)} <span class="sort-arrow">${isActive ? (supplyHealthSortAsc ? '▲' : '▼') : ''}</span></span>`;
+    });
+
+    if (!markets.length) {
+      table.style.display = 'none';
+      if (state) {
+        state.style.display = 'block';
+        state.textContent = 'No pool health data for this chain yet.';
+      }
+      return;
+    }
+    if (state) state.style.display = 'none';
+    table.style.display = 'table';
+
+    body.innerHTML = markets.map(market => {
+      const key = healthMarketKey(market);
+      const expanded = key === supplyHealthExpandedKey;
+      const score = market.score || {};
+      const iconPath = getIconPath(market);
+      const icon = iconPath
+        ? `<img class="supply-health-asset-icon" src="${supplyDraftEscape(iconPath)}" alt="" onerror="this.style.display='none'">`
+        : '';
+      const growth30 = market.growth?.supply30dPct;
+      const detailRow = expanded
+        ? `<tr class="supply-health-detail-row"><td colspan="8">${renderSupplyHealthDetail(market)}</td></tr>`
+        : '';
+      return `
+        <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${supplyDraftEscape(key)}">
+          <td class="supply-health-asset-cell">
+            <span class="supply-health-expander">${expanded ? '−' : '+'}</span>
+            ${icon}
+            <span class="supply-health-asset-symbol">${supplyDraftEscape(market.symbol || '')}</span>
+          </td>
+          <td class="num">${supplyDraftFormatUsd(market.supplyUsd)}</td>
+          <td class="num">${Number(market.wallets || 0).toLocaleString('en-US')}</td>
+          <td class="num">${market.avgWalletUsd != null ? supplyDraftFormatUsd(market.avgWalletUsd) : '—'}</td>
+          <td class="num">${formatHealthPct(market.top10Pct)}</td>
+          <td class="num">${formatHealthPct(market.largestPct)}</td>
+          <td class="num ${healthSignedClass(growth30)}">${formatHealthSignedPct(growth30)}</td>
+          <td class="num supply-health-score-cell">
+            <span class="supply-health-score">${score.total != null ? Math.round(score.total) : '—'}</span>
+            <span class="supply-health-grade ${healthGradeClass(score.grade)}">${supplyDraftEscape(score.grade || '·')}</span>
+          </td>
+        </tr>
+        ${detailRow}
+      `;
+    }).join('');
+
+    body.querySelectorAll('tr.supply-health-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const key = row.dataset.healthKey || '';
+        supplyHealthExpandedKey = supplyHealthExpandedKey === key ? '' : key;
+        renderSupplyHealthTable();
+      });
+    });
+    body.querySelectorAll('[data-health-open]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        const tokenId = button.dataset.healthOpen;
+        if (tokenId && getSupplyToken(tokenId)) {
+          window.selectSupplyAsset(tokenId, { auto: true });
+          document.getElementById('supply-intel-shell')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+  }
+
   function boot() {
     document.body.classList.add('supply-draft-route');
     enhanceSupplyFrame();
     markResultCards();
     installEmptyState();
+    installSupplyHealthCard();
+    fetchSupplyHealth();
     installAssetSearchClear();
     installApplyButton();
     organizeSupplyControls();
