@@ -26,6 +26,7 @@
     { key: '30d', short: '30D', label: '30 days', days: 30 },
     { key: '90d', short: '90D', label: '90 days', days: 90 },
     { key: '180d', short: '180D', label: '180 days', days: 180 },
+    { key: 'all', short: 'All', label: 'All time', days: null },
   ];
   let activityPeriodKey = '30d';
   let flowSnapshotPeriodKey = '30d';
@@ -154,9 +155,17 @@
     return activityPeriodOptions.find(option => option.key === key) || activityPeriodOptions[2];
   }
 
+  function isActivityAllTimePeriod(meta) {
+    return !!meta && (meta.key === 'all' || meta.days == null);
+  }
+
+  function activityPeriodNeedsFullHistory(meta) {
+    return !!meta && (isActivityAllTimePeriod(meta) || Number(meta.days || 0) > 30);
+  }
+
   function maybeLoadFullActivityForFlowPeriod() {
     const meta = getFlowSnapshotPeriodMeta();
-    if (!meta || meta.days <= 30) return;
+    if (!activityPeriodNeedsFullHistory(meta)) return;
     try {
       if (currentSupplyOverview?.activityStage !== 'full' && !currentSupplyOverview?.activityFullLoading && typeof supplyLoadFullActivityHistory === 'function') {
         supplyLoadFullActivityHistory();
@@ -297,9 +306,9 @@
 
     const meta = getFlowSnapshotPeriodMeta();
     const nowTs = Math.floor(Date.now() / 1000);
-    const cutoffTs = nowTs - (meta.days * 24 * 60 * 60);
+    const cutoffTs = isActivityAllTimePeriod(meta) ? null : nowTs - (meta.days * 24 * 60 * 60);
     const summary = summarizeSupplyActivityRows(Array.isArray(rows) ? rows : [], cutoffTs);
-    const isSyncingOlder = meta.days > 30
+    const isSyncingOlder = activityPeriodNeedsFullHistory(meta)
       && !!currentSupplyOverview?.activityFullLoading
       && currentSupplyOverview?.activityStage !== 'full';
     let tokenSymbol = '';
@@ -993,15 +1002,18 @@
 
   function getActivityPeriodCutoffTs() {
     const meta = getActivityPeriodMeta();
+    if (isActivityAllTimePeriod(meta)) return null;
     const nowRoundedToMinute = Math.floor(Date.now() / 60000) * 60;
     return nowRoundedToMinute - (meta.days * 24 * 60 * 60);
   }
 
   function applyActivityPeriodFilter() {
     try {
-      supplyActivityTimeMin = getActivityPeriodCutoffTs();
+      const cutoffTs = getActivityPeriodCutoffTs();
+      supplyActivityTimeMin = cutoffTs;
       supplyActivityTimeMax = null;
-      document.getElementById('supply-activity-time-filter-trigger')?.classList.add('has-active');
+      const timeTrigger = document.getElementById('supply-activity-time-filter-trigger');
+      timeTrigger?.classList.toggle('has-active', cutoffTs != null);
     } catch (error) {}
   }
 
@@ -1019,7 +1031,7 @@
 
   function maybeLoadFullActivityForPeriod() {
     const meta = getActivityPeriodMeta();
-    if (!meta || meta.days <= 30) return;
+    if (!activityPeriodNeedsFullHistory(meta)) return;
     try {
       if (currentSupplyOverview?.activityStage !== 'full' && !currentSupplyOverview?.activityFullLoading && typeof supplyLoadFullActivityHistory === 'function') {
         supplyLoadFullActivityHistory();

@@ -18258,7 +18258,7 @@
                     const safeAddress = supplyEscapeHtml(address);
                     const debankUrl = `https://debank.com/profile/${safeAddress}`;
                     return `<div class="supply-activity-address-tools">
-                        ${renderDoloAddressTools(address, debankUrl, { debankUrl, short: supplyShortAddr(address), debankClass: 'supply-activity-debank' })}
+                        ${renderDoloAddressTools(address, debankUrl, { debankUrl, short: supplyShortAddr(address), debankClass: 'supply-activity-debank', forceLabel: true })}
                     </div>`;
                 };
                 const primaryAddress = String(row.primaryAddress || '');

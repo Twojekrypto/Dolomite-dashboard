@@ -1423,6 +1423,18 @@ body.supply-draft-route #supply-activity-card .table-card-inner {
   overflow: hidden !important;
 }
 
+body.supply-draft-route #supply-activity-card,
+body.supply-draft-route #supply-activity-card .table-card-inner {
+  overflow: visible !important;
+}
+
+body.supply-draft-route #supply-activity-card .supply-activity-toolbar,
+body.supply-draft-route #supply-activity-card .supply-activity-toolbar-main {
+  position: relative;
+  z-index: 70;
+  overflow: visible !important;
+}
+
 body.supply-draft-route .supply-table-header,
 body.supply-draft-route .supply-activity-header {
   padding: 20px 24px 14px !important;
@@ -1923,6 +1935,7 @@ body.supply-draft-route .supply-activity-type-filter.open .supply-activity-type-
 
 body.supply-draft-route .supply-activity-type-menu {
   position: absolute;
+  z-index: 100;
   top: calc(100% + 7px);
   right: 0;
   display: none;
@@ -2625,6 +2638,41 @@ body.supply-draft-route #supply-activity-table .supply-activity-address-tools {
   gap: 4px;
   min-width: 0;
   max-width: 100%;
+}
+
+body.supply-draft-route #supply-activity-table .known-address-cell {
+  max-width: 100%;
+}
+
+body.supply-draft-route #supply-activity-table .known-address-main,
+body.supply-draft-route #supply-activity-table .known-address-sub {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  flex-wrap: nowrap !important;
+}
+
+body.supply-draft-route #supply-activity-table .known-address-label {
+  color: var(--supply-fg-1) !important;
+  font-family: Inter, system-ui, sans-serif !important;
+  font-size: 12.5px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.2 !important;
+  max-width: 180px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  text-decoration: none !important;
+}
+
+body.supply-draft-route #supply-activity-table .known-address-sub a.addr-tooltip-wrap {
+  color: var(--supply-fg-3) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
 }
 
 body.supply-draft-route #supply-activity-table .supply-activity-wallet-line {
