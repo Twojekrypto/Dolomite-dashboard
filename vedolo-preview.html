@@ -309,6 +309,66 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table .holder-detail-lock.medium{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 #holders-table .holder-detail-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
 #holders-table .holder-detail-empty{padding:18px;color:var(--fg-3);font-size:12px}
+#claimable-table{table-layout:fixed;min-width:920px}
+#claimable-table{--stable-row-height:70px}
+#claimable-table col.claimable-rank-col{width:56px}
+#claimable-table col.claimable-dolo-col{width:148px}
+#claimable-table col.claimable-vote-col{width:130px}
+#claimable-table col.claimable-expired-col{width:138px}
+#claimable-table col.claimable-id-col{width:108px}
+#claimable-table col.claimable-actions-col{width:96px}
+#claimable-table td{font-size:13px}
+#claimable-table .claimable-data-row{cursor:pointer}
+#claimable-table .claimable-data-row.holder-row-open td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
+#claimable-table .holder-wallet{display:flex;flex-direction:column;gap:5px;min-width:0}
+#claimable-table .holder-wallet-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+#claimable-table .holder-wallet-bottom{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
+#claimable-table .addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
+#claimable-table .addr-name.addr-generic{color:var(--fg-1);font-weight:600}
+#claimable-table .addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2}
+#claimable-table tbody tr:hover .addr-mono{color:var(--fg-2)}
+#claimable-table .addr-copy,#claimable-table .addr-debank{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;transition:all .15s var(--ease);cursor:pointer}
+#claimable-table .addr-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+#claimable-table .addr-copy.copied{color:var(--up);border-color:rgba(138,163,123,.4)}
+#claimable-table .addr-copy svg{width:11px;height:11px;pointer-events:none}
+#claimable-table .addr-debank{padding:0;overflow:hidden}
+#claimable-table .addr-debank img{width:14px;height:14px;border-radius:3px;opacity:.7;transition:opacity .15s var(--ease)}
+#claimable-table .addr-debank:hover{border-color:#fe815f;background:rgba(254,129,95,.08)}
+#claimable-table .addr-debank:hover img{opacity:1}
+#claimable-table .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
+#claimable-table .holder-value{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
+#claimable-table .holder-value.vote{color:var(--fg-2)}
+#claimable-table .holder-position-id{display:inline-flex;align-items:center;justify-content:center;min-width:54px;padding:4px 7px;border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-wash);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--gold)}
+#claimable-table .claimable-expired-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;line-height:1.2}
+#claimable-table .claimable-expired-cell .subline{font-size:10.5px;color:var(--down);font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:.45px}
+#claimable-table .claimable-status{display:inline-flex;align-items:center;justify-content:center;min-width:96px;padding:4px 9px;border-radius:999px;border:1px solid rgba(138,163,123,.32);background:rgba(138,163,123,.08);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--up)}
+#claimable-table .holder-actions-head,#claimable-table .holder-actions{text-align:center}
+#claimable-table .holder-toggle{height:24px;min-width:78px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);cursor:pointer}
+#claimable-table .holder-toggle svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
+#claimable-table .holder-toggle span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
+#claimable-table .holder-toggle:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
+#claimable-table .holder-row-open .holder-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
+#claimable-table .holder-row-open .holder-toggle svg{transform:rotate(180deg)}
+#claimable-table .holder-detail-row{cursor:default}
+#claimable-table .holder-detail-row > td{padding:0 14px 18px!important;background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px);border-bottom:1px solid rgba(201,162,39,.18)}
+#claimable-table .holder-detail-row:hover{background:transparent}
+#claimable-table .holder-detail-row:hover > td{background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px)}
+#claimable-table .holder-detail-row:hover > td:first-child::before{display:none}
+#claimable-table .holder-detail-panel{margin:0;border:1px solid rgba(201,162,39,.2);border-top:1px solid rgba(201,162,39,.48);border-radius:0 0 var(--r-lg) var(--r-lg);background:linear-gradient(180deg,rgba(18,18,20,.985),rgba(12,12,14,.985));overflow:hidden;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 0 0 1px rgba(201,162,39,.055),0 18px 44px rgba(0,0,0,.22)}
+#claimable-table .holder-detail-panel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--gold),rgba(201,162,39,.18));box-shadow:0 0 18px rgba(201,162,39,.28);pointer-events:none}
+#claimable-table .holder-detail-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px 12px}
+#claimable-table .holder-detail-eyebrow{font-size:9.5px;letter-spacing:1.45px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
+#claimable-table .holder-detail-title{font-size:15px;font-weight:700;color:var(--fg-1);letter-spacing:0;line-height:1.25}
+#claimable-table .holder-detail-meta{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap}
+#claimable-table .holder-detail-scroll{max-height:330px;overflow:auto;position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;background:rgba(0,0,0,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 0 rgba(255,255,255,.025);scrollbar-color:rgba(201,162,39,.34) rgba(255,255,255,.055);scrollbar-width:thin}
+#claimable-table .holder-detail-table{width:100%;min-width:780px;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed}
+#claimable-table .holder-detail-table th{position:sticky;top:0;z-index:4;padding:10px 12px;background:#101012;border-bottom:1px solid var(--line-2);color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;box-shadow:0 10px 18px rgba(0,0,0,.18)}
+#claimable-table .holder-detail-table th.num,#claimable-table .holder-detail-table td.num{text-align:right}
+#claimable-table .holder-detail-table th.center,#claimable-table .holder-detail-table td.center{text-align:center}
+#claimable-table .holder-detail-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,.055);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap;position:relative;background:transparent}
+#claimable-table .holder-detail-table tr:last-child td{border-bottom:0}
+#claimable-table .holder-detail-table > tbody > tr:hover > td{background:rgba(255,255,255,.026);color:var(--fg-1)}
+#claimable-table .holder-detail-table td.mono{font-family:var(--mono)}
 .exit-suite{background:linear-gradient(180deg,rgba(34,19,18,.72),var(--bg-2) 42%,rgba(16,14,14,.98));border-color:rgba(180,121,107,.32);overflow:visible}
 .exit-suite::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(180,121,107,.55) 28%,rgba(201,162,39,.32) 50%,rgba(180,121,107,.55) 72%,transparent 100%);opacity:.85;pointer-events:none}
 .exit-suite .card-head{background:linear-gradient(180deg,rgba(180,121,107,.055),rgba(16,16,18,.24))}
@@ -621,6 +681,20 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   #holders-table .holder-detail-table td{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:center;gap:12px;padding:5px 0!important;border-bottom:0!important;background:transparent!important;white-space:normal;text-align:right}
   #holders-table .holder-detail-table td::before{content:attr(data-label);font-size:9px;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);font-weight:700;text-align:left}
   #holders-table .holder-detail-table td > *{justify-self:end}
+  #claimable-table .holder-detail-row > td{padding:0 8px 14px!important}
+  #claimable-table .holder-detail-panel{width:calc(100vw - 56px);max-width:calc(100vw - 56px)}
+  #claimable-table .holder-detail-head{padding:15px 16px}
+  #claimable-table .holder-detail-scroll{max-height:420px;margin:0 10px 14px 12px;padding:12px 0}
+  #claimable-table .holder-detail-table{min-width:0}
+  #claimable-table .holder-detail-table thead{display:none}
+  #claimable-table .holder-detail-table,
+  #claimable-table .holder-detail-table tbody,
+  #claimable-table .holder-detail-table tr{display:block}
+  #claimable-table .holder-detail-table tr{margin:0 12px 10px;padding:12px 14px;border:1px solid var(--line-1);border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,.01))}
+  #claimable-table .holder-detail-table tr:last-child{margin-bottom:0}
+  #claimable-table .holder-detail-table td{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:center;gap:12px;padding:5px 0!important;border-bottom:0!important;background:transparent!important;white-space:normal;text-align:right}
+  #claimable-table .holder-detail-table td::before{content:attr(data-label);font-size:9px;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);font-weight:700;text-align:left}
+  #claimable-table .holder-detail-table td > *{justify-self:end}
   .tbl-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
   .tbl-foot-info{grid-column:1;text-align:center}
   .pager{grid-column:1}
@@ -636,6 +710,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .flow-col .tbl{min-width:480px}
   #unlocks-table{min-width:360px}
   #holders-table{--stable-row-height:64px}
+  #claimable-table{--stable-row-height:64px}
   #exits-table{--stable-row-height:64px}
   .flow-col .tbl{--stable-row-height:70.25px}
   #locks-table col.flow-rank,#unlocks-table col.flow-rank{width:42px}
@@ -999,6 +1074,34 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     </div>
   </section>
 
+  <section class="card claimable-card">
+    <div class="card-head">
+      <div class="card-title"><h2>Expired Claimable veDOLO</h2><span class="count-badge" id="claimable-count">--</span></div>
+      <div class="card-meta"><span class="dot-live"></span>expired NFTs with 0 vote weight; Ready to claim</div>
+    </div>
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-claimable" type="text" placeholder="Search address or position ID…" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl" id="claimable-table">
+        <colgroup>
+          <col class="claimable-rank-col">
+          <col>
+          <col class="claimable-dolo-col">
+          <col class="claimable-vote-col">
+          <col class="claimable-expired-col">
+          <col class="claimable-id-col">
+          <col class="claimable-actions-col">
+        </colgroup>
+        <thead><tr><th class="sortable" data-sort="rank"><span class="th-content"># <span class="sort-arrow"></span></span></th><th class="sortable" data-sort="address"><span class="th-content">Address <span class="sort-arrow"></span></span></th><th class="num sortable sorted" data-sort="dolo"><span class="th-content">Claimable DOLO <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="vote_weight"><span class="th-content">Vote Weight <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="expired"><span class="th-content">Expired <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="id"><span class="th-content">Position ID <span class="sort-arrow"></span></span></th><th class="holder-actions-head">Details</th></tr></thead>
+        <tbody id="claimable-body"><tr class="loading-row"><td colspan="7">Loading expired veDOLO positions...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="tbl-foot"><div class="tbl-foot-info" id="claimable-info">--</div><div class="pager" id="claimable-pager"></div></div>
+  </section>
+
   <section class="card chart-card duration-card">
     <div class="card-head">
       <div class="card-title"><h2>Lock Duration Distribution</h2><span class="count-badge" id="duration-count">--</span></div>
@@ -1063,6 +1166,7 @@ const state = {
   lockEventsByToken:new Map(), transferEventsByToken:new Map(),
   lockedHistory:[], lockedBrush:{from:0,to:0}, lockedBrushReady:false,
   holder:{q:"",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
+  claimable:{q:"",sort:"dolo",asc:false,page:1,perPage:12,expanded:null},
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
   expiryUi:{q:""},
   flows:{q:"",period:"7",source:"all",locksSort:"rank",locksAsc:true,unlocksSort:"rank",unlocksAsc:true,locksPage:1,unlocksPage:1,perPage:8},
@@ -1796,11 +1900,11 @@ function updatePager(kind,total,page,perPage){
   if(pager) pager.innerHTML = pagerHtml(page,pages,kind);
 }
 function pageChange(kind, action){
-  const map = {holders:state.holder, exits:state.exitsUi, locks:state.flows, unlocks:state.flows};
+  const map = {holders:state.holder, exits:state.exitsUi, locks:state.flows, unlocks:state.flows, claimable:state.claimable};
   const st = map[kind];
   const prop = kind === "locks" ? "locksPage" : kind === "unlocks" ? "unlocksPage" : "page";
-  const total = kind === "holders" ? getFilteredHolders().length : kind === "exits" ? getFilteredExits().length : kind === "locks" ? getFilteredLocks().length : getFilteredUnlocks().length;
-  const per = kind === "holders" ? state.holder.perPage : kind === "exits" ? state.exitsUi.perPage : state.flows.perPage;
+  const total = kind === "holders" ? getFilteredHolders().length : kind === "claimable" ? getFilteredClaimable().length : kind === "exits" ? getFilteredExits().length : kind === "locks" ? getFilteredLocks().length : getFilteredUnlocks().length;
+  const per = kind === "holders" ? state.holder.perPage : kind === "claimable" ? state.claimable.perPage : kind === "exits" ? state.exitsUi.perPage : state.flows.perPage;
   const pages = Math.max(1, Math.ceil(total/per));
   if(action === "first") st[prop] = 1;
   if(action === "prev") st[prop] = Math.max(1, st[prop]-1);
@@ -2246,6 +2350,126 @@ function wireHolderDetails(){
     });
   });
 }
+function buildExpiredClaimableRows(){
+  const nowSec = Math.floor(Date.now() / 1000);
+  const rows = [];
+  state.holders.forEach(holder => {
+    const address = String(holder.address || "");
+    (holder.token_details || []).forEach(position => {
+      const end = num(position.end);
+      const dolo = num(position.dolo);
+      if(end > 0 && end <= nowSec && dolo > 0){
+        const id = String(position.id || "");
+        rows.push({
+          key:`${address.toLowerCase()}-${id}`,
+          address,
+          holder,
+          position,
+          id,
+          dolo,
+          end,
+          vote_weight:0,
+          snapshot_vote_weight:num(position.vote_weight),
+          holder_rank:num(holder.rank),
+          holder_total_dolo:num(holder.total_dolo),
+          holder_nft_count:num(holder.nft_count)
+        });
+      }
+    });
+  });
+  return rows;
+}
+function getFilteredClaimable(){
+  const st = state.claimable;
+  const q = st.q.toLowerCase();
+  let rows = buildExpiredClaimableRows();
+  if(q){
+    rows = rows.filter(row => String(row.address || "").toLowerCase().includes(q) || String(row.id || "").toLowerCase().includes(q));
+  }
+  rows = rows.slice().sort((a,b) => {
+    const sort = st.sort;
+    let va = sort === "address" ? String(a.address || "") : num(a[sort]);
+    let vb = sort === "address" ? String(b.address || "") : num(b[sort]);
+    if(sort === "rank"){ va = num(a.holder_rank); vb = num(b.holder_rank); }
+    if(sort === "expired"){ va = num(a.end); vb = num(b.end); }
+    if(sort === "id"){ va = num(a.id); vb = num(b.id); }
+    if(typeof va === "string") return st.asc ? va.localeCompare(vb) : vb.localeCompare(va);
+    const diff = va - vb;
+    if(diff) return st.asc ? diff : -diff;
+    return num(a.id) - num(b.id);
+  });
+  return rows;
+}
+function renderClaimableDetailRow(row){
+  const route = holderPositionRoute(row.holder, row.position);
+  return `<tr class="holder-detail-row" data-detail-for="${esc(row.key)}">
+    <td colspan="7">
+      <div class="holder-detail-panel">
+        <div class="holder-detail-head">
+          <div>
+            <div class="holder-detail-eyebrow">Ready to claim</div>
+            <div class="holder-detail-title">Expired veDOLO position</div>
+          </div>
+          <div class="holder-detail-meta">Position #${esc(row.id)}</div>
+        </div>
+        <div class="holder-detail-scroll">
+          <table class="holder-detail-table">
+            <thead><tr><th>Expired Date</th><th>Route</th><th class="num">Claimable DOLO</th><th class="num">Vote Weight</th><th class="center">Status</th><th class="center">Position ID</th></tr></thead>
+            <tbody><tr>
+              <td class="mono" data-label="Expired Date">${esc(holderEndDate(row.end))}</td>
+              <td data-label="Route">${flowSourceTag(route.kind, route.tooltip)}</td>
+              <td class="num mono" data-label="Claimable DOLO"><span class="holder-value">${fmtDolo(row.dolo)}</span></td>
+              <td class="num mono" data-label="Vote Weight"><span class="holder-value vote">0</span></td>
+              <td class="center mono" data-label="Status"><span class="claimable-status">Ready to claim</span></td>
+              <td class="center mono" data-label="Position ID"><span class="holder-position-id">#${esc(row.id)}</span></td>
+            </tr></tbody>
+          </table>
+        </div>
+      </div>
+    </td>
+  </tr>`;
+}
+function renderExpiredClaimable(){
+  const rows = getFilteredClaimable();
+  const st = state.claimable;
+  const pages = Math.max(1, Math.ceil(rows.length/st.perPage));
+  if(st.page > pages) st.page = pages;
+  const start = (st.page - 1) * st.perPage;
+  const pageRows = rows.slice(start, start + st.perPage);
+  const bodyRows = pageRows.length ? pageRows.map((row,i) => {
+    const isExpanded = st.expanded === row.key;
+    const toggle = `<button class="holder-toggle" type="button" aria-label="${isExpanded ? "Hide expired position details" : "Show expired position details"}" aria-expanded="${isExpanded}"><span>${isExpanded ? "Hide" : "Details"}</span>${chevDownSvg}</button>`;
+    return `<tr class="claimable-data-row stable-data-row ${isExpanded ? "holder-row-open" : ""}" data-claimable-id="${esc(row.id)}" data-claimable-key="${esc(row.key)}" aria-expanded="${isExpanded}">
+    <td><span class="rank">${fmtInt(start+i+1)}</span></td>
+    <td>${holderCell(row)}</td>
+    <td class="num"><span class="holder-value">${fmtDolo(row.dolo)}</span></td>
+    <td class="num"><span class="holder-value vote">0</span></td>
+    <td class="num"><span class="claimable-expired-cell"><span class="holder-value">${esc(holderEndDate(row.end))}</span><span class="subline">Expired</span></span></td>
+    <td class="center"><span class="holder-position-id">#${esc(row.id)}</span></td>
+    <td class="holder-actions">${toggle}</td>
+  </tr>${isExpanded ? renderClaimableDetailRow(row) : ""}`;
+  }).join("") : '<tr class="loading-row table-empty-row"><td colspan="7">No expired claimable veDOLO positions match the current filters.</td></tr>';
+  qs("#claimable-body").innerHTML = bodyRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 7);
+  const allRows = buildExpiredClaimableRows();
+  setText("claimable-count", rows.length === allRows.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(allRows.length)}`);
+  setText("claimable-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
+  updatePager("claimable", rows.length, st.page, st.perPage);
+  syncSortHeader("#claimable-table", st.sort, st.asc);
+  wireClaimableDetails();
+}
+function wireClaimableDetails(){
+  const tbody = qs("#claimable-body");
+  if(!tbody) return;
+  qsa("#claimable-body tr.claimable-data-row").forEach(tr => {
+    tr.addEventListener("click", e => {
+      if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
+      const key = String(tr.dataset.claimableKey || "");
+      state.claimable.expanded = state.claimable.expanded === key ? null : key;
+      renderExpiredClaimable();
+      wireCopyButtons();
+    });
+  });
+}
 function getFilteredExits(){
   const st = state.exitsUi;
   const cutoff = periodCutoff(st.period);
@@ -2373,6 +2597,7 @@ function syncSortHeader(tableSel, key, asc){
 }
 function renderAllTables(){
   renderHolders();
+  renderExpiredClaimable();
   renderExits();
   renderLocks();
   renderUnlocks();
@@ -2713,6 +2938,7 @@ function emitQaReport(){
 }
 function bindUi(){
   qs("#q-holders").addEventListener("input", e => { state.holder.q = e.target.value.trim(); state.holder.page = 1; renderHolders(); wireCopyButtons(); });
+  qs("#q-claimable").addEventListener("input", e => { state.claimable.q = e.target.value.trim(); state.claimable.page = 1; renderExpiredClaimable(); wireCopyButtons(); });
   qs("#q-exits").addEventListener("input", e => { state.exitsUi.q = e.target.value.trim(); state.exitsUi.page = 1; renderExits(); wireCopyButtons(); });
   qs("#q-expiry").addEventListener("input", e => { state.expiryUi.q = e.target.value.trim(); renderExpiry(); });
   qs("#q-flows").addEventListener("input", e => { state.flows.q = e.target.value.trim(); state.flows.locksPage = 1; state.flows.unlocksPage = 1; renderLocks(); renderUnlocks(); wireCopyButtons(); });
@@ -2770,6 +2996,9 @@ function bindUi(){
     if(table === "holders-table"){
       if(state.holder.sort === key) state.holder.asc = !state.holder.asc; else { state.holder.sort = key; state.holder.asc = key === "rank" || key === "address"; }
       state.holder.page = 1; renderHolders();
+    } else if(table === "claimable-table"){
+      if(state.claimable.sort === key) state.claimable.asc = !state.claimable.asc; else { state.claimable.sort = key; state.claimable.asc = key === "rank" || key === "address" || key === "expired" || key === "id"; }
+      state.claimable.page = 1; renderExpiredClaimable();
     } else if(table === "exits-table"){
       if(state.exitsUi.sort === key) state.exitsUi.asc = !state.exitsUi.asc; else { state.exitsUi.sort = key; state.exitsUi.asc = key === "rank"; }
       state.exitsUi.page = 1; renderExits();
