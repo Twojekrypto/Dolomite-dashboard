@@ -3203,3 +3203,340 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
     justify-self: center;
   }
 }
+
+/* ---- Supply Pool Health card ---- */
+body.supply-draft-route .supply-health-card {
+  display: block !important;
+  margin-bottom: 24px;
+}
+
+body.supply-draft-route .supply-health-card .table-card-inner {
+  border-color: var(--supply-line-2) !important;
+  background: var(--bg-2, #141417) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 18px 48px rgba(0, 0, 0, .28) !important;
+}
+
+body.supply-draft-route .supply-health-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+body.supply-draft-route .supply-health-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--supply-fg-1);
+}
+
+body.supply-draft-route .supply-health-subtitle {
+  margin-top: 4px;
+  color: var(--supply-fg-2);
+  font-size: 12px;
+}
+
+body.supply-draft-route .supply-health-asof {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid var(--supply-line-2);
+  border-radius: 10px;
+  background: var(--supply-bg-3);
+  color: var(--supply-fg-3);
+  font-family: var(--supply-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+body.supply-draft-route .supply-health-asof:empty {
+  display: none;
+}
+
+body.supply-draft-route .supply-health-state {
+  padding: 28px 20px;
+  color: var(--supply-fg-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+body.supply-draft-route .supply-health-table {
+  width: 100%;
+}
+
+body.supply-draft-route .supply-health-table thead th {
+  background: var(--supply-bg-1) !important;
+  color: var(--supply-fg-3) !important;
+  border-bottom-color: var(--supply-line-2) !important;
+  font-family: var(--supply-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+body.supply-draft-route .supply-health-table thead th.num,
+body.supply-draft-route .supply-health-table tbody td.num {
+  text-align: right;
+}
+
+body.supply-draft-route .supply-health-table thead th.sorted {
+  color: var(--supply-gold) !important;
+}
+
+body.supply-draft-route .supply-health-table tbody td {
+  border-bottom-color: var(--supply-line-1) !important;
+  color: var(--supply-fg-1);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+body.supply-draft-route .supply-health-row {
+  cursor: pointer;
+}
+
+body.supply-draft-route .supply-health-row:hover td {
+  background: rgba(255, 255, 255, .02);
+}
+
+body.supply-draft-route .supply-health-row.expanded td {
+  background: var(--supply-gold-wash);
+  border-bottom-color: transparent !important;
+}
+
+body.supply-draft-route .supply-health-expander {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 1px solid var(--supply-line-2);
+  border-radius: 5px;
+  color: var(--supply-fg-3);
+  font-family: var(--supply-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+
+body.supply-draft-route .supply-health-row.expanded .supply-health-expander {
+  border-color: var(--supply-gold-line);
+  color: var(--supply-gold);
+}
+
+body.supply-draft-route .supply-health-asset-cell {
+  display: flex;
+  align-items: center;
+}
+
+body.supply-draft-route .supply-health-asset-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  border-radius: 50%;
+  object-fit: contain;
+  background: var(--supply-bg-3);
+}
+
+body.supply-draft-route .supply-health-asset-symbol {
+  font-weight: 600;
+}
+
+body.supply-draft-route .supply-health-table td.positive { color: var(--supply-green-hi); }
+body.supply-draft-route .supply-health-table td.negative { color: #d08a7d; }
+body.supply-draft-route .supply-health-table td.neutral { color: var(--supply-fg-2); }
+
+body.supply-draft-route .supply-health-score-cell .supply-health-score {
+  margin-right: 6px;
+  font-family: var(--supply-mono);
+  font-weight: 600;
+}
+
+body.supply-draft-route .supply-health-grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 1px solid var(--supply-line-2);
+  font-family: var(--supply-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+body.supply-draft-route .supply-health-grade.grade-a { color: var(--supply-green-hi); border-color: var(--supply-green-line); background: var(--supply-green-wash); }
+body.supply-draft-route .supply-health-grade.grade-b { color: var(--supply-green); border-color: var(--supply-green-line); background: rgba(117, 184, 123, .06); }
+body.supply-draft-route .supply-health-grade.grade-c { color: var(--supply-gold-hi); border-color: var(--supply-gold-line); background: var(--supply-gold-wash); }
+body.supply-draft-route .supply-health-grade.grade-d { color: #d0a06a; border-color: rgba(208, 160, 106, .3); background: rgba(208, 160, 106, .08); }
+body.supply-draft-route .supply-health-grade.grade-f { color: #d08a7d; border-color: rgba(208, 138, 125, .3); background: rgba(208, 138, 125, .08); }
+
+body.supply-draft-route .supply-health-detail-row td {
+  padding: 0 !important;
+  border-bottom-color: var(--supply-line-2) !important;
+  background: var(--supply-bg-1);
+}
+
+body.supply-draft-route .supply-health-detail {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr;
+  gap: 20px;
+  padding: 16px 18px 18px;
+}
+
+body.supply-draft-route .supply-health-detail-title {
+  margin-bottom: 10px;
+  color: var(--supply-fg-3);
+  font-family: var(--supply-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+body.supply-draft-route .supply-health-component {
+  display: grid;
+  grid-template-columns: 150px 1fr 34px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+body.supply-draft-route .supply-health-component-label {
+  color: var(--supply-fg-2);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+body.supply-draft-route .supply-health-component-label span {
+  color: var(--supply-fg-3);
+  font-family: var(--supply-mono);
+  font-size: 10px;
+}
+
+body.supply-draft-route .supply-health-component-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--supply-bg-4);
+  overflow: hidden;
+}
+
+body.supply-draft-route .supply-health-component-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--supply-gold-lo), var(--supply-gold-hi));
+}
+
+body.supply-draft-route .supply-health-component-value {
+  color: var(--supply-fg-1);
+  font-family: var(--supply-mono);
+  font-size: 11.5px;
+  text-align: right;
+}
+
+body.supply-draft-route .supply-health-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+body.supply-draft-route .supply-health-detail-stat-label {
+  color: var(--supply-fg-3);
+  font-family: var(--supply-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+body.supply-draft-route .supply-health-detail-stat-value {
+  margin-top: 2px;
+  color: var(--supply-fg-1);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+body.supply-draft-route .supply-health-detail-stat-value.positive { color: var(--supply-green-hi); }
+body.supply-draft-route .supply-health-detail-stat-value.negative { color: #d08a7d; }
+
+body.supply-draft-route .supply-health-top-wallet {
+  display: grid;
+  grid-template-columns: 26px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 12px;
+}
+
+body.supply-draft-route .supply-health-top-rank {
+  color: var(--supply-fg-3);
+  font-family: var(--supply-mono);
+  font-size: 10.5px;
+}
+
+body.supply-draft-route .supply-health-top-addr {
+  color: var(--supply-fg-2);
+  font-family: var(--supply-mono);
+  font-size: 11.5px;
+}
+
+body.supply-draft-route .supply-health-top-share {
+  color: var(--supply-fg-1);
+  font-family: var(--supply-mono);
+  font-size: 11.5px;
+}
+
+body.supply-draft-route .supply-health-top-usd {
+  color: var(--supply-fg-3);
+  font-family: var(--supply-mono);
+  font-size: 11px;
+}
+
+body.supply-draft-route .supply-health-detail-empty {
+  color: var(--supply-fg-3);
+  font-size: 12px;
+}
+
+body.supply-draft-route .supply-health-open-market {
+  margin-top: 10px;
+  padding: 7px 12px;
+  border: 1px solid var(--supply-gold-line);
+  border-radius: 8px;
+  background: var(--supply-gold-wash);
+  color: var(--supply-gold-hi);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+body.supply-draft-route .supply-health-open-market:hover {
+  background: rgba(201, 162, 39, .16);
+}
+
+body.supply-draft-route .supply-health-footnote {
+  padding: 10px 18px 14px;
+  border-top: 1px solid var(--supply-line-1);
+  color: var(--supply-fg-3);
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  body.supply-draft-route .supply-health-header {
+    flex-direction: column;
+  }
+
+  body.supply-draft-route .supply-health-detail {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  body.supply-draft-route .supply-health-scroll {
+    overflow-x: auto;
+  }
+
+  body.supply-draft-route .supply-health-table {
+    min-width: 720px;
+  }
+}

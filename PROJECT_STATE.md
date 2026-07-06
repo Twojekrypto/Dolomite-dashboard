@@ -42,7 +42,10 @@ Dolomite website/
 | **Main Dashboard** | `index.html` → `dolo-preview.html` | DOLO holders, flows, fresh wallets, dystrybucja w czasie |
 | **Liquidations/Borrow/Supply** | `liquidation/`, `borrow/`, `supply/` → `liquidation-preview.html` | Pozycje at-risk, health factor, E-Mode, historia likwidacji, supply markets |
 | **Earn** | `earn/` → `dashboard-core.html/.css/.js` | Earnings per wallet, supply/borrow positions, yield |
+| **Rewards** | `rewards/` → `rewards-preview.html` | Programy nagród (Merkl + oDOLO): APR, eligible TVL, daily rewards, efficiency |
 | **Pozostałe sekcje** | `vedolo/`, `odolo/`, `tvl/`, `revenue/`, `assets/`, `portfolio/`, `history/` | Dedykowane strony preview per temat |
+
+Zakładka Supply zawiera dodatkowo kartę **Supply Pool Health** (`data/supply-health/latest.json`): per-asset liczba portfeli, koncentracja Top10/largest/Gini, trendy 7d/30d i ważony Supply Quality Score (A–F, propozycja społeczności 2026-06-29).
 
 Adresy kontraktowe protokołu: wspólna stopka (`protocol-footer.js`) na każdej stronie.
 
@@ -62,6 +65,8 @@ Adresy kontraktowe protokołu: wspólna stopka (`protocol-footer.js`) na każdej
 | `scan_earn_netflow.py` | Earn vault net flows | Subgraph |
 | `fetch_odolo_contract.py` | oDOLO contract metrics | RPC |
 | `calculate_avg_lock.py` | Średni czas locka veDOLO | Obliczenia lokalne |
+| `generate_supply_health.py` | Supply Pool Health (salda per portfel, koncentracja, quality score) → `data/supply-health/` | Subgraph (`marginAccountTokenValues`) |
+| `fetch_rewards_programs.py` | Programy nagród (Merkl + oDOLO) → `rewards_programs.json` | Merkl v4 API + Dolomite API |
 
 ## 🚀 Deployment
 
