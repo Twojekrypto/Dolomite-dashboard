@@ -35,7 +35,8 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("expiry-search-20260610", self.route)
 
     def test_expired_claimable_vedolo_table_contract(self):
-        self.assertIn("Expired Claimable veDOLO", self.html)
+        self.assertIn("Expired veDOLO Ready to Claim", self.html)
+        self.assertNotIn("<h2>Expired Claimable veDOLO</h2>", self.html)
         self.assertIn('id="q-claimable"', self.html)
         self.assertIn('id="claimable-table"', self.html)
         self.assertIn('id="claimable-body"', self.html)
@@ -96,7 +97,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("flowSourceTag(row.route.kind, row.route.tooltip)", self.html)
 
     def test_vedolo_route_busts_preview_cache_for_claimable_table(self):
-        self.assertIn("claimable-lock-term-20260706", self.route)
+        self.assertIn("claimable-ready-title-20260706", self.route)
 
 
 if __name__ == "__main__":
