@@ -1,4 +1,5 @@
 import unittest
+import re
 from pathlib import Path
 
 
@@ -12,6 +13,11 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
     def setUpClass(cls):
         cls.html = VEDOLO_HTML.read_text(encoding="utf-8")
         cls.route = VEDOLO_ROUTE.read_text(encoding="utf-8")
+        cls.claimable_table = re.search(
+            r'<table class="tbl" id="claimable-table">(?P<body>.*?)</table>',
+            cls.html,
+            re.S,
+        ).group("body")
 
     def test_lock_expiry_timeline_has_wallet_search(self):
         self.assertIn("Lock Expiry Timeline", self.html)
@@ -41,18 +47,36 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("renderExpiredClaimable();", self.html)
         self.assertIn("Ready to claim", self.html)
 
-    def test_expired_claimable_table_reuses_holder_ux_contracts(self):
+    def test_expired_claimable_table_reuses_holder_wallet_ux_contracts(self):
         self.assertIn("#claimable-table{table-layout:fixed;min-width:920px}", self.html)
         self.assertIn("#claimable-table .holder-wallet", self.html)
-        self.assertIn("#claimable-table .holder-toggle", self.html)
         self.assertIn('data-claimable-id="${esc(row.id)}"', self.html)
         self.assertIn("tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 7)", self.html)
         self.assertIn("syncSortHeader(\"#claimable-table\", st.sort, st.asc);", self.html)
         self.assertIn("claimable:state.claimable", self.html)
         self.assertIn('table === "claimable-table"', self.html)
 
+    def test_expired_claimable_table_replaces_vote_and_details_with_route_and_usdc(self):
+        self.assertIn("Route", self.claimable_table)
+        self.assertIn("USDC.e Paid", self.claimable_table)
+        self.assertIn('data-sort="route"', self.claimable_table)
+        self.assertIn('data-sort="usdc"', self.claimable_table)
+        self.assertNotIn("Vote Weight", self.claimable_table)
+        self.assertNotIn("Details", self.claimable_table)
+        self.assertNotIn("claimable-vote-col", self.claimable_table)
+        self.assertNotIn("claimable-actions-col", self.claimable_table)
+
+    def test_claimable_usdc_paid_uses_exerciser_token_id_lookup(self):
+        self.assertIn('fetchJson("exercisers_by_address.json").catch(() => null)', self.html)
+        self.assertIn("exerciseEventsByToken:new Map()", self.html)
+        self.assertIn("function buildExerciseRouteIndexes(exercisers)", self.html)
+        self.assertIn("token_ids", self.html)
+        self.assertIn("function claimableUsdcPaid(row)", self.html)
+        self.assertIn("row.exercise?.paid_token === \"USDC.e\"", self.html)
+        self.assertIn("flowSourceTag(row.route.kind, row.route.tooltip)", self.html)
+
     def test_vedolo_route_busts_preview_cache_for_claimable_table(self):
-        self.assertIn("expired-claimable-20260706", self.route)
+        self.assertIn("claimable-route-usdc-20260706", self.route)
 
 
 if __name__ == "__main__":
