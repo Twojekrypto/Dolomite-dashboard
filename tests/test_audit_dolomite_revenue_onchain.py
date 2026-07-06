@@ -177,6 +177,45 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertTrue(result["revenueDiffUnbounded"])
         self.assertIn("defillama_chain_missing_onchain_immaterial", result["infoReasons"])
 
+    def test_dust_scale_diff_is_info_when_both_sources_are_below_caps(self):
+        # Real Mantle case: DeFiLlama rounds chain rows to whole USD ($1 fees,
+        # $0 revenue) while the onchain replay measures $3.80 / $0.57.
+        result = classify_chain_result(
+            "Mantle",
+            defillama={"feesUSD": 1.0, "revenueUSD": 0.0},
+            onchain={"feesUSD": 3.796781, "revenueUSD": 0.569517, "protocolCut": 0.15},
+            tolerance_pct=0.02,
+            protocol_cut_tolerance=0.002,
+        )
+
+        self.assertEqual(result["status"], "pass")
+        self.assertIn("dust_scale_diff_immaterial", result["infoReasons"])
+        self.assertNotIn("warnReasons", result)
+
+    def test_dust_scale_policy_does_not_apply_when_onchain_is_material(self):
+        result = classify_chain_result(
+            "Mantle",
+            defillama={"feesUSD": 1.0, "revenueUSD": 0.0},
+            onchain={"feesUSD": 50.0, "revenueUSD": 7.5, "protocolCut": 0.15},
+            tolerance_pct=0.02,
+            protocol_cut_tolerance=0.002,
+        )
+
+        self.assertEqual(result["status"], "warn")
+        self.assertIn("fees_diff_exceeds_tolerance", result["warnReasons"])
+
+    def test_dust_scale_policy_does_not_apply_when_defillama_is_material(self):
+        result = classify_chain_result(
+            "Mantle",
+            defillama={"feesUSD": 40.0, "revenueUSD": 8.0},
+            onchain={"feesUSD": 3.0, "revenueUSD": 0.5, "protocolCut": 0.15},
+            tolerance_pct=0.02,
+            protocol_cut_tolerance=0.002,
+        )
+
+        self.assertEqual(result["status"], "warn")
+        self.assertIn("fees_diff_exceeds_tolerance", result["warnReasons"])
+
     def test_chain_result_warns_when_immaterial_tokens_are_omitted(self):
         result = classify_chain_result(
             "Arbitrum",

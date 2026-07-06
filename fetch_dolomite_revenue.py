@@ -31,7 +31,7 @@ BORROW_FEE_REBATE_METADATA_URL = "https://api.dolomite.io/liquidity-mining/ve-do
 BORROW_FEE_REBATE_DOCS_URL = "https://docs.dolomite.io/dolo/borrow-fee-rebates"
 BERACHAIN_CHAIN_ID = "80094"
 BERACHAIN_CHAIN_NAME = "Berachain"
-ONCHAIN_REVENUE_OVERRIDE_CHAINS = {BERACHAIN_CHAIN_NAME, "Ethereum"}
+ONCHAIN_REVENUE_OVERRIDE_CHAINS = {BERACHAIN_CHAIN_NAME, "Ethereum", "Mantle"}
 ONCHAIN_CURRENT_INDEX_SOURCE = "onchain-current-index-audit"
 BERACHAIN_COIN_CHAIN = "berachain"
 BERACHAIN_MARGIN_ADDRESS = "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D"
@@ -1068,7 +1068,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "scope": "Dolomite borrow-interest economics from the DeFiLlama adapter, with audited Ethereum and Berachain rows replaced by independent current-index onchain audit rows when available. Gas fees, token emissions, treasury transfers, trading spreads, liquidator earnings and protocol liquidation-rake attribution are excluded.",
             "sourceLimitations": [
                 "DeFiLlama adapter estimates daily interest from borrow index movement and borrowed principal snapshots.",
-                "Ethereum and Berachain use the independent current-index onchain audit for audited daily rows, because it better reflects accrued borrow interest than cached adapter indexes.",
+                "Ethereum, Berachain, and Mantle use the independent current-index onchain audit for audited daily rows, because it better reflects accrued borrow interest than cached adapter indexes.",
                 "This is protocol-retained borrow interest, not a direct treasury cashflow audit.",
                 "Current unfinalized rebate epochs remain gross until the weekly claim data is published onchain.",
                 "Current-day values can be revised by DeFiLlama until the adapter window fully settles.",
@@ -1079,7 +1079,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "confidence": "high for retained borrow-interest direction/split when the independent onchain audit is pass; warn/stale audit states should be treated as data-quality caveats",
             "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest",
             "berachainRevenueSource": "current-index onchain audit for audited daily rows; DeFiLlama adapter fallback outside audited coverage",
-            "onchainOverrideRevenueSource": "current-index onchain audit for audited Ethereum/Berachain daily rows; DeFiLlama adapter fallback outside audited coverage",
+            "onchainOverrideRevenueSource": "current-index onchain audit for audited Ethereum/Berachain/Mantle daily rows; DeFiLlama adapter fallback outside audited coverage",
             "netRevenueAfterBorrowFeeRebates": "closed-epoch Berachain veDOLO borrow-fee rebates are netted from displayed revenue; active/unpublished epochs remain gross",
             "borrowFeeRebateStatus": borrow_fee_rebate_status(rebate_metadata),
             **onchain_audit_assurance(onchain_audit, now=now),
