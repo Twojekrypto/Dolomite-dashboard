@@ -113,8 +113,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("liquidatorEarningsAllTimeUSD", output["totals"])
         self.assertEqual(output["assurance"]["classification"], "hybrid adapter/current-index protocol borrow-interest revenue")
         self.assertEqual(output["assurance"]["berachainRevenueSource"], "current-index onchain audit for audited daily rows; DeFiLlama adapter fallback outside audited coverage")
-        self.assertEqual(output["assurance"]["onchainOverrideRevenueSource"], "current-index onchain audit for audited Ethereum/Berachain daily rows; DeFiLlama adapter fallback outside audited coverage")
-        self.assertTrue(any("Ethereum and Berachain use the independent current-index onchain audit" in item for item in output["methodology"]["sourceLimitations"]))
+        self.assertEqual(output["assurance"]["onchainOverrideRevenueSource"], "current-index onchain audit for audited Ethereum/Berachain/Mantle daily rows; DeFiLlama adapter fallback outside audited coverage")
+        self.assertTrue(any("Ethereum, Berachain, and Mantle use the independent current-index onchain audit" in item for item in output["methodology"]["sourceLimitations"]))
         self.assertTrue(any("Current unfinalized rebate epochs remain gross until the weekly claim data is published" in item for item in output["methodology"]["sourceLimitations"]))
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
@@ -640,7 +640,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260701-ethereum-onchain-override', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260701-chain-table-first-v4"', route_html)
+        self.assertIn('"version": "revenue-20260706-audit-dust-scale"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),

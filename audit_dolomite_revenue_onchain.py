@@ -261,6 +261,17 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
         and abs(onchain_fees) <= IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP
         and abs(onchain_revenue) <= IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP
     )
+    defillama_revenue = float(defillama.get("revenueUSD") or 0)
+    # DeFiLlama rounds chain rows to whole USD, so on dust-scale days the
+    # relative diff is meaningless. Below the same strict USD caps as the
+    # missing-chain policy, mismatches stay reported but are informational.
+    dust_scale_immaterial = (
+        not defillama_chain_missing
+        and abs(onchain_fees) <= IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP
+        and abs(onchain_revenue) <= IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP
+        and abs(defillama_fees) <= IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP
+        and abs(defillama_revenue) <= IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP
+    )
     warn_reasons = []
     info_reasons = []
     if not math.isfinite(fees_diff):
@@ -269,23 +280,35 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
                 add_unique(info_reasons, "defillama_chain_missing_onchain_immaterial")
             else:
                 add_unique(warn_reasons, "defillama_chain_missing_onchain_nonzero")
+        elif dust_scale_immaterial:
+            add_unique(info_reasons, "dust_scale_diff_immaterial")
         else:
             add_unique(warn_reasons, "fees_diff_unbounded")
     elif fees_diff > tolerance_pct:
-        add_unique(warn_reasons, "fees_diff_exceeds_tolerance")
+        if dust_scale_immaterial:
+            add_unique(info_reasons, "dust_scale_diff_immaterial")
+        else:
+            add_unique(warn_reasons, "fees_diff_exceeds_tolerance")
     if not math.isfinite(revenue_diff):
         if defillama_chain_missing and onchain_revenue != 0:
             if missing_chain_immaterial:
                 add_unique(info_reasons, "defillama_chain_missing_onchain_immaterial")
             else:
                 add_unique(warn_reasons, "defillama_chain_missing_onchain_nonzero")
+        elif dust_scale_immaterial:
+            add_unique(info_reasons, "dust_scale_diff_immaterial")
         else:
             add_unique(warn_reasons, "revenue_diff_unbounded")
     elif revenue_diff > tolerance_pct:
-        add_unique(warn_reasons, "revenue_diff_exceeds_tolerance")
+        if dust_scale_immaterial:
+            add_unique(info_reasons, "dust_scale_diff_immaterial")
+        else:
+            add_unique(warn_reasons, "revenue_diff_exceeds_tolerance")
     if protocol_cut_diff > protocol_cut_tolerance:
         if missing_chain_immaterial:
             add_unique(info_reasons, "protocol_cut_diff_ignored_immaterial_missing_chain")
+        elif dust_scale_immaterial:
+            add_unique(info_reasons, "dust_scale_diff_immaterial")
         else:
             add_unique(warn_reasons, "protocol_cut_diff_exceeds_tolerance")
     if price_omission_count:
@@ -380,6 +403,7 @@ def build_audit_report(target_date, target_timestamp, window_start_timestamp, ch
             "usdPricing": "Raw token amounts are independently replayed from DolomiteMargin; USD totals use historical token prices and should be compared with tolerance.",
             "immaterialMissingPricePolicy": "Only explicitly allowlisted legacy/dust tokens below strict protocol-revenue amount caps may be priced as 0 USD; this keeps the chain audited but forces WARN.",
             "immaterialMissingChainPolicy": f"DeFiLlama-missing chain rows are informational when independent onchain totals are below ${IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP:g} revenue and ${IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP:g} fees.",
+            "immaterialDustScalePolicy": f"When both DeFiLlama and onchain daily totals are below ${IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP:g} fees and ${IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP:g} revenue, relative diffs are informational because DeFiLlama rounds chain rows to whole USD.",
             "archiveRpcRequirement": "Historical eth_call requires archive-capable RPC. Chains without archive access are marked missing, not pass.",
         },
         "chains": chain_results,
