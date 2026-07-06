@@ -56,27 +56,31 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("claimable:state.claimable", self.html)
         self.assertIn('table === "claimable-table"', self.html)
 
-    def test_expired_claimable_table_replaces_vote_and_details_with_route_and_usdc(self):
+    def test_expired_claimable_table_replaces_vote_and_details_with_route_and_price(self):
         self.assertIn("Route", self.claimable_table)
-        self.assertIn("USDC.e Paid", self.claimable_table)
+        self.assertIn("Price", self.claimable_table)
         self.assertIn('data-sort="route"', self.claimable_table)
-        self.assertIn('data-sort="usdc"', self.claimable_table)
+        self.assertIn('data-sort="price"', self.claimable_table)
+        self.assertNotIn("USDC.e Paid", self.claimable_table)
         self.assertNotIn("Vote Weight", self.claimable_table)
         self.assertNotIn("Details", self.claimable_table)
         self.assertNotIn("claimable-vote-col", self.claimable_table)
         self.assertNotIn("claimable-actions-col", self.claimable_table)
 
-    def test_claimable_usdc_paid_uses_exerciser_token_id_lookup(self):
+    def test_claimable_price_uses_exerciser_token_id_lookup(self):
         self.assertIn('fetchJson("exercisers_by_address.json").catch(() => null)', self.html)
         self.assertIn("exerciseEventsByToken:new Map()", self.html)
         self.assertIn("function buildExerciseRouteIndexes(exercisers)", self.html)
         self.assertIn("token_ids", self.html)
-        self.assertIn("function claimableUsdcPaid(row)", self.html)
+        self.assertIn("function claimableExercisePrice(row)", self.html)
+        self.assertIn("function claimableExercisePriceLabel(row)", self.html)
         self.assertIn("row.exercise?.paid_token === \"USDC.e\"", self.html)
+        self.assertNotIn("claimableUsdcPaidLabel", self.html)
+        self.assertNotIn("USDC.e</span>", self.html)
         self.assertIn("flowSourceTag(row.route.kind, row.route.tooltip)", self.html)
 
     def test_vedolo_route_busts_preview_cache_for_claimable_table(self):
-        self.assertIn("claimable-route-usdc-20260706", self.route)
+        self.assertIn("claimable-route-price-20260706", self.route)
 
 
 if __name__ == "__main__":

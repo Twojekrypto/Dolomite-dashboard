@@ -457,7 +457,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   border-color:rgba(117,184,123,.12);
   background:rgba(9,9,11,.12);
 }
-.latest-ex-tbl{min-width:680px}
+.latest-ex-tbl{min-width:780px}
 .latest-ex-tbl thead th{cursor:default}
 .latest-ex-tbl thead th{
   padding:11px 12px;
@@ -1386,6 +1386,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
             <th data-latest-sort="date" style="width:136px">DATE</th>
             <th data-latest-sort="wallet">Address</th>
             <th data-latest-sort="vedolo" class="num" style="width:116px">veDOLO</th>
+            <th data-latest-sort="usdc" class="num" style="width:118px">USDC Paid</th>
             <th data-latest-sort="price" class="num" style="width:96px">Price</th>
             <th data-latest-sort="lock" class="num" style="width:88px">Lock</th>
           </tr>
@@ -2913,7 +2914,7 @@ function renderLatestExercises(){
   if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString()}` : "Loading";
 
   if(!LIVE.exercisers){
-    tbody.innerHTML = `<tr><td colspan="5"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;
     if(pager) pager.innerHTML = "";
     return;
   }
@@ -2921,7 +2922,7 @@ function renderLatestExercises(){
     const emptyLabel = state.qLatest.trim()
       ? `No oDOLO exercises match "${esc(state.qLatest.trim())}" for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`
       : `No oDOLO exercises recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`;
-    tbody.innerHTML = `<tr><td colspan="5"><div class="latest-empty">${emptyLabel}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">${emptyLabel}</div></td></tr>`;
     if(pager) pager.innerHTML = "";
     return;
   }
@@ -2955,6 +2956,7 @@ function renderLatestExercises(){
           </div>
         </td>
         <td class="num" data-label="veDOLO"><span class="bal-val">${fmtTokenFull(tx.vedolo)}</span></td>
+        <td class="num" data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(tx.usdc)}</span></td>
         <td class="num" data-label="Price"><span class="bal-val price">${fmtPrice(tx.price)}</span></td>
         <td class="num" data-label="Lock"><span class="ex-detail-lock ${lockBucket(tx.lockDays)}">${fmtLock(tx.lockDays)}</span></td>
       </tr>
