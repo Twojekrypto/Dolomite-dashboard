@@ -24,19 +24,17 @@ class OdoloPreviewContractsTest(unittest.TestCase):
             re.S,
         ).group("body")
 
-    def test_latest_odolo_exercises_uses_price_instead_of_usdc_paid(self):
+    def test_latest_odolo_exercises_keeps_usdc_paid_and_price_columns(self):
         self.assertIn("Latest oDOLO Exercises", self.html)
+        self.assertIn('data-latest-sort="usdc" class="num" style="width:118px">USDC Paid', self.latest_table)
         self.assertIn('data-latest-sort="price" class="num" style="width:96px">Price', self.latest_table)
-        self.assertNotIn('data-latest-sort="usdc"', self.latest_table)
-        self.assertNotIn("USDC Paid", self.latest_table)
-        self.assertNotIn('data-label="USDC Paid"', self.latest_render)
-        self.assertNotIn("fmtUsdFull(tx.usdc)", self.latest_render)
+        self.assertIn('data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(tx.usdc)}</span>', self.latest_render)
         self.assertIn('data-label="Price"><span class="bal-val price">${fmtPrice(tx.price)}</span>', self.latest_render)
-        self.assertIn('tbody.innerHTML = `<tr><td colspan="5"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;', self.latest_render)
-        self.assertIn('tbody.innerHTML = `<tr><td colspan="5"><div class="latest-empty">${emptyLabel}</div></td></tr>`;', self.latest_render)
+        self.assertIn('tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;', self.latest_render)
+        self.assertIn('tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">${emptyLabel}</div></td></tr>`;', self.latest_render)
 
-    def test_odolo_route_busts_cache_for_latest_exercise_price_column(self):
-        self.assertIn("latest-ex-price-20260706", self.route)
+    def test_odolo_route_no_longer_uses_mistaken_latest_price_cache_bust(self):
+        self.assertNotIn("latest-ex-price-20260706", self.route)
 
 
 if __name__ == "__main__":

@@ -314,7 +314,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #claimable-table col.claimable-rank-col{width:56px}
 #claimable-table col.claimable-dolo-col{width:148px}
 #claimable-table col.claimable-route-col{width:120px}
-#claimable-table col.claimable-usdc-col{width:132px}
+#claimable-table col.claimable-price-col{width:132px}
 #claimable-table col.claimable-expired-col{width:138px}
 #claimable-table col.claimable-id-col{width:108px}
 #claimable-table td{font-size:13px}
@@ -336,7 +336,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #claimable-table .addr-debank:hover img{opacity:1}
 #claimable-table .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
 #claimable-table .holder-value{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
-#claimable-table .holder-value.usdc-paid{color:var(--cyan)}
+#claimable-table .holder-value.price-paid{color:var(--cyan)}
 #claimable-table .holder-value.muted{color:var(--fg-4)}
 #claimable-table .claimable-route-cell{text-align:center}
 #claimable-table .claimable-route-cell .flow-source-tag{justify-content:center;max-width:100%}
@@ -1051,11 +1051,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
           <col>
           <col class="claimable-dolo-col">
           <col class="claimable-route-col">
-          <col class="claimable-usdc-col">
+          <col class="claimable-price-col">
           <col class="claimable-expired-col">
           <col class="claimable-id-col">
         </colgroup>
-        <thead><tr><th class="sortable" data-sort="rank"><span class="th-content"># <span class="sort-arrow"></span></span></th><th class="sortable" data-sort="address"><span class="th-content">Address <span class="sort-arrow"></span></span></th><th class="num sortable sorted" data-sort="dolo"><span class="th-content">Claimable DOLO <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="route"><span class="th-content">Route <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="usdc"><span class="th-content">USDC.e Paid <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="expired"><span class="th-content">Expired <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="id"><span class="th-content">Position ID <span class="sort-arrow"></span></span></th></tr></thead>
+        <thead><tr><th class="sortable" data-sort="rank"><span class="th-content"># <span class="sort-arrow"></span></span></th><th class="sortable" data-sort="address"><span class="th-content">Address <span class="sort-arrow"></span></span></th><th class="num sortable sorted" data-sort="dolo"><span class="th-content">Claimable DOLO <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="route"><span class="th-content">Route <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="price"><span class="th-content">Price <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="expired"><span class="th-content">Expired <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="id"><span class="th-content">Position ID <span class="sort-arrow"></span></span></th></tr></thead>
         <tbody id="claimable-body"><tr class="loading-row"><td colspan="7">Loading expired veDOLO positions...</td></tr></tbody>
       </table>
     </div>
@@ -1159,6 +1159,7 @@ const fmtCompact = n => {
 };
 const fmtDolo = n => fmtCompact(n) + " DOLO";
 const fmtMoney = n => "$" + fmtCompact(n);
+const fmtPrice = n => num(n) > 0 ? "$" + num(n).toFixed(num(n) >= 1 ? 2 : 4) : "--";
 const pct = n => num(n).toFixed(1) + "%";
 const dateLabel = d => {
   if(!d) return "--";
@@ -2369,7 +2370,7 @@ function getFilteredClaimable(){
     let vb = sort === "address" ? String(b.address || "") : num(b[sort]);
     if(sort === "rank"){ va = num(a.holder_rank); vb = num(b.holder_rank); }
     if(sort === "route"){ va = String(a.route?.label || ""); vb = String(b.route?.label || ""); }
-    if(sort === "usdc"){ va = claimableUsdcPaid(a); vb = claimableUsdcPaid(b); }
+    if(sort === "price"){ va = claimableExercisePrice(a); vb = claimableExercisePrice(b); }
     if(sort === "expired"){ va = num(a.end); vb = num(b.end); }
     if(sort === "id"){ va = num(a.id); vb = num(b.id); }
     if(typeof va === "string") return st.asc ? va.localeCompare(vb) : vb.localeCompare(va);
@@ -2379,13 +2380,12 @@ function getFilteredClaimable(){
   });
   return rows;
 }
-function claimableUsdcPaid(row){
-  if(row.exercise?.paid_token === "USDC.e") return num(row.exercise.usdc);
+function claimableExercisePrice(row){
+  if(row.exercise?.paid_token === "USDC.e") return num(row.exercise.price);
   return 0;
 }
-function claimableUsdcPaidLabel(row){
-  const paid = claimableUsdcPaid(row);
-  return paid > 0 ? `${fmtCompact(paid)} USDC.e` : "--";
+function claimableExercisePriceLabel(row){
+  return fmtPrice(claimableExercisePrice(row));
 }
 function renderExpiredClaimable(){
   const rows = getFilteredClaimable();
@@ -2395,13 +2395,13 @@ function renderExpiredClaimable(){
   const start = (st.page - 1) * st.perPage;
   const pageRows = rows.slice(start, start + st.perPage);
   const bodyRows = pageRows.length ? pageRows.map((row,i) => {
-    const paid = claimableUsdcPaid(row);
+    const price = claimableExercisePrice(row);
     return `<tr class="claimable-data-row stable-data-row" data-claimable-id="${esc(row.id)}" data-claimable-key="${esc(row.key)}">
     <td><span class="rank">${fmtInt(start+i+1)}</span></td>
     <td>${holderCell(row)}</td>
     <td class="num"><span class="holder-value">${fmtDolo(row.dolo)}</span></td>
     <td class="claimable-route-cell center">${flowSourceTag(row.route.kind, row.route.tooltip)}</td>
-    <td class="num"><span class="holder-value ${paid > 0 ? "usdc-paid" : "muted"}">${esc(claimableUsdcPaidLabel(row))}</span></td>
+    <td class="num"><span class="holder-value ${price > 0 ? "price-paid" : "muted"}">${esc(claimableExercisePriceLabel(row))}</span></td>
     <td class="num"><span class="claimable-expired-cell"><span class="holder-value">${esc(holderEndDate(row.end))}</span><span class="subline">Expired</span></span></td>
     <td class="center"><span class="holder-position-id">#${esc(row.id)}</span></td>
   </tr>`;
