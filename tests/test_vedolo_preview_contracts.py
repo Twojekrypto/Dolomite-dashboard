@@ -56,9 +56,9 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("claimable:state.claimable", self.html)
         self.assertIn('table === "claimable-table"', self.html)
 
-    def test_expired_claimable_table_replaces_vote_and_details_with_route_and_price(self):
+    def test_expired_claimable_table_replaces_vote_and_details_with_route_and_exercise_price(self):
         self.assertIn("Route", self.claimable_table)
-        self.assertIn("Price", self.claimable_table)
+        self.assertIn("Exercise Price", self.claimable_table)
         self.assertIn('data-sort="route"', self.claimable_table)
         self.assertIn('data-sort="price"', self.claimable_table)
         self.assertNotIn("USDC.e Paid", self.claimable_table)
@@ -66,6 +66,11 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertNotIn("Details", self.claimable_table)
         self.assertNotIn("claimable-vote-col", self.claimable_table)
         self.assertNotIn("claimable-actions-col", self.claimable_table)
+
+    def test_expired_claimable_route_column_is_center_aligned(self):
+        self.assertIn("#claimable-table th[data-sort=\"route\"],#claimable-table .claimable-route-cell{text-align:center}", self.html)
+        self.assertIn("#claimable-table th[data-sort=\"route\"] .th-content{justify-content:center}", self.html)
+        self.assertIn("#claimable-table .claimable-route-cell .flow-source-tag{display:inline-flex;margin-inline:auto;justify-content:center;max-width:100%}", self.html)
 
     def test_claimable_price_uses_exerciser_token_id_lookup(self):
         self.assertIn('fetchJson("exercisers_by_address.json").catch(() => null)', self.html)
@@ -80,7 +85,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("flowSourceTag(row.route.kind, row.route.tooltip)", self.html)
 
     def test_vedolo_route_busts_preview_cache_for_claimable_table(self):
-        self.assertIn("claimable-route-price-20260706", self.route)
+        self.assertIn("claimable-route-exercise-price-20260706", self.route)
 
 
 if __name__ == "__main__":
