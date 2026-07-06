@@ -833,22 +833,17 @@
       usdCell.classList.add('num', 'supply-usd-cell');
 
       const addressWrap = walletCell.querySelector('.address-cell');
-      if (addressWrap && !walletCell.querySelector('.supply-wallet')) {
-        addressWrap.classList.add('supply-wallet-bottom');
+      if (addressWrap) {
+        addressWrap.classList.add('supply-wallet-address');
         addressWrap.removeAttribute('style');
-        const wallet = document.createElement('div');
-        wallet.className = 'supply-wallet';
-        const top = document.createElement('div');
-        top.className = 'supply-wallet-top';
-        top.innerHTML = '<span class="addr-name addr-generic">Wallet</span>';
-        wallet.appendChild(top);
-        wallet.appendChild(addressWrap);
-        walletCell.textContent = '';
-        walletCell.appendChild(wallet);
       }
 
       walletCell.querySelectorAll('.addr-tooltip-wrap').forEach(link => {
-        link.classList.add('addr-mono');
+        if (link.classList.contains('known-address-label')) {
+          link.classList.remove('addr-mono');
+        } else {
+          link.classList.add('addr-mono');
+        }
         link.removeAttribute('style');
       });
       walletCell.querySelectorAll('.copy-addr-icon').forEach(icon => {
@@ -899,7 +894,11 @@
         link.setAttribute('aria-label', 'Open DeBank profile');
       });
       row.querySelectorAll('.addr-tooltip-wrap').forEach(link => {
-        link.classList.add('addr-mono');
+        if (link.classList.contains('known-address-label')) {
+          link.classList.remove('addr-mono');
+        } else {
+          link.classList.add('addr-mono');
+        }
         link.removeAttribute('style');
       });
       row.querySelectorAll('.supply-activity-wallet-meta').forEach(meta => {
