@@ -2320,7 +2320,7 @@
             transition: background .15s var(--ease), color .15s var(--ease);
         }
         .liquidation-history-table tbody tr:nth-child(even) td {
-            background: rgba(255,255,255,.014);
+            background: transparent;
         }
         .liquidation-history-table tbody tr:hover td {
             background: rgba(255,255,255,.026);
@@ -3179,7 +3179,7 @@
         }
 
         .positions-table tbody tr:nth-child(even) {
-            background: rgba(255, 255, 255, 0.015);
+            background: transparent;
         }
 
         .positions-table tbody tr:hover {
@@ -3208,9 +3208,9 @@
             animation: rowFadeIn 0.3s ease both;
         }
 
-        /* Zebra stripes for readability */
+        /* Zebra removed — rows match DOLO Holders (separator lines only) */
         .positions-table tbody tr:nth-child(even) {
-            background: rgba(255, 255, 255, 0.015);
+            background: transparent;
         }
 
         .positions-table tbody tr.critical-row {
@@ -4873,7 +4873,7 @@
         .positions-table tbody tr:nth-child(even),
         .supply-table tbody tr:nth-child(even),
         .supply-activity-table tbody tr:nth-child(even) {
-            background: rgba(255,255,255,.012) !important;
+            background: transparent !important;
         }
         .flow-pager-btn:hover:not(:disabled),
         .search-wrap:focus-within,
@@ -7746,6 +7746,10 @@
         }
         body.route-liquidation .liquidation-history-card .table-card-inner {
             overflow: hidden !important;
+        }
+        /* Separator above the search bar — same rhythm as the DOLO Holders card head */
+        body.route-liquidation .liquidation-history-card .table-card-header {
+            border-bottom: 1px solid var(--line-1) !important;
         }
         body.route-liquidation .liquidation-history-container {
             height: 520px !important;
