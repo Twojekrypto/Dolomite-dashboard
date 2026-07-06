@@ -338,8 +338,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #claimable-table .holder-value{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
 #claimable-table .holder-value.price-paid{color:var(--cyan)}
 #claimable-table .holder-value.muted{color:var(--fg-4)}
-#claimable-table .claimable-route-cell{text-align:center}
-#claimable-table .claimable-route-cell .flow-source-tag{justify-content:center;max-width:100%}
+#claimable-table th[data-sort="route"],#claimable-table .claimable-route-cell{text-align:center}
+#claimable-table th[data-sort="route"] .th-content{justify-content:center}
+#claimable-table .claimable-route-cell .flow-source-tag{display:inline-flex;margin-inline:auto;justify-content:center;max-width:100%}
 #claimable-table .holder-position-id{display:inline-flex;align-items:center;justify-content:center;min-width:54px;padding:4px 7px;border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-wash);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--gold)}
 #claimable-table .claimable-expired-cell{display:flex;flex-direction:column;align-items:flex-end;gap:3px;line-height:1.2}
 #claimable-table .claimable-expired-cell .subline{font-size:10.5px;color:var(--down);font-family:var(--mono);font-weight:700;text-transform:uppercase;letter-spacing:.45px}
@@ -1055,7 +1056,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
           <col class="claimable-expired-col">
           <col class="claimable-id-col">
         </colgroup>
-        <thead><tr><th class="sortable" data-sort="rank"><span class="th-content"># <span class="sort-arrow"></span></span></th><th class="sortable" data-sort="address"><span class="th-content">Address <span class="sort-arrow"></span></span></th><th class="num sortable sorted" data-sort="dolo"><span class="th-content">Claimable DOLO <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="route"><span class="th-content">Route <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="price"><span class="th-content">Price <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="expired"><span class="th-content">Expired <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="id"><span class="th-content">Position ID <span class="sort-arrow"></span></span></th></tr></thead>
+        <thead><tr><th class="sortable" data-sort="rank"><span class="th-content"># <span class="sort-arrow"></span></span></th><th class="sortable" data-sort="address"><span class="th-content">Address <span class="sort-arrow"></span></span></th><th class="num sortable sorted" data-sort="dolo"><span class="th-content">Claimable DOLO <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="route"><span class="th-content">Route <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="price"><span class="th-content">Exercise Price <span class="sort-arrow"></span></span></th><th class="num sortable" data-sort="expired"><span class="th-content">Expired <span class="sort-arrow"></span></span></th><th class="center sortable" data-sort="id"><span class="th-content">Position ID <span class="sort-arrow"></span></span></th></tr></thead>
         <tbody id="claimable-body"><tr class="loading-row"><td colspan="7">Loading expired veDOLO positions...</td></tr></tbody>
       </table>
     </div>
