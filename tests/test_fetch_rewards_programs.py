@@ -50,6 +50,9 @@ class RewardsProgramSupplyHistoryTest(unittest.TestCase):
             self.assertEqual(program["supplyEndTimestamp"], 200)
             self.assertEqual(program["supplySymbol"], "USDC")
             self.assertEqual(program["supplyHistorySource"], "static-subgraph-replay")
+            self.assertEqual(program["supplyRangeMethod"], "first-snapshot-at-or-after-start-last-snapshot-at-or-before-end")
+            self.assertEqual(program["supplyStartOffsetSeconds"], 10)
+            self.assertEqual(program["supplyEndOffsetSeconds"], 50)
             self.assertEqual(program["tvlUsd"], 1234567)
 
     def test_missing_campaign_dates_fall_back_to_first_and_latest_supply_points(self):
@@ -111,6 +114,8 @@ class RewardsProgramSupplyHistoryTest(unittest.TestCase):
 
             self.assertEqual(program["campaignStart"], 100)
             self.assertEqual(program["campaignEnd"], 250)
+            self.assertEqual(program["rewardHistorySource"], "merkl-campaign-details")
+            self.assertEqual(program["rewardCampaignCount"], 3)
             self.assertEqual(program["rewardTokens"], ["USDC", "ARB"])
             self.assertEqual(program["rewardTokenTotals"], [
                 {"symbol": "USDC", "amount": 500.0},
