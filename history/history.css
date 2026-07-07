@@ -42,9 +42,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .hero-topline p{max-width:680px;color:var(--fg-2);font-size:14px}
 .source-pill{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:999px;background:rgba(201,162,39,.06);border:1px solid var(--gold-line);color:var(--gold-hi);font-family:var(--mono);font-size:11px;white-space:nowrap}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
-.lookup-bar{display:grid;grid-template-columns:minmax(320px,1fr) 176px 190px 210px auto;gap:12px;align-items:end}
-.wallet-field,.select-field,.history-control-field,.history-date-field{display:flex;flex-direction:column;gap:7px;min-width:0}
-.wallet-field span,.select-field span,.history-control-field > span,.history-date-field span{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:700}
+.lookup-bar{display:grid;grid-template-columns:minmax(320px,1fr) 176px 190px 210px 84px auto;gap:12px;align-items:end}
+.wallet-field,.select-field,.history-control-field,.history-date-field,.history-fast-field{display:flex;flex-direction:column;gap:7px;min-width:0}
+.wallet-field span,.select-field span,.history-control-field > span,.history-date-field span,.history-fast-field > span:first-child{font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:700}
 .history-control-field{align-items:flex-start}
 #history-year-control{width:176px}
 #history-action-control{width:190px}
@@ -106,6 +106,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .history-dd-opt-ico svg{width:12px;height:12px;color:var(--fg-3)}
 .history-dd-opt.select-all .history-dd-opt-ico svg{width:14px;height:14px;color:var(--fg-2)}
 .history-dd-name{min-width:0;flex:1;overflow:hidden;text-align:left;text-overflow:ellipsis;white-space:nowrap}
+.history-fast-toggle{height:42px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line-2);border-radius:10px;background:var(--bg-3);color:var(--fg-2);font-size:12px;font-weight:700;cursor:pointer;transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease),opacity .16s var(--ease)}
+.history-fast-toggle:hover{border-color:var(--line-3);background:var(--bg-4);color:var(--fg-1)}
+.history-fast-toggle input{position:absolute;opacity:0;pointer-events:none}
+.history-fast-track{width:26px;height:15px;border-radius:999px;background:var(--bg-4);border:1px solid var(--line-3);display:flex;align-items:center;padding:2px;transition:background .16s var(--ease),border-color .16s var(--ease)}
+.history-fast-track span{width:9px;height:9px;border-radius:50%;background:var(--fg-3);transition:transform .16s var(--ease),background .16s var(--ease),box-shadow .16s var(--ease)}
+.history-fast-toggle input:checked + .history-fast-track{background:rgba(201,162,39,.15);border-color:var(--gold-line)}
+.history-fast-toggle input:checked + .history-fast-track span{transform:translateX(11px);background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.35)}
+.history-fast-toggle input:checked ~ strong{color:var(--gold-hi)}
+.history-fast-toggle:has(input:disabled){opacity:.45;cursor:not-allowed}
 .primary-btn,.ghost-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 16px;border-radius:10px;font-size:13px;font-weight:700;transition:background .16s var(--ease),border-color .16s var(--ease),color .16s var(--ease),opacity .16s var(--ease)}
 .primary-btn{background:linear-gradient(180deg,rgba(201,162,39,.22),rgba(201,162,39,.12));border:1px solid var(--gold-line);color:var(--fg-1);box-shadow:0 10px 22px rgba(0,0,0,.18)}
 .primary-btn:hover{background:linear-gradient(180deg,rgba(201,162,39,.30),rgba(201,162,39,.15));color:var(--gold-hi)}
@@ -384,7 +393,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .site-nav-wrap.mobile-nav-ready{overflow:visible}
   .site-nav{max-width:100%;overflow-x:auto;justify-content:flex-start;scrollbar-width:none}
   .site-nav::-webkit-scrollbar{display:none}
-  .lookup-bar{grid-template-columns:176px 190px 210px auto}
+  .lookup-bar{grid-template-columns:176px 190px 210px 84px auto}
   .wallet-field{grid-column:1/-1}
   .primary-btn{grid-column:auto}
   .loading-steps{grid-template-columns:repeat(2,1fr)}

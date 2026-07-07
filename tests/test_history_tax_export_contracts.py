@@ -2763,6 +2763,162 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn("data-review-note", self.source)
         self.assertIn(".review-note-box", self.css)
 
+    def test_history_gas_receipts_are_cached_and_gateway_can_be_preferred(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyRpcTest = { fetchGas, gasCache, gasCacheKey, readStoredGasResult, writeStoredGasResult, rpcUrlsForChain };" + marker);
+const storage = new Map();
+let fetchCalls = 0;
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  AbortController,
+  setTimeout(callback) { callback(); return 1; },
+  clearTimeout() {},
+  fetch() {
+    fetchCalls += 1;
+    return Promise.reject(new Error("fetch should not run for a stored receipt"));
+  },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: {
+    __DOLO_RPC_GATEWAY: { arbitrum: "https://gateway.example/arbitrum" },
+    location: { href: "http://127.0.0.1/history/" },
+    history: { replaceState() {} },
+    localStorage: {
+      getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+      setItem(key, value) { storage.set(key, String(value)); },
+      removeItem(key) { storage.delete(key); },
+    },
+  },
+};
+vm.runInNewContext(instrumented, sandbox);
+(async () => {
+  const api = sandbox.__historyRpcTest;
+  const wallet = "0x28da3dde285d8f1f87b2d858f89961bb8b9af180";
+  const row = {
+    chainKey: "arbitrum",
+    txHash: "0xabc",
+    timestamp: 1768210081,
+    events: [{ action: "transfer", isSelfTransfer: true, fromAccount: "0", toAccount: "3224015000000001" }],
+  };
+  const cacheKey = api.gasCacheKey(row, wallet);
+  api.writeStoredGasResult(cacheKey, {
+    status: "not-payer",
+    paidByWallet: false,
+    from: "0x1111111111111111111111111111111111111111",
+    nativeSymbol: "ETH",
+    nativeAmountExact: "0.001",
+    borrowLifecycleSemantics: [{ action: "openBorrow", account: "3224015000000001", source: "receipt_log" }],
+  });
+  api.gasCache.clear();
+  const cached = await api.fetchGas(row, wallet);
+  if (fetchCalls !== 0) throw new Error(`unexpected fetch calls: ${fetchCalls}`);
+  if (cached.status !== "not-payer") throw new Error(JSON.stringify(cached));
+  if (row.events[0].borrowSemanticAction !== "openBorrow") throw new Error(JSON.stringify(row.events[0]));
+  const stored = api.readStoredGasResult(cacheKey);
+  if (!stored || stored.status !== "not-payer") throw new Error(JSON.stringify(stored));
+  const urls = api.rpcUrlsForChain("arbitrum");
+  if (urls[0] !== "https://gateway.example/arbitrum") throw new Error(JSON.stringify(urls));
+  if (!urls.includes("https://arb1.arbitrum.io/rpc")) throw new Error(JSON.stringify(urls));
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_history_prioritizes_classification_receipts_and_fast_mode_skips_full_gas(self):
+        self.assertIn('id="history-fast-mode"', self.html)
+        self.assertIn("els.fastMode", self.source)
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyPriorityTest = { historyRowsForGasPriority };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyPriorityTest;
+const plain = { txHash: "0xplain", gas: { status: "pending" } };
+const classified = { txHash: "0xclassified", gas: { status: "pending" }, receiptClassificationPending: true };
+const full = api.historyRowsForGasPriority([plain, classified], false);
+if (full.classificationRows.map(row => row.txHash).join(",") !== "0xclassified") throw new Error(JSON.stringify(full));
+if (full.backgroundRows.map(row => row.txHash).join(",") !== "0xplain") throw new Error(JSON.stringify(full));
+if (full.skippedRows.length !== 0) throw new Error(JSON.stringify(full));
+const fast = api.historyRowsForGasPriority([plain, classified], true);
+if (fast.classificationRows.map(row => row.txHash).join(",") !== "0xclassified") throw new Error(JSON.stringify(fast));
+if (fast.backgroundRows.length !== 0) throw new Error(JSON.stringify(fast));
+if (fast.skippedRows.map(row => row.txHash).join(",") !== "0xplain") throw new Error(JSON.stringify(fast));
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_loaded_all_history_can_apply_action_and_subset_chain_filters_without_rescan(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyFilterReuseTest = { state, els, setSelectedActionsFromValues, filtersCanReuseLoadedRows };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyFilterReuseTest;
+const wallet = "0x28da3dde285d8f1f87b2d858f89961bb8b9af180";
+api.els.action = { value: "all", options: [
+  { value: "all" },
+  { value: "deposit" },
+  { value: "withdraw" },
+  { value: "claim" },
+] };
+api.state.address = wallet;
+api.state.year = "custom";
+api.state.dateFrom = "2026-01-01";
+api.state.dateTo = "2026-07-07";
+api.state.rows = [{ chainKey: "arbitrum" }, { chainKey: "ethereum" }];
+api.state.loadedScope = {
+  address: wallet,
+  year: "custom",
+  dateFrom: "2026-01-01",
+  dateTo: "2026-07-07",
+  action: "all",
+  chains: ["arbitrum", "ethereum"],
+};
+api.state.selectedChains = new Set(["arbitrum"]);
+api.setSelectedActionsFromValues(["deposit"]);
+if (!api.filtersCanReuseLoadedRows()) throw new Error("deposit after all should filter locally");
+api.state.selectedChains = new Set(["arbitrum", "berachain"]);
+if (api.filtersCanReuseLoadedRows()) throw new Error("adding an unloaded chain should require reload");
+api.state.selectedChains = new Set(["arbitrum"]);
+api.state.loadedScope.action = "deposit";
+api.setSelectedActionsFromValues(["claim"]);
+if (api.filtersCanReuseLoadedRows()) throw new Error("claim after a deposit-only scan should require reload");
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
     def test_lessons_capture_history_report_direction(self):
         lessons = (ROOT / "lessons.md").read_text()
         self.assertIn("History Report Direction", lessons)
