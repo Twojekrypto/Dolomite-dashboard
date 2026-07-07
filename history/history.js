@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-fast-history-timeout";
+  const HISTORY_VERSION = "history-20260707-fast-history-finalize";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -13,6 +13,7 @@
   const HISTORY_GRAPH_OPTIONS = { timeoutMs: 8000, attempts: 1 };
   const HISTORY_CHAIN_CONCURRENCY = 3;
   const HISTORY_ENTITY_CONCURRENCY = 10;
+  const HISTORY_FINALIZE_BUDGET_MS = 20000;
   const START_YEAR = 2024;
   const DEFAULT_YEAR = String(Math.max(new Date().getUTCFullYear(), START_YEAR));
   const CHAIN_FILTER_ORDER = ["berachain", "arbitrum", "ethereum", "botanix", "mantle", "polygonzkevm", "xlayer"];
@@ -1146,13 +1147,11 @@
       }
 
       setStatus(`Found ${state.rows.length.toLocaleString()} tx. Checking gas receipts, historical prices, and report evidence...`);
-      await Promise.all([
-        enrichGasForRows(state.rows, address, runId),
-        earnPromise,
-      ]);
+      const gasPromise = enrichGasForRows(state.rows, address, runId);
+      const finalizeComplete = await waitForHistoryFinalize([gasPromise, earnPromise], HISTORY_FINALIZE_BUDGET_MS);
       if (runId !== state.runId) return;
       state.loadingPhase = "done";
-      const doneTone = state.warnings.length ? "warn" : "good";
+      const doneTone = state.warnings.length || !finalizeComplete ? "warn" : "good";
       const doneSuffix = state.warnings.length ? ` Partial data warning: ${shortWarnings()}` : "";
       const visibleRows = rowsMatchingCurrentFilters(state.rows);
       const visibleEvidenceEntries = earnTaxEntriesForCurrentView();
@@ -1161,8 +1160,25 @@
         : visibleRows.length === state.rows.length
         ? ""
         : ` ${visibleRows.length.toLocaleString()} match current filters.`;
-      setStatus(`Loaded ${state.rows.length.toLocaleString()} tx with gas evidence where RPC data is available.${filterSuffix}${doneSuffix}`, doneTone);
+      const pendingSuffix = finalizeComplete ? "" : " Gas/evidence is still finishing in the background; reports unlock when remaining evidence is ready.";
+      setStatus(`Loaded ${state.rows.length.toLocaleString()} tx with gas evidence where RPC data is available.${filterSuffix}${doneSuffix}${pendingSuffix}`, doneTone);
       render();
+      if (!finalizeComplete) {
+        Promise.allSettled([gasPromise, earnPromise]).then(() => {
+          if (runId !== state.runId) return;
+          const finalVisibleRows = rowsMatchingCurrentFilters(state.rows);
+          const finalEvidenceEntries = earnTaxEntriesForCurrentView();
+          const finalFilterSuffix = finalVisibleRows.length === 0 && finalEvidenceEntries.length
+            ? ` 0 transaction rows match current filters; ${finalEvidenceEntries.length.toLocaleString()} evidence row${finalEvidenceEntries.length === 1 ? "" : "s"} available in exports.`
+            : finalVisibleRows.length === state.rows.length
+            ? ""
+            : ` ${finalVisibleRows.length.toLocaleString()} match current filters.`;
+          const finalTone = state.warnings.length ? "warn" : "good";
+          const finalSuffix = state.warnings.length ? ` Partial data warning: ${shortWarnings()}` : "";
+          setStatus(`Loaded ${state.rows.length.toLocaleString()} tx with gas evidence where RPC data is available.${finalFilterSuffix}${finalSuffix}`, finalTone);
+          render();
+        });
+      }
     } catch (error) {
       if (runId !== state.runId) return;
       state.loading = false;
@@ -5428,6 +5444,19 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     if (!validDateInput(value)) return 0;
     const [year, month, day] = String(value).split("-").map(Number);
     return Math.floor(Date.UTC(year, month - 1, day, 23, 59, 59) / 1000);
+  }
+
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function waitForHistoryFinalize(tasks, timeoutMs = HISTORY_FINALIZE_BUDGET_MS) {
+    const pending = (tasks || []).filter(Boolean).map(task => Promise.resolve(task));
+    if (!pending.length) return true;
+    return Promise.race([
+      Promise.all(pending).then(() => true),
+      delay(timeoutMs).then(() => false),
+    ]);
   }
 
   async function mapLimit(items, limit, worker) {
