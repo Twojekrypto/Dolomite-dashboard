@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-fast-history-finalize";
+  const HISTORY_VERSION = "history-20260707-receipt-borrow-lifecycle";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -28,6 +28,10 @@
   const ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543";
   const NOTE_STORAGE_PREFIX = "dolomite-history-review-notes";
   const BORROW_POSITION_LIFECYCLE_ACTIONS = new Set(["borrowPositionOpen", "borrowPositionClose"]);
+  const BORROW_POSITION_OPEN_TOPIC = "0xfd9156bd20ce24a786c761efe71a3931de038c1f2620c1bb4720609bc742b58e";
+  const BORROW_POSITION_CLOSE_TOPIC = "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7";
+  const OPEN_BORROW_POSITION_SELECTOR = "0xbb0a6fa5";
+  const CLOSE_BORROW_POSITION_SELECTOR = "0x8fb8b6c7";
 
   const GRAPH_BASE = "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs";
   const CHAINS = {
@@ -2606,7 +2610,11 @@
 
   async function fetchGas(row, address) {
     const cacheKey = `${row.chainKey}:${row.txHash}:${address}`;
-    if (gasCache.has(cacheKey)) return gasCache.get(cacheKey);
+    if (gasCache.has(cacheKey)) {
+      const cached = gasCache.get(cacheKey);
+      applyBorrowLifecycleSemanticsToRow(row, cached?.borrowLifecycleSemantics || []);
+      return cached;
+    }
     const chain = CHAINS[row.chainKey];
     const result = (async () => {
       try {
@@ -2615,6 +2623,8 @@
           rpcRequest(row.chainKey, "eth_getTransactionByHash", [row.txHash]),
         ]);
         if (!receipt || !tx) return { status: "missing", paidByWallet: false };
+        const borrowLifecycleSemantics = borrowLifecycleSemanticsFromReceipt(receipt, tx, address);
+        applyBorrowLifecycleSemanticsToRow(row, borrowLifecycleSemantics);
         const from = normalizeAddress(tx.from || receipt.from || "");
         const paidByWallet = from === address.toLowerCase();
         const gasUsed = hexToBigInt(receipt.gasUsed);
@@ -2636,6 +2646,7 @@
             gasUsed: gasUsed.toString(),
             feeWei: feeWei.toString(),
             extraFeeWei: extraFeeWei.toString(),
+            borrowLifecycleSemantics,
           };
         }
         const price = await historicalPrice(chain.priceId, row.timestamp);
@@ -2655,6 +2666,7 @@
           extraFeeWei: extraFeeWei.toString(),
           historicalPrice: price,
           gasUsd,
+          borrowLifecycleSemantics,
         };
       } catch (error) {
         return { status: "error", paidByWallet: false, error: error.message || String(error) };
@@ -2662,6 +2674,110 @@
     })();
     gasCache.set(cacheKey, result);
     return result;
+  }
+
+  function applyBorrowReceiptSemanticsForRow(row, receipt, tx, address = "") {
+    return applyBorrowLifecycleSemanticsToRow(row, borrowLifecycleSemanticsFromReceipt(receipt, tx, address));
+  }
+
+  function borrowLifecycleSemanticsFromReceipt(receipt, tx, address = "") {
+    const wallet = normalizeAddress(address || tx?.from || receipt?.from || "");
+    const input = String(tx?.input || "").toLowerCase();
+    let inputSemantic = null;
+    if (input.startsWith(OPEN_BORROW_POSITION_SELECTOR)) {
+      inputSemantic = { action: "openBorrow", account: calldataUintToDecimal(input, 1), source: "calldata" };
+    } else if (input.startsWith(CLOSE_BORROW_POSITION_SELECTOR)) {
+      inputSemantic = { action: "closeBorrow", account: calldataUintToDecimal(input, 0), source: "calldata" };
+    }
+    const semantics = [];
+    (receipt?.logs || []).forEach(log => {
+      const topic0 = String(log?.topics?.[0] || "").toLowerCase();
+      if (topic0 === BORROW_POSITION_OPEN_TOPIC) {
+        if (inputSemantic && inputSemantic.action !== "openBorrow") return;
+        const borrower = topicAddressToAddress(log.topics?.[1]);
+        if (!wallet || !borrower || borrower === wallet) {
+          semantics.push({ action: "openBorrow", account: topicUintToDecimal(log.topics?.[2]), source: "receipt_log" });
+        }
+      } else if (topic0 === BORROW_POSITION_CLOSE_TOPIC) {
+        if (inputSemantic && inputSemantic.action !== "closeBorrow") return;
+        const borrower = topicAddressToAddress(log.topics?.[1]) || topicAddressToAddress(log.topics?.[2]);
+        if (!wallet || !borrower || borrower === wallet) {
+          semantics.push({ action: "closeBorrow", account: calldataUintToDecimal(log.data, 0), source: "receipt_log" });
+        }
+      }
+    });
+    if (inputSemantic) semantics.push(inputSemantic);
+    return dedupeBorrowLifecycleSemantics(semantics);
+  }
+
+  function applyBorrowLifecycleSemanticsToRow(row, semantics = []) {
+    if (!row || !Array.isArray(row.events) || !semantics.length) return false;
+    let changed = false;
+    semantics.forEach(semantic => {
+      const action = semantic?.action;
+      const account = normalizeAccountNumberValue(semantic?.account);
+      if (action !== "openBorrow" && action !== "closeBorrow") return;
+      row.events.forEach(event => {
+        if (event?.action !== "transfer" || !event.isSelfTransfer) return;
+        const fromAccount = normalizeAccountNumberValue(event.fromAccount);
+        const toAccount = normalizeAccountNumberValue(event.toAccount);
+        const matchesOpen = action === "openBorrow"
+          && isBorrowRouteAccountNumber(toAccount)
+          && (!account || account === toAccount);
+        const matchesClose = action === "closeBorrow"
+          && (isBorrowRouteAccountNumber(fromAccount) || isBorrowRouteAccountNumber(toAccount))
+          && (!account || account === fromAccount || account === toAccount);
+        if (!matchesOpen && !matchesClose) return;
+        setBorrowSemantic(event, action, semantic.source === "calldata" ? "borrow_position_calldata" : "borrow_position_receipt");
+        changed = true;
+      });
+    });
+    if (changed) refreshRowSemanticActions(row);
+    return changed;
+  }
+
+  function refreshRowSemanticActions(row) {
+    if (!row) return;
+    row.semanticActions = new Set((row.events || []).map(event => event.borrowSemanticAction).filter(Boolean));
+  }
+
+  function dedupeBorrowLifecycleSemantics(semantics = []) {
+    const seen = new Set();
+    return semantics.filter(semantic => {
+      const key = `${semantic?.action || ""}:${normalizeAccountNumberValue(semantic?.account)}`;
+      if (!semantic?.action || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function topicAddressToAddress(topic) {
+    const raw = String(topic || "").toLowerCase();
+    if (!/^0x[0-9a-f]{64}$/.test(raw)) return "";
+    return normalizeAddress(`0x${raw.slice(-40)}`);
+  }
+
+  function topicUintToDecimal(topic) {
+    const raw = String(topic || "").toLowerCase();
+    if (!/^0x[0-9a-f]+$/.test(raw)) return "";
+    try {
+      return BigInt(raw).toString();
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function calldataUintToDecimal(data, index) {
+    let raw = String(data || "").toLowerCase().replace(/^0x/, "");
+    if (raw.length % 64 === 8) raw = raw.slice(8);
+    const start = Math.max(0, Number(index || 0)) * 64;
+    const word = raw.slice(start, start + 64);
+    if (!/^[0-9a-f]{64}$/.test(word)) return "";
+    try {
+      return BigInt(`0x${word}`).toString();
+    } catch (error) {
+      return "";
+    }
   }
 
   async function rpcRequest(chainKey, method, params) {

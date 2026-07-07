@@ -1381,6 +1381,137 @@ if (!results.vestingClaimSpecificFilter || !results.vestingClaimGenericFilter) t
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
+    def test_borrow_position_receipt_logs_reclassify_missing_subgraph_lifecycle_rows(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyReceiptTest = { groupEvents, displayActionsForRow, rowMatchesActionFilter, cleanTransactionAction, compactTransactionAssetPreview, applyBorrowReceiptSemanticsForRow };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyReceiptTest;
+const wallet = "0x28da3dde285d8f1f87b2d858f89961bb8b9af180";
+const routeAccount = "53264947907898141993957179932880619725268172546596567937770629149662327972903";
+const abiWord = value => BigInt(value).toString(16).padStart(64, "0");
+const topicAddress = address => "0x" + String(address).toLowerCase().replace(/^0x/, "").padStart(64, "0");
+const topicUint = value => "0x" + abiWord(value);
+const openBorrowInput = "0xbb0a6fa5" + abiWord(0) + abiWord(routeAccount) + abiWord(0) + abiWord(1_000_000_000_000_000n) + abiWord(1);
+const openBorrowLog = () => ({
+  address: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
+  topics: [
+    "0xfd9156bd20ce24a786c761efe71a3931de038c1f2620c1bb4720609bc742b58e",
+    topicAddress(wallet),
+    topicUint(routeAccount),
+  ],
+  data: "0x",
+});
+const closeBorrowLog = () => ({
+  address: "0x6bd780e7fdf01d77e4d475c821f1e7ae05409072",
+  topics: [
+    "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7",
+    topicAddress(wallet),
+    topicAddress(wallet),
+  ],
+  data: "0x" + abiWord(0) + abiWord(routeAccount) + abiWord(0) + abiWord(1_000_000_000_000_000n) + abiWord(1),
+});
+const makeTransferToRoute = () => ({
+  chainKey: "arbitrum",
+  txHash: "0xdd6ce55745394eddfe23b0ba0543ccd323e7ce4622785f352f5db985f65b3d2c",
+  timestamp: 1782243862,
+  blockNumber: "476606014",
+  action: "transfer",
+  role: "out",
+  account: "0",
+  fromAccount: "0",
+  toAccount: routeAccount,
+  isSelfTransfer: true,
+  legs: [{ direction: "out", symbol: "WETH", tokenAddress: "0xweth", amount: "0.001", rawAmount: "0.001" }],
+});
+const transferToRoute = makeTransferToRoute();
+const row = api.groupEvents([transferToRoute], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xweth", 1_000_000_000_000_000n]]),
+})[0];
+const before = {
+  action: api.cleanTransactionAction(row),
+  chips: api.displayActionsForRow(row).join("|"),
+  transferFilter: api.rowMatchesActionFilter(row, "transfer"),
+};
+api.applyBorrowReceiptSemanticsForRow(row, {
+  logs: [openBorrowLog()],
+}, {
+  from: wallet,
+  to: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
+  input: "0xbb0a6fa5" + "0".repeat(320),
+}, wallet);
+const after = {
+  before,
+  action: api.cleanTransactionAction(row),
+  chips: api.displayActionsForRow(row).join("|"),
+  borrowFilter: api.rowMatchesActionFilter(row, "borrow"),
+  transferFilter: api.rowMatchesActionFilter(row, "transfer"),
+  preview: api.compactTransactionAssetPreview(row),
+  semantic: Array.from(row.semanticActions || []),
+};
+if (after.before.chips !== "transfer" || !after.before.transferFilter) throw new Error(JSON.stringify(after));
+if (after.action !== "Open Borrow") throw new Error(JSON.stringify(after));
+if (after.chips !== "openBorrow") throw new Error(JSON.stringify(after));
+if (!after.borrowFilter || after.transferFilter) throw new Error(JSON.stringify(after));
+if (after.preview !== "0.001 WETH") throw new Error(JSON.stringify(after));
+if (after.semantic.join("|") !== "openBorrow") throw new Error(JSON.stringify(after));
+const calldataOnlyRow = api.groupEvents([makeTransferToRoute()], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xweth", 1_000_000_000_000_000n]]),
+})[0];
+api.applyBorrowReceiptSemanticsForRow(calldataOnlyRow, { logs: [] }, {
+  from: wallet,
+  to: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
+  input: openBorrowInput,
+}, wallet);
+const calldataOnly = {
+  action: api.cleanTransactionAction(calldataOnlyRow),
+  chips: api.displayActionsForRow(calldataOnlyRow).join("|"),
+  borrowFilter: api.rowMatchesActionFilter(calldataOnlyRow, "borrow"),
+  transferFilter: api.rowMatchesActionFilter(calldataOnlyRow, "transfer"),
+  semantic: Array.from(calldataOnlyRow.semanticActions || []),
+};
+if (calldataOnly.action !== "Open Borrow") throw new Error(JSON.stringify(calldataOnly));
+if (calldataOnly.chips !== "openBorrow") throw new Error(JSON.stringify(calldataOnly));
+if (!calldataOnly.borrowFilter || calldataOnly.transferFilter) throw new Error(JSON.stringify(calldataOnly));
+if (calldataOnly.semantic.join("|") !== "openBorrow") throw new Error(JSON.stringify(calldataOnly));
+const mixedLifecycleRow = api.groupEvents([makeTransferToRoute()], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xweth", 1_000_000_000_000_000n]]),
+})[0];
+api.applyBorrowReceiptSemanticsForRow(mixedLifecycleRow, { logs: [openBorrowLog(), closeBorrowLog()] }, {
+  from: wallet,
+  to: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
+  input: openBorrowInput,
+}, wallet);
+const mixedLifecycle = {
+  action: api.cleanTransactionAction(mixedLifecycleRow),
+  chips: api.displayActionsForRow(mixedLifecycleRow).join("|"),
+  borrowFilter: api.rowMatchesActionFilter(mixedLifecycleRow, "borrow"),
+  repayFilter: api.rowMatchesActionFilter(mixedLifecycleRow, "repay"),
+  semantic: Array.from(mixedLifecycleRow.semanticActions || []),
+};
+if (mixedLifecycle.action !== "Open Borrow") throw new Error(JSON.stringify(mixedLifecycle));
+if (mixedLifecycle.chips !== "openBorrow") throw new Error(JSON.stringify(mixedLifecycle));
+if (!mixedLifecycle.borrowFilter || mixedLifecycle.repayFilter) throw new Error(JSON.stringify(mixedLifecycle));
+if (mixedLifecycle.semantic.join("|") !== "openBorrow") throw new Error(JSON.stringify(mixedLifecycle));
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
     def test_review_only_earn_does_not_enter_activity_net(self):
         script = r"""
 const fs = require("fs");
