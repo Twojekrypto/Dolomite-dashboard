@@ -2409,6 +2409,59 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn(".loading-panel", self.css)
         self.assertIn(".loading-step", self.css)
 
+    def test_history_completion_status_stays_compact_while_evidence_finishes(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyStatusTest = { state, historyCompletionStatusMessage };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  setInterval() { return 1; },
+  clearInterval() {},
+  setTimeout() { return 1; },
+  clearTimeout() {},
+  fetch() { return Promise.reject(new Error("fetch disabled")); },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+  location: { search: "", pathname: "/history/", origin: "https://example.test" },
+  history: { replaceState() {} },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} }, getElementById() { return null; }, querySelectorAll() { return []; } },
+  window: {},
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(instrumented, sandbox);
+const api = sandbox.__historyStatusTest;
+api.state.fastMode = true;
+api.state.warnings = [
+  "Berachain reward claim index is current through 07 Jul 2026; newer reward claims may be missing until the next workflow refresh.",
+  "Arbitrum reward claim index is current through 07 Jul 2026; newer reward claims may be missing until the next workflow refresh.",
+  "Mantle reward claim index is current through 07 Jul 2026; newer reward claims may be missing until the next workflow refresh.",
+];
+api.state.earn = { warnings: ["EARN candidate evidence is partial."] };
+const pending = api.historyCompletionStatusMessage(80, 80, 0, false);
+const complete = api.historyCompletionStatusMessage(80, 12, 3, true);
+if (pending.length > 150) throw new Error(`pending status too long: ${pending}`);
+if (pending.includes("Berachain reward claim index")) throw new Error(`warning detail leaked: ${pending}`);
+if (!pending.includes("progress panel")) throw new Error(`pending status should point to progress panel: ${pending}`);
+if (!pending.includes("4 data warnings")) throw new Error(`warning count missing: ${pending}`);
+if (!complete.includes("12 match current filters")) throw new Error(`filter summary missing: ${complete}`);
+if (!complete.includes("3 evidence rows")) throw new Error(`evidence summary missing: ${complete}`);
+"""
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("Partial data warning: ${shortWarnings()}", self.source)
+        self.assertNotIn("Gas/evidence is still finishing in the background", self.source)
+
     def test_history_filters_use_assets_style_dropdowns(self):
         for element_id in [
             "history-year-button",

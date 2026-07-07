@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-rpc-cache-fast-filters";
+  const HISTORY_VERSION = "history-20260707-compact-history-status";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -1216,7 +1216,7 @@
           render();
           return;
         }
-        const warningText = state.warnings.length ? ` Some sources failed: ${shortWarnings()}` : "";
+        const warningText = compactDataWarningText();
         setStatus(`No Dolomite transactions found for the selected filters.${warningText}`, "warn");
         render();
         return;
@@ -1228,38 +1228,20 @@
       const gasPromise = enrichGasForRows(state.rows, address, runId, { fastMode: state.fastMode });
       const finalizeComplete = await waitForHistoryFinalize([gasPromise, earnPromise], HISTORY_FINALIZE_BUDGET_MS);
       if (runId !== state.runId) return;
-      state.loadingPhase = "done";
-      const doneTone = state.warnings.length || !finalizeComplete ? "warn" : "good";
-      const doneSuffix = state.warnings.length ? ` Partial data warning: ${shortWarnings()}` : "";
+      state.loadingPhase = finalizeComplete ? "done" : "receipts";
+      const doneTone = historyWarningCount() || !finalizeComplete ? "warn" : "good";
       const visibleRows = rowsMatchingCurrentFilters(state.rows);
       const visibleEvidenceEntries = earnTaxEntriesForCurrentView();
-      const filterSuffix = visibleRows.length === 0 && visibleEvidenceEntries.length
-        ? ` 0 transaction rows match current filters; ${visibleEvidenceEntries.length.toLocaleString()} evidence row${visibleEvidenceEntries.length === 1 ? "" : "s"} available in exports.`
-        : visibleRows.length === state.rows.length
-        ? ""
-        : ` ${visibleRows.length.toLocaleString()} match current filters.`;
-      const pendingSuffix = finalizeComplete ? "" : " Gas/evidence is still finishing in the background; reports unlock when remaining evidence is ready.";
-      const gasScope = state.fastMode
-        ? "Fast mode loaded route-sensitive receipts; full gas evidence is skipped until you reload without Fast."
-        : "Loaded gas evidence where RPC data is available.";
-      setStatus(`Loaded ${state.rows.length.toLocaleString()} tx. ${gasScope}${filterSuffix}${doneSuffix}${pendingSuffix}`, doneTone);
+      setStatus(historyCompletionStatusMessage(state.rows.length, visibleRows.length, visibleEvidenceEntries.length, finalizeComplete), doneTone);
       render();
       if (!finalizeComplete) {
         Promise.allSettled([gasPromise, earnPromise]).then(() => {
           if (runId !== state.runId) return;
+          state.loadingPhase = "done";
           const finalVisibleRows = rowsMatchingCurrentFilters(state.rows);
           const finalEvidenceEntries = earnTaxEntriesForCurrentView();
-          const finalFilterSuffix = finalVisibleRows.length === 0 && finalEvidenceEntries.length
-            ? ` 0 transaction rows match current filters; ${finalEvidenceEntries.length.toLocaleString()} evidence row${finalEvidenceEntries.length === 1 ? "" : "s"} available in exports.`
-            : finalVisibleRows.length === state.rows.length
-            ? ""
-            : ` ${finalVisibleRows.length.toLocaleString()} match current filters.`;
-          const finalTone = state.warnings.length ? "warn" : "good";
-          const finalSuffix = state.warnings.length ? ` Partial data warning: ${shortWarnings()}` : "";
-          const finalGasScope = state.fastMode
-            ? "Fast mode loaded route-sensitive receipts; full gas evidence is skipped until you reload without Fast."
-            : "Loaded gas evidence where RPC data is available.";
-          setStatus(`Loaded ${state.rows.length.toLocaleString()} tx. ${finalGasScope}${finalFilterSuffix}${finalSuffix}`, finalTone);
+          const finalTone = historyWarningCount() ? "warn" : "good";
+          setStatus(historyCompletionStatusMessage(state.rows.length, finalVisibleRows.length, finalEvidenceEntries.length, true), finalTone);
           render();
         });
       }
@@ -2769,7 +2751,7 @@
         state.gasChecked += 1;
       });
       if (runId === state.runId) {
-        setStatus(`Fast mode checked ${priority.classificationRows.length.toLocaleString()} route-sensitive receipt${priority.classificationRows.length === 1 ? "" : "s"} and skipped full gas evidence for ${priority.skippedRows.length.toLocaleString()} row${priority.skippedRows.length === 1 ? "" : "s"}.`);
+        setStatus("Fast mode processed route-sensitive receipts. Full gas evidence is skipped.");
         render();
       }
       return;
@@ -4040,9 +4022,13 @@
     }
     if (phase === "receipts") {
       const evidenceText = state.earn?.status === "loading" ? "Candidate evidence is still being prepared." : "Candidate evidence is ready.";
+      const total = state.gasTotal || state.rows.length;
+      const progressLabel = state.fastMode ? "rows processed" : "receipts checked";
+      const fastText = state.fastMode ? " Fast skips full gas evidence." : "";
+      const warningText = compactDataWarningText();
       return {
-        title: "Checking gas receipts and prices",
-        sub: `${state.gasChecked}/${state.gasTotal || state.rows.length} receipts checked. ${evidenceText}`,
+        title: state.fastMode ? "Checking classification receipts" : "Checking gas receipts and prices",
+        sub: `${state.gasChecked}/${total} ${progressLabel}. ${evidenceText}${fastText}${warningText}`,
       };
     }
     if (phase === "done") {
@@ -4871,6 +4857,41 @@
       return CHAINS[chainKey]?.name || chainKey;
     }
     return `${state.selectedChains.size} chains`;
+  }
+
+  function historyWarningCount() {
+    return (state.warnings || []).length + (state.earn?.warnings || []).length;
+  }
+
+  function compactDataWarningText() {
+    const count = historyWarningCount();
+    if (!count) return "";
+    return ` ${count.toLocaleString()} data warning${count === 1 ? "" : "s"} in review/export.`;
+  }
+
+  function historyCompletionStatusMessage(rowCount, visibleRowCount, evidenceEntryCount, finalizeComplete) {
+    const safeRows = Number(rowCount || 0);
+    const safeVisibleRows = Number(visibleRowCount || 0);
+    const safeEvidenceRows = Number(evidenceEntryCount || 0);
+    const parts = [`Loaded ${safeRows.toLocaleString()} tx.`];
+    if (!finalizeComplete) {
+      parts.push(state.fastMode
+        ? "Fast mode active; evidence continues in the progress panel."
+        : "Evidence continues in the progress panel.");
+    } else if (state.fastMode) {
+      parts.push("Fast mode active; full gas evidence skipped.");
+    } else {
+      parts.push("Gas evidence ready.");
+    }
+    if (safeRows && safeVisibleRows !== safeRows) {
+      parts.push(`${safeVisibleRows.toLocaleString()} match current filters.`);
+    }
+    if (safeEvidenceRows) {
+      parts.push(`${safeEvidenceRows.toLocaleString()} evidence row${safeEvidenceRows === 1 ? "" : "s"} available in exports.`);
+    }
+    const warningText = compactDataWarningText().trim();
+    if (warningText) parts.push(warningText);
+    return parts.join(" ");
   }
 
   function setStatus(message, tone) {
