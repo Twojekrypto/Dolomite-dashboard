@@ -307,6 +307,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .action-chip{min-width:0;justify-content:center;text-align:center;line-height:1.08;white-space:normal;overflow-wrap:anywhere}
 .action-chip.deposit{color:var(--up);border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.08)}
 .action-chip.addCollateral{color:var(--up);border-color:rgba(138,163,123,.30);background:rgba(138,163,123,.09)}
+.action-chip.withdrawCollateral{color:var(--down);border-color:rgba(180,121,107,.30);background:rgba(180,121,107,.08)}
 .action-chip.withdraw{color:var(--down);border-color:rgba(180,121,107,.30);background:rgba(180,121,107,.08)}
 .action-chip.borrow{color:#fb923c;border-color:rgba(251,146,60,.34);background:rgba(251,146,60,.10)}
 .action-chip.openBorrow{color:#fbbf24;border-color:rgba(251,191,36,.36);background:rgba(251,191,36,.12)}
@@ -322,6 +323,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .action-chip.rewardLevelUpdate{color:#b9c991;border-color:rgba(185,201,145,.30);background:rgba(185,201,145,.075)}
 .asset-cell{display:flex;flex-direction:column;gap:5px;min-width:0;max-width:100%}
 .asset-line{font-family:var(--mono);font-size:12px;color:var(--fg-1);font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asset-line.collateral-up::before,.asset-line.collateral-down::before{display:inline-flex;width:12px;margin-right:5px;font-family:var(--mono);font-weight:900}
+.asset-line.collateral-up::before{content:"^";color:var(--up)}
+.asset-line.collateral-down::before{content:"v";color:var(--down)}
 .gas-cell{display:flex;min-width:0;max-width:100%;flex-direction:column;align-items:flex-end;gap:4px}
 .gas-main{font-family:var(--mono);font-size:12px;font-weight:800;color:var(--fg-1)}
 .gas-main.muted{color:var(--fg-3);font-weight:600}

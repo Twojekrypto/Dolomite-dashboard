@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-borrow-position-open";
+  const HISTORY_VERSION = "history-20260707-repay-flow-display";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -128,6 +128,7 @@
     borrowPositionOpen: "Open Borrow",
     borrowPositionClose: "Close Borrow",
     addCollateral: "Add Collateral",
+    withdrawCollateral: "Withdraw Collateral",
     transfer: "Transfer",
     trade: "Trade",
     liquidation: "Liquidation",
@@ -159,6 +160,7 @@
     borrowPositionOpen: "Open Borrow",
     borrowPositionClose: "Close Borrow",
     addCollateral: "Add Collateral",
+    withdrawCollateral: "Withdraw Collateral",
     transfer: "Transfer",
     trade: "Trade",
     liquidation: "Liquidation",
@@ -2133,7 +2135,10 @@
         const toAccount = normalizeAccountNumberValue(event.toAccount);
         if (openAccounts.has(toAccount) && isBorrowRouteAccountNumber(toAccount)) {
           setBorrowSemantic(event, "openBorrow", "borrow_position_lifecycle");
-        } else if (closeAccounts.has(fromAccount) && isBorrowRouteAccountNumber(fromAccount)) {
+        } else if (
+          (closeAccounts.has(fromAccount) && isBorrowRouteAccountNumber(fromAccount))
+          || (closeAccounts.has(toAccount) && isBorrowRouteAccountNumber(toAccount))
+        ) {
           setBorrowSemantic(event, "closeBorrow", "borrow_position_lifecycle");
         }
       });
@@ -2180,7 +2185,7 @@
           ? (balances.get(eventDelta.key) || 0n) - rowDelta
           : (balances.get(eventDelta.key) || 0n);
         const after = before + rowDelta;
-        const collateralContext = eventDelta.delta > 0n && accountHasDebtExposure(eventDelta.key, rowDeltas, balances, confidence);
+        const collateralContext = accountHasDebtExposure(eventDelta.key, rowDeltas, balances, confidence);
         const transitionSemantic = borrowSemanticForBalanceTransition(event, before, after, hasBaseline, eventDelta.delta, collateralContext);
         const routeSemantic = borrowRouteTransferSemantic(event, eventDelta);
         const semantic = transitionSemantic?.action === "addCollateral" ? transitionSemantic : transitionSemantic || routeSemantic;
@@ -2244,10 +2249,11 @@
     if (change < 0n) {
       if (after < 0n && before >= 0n) return { action: "openBorrow", label: ACTION_LABELS.openBorrow };
       if (before < 0n && after < before) return { action: "borrow", label: ACTION_LABELS.borrow };
+      if (collateralContext && before > 0n && after < before) return { action: "withdrawCollateral", label: ACTION_LABELS.withdrawCollateral };
       return null;
     }
     if (change > 0n) {
-      if (before < 0n && after >= 0n) return { action: "closeBorrow", label: ACTION_LABELS.closeBorrow };
+      if (before < 0n && after >= 0n) return { action: "repay", label: ACTION_LABELS.repay };
       if (before < 0n && after > before) return { action: "repay", label: ACTION_LABELS.repay };
       if (collateralContext && after > before && after > 0n) return { action: "addCollateral", label: ACTION_LABELS.addCollateral };
       return null;
@@ -3247,6 +3253,7 @@
     const chain = CHAINS[row.chainKey];
     const actions = displayActionsForRow(row);
     const eventPreview = compactTransactionAssetPreview(row) || row.events.slice(0, 2).map(event => event.label).join(" | ");
+    const assetFlowClass = semanticAssetFlowClass(row);
     const detailToggle = historyDetailToggleHtml(expanded);
     const rowClassName = [expanded ? "expanded" : "", index % 2 === 1 ? "row-even" : "row-odd"].filter(Boolean).join(" ");
     return `
@@ -3266,7 +3273,7 @@
         <td class="action-td"><div class="action-list">${actions.map(actionChip).join("")}</div></td>
         <td class="asset-td">
           <div class="asset-cell">
-            <span class="asset-line">${escapeHtml(eventPreview || "-")}</span>
+            <span class="asset-line${assetFlowClass ? ` ${escapeAttr(assetFlowClass)}` : ""}">${escapeHtml(eventPreview || "-")}</span>
           </div>
         </td>
         <td class="num volume-td">${formatUsd(row.usdVolume)}</td>
@@ -3279,7 +3286,7 @@
     const semanticActions = Array.from(row.semanticActions || []).filter(Boolean);
     const hasBorrowSemantic = semanticActions.some(action => ["borrow", "openBorrow"].includes(action));
     const hasRepaySemantic = semanticActions.some(action => ["repay", "closeBorrow"].includes(action));
-    const hasCollateralSemantic = semanticActions.includes("addCollateral");
+    const hasCollateralSemantic = semanticActions.some(action => ["addCollateral", "withdrawCollateral"].includes(action));
     const actions = Array.from(row.actions || [])
       .filter(Boolean)
       .filter(action => !BORROW_POSITION_LIFECYCLE_ACTIONS.has(action))
@@ -3303,6 +3310,13 @@
       ...ammChips,
       ...(vestingChips.length ? vestingChips : [{ key: "vesting", className: "vesting", label: ACTION_TABLE_LABELS.vesting }]),
     ];
+  }
+
+  function semanticAssetFlowClass(row) {
+    const actions = row?.semanticActions || new Set();
+    if (actions.has("addCollateral")) return "collateral-up";
+    if (actions.has("withdrawCollateral")) return "collateral-down";
+    return "";
   }
 
   function ammActionChipsForRow(row) {
@@ -3335,9 +3349,10 @@
     if (action === "borrow") return semanticActions.has("borrow") || semanticActions.has("openBorrow");
     if (action === "repay") return semanticActions.has("repay") || semanticActions.has("closeBorrow");
     if (action === "addCollateral") return semanticActions.has("addCollateral");
+    if (action === "withdrawCollateral") return semanticActions.has("withdrawCollateral");
     if (action === "withdraw" && (semanticActions.has("borrow") || semanticActions.has("openBorrow"))) return false;
-    if (action === "deposit" && (semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral"))) return false;
-    if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral"))) return false;
+    if (action === "deposit" && (semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
+    if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "swap") {
       return row.actions.has("trade")
         || row.actions.has("zap")
@@ -4552,6 +4567,7 @@
   function compactTransferTableFlow(event, mode = "table") {
     const amount = cleanLegGroup(event.legs, event.role, mode) || cleanFlowFromLegs(event.legs, mode);
     if (!amount) return "";
+    if (semanticActionUsesUnsignedFlow(event.borrowSemanticAction)) return amount;
     if (event.role === "in") return `+${amount}`;
     if (event.role === "out") return `-${amount}`;
     return amount;
@@ -4622,9 +4638,14 @@
     if (event.action === "withdraw") return cleanLegGroup(event.legs, "in", mode) || flow;
     if (event.action === "transfer") {
       const amount = cleanLegGroup(event.legs, event.role, mode) || flow;
+      if (semanticActionUsesUnsignedFlow(event.borrowSemanticAction)) return `${cleanReportActionLabel(event)}: ${amount}`;
       return `${event.role === "in" ? "Transfer in" : "Transfer out"}: ${amount}`;
     }
     return `${cleanReportActionLabel(event)}: ${flow}`;
+  }
+
+  function semanticActionUsesUnsignedFlow(action) {
+    return ["borrow", "openBorrow", "repay", "closeBorrow", "addCollateral", "withdrawCollateral"].includes(action);
   }
 
   function isSwapLikeEvent(event) {
