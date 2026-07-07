@@ -55,6 +55,12 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         for custom_value in ["swap", "vestingPair", "vestingClaim", "claim", "addCollateral"]:
             self.assertIn(f'action === "{custom_value}"', filter_block)
 
+    def test_borrow_position_actions_have_distinct_readable_colors(self):
+        self.assertIn(".action-chip.borrow{color:#fb923c", self.css)
+        self.assertIn(".action-chip.openBorrow{color:#fbbf24", self.css)
+        self.assertIn(".action-chip.repay{color:#86efac", self.css)
+        self.assertIn(".action-chip.closeBorrow{color:#5eead4", self.css)
+
     def test_history_is_positioned_as_transaction_history_first(self):
         self.assertIn("<h1>Dolomite Transaction History</h1>", self.html)
         self.assertIn("<h2>Transaction results</h2>", self.html)

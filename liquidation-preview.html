@@ -2299,8 +2299,8 @@
         }
         .liquidation-history-table colgroup col:nth-child(1) { width: 7.8%; }  /* Chain */
         .liquidation-history-table colgroup col:nth-child(2) { width: 19%; }   /* Liquidated wallet */
-        .liquidation-history-table colgroup col:nth-child(3) { width: 14%; }   /* Date */
-        .liquidation-history-table colgroup col:nth-child(4) { width: 25%; }   /* Spacer — gap before money */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 39%; }   /* Date + former spacer */
+        .liquidation-history-table colgroup col:nth-child(4) { width: 0%; }    /* Collapsed spacer */
         .liquidation-history-table colgroup col:nth-child(5) { width: 18.2%; } /* Collateral seized */
         .liquidation-history-table colgroup col:nth-child(6) { width: 16%; }   /* Debt repaid */
         .liquidation-history-table thead th {
@@ -2375,7 +2375,15 @@
             vertical-align: middle;
         }
         .liquidation-history-table thead th.col-spacer,
-        .liquidation-history-table tbody td.col-spacer { padding: 0; }
+        .liquidation-history-table tbody td.col-spacer {
+            width: 0;
+            min-width: 0;
+            max-width: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            overflow: hidden;
+        }
         .liquidation-history-wallet {
             display: inline-flex;
             align-items: center;
@@ -5156,8 +5164,8 @@
         body.route-liquidation #positions-table colgroup col:nth-child(7) { width: 15.3% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 7.8% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 14% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 25% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 39% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 0% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 18.2% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 16% !important; }
         body.route-liquidation #positions-table thead th,
@@ -5184,7 +5192,13 @@
         }
         body.route-liquidation #liquidation-history-table thead th.col-spacer,
         body.route-liquidation #liquidation-history-table tbody td.col-spacer {
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
             padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            overflow: hidden !important;
         }
         body.route-liquidation #positions-table tbody tr,
         body.route-liquidation #liquidation-history-table tbody tr {

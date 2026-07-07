@@ -192,7 +192,13 @@ def enrich_merkl_campaign_windows(programs: List[Dict[str, Any]], errors: List[s
     for program in programs:
         if program.get("provider") != "Merkl" or not program.get("programId"):
             continue
-        if program.get("campaignStart") and program.get("campaignEnd") and program.get("rewardTokenTotals"):
+        if (
+            program.get("campaignStart")
+            and program.get("campaignEnd")
+            and program.get("rewardTokenTotals")
+            and program.get("rewardHistorySource") == "merkl-campaign-details"
+            and program.get("rewardCampaignCount") is not None
+        ):
             continue
         try:
             detail = get_json(MERKL_OPPORTUNITY_CAMPAIGNS_URL.format(program_id=program["programId"]))
@@ -200,6 +206,8 @@ def enrich_merkl_campaign_windows(programs: List[Dict[str, Any]], errors: List[s
             errors.append(f"merkl-campaigns:{program.get('programId')}: {exc}"[:500])
             continue
         campaigns = (detail or {}).get("campaigns") if isinstance(detail, dict) else detail if isinstance(detail, list) else []
+        program["rewardHistorySource"] = "merkl-campaign-details"
+        program["rewardCampaignCount"] = len(campaigns or [])
         start, end = campaign_bounds_from_campaigns(campaigns or [])
         if start:
             program["campaignStart"] = start
@@ -271,8 +279,10 @@ def enrich_program_supply_ranges(
         if not entry:
             continue
         points = load_supply_history_points(root, entry)
-        start_point = select_supply_point(points, int_or_none(program.get("campaignStart")), "start")
-        end_point = select_supply_point(points, int_or_none(program.get("campaignEnd")), "end")
+        campaign_start = int_or_none(program.get("campaignStart"))
+        campaign_end = int_or_none(program.get("campaignEnd"))
+        start_point = select_supply_point(points, campaign_start, "start")
+        end_point = select_supply_point(points, campaign_end, "end")
         if not start_point or not end_point:
             continue
         start_value = supply_point_value(start_point)
@@ -286,6 +296,11 @@ def enrich_program_supply_ranges(
         program["supplyEndTimestamp"] = int(end_point.get("timestamp") or 0)
         program["supplySymbol"] = symbol
         program["supplyHistorySource"] = "static-subgraph-replay"
+        program["supplyRangeMethod"] = "first-snapshot-at-or-after-start-last-snapshot-at-or-before-end"
+        if campaign_start is not None:
+            program["supplyStartOffsetSeconds"] = int(program["supplyStartTimestamp"] - campaign_start)
+        if campaign_end is not None:
+            program["supplyEndOffsetSeconds"] = int(campaign_end - program["supplyEndTimestamp"])
 
 
 def normalize_merkl_program(opportunity: Dict[str, Any]) -> Dict[str, Any]:
