@@ -58,9 +58,14 @@ function assertBefore(source, first, second, message) {
   const endedTable = between(rewards, '<!-- ENDED PROGRAMS -->', '</section>');
   assert(!endedTable.includes('<th style="width:56px">#</th>'), 'Ended Programs should not render the # ranking column');
   assertBefore(endedTable, '<th style="width:150px">Chain</th>', '<th>Program</th>', 'Ended Programs should put Chain before Program');
+  assert(!endedTable.includes('Last TVL'), 'Ended Programs should not report TVL as the historical size metric');
+  assertBefore(endedTable, 'Start Supply', 'End Supply', 'Ended Programs should show supply at campaign start before supply at campaign end');
   const renderPast = between(rewards, 'function renderPast()', 'function renderHero()');
   assert(!renderPast.includes('<span class="rank">${index + 1}</span>'), 'Ended Programs rows should not render row numbers');
   assertBefore(renderPast, '<td>${chainBadge(program.chain)}</td>', '<td>${programCell(program)}</td>', 'Ended Programs rows should put Chain before Program');
+  assert(renderPast.includes("supplyCell(program, 'start')"), 'Ended Programs rows should render start supply from supply history');
+  assert(renderPast.includes("supplyCell(program, 'end')"), 'Ended Programs rows should render end supply from supply history');
+  assert(!renderPast.includes('fmtUsd(program.tvlUsd)'), 'Ended Programs rows should not render TVL in the historical supply columns');
 }
 
 {
@@ -96,7 +101,7 @@ function assertBefore(source, first, second, message) {
   assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 25% !important; }'), 'Liquidation History spacer column should stay visually fixed');
   assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 18.2% !important; }'), 'Liquidation History collateral column should stay visually fixed');
   assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 16% !important; }'), 'Liquidation History debt column should stay visually fixed');
-  assert(liquidation.includes('body.route-liquidation #liquidation-history-table tbody td:nth-child(3) {\n            padding-left: 4px !important;'), 'Liquidation History Date column should sit closer to the Liquidated wallet column without moving money columns');
+  assert(liquidation.includes('body.route-liquidation #liquidation-history-table tbody td:nth-child(3) {\n            padding-left: 0 !important;'), 'Liquidation History Date column should sit closer to the Liquidated wallet column without moving money columns');
   const walletOverflowRule = between(liquidation, '.liquidation-history-table tbody td:nth-child(2)', '.liquidation-history-table tbody td:first-child');
   assert(walletOverflowRule.includes('overflow: visible;'), 'Liquidation History address tools should remain visible in the second column');
 

@@ -20,12 +20,13 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib import request
 from urllib.error import HTTPError, URLError
 
 
 MERKL_OPPORTUNITIES_URL = "https://api.merkl.xyz/v4/opportunities?mainProtocolId=dolomite&items=100"
+MERKL_OPPORTUNITY_CAMPAIGNS_URL = "https://api.merkl.xyz/v4/opportunities/{program_id}/campaigns"
 ODOLO_METADATA_URL = "https://api.dolomite.io/liquidity-mining/odolo/metadata"
 
 CHAIN_ID_NAMES = {
@@ -102,6 +103,26 @@ def build_symbol_map(supply_history_manifest: Optional[Dict[str, Any]]) -> Dict[
     return result
 
 
+def build_supply_history_index(supply_history_manifest: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, Dict[str, str]]]:
+    """chain -> tokenId -> supply-history metadata, from the supply-history manifest."""
+    result: Dict[str, Dict[str, Dict[str, str]]] = {}
+    for chain_entry in (supply_history_manifest or {}).get("chains") or []:
+        chain = str(chain_entry.get("chain") or "")
+        if not chain:
+            continue
+        tokens: Dict[str, Dict[str, str]] = {}
+        for token in chain_entry.get("tokens") or []:
+            token_id = str(token.get("tokenId") or "").lower()
+            path = str(token.get("path") or "")
+            if token_id and path:
+                tokens[token_id] = {
+                    "path": path,
+                    "symbol": str(token.get("symbol") or ""),
+                }
+        result[chain] = tokens
+    return result
+
+
 def build_supply_usd_map(supply_health: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """"chain:tokenId" -> {supplyUsd, wallets, symbol} from supply-health latest."""
     result: Dict[str, Dict[str, Any]] = {}
@@ -123,6 +144,110 @@ def int_or_none(value: Any) -> Optional[int]:
     return parsed if parsed > 0 else None
 
 
+def campaign_bounds_from_campaigns(campaigns: List[Dict[str, Any]]) -> Tuple[Optional[int], Optional[int]]:
+    starts = [int_or_none(campaign.get("startTimestamp")) for campaign in campaigns or []]
+    ends = [int_or_none(campaign.get("endTimestamp")) for campaign in campaigns or []]
+    starts = [value for value in starts if value is not None]
+    ends = [value for value in ends if value is not None]
+    return (min(starts) if starts else None, max(ends) if ends else None)
+
+
+def enrich_merkl_campaign_windows(programs: List[Dict[str, Any]], errors: List[str]) -> None:
+    for program in programs:
+        if program.get("provider") != "Merkl" or not program.get("programId"):
+            continue
+        if program.get("campaignStart") and program.get("campaignEnd"):
+            continue
+        try:
+            detail = get_json(MERKL_OPPORTUNITY_CAMPAIGNS_URL.format(program_id=program["programId"]))
+        except RuntimeError as exc:
+            errors.append(f"merkl-campaigns:{program.get('programId')}: {exc}"[:500])
+            continue
+        campaigns = (detail or {}).get("campaigns") if isinstance(detail, dict) else []
+        start, end = campaign_bounds_from_campaigns(campaigns or [])
+        if start:
+            program["campaignStart"] = start
+        if end:
+            program["campaignEnd"] = end
+
+
+def program_supply_token_id(program: Dict[str, Any]) -> Optional[str]:
+    for field in ("tokenId", "explorerAddress", "identifier"):
+        value = program.get(field)
+        if value:
+            return str(value).lower()
+    for token_id in program.get("marketTokenIds") or []:
+        if token_id:
+            return str(token_id).lower()
+    return None
+
+
+def load_supply_history_points(root: Path, entry: Dict[str, str]) -> List[Dict[str, Any]]:
+    path = root / str(entry.get("path") or "")
+    payload = load_json(path)
+    points = (payload or {}).get("points") if isinstance(payload, dict) else []
+    return sorted(
+        [point for point in points if int_or_none(point.get("timestamp")) is not None],
+        key=lambda point: int(point.get("timestamp") or 0),
+    )
+
+
+def supply_point_value(point: Dict[str, Any]) -> Optional[float]:
+    value = point.get("tokenValue", point.get("value"))
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed == parsed and parsed not in (float("inf"), float("-inf")) else None
+
+
+def select_supply_point(points: List[Dict[str, Any]], timestamp: Optional[int], edge: str) -> Optional[Dict[str, Any]]:
+    if not points:
+        return None
+    if timestamp:
+        if edge == "start":
+            for point in points:
+                if int(point.get("timestamp") or 0) >= timestamp:
+                    return point
+            return points[-1]
+        for point in reversed(points):
+            if int(point.get("timestamp") or 0) <= timestamp:
+                return point
+        return points[0]
+    return points[0] if edge == "start" else points[-1]
+
+
+def enrich_program_supply_ranges(
+    programs: List[Dict[str, Any]],
+    supply_history_index: Dict[str, Dict[str, Dict[str, str]]],
+    root: Path,
+) -> None:
+    for program in programs:
+        chain = str(program.get("chain") or "")
+        token_id = program_supply_token_id(program)
+        if not chain or not token_id:
+            continue
+        entry = (supply_history_index.get(chain) or {}).get(token_id)
+        if not entry:
+            continue
+        points = load_supply_history_points(root, entry)
+        start_point = select_supply_point(points, int_or_none(program.get("campaignStart")), "start")
+        end_point = select_supply_point(points, int_or_none(program.get("campaignEnd")), "end")
+        if not start_point or not end_point:
+            continue
+        start_value = supply_point_value(start_point)
+        end_value = supply_point_value(end_point)
+        if start_value is None or end_value is None:
+            continue
+        symbol = entry.get("symbol") or (program.get("marketTokens") or [""])[0]
+        program["supplyStartToken"] = round(start_value, 8)
+        program["supplyStartTimestamp"] = int(start_point.get("timestamp") or 0)
+        program["supplyEndToken"] = round(end_value, 8)
+        program["supplyEndTimestamp"] = int(end_point.get("timestamp") or 0)
+        program["supplySymbol"] = symbol
+        program["supplyHistorySource"] = "static-subgraph-replay"
+
+
 def normalize_merkl_program(opportunity: Dict[str, Any]) -> Dict[str, Any]:
     chain_id = int(opportunity.get("chainId") or 0)
     reward_tokens = []
@@ -132,10 +257,16 @@ def normalize_merkl_program(opportunity: Dict[str, Any]) -> Dict[str, Any]:
         if symbol and symbol not in reward_tokens:
             reward_tokens.append(symbol)
     market_tokens = []
+    market_token_ids = []
     for token in opportunity.get("tokens") or []:
         symbol = token.get("symbol")
         if symbol and symbol not in market_tokens:
             market_tokens.append(symbol)
+        token_id = token.get("address") or token.get("tokenId") or token.get("id")
+        if token_id:
+            token_id = str(token_id).lower()
+            if token_id not in market_token_ids:
+                market_token_ids.append(token_id)
     return {
         "key": f"merkl:{opportunity.get('id')}",
         "provider": "Merkl",
@@ -155,6 +286,7 @@ def normalize_merkl_program(opportunity: Dict[str, Any]) -> Dict[str, Any]:
         "dailyRewardsUsd": round_or_none(float_or_zero(opportunity.get("dailyRewards")), 2),
         "rewardTokens": reward_tokens,
         "marketTokens": market_tokens,
+        "marketTokenIds": market_token_ids,
         "liveCampaigns": int(opportunity.get("liveCampaigns") or 0),
         "campaignStart": int_or_none(opportunity.get("earliestCampaignStart")),
         "campaignEnd": int_or_none(opportunity.get("latestCampaignEnd")),
@@ -278,12 +410,15 @@ def main() -> int:
         if not isinstance(opportunities, list):
             raise RuntimeError("Merkl opportunities response is not a list")
         merkl_programs = [normalize_merkl_program(item) for item in opportunities]
+        enrich_merkl_campaign_windows(merkl_programs, errors)
         print(f"Merkl: {len(merkl_programs)} programs", flush=True)
     except RuntimeError as exc:
         errors.append(f"merkl: {exc}"[:500])
         print(f"Merkl fetch failed: {exc}", file=sys.stderr, flush=True)
 
-    symbol_map = build_symbol_map(load_json(Path(args.supply_history_manifest)))
+    supply_history_manifest = load_json(Path(args.supply_history_manifest))
+    symbol_map = build_symbol_map(supply_history_manifest)
+    supply_history_index = build_supply_history_index(supply_history_manifest)
     supply_map = build_supply_usd_map(load_json(Path(args.supply_health)))
     dolo_price = float_or_zero((load_json(Path(args.dolo_price)) or {}).get("price"))
 
@@ -300,6 +435,11 @@ def main() -> int:
     if not programs:
         print("No programs fetched — refusing to overwrite existing data", file=sys.stderr)
         return 1
+    enrich_program_supply_ranges(
+        [program for program in programs if program.get("status") != "LIVE"],
+        supply_history_index,
+        Path("."),
+    )
 
     history_path = Path(args.history_out)
     history_path.parent.mkdir(parents=True, exist_ok=True)
