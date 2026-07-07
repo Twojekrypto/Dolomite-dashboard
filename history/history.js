@@ -1,13 +1,18 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-repay-flow-display";
+  const HISTORY_VERSION = "history-20260707-fast-history-timeout";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
   const HISTORY_TABLE_COLSPAN = 7;
   const PAGE_SIZE = 500;
   const MAX_PAGES = 40;
+  const DEFAULT_GRAPH_TIMEOUT_MS = 25000;
+  const DEFAULT_GRAPH_ATTEMPTS = 2;
+  const HISTORY_GRAPH_OPTIONS = { timeoutMs: 8000, attempts: 1 };
+  const HISTORY_CHAIN_CONCURRENCY = 3;
+  const HISTORY_ENTITY_CONCURRENCY = 10;
   const START_YEAR = 2024;
   const DEFAULT_YEAR = String(Math.max(new Date().getUTCFullYear(), START_YEAR));
   const CHAIN_FILTER_ORDER = ["berachain", "arbitrum", "ethereum", "botanix", "mantle", "polygonzkevm", "xlayer"];
@@ -1105,7 +1110,7 @@
       const chainKeys = selectedChainKeys();
       state.chainTotal = chainKeys.length;
       const [chainResults, balanceReplay] = await Promise.all([
-        mapLimit(chainKeys, 2, async chainKey => {
+        mapLimit(chainKeys, HISTORY_CHAIN_CONCURRENCY, async chainKey => {
           const result = await fetchChainHistory(chainKey, address, bounds);
           if (runId === state.runId) {
             state.loadedChains += 1;
@@ -1363,9 +1368,9 @@
     ];
 
     const warnings = [];
-    const batches = await mapLimit(specs, 6, async spec => {
+    const batches = await mapLimit(specs, HISTORY_ENTITY_CONCURRENCY, async spec => {
       try {
-        const result = await paginateEntity(chain.subgraph, spec.entity, spec.where, spec.fields, spec.orderBy);
+        const result = await paginateEntity(chain.subgraph, spec.entity, spec.where, spec.fields, spec.orderBy, HISTORY_GRAPH_OPTIONS);
         if (result.truncated) {
           warnings.push(`${chain.name} ${spec.entity} reached ${result.rows.length.toLocaleString()} rows; narrow the year or chain filter for exact export.`);
         }
@@ -1556,9 +1561,9 @@
     }
     const warnings = [];
     const balances = new Map();
-    await mapLimit(chainKeys, 2, async chainKey => {
+    await mapLimit(chainKeys, HISTORY_CHAIN_CONCURRENCY, async chainKey => {
       try {
-        const chainBalances = await fetchCurrentMarginBalances(chainKey, address);
+        const chainBalances = await fetchCurrentMarginBalances(chainKey, address, HISTORY_GRAPH_OPTIONS);
         chainBalances.forEach((value, key) => balances.set(key, value));
       } catch (error) {
         warnings.push(`${CHAINS[chainKey].name} current borrow balances unavailable; borrow/repay labels use in-range activity only.`);
@@ -1572,12 +1577,12 @@
     return Number(bounds?.end || 0) >= now - 3600;
   }
 
-  async function fetchCurrentMarginBalances(chainKey, address) {
+  async function fetchCurrentMarginBalances(chainKey, address, graphOptions = {}) {
     const user = address.toLowerCase();
     const fields = `id accountNumber tokenValues { id token { id symbol decimals marketId } valuePar }`;
     const [result, interestIndexes] = await Promise.all([
-      paginateEntity(CHAINS[chainKey].subgraph, "marginAccounts", `effectiveUser: "${user}"`, fields, "id"),
-      fetchCurrentInterestIndexes(chainKey),
+      paginateEntity(CHAINS[chainKey].subgraph, "marginAccounts", `effectiveUser: "${user}"`, fields, "id", graphOptions),
+      fetchCurrentInterestIndexes(chainKey, graphOptions),
     ]);
     const balances = new Map();
     result.rows.forEach(account => {
@@ -1591,7 +1596,7 @@
     return balances;
   }
 
-  async function fetchCurrentInterestIndexes(chainKey) {
+  async function fetchCurrentInterestIndexes(chainKey, graphOptions = {}) {
     if (interestIndexCache.has(chainKey)) return interestIndexCache.get(chainKey);
     const query = `{
       interestIndexes(first: 200) {
@@ -1600,7 +1605,7 @@
         supplyIndex
       }
     }`;
-    const data = await graphQuery(CHAINS[chainKey].subgraph, query);
+    const data = await graphQuery(CHAINS[chainKey].subgraph, query, graphOptions);
     const indexes = new Map();
     (data.interestIndexes || []).forEach(row => {
       const tokenId = normalizeAddress(row.token?.id || "");
@@ -1621,7 +1626,7 @@
     return multiplyScaledDecimal(par, index || "1");
   }
 
-  async function paginateEntity(endpoint, entity, where, fields, orderBy = "serialId") {
+  async function paginateEntity(endpoint, entity, where, fields, orderBy = "serialId", graphOptions = {}) {
     const rows = [];
     let truncated = false;
     let lastChunkWasFull = false;
@@ -1632,7 +1637,7 @@
           ${fields}
         }
       }`;
-      const data = await graphQuery(endpoint, query);
+      const data = await graphQuery(endpoint, query, graphOptions);
       const chunk = Array.isArray(data[entity]) ? data[entity] : [];
       rows.push(...chunk);
       lastChunkWasFull = chunk.length === PAGE_SIZE;
@@ -1644,17 +1649,19 @@
           id
         }
       }`;
-      const probeData = await graphQuery(endpoint, probeQuery);
+      const probeData = await graphQuery(endpoint, probeQuery, graphOptions);
       truncated = Array.isArray(probeData[entity]) && probeData[entity].length > 0;
     }
     return { rows, truncated };
   }
 
-  async function graphQuery(endpoint, query) {
+  async function graphQuery(endpoint, query, options = {}) {
     let lastError = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
+    const timeoutMs = Math.max(1, Number(options.timeoutMs || DEFAULT_GRAPH_TIMEOUT_MS));
+    const attempts = Math.max(1, Number(options.attempts || DEFAULT_GRAPH_ATTEMPTS));
+    for (let attempt = 0; attempt < attempts; attempt++) {
       const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 25000);
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
       try {
         const response = await fetch(endpoint, {
           method: "POST",
