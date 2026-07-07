@@ -100,7 +100,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1)}
 .card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px;white-space:nowrap}
 .card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
-.card-tools{display:flex;align-items:center;gap:12px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.card-tools{display:flex;flex-direction:column;align-items:flex-end;gap:8px;margin-left:auto;justify-content:center}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
 .pulse-loading{background:var(--fg-3);box-shadow:none;opacity:.6}
 
@@ -164,7 +164,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 @media (max-width:640px){
   .wrap{padding:24px 14px 72px}
-  .card-tools{width:100%;justify-content:space-between}
+  .card-tools{width:100%;align-items:flex-start}
   .site-nav-wrap{width:100%;justify-content:center;overflow:hidden;padding-bottom:2px}
   .site-nav{width:100%;justify-content:space-between}
   .nav-item{width:40px;height:38px;padding:0;justify-content:center;gap:0}
@@ -277,7 +277,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
           Reward Value
         </div>
-        <div class="val" id="rwRewardContext">LIVE</div>
+        <div class="val" id="rwRewardContext">—</div>
         <div class="sub up">USD / day</div>
       </div>
       <div class="hero-stat">
@@ -307,12 +307,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <span class="count-badge" id="rwLiveTableCount">—</span>
       </div>
       <div class="card-tools">
+        <div class="card-meta" id="rwLiveMeta"><span class="pulse pulse-loading"></span>Loading…</div>
         <div class="pill-switch" id="rwRateSwitch" aria-label="Reward rate mode">
           <span class="slider"></span>
           <span class="opt active" data-rate-mode="APR">APR</span>
           <span class="opt" data-rate-mode="APY">APY</span>
         </div>
-        <div class="card-meta" id="rwLiveMeta"><span class="pulse pulse-loading"></span>Loading…</div>
       </div>
     </div>
     <div class="tbl-wrap">
@@ -349,9 +349,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <table class="tbl" id="rwPastTable" style="display:none">
         <thead>
           <tr>
-            <th style="width:56px">#</th>
-            <th>Program</th>
             <th style="width:150px">Chain</th>
+            <th>Program</th>
             <th class="num" style="width:150px">Last TVL</th>
             <th style="width:150px;padding-right:32px">Ended</th>
           </tr>
@@ -591,11 +590,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     }
     state.style.display = 'none';
     table.style.display = 'table';
-    body.innerHTML = past.map((program, index) => `
+    body.innerHTML = past.map(program => `
       <tr>
-        <td><span class="rank">${index + 1}</span></td>
-        <td>${programCell(program)}</td>
         <td>${chainBadge(program.chain)}</td>
+        <td>${programCell(program)}</td>
         <td class="num">${fmtUsd(program.tvlUsd)}</td>
         <td>${fmtDate(program.campaignEnd)}</td>
       </tr>
@@ -612,6 +610,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     document.getElementById('rwLiveCount').textContent = live.length || '—';
     document.getElementById('rwProviderCount').textContent = providers.size ? `${providers.size} providers (${Array.from(providers).join(', ')})` : 'across all providers';
     document.getElementById('rwDailyUsd').textContent = fmtUsd(daily);
+    document.getElementById('rwRewardContext').textContent = fmtUsd(daily);
     document.getElementById('rwTopApr').textContent = best ? fmtSupplyRate(best.apr) : '—';
     document.getElementById('rwTopAprSub').textContent = best ? `${best.marketTokens?.[0] || ''} · ${CHAIN_LABELS[best.chain] || best.chain}` : 'best live program';
     document.getElementById('rwChainCount').textContent = chains.size || '—';

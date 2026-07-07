@@ -35,17 +35,32 @@ function assertBefore(source, first, second, message) {
   assertBefore(liveTable, '<th data-sort="chain"', '<th data-sort="name"', 'Live Programs should put Chain before Program');
   assert(liveTable.includes('id="rwRateSwitch"'), 'Live Programs should expose an APR/APY rate switch');
   assert(liveTable.includes('class="pill-switch"'), 'Live Programs rate switch should reuse the Dolomite Assets pill UX');
+  const cardToolsCss = between(rewards, '.card-tools{', '.pulse{');
+  assert(cardToolsCss.includes('flex-direction:column'), 'Live Programs tools should stack meta above the APR/APY switch');
+  assert(cardToolsCss.includes('align-items:flex-end'), 'Live Programs tools should align the APR/APY switch under the meta on the right');
+  const liveHead = between(liveTable, '<div class="card-tools">', '</div>\n    </div>\n    <div class="tbl-wrap">');
+  assertBefore(liveHead, 'id="rwLiveMeta"', 'id="rwRateSwitch"', 'Live Programs should place the APR/APY switch under the daily rewards meta');
   assert(liveTable.includes('data-rate-mode="APR"'), 'Live Programs rate switch should include APR mode');
   assert(liveTable.includes('data-rate-mode="APY"'), 'Live Programs rate switch should include APY mode');
   assert(liveTable.includes('<th data-sort="apr" class="num" style="width:110px">Supply</th>'), 'Live Programs should label the APR/APY column as Supply');
   assert(!liveTable.includes('<th data-sort="apr" class="num" style="width:110px">APR</th>'), 'Live Programs should not label the Supply column as APR');
   assert(!liveTable.includes('estimated (EST)'), 'Live Programs copy should not describe oDOLO rewards with an EST badge');
+  assert(rewards.includes('<div class="val" id="rwRewardContext">—</div>'), 'Rewards hero should not show LIVE as the Reward Value');
+  const renderHero = between(rewards, 'function renderHero()', 'function renderAll()');
+  assert(renderHero.includes("document.getElementById('rwRewardContext').textContent = fmtUsd(daily);"), 'Rewards hero should populate Reward Value with the daily rewards amount');
 
   const renderLive = between(rewards, 'function renderLive()', 'function renderPast()');
   assert(!renderLive.includes('<span class="rank">${index + 1}</span>'), 'Live Programs rows should not render row numbers');
   assertBefore(renderLive, '<td>${chainBadge(program.chain)}</td>', '<td>${programCell(program)}</td>', 'Live Programs row should put Chain before Program');
   assert(renderLive.includes('fmtSupplyRate(program.apr)'), 'Live Programs rows should format the Supply column through the active APR/APY mode');
   assert(!renderLive.includes('apr-est'), 'Live Programs rows should not render EST badges next to oDOLO rewards');
+
+  const endedTable = between(rewards, '<!-- ENDED PROGRAMS -->', '</section>');
+  assert(!endedTable.includes('<th style="width:56px">#</th>'), 'Ended Programs should not render the # ranking column');
+  assertBefore(endedTable, '<th style="width:150px">Chain</th>', '<th>Program</th>', 'Ended Programs should put Chain before Program');
+  const renderPast = between(rewards, 'function renderPast()', 'function renderHero()');
+  assert(!renderPast.includes('<span class="rank">${index + 1}</span>'), 'Ended Programs rows should not render row numbers');
+  assertBefore(renderPast, '<td>${chainBadge(program.chain)}</td>', '<td>${programCell(program)}</td>', 'Ended Programs rows should put Chain before Program');
 }
 
 {
@@ -78,6 +93,10 @@ function assertBefore(source, first, second, message) {
   assert(liquidation.includes('color: var(--fg-1) !important;'), 'Liquidation chain badges should use Rewards-like foreground color');
   assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19% !important; }'), 'Liquidation History should size the Liquidated wallet column before Date');
   assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 14% !important; }'), 'Liquidation History should size the Date column after Liquidated wallet');
+  assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 25% !important; }'), 'Liquidation History spacer column should stay visually fixed');
+  assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 18.2% !important; }'), 'Liquidation History collateral column should stay visually fixed');
+  assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 16% !important; }'), 'Liquidation History debt column should stay visually fixed');
+  assert(liquidation.includes('body.route-liquidation #liquidation-history-table tbody td:nth-child(3) {\n            padding-left: 4px !important;'), 'Liquidation History Date column should sit closer to the Liquidated wallet column without moving money columns');
   const walletOverflowRule = between(liquidation, '.liquidation-history-table tbody td:nth-child(2)', '.liquidation-history-table tbody td:first-child');
   assert(walletOverflowRule.includes('overflow: visible;'), 'Liquidation History address tools should remain visible in the second column');
 

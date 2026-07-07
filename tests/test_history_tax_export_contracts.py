@@ -38,6 +38,23 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         self.assertIn(f"history/history.js?v={version}", self.html)
         self.assertIn(f"history/history.css?v={version}", self.html)
 
+    def test_action_filter_options_are_reportable(self):
+        options = re.findall(r'<option value="([^"]+)">([^<]+)</option>', self.html)
+        action_values = [value for value, _label in options if value != "all"]
+        labels_match = re.search(r"const ACTION_LABELS = \{(?P<body>.*?)\n  \};", self.source, re.S)
+        self.assertIsNotNone(labels_match, "ACTION_LABELS block missing")
+        labels_block = labels_match.group("body")
+        for value in action_values:
+            if value == "swap":
+                continue
+            self.assertRegex(labels_block, rf"\b{re.escape(value)}:", f"{value} filter has no report/table label")
+
+        filter_match = re.search(r"function rowMatchesActionFilter\(row, action\) \{(?P<body>.*?)\n  \}", self.source, re.S)
+        self.assertIsNotNone(filter_match, "rowMatchesActionFilter missing")
+        filter_block = filter_match.group("body")
+        for custom_value in ["swap", "vestingPair", "vestingClaim", "claim"]:
+            self.assertIn(f'action === "{custom_value}"', filter_block)
+
     def test_history_is_positioned_as_transaction_history_first(self):
         self.assertIn("<h1>Dolomite Transaction History</h1>", self.html)
         self.assertIn("<h2>Transaction results</h2>", self.html)
@@ -1013,6 +1030,19 @@ const deposit = amount => ({
   account: "1",
   legs: [{ direction: "out", symbol: "USDC", tokenAddress: "0xusdc", amount: String(amount), rawAmount: String(amount) }],
 });
+const selfTransfer = (amount, fromAccount, toAccount, timestamp) => ({
+  chainKey: "arbitrum",
+  txHash: `0xtransfer${fromAccount}${toAccount}${amount}`,
+  timestamp,
+  blockNumber: String(timestamp),
+  action: "transfer",
+  role: "out",
+  account: fromAccount,
+  fromAccount,
+  toAccount,
+  isSelfTransfer: true,
+  legs: [{ direction: "out", symbol: "USDC", tokenAddress: "0xusdc", amount: String(amount), rawAmount: String(amount) }],
+});
 const openBorrow = sandbox.__historyTest.groupEvents([withdraw(10)], {
   currentBalanceReplay: true,
   currentBalances: new Map([[key, -10n * scale]]),
@@ -1029,10 +1059,23 @@ const closeBorrow = sandbox.__historyTest.groupEvents([deposit(10)], {
   currentBalanceReplay: true,
   currentBalances: new Map([[key, 0n]]),
 })[0];
+const openBorrowTransfer = sandbox.__historyTest.groupEvents([selfTransfer(10, "1", "0", 30)], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([[key, -10n * scale]]),
+})[0];
+const closeBorrowTransfer = sandbox.__historyTest.groupEvents([selfTransfer(10, "0", "1", 40)], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([[key, 0n]]),
+})[0];
 const zapWithBorrow = {
   actions: new Set(["zap", "withdraw"]),
   semanticActions: new Set(["openBorrow"]),
   events: [{ action: "zap", taxCategory: "zap", legs: [{ direction: "out", symbol: "USDC", amount: "10" }, { direction: "in", symbol: "WETH", amount: "0.003" }] }],
+};
+const vestingClaimRow = {
+  actions: new Set(["vesting"]),
+  semanticActions: new Set(),
+  events: [{ action: "vesting", vestingFlowLabel: "Claimed veDOLO" }],
 };
 const results = {
   openAction: sandbox.__historyTest.cleanTransactionAction(openBorrow),
@@ -1051,12 +1094,27 @@ const results = {
   closeChip: sandbox.__historyTest.displayActionsForRow(closeBorrow).join("|"),
   closeFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrow, "repay"),
   closeGroup: sandbox.__historyTest.activityGroupForEvent(closeBorrow.events[0]),
+  openTransferAction: sandbox.__historyTest.cleanTransactionAction(openBorrowTransfer),
+  openTransferChip: sandbox.__historyTest.displayActionsForRow(openBorrowTransfer).join("|"),
+  openTransferBorrowFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowTransfer, "borrow"),
+  openTransferTransferFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowTransfer, "transfer"),
+  openTransferEventLabel: sandbox.__historyTest.cleanReportActionLabel(openBorrowTransfer.events[0]),
+  openTransferGroup: sandbox.__historyTest.activityGroupForEvent(openBorrowTransfer.events[0]),
+  openTransferBefore: openBorrowTransfer.events[0].borrowBalanceBefore,
+  openTransferAfter: openBorrowTransfer.events[0].borrowBalanceAfter,
+  closeTransferAction: sandbox.__historyTest.cleanTransactionAction(closeBorrowTransfer),
+  closeTransferChip: sandbox.__historyTest.displayActionsForRow(closeBorrowTransfer).join("|"),
+  closeTransferRepayFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowTransfer, "repay"),
+  closeTransferTransferFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowTransfer, "transfer"),
+  closeTransferGroup: sandbox.__historyTest.activityGroupForEvent(closeBorrowTransfer.events[0]),
   indexedDebt: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.parBalanceToTokenBalance("-5", { borrowIndex: "2", supplyIndex: "1" })),
   indexedSupply: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.parBalanceToTokenBalance("3", { borrowIndex: "2", supplyIndex: "1.5" })),
   scientificSmall: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.decimalToScaledBigInt("1e-6")),
   scientificLarge: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.decimalToScaledBigInt("1.2e3")),
   zapBorrowAction: sandbox.__historyTest.cleanTransactionAction(zapWithBorrow),
   zapBorrowChips: sandbox.__historyTest.displayActionsForRow(zapWithBorrow).join("|"),
+  vestingClaimSpecificFilter: sandbox.__historyTest.rowMatchesActionFilter(vestingClaimRow, "vestingClaim"),
+  vestingClaimGenericFilter: sandbox.__historyTest.rowMatchesActionFilter(vestingClaimRow, "claim"),
 };
 if (results.openAction !== "Open Borrow") throw new Error(JSON.stringify(results));
 if (results.openChip !== "openBorrow") throw new Error(JSON.stringify(results));
@@ -1070,9 +1128,20 @@ if (!results.repayFilter || results.repayDepositFilter) throw new Error(JSON.str
 if (results.closeAction !== "Close Borrow") throw new Error(JSON.stringify(results));
 if (results.closeChip !== "closeBorrow") throw new Error(JSON.stringify(results));
 if (!results.closeFilter || results.closeGroup !== "repay") throw new Error(JSON.stringify(results));
+if (results.openTransferAction !== "Open Borrow") throw new Error(JSON.stringify(results));
+if (results.openTransferChip !== "openBorrow") throw new Error(JSON.stringify(results));
+if (!results.openTransferBorrowFilter || results.openTransferTransferFilter) throw new Error(JSON.stringify(results));
+if (results.openTransferEventLabel !== "Open Borrow") throw new Error(JSON.stringify(results));
+if (results.openTransferGroup !== "borrow") throw new Error(JSON.stringify(results));
+if (results.openTransferBefore !== "0" || results.openTransferAfter !== "-10") throw new Error(JSON.stringify(results));
+if (results.closeTransferAction !== "Close Borrow") throw new Error(JSON.stringify(results));
+if (results.closeTransferChip !== "closeBorrow") throw new Error(JSON.stringify(results));
+if (!results.closeTransferRepayFilter || results.closeTransferTransferFilter) throw new Error(JSON.stringify(results));
+if (results.closeTransferGroup !== "repay") throw new Error(JSON.stringify(results));
 if (results.indexedDebt !== "-10" || results.indexedSupply !== "4.5") throw new Error(JSON.stringify(results));
 if (results.scientificSmall !== "0.000001" || results.scientificLarge !== "1200") throw new Error(JSON.stringify(results));
 if (results.zapBorrowAction !== "Zap; Open Borrow" || results.zapBorrowChips !== "zap|openBorrow") throw new Error(JSON.stringify(results));
+if (!results.vestingClaimSpecificFilter || !results.vestingClaimGenericFilter) throw new Error(JSON.stringify(results));
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 

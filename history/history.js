@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-chain-table-ux";
+  const HISTORY_VERSION = "history-20260707-borrow-transfer-claim-semantics";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -2090,33 +2090,44 @@
 
   function annotateBorrowEventsForRow(row, rowDeltas, balances, confidence, observedKeys = null) {
     (row.events || []).forEach(event => {
-      const eventDelta = borrowClassifiableEventDelta(event);
-      if (!eventDelta) return;
-      const rowDelta = rowDeltas.get(eventDelta.key) || 0n;
-      if (rowDelta === 0n) return;
-      const hasBaseline = !observedKeys || observedKeys.has(eventDelta.key) || balances.has(eventDelta.key);
-      const before = confidence === "current_balance_replay"
-        ? (balances.get(eventDelta.key) || 0n) - rowDelta
-        : (balances.get(eventDelta.key) || 0n);
-      const after = before + rowDelta;
-      const semantic = borrowSemanticForBalanceTransition(event, before, after, hasBaseline);
-      if (!semantic) return;
-      event.borrowSemanticAction = semantic.action;
-      event.borrowSemanticLabel = semantic.label;
+      const eventDeltas = borrowClassifiableEventDeltas(event);
+      if (!eventDeltas.length) return;
+      const semanticMatches = eventDeltas.map(eventDelta => {
+        const rowDelta = rowDeltas.get(eventDelta.key) || 0n;
+        if (rowDelta === 0n) return null;
+        const hasBaseline = !observedKeys || observedKeys.has(eventDelta.key) || balances.has(eventDelta.key);
+        const before = confidence === "current_balance_replay"
+          ? (balances.get(eventDelta.key) || 0n) - rowDelta
+          : (balances.get(eventDelta.key) || 0n);
+        const after = before + rowDelta;
+        const semantic = borrowSemanticForBalanceTransition(event, before, after, hasBaseline, eventDelta.delta);
+        return semantic ? { semantic, before, after } : null;
+      }).filter(Boolean);
+      const match = semanticMatches.sort((a, b) => borrowSemanticPriority(b.semantic.action) - borrowSemanticPriority(a.semantic.action))[0];
+      if (!match) return;
+      event.borrowSemanticAction = match.semantic.action;
+      event.borrowSemanticLabel = match.semantic.label;
       event.borrowSemanticConfidence = confidence;
-      event.borrowBalanceBefore = scaledBigIntToDecimal(before);
-      event.borrowBalanceAfter = scaledBigIntToDecimal(after);
+      event.borrowBalanceBefore = scaledBigIntToDecimal(match.before);
+      event.borrowBalanceAfter = scaledBigIntToDecimal(match.after);
     });
   }
 
-  function borrowSemanticForBalanceTransition(event, before, after, hasBaseline) {
+  function borrowSemanticForBalanceTransition(event, before, after, hasBaseline, delta = null) {
     if (!hasBaseline) return null;
-    if (event.action === "withdraw") {
+    const change = typeof delta === "bigint"
+      ? delta
+      : event.action === "withdraw"
+        ? -1n
+        : event.action === "deposit"
+          ? 1n
+          : after - before;
+    if (change < 0n) {
       if (after < 0n && before >= 0n) return { action: "openBorrow", label: ACTION_LABELS.openBorrow };
       if (before < 0n && after < before) return { action: "borrow", label: ACTION_LABELS.borrow };
       return null;
     }
-    if (event.action === "deposit") {
+    if (change > 0n) {
       if (before < 0n && after >= 0n) return { action: "closeBorrow", label: ACTION_LABELS.closeBorrow };
       if (before < 0n && after > before) return { action: "repay", label: ACTION_LABELS.repay };
       return null;
@@ -2124,16 +2135,38 @@
     return null;
   }
 
-  function borrowClassifiableEventDelta(event) {
-    if (!event || (event.action !== "deposit" && event.action !== "withdraw")) return null;
-    const leg = firstLeg(event.legs, event.action === "deposit" ? "out" : "in") || (event.legs || [])[0];
-    if (!leg || !event.account) return null;
+  function borrowSemanticPriority(action) {
+    if (action === "openBorrow" || action === "closeBorrow") return 3;
+    if (action === "borrow" || action === "repay") return 2;
+    return 1;
+  }
+
+  function borrowClassifiableEventDeltas(event) {
+    if (!event) return [];
+    if (event.action === "deposit" || event.action === "withdraw") {
+      const leg = firstLeg(event.legs, event.action === "deposit" ? "out" : "in") || (event.legs || [])[0];
+      if (!leg || !event.account) return [];
+      const amount = decimalToScaledBigInt(leg.rawAmount ?? leg.amount);
+      if (amount <= 0n) return [];
+      return [{
+        key: balanceKey(event.chainKey, event.account, leg.tokenAddress || leg.symbol),
+        delta: event.action === "deposit" ? amount : -amount,
+      }];
+    }
+    if (event.action !== "transfer" || !event.isSelfTransfer || !event.fromAccount || !event.toAccount) return [];
+    const leg = (event.legs || [])[0];
+    if (!leg) return [];
     const amount = decimalToScaledBigInt(leg.rawAmount ?? leg.amount);
-    if (amount <= 0n) return null;
-    return {
-      key: balanceKey(event.chainKey, event.account, leg.tokenAddress || leg.symbol),
-      delta: event.action === "deposit" ? amount : -amount,
-    };
+    if (amount <= 0n) return [];
+    const token = leg.tokenAddress || leg.symbol;
+    return [
+      { key: balanceKey(event.chainKey, event.fromAccount, token), delta: -amount },
+      { key: balanceKey(event.chainKey, event.toAccount, token), delta: amount },
+    ];
+  }
+
+  function borrowClassifiableEventDelta(event) {
+    return borrowClassifiableEventDeltas(event)[0] || null;
   }
 
   function balanceDeltasForRow(row) {
@@ -3103,7 +3136,8 @@
     const actions = Array.from(row.actions || [])
       .filter(Boolean)
       .filter(action => !(action === "withdraw" && hasBorrowSemantic))
-      .filter(action => !(action === "deposit" && hasRepaySemantic));
+      .filter(action => !(action === "deposit" && hasRepaySemantic))
+      .filter(action => !(action === "transfer" && (hasBorrowSemantic || hasRepaySemantic)));
     const vestingChips = vestingActionChipsForRow(row);
     const mergedActions = [
       ...semanticActions,
@@ -3154,6 +3188,7 @@
     if (action === "repay") return semanticActions.has("repay") || semanticActions.has("closeBorrow");
     if (action === "withdraw" && (semanticActions.has("borrow") || semanticActions.has("openBorrow"))) return false;
     if (action === "deposit" && (semanticActions.has("repay") || semanticActions.has("closeBorrow"))) return false;
+    if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow"))) return false;
     if (action === "swap") {
       return row.actions.has("trade")
         || row.actions.has("zap")
@@ -3166,7 +3201,9 @@
       return vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
     }
     if (action === "claim") {
-      return row.actions.has("odoloClaim") || row.actions.has("rewardClaim");
+      return row.actions.has("odoloClaim")
+        || row.actions.has("rewardClaim")
+        || vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
     }
     return row.actions.has(action);
   }
