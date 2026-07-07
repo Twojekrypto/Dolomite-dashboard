@@ -52,7 +52,7 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         filter_match = re.search(r"function rowMatchesActionFilter\(row, action\) \{(?P<body>.*?)\n  \}", self.source, re.S)
         self.assertIsNotNone(filter_match, "rowMatchesActionFilter missing")
         filter_block = filter_match.group("body")
-        for custom_value in ["swap", "vestingPair", "vestingClaim", "claim"]:
+        for custom_value in ["swap", "vestingPair", "vestingClaim", "claim", "addCollateral"]:
             self.assertIn(f'action === "{custom_value}"', filter_block)
 
     def test_history_is_positioned_as_transaction_history_first(self):
@@ -1010,6 +1010,7 @@ const sandbox = {
 vm.runInNewContext(instrumented, sandbox);
 const scale = 10n ** 18n;
 const key = "arbitrum:1:0xusdc";
+const debtKey = "arbitrum:1:0xdebt";
 const withdraw = amount => ({
   chainKey: "arbitrum",
   txHash: `0xwithdraw${amount}`,
@@ -1059,6 +1060,10 @@ const closeBorrow = sandbox.__historyTest.groupEvents([deposit(10)], {
   currentBalanceReplay: true,
   currentBalances: new Map([[key, 0n]]),
 })[0];
+const addCollateral = sandbox.__historyTest.groupEvents([deposit(5)], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([[key, 5n * scale], [debtKey, -20n * scale]]),
+})[0];
 const openBorrowTransfer = sandbox.__historyTest.groupEvents([selfTransfer(10, "1", "0", 30)], {
   currentBalanceReplay: true,
   currentBalances: new Map([[key, -10n * scale]]),
@@ -1088,12 +1093,24 @@ const results = {
   openAfter: openBorrow.events[0].borrowBalanceAfter,
   increaseAction: sandbox.__historyTest.cleanTransactionAction(increaseBorrow),
   repayAction: sandbox.__historyTest.cleanTransactionAction(repay),
+  repayChip: sandbox.__historyTest.displayActionsForRow(repay).join("|"),
   repayFilter: sandbox.__historyTest.rowMatchesActionFilter(repay, "repay"),
   repayDepositFilter: sandbox.__historyTest.rowMatchesActionFilter(repay, "deposit"),
+  repayEventLabel: sandbox.__historyTest.cleanReportActionLabel(repay.events[0]),
+  repayBefore: repay.events[0].borrowBalanceBefore,
+  repayAfter: repay.events[0].borrowBalanceAfter,
   closeAction: sandbox.__historyTest.cleanTransactionAction(closeBorrow),
   closeChip: sandbox.__historyTest.displayActionsForRow(closeBorrow).join("|"),
   closeFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrow, "repay"),
   closeGroup: sandbox.__historyTest.activityGroupForEvent(closeBorrow.events[0]),
+  addCollateralAction: sandbox.__historyTest.cleanTransactionAction(addCollateral),
+  addCollateralChip: sandbox.__historyTest.displayActionsForRow(addCollateral).join("|"),
+  addCollateralFilter: sandbox.__historyTest.rowMatchesActionFilter(addCollateral, "addCollateral"),
+  addCollateralDepositFilter: sandbox.__historyTest.rowMatchesActionFilter(addCollateral, "deposit"),
+  addCollateralEventLabel: sandbox.__historyTest.cleanReportActionLabel(addCollateral.events[0]),
+  addCollateralGroup: sandbox.__historyTest.activityGroupForEvent(addCollateral.events[0]),
+  addCollateralBefore: addCollateral.events[0].borrowBalanceBefore,
+  addCollateralAfter: addCollateral.events[0].borrowBalanceAfter,
   openTransferAction: sandbox.__historyTest.cleanTransactionAction(openBorrowTransfer),
   openTransferChip: sandbox.__historyTest.displayActionsForRow(openBorrowTransfer).join("|"),
   openTransferBorrowFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowTransfer, "borrow"),
@@ -1124,10 +1141,19 @@ if (results.openGroup !== "borrow") throw new Error(JSON.stringify(results));
 if (results.openBefore !== "0" || results.openAfter !== "-10") throw new Error(JSON.stringify(results));
 if (results.increaseAction !== "Borrow") throw new Error(JSON.stringify(results));
 if (results.repayAction !== "Repay") throw new Error(JSON.stringify(results));
+if (results.repayChip !== "repay") throw new Error(JSON.stringify(results));
 if (!results.repayFilter || results.repayDepositFilter) throw new Error(JSON.stringify(results));
+if (results.repayEventLabel !== "Repay") throw new Error(JSON.stringify(results));
+if (results.repayBefore !== "-10" || results.repayAfter !== "-5") throw new Error(JSON.stringify(results));
 if (results.closeAction !== "Close Borrow") throw new Error(JSON.stringify(results));
 if (results.closeChip !== "closeBorrow") throw new Error(JSON.stringify(results));
 if (!results.closeFilter || results.closeGroup !== "repay") throw new Error(JSON.stringify(results));
+if (results.addCollateralAction !== "Add Collateral") throw new Error(JSON.stringify(results));
+if (results.addCollateralChip !== "addCollateral") throw new Error(JSON.stringify(results));
+if (!results.addCollateralFilter || results.addCollateralDepositFilter) throw new Error(JSON.stringify(results));
+if (results.addCollateralEventLabel !== "Add Collateral") throw new Error(JSON.stringify(results));
+if (results.addCollateralGroup !== "dolomite_in") throw new Error(JSON.stringify(results));
+if (results.addCollateralBefore !== "0" || results.addCollateralAfter !== "5") throw new Error(JSON.stringify(results));
 if (results.openTransferAction !== "Open Borrow") throw new Error(JSON.stringify(results));
 if (results.openTransferChip !== "openBorrow") throw new Error(JSON.stringify(results));
 if (!results.openTransferBorrowFilter || results.openTransferTransferFilter) throw new Error(JSON.stringify(results));

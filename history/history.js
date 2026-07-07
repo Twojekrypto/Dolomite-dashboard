@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-borrow-transfer-claim-semantics";
+  const HISTORY_VERSION = "history-20260707-borrow-collateral-semantics";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -124,6 +124,7 @@
     repay: "Repay",
     openBorrow: "Open Borrow",
     closeBorrow: "Close Borrow",
+    addCollateral: "Add Collateral",
     transfer: "Transfer",
     trade: "Trade",
     liquidation: "Liquidation",
@@ -152,6 +153,7 @@
     repay: "Repay",
     openBorrow: "Open Borrow",
     closeBorrow: "Close Borrow",
+    addCollateral: "Add Collateral",
     transfer: "Transfer",
     trade: "Trade",
     liquidation: "Liquidation",
@@ -2100,7 +2102,8 @@
           ? (balances.get(eventDelta.key) || 0n) - rowDelta
           : (balances.get(eventDelta.key) || 0n);
         const after = before + rowDelta;
-        const semantic = borrowSemanticForBalanceTransition(event, before, after, hasBaseline, eventDelta.delta);
+        const collateralContext = eventDelta.delta > 0n && accountHasDebtExposure(eventDelta.key, rowDeltas, balances, confidence);
+        const semantic = borrowSemanticForBalanceTransition(event, before, after, hasBaseline, eventDelta.delta, collateralContext);
         return semantic ? { semantic, before, after } : null;
       }).filter(Boolean);
       const match = semanticMatches.sort((a, b) => borrowSemanticPriority(b.semantic.action) - borrowSemanticPriority(a.semantic.action))[0];
@@ -2113,8 +2116,34 @@
     });
   }
 
-  function borrowSemanticForBalanceTransition(event, before, after, hasBaseline, delta = null) {
-    if (!hasBaseline) return null;
+  function balanceAccountPrefix(key) {
+    const parts = String(key || "").split(":");
+    if (parts.length < 3) return "";
+    return `${parts[0]}:${parts[1]}:`;
+  }
+
+  function balanceBeforeAfterForKey(key, rowDeltas, balances, confidence) {
+    const rowDelta = rowDeltas.get(key) || 0n;
+    const before = confidence === "current_balance_replay"
+      ? (balances.get(key) || 0n) - rowDelta
+      : (balances.get(key) || 0n);
+    return { before, after: before + rowDelta };
+  }
+
+  function accountHasDebtExposure(targetKey, rowDeltas, balances, confidence) {
+    const prefix = balanceAccountPrefix(targetKey);
+    if (!prefix) return false;
+    const keys = new Set([...Array.from(balances.keys()), ...Array.from(rowDeltas.keys())]);
+    for (const key of keys) {
+      if (key === targetKey || !String(key).startsWith(prefix)) continue;
+      const { before, after } = balanceBeforeAfterForKey(key, rowDeltas, balances, confidence);
+      if (before < 0n || after < 0n) return true;
+    }
+    return false;
+  }
+
+  function borrowSemanticForBalanceTransition(event, before, after, hasBaseline, delta = null, collateralContext = false) {
+    if (!hasBaseline && !collateralContext) return null;
     const change = typeof delta === "bigint"
       ? delta
       : event.action === "withdraw"
@@ -2130,6 +2159,7 @@
     if (change > 0n) {
       if (before < 0n && after >= 0n) return { action: "closeBorrow", label: ACTION_LABELS.closeBorrow };
       if (before < 0n && after > before) return { action: "repay", label: ACTION_LABELS.repay };
+      if (collateralContext && after > before && after > 0n) return { action: "addCollateral", label: ACTION_LABELS.addCollateral };
       return null;
     }
     return null;
@@ -3133,11 +3163,12 @@
     const semanticActions = Array.from(row.semanticActions || []).filter(Boolean);
     const hasBorrowSemantic = semanticActions.some(action => ["borrow", "openBorrow"].includes(action));
     const hasRepaySemantic = semanticActions.some(action => ["repay", "closeBorrow"].includes(action));
+    const hasCollateralSemantic = semanticActions.includes("addCollateral");
     const actions = Array.from(row.actions || [])
       .filter(Boolean)
       .filter(action => !(action === "withdraw" && hasBorrowSemantic))
-      .filter(action => !(action === "deposit" && hasRepaySemantic))
-      .filter(action => !(action === "transfer" && (hasBorrowSemantic || hasRepaySemantic)));
+      .filter(action => !(action === "deposit" && (hasRepaySemantic || hasCollateralSemantic)))
+      .filter(action => !(action === "transfer" && (hasBorrowSemantic || hasRepaySemantic || hasCollateralSemantic)));
     const vestingChips = vestingActionChipsForRow(row);
     const mergedActions = [
       ...semanticActions,
@@ -3186,9 +3217,10 @@
     const semanticActions = row.semanticActions || new Set();
     if (action === "borrow") return semanticActions.has("borrow") || semanticActions.has("openBorrow");
     if (action === "repay") return semanticActions.has("repay") || semanticActions.has("closeBorrow");
+    if (action === "addCollateral") return semanticActions.has("addCollateral");
     if (action === "withdraw" && (semanticActions.has("borrow") || semanticActions.has("openBorrow"))) return false;
-    if (action === "deposit" && (semanticActions.has("repay") || semanticActions.has("closeBorrow"))) return false;
-    if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow"))) return false;
+    if (action === "deposit" && (semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral"))) return false;
+    if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral"))) return false;
     if (action === "swap") {
       return row.actions.has("trade")
         || row.actions.has("zap")
