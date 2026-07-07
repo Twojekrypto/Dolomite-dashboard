@@ -31,7 +31,7 @@ ASSET_CHECKS = {
     "/dashboard-core.html": ("dolo-address-labels.js", "Earn"),
     "/liquidation-preview.html": ("dolo-address-labels.js", "Supply"),
     "/revenue-preview.html": ("dolomite_revenue.json", "Revenue"),
-    "/rewards-preview.html": ("rewards_programs.json", "Reward Programs"),
+    "/rewards-preview.html": ("rewards_programs.json", "Rewards"),
 }
 
 
