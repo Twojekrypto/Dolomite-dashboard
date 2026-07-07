@@ -100,8 +100,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1)}
 .card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px;white-space:nowrap}
 .card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.card-tools{display:flex;align-items:center;gap:12px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
 .pulse-loading{background:var(--fg-3);box-shadow:none;opacity:.6}
+
+/* APR/APY switch - kept in step with Dolomite Assets */
+.pill-switch{position:relative;display:inline-flex;align-items:center;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;padding:3px;height:36px;cursor:pointer;-webkit-user-select:none;user-select:none}
+.pill-switch .opt{position:relative;z-index:1;padding:0 14px;height:28px;display:inline-flex;align-items:center;font-size:12px;font-weight:600;color:var(--fg-3);letter-spacing:.4px;cursor:pointer;transition:color .2s var(--ease)}
+.pill-switch .opt.active{color:var(--bg-0)}
+.pill-switch .slider{position:absolute;top:3px;left:3px;height:28px;border-radius:8px;background:var(--gold);box-shadow:0 2px 8px rgba(201,162,39,.35);transition:transform .25s var(--ease),width .25s var(--ease)}
 
 .tbl-wrap{overflow-x:auto;border-radius:0 0 var(--r-xl) var(--r-xl)}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
@@ -144,7 +151,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .chain-badge img{width:15px;height:15px;border-radius:50%;object-fit:contain;background:var(--bg-3)}
 
 .apr-main{color:var(--up);font-weight:600}
-.apr-est{color:var(--fg-4);font-family:var(--mono);font-size:9.5px;margin-left:4px}
 .status-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:5px;font-family:var(--mono);font-size:10.5px;font-weight:600}
 .status-pill.live{color:var(--up);background:var(--up-wash);border:1px solid rgba(117,184,123,.28)}
 .eff-bar{position:relative;display:inline-block;width:54px;height:5px;margin-left:8px;border-radius:3px;background:var(--bg-4);vertical-align:middle;overflow:hidden}
@@ -158,6 +164,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 @media (max-width:640px){
   .wrap{padding:24px 14px 72px}
+  .card-tools{width:100%;justify-content:space-between}
   .site-nav-wrap{width:100%;justify-content:center;overflow:hidden;padding-bottom:2px}
   .site-nav{width:100%;justify-content:space-between}
   .nav-item{width:40px;height:38px;padding:0;justify-content:center;gap:0}
@@ -276,7 +283,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <div class="hero-stat">
         <div class="lbl">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 4 5-8"/></svg>
-          Top APR
+          Top Supply
         </div>
         <div class="val" id="rwTopApr">—</div>
         <div class="sub" id="rwTopAprSub">best live program</div>
@@ -299,7 +306,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>Live Programs</h2>
         <span class="count-badge" id="rwLiveTableCount">—</span>
       </div>
-      <div class="card-meta" id="rwLiveMeta"><span class="pulse pulse-loading"></span>Loading…</div>
+      <div class="card-tools">
+        <div class="pill-switch" id="rwRateSwitch" aria-label="Reward rate mode">
+          <span class="slider"></span>
+          <span class="opt active" data-rate-mode="APR">APR</span>
+          <span class="opt" data-rate-mode="APY">APY</span>
+        </div>
+        <div class="card-meta" id="rwLiveMeta"><span class="pulse pulse-loading"></span>Loading…</div>
+      </div>
     </div>
     <div class="tbl-wrap">
       <div class="rw-empty" id="rwLiveState">Loading reward programs…</div>
@@ -308,7 +322,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <tr>
             <th data-sort="chain" style="width:150px">Chain</th>
             <th data-sort="name">Program</th>
-            <th data-sort="apr" class="num" style="width:110px">APR</th>
+            <th data-sort="apr" class="num" style="width:110px">Supply</th>
             <th data-sort="tvlUsd" class="num" style="width:140px">Eligible TVL</th>
             <th data-sort="dailyRewardsUsd" class="num sorted" style="width:150px">Daily Rewards</th>
             <th data-sort="efficiency" class="num" style="width:170px">Reward / $1k · day</th>
@@ -318,7 +332,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <tbody id="rwLiveBody"></tbody>
       </table>
     </div>
-    <div class="card-note">oDOLO APR is estimated (EST) from the current epoch's weekly allocation × DOLO spot price ÷ market supply; Merkl APRs come from the Merkl API. Reward / $1k · day = daily reward USD per $1,000 of eligible TVL — a quick crowding gauge: higher means fewer dollars competing for the same rewards.</div>
+    <div class="card-note">Supply can be viewed as APR or APY. oDOLO rates are estimated from the current epoch's weekly allocation × DOLO spot price ÷ market supply; Merkl rates come from the Merkl API. Reward / $1k · day = daily reward USD per $1,000 of eligible TVL — a quick crowding gauge: higher means fewer dollars competing for the same rewards.</div>
   </section>
 
   <!-- ENDED PROGRAMS -->
@@ -373,6 +387,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   let generatedAt = null;
   let liveSortField = 'dailyRewardsUsd';
   let liveSortAsc = false;
+  let rewardRateMode = 'APR';
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -390,9 +405,22 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   }
 
-  function fmtApr(value) {
+  function aprToApy(value) {
     const n = Number(value);
-    if (value == null || !Number.isFinite(n)) return '—';
+    if (value == null || !Number.isFinite(n)) return null;
+    if (n <= 0) return n;
+    return (Math.pow(1 + n / 100 / 365, 365) - 1) * 100;
+  }
+
+  function supplyRateForMode(value) {
+    const n = Number(value);
+    if (value == null || !Number.isFinite(n)) return null;
+    return rewardRateMode === 'APY' ? aprToApy(n) : n;
+  }
+
+  function fmtSupplyRate(value) {
+    const n = supplyRateForMode(value);
+    if (n == null || !Number.isFinite(n)) return '—';
     if (n > 999) return '>999%';
     return `${n.toFixed(2)}%`;
   }
@@ -464,9 +492,27 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     }
     if (field === 'name') return shortProgramName(program).toUpperCase();
     if (field === 'chain') return String(program.chain || '').toUpperCase();
+    if (field === 'apr') {
+      const value = supplyRateForMode(program.apr);
+      return value == null ? -Infinity : value;
+    }
     const raw = program[field];
     const n = Number(raw);
     return Number.isFinite(n) && raw != null ? n : -Infinity;
+  }
+
+  function syncRateSwitch() {
+    const switchEl = document.getElementById('rwRateSwitch');
+    if (!switchEl) return;
+    const opts = Array.from(switchEl.querySelectorAll('.opt[data-rate-mode]'));
+    const active = opts.find(opt => opt.dataset.rateMode === rewardRateMode) || opts[0];
+    if (!active) return;
+    opts.forEach(opt => opt.classList.toggle('active', opt === active));
+    const slider = switchEl.querySelector('.slider');
+    if (!slider) return;
+    const offset = opts.slice(0, opts.indexOf(active)).reduce((sum, opt) => sum + opt.offsetWidth, 0);
+    slider.style.width = `${active.offsetWidth}px`;
+    slider.style.transform = `translateX(${offset}px)`;
   }
 
   function syncLiveSortHeads() {
@@ -519,7 +565,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <tr>
           <td>${chainBadge(program.chain)}</td>
           <td>${programCell(program)}</td>
-          <td class="num"><span class="apr-main">${fmtApr(program.apr)}</span>${program.aprSource === 'estimated' ? '<span class="apr-est">EST</span>' : ''}</td>
+          <td class="num"><span class="apr-main">${fmtSupplyRate(program.apr)}</span></td>
           <td class="num">${fmtUsd(program.tvlUsd)}</td>
           <td class="num">${fmtUsd(program.dailyRewardsUsd)}</td>
           <td class="num">${eff != null ? `$${eff.toFixed(2)}` : '—'}${effBar}</td>
@@ -566,7 +612,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     document.getElementById('rwLiveCount').textContent = live.length || '—';
     document.getElementById('rwProviderCount').textContent = providers.size ? `${providers.size} providers (${Array.from(providers).join(', ')})` : 'across all providers';
     document.getElementById('rwDailyUsd').textContent = fmtUsd(daily);
-    document.getElementById('rwTopApr').textContent = best ? fmtApr(best.apr) : '—';
+    document.getElementById('rwTopApr').textContent = best ? fmtSupplyRate(best.apr) : '—';
     document.getElementById('rwTopAprSub').textContent = best ? `${best.marketTokens?.[0] || ''} · ${CHAIN_LABELS[best.chain] || best.chain}` : 'best live program';
     document.getElementById('rwChainCount').textContent = chains.size || '—';
     const asof = document.getElementById('rwAsOf');
@@ -648,6 +694,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       renderLive();
     });
   });
+
+  document.querySelectorAll('#rwRateSwitch .opt[data-rate-mode]').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const mode = opt.dataset.rateMode;
+      if (mode !== 'APR' && mode !== 'APY') return;
+      if (rewardRateMode === mode) {
+        syncRateSwitch();
+        return;
+      }
+      rewardRateMode = mode;
+      syncRateSwitch();
+      renderHero();
+      renderLive();
+    });
+  });
+  window.addEventListener('resize', syncRateSwitch);
+  requestAnimationFrame(syncRateSwitch);
 
   boot();
 })();
