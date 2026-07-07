@@ -86,45 +86,62 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .hc-value.up{color:var(--up)}
 .hc-sub{margin-top:2px;color:var(--fg-3);font-size:11.5px}
 
-/* CARDS + TABLES */
-.card{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-lg);box-shadow:var(--sh-card);margin-bottom:24px;overflow:hidden}
-.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:18px 20px 14px;border-bottom:1px solid var(--line-1)}
-.card-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
-.card-count{color:var(--fg-3);font-family:var(--mono);font-size:11px;font-weight:500}
-.card-sub{margin-top:3px;color:var(--fg-2);font-size:12px}
-.card-note{padding:10px 20px 14px;border-top:1px solid var(--line-1);color:var(--fg-3);font-size:11px}
-.table-scroll{overflow-x:auto}
-table.rw{width:100%;border-collapse:collapse;min-width:860px}
-table.rw thead th{padding:10px 14px;background:var(--bg-1);color:var(--fg-3);font-family:var(--mono);font-size:10.5px;font-weight:600;
-  text-transform:uppercase;letter-spacing:0;text-align:left;border-bottom:1px solid var(--line-2);white-space:nowrap;cursor:pointer;user-select:none}
-table.rw thead th.num{text-align:right}
-table.rw thead th.sorted{color:var(--gold)}
-table.rw tbody td{padding:11px 14px;border-bottom:1px solid var(--line-1);font-size:12.5px;white-space:nowrap}
-table.rw tbody td.num{text-align:right;font-family:var(--mono)}
-table.rw tbody tr:last-child td{border-bottom:0}
-table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
-.rw-empty{padding:28px 20px;color:var(--fg-3);font-size:13px;text-align:center}
-.provider-badge{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:6px;border:1px solid var(--line-2);
-  background:var(--bg-3);font-family:var(--mono);font-size:10.5px;font-weight:600}
-.provider-badge.merkl{color:#8fb7c8;border-color:rgba(143,183,200,.3)}
-.provider-badge.dolomite{color:var(--gold-hi);border-color:var(--gold-line);background:var(--gold-wash)}
-.chain-badge{display:inline-flex;align-items:center;gap:6px;color:var(--fg-2);font-size:12px}
-.chain-badge img{width:14px;height:14px;border-radius:50%;object-fit:contain;background:var(--bg-3)}
-.program-name{font-weight:600}
-.program-desc{margin-top:1px;color:var(--fg-3);font-size:10.5px;max-width:340px;overflow:hidden;text-overflow:ellipsis}
-.apr-main{font-weight:600;color:var(--up)}
-.apr-est{color:var(--fg-3);font-family:var(--mono);font-size:9.5px;margin-left:4px}
-.trend{font-family:var(--mono);font-size:11px}
-.trend.up{color:var(--up)}
-.trend.down{color:var(--down)}
-.trend.flat{color:var(--fg-3)}
-.reward-token{display:inline-flex;align-items:center;padding:2px 7px;border-radius:5px;background:var(--bg-3);border:1px solid var(--line-2);
-  color:var(--fg-2);font-family:var(--mono);font-size:10.5px}
+/* CARDS + TABLES — same UX as DOLO Holders */
+.card{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:visible;position:relative;margin-bottom:24px}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
+.card-title{display:flex;align-items:center;gap:10px}
+.card-title h2{font-size:16px;font-weight:600;letter-spacing:-.1px;color:var(--fg-1)}
+.card-title .count-badge{font-family:var(--mono);font-size:11px;color:var(--fg-2);background:var(--bg-3);border:1px solid var(--line-2);padding:3px 8px;border-radius:999px;white-space:nowrap}
+.card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.pulse-loading{background:var(--fg-3);box-shadow:none;opacity:.6}
+
+.tbl-wrap{overflow-x:auto;border-radius:0 0 var(--r-xl) var(--r-xl)}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.tbl thead th{position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg-3);text-align:left;
+  padding:12px 18px;background:var(--bg-1);border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none;cursor:pointer;transition:color .15s var(--ease)}
+.tbl thead th:hover{color:var(--fg-1)}
+.tbl thead th .sort{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:6px;color:var(--fg-4);font-size:10px;line-height:1;transition:color .15s var(--ease)}
+.tbl thead th:hover .sort{color:var(--fg-2)}
+.tbl thead th.sorted{color:var(--gold)}
+.tbl thead th.sorted .sort{color:var(--gold)}
+.tbl thead th.num{text-align:right}
+
+.tbl tbody tr{transition:background .12s var(--ease);position:relative}
+.tbl tbody td{padding:12px 18px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-1);font-variant-numeric:tabular-nums;position:relative}
+.tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.tbl tbody tr:hover td{background:var(--bg-3)}
+.tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
+.tbl tbody tr:last-child td{border-bottom:0}
+
+.rank{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg-3);min-width:24px;text-align:right;display:inline-block}
+.tbl tbody tr:hover .rank{color:var(--gold)}
+
+/* PROGRAM CELL — same shape as the holders address cell */
+.prog-cell{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:0}
+.prog-line{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.prog-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
+.prog-sub{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2;display:inline-flex;align-items:center;gap:6px}
+.tbl tbody tr:hover .prog-sub{color:var(--fg-2)}
+.prog-sub img{width:13px;height:13px;border-radius:50%;object-fit:contain;background:var(--bg-3)}
+
+/* type tag chips — colour-coded, same shape as holders type tags */
+.type-tag{display:inline-flex;align-items:center;font-size:9.5px;text-transform:uppercase;letter-spacing:.8px;font-weight:600;
+  padding:2px 6px;border-radius:4px;border:1px solid;white-space:nowrap}
+.type-tag.tag-merkl{color:#9ab7c2;border-color:rgba(154,183,194,.34);background:rgba(154,183,194,.09)}
+.type-tag.tag-dolomite{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+
+.chain-badge{display:inline-flex;align-items:center;gap:7px;color:var(--fg-1);font-size:12.5px;font-weight:500}
+.chain-badge img{width:15px;height:15px;border-radius:50%;object-fit:contain;background:var(--bg-3)}
+
+.apr-main{color:var(--up);font-weight:600}
+.apr-est{color:var(--fg-4);font-family:var(--mono);font-size:9.5px;margin-left:4px}
 .status-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:5px;font-family:var(--mono);font-size:10.5px;font-weight:600}
 .status-pill.live{color:var(--up);background:var(--up-wash);border:1px solid rgba(117,184,123,.28)}
-.status-pill.past{color:var(--fg-3);background:var(--bg-3);border:1px solid var(--line-2)}
 .eff-bar{position:relative;display:inline-block;width:54px;height:5px;margin-left:8px;border-radius:3px;background:var(--bg-4);vertical-align:middle;overflow:hidden}
 .eff-bar span{position:absolute;inset:0 auto 0 0;border-radius:3px;background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi))}
+.rw-empty{padding:28px 20px;color:var(--fg-3);font-size:13px;text-align:center}
+.card-note{padding:12px 24px 16px;border-top:1px solid var(--line-1);color:var(--fg-3);font-size:11px}
 
 @media (max-width:1080px){.hero-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){
@@ -254,52 +271,52 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
   <!-- LIVE PROGRAMS -->
   <section class="card">
     <div class="card-head">
-      <div>
-        <div class="card-title"><span>Live Programs</span> <span class="card-count" id="rwLiveTableCount"></span></div>
-        <div class="card-sub">Active incentive campaigns — sorted by daily reward value. Click a column to sort.</div>
+      <div class="card-title">
+        <h2>Live Programs</h2>
+        <span class="count-badge" id="rwLiveTableCount">—</span>
       </div>
+      <div class="card-meta" id="rwLiveMeta"><span class="pulse pulse-loading"></span>Loading…</div>
     </div>
-    <div class="table-scroll">
+    <div class="tbl-wrap">
       <div class="rw-empty" id="rwLiveState">Loading reward programs…</div>
-      <table class="rw" id="rwLiveTable" style="display:none">
+      <table class="tbl" id="rwLiveTable" style="display:none">
         <thead>
           <tr>
-            <th data-sort="provider">Provider</th>
+            <th data-sort="rank" style="width:56px">#</th>
             <th data-sort="name">Program</th>
-            <th data-sort="chain">Chain</th>
-            <th class="num" data-sort="apr">APR</th>
-            <th class="num" data-sort="aprTrend7d">7D Δ</th>
-            <th class="num" data-sort="tvlUsd">Eligible TVL</th>
-            <th class="num" data-sort="dailyRewardsUsd">Daily Rewards</th>
-            <th class="num" data-sort="efficiency">Reward / $1k · day</th>
-            <th data-sort="campaignEnd">Ends</th>
+            <th data-sort="chain" style="width:150px">Chain</th>
+            <th data-sort="apr" class="num" style="width:110px">APR</th>
+            <th data-sort="tvlUsd" class="num" style="width:140px">Eligible TVL</th>
+            <th data-sort="dailyRewardsUsd" class="num sorted" style="width:150px">Daily Rewards</th>
+            <th data-sort="efficiency" class="num" style="width:170px">Reward / $1k · day</th>
+            <th data-sort="campaignEnd" style="width:130px;padding-right:32px">Ends</th>
           </tr>
         </thead>
         <tbody id="rwLiveBody"></tbody>
       </table>
     </div>
-    <div class="card-note">oDOLO APR is estimated from the current epoch's weekly allocation × DOLO spot price ÷ market supply. Merkl APRs come from the Merkl API. Reward / $1k · day = daily reward USD per $1,000 of eligible TVL — a quick crowding gauge: higher means fewer dollars competing for the same rewards.</div>
+    <div class="card-note">oDOLO APR is estimated (EST) from the current epoch's weekly allocation × DOLO spot price ÷ market supply; Merkl APRs come from the Merkl API. Reward / $1k · day = daily reward USD per $1,000 of eligible TVL — a quick crowding gauge: higher means fewer dollars competing for the same rewards.</div>
   </section>
 
   <!-- ENDED PROGRAMS -->
   <section class="card">
     <div class="card-head">
-      <div>
-        <div class="card-title"><span>Ended Programs</span> <span class="card-count" id="rwPastTableCount"></span></div>
-        <div class="card-sub">Historical campaigns kept for reference.</div>
+      <div class="card-title">
+        <h2>Ended Programs</h2>
+        <span class="count-badge" id="rwPastTableCount">—</span>
       </div>
+      <div class="card-meta"><span class="pulse"></span>historical campaigns</div>
     </div>
-    <div class="table-scroll">
+    <div class="tbl-wrap">
       <div class="rw-empty" id="rwPastState">Loading…</div>
-      <table class="rw" id="rwPastTable" style="display:none">
+      <table class="tbl" id="rwPastTable" style="display:none">
         <thead>
           <tr>
-            <th>Provider</th>
+            <th style="width:56px">#</th>
             <th>Program</th>
-            <th>Chain</th>
-            <th class="num">Last TVL</th>
-            <th>Reward</th>
-            <th>Ended</th>
+            <th style="width:150px">Chain</th>
+            <th class="num" style="width:150px">Last TVL</th>
+            <th style="width:150px;padding-right:32px">Ended</th>
           </tr>
         </thead>
         <tbody id="rwPastBody"></tbody>
@@ -326,6 +343,8 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
     polygon_zkevm: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg',
   };
   const MERKL_FALLBACK_URL = 'https://api.merkl.xyz/v4/opportunities?mainProtocolId=dolomite&items=100';
+  // Botanix is being sunset — hide its programs everywhere on this page.
+  const HIDDEN_CHAINS = new Set(['botanix']);
 
   let programs = [];
   let generatedAt = null;
@@ -355,16 +374,6 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
     return `${n.toFixed(2)}%`;
   }
 
-  function fmtTrend(value) {
-    const n = Number(value);
-    if (value == null || !Number.isFinite(n) || n === 0) {
-      return '<span class="trend flat">—</span>';
-    }
-    const cls = n > 0 ? 'up' : 'down';
-    const arrow = n > 0 ? '▲' : '▼';
-    return `<span class="trend ${cls}">${arrow} ${Math.abs(n).toFixed(2)}pp</span>`;
-  }
-
   function fmtDate(ts) {
     const n = Number(ts);
     if (!n) return '—';
@@ -380,26 +389,63 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
     return daily / (tvl / 1000);
   }
 
+  function shortProgramName(program) {
+    const market = (program.marketTokens || [])[0] || '';
+    const action = String(program.action || '').toUpperCase();
+    if (market && action === 'LEND') return `Lend ${market}`;
+    if (market && action === 'BORROW') return `Borrow ${market}`;
+    let name = String(program.name || '');
+    name = name.replace(/\s*·\s*oDOLO$/, '').replace(/\s+(on|to)\s+.*$/i, '');
+    return name || '—';
+  }
+
   function chainBadge(chain) {
     const label = CHAIN_LABELS[chain] || chain || '—';
     const icon = CHAIN_ICONS[chain];
     return `<span class="chain-badge">${icon ? `<img src="${icon}" alt="" onerror="this.style.display='none'">` : ''}${esc(label)}</span>`;
   }
 
-  function providerBadge(provider) {
-    const cls = String(provider || '').toLowerCase() === 'merkl' ? 'merkl' : 'dolomite';
-    return `<span class="provider-badge ${cls}">${esc(provider || '—')}</span>`;
+  function providerTag(provider) {
+    const cls = String(provider || '').toLowerCase() === 'merkl' ? 'tag-merkl' : 'tag-dolomite';
+    return `<span class="type-tag ${cls}">${esc(provider || '—')}</span>`;
+  }
+
+  function programCell(program) {
+    const rewards = (program.rewardTokens || []).filter(Boolean).join(' + ') || '—';
+    return `
+      <div class="prog-cell">
+        <div class="prog-line"><span class="prog-name">${esc(shortProgramName(program))}</span>${providerTag(program.provider)}</div>
+        <div class="prog-line"><span class="prog-sub">${esc(rewards)} rewards</span></div>
+      </div>
+    `;
   }
 
   function sortValue(program, field) {
+    if (field === 'rank') return -(Number(program.__rank) || 0);
     if (field === 'efficiency') {
       const value = efficiency(program);
       return value == null ? -Infinity : value;
     }
+    if (field === 'name') return shortProgramName(program).toUpperCase();
+    if (field === 'chain') return String(program.chain || '').toUpperCase();
     const raw = program[field];
-    if (field === 'provider' || field === 'name' || field === 'chain') return String(raw || '').toUpperCase();
     const n = Number(raw);
     return Number.isFinite(n) && raw != null ? n : -Infinity;
+  }
+
+  function syncLiveSortHeads() {
+    document.querySelectorAll('#rwLiveTable thead th').forEach(th => {
+      const key = th.dataset.sort;
+      th.classList.toggle('sorted', key === liveSortField);
+      let marker = th.querySelector('.sort');
+      if (marker) marker.remove();
+      if (key === liveSortField) {
+        marker = document.createElement('span');
+        marker.className = 'sort';
+        marker.textContent = liveSortAsc ? '▲' : '▼';
+        th.appendChild(marker);
+      }
+    });
   }
 
   function renderLive() {
@@ -414,10 +460,8 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
       const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
       return liveSortAsc ? cmp : -cmp;
     });
-    if (count) count.textContent = live.length ? `${live.length} programs` : '';
-    table.querySelectorAll('th[data-sort]').forEach(th => {
-      th.classList.toggle('sorted', th.dataset.sort === liveSortField);
-    });
+    if (count) count.textContent = live.length ? `${live.length} programs` : '—';
+    syncLiveSortHeads();
     if (!live.length) {
       table.style.display = 'none';
       state.style.display = 'block';
@@ -427,25 +471,20 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
     state.style.display = 'none';
     table.style.display = 'table';
     const maxEff = Math.max(...live.map(program => efficiency(program) || 0), 0.0001);
-    body.innerHTML = live.map(program => {
+    body.innerHTML = live.map((program, index) => {
       const eff = efficiency(program);
       const effBar = eff != null
         ? `<span class="eff-bar"><span style="width:${Math.max(3, Math.min(100, eff / maxEff * 100))}%"></span></span>`
         : '';
-      const rewards = (program.rewardTokens || []).map(token => `<span class="reward-token">${esc(token)}</span>`).join(' ');
       const ends = program.provider === 'Dolomite'
         ? '<span class="status-pill live">weekly epoch</span>'
         : fmtDate(program.campaignEnd);
       return `
         <tr>
-          <td>${providerBadge(program.provider)}</td>
-          <td>
-            <div class="program-name">${esc(program.name || '—')}</div>
-            <div class="program-desc">${rewards}</div>
-          </td>
+          <td><span class="rank">${index + 1}</span></td>
+          <td>${programCell(program)}</td>
           <td>${chainBadge(program.chain)}</td>
           <td class="num"><span class="apr-main">${fmtApr(program.apr)}</span>${program.aprSource === 'estimated' ? '<span class="apr-est">EST</span>' : ''}</td>
-          <td class="num">${fmtTrend(program.aprTrend7d)}</td>
           <td class="num">${fmtUsd(program.tvlUsd)}</td>
           <td class="num">${fmtUsd(program.dailyRewardsUsd)}</td>
           <td class="num">${eff != null ? `$${eff.toFixed(2)}` : '—'}${effBar}</td>
@@ -462,7 +501,7 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
     const count = document.getElementById('rwPastTableCount');
     const past = programs.filter(program => program.status !== 'LIVE');
     past.sort((a, b) => (Number(b.campaignEnd) || 0) - (Number(a.campaignEnd) || 0));
-    if (count) count.textContent = past.length ? `${past.length} programs` : '';
+    if (count) count.textContent = past.length ? `${past.length} programs` : '—';
     if (!past.length) {
       table.style.display = 'none';
       state.style.display = 'block';
@@ -471,13 +510,12 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
     }
     state.style.display = 'none';
     table.style.display = 'table';
-    body.innerHTML = past.map(program => `
+    body.innerHTML = past.map((program, index) => `
       <tr>
-        <td>${providerBadge(program.provider)}</td>
-        <td><div class="program-name">${esc(program.name || '—')}</div></td>
+        <td><span class="rank">${index + 1}</span></td>
+        <td>${programCell(program)}</td>
         <td>${chainBadge(program.chain)}</td>
         <td class="num">${fmtUsd(program.tvlUsd)}</td>
-        <td>${(program.rewardTokens || []).map(token => `<span class="reward-token">${esc(token)}</span>`).join(' ') || '—'}</td>
         <td>${fmtDate(program.campaignEnd)}</td>
       </tr>
     `).join('');
@@ -503,9 +541,16 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
         asof.innerHTML = `<span class="dot"></span>as of ${stamp.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })} UTC`;
       } catch (error) {}
     }
+    const meta = document.getElementById('rwLiveMeta');
+    if (meta) meta.innerHTML = `<span class="pulse"></span>${fmtUsd(daily)} / day across ${live.length} programs`;
   }
 
   function renderAll() {
+    // Ranks follow the default metric (daily reward value) regardless of sort.
+    const byDaily = programs.filter(program => program.status === 'LIVE')
+      .slice()
+      .sort((a, b) => (Number(b.dailyRewardsUsd) || 0) - (Number(a.dailyRewardsUsd) || 0));
+    byDaily.forEach((program, index) => { program.__rank = index + 1; });
     renderHero();
     renderLive();
     renderPast();
@@ -517,6 +562,7 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
       key: `merkl:${opportunity.id}`,
       provider: 'Merkl',
       name: opportunity.name,
+      action: opportunity.action,
       status: opportunity.status,
       chain: chainNames[opportunity.chainId] || String(opportunity.chainId),
       apr: opportunity.apr,
@@ -527,7 +573,6 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
         .map(breakdown => (breakdown.token || {}).symbol).filter(Boolean),
       marketTokens: (opportunity.tokens || []).map(token => token.symbol).filter(Boolean),
       campaignEnd: Number(opportunity.latestCampaignEnd) || null,
-      aprTrend7d: null,
     }));
   }
 
@@ -552,6 +597,7 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
         return;
       }
     }
+    programs = programs.filter(program => !HIDDEN_CHAINS.has(String(program.chain || '')));
     renderAll();
   }
 
@@ -562,7 +608,7 @@ table.rw tbody tr:hover td{background:rgba(255,255,255,.02)}
         liveSortAsc = !liveSortAsc;
       } else {
         liveSortField = field;
-        liveSortAsc = field === 'provider' || field === 'name' || field === 'chain';
+        liveSortAsc = field === 'name' || field === 'chain' || field === 'rank';
       }
       renderLive();
     });
