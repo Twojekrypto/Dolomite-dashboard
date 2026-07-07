@@ -1442,6 +1442,7 @@ const row = api.groupEvents([transferToRoute], {
   currentBalanceReplay: true,
   currentBalances: new Map([["arbitrum:" + routeAccount + ":0xweth", 1_000_000_000_000_000n]]),
 })[0];
+row.receiptClassificationPending = true;
 const before = {
   action: api.cleanTransactionAction(row),
   chips: api.displayActionsForRow(row).join("|"),
@@ -1454,6 +1455,7 @@ api.applyBorrowReceiptSemanticsForRow(row, {
   to: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
   input: "0xbb0a6fa5" + "0".repeat(320),
 }, wallet);
+row.gas = { status: "ok" };
 const after = {
   before,
   action: api.cleanTransactionAction(row),
@@ -1463,7 +1465,7 @@ const after = {
   preview: api.compactTransactionAssetPreview(row),
   semantic: Array.from(row.semanticActions || []),
 };
-if (after.before.chips !== "transfer" || !after.before.transferFilter) throw new Error(JSON.stringify(after));
+if (after.before.chips !== "classificationPending" || after.before.transferFilter) throw new Error(JSON.stringify(after));
 if (after.action !== "Open Borrow") throw new Error(JSON.stringify(after));
 if (after.chips !== "openBorrow") throw new Error(JSON.stringify(after));
 if (!after.borrowFilter || after.transferFilter) throw new Error(JSON.stringify(after));
@@ -1478,6 +1480,7 @@ api.applyBorrowReceiptSemanticsForRow(calldataOnlyRow, { logs: [] }, {
   to: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
   input: openBorrowInput,
 }, wallet);
+calldataOnlyRow.gas = { status: "ok" };
 const calldataOnly = {
   action: api.cleanTransactionAction(calldataOnlyRow),
   chips: api.displayActionsForRow(calldataOnlyRow).join("|"),
@@ -1498,6 +1501,7 @@ api.applyBorrowReceiptSemanticsForRow(mixedLifecycleRow, { logs: [openBorrowLog(
   to: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
   input: openBorrowInput,
 }, wallet);
+mixedLifecycleRow.gas = { status: "ok" };
 const mixedLifecycle = {
   action: api.cleanTransactionAction(mixedLifecycleRow),
   chips: api.displayActionsForRow(mixedLifecycleRow).join("|"),
@@ -1550,6 +1554,7 @@ api.applyBorrowReceiptSemanticsForRow(internalZapRouteRow, { logs: [closeBorrowL
   to: "0xd6c1b15716742689c5b33c19c78d9d2a1494bf33",
   input: "0x5f974be9" + "0".repeat(128),
 }, wallet);
+internalZapRouteRow.gas = { status: "ok" };
 const internalZapRoute = {
   action: api.cleanTransactionAction(internalZapRouteRow),
   chips: api.displayActionsForRow(internalZapRouteRow).join("|"),
@@ -1620,6 +1625,7 @@ const groupedInternalSwapRoute = api.groupEvents(makeInternalSwapRouteEvents(), 
   currentBalanceReplay: true,
   currentBalances: new Map([["ethereum:0:0xexistingdebt", -1_000_000_000_000_000_000n]]),
 })[0];
+groupedInternalSwapRoute.gas = { status: "ok" };
 const groupedInternalSwap = {
   action: api.cleanTransactionAction(groupedInternalSwapRoute),
   chips: api.displayActionsForRow(groupedInternalSwapRoute).join("|"),
