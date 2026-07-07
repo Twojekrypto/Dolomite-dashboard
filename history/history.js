@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-classification-source-priority";
+  const HISTORY_VERSION = "history-20260707-checking-classification";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -158,6 +158,7 @@
     odoloClaim: "Claim oDOLO",
     rewardClaim: "Claim Rewards",
     rewardLevelUpdate: "Reward Level Update",
+    classificationPending: "Checking classification...",
   };
 
   const ACTION_TABLE_LABELS = {
@@ -190,6 +191,7 @@
     odoloClaim: "oDOLO Claim",
     rewardClaim: "Reward Claim",
     rewardLevelUpdate: "Reward Level",
+    classificationPending: "Checking classification...",
   };
 
   const CLASSIFICATION_SOURCE_LABELS = {
@@ -1138,6 +1140,7 @@
       const allEvents = chainResults.flatMap(result => result.events || []);
       state.warnings = chainResults.flatMap(result => result.warnings || []).concat(balanceReplay.warnings || []);
       state.rows = groupEvents(allEvents, { currentBalances: balanceReplay.balances, currentBalanceReplay: balanceReplay.currentBalanceReplay });
+      markReceiptClassificationPendingRows(state.rows);
       state.loading = false;
       state.loadingPhase = "receipts";
       state.gasTotal = state.rows.length;
@@ -3489,6 +3492,7 @@
   }
 
   function displayActionsForRow(row) {
+    if (rowClassificationPending(row)) return ["classificationPending"];
     const semanticActions = Array.from(row.semanticActions || []).filter(Boolean);
     const hasBorrowSemantic = semanticActions.some(action => ["borrow", "openBorrow"].includes(action));
     const hasRepaySemantic = semanticActions.some(action => ["repay", "closeBorrow"].includes(action));
@@ -3551,6 +3555,7 @@
 
   function rowMatchesActionFilter(row, action) {
     action = normalizeActionFilter(action);
+    if (rowClassificationPending(row)) return false;
     const semanticActions = row.semanticActions || new Set();
     if (action === "borrow") return semanticActions.has("borrow") || semanticActions.has("openBorrow");
     if (action === "repay") return semanticActions.has("repay") || semanticActions.has("closeBorrow");
@@ -3576,6 +3581,47 @@
         || vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
     }
     return row.actions.has(action);
+  }
+
+  function rowClassificationPending(row) {
+    if (!row?.receiptClassificationPending) return false;
+    const gasStatus = row?.gas?.status || "pending";
+    if (gasStatus !== "pending") return false;
+    return rowNeedsReceiptClassification(row);
+  }
+
+  function markReceiptClassificationPendingRows(rows) {
+    (rows || []).forEach(row => {
+      row.receiptClassificationPending = rowNeedsReceiptClassification(row);
+    });
+    return rows;
+  }
+
+  function rowNeedsReceiptClassification(row) {
+    const events = Array.isArray(row?.events) ? row.events : [];
+    if (!events.length) return false;
+    return events.some(eventNeedsReceiptClassification) || rowHasRouteSwap(events);
+  }
+
+  function eventNeedsReceiptClassification(event) {
+    if (!event) return false;
+    const action = event.action;
+    const account = normalizeAccountNumberValue(event.account);
+    if ((action === "deposit" || action === "withdraw") && isBorrowRouteAccountNumber(account)) return true;
+    if (action !== "transfer" || !event.isSelfTransfer) return false;
+    return isBorrowRouteAccountNumber(account)
+      || isBorrowRouteAccountNumber(normalizeAccountNumberValue(event.fromAccount))
+      || isBorrowRouteAccountNumber(normalizeAccountNumberValue(event.toAccount));
+  }
+
+  function rowHasRouteSwap(events) {
+    const hasSwap = events.some(event => isSwapLikeEvent(event));
+    if (!hasSwap) return false;
+    return events.some(event => {
+      return isBorrowRouteAccountNumber(normalizeAccountNumberValue(event?.account))
+        || isBorrowRouteAccountNumber(normalizeAccountNumberValue(event?.fromAccount))
+        || isBorrowRouteAccountNumber(normalizeAccountNumberValue(event?.toAccount));
+    });
   }
 
   function rowMatchesAnyActionFilter(row, actions) {
