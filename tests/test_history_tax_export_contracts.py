@@ -89,6 +89,43 @@ vm.runInNewContext(instrumented, sandbox);
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
+    def test_history_finalize_can_timeout_without_waiting_for_receipts_forever(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { waitForHistoryFinalize };" + marker);
+const timers = [];
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  setTimeout(callback, ms) {
+    timers.push(ms);
+    callback();
+    return timers.length;
+  },
+  clearTimeout() {},
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+(async () => {
+  const completed = await sandbox.__historyTest.waitForHistoryFinalize([new Promise(() => {})], 9);
+  const results = { completed, timers };
+  if (results.completed !== false) throw new Error(JSON.stringify(results));
+  if (results.timers[0] !== 9) throw new Error(JSON.stringify(results));
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
     def test_action_filter_options_are_reportable(self):
         options = re.findall(r'<option value="([^"]+)">([^<]+)</option>', self.html)
         action_values = [value for value, _label in options if value != "all"]
