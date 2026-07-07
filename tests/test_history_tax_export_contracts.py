@@ -38,6 +38,57 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         self.assertIn(f"history/history.js?v={version}", self.html)
         self.assertIn(f"history/history.css?v={version}", self.html)
 
+    def test_history_graph_queries_can_use_fail_fast_options(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { graphQuery };" + marker);
+const attempts = [];
+const timers = [];
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  AbortController,
+  setTimeout(callback, ms) {
+    timers.push(ms);
+    callback();
+    return timers.length;
+  },
+  clearTimeout() {},
+  fetch(_endpoint, options) {
+    attempts.push({ aborted: !!options.signal?.aborted });
+    const error = new Error("aborted");
+    error.name = "AbortError";
+    return Promise.reject(error);
+  },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+(async () => {
+  let message = "";
+  try {
+    await sandbox.__historyTest.graphQuery("https://example.invalid/graphql", "{ ping }", { timeoutMs: 5, attempts: 1 });
+  } catch (error) {
+    message = error.message || String(error);
+  }
+  const results = { attempts: attempts.length, timers, message };
+  if (results.attempts !== 1) throw new Error(JSON.stringify(results));
+  if (results.timers[0] !== 5) throw new Error(JSON.stringify(results));
+  if (results.message !== "Subgraph timeout") throw new Error(JSON.stringify(results));
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
     def test_action_filter_options_are_reportable(self):
         options = re.findall(r'<option value="([^"]+)">([^<]+)</option>', self.html)
         action_values = [value for value, _label in options if value != "all"]
