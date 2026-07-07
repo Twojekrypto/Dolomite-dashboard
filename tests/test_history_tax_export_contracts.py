@@ -1766,6 +1766,22 @@ const internalZapRouteEvents = () => [
     ],
   },
 ];
+const zapThenReceiptBorrowEvents = () => [
+  {
+    chainKey: "arbitrum",
+    txHash: "0xzapreceiptborrow",
+    timestamp: 1782243862,
+    blockNumber: "1782243862",
+    action: "zap",
+    role: "user",
+    account: "0",
+    legs: [
+      { direction: "out", symbol: "USDC", tokenAddress: "0xusdc", amount: "2", rawAmount: "2" },
+      { direction: "in", symbol: "WETH", tokenAddress: "0xweth", amount: "0.001", rawAmount: "0.001" },
+    ],
+  },
+  transferToRoute("0xzapreceiptborrow", "WETH", "0.001", "0xweth", 1782243862),
+];
 const rows = [];
 const zapRoute = api.groupEvents(internalZapRouteEvents(), {
   currentBalanceReplay: true,
@@ -1795,6 +1811,24 @@ rows.push({
   expectedChips: "openBorrow",
   expectedSource: "Borrow position receipt",
   filters: { borrow: true, transfer: false, repay: false, addCollateral: false },
+});
+const zapReceiptBorrow = api.groupEvents(zapThenReceiptBorrowEvents(), {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xweth", 1_000_000_000_000_000n]]),
+})[0];
+api.applyBorrowReceiptSemanticsForRow(zapReceiptBorrow, { logs: [openBorrowLog()] }, {
+  from: wallet,
+  to: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
+  input: openBorrowInput,
+}, wallet);
+rows.push({
+  name: "zap row source prefers borrow receipt over swap route",
+  row: zapReceiptBorrow,
+  expectedAction: "Zap; Open Borrow",
+  expectedChips: "zap|openBorrow",
+  expectedSource: "Borrow position receipt",
+  expectedMetaSource: "Swap route; no borrow lifecycle signal",
+  filters: { swap: true, borrow: true, transfer: false, addCollateral: false },
 });
 const openWithCollateral = api.groupEvents([
   transferToRoute("0x2aa642553a3fb144e0c432df278bfae1be80082e826ca47bc98b4e8ea55d7bc0", "WETH", "0.01", "0xweth", 1783000000),
@@ -1882,6 +1916,7 @@ rows.forEach(fixture => {
   const chips = api.displayActionsForRow(fixture.row).join("|");
   const source = api.classificationSourceForRow(fixture.row);
   const preview = api.compactTransactionAssetPreview(fixture.row);
+  const expectedMetaSource = fixture.expectedMetaSource || fixture.expectedSource;
   const metaHtml = api.eventMetaBlockHtml(fixture.row, fixture.row.events.find(event => !["borrowPositionOpen", "borrowPositionClose"].includes(event.action)) || fixture.row.events[0]);
   const payload = api.evidenceRowPayload(fixture.row);
   const filterResults = Object.fromEntries(Object.keys(fixture.filters).map(key => [key, api.rowMatchesActionFilter(fixture.row, key)]));
@@ -1893,7 +1928,7 @@ rows.forEach(fixture => {
   Object.entries(fixture.filters).forEach(([key, expected]) => {
     if (filterResults[key] !== expected) throw new Error(JSON.stringify(result));
   });
-  if (!metaHtml.includes("Classification") || !metaHtml.includes(fixture.expectedSource)) throw new Error(JSON.stringify(result));
+  if (!metaHtml.includes("Classification") || !metaHtml.includes(expectedMetaSource)) throw new Error(JSON.stringify(result));
   if (payload.classificationSource !== fixture.expectedSource) throw new Error(JSON.stringify(result));
   if (!payload.events.some(event => event.classificationSource === fixture.expectedSource)) throw new Error(JSON.stringify(result));
 });
