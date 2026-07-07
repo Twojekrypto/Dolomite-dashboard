@@ -1079,13 +1079,17 @@ const closeBorrowTransfer = sandbox.__historyTest.groupEvents([selfTransfer(10, 
   currentBalances: new Map([[key, 0n]]),
 })[0];
 const routeAccount = "53264417164200931625493956231501517131794473210820855151423986246727225441839";
-const openBorrowRouteTransfer = sandbox.__historyTest.groupEvents([selfTransfer("0.001", "0", routeAccount, 50)], {
+const openBorrowRouteTransfer = sandbox.__historyTest.groupEvents([selfTransfer("0.001", routeAccount, "0", 50)], {
   currentBalanceReplay: true,
-  currentBalances: new Map([["arbitrum:0:0xusdc", 0n]]),
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xusdc", -1_000_000_000_000_000n]]),
 })[0];
-const closeBorrowRouteTransfer = sandbox.__historyTest.groupEvents([selfTransfer("0.001", routeAccount, "0", 60)], {
+const increaseBorrowRouteTransfer = sandbox.__historyTest.groupEvents([selfTransfer("0.001", routeAccount, "0", 55)], {
   currentBalanceReplay: true,
-  currentBalances: new Map([["arbitrum:0:0xusdc", 0n]]),
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xusdc", -3_000_000_000_000_000n]]),
+})[0];
+const closeBorrowRouteTransfer = sandbox.__historyTest.groupEvents([selfTransfer("0.001", "0", routeAccount, 60)], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xusdc", 0n]]),
 })[0];
 const zapWithBorrow = {
   actions: new Set(["zap", "withdraw"]),
@@ -1143,6 +1147,10 @@ const results = {
   openRouteTransferChip: sandbox.__historyTest.displayActionsForRow(openBorrowRouteTransfer).join("|"),
   openRouteTransferBorrowFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowRouteTransfer, "borrow"),
   openRouteTransferTransferFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowRouteTransfer, "transfer"),
+  increaseRouteTransferAction: sandbox.__historyTest.cleanTransactionAction(increaseBorrowRouteTransfer),
+  increaseRouteTransferChip: sandbox.__historyTest.displayActionsForRow(increaseBorrowRouteTransfer).join("|"),
+  increaseRouteTransferBorrowFilter: sandbox.__historyTest.rowMatchesActionFilter(increaseBorrowRouteTransfer, "borrow"),
+  increaseRouteTransferRepayFilter: sandbox.__historyTest.rowMatchesActionFilter(increaseBorrowRouteTransfer, "repay"),
   closeRouteTransferAction: sandbox.__historyTest.cleanTransactionAction(closeBorrowRouteTransfer),
   closeRouteTransferChip: sandbox.__historyTest.displayActionsForRow(closeBorrowRouteTransfer).join("|"),
   closeRouteTransferRepayFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowRouteTransfer, "repay"),
@@ -1190,6 +1198,9 @@ if (results.closeTransferGroup !== "repay") throw new Error(JSON.stringify(resul
 if (results.openRouteTransferAction !== "Open Borrow") throw new Error(JSON.stringify(results));
 if (results.openRouteTransferChip !== "openBorrow") throw new Error(JSON.stringify(results));
 if (!results.openRouteTransferBorrowFilter || results.openRouteTransferTransferFilter) throw new Error(JSON.stringify(results));
+if (results.increaseRouteTransferAction !== "Borrow") throw new Error(JSON.stringify(results));
+if (results.increaseRouteTransferChip !== "borrow") throw new Error(JSON.stringify(results));
+if (!results.increaseRouteTransferBorrowFilter || results.increaseRouteTransferRepayFilter) throw new Error(JSON.stringify(results));
 if (results.closeRouteTransferAction !== "Close Borrow") throw new Error(JSON.stringify(results));
 if (results.closeRouteTransferChip !== "closeBorrow") throw new Error(JSON.stringify(results));
 if (!results.closeRouteTransferRepayFilter || results.closeRouteTransferTransferFilter) throw new Error(JSON.stringify(results));

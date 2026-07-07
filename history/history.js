@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-borrow-action-colors";
+  const HISTORY_VERSION = "history-20260707-borrow-route-direction";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -2105,10 +2105,20 @@
         const collateralContext = eventDelta.delta > 0n && accountHasDebtExposure(eventDelta.key, rowDeltas, balances, confidence);
         const transitionSemantic = borrowSemanticForBalanceTransition(event, before, after, hasBaseline, eventDelta.delta, collateralContext);
         const routeSemantic = borrowRouteTransferSemantic(event, eventDelta);
-        const semantic = transitionSemantic?.action === "addCollateral" ? transitionSemantic : routeSemantic || transitionSemantic;
-        return semantic ? { semantic, before, after } : null;
+        const semantic = transitionSemantic?.action === "addCollateral" ? transitionSemantic : transitionSemantic || routeSemantic;
+        return semantic ? {
+          semantic,
+          before,
+          after,
+          eventDelta,
+          isRouteAccount: isBorrowRouteAccountNumber(eventDelta.account),
+          hasKnownBalance: balances.has(eventDelta.key),
+        } : null;
       }).filter(Boolean);
-      const match = semanticMatches.sort((a, b) => borrowSemanticPriority(b.semantic.action) - borrowSemanticPriority(a.semantic.action))[0];
+      const routeMatches = semanticMatches.filter(match => match.isRouteAccount);
+      const knownBalanceMatches = semanticMatches.filter(match => match.hasKnownBalance);
+      const candidates = routeMatches.length ? routeMatches : knownBalanceMatches.length ? knownBalanceMatches : semanticMatches;
+      const match = candidates.sort((a, b) => borrowSemanticPriority(b.semantic.action) - borrowSemanticPriority(a.semantic.action))[0];
       if (!match) return;
       event.borrowSemanticAction = match.semantic.action;
       event.borrowSemanticLabel = match.semantic.label;
@@ -2192,11 +2202,8 @@
     const toAccount = normalizeAccountNumberValue(event.toAccount);
     const deltaAccount = normalizeAccountNumberValue(eventDelta?.account);
     if (!fromAccount || !toAccount || fromAccount === toAccount || !deltaAccount) return null;
-    if (fromAccount === "0" && isBorrowRouteAccountNumber(toAccount) && deltaAccount === toAccount && eventDelta.delta > 0n) {
-      return { action: "openBorrow", label: ACTION_LABELS.openBorrow };
-    }
     if (isBorrowRouteAccountNumber(fromAccount) && toAccount === "0" && deltaAccount === fromAccount && eventDelta.delta < 0n) {
-      return { action: "closeBorrow", label: ACTION_LABELS.closeBorrow };
+      return { action: "borrow", label: ACTION_LABELS.borrow };
     }
     return null;
   }
