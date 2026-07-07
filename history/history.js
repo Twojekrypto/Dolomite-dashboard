@@ -1,11 +1,12 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-compact-history-status";
+  const HISTORY_VERSION = "history-20260707-history-table-pagination";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
   const HISTORY_TABLE_COLSPAN = 7;
+  const HISTORY_VISIBLE_PAGE_SIZE = 10;
   const PAGE_SIZE = 500;
   const MAX_PAGES = 40;
   const DEFAULT_GRAPH_TIMEOUT_MS = 25000;
@@ -220,6 +221,7 @@
     rows: [],
     filteredRows: [],
     expandedKey: "",
+    visiblePage: 1,
     loading: false,
     runId: 0,
     gasChecked: 0,
@@ -295,6 +297,8 @@
     els.fastMode = document.getElementById("history-fast-mode");
     els.run = document.getElementById("history-run");
     els.body = document.getElementById("history-body");
+    els.tableWrap = document.querySelector(".table-wrap");
+    els.pagination = document.getElementById("history-pagination");
     els.status = document.getElementById("history-status");
     els.count = document.getElementById("history-count");
     els.scopeInfo = document.querySelector(".history-scope-info");
@@ -606,6 +610,11 @@
     els.taxExport.addEventListener("click", exportHistoryReportCsv);
     els.reportJson.addEventListener("click", exportEvidenceJson);
     els.reportPrint.addEventListener("click", printAnnualStatement);
+    els.pagination?.addEventListener("click", event => {
+      const button = event.target.closest("[data-history-page]");
+      if (!button || button.disabled) return;
+      goHistoryPage(Number(button.dataset.historyPage || 1));
+    });
     els.body.addEventListener("click", event => {
       const row = event.target.closest("tr[data-row-key]");
       const detailButton = event.target.closest("[data-history-detail-toggle]");
@@ -726,6 +735,8 @@
   function markHistoryFiltersDirty(options = {}) {
     if (state.loading) return;
     state.fastMode = !!els.fastMode?.checked;
+    state.visiblePage = 1;
+    state.expandedKey = "";
     if (options.tryClientSide && filtersCanReuseLoadedRows()) {
       state.filtersDirty = false;
       if (isAddress(state.address)) setUrlAddress(state.address);
@@ -1162,6 +1173,7 @@
     state.rows = [];
     state.filteredRows = [];
     state.expandedKey = "";
+    state.visiblePage = 1;
     state.gasChecked = 0;
     state.gasTotal = 0;
     state.loadingPhase = "subgraphs";
@@ -3578,6 +3590,7 @@
 
   function render() {
     state.filteredRows = rowsMatchingCurrentFilters(state.rows);
+    state.visiblePage = clampHistoryVisiblePage(state.visiblePage, state.filteredRows.length);
     renderRows();
     renderLoadingPanel();
     renderReportFiles();
@@ -3600,6 +3613,7 @@
     const earnEntries = earnTaxEntriesForCurrentView();
     els.count.textContent = historyCountLabel(rows, earnEntries);
     els.taxExport.disabled = (rows.length === 0 && earnEntries.length === 0) || state.loading || state.filtersDirty || gasPending || gasSkippedFast || earnPending;
+    renderHistoryPagination(rows);
 
     if (state.loading) {
       els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">Loading Dolomite history...</td></tr>`;
@@ -3611,10 +3625,71 @@
       return;
     }
 
-    els.body.innerHTML = rows.map((row, index) => {
+    const pageStart = historyVisiblePageStartIndex();
+    const pageRows = historyVisibleRowsForPage(rows);
+    const dataRowsHtml = pageRows.map((row, index) => {
       const expanded = state.expandedKey === row.key;
-      return rowHtml(row, expanded, index) + (expanded ? detailHtml(row) : "");
+      return rowHtml(row, expanded, pageStart + index) + (expanded ? detailHtml(row) : "");
     }).join("");
+    els.body.innerHTML = dataRowsHtml + historySpacerRowsHtml(pageRows.length);
+  }
+
+  function historyVisiblePageCount(rows = state.filteredRows) {
+    const count = Array.isArray(rows) ? rows.length : Number(rows || 0);
+    return Math.max(1, Math.ceil(count / HISTORY_VISIBLE_PAGE_SIZE));
+  }
+
+  function clampHistoryVisiblePage(page, rowCount = state.filteredRows.length) {
+    const total = historyVisiblePageCount(Number(rowCount || 0));
+    const safePage = Number.isFinite(Number(page)) ? Math.trunc(Number(page)) : 1;
+    return Math.max(1, Math.min(safePage || 1, total));
+  }
+
+  function historyVisiblePageStartIndex() {
+    return (state.visiblePage - 1) * HISTORY_VISIBLE_PAGE_SIZE;
+  }
+
+  function historyVisibleRowsForPage(rows = state.filteredRows) {
+    const sourceRows = Array.isArray(rows) ? rows : [];
+    const start = historyVisiblePageStartIndex();
+    return sourceRows.slice(start, start + HISTORY_VISIBLE_PAGE_SIZE);
+  }
+
+  function historySpacerRowsHtml(visibleRowCount) {
+    const missingRows = Math.max(0, HISTORY_VISIBLE_PAGE_SIZE - Number(visibleRowCount || 0));
+    return Array.from({ length: missingRows }, () => `
+      <tr class="history-spacer-row" aria-hidden="true" tabindex="-1">
+        <td colspan="${HISTORY_TABLE_COLSPAN}"><span>&nbsp;</span></td>
+      </tr>
+    `).join("");
+  }
+
+  function renderHistoryPagination(rows = state.filteredRows) {
+    if (!els.pagination) return;
+    const count = Array.isArray(rows) ? rows.length : 0;
+    const total = historyVisiblePageCount(count);
+    if (state.loading || count <= HISTORY_VISIBLE_PAGE_SIZE) {
+      els.pagination.hidden = true;
+      els.pagination.innerHTML = "";
+      return;
+    }
+    state.visiblePage = clampHistoryVisiblePage(state.visiblePage, count);
+    const page = state.visiblePage;
+    els.pagination.hidden = false;
+    els.pagination.innerHTML = `<button class="flow-pager-btn" type="button" data-history-page="1" aria-label="First transaction page" ${page === 1 ? "disabled" : ""}>«</button>` +
+      `<button class="flow-pager-btn" type="button" data-history-page="${page - 1}" aria-label="Previous transaction page" ${page === 1 ? "disabled" : ""}>‹</button>` +
+      `<span class="flow-pager-info">${page} / ${total}</span>` +
+      `<button class="flow-pager-btn" type="button" data-history-page="${page + 1}" aria-label="Next transaction page" ${page === total ? "disabled" : ""}>›</button>` +
+      `<button class="flow-pager-btn" type="button" data-history-page="${total}" aria-label="Last transaction page" ${page === total ? "disabled" : ""}>»</button>`;
+  }
+
+  function goHistoryPage(page) {
+    const nextPage = clampHistoryVisiblePage(page, state.filteredRows.length);
+    if (nextPage === state.visiblePage) return;
+    state.visiblePage = nextPage;
+    state.expandedKey = "";
+    renderRows();
+    if (els.tableWrap) els.tableWrap.scrollLeft = 0;
   }
 
   function historyCountLabel(rows = [], earnEntries = []) {
