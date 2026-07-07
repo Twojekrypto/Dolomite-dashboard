@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-checking-classification";
+  const HISTORY_VERSION = "history-20260707-rpc-cache-fast-filters";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -13,6 +13,8 @@
   const HISTORY_GRAPH_OPTIONS = { timeoutMs: 8000, attempts: 1 };
   const HISTORY_CHAIN_CONCURRENCY = 3;
   const HISTORY_ENTITY_CONCURRENCY = 10;
+  const HISTORY_CLASSIFICATION_RECEIPT_CONCURRENCY = 4;
+  const HISTORY_BACKGROUND_GAS_CONCURRENCY = 2;
   const HISTORY_FINALIZE_BUDGET_MS = 20000;
   const START_YEAR = 2024;
   const DEFAULT_YEAR = String(Math.max(new Date().getUTCFullYear(), START_YEAR));
@@ -27,6 +29,10 @@
   const ODOLO_REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026";
   const ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543";
   const NOTE_STORAGE_PREFIX = "dolomite-history-review-notes";
+  const GAS_STORAGE_PREFIX = "dolomite-history-gas-v1";
+  const GAS_STORAGE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+  const RPC_GATEWAY_STORAGE_KEY = "dolomite-history-rpc-gateway";
+  const FAST_GAS_STATUS = "skipped-fast";
   const BORROW_POSITION_LIFECYCLE_ACTIONS = new Set(["borrowPositionOpen", "borrowPositionClose"]);
   const BORROW_POSITION_OPEN_TOPIC = "0xfd9156bd20ce24a786c761efe71a3931de038c1f2620c1bb4720609bc742b58e";
   const BORROW_POSITION_CLOSE_TOPIC = "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7";
@@ -226,6 +232,8 @@
     earn: emptyEarnState(),
     reviewNotes: {},
     filtersDirty: false,
+    fastMode: false,
+    loadedScope: null,
   };
 
   const els = {};
@@ -284,6 +292,7 @@
     els.networkLabel = document.getElementById("history-network-label");
     els.networkCount = document.getElementById("history-network-count");
     els.networkMenu = document.getElementById("history-network-menu");
+    els.fastMode = document.getElementById("history-fast-mode");
     els.run = document.getElementById("history-run");
     els.body = document.getElementById("history-body");
     els.status = document.getElementById("history-status");
@@ -493,7 +502,11 @@
     els.action.addEventListener("change", () => {
       setSelectedActionsFromValues([els.action.value]);
       syncActionDropdown();
-      markHistoryFiltersDirty();
+      markHistoryFiltersDirty({ tryClientSide: true });
+    });
+    els.fastMode?.addEventListener("change", () => {
+      state.fastMode = !!els.fastMode.checked;
+      markHistoryFiltersDirty({ tryClientSide: true });
     });
     [els.dateFrom, els.dateTo].forEach(input => {
       const syncCustomDateInput = () => {
@@ -657,7 +670,7 @@
       selectAllActions();
       syncActionDropdown();
       closeHistoryDropdowns();
-      markHistoryFiltersDirty();
+      markHistoryFiltersDirty({ tryClientSide: true });
       return;
     }
     if (key === "network") {
@@ -666,7 +679,7 @@
       state.selectedChains = new Set(allChains);
       syncNetworkDropdown();
       closeHistoryDropdowns();
-      markHistoryFiltersDirty();
+      markHistoryFiltersDirty({ tryClientSide: true });
     }
   }
 
@@ -710,8 +723,18 @@
     els.address.closest(".wallet-field")?.classList.toggle("has-value", !!els.address.value.trim());
   }
 
-  function markHistoryFiltersDirty() {
+  function markHistoryFiltersDirty(options = {}) {
     if (state.loading) return;
+    state.fastMode = !!els.fastMode?.checked;
+    if (options.tryClientSide && filtersCanReuseLoadedRows()) {
+      state.filtersDirty = false;
+      if (isAddress(state.address)) setUrlAddress(state.address);
+      render();
+      const count = state.filteredRows.length;
+      const suffix = count === 1 ? "" : "s";
+      setStatus(`Applied filters locally: ${count.toLocaleString()} transaction${suffix} match.`, "good");
+      return;
+    }
     const hasLoadedContext = !!state.address || state.rows.length > 0 || state.filteredRows.length > 0;
     state.filtersDirty = hasLoadedContext;
     syncControls();
@@ -719,6 +742,38 @@
     if (state.filtersDirty) {
       setStatus("Filters changed. Click Load history to apply the new selection.", "warn");
     }
+  }
+
+  function recordLoadedHistoryScope(address, chainKeys) {
+    state.loadedScope = {
+      address: normalizeAddress(address),
+      year: state.year || "custom",
+      dateFrom: state.dateFrom || "",
+      dateTo: state.dateTo || "",
+      action: actionFilterParam() || "all",
+      chains: Array.from(chainKeys || selectedChainKeys()),
+      fastMode: !!state.fastMode,
+    };
+  }
+
+  function filtersCanReuseLoadedRows() {
+    const scope = state.loadedScope;
+    if (!scope || state.loading || !state.rows.length) return false;
+    const currentAddress = normalizeAddress(state.address || els.address?.value || "");
+    const currentFrom = els.dateFrom?.value || state.dateFrom || "";
+    const currentTo = els.dateTo?.value || state.dateTo || "";
+    if (!currentAddress || currentAddress !== normalizeAddress(scope.address)) return false;
+    if ((state.year || "custom") !== (scope.year || "custom")) return false;
+    if (currentFrom !== (scope.dateFrom || "") || currentTo !== (scope.dateTo || "")) return false;
+    if (scope.fastMode && !state.fastMode) return false;
+
+    const loadedChains = new Set(scope.chains || []);
+    if (!selectedChainKeys().every(chainKey => loadedChains.has(chainKey))) return false;
+
+    const loadedAction = String(scope.action || "all");
+    if (loadedAction === "all") return true;
+    const loadedActions = new Set(loadedAction.split(",").map(normalizeActionFilter).filter(Boolean));
+    return selectedActionKeys().every(action => loadedActions.has(action));
   }
 
   function ensureCustomRangeDefaults() {
@@ -1005,7 +1060,7 @@
       state.selectedActions.add(action);
     }
     syncActionDropdown();
-    markHistoryFiltersDirty();
+    markHistoryFiltersDirty({ tryClientSide: true });
   }
 
   function handleNetworkDropdownClick(event) {
@@ -1026,7 +1081,7 @@
       state.selectedChains.add(chain);
     }
     syncNetworkDropdown();
-    markHistoryFiltersDirty();
+    markHistoryFiltersDirty({ tryClientSide: true });
   }
 
   function hydrateFromUrl() {
@@ -1063,6 +1118,8 @@
       const requestedChains = chainParam.split(",").map(item => item.trim()).filter(key => CHAINS[key]);
       if (requestedChains.length) state.selectedChains = new Set(requestedChains);
     }
+    state.fastMode = params.get("fast") === "1";
+    if (els.fastMode) els.fastMode.checked = state.fastMode;
     syncYearDropdown();
     syncDateRangeControls();
     syncActionDropdown();
@@ -1089,6 +1146,7 @@
     state.dateFrom = els.dateFrom.value;
     state.dateTo = els.dateTo.value;
     state.action = actionFilterParam() || "all";
+    state.fastMode = !!els.fastMode?.checked;
     els.action.value = actionFilterAllSelected() ? "all" : (selectedActionKeys()[0] || "all");
     let bounds;
     try {
@@ -1112,6 +1170,7 @@
     state.chainTotal = selectedChainKeys().length;
     state.warnings = [];
     state.earn = emptyEarnState("loading");
+    state.loadedScope = null;
     render();
     setUrlAddress(address);
 
@@ -1141,6 +1200,7 @@
       state.warnings = chainResults.flatMap(result => result.warnings || []).concat(balanceReplay.warnings || []);
       state.rows = groupEvents(allEvents, { currentBalances: balanceReplay.balances, currentBalanceReplay: balanceReplay.currentBalanceReplay });
       markReceiptClassificationPendingRows(state.rows);
+      recordLoadedHistoryScope(address, chainKeys);
       state.loading = false;
       state.loadingPhase = "receipts";
       state.gasTotal = state.rows.length;
@@ -1162,8 +1222,10 @@
         return;
       }
 
-      setStatus(`Found ${state.rows.length.toLocaleString()} tx. Checking gas receipts, historical prices, and report evidence...`);
-      const gasPromise = enrichGasForRows(state.rows, address, runId);
+      setStatus(state.fastMode
+        ? `Found ${state.rows.length.toLocaleString()} tx. Checking route-sensitive receipts, then skipping full gas evidence in Fast mode...`
+        : `Found ${state.rows.length.toLocaleString()} tx. Checking gas receipts, historical prices, and report evidence...`);
+      const gasPromise = enrichGasForRows(state.rows, address, runId, { fastMode: state.fastMode });
       const finalizeComplete = await waitForHistoryFinalize([gasPromise, earnPromise], HISTORY_FINALIZE_BUDGET_MS);
       if (runId !== state.runId) return;
       state.loadingPhase = "done";
@@ -1177,7 +1239,10 @@
         ? ""
         : ` ${visibleRows.length.toLocaleString()} match current filters.`;
       const pendingSuffix = finalizeComplete ? "" : " Gas/evidence is still finishing in the background; reports unlock when remaining evidence is ready.";
-      setStatus(`Loaded ${state.rows.length.toLocaleString()} tx with gas evidence where RPC data is available.${filterSuffix}${doneSuffix}${pendingSuffix}`, doneTone);
+      const gasScope = state.fastMode
+        ? "Fast mode loaded route-sensitive receipts; full gas evidence is skipped until you reload without Fast."
+        : "Loaded gas evidence where RPC data is available.";
+      setStatus(`Loaded ${state.rows.length.toLocaleString()} tx. ${gasScope}${filterSuffix}${doneSuffix}${pendingSuffix}`, doneTone);
       render();
       if (!finalizeComplete) {
         Promise.allSettled([gasPromise, earnPromise]).then(() => {
@@ -1191,7 +1256,10 @@
             : ` ${finalVisibleRows.length.toLocaleString()} match current filters.`;
           const finalTone = state.warnings.length ? "warn" : "good";
           const finalSuffix = state.warnings.length ? ` Partial data warning: ${shortWarnings()}` : "";
-          setStatus(`Loaded ${state.rows.length.toLocaleString()} tx with gas evidence where RPC data is available.${finalFilterSuffix}${finalSuffix}`, finalTone);
+          const finalGasScope = state.fastMode
+            ? "Fast mode loaded route-sensitive receipts; full gas evidence is skipped until you reload without Fast."
+            : "Loaded gas evidence where RPC data is available.";
+          setStatus(`Loaded ${state.rows.length.toLocaleString()} tx. ${finalGasScope}${finalFilterSuffix}${finalSuffix}`, finalTone);
           render();
         });
       }
@@ -2664,9 +2732,27 @@
     return values.length ? Math.max(...values) : 0;
   }
 
-  async function enrichGasForRows(rows, address, runId) {
+  function historyRowsForGasPriority(rows, fastMode = false) {
+    const classificationRows = [];
+    const backgroundRows = [];
+    const skippedRows = [];
+    (rows || []).forEach(row => {
+      if (row?.gas?.status && row.gas.status !== "pending") return;
+      if (row?.receiptClassificationPending) {
+        classificationRows.push(row);
+      } else if (fastMode) {
+        skippedRows.push(row);
+      } else {
+        backgroundRows.push(row);
+      }
+    });
+    return { classificationRows, backgroundRows, skippedRows };
+  }
+
+  async function enrichGasForRows(rows, address, runId, options = {}) {
     const renderEvery = rows.length > 500 ? 50 : rows.length > 120 ? 20 : 5;
-    await mapLimit(rows, 4, async row => {
+    const priority = historyRowsForGasPriority(rows, !!options.fastMode);
+    const completeRow = async row => {
       if (runId !== state.runId) return;
       row.gas = await fetchGas(row, address);
       state.gasChecked += 1;
@@ -2674,18 +2760,78 @@
         setStatus(`Checking gas receipts ${state.gasChecked}/${state.gasTotal}...`);
         render();
       }
-    });
+    };
+    await mapLimit(priority.classificationRows, HISTORY_CLASSIFICATION_RECEIPT_CONCURRENCY, completeRow);
+    if (options.fastMode) {
+      priority.skippedRows.forEach(row => {
+        if (runId !== state.runId) return;
+        row.gas = { status: FAST_GAS_STATUS, paidByWallet: false };
+        state.gasChecked += 1;
+      });
+      if (runId === state.runId) {
+        setStatus(`Fast mode checked ${priority.classificationRows.length.toLocaleString()} route-sensitive receipt${priority.classificationRows.length === 1 ? "" : "s"} and skipped full gas evidence for ${priority.skippedRows.length.toLocaleString()} row${priority.skippedRows.length === 1 ? "" : "s"}.`);
+        render();
+      }
+      return;
+    }
+    await mapLimit(priority.backgroundRows, HISTORY_BACKGROUND_GAS_CONCURRENCY, completeRow);
+  }
+
+  function gasCacheKey(row, address) {
+    return `${row?.chainKey || ""}:${String(row?.txHash || "").toLowerCase()}:${normalizeAddress(address)}`;
+  }
+
+  function gasStorageKey(cacheKey) {
+    return `${GAS_STORAGE_PREFIX}:${cacheKey}`;
+  }
+
+  function readStoredGasResult(cacheKey) {
+    try {
+      const raw = window.localStorage?.getItem(gasStorageKey(cacheKey));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return null;
+      if (!parsed.ts || Date.now() - Number(parsed.ts) > GAS_STORAGE_TTL_MS) {
+        window.localStorage?.removeItem(gasStorageKey(cacheKey));
+        return null;
+      }
+      const result = parsed.result;
+      return result && typeof result === "object" && result.status ? result : null;
+    } catch (error) {
+      console.debug("History gas cache read unavailable:", error);
+      return null;
+    }
+  }
+
+  function writeStoredGasResult(cacheKey, result) {
+    if (!result || !["ok", "not-payer"].includes(result.status)) return false;
+    try {
+      window.localStorage?.setItem(gasStorageKey(cacheKey), JSON.stringify({
+        ts: Date.now(),
+        result,
+      }));
+      return true;
+    } catch (error) {
+      console.debug("History gas cache write unavailable:", error);
+      return false;
+    }
   }
 
   async function fetchGas(row, address) {
-    const cacheKey = `${row.chainKey}:${row.txHash}:${address}`;
+    const cacheKey = gasCacheKey(row, address);
     if (gasCache.has(cacheKey)) {
-      const cached = gasCache.get(cacheKey);
+      const cached = await gasCache.get(cacheKey);
       applyBorrowLifecycleSemanticsToRow(row, cached?.borrowLifecycleSemantics || []);
       return cached;
     }
+    const stored = readStoredGasResult(cacheKey);
+    if (stored) {
+      gasCache.set(cacheKey, stored);
+      applyBorrowLifecycleSemanticsToRow(row, stored.borrowLifecycleSemantics || []);
+      return stored;
+    }
     const chain = CHAINS[row.chainKey];
-    const result = (async () => {
+    const request = (async () => {
       try {
         const [receipt, tx] = await Promise.all([
           rpcRequest(row.chainKey, "eth_getTransactionReceipt", [row.txHash]),
@@ -2741,7 +2887,10 @@
         return { status: "error", paidByWallet: false, error: error.message || String(error) };
       }
     })();
+    gasCache.set(cacheKey, request);
+    const result = await request;
     gasCache.set(cacheKey, result);
+    writeStoredGasResult(cacheKey, result);
     return result;
   }
 
@@ -2850,11 +2999,57 @@
     }
   }
 
+  function configuredRpcGatewayValue() {
+    if (window.__DOLO_RPC_GATEWAY) return window.__DOLO_RPC_GATEWAY;
+    try {
+      const raw = window.localStorage?.getItem(RPC_GATEWAY_STORAGE_KEY);
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (_error) {
+        return raw;
+      }
+    } catch (error) {
+      console.debug("History RPC gateway config unavailable:", error);
+      return null;
+    }
+  }
+
+  function gatewayUrlsForChain(chainKey) {
+    const config = configuredRpcGatewayValue();
+    const values = [];
+    const addValue = value => {
+      if (!value) return;
+      if (Array.isArray(value)) {
+        value.forEach(addValue);
+        return;
+      }
+      if (typeof value !== "string") return;
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      values.push(trimmed.replaceAll("{chain}", chainKey));
+    };
+    if (typeof config === "string" || Array.isArray(config)) {
+      addValue(config);
+    } else if (config && typeof config === "object") {
+      addValue(config[chainKey]);
+      addValue(config.default);
+    }
+    return values;
+  }
+
+  function rpcUrlsForChain(chainKey) {
+    const chain = CHAINS[chainKey];
+    const urls = [...gatewayUrlsForChain(chainKey), ...(chain?.rpcs || [])].filter(Boolean);
+    return Array.from(new Set(urls));
+  }
+
   async function rpcRequest(chainKey, method, params) {
     const chain = CHAINS[chainKey];
+    const rpcs = rpcUrlsForChain(chainKey);
     let lastError = null;
-    for (let attempt = 0; attempt < chain.rpcs.length * 2; attempt++) {
-      const rpc = chain.rpcs[chain.rpcIdx % chain.rpcs.length];
+    for (let attempt = 0; attempt < rpcs.length * 2; attempt++) {
+      const rpc = rpcs[chain.rpcIdx % rpcs.length];
       chain.rpcIdx += 1;
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 10000);
@@ -3418,10 +3613,11 @@
   function renderRows() {
     const rows = state.filteredRows;
     const gasPending = rows.some(row => row.gas?.status === "pending");
+    const gasSkippedFast = rows.some(row => row.gas?.status === FAST_GAS_STATUS);
     const earnPending = state.earn?.status === "loading";
     const earnEntries = earnTaxEntriesForCurrentView();
     els.count.textContent = historyCountLabel(rows, earnEntries);
-    els.taxExport.disabled = (rows.length === 0 && earnEntries.length === 0) || state.loading || state.filtersDirty || gasPending || earnPending;
+    els.taxExport.disabled = (rows.length === 0 && earnEntries.length === 0) || state.loading || state.filtersDirty || gasPending || gasSkippedFast || earnPending;
 
     if (state.loading) {
       els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">Loading Dolomite history...</td></tr>`;
@@ -3972,12 +4168,14 @@
 
   function reportExportReadiness(rows = state.filteredRows, earnEntries = earnTaxEntriesForCurrentView()) {
     const gasPending = rows.some(row => row.gas?.status === "pending");
+    const gasSkippedFast = rows.some(row => row.gas?.status === FAST_GAS_STATUS);
     const earnPending = state.earn?.status === "loading";
     const hasRows = rows.length > 0;
     const hasReportRows = hasRows || earnEntries.length > 0;
-    const blocked = state.loading || state.filtersDirty || gasPending || earnPending;
+    const blocked = state.loading || state.filtersDirty || gasPending || gasSkippedFast || earnPending;
     return {
       gasPending,
+      gasSkippedFast,
       earnPending,
       filtersDirty: state.filtersDirty,
       hasRows,
@@ -3991,6 +4189,7 @@
     if (readiness.filtersDirty) return "Load required";
     if (state.loading) return "Scanning";
     if (readiness.gasPending || readiness.earnPending) return "Completing evidence";
+    if (readiness.gasSkippedFast) return "Fast view";
     if (!readiness.hasReportRows) return "No rows";
     const warningCount = (state.warnings?.length || 0) + (state.earn?.warnings?.length || 0);
     return warningCount ? "Ready with warnings" : "Ready";
@@ -4516,6 +4715,7 @@
     [els.yearButton, els.actionButton, els.networkButton].forEach(button => {
       if (button) button.disabled = state.loading;
     });
+    if (els.fastMode) els.fastMode.disabled = state.loading;
     syncYearDropdown();
     syncDateRangeControls();
     syncActionDropdown();
@@ -5124,7 +5324,7 @@
     if (sourceEntities.size > 1 && hasRewardClaimSource) {
       sources.unshift("Dolomite subgraph");
     }
-    if (gas?.status && gas.status !== "pending") sources.push("RPC receipt gas");
+    if (gas?.status && gas.status !== "pending" && gas.status !== FAST_GAS_STATUS) sources.push("RPC receipt gas");
     if (gas?.paidByWallet && Number.isFinite(Number(gas.historicalPrice))) {
       sources.push(`${chain.priceId || "native asset"} historical gas price`);
     }
@@ -5266,6 +5466,10 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     if (!rows.length && !earnEntries.length) return false;
     if (rows.some(row => row.gas?.status === "pending")) {
       setStatus(`${label} waits for all visible gas receipts to finish so fee evidence is not partial.`, "warn");
+      return false;
+    }
+    if (rows.some(row => row.gas?.status === FAST_GAS_STATUS)) {
+      setStatus(`${label} needs full gas evidence. Turn off Fast and load history again.`, "warn");
       return false;
     }
     if (state.earn?.status === "loading") {
@@ -5749,6 +5953,9 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     if (gas.status === "not-payer") {
       return `<div class="gas-cell"><div class="gas-main muted">Not payer</div></div>`;
     }
+    if (gas.status === FAST_GAS_STATUS) {
+      return `<div class="gas-cell"><div class="gas-main muted">Fast mode</div></div>`;
+    }
     if (gas.status === "missing") {
       return `<div class="gas-cell"><div class="gas-main muted">No receipt</div></div>`;
     }
@@ -6122,6 +6329,8 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     } else {
       url.searchParams.delete("chains");
     }
+    if (state.fastMode) url.searchParams.set("fast", "1");
+    else url.searchParams.delete("fast");
     window.history.replaceState(null, "", url.toString());
   }
 
