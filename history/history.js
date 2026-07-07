@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-borrow-collateral-semantics";
+  const HISTORY_VERSION = "history-20260707-borrow-route-transfer-semantics";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -2103,7 +2103,9 @@
           : (balances.get(eventDelta.key) || 0n);
         const after = before + rowDelta;
         const collateralContext = eventDelta.delta > 0n && accountHasDebtExposure(eventDelta.key, rowDeltas, balances, confidence);
-        const semantic = borrowSemanticForBalanceTransition(event, before, after, hasBaseline, eventDelta.delta, collateralContext);
+        const transitionSemantic = borrowSemanticForBalanceTransition(event, before, after, hasBaseline, eventDelta.delta, collateralContext);
+        const routeSemantic = borrowRouteTransferSemantic(event, eventDelta);
+        const semantic = transitionSemantic?.action === "addCollateral" ? transitionSemantic : routeSemantic || transitionSemantic;
         return semantic ? { semantic, before, after } : null;
       }).filter(Boolean);
       const match = semanticMatches.sort((a, b) => borrowSemanticPriority(b.semantic.action) - borrowSemanticPriority(a.semantic.action))[0];
@@ -2171,27 +2173,56 @@
     return 1;
   }
 
+  function normalizeAccountNumberValue(value) {
+    return String(value ?? "").trim();
+  }
+
+  function hasAccountNumber(value) {
+    return normalizeAccountNumberValue(value) !== "";
+  }
+
+  function isBorrowRouteAccountNumber(value) {
+    const account = normalizeAccountNumberValue(value);
+    return account !== "" && account !== "0" && account.length > 12;
+  }
+
+  function borrowRouteTransferSemantic(event, eventDelta) {
+    if (event?.action !== "transfer" || !event.isSelfTransfer) return null;
+    const fromAccount = normalizeAccountNumberValue(event.fromAccount);
+    const toAccount = normalizeAccountNumberValue(event.toAccount);
+    const deltaAccount = normalizeAccountNumberValue(eventDelta?.account);
+    if (!fromAccount || !toAccount || fromAccount === toAccount || !deltaAccount) return null;
+    if (fromAccount === "0" && isBorrowRouteAccountNumber(toAccount) && deltaAccount === toAccount && eventDelta.delta > 0n) {
+      return { action: "openBorrow", label: ACTION_LABELS.openBorrow };
+    }
+    if (isBorrowRouteAccountNumber(fromAccount) && toAccount === "0" && deltaAccount === fromAccount && eventDelta.delta < 0n) {
+      return { action: "closeBorrow", label: ACTION_LABELS.closeBorrow };
+    }
+    return null;
+  }
+
   function borrowClassifiableEventDeltas(event) {
     if (!event) return [];
     if (event.action === "deposit" || event.action === "withdraw") {
       const leg = firstLeg(event.legs, event.action === "deposit" ? "out" : "in") || (event.legs || [])[0];
-      if (!leg || !event.account) return [];
+      if (!leg || !hasAccountNumber(event.account)) return [];
       const amount = decimalToScaledBigInt(leg.rawAmount ?? leg.amount);
       if (amount <= 0n) return [];
       return [{
         key: balanceKey(event.chainKey, event.account, leg.tokenAddress || leg.symbol),
+        account: event.account,
         delta: event.action === "deposit" ? amount : -amount,
       }];
     }
-    if (event.action !== "transfer" || !event.isSelfTransfer || !event.fromAccount || !event.toAccount) return [];
+    if (event.action !== "transfer" || !event.isSelfTransfer || !hasAccountNumber(event.fromAccount) || !hasAccountNumber(event.toAccount)) return [];
     const leg = (event.legs || [])[0];
     if (!leg) return [];
     const amount = decimalToScaledBigInt(leg.rawAmount ?? leg.amount);
     if (amount <= 0n) return [];
     const token = leg.tokenAddress || leg.symbol;
     return [
-      { key: balanceKey(event.chainKey, event.fromAccount, token), delta: -amount },
-      { key: balanceKey(event.chainKey, event.toAccount, token), delta: amount },
+      { key: balanceKey(event.chainKey, event.fromAccount, token), account: event.fromAccount, delta: -amount },
+      { key: balanceKey(event.chainKey, event.toAccount, token), account: event.toAccount, delta: amount },
     ];
   }
 
@@ -2210,7 +2241,7 @@
 
   function balanceDeltasForEvent(event) {
     if (!event) return [];
-    const account = event.account || "";
+    const account = normalizeAccountNumberValue(event.account);
     if (event.action === "deposit" || event.action === "withdraw") {
       const classified = borrowClassifiableEventDelta(event);
       return classified ? [classified] : [];
@@ -2221,7 +2252,7 @@
       const amount = decimalToScaledBigInt(leg.rawAmount ?? leg.amount);
       if (amount <= 0n) return [];
       const token = leg.tokenAddress || leg.symbol;
-      if (event.isSelfTransfer && event.fromAccount && event.toAccount) {
+      if (event.isSelfTransfer && hasAccountNumber(event.fromAccount) && hasAccountNumber(event.toAccount)) {
         return [
           { key: balanceKey(event.chainKey, event.fromAccount, token), delta: -amount },
           { key: balanceKey(event.chainKey, event.toAccount, token), delta: amount },
@@ -2254,7 +2285,7 @@
   }
 
   function balanceKey(chainKey, account, token) {
-    return `${chainKey}:${String(account || "0")}:${String(token || "").toLowerCase()}`;
+    return `${chainKey}:${normalizeAccountNumberValue(account) || "0"}:${String(token || "").toLowerCase()}`;
   }
 
   function reconcileZapEvents(row) {

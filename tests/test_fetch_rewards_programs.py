@@ -80,6 +80,45 @@ class RewardsProgramSupplyHistoryTest(unittest.TestCase):
         self.assertEqual(start, 100)
         self.assertEqual(end, 500)
 
+    def test_merkl_campaign_details_capture_reward_totals(self):
+        original_get_json = rewards.get_json
+        campaigns = [
+            {
+                "startTimestamp": 100,
+                "endTimestamp": 200,
+                "amount": "125000000",
+                "rewardToken": {"symbol": "USDC", "decimals": 6},
+            },
+            {
+                "startTimestamp": 150,
+                "endTimestamp": 250,
+                "amount": "375000000",
+                "rewardToken": {"symbol": "USDC", "decimals": "6"},
+            },
+            {
+                "startTimestamp": 120,
+                "endTimestamp": 240,
+                "amount": "2000000000000000000",
+                "rewardToken": {"symbol": "ARB", "decimals": 18},
+            },
+        ]
+
+        try:
+            rewards.get_json = lambda _url: {"campaigns": campaigns}
+            program = {"provider": "Merkl", "programId": "dolomite-usdc-ended"}
+
+            rewards.enrich_merkl_campaign_windows([program], [])
+
+            self.assertEqual(program["campaignStart"], 100)
+            self.assertEqual(program["campaignEnd"], 250)
+            self.assertEqual(program["rewardTokens"], ["USDC", "ARB"])
+            self.assertEqual(program["rewardTokenTotals"], [
+                {"symbol": "USDC", "amount": 500.0},
+                {"symbol": "ARB", "amount": 2.0},
+            ])
+        finally:
+            rewards.get_json = original_get_json
+
 
 if __name__ == "__main__":
     unittest.main()

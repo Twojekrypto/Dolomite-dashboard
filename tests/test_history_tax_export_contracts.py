@@ -1072,6 +1072,15 @@ const closeBorrowTransfer = sandbox.__historyTest.groupEvents([selfTransfer(10, 
   currentBalanceReplay: true,
   currentBalances: new Map([[key, 0n]]),
 })[0];
+const routeAccount = "53264417164200931625493956231501517131794473210820855151423986246727225441839";
+const openBorrowRouteTransfer = sandbox.__historyTest.groupEvents([selfTransfer("0.001", "0", routeAccount, 50)], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:0:0xusdc", 0n]]),
+})[0];
+const closeBorrowRouteTransfer = sandbox.__historyTest.groupEvents([selfTransfer("0.001", routeAccount, "0", 60)], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:0:0xusdc", 0n]]),
+})[0];
 const zapWithBorrow = {
   actions: new Set(["zap", "withdraw"]),
   semanticActions: new Set(["openBorrow"]),
@@ -1124,6 +1133,14 @@ const results = {
   closeTransferRepayFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowTransfer, "repay"),
   closeTransferTransferFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowTransfer, "transfer"),
   closeTransferGroup: sandbox.__historyTest.activityGroupForEvent(closeBorrowTransfer.events[0]),
+  openRouteTransferAction: sandbox.__historyTest.cleanTransactionAction(openBorrowRouteTransfer),
+  openRouteTransferChip: sandbox.__historyTest.displayActionsForRow(openBorrowRouteTransfer).join("|"),
+  openRouteTransferBorrowFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowRouteTransfer, "borrow"),
+  openRouteTransferTransferFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowRouteTransfer, "transfer"),
+  closeRouteTransferAction: sandbox.__historyTest.cleanTransactionAction(closeBorrowRouteTransfer),
+  closeRouteTransferChip: sandbox.__historyTest.displayActionsForRow(closeBorrowRouteTransfer).join("|"),
+  closeRouteTransferRepayFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowRouteTransfer, "repay"),
+  closeRouteTransferTransferFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowRouteTransfer, "transfer"),
   indexedDebt: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.parBalanceToTokenBalance("-5", { borrowIndex: "2", supplyIndex: "1" })),
   indexedSupply: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.parBalanceToTokenBalance("3", { borrowIndex: "2", supplyIndex: "1.5" })),
   scientificSmall: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.decimalToScaledBigInt("1e-6")),
@@ -1164,6 +1181,12 @@ if (results.closeTransferAction !== "Close Borrow") throw new Error(JSON.stringi
 if (results.closeTransferChip !== "closeBorrow") throw new Error(JSON.stringify(results));
 if (!results.closeTransferRepayFilter || results.closeTransferTransferFilter) throw new Error(JSON.stringify(results));
 if (results.closeTransferGroup !== "repay") throw new Error(JSON.stringify(results));
+if (results.openRouteTransferAction !== "Open Borrow") throw new Error(JSON.stringify(results));
+if (results.openRouteTransferChip !== "openBorrow") throw new Error(JSON.stringify(results));
+if (!results.openRouteTransferBorrowFilter || results.openRouteTransferTransferFilter) throw new Error(JSON.stringify(results));
+if (results.closeRouteTransferAction !== "Close Borrow") throw new Error(JSON.stringify(results));
+if (results.closeRouteTransferChip !== "closeBorrow") throw new Error(JSON.stringify(results));
+if (!results.closeRouteTransferRepayFilter || results.closeRouteTransferTransferFilter) throw new Error(JSON.stringify(results));
 if (results.indexedDebt !== "-10" || results.indexedSupply !== "4.5") throw new Error(JSON.stringify(results));
 if (results.scientificSmall !== "0.000001" || results.scientificLarge !== "1200") throw new Error(JSON.stringify(results));
 if (results.zapBorrowAction !== "Zap; Open Borrow" || results.zapBorrowChips !== "zap|openBorrow") throw new Error(JSON.stringify(results));
