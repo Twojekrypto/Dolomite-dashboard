@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-zap-route-lifecycle-guard";
+  const HISTORY_VERSION = "history-20260707-classification-sources";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -190,6 +190,15 @@
     odoloClaim: "oDOLO Claim",
     rewardClaim: "Reward Claim",
     rewardLevelUpdate: "Reward Level",
+  };
+
+  const CLASSIFICATION_SOURCE_LABELS = {
+    borrow_position_lifecycle: "Borrow position lifecycle",
+    borrow_position_calldata: "Borrow position calldata",
+    borrow_position_receipt: "Borrow position receipt",
+    current_balance_replay: "Current balance replay",
+    range_replay: "Range replay",
+    semantic: "Semantic event",
   };
 
   const state = {
@@ -2157,6 +2166,23 @@
           setBorrowSemantic(event, "closeBorrow", "borrow_position_lifecycle");
           return;
         }
+        const account = normalizeAccountNumberValue(event?.account);
+        if (
+          event?.action === "deposit"
+          && openAccounts.has(account)
+          && isBorrowRouteAccountNumber(account)
+        ) {
+          setBorrowSemantic(event, "openBorrow", "borrow_position_lifecycle");
+          return;
+        }
+        if (
+          event?.action === "withdraw"
+          && closeAccounts.has(account)
+          && isBorrowRouteAccountNumber(account)
+        ) {
+          setBorrowSemantic(event, "closeBorrow", "borrow_position_lifecycle");
+          return;
+        }
         if (event?.action !== "transfer" || !event.isSelfTransfer) return;
         const fromAccount = normalizeAccountNumberValue(event.fromAccount);
         const toAccount = normalizeAccountNumberValue(event.toAccount);
@@ -2244,6 +2270,28 @@
     const hasSwapRoute = events.some(event => event?.action === "zap" || event?.action === "trade" || event?.taxCategory === "swap");
     if (!hasSwapRoute) return false;
     return !events.some(event => BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action));
+  }
+
+  function classificationSourceForRow(row) {
+    const events = Array.isArray(row?.events) ? row.events : [];
+    const semanticSource = events
+      .map(event => classificationSourceForEvent(row, event))
+      .find(source => source && source !== "Dolomite subgraph");
+    if (semanticSource) return semanticSource;
+    if (rowHasSwapRouteWithoutBorrowLifecycle(row)) return "Swap route; no borrow lifecycle signal";
+    return events.length ? "Dolomite subgraph" : "";
+  }
+
+  function classificationSourceForEvent(row, event) {
+    if (event?.borrowSemanticConfidence) return classificationConfidenceLabel(event.borrowSemanticConfidence);
+    if (BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action)) return CLASSIFICATION_SOURCE_LABELS.borrow_position_lifecycle;
+    if (isSwapLikeEvent(event) && rowHasSwapRouteWithoutBorrowLifecycle(row)) return "Swap route; no borrow lifecycle signal";
+    return event ? "Dolomite subgraph" : "";
+  }
+
+  function classificationConfidenceLabel(confidence) {
+    const key = String(confidence || "").trim();
+    return CLASSIFICATION_SOURCE_LABELS[key] || key || "";
   }
 
   function balanceAccountPrefix(key) {
@@ -3438,8 +3486,8 @@
     const actions = Array.from(row.actions || [])
       .filter(Boolean)
       .filter(action => !BORROW_POSITION_LIFECYCLE_ACTIONS.has(action))
-      .filter(action => !(action === "withdraw" && hasBorrowSemantic))
-      .filter(action => !(action === "deposit" && (hasRepaySemantic || hasCollateralSemantic)))
+      .filter(action => !(action === "withdraw" && (hasBorrowSemantic || hasRepaySemantic || hasCollateralSemantic)))
+      .filter(action => !(action === "deposit" && (hasBorrowSemantic || hasRepaySemantic || hasCollateralSemantic)))
       .filter(action => !(action === "transfer" && (hasBorrowSemantic || hasRepaySemantic || hasCollateralSemantic)));
     const vestingChips = vestingActionChipsForRow(row);
     const mergedActions = [
@@ -3498,8 +3546,8 @@
     if (action === "repay") return semanticActions.has("repay") || semanticActions.has("closeBorrow");
     if (action === "addCollateral") return semanticActions.has("addCollateral");
     if (action === "withdrawCollateral") return semanticActions.has("withdrawCollateral");
-    if (action === "withdraw" && (semanticActions.has("borrow") || semanticActions.has("openBorrow"))) return false;
-    if (action === "deposit" && (semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
+    if (action === "withdraw" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
+    if (action === "deposit" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "swap") {
       return row.actions.has("trade")
@@ -4705,6 +4753,13 @@
     if (isSwapLikeEvent(primary)) {
       return cleanSwapOutcomeFlow(primary, "table") || cleanTransactionAssetFlow(row);
     }
+    const semanticEvent = (row?.events || [])
+      .find(event => event?.borrowSemanticConfidence === "borrow_position_lifecycle" && !BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action));
+    if (semanticEvent) {
+      const direction = semanticEvent.action === "withdraw" ? "in" : semanticEvent.action === "deposit" ? "out" : semanticEvent.role;
+      const amount = cleanLegGroup(semanticEvent.legs, direction, "table") || cleanFlowFromLegs(semanticEvent.legs, "table");
+      if (amount) return amount;
+    }
     if (!primary && row?.actions?.has("transfer")) {
       const transfer = (row.events || []).find(event => event?.action === "transfer");
       if (transfer) return compactTransferTableFlow(transfer, "table");
@@ -5206,6 +5261,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       explorer: chain.explorerTx + row.txHash,
       actions: displayActionsForRow(row).map(actionDisplayLabel),
       actionSummary: cleanTransactionAction(row),
+      classificationSource: classificationSourceForRow(row),
       assetFlowSummary: cleanTransactionAssetFlow(row),
       sourceEntities: cleanHistorySourceEntities(row),
       usdVolume: decimalForCsv(row.usdVolume),
@@ -5222,6 +5278,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
           sourceEntity: event.sourceEntity || "",
           action: event.action,
           actionLabel: cleanReportActionLabel(event),
+          classificationSource: classificationSourceForEvent(row, event),
           borrowSemanticAction: event.borrowSemanticAction || "",
           borrowSemanticConfidence: event.borrowSemanticConfidence || "",
           borrowBalanceBefore: event.borrowBalanceBefore || "",
@@ -5907,6 +5964,8 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
 
   function eventMetaHtml(row, event) {
     const parts = [];
+    const classification = classificationSourceForEvent(row, event);
+    if (classification) parts.push(eventClassificationSourceHtml(classification));
     const account = eventAccountHtml(event);
     if (account) parts.push(account);
     const counterparty = eventCounterpartyHtml(row, event);
@@ -5917,6 +5976,15 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
   function eventMetaBlockHtml(row, event) {
     const html = eventMetaHtml(row, event);
     return html ? `<span class="event-meta">${html}</span>` : "";
+  }
+
+  function eventClassificationSourceHtml(source) {
+    return `
+      <span class="event-detail-item event-classification-source">
+        <span class="event-detail-label">Classification</span>
+        <span class="event-detail-value">${escapeHtml(source)}</span>
+      </span>
+    `;
   }
 
   function eventAccountHtml(event) {

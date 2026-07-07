@@ -1636,6 +1636,270 @@ if (groupedInternalSwap.semantic.length !== 0) throw new Error(JSON.stringify(gr
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
+    def test_golden_transaction_classification_matrix_has_sources(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyGoldenTest = { groupEvents, displayActionsForRow, rowMatchesActionFilter, cleanTransactionAction, compactTransactionAssetPreview, applyBorrowReceiptSemanticsForRow, classificationSourceForRow, eventMetaBlockHtml, evidenceRowPayload };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyGoldenTest;
+const wallet = "0x28da3dde285d8f1f87b2d858f89961bb8b9af180";
+const scale = 10n ** 18n;
+const routeAccount = "53264947907898141993957179932880619725268172546596567937770629149662327972903";
+const abiWord = value => BigInt(value).toString(16).padStart(64, "0");
+const topicAddress = address => "0x" + String(address).toLowerCase().replace(/^0x/, "").padStart(64, "0");
+const topicUint = value => "0x" + abiWord(value);
+const openBorrowInput = "0xbb0a6fa5" + abiWord(0) + abiWord(routeAccount) + abiWord(0) + abiWord(1_000_000_000_000_000n) + abiWord(1);
+const openBorrowLog = () => ({
+  topics: [
+    "0xfd9156bd20ce24a786c761efe71a3931de038c1f2620c1bb4720609bc742b58e",
+    topicAddress(wallet),
+    topicUint(routeAccount),
+  ],
+  data: "0x",
+});
+const transferToRoute = (txHash, symbol = "WETH", amount = "0.001", tokenAddress = "0xweth", timestamp = 1782243862) => ({
+  chainKey: "arbitrum",
+  txHash,
+  timestamp,
+  blockNumber: String(timestamp),
+  action: "transfer",
+  role: "out",
+  account: "0",
+  fromAccount: "0",
+  toAccount: routeAccount,
+  isSelfTransfer: true,
+  legs: [{ direction: "out", symbol, tokenAddress, amount, rawAmount: amount }],
+});
+const deposit = (txHash, amount = "5", timestamp = 1785000000) => ({
+  chainKey: "arbitrum",
+  txHash,
+  timestamp,
+  blockNumber: String(timestamp),
+  action: "deposit",
+  role: "user",
+  account: "1",
+  legs: [{ direction: "out", symbol: "USDC", tokenAddress: "0xusdc", amount, rawAmount: amount }],
+});
+const routeDeposit = (txHash, amount = "0.002", timestamp = 1768210000) => ({
+  chainKey: "arbitrum",
+  txHash,
+  timestamp,
+  blockNumber: String(timestamp),
+  action: "deposit",
+  role: "user",
+  account: routeAccount,
+  legs: [{ direction: "out", symbol: "WETH", tokenAddress: "0xweth", amount, rawAmount: amount }],
+});
+const routeWithdraw = (txHash, amount = "0.00000000001671", timestamp = 1768210300) => ({
+  chainKey: "arbitrum",
+  txHash,
+  timestamp,
+  blockNumber: String(timestamp),
+  action: "withdraw",
+  role: "user",
+  account: routeAccount,
+  legs: [{ direction: "in", symbol: "WETH", tokenAddress: "0xweth", amount, rawAmount: amount }],
+});
+const borrowPositionOpenMarker = (txHash, timestamp = 1782243862) => ({
+  chainKey: "arbitrum",
+  txHash,
+  timestamp,
+  blockNumber: String(timestamp),
+  action: "borrowPositionOpen",
+  role: "user",
+  account: routeAccount,
+  label: "Borrow position opened",
+  asset: "Borrow position",
+  legs: [],
+});
+const borrowPositionCloseMarker = (txHash, timestamp = 1787000000) => ({
+  chainKey: "arbitrum",
+  txHash,
+  timestamp,
+  blockNumber: String(timestamp),
+  action: "borrowPositionClose",
+  role: "user",
+  account: routeAccount,
+  label: "Borrow position closed",
+  asset: "Borrow position",
+  legs: [],
+});
+const internalZapRouteEvents = () => [
+  {
+    chainKey: "ethereum",
+    txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+    timestamp: 1776672875,
+    blockNumber: "24919843",
+    action: "trade",
+    role: "taker",
+    account: routeAccount,
+    taxCategory: "swap",
+    legs: [
+      { direction: "out", symbol: "USDC", tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", amount: "29331.40307", rawAmount: "29331.40307" },
+      { direction: "in", symbol: "USD1", tokenAddress: "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d", amount: "29324.716678195844195284", rawAmount: "29324.716678195844195284" },
+    ],
+  },
+  {
+    chainKey: "ethereum",
+    txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+    timestamp: 1776672875,
+    blockNumber: "24919843",
+    action: "zap",
+    role: "user",
+    account: "0",
+    legs: [
+      { direction: "out", symbol: "USDC", tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", amount: "29331.40307", rawAmount: "29331.40307" },
+      { direction: "in", symbol: "USD1", tokenAddress: "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d", amount: "29324.716678195844195284", rawAmount: "29324.716678195844195284" },
+    ],
+  },
+];
+const rows = [];
+const zapRoute = api.groupEvents(internalZapRouteEvents(), {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["ethereum:0:0xexistingdebt", -1n * scale]]),
+})[0];
+rows.push({
+  name: "internal routed swap stays zap",
+  row: zapRoute,
+  expectedAction: "Zap",
+  expectedChips: "zap",
+  expectedSource: "Swap route; no borrow lifecycle signal",
+  filters: { swap: true, borrow: false, repay: false, addCollateral: false },
+});
+const receiptOpen = api.groupEvents([transferToRoute("0xdd6ce55745394eddfe23b0ba0543ccd323e7ce4622785f352f5db985f65b3d2c")], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xweth", 1_000_000_000_000_000n]]),
+})[0];
+api.applyBorrowReceiptSemanticsForRow(receiptOpen, { logs: [openBorrowLog()] }, {
+  from: wallet,
+  to: "0xe43638797513ef7a6d326a95e8647d86d2f5a099",
+  input: openBorrowInput,
+}, wallet);
+rows.push({
+  name: "receipt fallback opens routed borrow",
+  row: receiptOpen,
+  expectedAction: "Open Borrow",
+  expectedChips: "openBorrow",
+  expectedSource: "Borrow position receipt",
+  filters: { borrow: true, transfer: false, repay: false, addCollateral: false },
+});
+const openWithCollateral = api.groupEvents([
+  transferToRoute("0x2aa642553a3fb144e0c432df278bfae1be80082e826ca47bc98b4e8ea55d7bc0", "WETH", "0.01", "0xweth", 1783000000),
+  borrowPositionOpenMarker("0x2aa642553a3fb144e0c432df278bfae1be80082e826ca47bc98b4e8ea55d7bc0", 1783000000),
+], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([
+    ["arbitrum:" + routeAccount + ":0xusdc", -2n * scale],
+    ["arbitrum:" + routeAccount + ":0xweth", 10_000_000_000_000_000n],
+  ]),
+})[0];
+rows.push({
+  name: "open borrow with collateral remains open borrow",
+  row: openWithCollateral,
+  expectedAction: "Open Borrow",
+  expectedChips: "openBorrow",
+  expectedSource: "Borrow position lifecycle",
+  expectedPreview: "0.01 WETH",
+  filters: { borrow: true, addCollateral: false, transfer: false },
+});
+const partialRepay = api.groupEvents([deposit("0x38ae9fd3b916b4b4ed7bbeda5ff18d3f0987440d804de61b33f5cdc3ddb1822f", "5", 1785000000)], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:1:0xusdc", -5n * scale]]),
+})[0];
+rows.push({
+  name: "partial repayment remains repay",
+  row: partialRepay,
+  expectedAction: "Repay",
+  expectedChips: "repay",
+  expectedSource: "Current balance replay",
+  filters: { repay: true, deposit: false, borrow: false },
+});
+const openLifecycleDeposit = api.groupEvents([
+  routeDeposit("0xc91e13e21d2a7c656dd49d27b7cb35b7b89710cec191b7716261daac196b5763"),
+  borrowPositionOpenMarker("0xc91e13e21d2a7c656dd49d27b7cb35b7b89710cec191b7716261daac196b5763", 1768210000),
+], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([
+    ["arbitrum:" + routeAccount + ":0xusdc", -2n * scale],
+    ["arbitrum:" + routeAccount + ":0xweth", 2_000_000_000_000_000n],
+  ]),
+})[0];
+rows.push({
+  name: "open lifecycle deposit is open borrow not add collateral",
+  row: openLifecycleDeposit,
+  expectedAction: "Open Borrow",
+  expectedChips: "openBorrow",
+  expectedSource: "Borrow position lifecycle",
+  expectedPreview: "0.002 WETH",
+  filters: { borrow: true, addCollateral: false, deposit: false },
+});
+const closeWithMarker = api.groupEvents([
+  transferToRoute("0xc4aa236e7fc1b9c74494cf7412f377ba25bd3ed10627675bb007b1c9842d3a93", "USDC", "0.001", "0xusdc", 1787000000),
+  borrowPositionCloseMarker("0xc4aa236e7fc1b9c74494cf7412f377ba25bd3ed10627675bb007b1c9842d3a93", 1787000000),
+], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xusdc", 0n]]),
+})[0];
+rows.push({
+  name: "explicit close lifecycle remains close borrow",
+  row: closeWithMarker,
+  expectedAction: "Close Borrow",
+  expectedChips: "closeBorrow",
+  expectedSource: "Borrow position lifecycle",
+  filters: { repay: true, transfer: false, borrow: false },
+});
+const closeLifecycleWithdraw = api.groupEvents([
+  routeWithdraw("0x7184a10c65b6727564b5a861f5f3c495a9e8239694c49c9f6e889f13c6ebf064"),
+  borrowPositionCloseMarker("0x7184a10c65b6727564b5a861f5f3c495a9e8239694c49c9f6e889f13c6ebf064", 1768210300),
+], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["arbitrum:" + routeAccount + ":0xweth", 0n]]),
+})[0];
+rows.push({
+  name: "close lifecycle withdraw is close borrow not withdraw",
+  row: closeLifecycleWithdraw,
+  expectedAction: "Close Borrow",
+  expectedChips: "closeBorrow",
+  expectedSource: "Borrow position lifecycle",
+  expectedPreview: "0.00000000001671 WETH",
+  filters: { repay: true, withdraw: false, borrow: false },
+});
+rows.forEach(fixture => {
+  const action = api.cleanTransactionAction(fixture.row);
+  const chips = api.displayActionsForRow(fixture.row).join("|");
+  const source = api.classificationSourceForRow(fixture.row);
+  const preview = api.compactTransactionAssetPreview(fixture.row);
+  const metaHtml = api.eventMetaBlockHtml(fixture.row, fixture.row.events.find(event => !["borrowPositionOpen", "borrowPositionClose"].includes(event.action)) || fixture.row.events[0]);
+  const payload = api.evidenceRowPayload(fixture.row);
+  const filterResults = Object.fromEntries(Object.keys(fixture.filters).map(key => [key, api.rowMatchesActionFilter(fixture.row, key)]));
+  const result = { name: fixture.name, action, chips, source, preview, filterResults, metaHtml, payloadClassificationSource: payload.classificationSource };
+  if (action !== fixture.expectedAction) throw new Error(JSON.stringify(result));
+  if (chips !== fixture.expectedChips) throw new Error(JSON.stringify(result));
+  if (source !== fixture.expectedSource) throw new Error(JSON.stringify(result));
+  if (fixture.expectedPreview && preview !== fixture.expectedPreview) throw new Error(JSON.stringify(result));
+  Object.entries(fixture.filters).forEach(([key, expected]) => {
+    if (filterResults[key] !== expected) throw new Error(JSON.stringify(result));
+  });
+  if (!metaHtml.includes("Classification") || !metaHtml.includes(fixture.expectedSource)) throw new Error(JSON.stringify(result));
+  if (payload.classificationSource !== fixture.expectedSource) throw new Error(JSON.stringify(result));
+  if (!payload.events.some(event => event.classificationSource === fixture.expectedSource)) throw new Error(JSON.stringify(result));
+});
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
     def test_review_only_earn_does_not_enter_activity_net(self):
         script = r"""
 const fs = require("fs");
