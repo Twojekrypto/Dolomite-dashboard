@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-borrow-route-direction";
+  const HISTORY_VERSION = "history-20260707-borrow-position-open";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -21,6 +21,7 @@
   const ODOLO_REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026";
   const ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543";
   const NOTE_STORAGE_PREFIX = "dolomite-history-review-notes";
+  const BORROW_POSITION_LIFECYCLE_ACTIONS = new Set(["borrowPositionOpen", "borrowPositionClose"]);
 
   const GRAPH_BASE = "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs";
   const CHAINS = {
@@ -124,6 +125,8 @@
     repay: "Repay",
     openBorrow: "Open Borrow",
     closeBorrow: "Close Borrow",
+    borrowPositionOpen: "Open Borrow",
+    borrowPositionClose: "Close Borrow",
     addCollateral: "Add Collateral",
     transfer: "Transfer",
     trade: "Trade",
@@ -153,6 +156,8 @@
     repay: "Repay",
     openBorrow: "Open Borrow",
     closeBorrow: "Close Borrow",
+    borrowPositionOpen: "Open Borrow",
+    borrowPositionClose: "Close Borrow",
     addCollateral: "Add Collateral",
     transfer: "Transfer",
     trade: "Trade",
@@ -1244,6 +1249,20 @@
         map: row => eventFromZap(chainKey, row),
       },
       {
+        entity: "borrowPositions",
+        orderBy: "id",
+        where: `effectiveUser: "${user}", openTimestamp_gte: "${bounds.start}", openTimestamp_lte: "${bounds.end}"`,
+        fields: `id effectiveUser { id } marginAccount { accountNumber } openTimestamp closeTimestamp status openTransaction { id timestamp blockNumber } closeTransaction { id timestamp blockNumber }`,
+        map: row => eventFromBorrowPositionLifecycle(chainKey, row, "open"),
+      },
+      {
+        entity: "borrowPositions",
+        orderBy: "id",
+        where: `effectiveUser: "${user}", closeTimestamp_gte: "${bounds.start}", closeTimestamp_lte: "${bounds.end}"`,
+        fields: `id effectiveUser { id } marginAccount { accountNumber } openTimestamp closeTimestamp status openTransaction { id timestamp blockNumber } closeTransaction { id timestamp blockNumber }`,
+        map: row => eventFromBorrowPositionLifecycle(chainKey, row, "close"),
+      },
+      {
         entity: "asyncDeposits",
         orderBy: "id",
         where: `effectiveUser: "${user}", ${creationTimeFilter}`,
@@ -1827,6 +1846,25 @@
     };
   }
 
+  function eventFromBorrowPositionLifecycle(chainKey, row, stage) {
+    const isOpen = stage === "open";
+    const semanticAction = isOpen ? "openBorrow" : "closeBorrow";
+    const txProp = isOpen ? "openTransaction" : "closeTransaction";
+    const label = isOpen ? "Borrow position opened" : "Borrow position closed";
+    return {
+      ...eventBase(chainKey, row, isOpen ? "borrowPositionOpen" : "borrowPositionClose", "user", txProp),
+      ...taxFields("borrow_position_lifecycle", "not_taxable_by_default", [], `${label} on Dolomite; token movements are shown by the paired account transfer rows.`),
+      account: accountNumber(row.marginAccount),
+      label,
+      asset: "Borrow position",
+      borrowPositionId: row.id || "",
+      borrowPositionStatus: row.status || "",
+      borrowSemanticAction: semanticAction,
+      borrowSemanticLabel: ACTION_LABELS[semanticAction],
+      borrowSemanticConfidence: "borrow_position_lifecycle",
+    };
+  }
+
   function eventFromAsync(chainKey, row, action, stage, txProp) {
     const input = row.inputToken?.symbol || "Input";
     const output = row.outputToken?.symbol || "Output";
@@ -2062,10 +2100,50 @@
     } else {
       annotateBorrowSemanticsFromRangeStart(rows);
     }
+    applyBorrowPositionLifecycleSemantics(rows);
     rows.forEach(row => {
       row.semanticActions = new Set((row.events || []).map(event => event.borrowSemanticAction).filter(Boolean));
     });
     return rows;
+  }
+
+  function applyBorrowPositionLifecycleSemantics(rows) {
+    (rows || []).forEach(row => {
+      const events = Array.isArray(row?.events) ? row.events : [];
+      const openAccounts = new Set(events
+        .filter(event => event?.action === "borrowPositionOpen")
+        .map(event => normalizeAccountNumberValue(event.account))
+        .filter(Boolean));
+      const closeAccounts = new Set(events
+        .filter(event => event?.action === "borrowPositionClose")
+        .map(event => normalizeAccountNumberValue(event.account))
+        .filter(Boolean));
+      if (!openAccounts.size && !closeAccounts.size) return;
+      events.forEach(event => {
+        if (event?.action === "borrowPositionOpen") {
+          setBorrowSemantic(event, "openBorrow", "borrow_position_lifecycle");
+          return;
+        }
+        if (event?.action === "borrowPositionClose") {
+          setBorrowSemantic(event, "closeBorrow", "borrow_position_lifecycle");
+          return;
+        }
+        if (event?.action !== "transfer" || !event.isSelfTransfer) return;
+        const fromAccount = normalizeAccountNumberValue(event.fromAccount);
+        const toAccount = normalizeAccountNumberValue(event.toAccount);
+        if (openAccounts.has(toAccount) && isBorrowRouteAccountNumber(toAccount)) {
+          setBorrowSemantic(event, "openBorrow", "borrow_position_lifecycle");
+        } else if (closeAccounts.has(fromAccount) && isBorrowRouteAccountNumber(fromAccount)) {
+          setBorrowSemantic(event, "closeBorrow", "borrow_position_lifecycle");
+        }
+      });
+    });
+  }
+
+  function setBorrowSemantic(event, action, confidence) {
+    event.borrowSemanticAction = action;
+    event.borrowSemanticLabel = ACTION_LABELS[action] || action;
+    event.borrowSemanticConfidence = confidence || event.borrowSemanticConfidence || "semantic";
   }
 
   function annotateBorrowSemanticsFromCurrentBalances(rows, currentBalances) {
@@ -3204,6 +3282,7 @@
     const hasCollateralSemantic = semanticActions.includes("addCollateral");
     const actions = Array.from(row.actions || [])
       .filter(Boolean)
+      .filter(action => !BORROW_POSITION_LIFECYCLE_ACTIONS.has(action))
       .filter(action => !(action === "withdraw" && hasBorrowSemantic))
       .filter(action => !(action === "deposit" && (hasRepaySemantic || hasCollateralSemantic)))
       .filter(action => !(action === "transfer" && (hasBorrowSemantic || hasRepaySemantic || hasCollateralSemantic)));
@@ -3348,12 +3427,18 @@
 
   function detailDisplayEventsForRow(row) {
     const events = Array.isArray(row?.events) ? row.events : [];
-    if (events.length <= 1) return events;
-    const vestingEvents = vestingEventsForRow(row);
+    const displayEvents = events.filter(event => !isBorrowPositionLifecycleEvent(event));
+    const sourceEvents = displayEvents.length ? displayEvents : events;
+    if (sourceEvents.length <= 1) return sourceEvents;
+    const vestingEvents = sourceEvents.filter(event => event?.action === "vesting");
     if (vestingEvents.length) return uniqueDetailEvents(vestingEvents);
-    const primary = primaryTransactionEvent(events);
+    const primary = primaryTransactionEvent(sourceEvents);
     if (primary) return [primary];
-    return uniqueDetailEvents(events);
+    return uniqueDetailEvents(sourceEvents);
+  }
+
+  function isBorrowPositionLifecycleEvent(event) {
+    return BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action);
   }
 
   function uniqueDetailEvents(events) {
