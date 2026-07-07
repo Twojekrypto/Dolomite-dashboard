@@ -1050,6 +1050,10 @@ const selfTransfer = (amount, fromAccount, toAccount, timestamp) => ({
   isSelfTransfer: true,
   legs: [{ direction: "out", symbol: "USDC", tokenAddress: "0xusdc", amount: String(amount), rawAmount: String(amount) }],
 });
+const selfTransferAsset = (amount, fromAccount, toAccount, timestamp, symbol, tokenAddress) => ({
+  ...selfTransfer(amount, fromAccount, toAccount, timestamp),
+  legs: [{ direction: "out", symbol, tokenAddress, amount: String(amount), rawAmount: String(amount) }],
+});
 const openBorrow = sandbox.__historyTest.groupEvents([withdraw(10)], {
   currentBalanceReplay: true,
   currentBalances: new Map([[key, -10n * scale]]),
@@ -1079,6 +1083,28 @@ const closeBorrowTransfer = sandbox.__historyTest.groupEvents([selfTransfer(10, 
   currentBalances: new Map([[key, 0n]]),
 })[0];
 const routeAccount = "53264417164200931625493956231501517131794473210820855151423986246727225441839";
+const borrowPositionOpenMarker = (account, txHash = "0xopenposition", timestamp = 45) => ({
+  chainKey: "arbitrum",
+  txHash,
+  timestamp,
+  blockNumber: String(timestamp),
+  action: "borrowPositionOpen",
+  role: "user",
+  account,
+  label: "Borrow position opened",
+  asset: "Borrow position",
+  legs: [],
+});
+const openBorrowPositionWithCollateral = sandbox.__historyTest.groupEvents([
+  selfTransferAsset("0.01", "0", routeAccount, 45, "WETH", "0xweth"),
+  borrowPositionOpenMarker(routeAccount, "0xtransfer0" + routeAccount + "0.01", 45),
+], {
+  currentBalanceReplay: true,
+  currentBalances: new Map([
+    ["arbitrum:" + routeAccount + ":0xusdc", -2n * scale],
+    ["arbitrum:" + routeAccount + ":0xweth", 10_000_000_000_000_000n],
+  ]),
+})[0];
 const openBorrowRouteTransfer = sandbox.__historyTest.groupEvents([selfTransfer("0.001", routeAccount, "0", 50)], {
   currentBalanceReplay: true,
   currentBalances: new Map([["arbitrum:" + routeAccount + ":0xusdc", -1_000_000_000_000_000n]]),
@@ -1122,6 +1148,10 @@ const results = {
   closeChip: sandbox.__historyTest.displayActionsForRow(closeBorrow).join("|"),
   closeFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrow, "repay"),
   closeGroup: sandbox.__historyTest.activityGroupForEvent(closeBorrow.events[0]),
+  openCollateralPositionAction: sandbox.__historyTest.cleanTransactionAction(openBorrowPositionWithCollateral),
+  openCollateralPositionChip: sandbox.__historyTest.displayActionsForRow(openBorrowPositionWithCollateral).join("|"),
+  openCollateralPositionBorrowFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowPositionWithCollateral, "borrow"),
+  openCollateralPositionAddCollateralFilter: sandbox.__historyTest.rowMatchesActionFilter(openBorrowPositionWithCollateral, "addCollateral"),
   addCollateralAction: sandbox.__historyTest.cleanTransactionAction(addCollateral),
   addCollateralChip: sandbox.__historyTest.displayActionsForRow(addCollateral).join("|"),
   addCollateralFilter: sandbox.__historyTest.rowMatchesActionFilter(addCollateral, "addCollateral"),
@@ -1179,6 +1209,9 @@ if (results.repayBefore !== "-10" || results.repayAfter !== "-5") throw new Erro
 if (results.closeAction !== "Close Borrow") throw new Error(JSON.stringify(results));
 if (results.closeChip !== "closeBorrow") throw new Error(JSON.stringify(results));
 if (!results.closeFilter || results.closeGroup !== "repay") throw new Error(JSON.stringify(results));
+if (results.openCollateralPositionAction !== "Open Borrow") throw new Error(JSON.stringify(results));
+if (results.openCollateralPositionChip !== "openBorrow") throw new Error(JSON.stringify(results));
+if (!results.openCollateralPositionBorrowFilter || results.openCollateralPositionAddCollateralFilter) throw new Error(JSON.stringify(results));
 if (results.addCollateralAction !== "Add Collateral") throw new Error(JSON.stringify(results));
 if (results.addCollateralChip !== "addCollateral") throw new Error(JSON.stringify(results));
 if (!results.addCollateralFilter || results.addCollateralDepositFilter) throw new Error(JSON.stringify(results));
