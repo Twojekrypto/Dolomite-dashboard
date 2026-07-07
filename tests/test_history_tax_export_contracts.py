@@ -2462,6 +2462,67 @@ if (!complete.includes("3 evidence rows")) throw new Error(`evidence summary mis
         self.assertNotIn("Partial data warning: ${shortWarnings()}", self.source)
         self.assertNotIn("Gas/evidence is still finishing in the background", self.source)
 
+    def test_history_transaction_results_paginate_ten_rows_like_dolo_holders(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyPagerTest = { state, historyVisiblePageCount, historyVisibleRowsForPage, clampHistoryVisiblePage };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  setInterval() { return 1; },
+  clearInterval() {},
+  setTimeout() { return 1; },
+  clearTimeout() {},
+  fetch() { return Promise.reject(new Error("fetch disabled")); },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+  location: { search: "", pathname: "/history/", origin: "https://example.test" },
+  history: { replaceState() {} },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} }, getElementById() { return null; }, querySelectorAll() { return []; } },
+  window: {},
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(instrumented, sandbox);
+const api = sandbox.__historyPagerTest;
+const rows = Array.from({ length: 23 }, (_, i) => ({ key: `row-${i + 1}` }));
+api.state.visiblePage = 1;
+if (api.historyVisiblePageCount(rows) !== 3) throw new Error("23 rows should create 3 pages at 10 rows per page");
+let pageRows = api.historyVisibleRowsForPage(rows);
+if (pageRows.length !== 10 || pageRows[0].key !== "row-1" || pageRows[9].key !== "row-10") throw new Error(`page 1 slice wrong: ${pageRows.map(row => row.key).join(",")}`);
+api.state.visiblePage = 2;
+pageRows = api.historyVisibleRowsForPage(rows);
+if (pageRows.length !== 10 || pageRows[0].key !== "row-11" || pageRows[9].key !== "row-20") throw new Error(`page 2 slice wrong: ${pageRows.map(row => row.key).join(",")}`);
+api.state.visiblePage = 3;
+pageRows = api.historyVisibleRowsForPage(rows);
+if (pageRows.length !== 3 || pageRows[0].key !== "row-21" || pageRows[2].key !== "row-23") throw new Error(`page 3 slice wrong: ${pageRows.map(row => row.key).join(",")}`);
+if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page clamp should stop at last page");
+"""
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("const HISTORY_VISIBLE_PAGE_SIZE = 10", self.source)
+        self.assertIn("visiblePage", self.source)
+        self.assertIn("historyVisibleRowsForPage(rows)", self.source)
+        self.assertIn("renderHistoryPagination(rows)", self.source)
+        self.assertIn("goHistoryPage", self.source)
+        self.assertIn("history-spacer-row", self.source)
+        self.assertIn("history-pagination", self.html)
+        self.assertIn('id="history-pagination"', self.html)
+        self.assertIn("flow-pager-btn", self.source)
+        self.assertIn("flow-pager-info", self.source)
+        self.assertIn("data-history-page", self.source)
+        self.assertIn(".history-pagination", self.css)
+        self.assertIn(".flow-pager-btn", self.css)
+
     def test_history_filters_use_assets_style_dropdowns(self):
         for element_id in [
             "history-year-button",
