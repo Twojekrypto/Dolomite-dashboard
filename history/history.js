@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-classification-sources";
+  const HISTORY_VERSION = "history-20260707-classification-source-priority";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -2274,19 +2274,29 @@
 
   function classificationSourceForRow(row) {
     const events = Array.isArray(row?.events) ? row.events : [];
+    const borrowSource = events
+      .map(event => borrowClassificationSourceForEvent(event))
+      .find(Boolean);
+    if (borrowSource) return borrowSource;
+    if (rowHasSwapRouteWithoutBorrowLifecycle(row)) return "Swap route; no borrow lifecycle signal";
     const semanticSource = events
       .map(event => classificationSourceForEvent(row, event))
       .find(source => source && source !== "Dolomite subgraph");
     if (semanticSource) return semanticSource;
-    if (rowHasSwapRouteWithoutBorrowLifecycle(row)) return "Swap route; no borrow lifecycle signal";
     return events.length ? "Dolomite subgraph" : "";
   }
 
   function classificationSourceForEvent(row, event) {
-    if (event?.borrowSemanticConfidence) return classificationConfidenceLabel(event.borrowSemanticConfidence);
-    if (BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action)) return CLASSIFICATION_SOURCE_LABELS.borrow_position_lifecycle;
+    const borrowSource = borrowClassificationSourceForEvent(event);
+    if (borrowSource) return borrowSource;
     if (isSwapLikeEvent(event) && rowHasSwapRouteWithoutBorrowLifecycle(row)) return "Swap route; no borrow lifecycle signal";
     return event ? "Dolomite subgraph" : "";
+  }
+
+  function borrowClassificationSourceForEvent(event) {
+    if (event?.borrowSemanticConfidence) return classificationConfidenceLabel(event.borrowSemanticConfidence);
+    if (BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action)) return CLASSIFICATION_SOURCE_LABELS.borrow_position_lifecycle;
+    return "";
   }
 
   function classificationConfidenceLabel(confidence) {
