@@ -42,6 +42,9 @@ CHAIN_ID_NAMES = {
 
 HISTORY_MAX_SNAPSHOTS = 400
 
+# Botanix is being sunset (July 2026) — skip its oDOLO allocations.
+EXCLUDED_CHAINS = {"botanix"}
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -173,7 +176,7 @@ def build_odolo_programs(
     for chain_id_text, weights in (metadata.get("allChainWeights") or {}).items():
         chain_id = int(chain_id_text) if str(chain_id_text).isdigit() else 0
         chain = CHAIN_ID_NAMES.get(chain_id, str(chain_id))
-        if not isinstance(weights, dict):
+        if chain in EXCLUDED_CHAINS or not isinstance(weights, dict):
             continue
         for token_id, weekly_alloc_text in weights.items():
             weekly_alloc = float_or_zero(weekly_alloc_text)
