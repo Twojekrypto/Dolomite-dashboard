@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260706-flat-tables";
+  const HISTORY_VERSION = "history-20260707-chain-table-ux";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -3072,6 +3072,7 @@
     const rowClassName = [expanded ? "expanded" : "", index % 2 === 1 ? "row-even" : "row-odd"].filter(Boolean).join(" ");
     return `
       <tr class="${rowClassName}" data-row-key="${escapeAttr(row.key)}">
+        <td class="chain-td">${chainChip(row.chainKey)}</td>
         <td class="date-td">
           <div class="date-cell">
             <div class="date-top">
@@ -3083,7 +3084,6 @@
             <span class="date-sub">${escapeHtml(formatRelativeTime(row.timestamp))} · ${escapeHtml(formatClockTime(row.timestamp))}</span>
           </div>
         </td>
-        <td class="chain-td">${chainChip(row.chainKey)}</td>
         <td class="action-td"><div class="action-list">${actions.map(actionChip).join("")}</div></td>
         <td class="asset-td">
           <div class="asset-cell">
@@ -5226,7 +5226,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
 
   function chainChip(chainKey) {
     const chain = CHAINS[chainKey];
-    return `<span class="chain-chip" title="${escapeAttr(chain.name)}" aria-label="${escapeAttr(chain.name)}"><img src="${escapeAttr(chain.icon)}" alt=""><span class="chain-short">${escapeHtml(chain.short)}</span></span>`;
+    return `<span class="chain-chip" title="${escapeAttr(chain.name)}" aria-label="${escapeAttr(chain.name)}"><img src="${escapeAttr(chain.icon)}" alt=""><span class="chain-name">${escapeHtml(chain.name)}</span></span>`;
   }
 
   function actionChip(action) {

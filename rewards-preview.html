@@ -306,9 +306,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <table class="tbl" id="rwLiveTable" style="display:none">
         <thead>
           <tr>
-            <th data-sort="rank" style="width:56px">#</th>
-            <th data-sort="name">Program</th>
             <th data-sort="chain" style="width:150px">Chain</th>
+            <th data-sort="name">Program</th>
             <th data-sort="apr" class="num" style="width:110px">APR</th>
             <th data-sort="tvlUsd" class="num" style="width:140px">Eligible TVL</th>
             <th data-sort="dailyRewardsUsd" class="num sorted" style="width:150px">Daily Rewards</th>
@@ -508,7 +507,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     state.style.display = 'none';
     table.style.display = 'table';
     const maxEff = Math.max(...live.map(program => efficiency(program) || 0), 0.0001);
-    body.innerHTML = live.map((program, index) => {
+    body.innerHTML = live.map(program => {
       const eff = efficiency(program);
       const effBar = eff != null
         ? `<span class="eff-bar"><span style="width:${Math.max(3, Math.min(100, eff / maxEff * 100))}%"></span></span>`
@@ -518,9 +517,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         : fmtDate(program.campaignEnd);
       return `
         <tr>
-          <td><span class="rank">${index + 1}</span></td>
-          <td>${programCell(program)}</td>
           <td>${chainBadge(program.chain)}</td>
+          <td>${programCell(program)}</td>
           <td class="num"><span class="apr-main">${fmtApr(program.apr)}</span>${program.aprSource === 'estimated' ? '<span class="apr-est">EST</span>' : ''}</td>
           <td class="num">${fmtUsd(program.tvlUsd)}</td>
           <td class="num">${fmtUsd(program.dailyRewardsUsd)}</td>

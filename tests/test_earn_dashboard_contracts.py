@@ -782,7 +782,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertLess(history_head.index("Collateral seized"), history_head.index("Debt repaid"))
         self.assertIn("body.route-liquidation #positions-table tbody tr,\n        body.route-liquidation #liquidation-history-table tbody tr {\n            height: 86px !important;", source)
         self.assertIn("max-width: 132px !important;", source)
-        self.assertIn("const chainLabel = CHAIN_SHORT_LABELS[chain] || CHAIN_DISPLAY_NAMES[chain] || chain || '—';", source)
+        self.assertIn("const chainLabel = CHAIN_DISPLAY_NAMES[normalizeDisplayChainKey(chain)] || chain || '—';", source)
         self.assertIn("function setPositionRowExpanded(row, expanded)", source)
         self.assertIn("token-pill-extra-wrap", source)
         self.assertIn("renderTokenPills(p.collateralTokens, { limit: 3, expanded: isExpanded, collapsible: hasTokenOverflow })", source)

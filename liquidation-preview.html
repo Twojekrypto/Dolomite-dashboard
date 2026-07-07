@@ -2283,7 +2283,11 @@
             color: rgba(226,232,240,0.52);
         }
         .liquidation-history-container {
-            max-height: 520px;
+            --liquidation-history-visible-rows: 10;
+            --liquidation-history-row-height: 86px;
+            --liquidation-history-header-height: 44px;
+            height: calc(var(--liquidation-history-header-height) + (var(--liquidation-history-row-height) * var(--liquidation-history-visible-rows)));
+            max-height: calc(var(--liquidation-history-header-height) + (var(--liquidation-history-row-height) * var(--liquidation-history-visible-rows)));
             min-height: 260px;
         }
         .liquidation-history-table {
@@ -3277,37 +3281,27 @@
         .positions-table thead th.col-spacer,
         .positions-table tbody td.col-spacer { padding: 0; }
 
-        /* Chain badge — compact icon style */
+        /* Chain badge — same icon-and-name rhythm as Rewards Live Programs */
         .chain-badge {
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            padding: 5px 8px;
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.65px;
+            color: var(--fg-1);
+            font-size: 12.5px;
+            font-weight: 500;
+            line-height: 1.2;
             white-space: nowrap;
             cursor: default;
-            border: 1px solid rgba(255,255,255,.075);
-            background: rgba(255,255,255,.028);
-            color: var(--fg-2);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
         }
 
         .chain-badge .chain-icon {
-            width: 14px;
-            height: 14px;
+            width: 15px;
+            height: 15px;
             border-radius: 50%;
-            object-fit: cover;
+            object-fit: contain;
+            background: var(--bg-3);
             flex-shrink: 0;
         }
-
-        /* chain badges unified to neutral history-style chip */
-
-        .chain-badge.polygon_zkevm { background: rgba(130, 71, 229, 0.10); color: #c084fc; }
-        .chain-badge.polygon_zkevm .chain-dot { background: #a855f7; box-shadow: 0 0 6px rgba(168,85,247,0.4); }
 
         /* External link icon on address */
         .address-cell .ext-icon {
@@ -5365,15 +5359,33 @@
         }
         body.route-liquidation #positions-table .chain-badge,
         body.route-liquidation #liquidation-history-table .chain-badge {
-            width: max-content !important;
-            min-width: 58px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 7px !important;
+            color: var(--fg-1) !important;
+            font-size: 12.5px !important;
+            font-weight: 500 !important;
+            line-height: 1.2 !important;
+            white-space: nowrap !important;
             flex: 0 0 auto !important;
-            min-height: 24px !important;
-            padding: 5px 8px !important;
-            border-radius: 7px !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            text-transform: none !important;
+            letter-spacing: 0 !important;
             max-width: none !important;
             overflow: visible !important;
             text-overflow: clip !important;
+        }
+        body.route-liquidation #positions-table .chain-badge .chain-icon,
+        body.route-liquidation #liquidation-history-table .chain-badge .chain-icon {
+            width: 15px !important;
+            height: 15px !important;
+            object-fit: contain !important;
+            background: var(--bg-3) !important;
         }
         body.route-liquidation #liquidation-history-table tbody td:first-child {
             overflow: visible !important;
@@ -7752,9 +7764,12 @@
             border-bottom: 1px solid var(--line-1) !important;
         }
         body.route-liquidation .liquidation-history-container {
-            height: 520px !important;
-            min-height: 520px !important;
-            max-height: 520px !important;
+            --liquidation-history-visible-rows: 10;
+            --liquidation-history-row-height: 86px;
+            --liquidation-history-header-height: 44px;
+            height: calc(var(--liquidation-history-header-height) + (var(--liquidation-history-row-height) * var(--liquidation-history-visible-rows))) !important;
+            min-height: calc(var(--liquidation-history-header-height) + (var(--liquidation-history-row-height) * var(--liquidation-history-visible-rows))) !important;
+            max-height: calc(var(--liquidation-history-header-height) + (var(--liquidation-history-row-height) * var(--liquidation-history-visible-rows))) !important;
             overflow: auto !important;
             border-top: 1px solid var(--line-1) !important;
             border-bottom: 1px solid var(--line-1) !important;
@@ -12985,7 +13000,7 @@
                 const color = simHfColor(r.newHF);
                 const showNow = shocked && Math.abs(r.newHF - r.hf) > 0.005;
                 const chain = r.chain || '';
-                const chainLabel = CHAIN_SHORT_LABELS[chain] || CHAIN_DISPLAY_NAMES[chain] || chain || '—';
+                const chainLabel = CHAIN_DISPLAY_NAMES[normalizeDisplayChainKey(chain)] || chain || '—';
                 const chainIcon = CHAIN_ICONS[chain] || 'dolomite-logo.svg';
                 const hfNote = showNow ? `${simFmtHf(r.hf)} -> ${simFmtRiskHf(r.newHF)}` : '';
                 return `<tr class="${crossed ? 'crossed' : ''}">`
@@ -13460,7 +13475,7 @@
         }
         function getCompactChainLabel(chain, fallback = '') {
             const key = normalizeDisplayChainKey(chain);
-            return CHAIN_SHORT_LABELS[key] || CHAIN_SHORT_LABELS[String(chain || '').toLowerCase()] || fallback || CHAIN_DISPLAY_NAMES[key] || chain || '—';
+            return CHAIN_DISPLAY_NAMES[key] || CHAIN_DISPLAY_NAMES[String(chain || '').toLowerCase()] || fallback || chain || '—';
         }
 
         const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
@@ -14034,7 +14049,7 @@
                 const hfDecimals = ['good','strong','balanced'].includes(riskClass) ? 2 : 4;
                 const hfNumeric = p.healthFactor !== null ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals)) : '—';
                 const hfText = hfNumeric;
-                const chainLabel = CHAIN_SHORT_LABELS[p.chain] || p.chainLabel;
+                const chainLabel = CHAIN_DISPLAY_NAMES[normalizeDisplayChainKey(p.chain)] || p.chainLabel;
                 const chainIcon = CHAIN_ICONS[p.chain] || 'dolomite-logo.svg';
                 const acctLabel = (p.accountNumber && p.accountNumber !== '0') ? ` #${p.accountNumber.length > 6 ? p.accountNumber.slice(0,4) + '…' : p.accountNumber}` : '';
                 const debankChain = CHAIN_DEBANK_IDS[p.chain] || 'bera';

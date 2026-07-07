@@ -610,6 +610,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .tag.chain{text-transform:capitalize}
 .tag.chain .dot{width:6px;height:6px;border-radius:50%}
 .tag.chain img{width:12px;height:12px;border-radius:50%;object-fit:cover}
+.chain-badge{display:inline-flex;align-items:center;gap:7px;color:var(--fg-1);font-size:12.5px;font-weight:500;line-height:1.2;white-space:nowrap}
+.chain-badge img{width:15px;height:15px;border-radius:50%;object-fit:contain;background:var(--bg-3);flex-shrink:0}
 .tag.cat{color:var(--fg-3)}
 .tag.odolo{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .token-ca{
@@ -1259,7 +1261,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
       <table class="tbl" id="tbl">
         <thead>
           <tr>
-            <th data-sort="name" style="padding-left:32px">Asset</th>
+            <th data-sort="chain" style="padding-left:32px">Chain</th>
+            <th data-sort="name">Asset</th>
             <th data-sort="price" class="num">Price</th>
             <th data-sort="supply" class="num">Supply</th>
             <th data-sort="borrow" class="num">Borrow</th>
@@ -1761,6 +1764,10 @@ const isWrappedMarketName = (row)=>/^(GM|GLV):\s*/i.test(String(row.name || ""))
 // XSS guard: token symbols/names/yield labels originate from deployer-controlled
 // ERC-20 metadata (live API + snapshot) and are interpolated into innerHTML.
 const esc = (v)=>String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+function assetChainBadge(chainKey){
+  const chain = chainMeta(chainKey);
+  return `<span class="chain-badge"><img src="${chain.icon}" onerror="this.style.display='none'" alt="">${esc(chain.name)}</span>`;
+}
 const tokenNameHtml = (row)=>`<span class="tok-sym">${esc(row.sym)}</span>${isWrappedMarketName(row) ? "" : `<span class="tok-long">${esc(row.name)}</span>`}`;
 function shouldSkipMarket(row){
   const sym = row.token?.tokenSymbol || "";
@@ -2278,7 +2285,8 @@ function renderLoading(){
   if(!tb) return;
   tb.innerHTML = Array.from({length:10}, (_, i)=>`
     <tr class="loading-row" aria-hidden="true">
-      <td style="padding-left:32px">
+      <td style="padding-left:32px"><span class="skel skel-line meta" style="width:${i % 2 === 0 ? 104 : 88}px"></span></td>
+      <td>
         <div class="loading-asset">
           <span class="skel skel-avatar"></span>
           <span class="skel-stack">
@@ -2318,7 +2326,8 @@ function render(){
   const {key,dir} = state.sort;
   rows.sort((a,b)=>{
     let va,vb;
-    if(key==="name"){va=a.sym;vb=b.sym}
+    if(key==="chain"){va=chainMeta(a.chain).name;vb=chainMeta(b.chain).name}
+    else if(key==="name"){va=a.sym;vb=b.sym}
     else if(key==="price"){va=a.price;vb=b.price}
     else if(key==="supply"){va=a._supply;vb=b._supply}
     else if(key==="marketSupply"){va=assetMarketSupply(a);vb=assetMarketSupply(b)}
@@ -2378,7 +2387,8 @@ function render(){
     const toggleHTML = `<button class="asset-toggle" type="button" aria-label="${expanded ? "Hide asset details" : "Show asset details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button>`;
     const row = `
       <tr class="data ${expanded?"expanded":""}" data-key="${keyId}">
-        <td style="padding-left:32px">
+        <td style="padding-left:32px">${assetChainBadge(r.chain)}</td>
+        <td>
           <div class="asset-cell">
             <div class="tok-ico">
               <img class="${tokenIconClass(r.sym)}" src="${tokIcon(r.sym, r)}" onerror="this.style.display='none'" alt="">
@@ -2386,7 +2396,6 @@ function render(){
             <div class="tok-meta">
               <div class="tok-name">${tokenNameHtml(r)}</div>
               <div class="tok-tags">
-                <span class="tag chain"><img src="${chain.icon}" onerror="this.style.display='none'" alt="">${chain.name}</span>
                 ${caHTML}
               </div>
             </div>
@@ -2414,7 +2423,7 @@ function render(){
     const displaySpread = rateForMode(r.borrow) - rateForMode(r.lending);
     const exp = expanded ? `
       <tr class="exp-row" data-key="${keyId}">
-        <td colspan="5">
+        <td colspan="6">
           <div class="asset-detail-panel">
             <div class="asset-detail-head">
               <div>
