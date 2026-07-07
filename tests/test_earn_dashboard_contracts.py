@@ -766,8 +766,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_liquidation_tables_keep_address_and_expand_contracts(self):
         source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
         self.assertIn("body.route-liquidation #positions-table colgroup col:nth-child(2) { width: 19% !important; }", source)
-        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 14% !important; }", source)
-        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 19% !important; }", source)
+        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19% !important; }", source)
+        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 14% !important; }", source)
         self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 25% !important; }", source)
         self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 18.2% !important; }", source)
         self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 16% !important; }", source)
@@ -775,9 +775,9 @@ class EarnDashboardContractsTest(unittest.TestCase):
         end = source.index('<tbody id="liquidation-history-body"', start)
         history_head = source[start:end]
         self.assertIn("<col><col><col><col><col><col>", history_head)
-        self.assertLess(history_head.index("<th>Chain</th>"), history_head.index("<th>Date</th>"))
-        self.assertLess(history_head.index("<th>Date</th>"), history_head.index("<th>Liquidated wallet</th>"))
-        self.assertLess(history_head.index("<th>Liquidated wallet</th>"), history_head.index('class="col-spacer"'))
+        self.assertLess(history_head.index("<th>Chain</th>"), history_head.index("<th>Liquidated wallet</th>"))
+        self.assertLess(history_head.index("<th>Liquidated wallet</th>"), history_head.index("<th>Date</th>"))
+        self.assertLess(history_head.index("<th>Date</th>"), history_head.index('class="col-spacer"'))
         self.assertLess(history_head.index("<th>Liquidated wallet</th>"), history_head.index("Collateral seized"))
         self.assertLess(history_head.index("Collateral seized"), history_head.index("Debt repaid"))
         self.assertIn("body.route-liquidation #positions-table tbody tr,\n        body.route-liquidation #liquidation-history-table tbody tr {\n            height: 86px !important;", source)

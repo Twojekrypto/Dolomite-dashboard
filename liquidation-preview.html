@@ -2298,8 +2298,8 @@
             table-layout: fixed;
         }
         .liquidation-history-table colgroup col:nth-child(1) { width: 7.8%; }  /* Chain */
-        .liquidation-history-table colgroup col:nth-child(2) { width: 14%; }   /* Date */
-        .liquidation-history-table colgroup col:nth-child(3) { width: 19%; }   /* Liquidated wallet */
+        .liquidation-history-table colgroup col:nth-child(2) { width: 19%; }   /* Liquidated wallet */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 14%; }   /* Date */
         .liquidation-history-table colgroup col:nth-child(4) { width: 25%; }   /* Spacer — gap before money */
         .liquidation-history-table colgroup col:nth-child(5) { width: 18.2%; } /* Collateral seized */
         .liquidation-history-table colgroup col:nth-child(6) { width: 16%; }   /* Debt repaid */
@@ -2354,7 +2354,7 @@
         .liquidation-history-table tbody tr:last-child td {
             border-bottom: 0;
         }
-        .liquidation-history-table tbody td:nth-child(3) {
+        .liquidation-history-table tbody td:nth-child(2) {
             overflow: visible;
         }
         .liquidation-history-table tbody td:first-child {
@@ -5150,8 +5150,8 @@
         body.route-liquidation #positions-table colgroup col:nth-child(6) { width: 20% !important; }
         body.route-liquidation #positions-table colgroup col:nth-child(7) { width: 15.3% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 7.8% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 14% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 19% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 14% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 25% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 18.2% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 16% !important; }
@@ -10110,8 +10110,8 @@
                         <thead>
                             <tr>
                                 <th>Chain</th>
-                                <th>Date</th>
                                 <th>Liquidated wallet</th>
+                                <th>Date</th>
                                 <th class="col-spacer" aria-hidden="true"></th>
                                 <th style="text-align:left; overflow:visible">
                                     <span class="col-header-group">
@@ -14285,13 +14285,13 @@
                 const txHref = row.txHash ? `${getSupplyTxExplorer(chain)}${row.txHash}` : '';
                 return `<tr>
                     <td><span class="chain-badge ${supplyEscapeHtml(chain)}"><img class="chain-icon" src="${supplyEscapeHtml(chainIcon)}" alt="">${supplyEscapeHtml(chainLabel)}</span></td>
+                    <td>${renderLiquidationHistoryAddress(row.liquidatedAddress, chain)}</td>
                     <td>
                         <div class="supply-activity-time supply-activity-date-cell">
                             <div class="supply-activity-time-top"><strong>${supplyEscapeHtml(supplyFormatActivityDate(row.timestamp))}</strong>${txHref ? `<a class="liquidation-history-tx" href="${supplyEscapeHtml(txHref)}" target="_blank" rel="noopener" aria-label="Open transaction"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg></a>` : ''}</div>
                             <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                         </div>
                     </td>
-                    <td>${renderLiquidationHistoryAddress(row.liquidatedAddress, chain)}</td>
                     <td class="col-spacer" aria-hidden="true"></td>
                     <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD, 'collateral')}</td>
                     <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD, 'debt')}</td>

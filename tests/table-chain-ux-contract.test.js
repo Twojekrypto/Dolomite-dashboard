@@ -33,10 +33,19 @@ function assertBefore(source, first, second, message) {
   const liveTable = between(rewards, '<!-- LIVE PROGRAMS -->', '<!-- ENDED PROGRAMS -->');
   assert(!liveTable.includes('data-sort="rank"'), 'Live Programs should not render the # ranking column');
   assertBefore(liveTable, '<th data-sort="chain"', '<th data-sort="name"', 'Live Programs should put Chain before Program');
+  assert(liveTable.includes('id="rwRateSwitch"'), 'Live Programs should expose an APR/APY rate switch');
+  assert(liveTable.includes('class="pill-switch"'), 'Live Programs rate switch should reuse the Dolomite Assets pill UX');
+  assert(liveTable.includes('data-rate-mode="APR"'), 'Live Programs rate switch should include APR mode');
+  assert(liveTable.includes('data-rate-mode="APY"'), 'Live Programs rate switch should include APY mode');
+  assert(liveTable.includes('<th data-sort="apr" class="num" style="width:110px">Supply</th>'), 'Live Programs should label the APR/APY column as Supply');
+  assert(!liveTable.includes('<th data-sort="apr" class="num" style="width:110px">APR</th>'), 'Live Programs should not label the Supply column as APR');
+  assert(!liveTable.includes('estimated (EST)'), 'Live Programs copy should not describe oDOLO rewards with an EST badge');
 
   const renderLive = between(rewards, 'function renderLive()', 'function renderPast()');
   assert(!renderLive.includes('<span class="rank">${index + 1}</span>'), 'Live Programs rows should not render row numbers');
   assertBefore(renderLive, '<td>${chainBadge(program.chain)}</td>', '<td>${programCell(program)}</td>', 'Live Programs row should put Chain before Program');
+  assert(renderLive.includes('fmtSupplyRate(program.apr)'), 'Live Programs rows should format the Supply column through the active APR/APY mode');
+  assert(!renderLive.includes('apr-est'), 'Live Programs rows should not render EST badges next to oDOLO rewards');
 }
 
 {
@@ -67,4 +76,14 @@ function assertBefore(source, first, second, message) {
   assert(liquidation.includes('font-size: 12.5px !important;'), 'Liquidation chain badges should use Rewards-like text sizing');
   assert(liquidation.includes('font-weight: 500 !important;'), 'Liquidation chain badges should use Rewards-like font weight');
   assert(liquidation.includes('color: var(--fg-1) !important;'), 'Liquidation chain badges should use Rewards-like foreground color');
+  assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19% !important; }'), 'Liquidation History should size the Liquidated wallet column before Date');
+  assert(liquidation.includes('body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 14% !important; }'), 'Liquidation History should size the Date column after Liquidated wallet');
+  const walletOverflowRule = between(liquidation, '.liquidation-history-table tbody td:nth-child(2)', '.liquidation-history-table tbody td:first-child');
+  assert(walletOverflowRule.includes('overflow: visible;'), 'Liquidation History address tools should remain visible in the second column');
+
+  const historyHead = between(liquidation, '<table class="liquidation-history-table"', '<tbody id="liquidation-history-body"');
+  assertBefore(historyHead, '<th>Liquidated wallet</th>', '<th>Date</th>', 'Liquidation History should put Liquidated wallet before Date');
+
+  const historyRows = between(liquidation, 'body.innerHTML = pageRows.map(row => {', 'if (pageRows.length < LIQUIDATION_HISTORY_PAGE_SIZE)');
+  assertBefore(historyRows, 'renderLiquidationHistoryAddress(row.liquidatedAddress, chain)', 'supplyFormatActivityDate(row.timestamp)', 'Liquidation History rows should put wallet cells before date cells');
 }
