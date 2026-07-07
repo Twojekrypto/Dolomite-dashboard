@@ -19,6 +19,7 @@ import json
 import sys
 import time
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib import request
@@ -144,6 +145,22 @@ def int_or_none(value: Any) -> Optional[int]:
     return parsed if parsed > 0 else None
 
 
+def token_decimals(value: Any) -> int:
+    try:
+        parsed = int(str(value))
+    except (TypeError, ValueError):
+        return 18
+    return parsed if parsed >= 0 else 18
+
+
+def decimal_or_none(value: Any) -> Optional[Decimal]:
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+    return parsed if parsed.is_finite() else None
+
+
 def campaign_bounds_from_campaigns(campaigns: List[Dict[str, Any]]) -> Tuple[Optional[int], Optional[int]]:
     starts = [int_or_none(campaign.get("startTimestamp")) for campaign in campaigns or []]
     ends = [int_or_none(campaign.get("endTimestamp")) for campaign in campaigns or []]
@@ -152,23 +169,46 @@ def campaign_bounds_from_campaigns(campaigns: List[Dict[str, Any]]) -> Tuple[Opt
     return (min(starts) if starts else None, max(ends) if ends else None)
 
 
+def campaign_reward_totals_from_campaigns(campaigns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    totals: Dict[str, Decimal] = {}
+    for campaign in campaigns or []:
+        token = campaign.get("rewardToken") or {}
+        symbol = str(token.get("symbol") or "").strip()
+        if not symbol:
+            continue
+        amount_raw = decimal_or_none(campaign.get("amount"))
+        if amount_raw is None or amount_raw <= 0:
+            continue
+        amount = amount_raw / (Decimal(10) ** token_decimals(token.get("decimals")))
+        totals[symbol] = totals.get(symbol, Decimal(0)) + amount
+    return [
+        {"symbol": symbol, "amount": float(amount)}
+        for symbol, amount in totals.items()
+        if amount > 0
+    ]
+
+
 def enrich_merkl_campaign_windows(programs: List[Dict[str, Any]], errors: List[str]) -> None:
     for program in programs:
         if program.get("provider") != "Merkl" or not program.get("programId"):
             continue
-        if program.get("campaignStart") and program.get("campaignEnd"):
+        if program.get("campaignStart") and program.get("campaignEnd") and program.get("rewardTokenTotals"):
             continue
         try:
             detail = get_json(MERKL_OPPORTUNITY_CAMPAIGNS_URL.format(program_id=program["programId"]))
         except RuntimeError as exc:
             errors.append(f"merkl-campaigns:{program.get('programId')}: {exc}"[:500])
             continue
-        campaigns = (detail or {}).get("campaigns") if isinstance(detail, dict) else []
+        campaigns = (detail or {}).get("campaigns") if isinstance(detail, dict) else detail if isinstance(detail, list) else []
         start, end = campaign_bounds_from_campaigns(campaigns or [])
         if start:
             program["campaignStart"] = start
         if end:
             program["campaignEnd"] = end
+        reward_totals = campaign_reward_totals_from_campaigns(campaigns or [])
+        if reward_totals:
+            program["rewardTokenTotals"] = reward_totals
+            program["rewardTokens"] = [item["symbol"] for item in reward_totals]
 
 
 def program_supply_token_id(program: Dict[str, Any]) -> Optional[str]:

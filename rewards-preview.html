@@ -357,7 +357,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <th>Program</th>
             <th class="num" style="width:150px">Start Supply</th>
             <th class="num" style="width:150px">End Supply</th>
-            <th style="width:150px;padding-right:32px">Ended</th>
+            <th class="num" style="width:150px">Rewards</th>
+            <th style="width:130px;padding-right:32px">Ended</th>
           </tr>
         </thead>
         <tbody id="rwPastBody"></tbody>
@@ -514,6 +515,19 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     `;
   }
 
+  function endedRewardsCell(program) {
+    const totals = (program.rewardTokenTotals || [])
+      .filter(item => item && item.symbol && Number.isFinite(Number(item.amount)) && Number(item.amount) > 0);
+    if (!totals.length) return '<div class="supply-cell"><span class="supply-main">—</span></div>';
+    const lines = totals.map(item => `${fmtTokenAmount(item.amount)} ${item.symbol}`);
+    return `
+      <div class="supply-cell">
+        <span class="supply-main">${esc(lines[0])}</span>
+        ${lines.length > 1 ? `<span class="supply-date">${esc(lines.slice(1).join(' + '))}</span>` : ''}
+      </div>
+    `;
+  }
+
   function sortValue(program, field) {
     if (field === 'rank') return -(Number(program.__rank) || 0);
     if (field === 'efficiency') {
@@ -627,6 +641,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <td>${programCell(program)}</td>
         <td class="num">${supplyCell(program, 'start')}</td>
         <td class="num">${supplyCell(program, 'end')}</td>
+        <td class="num">${endedRewardsCell(program)}</td>
         <td>${fmtDate(program.campaignEnd)}</td>
       </tr>
     `).join('');
