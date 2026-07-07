@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-receipt-borrow-lifecycle";
+  const HISTORY_VERSION = "history-20260707-zap-route-lifecycle-guard";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -2201,6 +2201,7 @@
   }
 
   function annotateBorrowEventsForRow(row, rowDeltas, balances, confidence, observedKeys = null) {
+    if (rowHasSwapRouteWithoutBorrowLifecycle(row)) return;
     (row.events || []).forEach(event => {
       const eventDeltas = borrowClassifiableEventDeltas(event);
       if (!eventDeltas.length) return;
@@ -2236,6 +2237,13 @@
       event.borrowBalanceBefore = scaledBigIntToDecimal(match.before);
       event.borrowBalanceAfter = scaledBigIntToDecimal(match.after);
     });
+  }
+
+  function rowHasSwapRouteWithoutBorrowLifecycle(row) {
+    const events = Array.isArray(row?.events) ? row.events : [];
+    const hasSwapRoute = events.some(event => event?.action === "zap" || event?.action === "trade" || event?.taxCategory === "swap");
+    if (!hasSwapRoute) return false;
+    return !events.some(event => BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action));
   }
 
   function balanceAccountPrefix(key) {
@@ -2689,6 +2697,7 @@
     } else if (input.startsWith(CLOSE_BORROW_POSITION_SELECTOR)) {
       inputSemantic = { action: "closeBorrow", account: calldataUintToDecimal(input, 0), source: "calldata" };
     }
+    if (!inputSemantic) return [];
     const semantics = [];
     (receipt?.logs || []).forEach(log => {
       const topic0 = String(log?.topics?.[0] || "").toLowerCase();

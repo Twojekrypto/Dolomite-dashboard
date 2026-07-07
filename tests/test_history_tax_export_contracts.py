@@ -1509,6 +1509,130 @@ if (mixedLifecycle.action !== "Open Borrow") throw new Error(JSON.stringify(mixe
 if (mixedLifecycle.chips !== "openBorrow") throw new Error(JSON.stringify(mixedLifecycle));
 if (!mixedLifecycle.borrowFilter || mixedLifecycle.repayFilter) throw new Error(JSON.stringify(mixedLifecycle));
 if (mixedLifecycle.semantic.join("|") !== "openBorrow") throw new Error(JSON.stringify(mixedLifecycle));
+const internalZapRouteRow = {
+  chainKey: "ethereum",
+  txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+  timestamp: 1776672875,
+  blockNumber: "24919843",
+  actions: new Set(["zap"]),
+  semanticActions: new Set(),
+  events: [
+    {
+      chainKey: "ethereum",
+      txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+      timestamp: 1776672875,
+      blockNumber: "24919843",
+      action: "zap",
+      role: "user",
+      account: "0",
+      legs: [
+        { direction: "out", symbol: "USDC", tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", amount: "29331.40307", rawAmount: "29331.40307" },
+        { direction: "in", symbol: "USD1", tokenAddress: "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d", amount: "29324.716678195844195284", rawAmount: "29324.716678195844195284" },
+      ],
+    },
+    {
+      chainKey: "ethereum",
+      txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+      timestamp: 1776672875,
+      blockNumber: "24919843",
+      action: "transfer",
+      role: "out",
+      account: "0",
+      fromAccount: "0",
+      toAccount: routeAccount,
+      isSelfTransfer: true,
+      legs: [{ direction: "out", symbol: "USDC", tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", amount: "29331.40307", rawAmount: "29331.40307" }],
+    },
+  ],
+};
+api.applyBorrowReceiptSemanticsForRow(internalZapRouteRow, { logs: [closeBorrowLog()] }, {
+  from: wallet,
+  to: "0xd6c1b15716742689c5b33c19c78d9d2a1494bf33",
+  input: "0x5f974be9" + "0".repeat(128),
+}, wallet);
+const internalZapRoute = {
+  action: api.cleanTransactionAction(internalZapRouteRow),
+  chips: api.displayActionsForRow(internalZapRouteRow).join("|"),
+  borrowFilter: api.rowMatchesActionFilter(internalZapRouteRow, "borrow"),
+  repayFilter: api.rowMatchesActionFilter(internalZapRouteRow, "repay"),
+  swapFilter: api.rowMatchesActionFilter(internalZapRouteRow, "swap"),
+  semantic: Array.from(internalZapRouteRow.semanticActions || []),
+};
+if (internalZapRoute.action !== "Zap") throw new Error(JSON.stringify(internalZapRoute));
+if (internalZapRoute.chips !== "zap") throw new Error(JSON.stringify(internalZapRoute));
+if (!internalZapRoute.swapFilter || internalZapRoute.borrowFilter || internalZapRoute.repayFilter) throw new Error(JSON.stringify(internalZapRoute));
+if (internalZapRoute.semantic.length !== 0) throw new Error(JSON.stringify(internalZapRoute));
+const makeInternalSwapRouteEvents = () => [
+  {
+    chainKey: "ethereum",
+    txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+    timestamp: 1776672875,
+    blockNumber: "24919843",
+    action: "transfer",
+    role: "out",
+    account: "0",
+    fromAccount: "0",
+    toAccount: routeAccount,
+    isSelfTransfer: true,
+    legs: [{ direction: "out", symbol: "USDC", tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", amount: "29331.40307", rawAmount: "29331.40307" }],
+  },
+  {
+    chainKey: "ethereum",
+    txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+    timestamp: 1776672875,
+    blockNumber: "24919843",
+    action: "trade",
+    role: "taker",
+    account: routeAccount,
+    legs: [
+      { direction: "out", symbol: "USDC", tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", amount: "29331.40307", rawAmount: "29331.40307" },
+      { direction: "in", symbol: "USD1", tokenAddress: "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d", amount: "29324.716678195844195284", rawAmount: "29324.716678195844195284" },
+    ],
+  },
+  {
+    chainKey: "ethereum",
+    txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+    timestamp: 1776672875,
+    blockNumber: "24919843",
+    action: "transfer",
+    role: "out",
+    account: routeAccount,
+    fromAccount: routeAccount,
+    toAccount: "0",
+    isSelfTransfer: true,
+    legs: [{ direction: "out", symbol: "USD1", tokenAddress: "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d", amount: "29324.716678195844195284", rawAmount: "29324.716678195844195284" }],
+  },
+  {
+    chainKey: "ethereum",
+    txHash: "0xedb1d9bb02182e5238bb40ee8e8aadc6f1f51c91b3700c801081b8972d5ff9e7",
+    timestamp: 1776672875,
+    blockNumber: "24919843",
+    action: "zap",
+    role: "user",
+    account: "0",
+    legs: [
+      { direction: "out", symbol: "USDC", tokenAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", amount: "29331.40307", rawAmount: "29331.40307" },
+      { direction: "in", symbol: "USD1", tokenAddress: "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d", amount: "29324.716678195844195284", rawAmount: "29324.716678195844195284" },
+    ],
+  },
+];
+const groupedInternalSwapRoute = api.groupEvents(makeInternalSwapRouteEvents(), {
+  currentBalanceReplay: true,
+  currentBalances: new Map([["ethereum:0:0xexistingdebt", -1_000_000_000_000_000_000n]]),
+})[0];
+const groupedInternalSwap = {
+  action: api.cleanTransactionAction(groupedInternalSwapRoute),
+  chips: api.displayActionsForRow(groupedInternalSwapRoute).join("|"),
+  borrowFilter: api.rowMatchesActionFilter(groupedInternalSwapRoute, "borrow"),
+  repayFilter: api.rowMatchesActionFilter(groupedInternalSwapRoute, "repay"),
+  addCollateralFilter: api.rowMatchesActionFilter(groupedInternalSwapRoute, "addCollateral"),
+  swapFilter: api.rowMatchesActionFilter(groupedInternalSwapRoute, "swap"),
+  semantic: Array.from(groupedInternalSwapRoute.semanticActions || []),
+};
+if (groupedInternalSwap.action !== "Zap") throw new Error(JSON.stringify(groupedInternalSwap));
+if (groupedInternalSwap.chips !== "zap") throw new Error(JSON.stringify(groupedInternalSwap));
+if (!groupedInternalSwap.swapFilter || groupedInternalSwap.borrowFilter || groupedInternalSwap.repayFilter || groupedInternalSwap.addCollateralFilter) throw new Error(JSON.stringify(groupedInternalSwap));
+if (groupedInternalSwap.semantic.length !== 0) throw new Error(JSON.stringify(groupedInternalSwap));
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
