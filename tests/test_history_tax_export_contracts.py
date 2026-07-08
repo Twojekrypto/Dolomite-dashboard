@@ -474,6 +474,68 @@ if (rows[0][sourceEntityIdx] !== "odoloRewardClaimEvents") throw new Error(JSON.
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
+    def test_history_table_uses_compact_display_amounts_without_touching_report_precision(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyCompactDisplayTest = { eventFromOdoloClaim, eventFromVaporization, groupEvents, compactTransactionAssetPreview, cleanTransactionAssetFlow, formatUiTokenAmount, formatHistoryTableUsd: typeof formatHistoryTableUsd === \"function\" ? formatHistoryTableUsd : null, vaporizationFieldsForChain: typeof vaporizationFieldsForChain === \"function\" ? vaporizationFieldsForChain : null, state };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyCompactDisplayTest;
+if (!api.formatHistoryTableUsd) throw new Error("formatHistoryTableUsd missing");
+if (!api.vaporizationFieldsForChain) throw new Error("vaporizationFieldsForChain missing");
+const claimEvent = api.eventFromOdoloClaim("berachain", {
+  txHash: "0xclaim",
+  blockNumber: 21838308,
+  timestamp: 1780691332,
+  logIndex: 1,
+  epoch: 56,
+  amount: "21.18023313",
+  amountWei: "21180233130000000000",
+});
+const claimRow = api.groupEvents([claimEvent])[0];
+const settlementEvent = api.eventFromVaporization("berachain", {
+  serialId: "settle-1",
+  transaction: { id: "0xsettle", timestamp: "1780691332", blockNumber: "21838309" },
+  solidMarginAccount: { accountNumber: "0" },
+  vaporMarginAccount: { accountNumber: "0" },
+  heldToken: { symbol: "USDC" },
+  borrowedToken: { symbol: "HONEY" },
+  borrowedTokenAmountDeltaWei: "0",
+  vaporBorrowedTokenAmountDeltaPar: "6000.000000000000000000",
+  amountUSDVaporized: "6000",
+}, "vapor");
+const settlementRow = api.groupEvents([settlementEvent])[0];
+const results = {
+  tableUsdLarge: api.formatHistoryTableUsd(1234.567),
+  tableUsdSmall: api.formatHistoryTableUsd(0.02),
+  claimPreview: api.compactTransactionAssetPreview(claimRow),
+  claimReportFlow: api.cleanTransactionAssetFlow(claimRow),
+  settlementPreview: api.compactTransactionAssetPreview(settlementRow),
+  wbtcAmount: api.formatUiTokenAmount("0.123456789", "WBTC"),
+};
+if (results.tableUsdLarge !== "$1,234.6") throw new Error(JSON.stringify(results));
+if (results.tableUsdSmall !== "<$0.1") throw new Error(JSON.stringify(results));
+if (results.claimPreview !== "Claim 21.18 oDOLO") throw new Error(JSON.stringify(results));
+if (results.claimReportFlow !== "Claim oDOLO: Received 21.18023313 oDOLO") throw new Error(JSON.stringify(results));
+if (results.settlementPreview !== "Debt Settlement: Sent 6000 HONEY") throw new Error(JSON.stringify(results));
+if (results.wbtcAmount !== "0.12346") throw new Error(JSON.stringify(results));
+if (!api.vaporizationFieldsForChain("berachain").includes("vaporBorrowedTokenAmountDeltaPar")) throw new Error(api.vaporizationFieldsForChain("berachain"));
+if (api.vaporizationFieldsForChain("polygonzkevm").includes("vaporBorrowedTokenAmountDeltaPar")) throw new Error(api.vaporizationFieldsForChain("polygonzkevm"));
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
     def test_odolo_claim_generator_discovers_all_reward_distributors(self):
         self.assertIn("from generate_reward_claim_events import main", self.claim_generator)
         self.assertIn("CHAIN_CONFIGS", self.reward_claim_generator)
