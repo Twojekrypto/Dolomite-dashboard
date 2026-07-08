@@ -480,7 +480,7 @@ const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync("history/history.js", "utf8");
 const marker = "\n  if (document.readyState === \"loading\") {";
-const instrumented = source.replace(marker, "\n  globalThis.__historyCompactDisplayTest = { eventFromOdoloClaim, eventFromVaporization, groupEvents, compactTransactionAssetPreview, cleanTransactionAssetFlow, formatUiTokenAmount, formatHistoryTableUsd: typeof formatHistoryTableUsd === \"function\" ? formatHistoryTableUsd : null, vaporizationFieldsForChain: typeof vaporizationFieldsForChain === \"function\" ? vaporizationFieldsForChain : null, state };" + marker);
+const instrumented = source.replace(marker, "\n  globalThis.__historyCompactDisplayTest = { eventFromOdoloClaim, eventFromVaporization, eventFromWithdrawal, eventFromLiquidation, groupEvents, compactTransactionAssetPreview, cleanTransactionAssetFlow, formatUiTokenAmount, formatHistoryTableUsd: typeof formatHistoryTableUsd === \"function\" ? formatHistoryTableUsd : null, vaporizationFieldsForChain: typeof vaporizationFieldsForChain === \"function\" ? vaporizationFieldsForChain : null, state };" + marker);
 const sandbox = {
   console,
   URL,
@@ -517,12 +517,38 @@ const settlementEvent = api.eventFromVaporization("berachain", {
   amountUSDVaporized: "6000",
 }, "vapor");
 const settlementRow = api.groupEvents([settlementEvent])[0];
+const withdrawEvent = api.eventFromWithdrawal("berachain", {
+  serialId: "withdraw-1",
+  transaction: { id: "0xwithdraw", timestamp: "1780691332", blockNumber: "21838310" },
+  token: { symbol: "USD1" },
+  amountDeltaWei: "29372.50247406",
+  amountUSDDeltaWei: "29372.50247406",
+  marginAccount: { accountNumber: "0" },
+});
+const withdrawRow = api.groupEvents([withdrawEvent])[0];
+const liquidationEvent = api.eventFromLiquidation("berachain", {
+  serialId: "liquidation-1",
+  transaction: { id: "0xliquidation", timestamp: "1780691332", blockNumber: "21838311" },
+  heldToken: { symbol: "iBERA" },
+  borrowedToken: { symbol: "WBTC" },
+  heldTokenAmountDeltaWei: "23594.40449358",
+  borrowedTokenAmountDeltaWei: "0.06641936",
+  heldTokenAmountUSD: "23594",
+  borrowedTokenAmountUSD: "8000",
+  liquidMarginAccount: { accountNumber: "0" },
+  solidMarginAccount: { accountNumber: "0" },
+}, "liquid");
+const liquidationRow = api.groupEvents([liquidationEvent])[0];
 const results = {
   tableUsdLarge: api.formatHistoryTableUsd(1234.567),
   tableUsdSmall: api.formatHistoryTableUsd(0.02),
   claimPreview: api.compactTransactionAssetPreview(claimRow),
   claimReportFlow: api.cleanTransactionAssetFlow(claimRow),
   settlementPreview: api.compactTransactionAssetPreview(settlementRow),
+  withdrawPreview: api.compactTransactionAssetPreview(withdrawRow),
+  withdrawReportFlow: api.cleanTransactionAssetFlow(withdrawRow),
+  liquidationPreview: api.compactTransactionAssetPreview(liquidationRow),
+  liquidationReportFlow: api.cleanTransactionAssetFlow(liquidationRow),
   wbtcAmount: api.formatUiTokenAmount("0.123456789", "WBTC"),
 };
 if (results.tableUsdLarge !== "$1,234.6") throw new Error(JSON.stringify(results));
@@ -530,6 +556,10 @@ if (results.tableUsdSmall !== "<$0.1") throw new Error(JSON.stringify(results));
 if (results.claimPreview !== "Claim 21.18 oDOLO") throw new Error(JSON.stringify(results));
 if (results.claimReportFlow !== "Claim oDOLO: Received 21.18023313 oDOLO") throw new Error(JSON.stringify(results));
 if (results.settlementPreview !== "Debt Settlement: Sent 6000 HONEY") throw new Error(JSON.stringify(results));
+if (results.withdrawPreview !== "29372.50 USD1") throw new Error(JSON.stringify(results));
+if (results.withdrawReportFlow !== "29372.50247406 USD1") throw new Error(JSON.stringify(results));
+if (results.liquidationPreview !== "Liquidation: 23594.4 iBERA -> 0.06642 WBTC") throw new Error(JSON.stringify(results));
+if (results.liquidationReportFlow !== "Liquidation: 23594.40449358 iBERA -> 0.06641936 WBTC") throw new Error(JSON.stringify(results));
 if (results.wbtcAmount !== "0.12346") throw new Error(JSON.stringify(results));
 if (!api.vaporizationFieldsForChain("berachain").includes("vaporBorrowedTokenAmountDeltaPar")) throw new Error(api.vaporizationFieldsForChain("berachain"));
 if (api.vaporizationFieldsForChain("polygonzkevm").includes("vaporBorrowedTokenAmountDeltaPar")) throw new Error(api.vaporizationFieldsForChain("polygonzkevm"));
