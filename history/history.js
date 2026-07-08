@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-collateral-asset-cleanup";
+  const HISTORY_VERSION = "history-20260708-compact-history-amounts";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -255,6 +255,7 @@
   const TX_FIELDS = "transaction { id timestamp blockNumber }";
   const TOKEN_FIELDS = "token { id symbol decimals marketId }";
   const PAIR_TOKEN_FIELDS = "id symbol decimals marketId";
+  const VAPORIZATION_PAR_FALLBACK_UNSUPPORTED_CHAINS = new Set(["polygonzkevm"]);
 
   function init() {
     cacheElements();
@@ -1411,13 +1412,13 @@
       {
         entity: "vaporizations",
         where: `vaporEffectiveUser: "${user}", ${timeFilter}`,
-        fields: `serialId ${TX_FIELDS} vaporEffectiveUser { id } solidEffectiveUser { id } heldToken { ${PAIR_TOKEN_FIELDS} } borrowedToken { ${PAIR_TOKEN_FIELDS} } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei amountUSDVaporized solidMarginAccount { accountNumber } vaporMarginAccount { accountNumber }`,
+        fields: vaporizationFieldsForChain(chainKey),
         map: row => eventFromVaporization(chainKey, row, "vapor"),
       },
       {
         entity: "vaporizations",
         where: `solidEffectiveUser: "${user}", vaporEffectiveUser_not: "${user}", ${timeFilter}`,
-        fields: `serialId ${TX_FIELDS} vaporEffectiveUser { id } solidEffectiveUser { id } heldToken { ${PAIR_TOKEN_FIELDS} } borrowedToken { ${PAIR_TOKEN_FIELDS} } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei amountUSDVaporized solidMarginAccount { accountNumber } vaporMarginAccount { accountNumber }`,
+        fields: vaporizationFieldsForChain(chainKey),
         map: row => eventFromVaporization(chainKey, row, "solid"),
       },
       {
@@ -1562,6 +1563,13 @@
       .filter(event => event.txHash);
 
     return { events, warnings };
+  }
+
+  function vaporizationFieldsForChain(chainKey) {
+    const parFallbackFields = VAPORIZATION_PAR_FALLBACK_UNSUPPORTED_CHAINS.has(chainKey)
+      ? ""
+      : " vaporBorrowedTokenAmountDeltaPar solidBorrowedTokenAmountDeltaPar";
+    return `serialId ${TX_FIELDS} vaporEffectiveUser { id } solidEffectiveUser { id } heldToken { ${PAIR_TOKEN_FIELDS} } borrowedToken { ${PAIR_TOKEN_FIELDS} } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei${parFallbackFields} amountUSDVaporized solidMarginAccount { accountNumber } vaporMarginAccount { accountNumber }`;
   }
 
   async function loadRewardClaimPayload(chainKey) {
@@ -1993,14 +2001,19 @@
   function eventFromVaporization(chainKey, row, side) {
     const held = row.heldToken || {};
     const borrowed = row.borrowedToken || {};
+    const borrowedAmount = firstPositiveAmount(
+      row.borrowedTokenAmountDeltaWei,
+      row.vaporBorrowedTokenAmountDeltaPar,
+      row.solidBorrowedTokenAmountDeltaPar,
+    );
     const usd = decimalToNumber(row.amountUSDVaporized);
     return {
       ...eventBase(chainKey, row, "vaporization", side),
       ...taxFields("vaporization", "needs_review", [
-        assetLeg(side === "vapor" ? "out" : "in", borrowed, row.borrowedTokenAmountDeltaWei, usd),
+        assetLeg(side === "vapor" ? "out" : "in", borrowed, borrowedAmount, usd),
       ], "Debt settlement event; source row is evidence of Dolomite debt-clearing mechanics, not a final tax outcome.", "vaporization_debt_absorption"),
       account: accountNumber(row.solidMarginAccount),
-      label: `Debt settlement: ${cleanAmount(row.borrowedTokenAmountDeltaWei)} ${borrowed.symbol || "Borrowed"}`,
+      label: `Debt settlement: ${cleanAmount(borrowedAmount)} ${borrowed.symbol || "Borrowed"}`,
       asset: `${held.symbol || "Held"} / ${borrowed.symbol || "Borrowed"}`,
       usd,
     };
@@ -3827,7 +3840,7 @@
             <span class="asset-line${assetFlowClass ? ` ${escapeAttr(assetFlowClass)}` : ""}">${escapeHtml(eventPreview || "-")}</span>
           </div>
         </td>
-        <td class="num volume-td">${formatUsd(row.usdVolume)}</td>
+        <td class="num volume-td">${formatHistoryTableUsd(row.usdVolume)}</td>
         <td class="num gas-td">${gasHtml(row)}</td>
         <td class="details-cell">${detailToggle}</td>
       </tr>`;
@@ -5302,6 +5315,12 @@
     if (isSwapLikeEvent(primary)) {
       return cleanSwapOutcomeFlow(primary, "table") || cleanTransactionAssetFlow(row);
     }
+    if (primary?.action === "odoloClaim" || primary?.action === "rewardClaim") {
+      return compactClaimTableFlow(primary) || cleanTransactionAssetFlow(row);
+    }
+    if (primary?.action === "vaporization") {
+      return cleanActionAssetFlow(primary, "table") || cleanTransactionAssetFlow(row);
+    }
     const semanticEvent = (row?.events || [])
       .find(event => event?.borrowSemanticConfidence === "borrow_position_lifecycle" && !BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action));
     if (semanticEvent) {
@@ -5323,6 +5342,30 @@
     if (event.role === "in") return `+${amount}`;
     if (event.role === "out") return `-${amount}`;
     return amount;
+  }
+
+  function compactClaimTableFlow(event) {
+    const amount = compactClaimLegGroup(event.legs, "in");
+    if (!amount) return "";
+    return `Claim ${amount}`;
+  }
+
+  function compactClaimLegGroup(legs, direction) {
+    return Array.from(new Set((legs || [])
+      .filter(leg => leg?.direction === direction)
+      .map(compactClaimLegAmountSymbol)
+      .filter(Boolean))).join(" + ");
+  }
+
+  function compactClaimLegAmountSymbol(leg) {
+    const amount = cleanAmount(String(leg?.amount ?? "").replace(/^[+-]/, ""));
+    const symbol = String(leg?.symbol || "").trim();
+    if (!symbol) return "";
+    const number = Number(amount.replace(/,/g, ""));
+    if (!Number.isFinite(number) || number === 0) return amount && amount !== "0" ? `${amount} ${symbol}` : symbol;
+    const maxDecimals = uiClaimTokenDecimals(String(symbol).toUpperCase());
+    const displayAmount = roundDisplayNumber(number, 0, maxDecimals);
+    return displayAmount && displayAmount !== "0" ? `${displayAmount} ${symbol}` : `${amount} ${symbol}`;
   }
 
   function cleanTransactionAction(row) {
@@ -6327,7 +6370,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     const btcSymbols = new Set(["BTC", "WBTC", "TBTC", "CBBTC", "LBTC"]);
     const gasSymbols = new Set(["ETH", "WETH", "BERA", "WBERA", "MNT", "WMNT", "OKB", "BTC"]);
     const doloSymbols = new Set(["DOLO", "ODOLO", "ODOLO/DOLO"]);
-    if (btcSymbols.has(symbol)) return abs >= 1 ? 6 : 8;
+    if (btcSymbols.has(symbol)) return 5;
     if (stableSymbols.has(symbol)) return abs >= 1 ? 2 : 6;
     if (doloSymbols.has(symbol)) return abs >= 1000 ? 2 : 4;
     if (gasSymbols.has(symbol)) return abs >= 1 ? 4 : 8;
@@ -6340,6 +6383,11 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     const stableSymbols = new Set(["USDC", "USDT", "DAI", "USD1", "USDE", "USDS", "FRAX"]);
     if (stableSymbols.has(symbol) && abs >= 1) return Math.min(2, maxDecimals);
     return 0;
+  }
+
+  function uiClaimTokenDecimals(symbol) {
+    const btcSymbols = new Set(["BTC", "WBTC", "TBTC", "CBBTC", "LBTC"]);
+    return btcSymbols.has(symbol) ? 5 : 2;
   }
 
   function roundDisplayNumber(number, minDecimals, maxDecimals) {
@@ -6366,6 +6414,13 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     return decimalToNumber(value) > 0;
   }
 
+  function firstPositiveAmount(...values) {
+    for (const value of values) {
+      if (positiveAmount(value)) return value;
+    }
+    return values.map(value => String(value ?? "").trim()).find(Boolean) || "";
+  }
+
   function decimalForCsv(value) {
     const number = Number(value);
     return Number.isFinite(number) ? String(Math.round(number * 100000000) / 100000000) : "";
@@ -6379,6 +6434,18 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     if (Math.abs(number) >= 1) return "$" + number.toFixed(2);
     if (Math.abs(number) > 0) return "$" + number.toFixed(4);
     return "$0.00";
+  }
+
+  function formatHistoryTableUsd(value) {
+    const number = Number(value || 0);
+    if (!Number.isFinite(number) || number === 0) return "$0";
+    const sign = number < 0 ? "-" : "";
+    const abs = Math.abs(number);
+    if (abs < 0.1) return `${sign}<$0.1`;
+    if (abs >= 1000000) {
+      return `${sign}$${(abs / 1000000).toLocaleString("en-US", { maximumFractionDigits: 1 })}M`;
+    }
+    return `${sign}$${abs.toLocaleString("en-US", { maximumFractionDigits: 1 })}`;
   }
 
   function formatRoundedTokenAmount(value, symbol) {
