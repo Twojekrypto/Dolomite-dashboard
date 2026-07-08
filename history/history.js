@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-compact-history-amounts";
+  const HISTORY_VERSION = "history-20260708-xlayer-claim-warning-scope";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -4346,7 +4346,7 @@
     const gasPending = rows.some(row => row.gas?.status === "pending");
     const gasSkippedFast = rows.some(row => row.gas?.status === FAST_GAS_STATUS);
     const earnPending = state.earn?.status === "loading";
-    const activeWarnings = activeDataWarnings();
+    const activeWarnings = activeDataWarnings(rows, earnEntries);
     const dataWarnings = activeWarnings.length;
     const hasRows = rows.length > 0;
     const hasReportRows = hasRows || earnEntries.length > 0;
@@ -4697,7 +4697,7 @@
         add(`claim:${entry.claimProofStatus}`, reviewReasonLabel(entry.claimProofStatus), `${entry.chainName || "EARN"} reward/yield claim proof is ${entry.claimProofStatus}.`);
       }
     });
-    const historyWarnings = activeHistoryWarnings();
+    const historyWarnings = activeHistoryWarnings(rows);
     const earnWarnings = activeEarnWarnings();
     if (historyWarnings.length) add("warnings:history", "History source warnings", historyWarnings[0]);
     if (earnWarnings.length) add("warnings:earn", "EARN source warnings", earnWarnings[0]);
@@ -4860,7 +4860,7 @@
       if (String(entry.priceSource || "").toLowerCase().includes("unavailable")) addReason("price:missing", "Price missing");
     });
 
-    if (activeHistoryWarnings().length) addReason("warnings:history", "Data warnings");
+    if (activeHistoryWarnings(state.filteredRows).length) addReason("warnings:history", "Data warnings");
     if (includeEarnReview && state.earn?.status === "loading") addReason("earn:loading", "EARN pending", "muted");
     if (includeEarnReview && activeEarnWarnings().length) addReason("warnings:earn", "EARN warnings");
 
@@ -5103,11 +5103,15 @@
     return `${state.selectedChains.size} chains`;
   }
 
-  function warningAppliesToCurrentChains(message) {
+  function warningMentionedChainKeys(message) {
     const text = String(message || "");
-    const mentionedChains = Object.entries(CHAINS)
+    return Object.entries(CHAINS)
       .filter(([, chain]) => text.startsWith(`${chain.name} `) || text.startsWith(`${chain.name}:`) || text.includes(`${chain.name} reward claim`))
       .map(([chainKey]) => chainKey);
+  }
+
+  function warningAppliesToCurrentChains(message) {
+    const mentionedChains = warningMentionedChainKeys(message);
     if (!mentionedChains.length) return true;
     const selected = new Set(selectedChainKeys());
     return mentionedChains.some(chainKey => selected.has(chainKey));
@@ -5134,15 +5138,29 @@
     return actionFilterAllSelected() || selectedActionKeys().includes("claim");
   }
 
+  function claimFilterExplicitlySelected() {
+    return !actionFilterAllSelected() && selectedActionKeys().includes("claim");
+  }
+
+  function rewardClaimWarningBlocksCurrentReport(message, rows = state.filteredRows) {
+    if (!isRewardClaimWarning(message)) return true;
+    if (claimFilterExplicitlySelected()) return true;
+    const mentionedChains = warningMentionedChainKeys(message);
+    if (!mentionedChains.length) return true;
+    const rowChains = new Set((rows || []).map(row => row?.chainKey).filter(Boolean));
+    return mentionedChains.some(chainKey => rowChains.has(chainKey));
+  }
+
   function reportIncludesEarnData() {
     return actionFilterAllSelected();
   }
 
-  function activeHistoryWarnings() {
+  function activeHistoryWarnings(rows = state.filteredRows) {
     return (state.warnings || [])
       .filter(warningAppliesToCurrentChains)
       .filter(message => !isNonBlockingRewardClaimFreshnessWarning(message))
-      .filter(message => reportIncludesClaimData() || !isRewardClaimWarning(message));
+      .filter(message => reportIncludesClaimData() || !isRewardClaimWarning(message))
+      .filter(message => rewardClaimWarningBlocksCurrentReport(message, rows));
   }
 
   function activeEarnWarnings() {
@@ -5150,8 +5168,8 @@
     return (state.earn?.warnings || []).filter(warningAppliesToCurrentChains);
   }
 
-  function activeDataWarnings() {
-    return activeHistoryWarnings().concat(activeEarnWarnings());
+  function activeDataWarnings(rows = state.filteredRows) {
+    return activeHistoryWarnings(rows).concat(activeEarnWarnings());
   }
 
   function historyWarningCount() {
@@ -5812,7 +5830,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       setStatus(`${label} waits for candidate evidence to finish so export rows are not omitted.`, "warn");
       return false;
     }
-    const activeWarnings = activeDataWarnings();
+    const activeWarnings = activeDataWarnings(rows);
     if (activeWarnings.length) {
       setStatus(`${label} waits for complete source data: ${activeWarnings[0]}${activeWarnings.length > 1 ? ` (+${activeWarnings.length - 1} more)` : ""}`, "warn");
       return false;
@@ -5844,7 +5862,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       assetSummary: assetActivitySummaryForRows(rows, earnEntries),
       positionLifecycle: positionLifecycleForRows(rows, earnEntries),
       reviewNotes: reviewNotesForExport(rows),
-      warnings: activeDataWarnings(),
+      warnings: activeDataWarnings(rows),
       rows: rows.map(row => evidenceRowPayload(row)),
       earnEntries: earnEntries.map(entry => ({ ...entry })),
     };
@@ -5958,7 +5976,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       reviewNotes: reviewNotesForExport(rows),
       assetSummary: assetActivitySummaryForRows(rows, earnEntries),
       positionLifecycle: positionLifecycleForRows(rows, earnEntries),
-      warnings: activeDataWarnings(),
+      warnings: activeDataWarnings(rows),
     };
   }
 

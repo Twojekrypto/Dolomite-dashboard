@@ -3336,6 +3336,23 @@ if (warningReady.canFullReport) throw new Error(`history warnings allowed export
 if (api.reportStatusLabel(warningReady) !== "Incomplete data") throw new Error(api.reportStatusLabel(warningReady));
 if (warningReady.dataWarnings !== 1) throw new Error(`wrong active warning count: ${JSON.stringify(warningReady)}`);
 if (!api.reportStatusDetail(warningReady).includes("Arbitrum reward claim")) throw new Error(api.reportStatusDetail(warningReady));
+api.state.selectedChains = new Set(["arbitrum", "xlayer"]);
+api.selectAllActions();
+api.state.warnings = [
+  "X Layer reward claim index is incomplete. Reward-claim transactions on X Layer are not fully indexed yet, so All actions / Claim reports stay locked until the workflow refreshes with a higher-limit RPC.",
+];
+const xlayerNoRowsReady = api.reportExportReadiness(rows, []);
+if (!xlayerNoRowsReady.canFullReport) throw new Error(`xlayer claim warning blocked report without xlayer rows: ${JSON.stringify(xlayerNoRowsReady)}`);
+const xlayerRows = [{ chainKey: "xlayer", gas: { status: "ready" }, events: [{ action: "deposit" }] }];
+const xlayerRowsReady = api.reportExportReadiness(xlayerRows, []);
+if (xlayerRowsReady.canFullReport) throw new Error(`xlayer claim warning allowed report with xlayer rows: ${JSON.stringify(xlayerRowsReady)}`);
+api.setSelectedActionsFromValues(["claim"]);
+const explicitClaimReady = api.reportExportReadiness(rows, []);
+if (explicitClaimReady.canFullReport) throw new Error(`explicit claim report ignored xlayer warning: ${JSON.stringify(explicitClaimReady)}`);
+api.state.selectedChains = new Set(["arbitrum"]);
+api.state.warnings = [
+  "Arbitrum reward claim index is stale after 06 Jul 2026; newer reward claims may be missing until the RewardClaimed workflow refreshes.",
+];
 api.setSelectedActionsFromValues(["deposit"]);
 const depositReady = api.reportExportReadiness(rows, []);
 if (!depositReady.canFullReport) throw new Error(`claim warnings blocked deposit export: ${JSON.stringify(depositReady)}`);
