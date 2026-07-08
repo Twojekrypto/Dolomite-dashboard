@@ -132,6 +132,7 @@ CHAIN_CONFIGS = {
         "token": {"symbol": "Reward", "address": "", "decimals": 18},
         "knownDistributorTokens": {},
         "rpcUrls": [
+            *([] if not os.environ.get("ALCHEMY_XLAYER_RPC_ZEN") else [os.environ["ALCHEMY_XLAYER_RPC_ZEN"]]),
             *([] if not os.environ.get("ALCHEMY_XLAYER_RPC") else [os.environ["ALCHEMY_XLAYER_RPC"]]),
             "https://rpc.xlayer.tech/",
             "https://xlayer.drpc.org/",
@@ -163,7 +164,7 @@ def has_configured_rpc(chain_key):
     env_key = chain_env_key(chain_key)
     return any(
         os.environ.get(f"ALCHEMY_{env_key}_RPC{suffix}")
-        for suffix in ("", "_2", "_3")
+        for suffix in ("_ZEN", "", "_2", "_3")
     )
 
 
@@ -1015,7 +1016,7 @@ def main():
                     distributors=distributors,
                     warning=(
                         f"{config['name']} public RPC limits eth_getLogs too tightly for a full reward-claim backfill; "
-                        f"configure ALCHEMY_{chain_env_key(chain_key)}_RPC to index claim transactions."
+                        f"configure ALCHEMY_{chain_env_key(chain_key)}_RPC or ALCHEMY_{chain_env_key(chain_key)}_RPC_ZEN to index claim transactions."
                     ),
                 )
                 save_reward_claim_outputs(all_events, chains_payload, state_chains)

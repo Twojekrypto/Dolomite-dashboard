@@ -92,6 +92,15 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
         ):
             self.assertIn(env_name, source)
 
+    def test_reward_claim_scanner_reads_xlayer_zen_rpc_secret(self):
+        source = (ROOT / "generate_reward_claim_events.py").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github" / "workflows" / "update-odolo-flows.yml").read_text(encoding="utf-8")
+
+        self.assertIn("ALCHEMY_XLAYER_RPC_ZEN", source)
+        self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
+        with patch.dict(os.environ, {"ALCHEMY_XLAYER_RPC_ZEN": "https://xlayer.example"}, clear=True):
+            self.assertTrue(rce.has_configured_rpc("xlayer"))
+
     def test_sharded_manifest_events_are_reloaded_before_incremental_scan(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
