@@ -2447,8 +2447,10 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertNotIn("border-right", self.css)
         self.assertIn('<th class="details-th">Details</th>', self.html)
         self.assertIn(".history-table th.details-th{text-align:center}", self.css)
-        self.assertIn('<th>Chain</th>', self.html)
-        self.assertIn('<th class="num">Value</th>', self.html)
+        self.assertIn('data-history-sort="chain"', self.html)
+        self.assertIn('<span class="history-sort-label">Chain', self.html)
+        self.assertIn('data-history-sort="value"', self.html)
+        self.assertIn('<span class="history-sort-label">Value', self.html)
         self.assertNotIn('<th class="num">Volume</th>', self.html)
         self.assertNotIn('<th>Network</th>', self.html)
         self.assertIn('<col class="col-details">', self.html)
@@ -2696,6 +2698,107 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn("data-history-page", self.source)
         self.assertIn(".history-pagination", self.css)
         self.assertIn(".flow-pager-btn", self.css)
+
+    def test_history_transaction_results_columns_sort_like_dolo_holders(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historySortTest = { state, setHistorySort, sortedHistoryRows, historySortValue };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  setInterval() { return 1; },
+  clearInterval() {},
+  setTimeout() { return 1; },
+  clearTimeout() {},
+  fetch() { return Promise.reject(new Error("fetch disabled")); },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+  location: { search: "", pathname: "/history/", origin: "https://example.test" },
+  history: { replaceState() {} },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} }, getElementById() { return null; }, querySelectorAll() { return []; } },
+  window: {},
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(instrumented, sandbox);
+const api = sandbox.__historySortTest;
+const rows = [
+  {
+    key: "eth-low-old",
+    txHash: "0x1",
+    chainKey: "ethereum",
+    timestamp: 1710000000,
+    actions: new Set(["deposit"]),
+    semanticActions: new Set(),
+    events: [{ action: "deposit", label: "Deposit 1 WETH", legs: [] }],
+    usdVolume: 1,
+    gas: { status: "ok", gasUsd: 0.8 },
+  },
+  {
+    key: "arb-high-new",
+    txHash: "0x2",
+    chainKey: "arbitrum",
+    timestamp: 1730000000,
+    actions: new Set(["withdraw"]),
+    semanticActions: new Set(),
+    events: [{ action: "withdraw", label: "Withdraw 4 USDC", legs: [] }],
+    usdVolume: 400,
+    gas: { status: "ok", gasUsd: 0.2 },
+  },
+  {
+    key: "bera-mid",
+    txHash: "0x3",
+    chainKey: "berachain",
+    timestamp: 1720000000,
+    actions: new Set(["claim"]),
+    semanticActions: new Set(),
+    events: [{ action: "rewardClaim", label: "Claim 21 oDOLO", legs: [] }],
+    usdVolume: 25,
+    gas: { status: "ok", gasUsd: 3 },
+  },
+];
+api.state.historySortKey = "date";
+api.state.historySortAsc = false;
+if (api.sortedHistoryRows(rows).map(row => row.key).join("|") !== "arb-high-new|bera-mid|eth-low-old") {
+  throw new Error("default date sort should show newest first");
+}
+api.setHistorySort("value", { render: false });
+if (api.sortedHistoryRows(rows).map(row => row.key).join("|") !== "arb-high-new|bera-mid|eth-low-old") {
+  throw new Error("value sort should default to high-to-low");
+}
+api.setHistorySort("value", { render: false });
+if (api.sortedHistoryRows(rows).map(row => row.key).join("|") !== "eth-low-old|bera-mid|arb-high-new") {
+  throw new Error("second value sort click should toggle low-to-high");
+}
+api.setHistorySort("chain", { render: false });
+if (api.sortedHistoryRows(rows).map(row => row.key).join("|") !== "arb-high-new|bera-mid|eth-low-old") {
+  throw new Error("chain sort should default to A-to-Z labels");
+}
+api.setHistorySort("gas", { render: false });
+if (api.sortedHistoryRows(rows).map(row => row.key).join("|") !== "bera-mid|eth-low-old|arb-high-new") {
+  throw new Error("gas sort should default to high-to-low");
+}
+if (api.historySortValue(rows[0], "details") !== "") throw new Error("details column should not produce a sort value");
+"""
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for sort_key in ["chain", "date", "action", "asset", "value", "gas"]:
+            self.assertIn(f'data-history-sort="{sort_key}"', self.html)
+        self.assertNotIn('data-history-sort="details"', self.html)
+        self.assertIn("sort-arrow", self.html)
+        self.assertIn("setHistorySort", self.source)
+        self.assertIn("syncHistorySortHeaders", self.source)
+        self.assertIn(".history-table thead th[data-history-sort]", self.css)
+        self.assertIn(".history-table thead th.sorted .sort-arrow", self.css)
 
     def test_history_filters_use_assets_style_dropdowns(self):
         for element_id in [
