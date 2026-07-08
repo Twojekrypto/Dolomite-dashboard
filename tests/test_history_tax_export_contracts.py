@@ -2427,6 +2427,8 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn("${value.slice(0, 4)}...${value.slice(-4)}", self.source)
         self.assertIn(".history-detail-toggle", self.css)
         self.assertIn(".details-cell", self.css)
+        self.assertNotIn(".asset-line.collateral-up::before", self.css)
+        self.assertNotIn(".asset-line.collateral-down::before", self.css)
         self.assertIn(".detail-box{position:sticky;left:0", self.css)
         self.assertIn(".event-row > *{min-width:0}", self.css)
         self.assertIn(".event-action-stack", self.css)
