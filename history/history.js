@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-archived-chains";
+  const HISTORY_VERSION = "history-20260708-history-warning-layout-fix";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -11,15 +11,15 @@
   const MAX_PAGES = 40;
   const DEFAULT_GRAPH_TIMEOUT_MS = 25000;
   const DEFAULT_GRAPH_ATTEMPTS = 2;
-  const HISTORY_GRAPH_OPTIONS = { timeoutMs: 8000, attempts: 1 };
+  const HISTORY_GRAPH_OPTIONS = { timeoutMs: 12000, attempts: 2 };
   const HISTORY_CHAIN_CONCURRENCY = 3;
-  const HISTORY_ENTITY_CONCURRENCY = 10;
+  const HISTORY_ENTITY_CONCURRENCY = 6;
   const HISTORY_CLASSIFICATION_RECEIPT_CONCURRENCY = 4;
   const HISTORY_BACKGROUND_GAS_CONCURRENCY = 2;
   const HISTORY_FINALIZE_BUDGET_MS = 20000;
   const START_YEAR = 2024;
   const DEFAULT_YEAR = String(Math.max(new Date().getUTCFullYear(), START_YEAR));
-  const CHAIN_FILTER_ORDER = ["berachain", "arbitrum", "ethereum", "botanix", "mantle", "polygonzkevm", "xlayer"];
+  const CHAIN_FILTER_ORDER = ["berachain", "arbitrum", "ethereum", "mantle", "xlayer", "polygonzkevm", "botanix"];
   const EARN_LEDGER_BASE = "data/earn-verified-ledger";
   const EARN_REWARDS_BASE = "data/earn-merkl-rewards";
   const EARN_SNAPSHOT_BASE = "data/earn-snapshots";
@@ -27,6 +27,7 @@
   const REWARD_CLAIM_EVENTS_BASE = "data/reward-claim-events";
   const ODOLO_CLAIM_EVENTS_URL = "data/odolo-claim-events.json";
   const REWARD_CLAIM_INDEX_CHAIN_KEYS = new Set(["berachain", "arbitrum", "mantle", "xlayer"]);
+  const REWARD_CLAIM_INDEX_STALE_GRACE_SECONDS = 24 * 60 * 60;
   const ODOLO_REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026";
   const ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543";
   const NOTE_STORAGE_PREFIX = "dolomite-history-review-notes";
@@ -1643,10 +1644,12 @@
       warnings.push(`${chainName} reward claim index starts ${formatDate(fromTimestamp)}; earlier reward claims may be missing until the full claim-event workflow refreshes.`);
     }
     const now = Math.floor(Date.now() / 1000);
-    if (claimFilterRelevant && toTimestamp && bounds?.end && Math.min(bounds.end, now) > toTimestamp + 3600) {
-      warnings.push(`${chainName} reward claim index is current through ${formatDate(toTimestamp)}; newer reward claims may be missing until the next workflow refresh.`);
+    const reportEnd = Math.min(Number(bounds?.end || 0), now);
+    if (claimFilterRelevant && toTimestamp && reportEnd > toTimestamp + REWARD_CLAIM_INDEX_STALE_GRACE_SECONDS) {
+      warnings.push(`${chainName} reward claim index is stale after ${formatDate(toTimestamp)}; newer reward claims may be missing until the RewardClaimed workflow refreshes.`);
     }
-    if (claimFilterRelevant && meta.warning) warnings.push(`${chainName} reward claim index warning: ${meta.warning}`);
+    const metaWarning = rewardClaimMetaWarningText(chainName, meta.warning);
+    if (claimFilterRelevant && metaWarning) warnings.push(metaWarning);
     const wallet = normalizeAddress(address);
     const events = (Array.isArray(payload.events) ? payload.events : [])
       .map(row => ({ ...row, chainKey: row.chainKey || payload.chainKey || "berachain" }))
@@ -5057,7 +5060,7 @@
     if (chainSelectionIsDefault()) return "All Chains";
     if (state.selectedChains.size === 1) {
       const chainKey = Array.from(state.selectedChains)[0];
-      return chainMenuLabel(chainKey);
+      return CHAINS[chainKey]?.name || chainKey;
     }
     return `${state.selectedChains.size} chains`;
   }
@@ -5076,6 +5079,19 @@
     return /reward claim/i.test(String(message || ""));
   }
 
+  function rewardClaimMetaWarningText(chainName, warning) {
+    const text = String(warning || "").trim();
+    if (!text) return "";
+    if (/public RPC limits eth_getLogs/i.test(text) || /ALCHEMY_XLAYER_RPC/i.test(text)) {
+      return `${chainName} reward claim index is incomplete. Reward-claim transactions on ${chainName} are not fully indexed yet, so All actions / Claim reports stay locked until the workflow refreshes with a higher-limit RPC.`;
+    }
+    return `${chainName} reward claim index warning: ${text}`;
+  }
+
+  function isNonBlockingRewardClaimFreshnessWarning(message) {
+    return /reward claim index is current through/i.test(String(message || ""));
+  }
+
   function reportIncludesClaimData() {
     return actionFilterAllSelected() || selectedActionKeys().includes("claim");
   }
@@ -5087,6 +5103,7 @@
   function activeHistoryWarnings() {
     return (state.warnings || [])
       .filter(warningAppliesToCurrentChains)
+      .filter(message => !isNonBlockingRewardClaimFreshnessWarning(message))
       .filter(message => reportIncludesClaimData() || !isRewardClaimWarning(message));
   }
 
