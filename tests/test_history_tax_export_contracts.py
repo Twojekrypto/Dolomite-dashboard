@@ -2279,7 +2279,8 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertNotIn(".history-table tbody tr:hover td{background:linear-gradient", self.css)
         self.assertIn("border-radius:0 2px 2px 0", self.css)
         self.assertNotIn("border-right", self.css)
-        self.assertIn('<th>Details</th>', self.html)
+        self.assertIn('<th class="details-th">Details</th>', self.html)
+        self.assertIn(".history-table th.details-th{text-align:center}", self.css)
         self.assertIn('<th>Chain</th>', self.html)
         self.assertIn('<th class="num">Value</th>', self.html)
         self.assertNotIn('<th class="num">Volume</th>', self.html)
@@ -2453,9 +2454,12 @@ const complete = api.historyCompletionStatusMessage(80, 12, 3, true);
 if (pending.length > 150) throw new Error(`pending status too long: ${pending}`);
 if (pending.includes("Berachain reward claim index")) throw new Error(`warning detail leaked: ${pending}`);
 if (!pending.includes("progress panel")) throw new Error(`pending status should point to progress panel: ${pending}`);
-if (!pending.includes("4 data warnings")) throw new Error(`warning count missing: ${pending}`);
+if (pending.includes("data warning")) throw new Error(`warning count leaked: ${pending}`);
+if (pending.includes("evidence row")) throw new Error(`evidence count leaked: ${pending}`);
 if (!complete.includes("12 match current filters")) throw new Error(`filter summary missing: ${complete}`);
-if (!complete.includes("3 evidence rows")) throw new Error(`evidence summary missing: ${complete}`);
+if (!complete.includes("Reports ready")) throw new Error(`ready summary missing: ${complete}`);
+if (complete.includes("data warning")) throw new Error(`warning count leaked: ${complete}`);
+if (complete.includes("evidence row")) throw new Error(`evidence count leaked: ${complete}`);
 """
         result = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
         self.assertEqual(result.returncode, 0, result.stderr)
