@@ -2089,9 +2089,47 @@ if (cleanAmount("0.000000009296098168") !== "0.000000009296") throw new Error(cl
         self.assertIn('method: "snapshot-series-year"', self.source)
         self.assertIn("resolveEarnMarketYield", self.source)
         self.assertIn("earnLedgerYieldFromMarket", self.source)
+        self.assertIn("EARN_SNAPSHOT_SERIES_MAX_DATES = 12", self.source)
+        self.assertIn("snapshotSeriesSkipped", self.source)
+        self.assertIn("marketNeedsEarnSnapshotSeries", self.source)
         self.assertIn("canUseEarnLedgerBaselineEntry(market) && earnLedgerOverlapsBounds", self.source)
         self.assertIn('yearly.source === "earn-verified-ledger"', self.source)
         self.assertIn('yearly.source === "earn-snapshot-series"', self.source)
+
+    def test_earn_snapshot_series_only_runs_for_needed_review_markets(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { getBounds, marketNeedsEarnSnapshotSeries };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyTest;
+const bounds = api.getBounds("2026");
+const ledger = { snapshotDate: "2026-07-08" };
+const base = { symbol: "USDC", decimals: 6, firstDate: "2026-01-21", lastDate: "2026-07-08", canonicalHistoryCoverageStatus: "fresh" };
+const verified = { ...base, cumulativeYield: "1000", strictStatus: "verified", status: "verified", strictMethod: "netflow+snapshot", method: "netflow+snapshot" };
+const inferred = { ...base, cumulativeYield: "2000", strictStatus: "inferred", status: "pre_snapshot_carry", strictMethod: "netflow+pre-snapshot-carry", method: "netflow+pre-snapshot-carry" };
+const reviewPositive = { ...base, cumulativeYield: "3000", strictStatus: "mismatch", status: "mismatch", strictMethod: "canonical-history-mismatch", method: "snapshot-fallback" };
+const reviewZero = { ...reviewPositive, cumulativeYield: "0" };
+const outside = { ...reviewPositive, firstDate: "2025-01-01", lastDate: "2025-01-02" };
+if (api.marketNeedsEarnSnapshotSeries(ledger, verified, bounds)) throw new Error("verified market should use ledger baseline");
+if (api.marketNeedsEarnSnapshotSeries(ledger, inferred, bounds)) throw new Error("inferred market should use ledger baseline");
+if (!api.marketNeedsEarnSnapshotSeries(ledger, reviewPositive, bounds)) throw new Error("review positive market should use snapshot series when date count allows");
+if (api.marketNeedsEarnSnapshotSeries(ledger, reviewZero, bounds)) throw new Error("zero review market should not fetch snapshot series");
+if (api.marketNeedsEarnSnapshotSeries(ledger, outside, bounds)) throw new Error("out-of-range market should not fetch snapshot series");
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
     def test_earn_candidates_use_strict_confidence_contract(self):
         script = r"""
