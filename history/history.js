@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-xlayer-claim-warning-scope";
+  const HISTORY_VERSION = "history-20260708-compact-table-flow-amounts";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -5339,6 +5339,10 @@
     if (primary?.action === "vaporization") {
       return cleanActionAssetFlow(primary, "table") || cleanTransactionAssetFlow(row);
     }
+    if (primary) {
+      const primaryFlow = compactEventAssetFlow(primary);
+      if (primaryFlow) return primaryFlow;
+    }
     const semanticEvent = (row?.events || [])
       .find(event => event?.borrowSemanticConfidence === "borrow_position_lifecycle" && !BORROW_POSITION_LIFECYCLE_ACTIONS.has(event?.action));
     if (semanticEvent) {
@@ -5350,7 +5354,17 @@
       const transfer = (row.events || []).find(event => event?.action === "transfer");
       if (transfer) return compactTransferTableFlow(transfer, "table");
     }
+    const summaries = (row?.events || [])
+      .map(compactEventAssetFlow)
+      .filter(Boolean);
+    if (summaries.length) return summarizeUniqueCsvLabels(summaries, 4);
     return cleanTransactionAssetFlow(row);
+  }
+
+  function compactEventAssetFlow(event) {
+    if (event?.action === "vesting") return compactVestingTableFlow(event) || cleanVestingEventFlow(event);
+    if (event?.action === "transfer") return compactTransferTableFlow(event, "table") || cleanActionAssetFlow(event, "table") || cleanEventFlowSummary(event);
+    return cleanActionAssetFlow(event, "table") || cleanEventFlowSummary(event);
   }
 
   function compactTransferTableFlow(event, mode = "table") {
@@ -6378,7 +6392,8 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     const upperSymbol = String(symbol || "").toUpperCase();
     if (abs < 0.000001) return exact;
     const maxDecimals = uiTokenDecimals(abs, upperSymbol);
-    const minDecimals = uiTokenMinDecimals(abs, upperSymbol, maxDecimals);
+    const hasFraction = /\.[0-9]*[1-9]/.test(exact);
+    const minDecimals = hasFraction ? uiTokenMinDecimals(abs, upperSymbol, maxDecimals) : 0;
     const rounded = roundDisplayNumber(number, minDecimals, maxDecimals);
     return rounded === "0" ? exact : rounded;
   }
