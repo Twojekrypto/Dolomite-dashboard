@@ -594,6 +594,43 @@ h1{
 .veborrow-wallet-search.has-value .kbd{display:none}
 .veborrow-wallet-search-clear:hover{color:var(--fg-1);border-color:var(--gold-line);background:var(--gold-wash)}
 .veborrow-wallet-search-clear svg{position:static;width:11px;height:11px;color:currentColor}
+.veborrow-wallet-chain-dd{position:relative;width:210px;flex:0 0 210px}
+.veborrow-wallet-chain-btn{display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;height:36px;padding:0 11px;border:1px solid var(--line-2);border-radius:10px;background:var(--bg-3);color:var(--fg-1);font-size:13px;font-weight:500;text-align:left;transition:border-color .2s var(--ease),background .2s var(--ease)}
+.veborrow-wallet-chain-btn:hover{border-color:var(--line-3);background:var(--bg-4)}
+.veborrow-wallet-chain-btn.open,.veborrow-wallet-chain-btn.filtered{border-color:var(--gold-line);background:var(--bg-4)}
+.veborrow-wallet-chain-icon{width:14px;height:14px;color:var(--fg-2);flex:0 0 auto;display:grid;place-items:center}
+.veborrow-wallet-chain-icon svg,.veborrow-wallet-chain-icon img{width:100%;height:100%;display:block}
+.veborrow-wallet-chain-icon img{border-radius:50%;object-fit:cover;background:var(--bg-4);box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+.veborrow-wallet-chain-label{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.veborrow-wallet-chain-count{font-family:var(--mono);font-size:10px;color:var(--fg-3);background:var(--bg-4);padding:2px 6px;border-radius:999px;border:1px solid var(--line-2);flex:0 0 auto}
+.veborrow-wallet-chain-btn.filtered .veborrow-wallet-chain-count{color:var(--gold);border-color:var(--gold-line)}
+.veborrow-wallet-chain-clear{display:none;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;margin-left:-2px;flex:0 0 auto;color:var(--fg-3);cursor:pointer;transition:color .15s var(--ease),background .15s var(--ease)}
+.veborrow-wallet-chain-btn.filtered .veborrow-wallet-chain-clear{display:inline-flex}
+.veborrow-wallet-chain-clear:hover{background:rgba(201,162,39,.18);color:var(--gold)}
+.veborrow-wallet-chain-clear svg{width:10px;height:10px;pointer-events:none}
+.veborrow-wallet-chain-chev{width:10px;height:10px;color:var(--fg-3);flex:0 0 auto;transition:transform .16s var(--ease),color .16s var(--ease)}
+.veborrow-wallet-chain-btn.open .veborrow-wallet-chain-chev{transform:rotate(180deg);color:var(--gold-hi)}
+.veborrow-wallet-chain-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;width:100%;min-width:220px;max-width:min(260px,calc(100vw - 48px));max-height:330px;overflow:auto;padding:6px;border:1px solid var(--line-2);border-radius:12px;background:var(--bg-2);box-shadow:var(--sh-hi);z-index:70;opacity:0;transform:translateY(-4px);pointer-events:none;transition:opacity .16s var(--ease),transform .16s var(--ease)}
+.veborrow-wallet-chain-panel.show{display:block;opacity:1;transform:translateY(0);pointer-events:auto}
+.veborrow-wallet-chain-panel-head{padding:8px 10px 6px;font-size:10px;text-transform:uppercase;letter-spacing:1.4px;color:var(--fg-3);font-weight:600}
+.veborrow-wallet-chain-list{display:flex;flex-direction:column}
+.veborrow-wallet-chain-opt{display:flex;align-items:center;justify-content:flex-start;gap:10px;min-height:38px;padding:9px 10px;border-radius:6px;color:var(--fg-2);font-size:13px;text-align:left;cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease)}
+.veborrow-wallet-chain-opt + .veborrow-wallet-chain-opt{border-top:1px solid var(--line-1)}
+.veborrow-wallet-chain-opt:hover{background:var(--bg-3);color:var(--fg-1)}
+.veborrow-wallet-chain-opt.active{background:rgba(201,162,39,.04);color:var(--fg-1)}
+.veborrow-wallet-chain-opt.select-all{margin-bottom:4px;border:1px solid var(--line-2);background:linear-gradient(180deg,var(--bg-3),var(--bg-2))}
+.veborrow-wallet-chain-check{width:15px;height:15px;border-radius:4px;flex:0 0 auto;background:var(--bg-4);border:1.5px solid var(--line-3);display:grid;place-items:center;transition:background .15s var(--ease),border-color .15s var(--ease)}
+.veborrow-wallet-chain-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
+.veborrow-wallet-chain-opt.active .veborrow-wallet-chain-check{background:var(--gold);border-color:var(--gold)}
+.veborrow-wallet-chain-opt.active .veborrow-wallet-chain-check svg{opacity:1}
+.veborrow-wallet-chain-opt-ico{width:18px;height:18px;border-radius:50%;flex:0 0 auto;background:var(--bg-4);border:1px solid var(--line-2);display:grid;place-items:center;object-fit:cover}
+.veborrow-wallet-chain-opt.active .veborrow-wallet-chain-opt-ico{border-color:var(--gold-line)}
+.veborrow-wallet-chain-opt-ico img{width:100%;height:100%;border-radius:50%;object-fit:cover}
+.veborrow-wallet-chain-opt-ico svg{width:14px;height:14px;color:var(--fg-2)}
+.veborrow-wallet-chain-copy{min-width:0;flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:1.12}
+.veborrow-wallet-chain-name{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.veborrow-wallet-chain-sub{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-4);font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.55px;text-transform:uppercase}
+.veborrow-wallet-chain-opt.active .veborrow-wallet-chain-sub{color:var(--gold)}
 .veborrow-wallet-table-wrap{overflow-x:auto;border-radius:0 0 var(--r-xl) var(--r-xl);background:var(--bg-2)}
 .veborrow-wallet-table{width:100%;min-width:900px;border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed;background:transparent}
 .veborrow-wallet-table thead th{position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:12px 18px;background:var(--bg-1);border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none;cursor:pointer;transition:color .15s var(--ease)}
@@ -833,6 +870,8 @@ h1{
   .veborrow-wallet-toolbar{display:grid;grid-template-columns:1fr;gap:8px}
   .veborrow-wallet-toolbar-main,.veborrow-wallet-filters{display:grid;grid-template-columns:1fr;align-items:stretch}
   .veborrow-wallet-search{width:100%;min-width:0}
+  .veborrow-wallet-chain-dd{width:100%;flex:1 1 auto}
+  .veborrow-wallet-chain-panel{max-width:none}
   .veborrow-wallet-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
   .veborrow-wallet-foot-info{grid-column:1;text-align:center}
   .veborrow-wallet-pager{grid-column:1;justify-content:center}
@@ -1143,9 +1182,9 @@ h1{
     </div>
     <div class="veborrow-summary" id="veBorrowSummary" aria-live="polite">
       <div class="veborrow-stat primary"><span>Users saved</span><b>$0</b><small>selected range</small></div>
-      <div class="veborrow-stat"><span>All published</span><b>$0</b><small>closed epochs</small></div>
+      <div class="veborrow-stat"><span>Max rebate</span><b>$0</b><small>selected range</small></div>
+      <div class="veborrow-stat"><span>Utilization</span><b>-</b><small>saved / max rebate</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>-</b><small>published rebate</small></div>
-      <div class="veborrow-stat"><span>Coverage start</span><b>-</b><small>veBorrow discount</small></div>
     </div>
     <div class="veborrow-chart-wrap" id="veBorrowChartWrap">
       <svg class="veborrow-chart-svg" id="veBorrowChart" viewBox="0 0 1000 300" preserveAspectRatio="none" role="img" aria-label="Daily veDOLO borrow fee rebate savings chart"></svg>
@@ -1256,7 +1295,7 @@ h1{
 <script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260701-ethereum-onchain-override";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate";
   const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260625-audit-status";
   const DOLO_PRICE_URL = "dolo_price.json?v=revenue-20260625-veborrow-sim";
   const VEBORROW_SIMULATION_URL = "veborrow_simulation.json?v=revenue-20260625-current-vedolo-eligibility";
@@ -1278,6 +1317,16 @@ h1{
   const VEBORROW_CLAIM_PERIOD_DAYS = 7;
   const VEBORROW_SIM_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
   const VEBORROW_ELIGIBILITY_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
+  const VEBORROW_WALLET_CHAIN_ORDER = ["berachain", "arbitrum", "ethereum", "mantle", "xlayer", "polygonzkevm", "botanix"];
+  const VEBORROW_WALLET_CHAIN_META = {
+    ethereum: { key: "ethereum", name: "Ethereum", short: "ETH" },
+    arbitrum: { key: "arbitrum", name: "Arbitrum", short: "ARB" },
+    berachain: { key: "berachain", name: "Berachain", short: "BERA" },
+    mantle: { key: "mantle", name: "Mantle", short: "MNT" },
+    xlayer: { key: "xlayer", name: "X Layer", short: "XLAY" },
+    polygonzkevm: { key: "polygonzkevm", name: "Polygon zkEVM", short: "zkEVM", lifecycle: "archived" },
+    botanix: { key: "botanix", name: "Botanix", short: "BOT", lifecycle: "shuttingDown" },
+  };
   const VEBORROW_WALLET_LABELS = window.cloneDoloAddressLabels
     ? window.cloneDoloAddressLabels()
     : (window.DOLO_ADDRESS_LABELS || {});
@@ -1304,6 +1353,8 @@ h1{
   let veBorrowWalletSortKey = "saved";
   let veBorrowWalletSortDesc = true;
   let veBorrowWalletSearchQuery = "";
+  let veBorrowWalletSelectedChains = new Set();
+  let veBorrowWalletNetworkOpen = false;
   let veBorrowWalletRefocus = false;
   let chainSortKey = "revenue";
   let chainSortDesc = true;
@@ -1317,6 +1368,9 @@ h1{
   const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
   const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
   const EXT_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+  const CLEAR_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
+  const CHEV_ICO = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 5 5 5-5"/></svg>';
+  const GLOBE_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
   const CONTRACTS = [
     { token:"DOLO",   logo:"dolo-logo.svg",           chain:"Ethereum",  chainKey:"ethereum",  addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io" },
     { token:"DOLO",   logo:"dolo-logo.svg",           chain:"Berachain", chainKey:"berachain", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com" },
@@ -1350,6 +1404,13 @@ h1{
   function usdFull(value){
     return "$" + Math.round(n(value)).toLocaleString("en-US");
   }
+  function usdMetric(value){
+    const amount = n(value);
+    const abs = Math.abs(amount);
+    if (abs >= 1e6) return usd(amount);
+    if (abs >= 1e3) return "$" + Math.round(amount).toLocaleString("en-US");
+    return "$" + amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   function tokenCompact(value, suffix = ""){
     const amount = n(value);
     const abs = Math.abs(amount);
@@ -1361,6 +1422,9 @@ h1{
   }
   function pct(value){
     return (n(value) * 100).toFixed(1).replace(".0","") + "%";
+  }
+  function pctFine(value){
+    return (n(value) * 100).toFixed(2).replace(".00","") + "%";
   }
   function setText(id,value){
     const el = qs(id);
@@ -1449,6 +1513,125 @@ h1{
   function chainIcon(chain){
     const key = chainKey(chain);
     return key ? `https://icons.llamao.fi/icons/chains/rsz_${key}.jpg` : "";
+  }
+  function normalizeVeBorrowWalletChainKey(chain){
+    const key = String(chain || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (key.includes("polygon")) return "polygonzkevm";
+    if (key.includes("zkevm")) return "polygonzkevm";
+    if (key.includes("xlayer")) return "xlayer";
+    if (key.includes("berachain")) return "berachain";
+    if (key.includes("arbitrum")) return "arbitrum";
+    if (key.includes("ethereum")) return "ethereum";
+    if (key.includes("mantle")) return "mantle";
+    if (key.includes("botanix")) return "botanix";
+    return key;
+  }
+  function veBorrowWalletChainMeta(chain){
+    const key = normalizeVeBorrowWalletChainKey(chain);
+    return VEBORROW_WALLET_CHAIN_META[key] || { key, name: String(chain || key || "Chain"), short: chainAbbr(chain) };
+  }
+  function veBorrowWalletChainLifecycleLabel(chain){
+    if (chain?.lifecycle === "archived") return "Archived";
+    if (chain?.lifecycle === "shuttingDown") return "Shutting down";
+    return "";
+  }
+  function veBorrowWalletAvailableChainKeys(wallets){
+    const keys = new Set();
+    (wallets || []).forEach(row => {
+      Object.keys(row?.chains || {}).forEach(chain => {
+        const key = normalizeVeBorrowWalletChainKey(chain);
+        if (key) keys.add(key);
+      });
+    });
+    return keys;
+  }
+  function veBorrowWalletFilterChains(wallets){
+    const available = veBorrowWalletAvailableChainKeys(wallets);
+    const active = VEBORROW_WALLET_CHAIN_ORDER
+      .map(key => VEBORROW_WALLET_CHAIN_META[key])
+      .filter(chain => chain && !chain.lifecycle && available.has(chain.key));
+    const archive = VEBORROW_WALLET_CHAIN_ORDER
+      .map(key => VEBORROW_WALLET_CHAIN_META[key])
+      .filter(chain => chain?.lifecycle);
+    return [...active, ...archive];
+  }
+  function veBorrowWalletDefaultChainKeys(wallets){
+    return veBorrowWalletFilterChains(wallets)
+      .filter(chain => !chain.lifecycle)
+      .map(chain => chain.key);
+  }
+  function veBorrowWalletSelectedChainKeys(wallets){
+    const defaults = veBorrowWalletDefaultChainKeys(wallets);
+    if (!veBorrowWalletSelectedChains.size) return defaults;
+    const selectable = new Set(veBorrowWalletFilterChains(wallets).map(chain => chain.key));
+    const selected = Array.from(veBorrowWalletSelectedChains).filter(chain => selectable.has(chain));
+    return selected.length ? selected : defaults;
+  }
+  function veBorrowWalletChainSelectionIsDefault(wallets){
+    const defaults = veBorrowWalletDefaultChainKeys(wallets);
+    if (!veBorrowWalletSelectedChains.size) return true;
+    return defaults.length === veBorrowWalletSelectedChains.size && defaults.every(chain => veBorrowWalletSelectedChains.has(chain));
+  }
+  function veBorrowWalletNetworkLabel(wallets){
+    if (veBorrowWalletChainSelectionIsDefault(wallets)) return "All Chains";
+    const selected = veBorrowWalletSelectedChainKeys(wallets);
+    if (selected.length === 1) return VEBORROW_WALLET_CHAIN_META[selected[0]]?.name || selected[0];
+    return `${selected.length} chains`;
+  }
+  function veBorrowWalletNetworkIconHtml(wallets){
+    const selected = veBorrowWalletSelectedChainKeys(wallets);
+    if (!veBorrowWalletChainSelectionIsDefault(wallets) && selected.length === 1) {
+      const meta = VEBORROW_WALLET_CHAIN_META[selected[0]];
+      const icon = meta ? chainIcon(meta.name) : "";
+      if (icon) return `<img src="${esc(icon)}" alt="" onerror="this.style.display='none'">`;
+    }
+    return GLOBE_ICO;
+  }
+  function veBorrowWalletNetworkCount(wallets){
+    const defaults = veBorrowWalletDefaultChainKeys(wallets);
+    const selected = veBorrowWalletSelectedChainKeys(wallets);
+    const selectable = veBorrowWalletFilterChains(wallets);
+    return veBorrowWalletChainSelectionIsDefault(wallets)
+      ? `${defaults.length}/${defaults.length}`
+      : `${selected.length}/${selectable.length}`;
+  }
+  function veBorrowWalletNetworkOptionHtml(chain, active, selectAll = false){
+    const lifecycle = veBorrowWalletChainLifecycleLabel(chain);
+    const icon = selectAll ? GLOBE_ICO : `<img src="${esc(chainIcon(chain.name))}" alt="" onerror="this.style.display='none'">`;
+    return `
+      <button class="veborrow-wallet-chain-opt${active ? " active" : ""}${selectAll ? " select-all" : ""}" type="button" data-veborrow-wallet-chain="${esc(chain.key)}" role="option" aria-selected="${active ? "true" : "false"}" onclick="setVeBorrowWalletSelectedChains('${esc(chain.key)}')">
+        <span class="veborrow-wallet-chain-check">${CHECK_ICO}</span>
+        <span class="veborrow-wallet-chain-opt-ico">${icon}</span>
+        <span class="veborrow-wallet-chain-copy">
+          <span class="veborrow-wallet-chain-name">${esc(chain.name)}</span>
+          ${lifecycle ? `<span class="veborrow-wallet-chain-sub">${esc(lifecycle)}</span>` : ""}
+        </span>
+      </button>
+    `;
+  }
+  function renderVeBorrowWalletNetworkDropdown(wallets){
+    const chains = veBorrowWalletFilterChains(wallets);
+    const selected = new Set(veBorrowWalletSelectedChainKeys(wallets));
+    const isDefault = veBorrowWalletChainSelectionIsDefault(wallets);
+    const options = [
+      veBorrowWalletNetworkOptionHtml({ key: "all", name: "All Chains" }, isDefault, true),
+      ...chains.map(chain => veBorrowWalletNetworkOptionHtml(chain, !isDefault && selected.has(chain.key))),
+    ].join("");
+    return `
+      <div class="veborrow-wallet-chain-dd" id="veBorrowWalletNetworkControl">
+        <button class="veborrow-wallet-chain-btn${veBorrowWalletNetworkOpen ? " open" : ""}${isDefault ? "" : " filtered"}" id="veBorrowWalletNetworkButton" type="button" aria-haspopup="listbox" aria-expanded="${veBorrowWalletNetworkOpen ? "true" : "false"}" onclick="toggleVeBorrowWalletNetworkMenu(event)">
+          <span class="veborrow-wallet-chain-icon" id="veBorrowWalletNetworkIcon">${veBorrowWalletNetworkIconHtml(wallets)}</span>
+          <span class="veborrow-wallet-chain-label" id="veBorrowWalletNetworkLabel">${esc(veBorrowWalletNetworkLabel(wallets))}</span>
+          <span class="veborrow-wallet-chain-count" id="veBorrowWalletNetworkCount">${esc(veBorrowWalletNetworkCount(wallets))}</span>
+          <span class="veborrow-wallet-chain-clear" role="button" tabindex="-1" aria-label="Clear chain filter" onclick="event.stopPropagation();setVeBorrowWalletSelectedChains('all')">${CLEAR_ICO}</span>
+          <span class="veborrow-wallet-chain-chev" aria-hidden="true">${CHEV_ICO}</span>
+        </button>
+        <div class="veborrow-wallet-chain-panel${veBorrowWalletNetworkOpen ? " show" : ""}" id="veBorrowWalletNetworkMenu" role="listbox" aria-label="Filter top current veDOLO users by chain">
+          <div class="veborrow-wallet-chain-panel-head">Chain</div>
+          <div class="veborrow-wallet-chain-list">${options}</div>
+        </div>
+      </div>
+    `;
   }
   function dateLabel(iso){
     if (!iso) return "fresh data";
@@ -2431,6 +2614,37 @@ h1{
     const sel = brushSelFor(VEBORROW_CHART_KEY);
     return rows.filter(row => row.ts >= sel.from && row.ts <= sel.to);
   }
+  function veBorrowRowMaxRebate(row){
+    const chain = row?.chains?.Berachain || {};
+    const fees = n(chain.feesUSD);
+    if (fees <= 0) return 0;
+    const rebatePercentage = n(veBorrowRebateInfo().rebatePercentage) || 0.10;
+    const protocolReserveFactor = n(veBorrowSimulationData?.config?.protocolReserveFactor) || 0.20;
+    const grossRevenue = n(chain.grossRevenueUSD ?? chain.revenueUSD);
+    const expectedProtocolRevenue = fees * protocolReserveFactor;
+    const revenueFactor = expectedProtocolRevenue > 0 ? Math.min(1, Math.max(0, grossRevenue / expectedProtocolRevenue)) : 1;
+    return fees * rebatePercentage * revenueFactor;
+  }
+  function veBorrowMaxRebateForRows(rows){
+    const selected = rows || [];
+    const covered = new Set();
+    let maxRebate = 0;
+    (veBorrowRebateInfo().epochRebates || []).forEach(epoch => {
+      const auditedMax = n(epoch?.maxRebateUSD);
+      const periodStart = n(epoch?.periodStartTimestamp);
+      const periodEnd = n(epoch?.periodEndTimestamp);
+      if (auditedMax <= 0 || periodStart <= 0 || periodEnd <= periodStart) return;
+      const epochRows = selected.filter(row => n(row.ts) >= periodStart && n(row.ts) < periodEnd);
+      const expectedDays = Math.max(1, Math.round((periodEnd - periodStart) / 86400));
+      if (epochRows.length !== expectedDays) return;
+      maxRebate += auditedMax;
+      epochRows.forEach(row => covered.add(n(row.ts)));
+    });
+    selected.forEach(row => {
+      if (!covered.has(n(row.ts))) maxRebate += veBorrowRowMaxRebate(row);
+    });
+    return maxRebate;
+  }
   function updateVeBorrowModeControls(){
     document.querySelectorAll(".veborrow-mode-toggle").forEach(btn => {
       const active = btn.dataset.veborrowMode === veBorrowChartMode;
@@ -2441,11 +2655,12 @@ h1{
   function renderVeBorrowSummary(selected, rows){
     const wrap = qs("veBorrowSummary");
     if (!wrap) return;
-    const selectedSaved = selected.reduce((sum, row) => sum + n(row.borrowFeeRebateUSD), 0);
-    const allPublished = n(veBorrowRebateInfo().totalRebateUSD || revenueData?.totals?.borrowFeeRebateAllTimeUSD);
+    const publishedSelected = selected.filter(row => !veBorrowPendingDataRow(row));
+    const selectedSaved = publishedSelected.reduce((sum, row) => sum + n(row.borrowFeeRebateUSD), 0);
+    const maxRebate = veBorrowMaxRebateForRows(publishedSelected);
+    const utilization = maxRebate > 0 ? selectedSaved / maxRebate : 0;
     const latest = veBorrowRebateInfo().latestRebateDate || "";
     const latestDate = latest ? formatRangeDay(Math.floor(Date.parse(latest + "T00:00:00Z") / 1000)) : "-";
-    const startDate = rows[0]?.ts ? formatRangeDay(rows[0].ts) : formatRangeDay(veBorrowStartTimestamp());
     const dayCount = selected.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
     const pendingCount = selected.filter(row => veBorrowPendingDataRow(row)).length;
     const selectedLabel = pendingCount > 0
@@ -2453,9 +2668,9 @@ h1{
       : `${dayCount.toLocaleString("en-US")} daily bars selected`;
     wrap.innerHTML = `
       <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${selectedLabel}</small></div>
-      <div class="veborrow-stat"><span>All published</span><b>${usdFull(allPublished)}</b><small>Berachain closed epochs</small></div>
+      <div class="veborrow-stat"><span>Max rebate</span><b>${maxRebate > 0 ? usdMetric(maxRebate) : "-"}</b><small>eligible markets</small></div>
+      <div class="veborrow-stat"><span>Utilization</span><b>${maxRebate > 0 ? pctFine(utilization) : "-"}</b><small>saved / max rebate</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>${esc(latestDate)}</b><small>published rebate</small></div>
-      <div class="veborrow-stat"><span>Chart starts</span><b>${esc(startDate)}</b><small>first material rebate</small></div>
     `;
   }
   function veBorrowUniqueChains(chains){
@@ -2833,8 +3048,11 @@ h1{
   }
   function filterVeBorrowWallets(wallets){
     const query = String(veBorrowWalletSearchQuery || "").trim().toLowerCase();
+    const selectedChains = veBorrowWalletSelectedChainKeys(wallets);
     return (wallets || []).filter(row => {
       if (n(row.borrowInterestUSD) <= 0) return false;
+      const rowChains = new Set(Object.keys(row?.chains || {}).map(chain => normalizeVeBorrowWalletChainKey(chain)).filter(Boolean));
+      if (selectedChains.length && !selectedChains.some(chainKey => rowChains.has(chainKey))) return false;
       if (!query) return true;
       const haystack = [
         row.address,
@@ -2857,6 +3075,42 @@ h1{
     renderVeBorrowChart({ skipBrush: true });
   }
   window.clearVeBorrowWalletSearch = clearVeBorrowWalletSearch;
+  function syncVeBorrowWalletNetworkDropdown(wallets){
+    const button = qs("veBorrowWalletNetworkButton");
+    const menu = qs("veBorrowWalletNetworkMenu");
+    if (!button || !menu) return;
+    const isDefault = veBorrowWalletChainSelectionIsDefault(wallets || []);
+    button.classList.toggle("open", veBorrowWalletNetworkOpen);
+    button.classList.toggle("filtered", !isDefault);
+    button.setAttribute("aria-expanded", veBorrowWalletNetworkOpen ? "true" : "false");
+    menu.classList.toggle("show", veBorrowWalletNetworkOpen);
+  }
+  function toggleVeBorrowWalletNetworkMenu(event){
+    if (event) event.stopPropagation();
+    veBorrowWalletNetworkOpen = !veBorrowWalletNetworkOpen;
+    renderVeBorrowChart({ skipBrush: true });
+  }
+  window.toggleVeBorrowWalletNetworkMenu = toggleVeBorrowWalletNetworkMenu;
+  function closeVeBorrowWalletNetworkMenu(){
+    if (!veBorrowWalletNetworkOpen) return;
+    veBorrowWalletNetworkOpen = false;
+    renderVeBorrowChart({ skipBrush: true });
+  }
+  function setVeBorrowWalletSelectedChains(chainKey){
+    const key = String(chainKey || "");
+    if (key === "all") {
+      veBorrowWalletSelectedChains = new Set();
+    } else if (key) {
+      const next = new Set(veBorrowWalletSelectedChains);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      veBorrowWalletSelectedChains = next;
+    }
+    veBorrowWalletNetworkOpen = false;
+    veBorrowWalletPage = 1;
+    renderVeBorrowChart({ skipBrush: true });
+  }
+  window.setVeBorrowWalletSelectedChains = setVeBorrowWalletSelectedChains;
   function renderVeBorrowCurrentWalletTable(wallets){
     const wrap = qs("veBorrowCurrentWalletsPanel");
     if (!wrap) return;
@@ -2904,6 +3158,7 @@ h1{
               <button class="veborrow-wallet-search-clear" type="button" aria-label="Clear search" onclick="clearVeBorrowWalletSearch()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
               <span class="kbd">/</span>
             </label>
+            ${renderVeBorrowWalletNetworkDropdown(baseRows)}
           </div>
         </div>
       </div>
@@ -3161,6 +3416,7 @@ h1{
       const row = model[nearestIndex];
       const pending = veBorrowPendingDataRow(row);
       const value = pending ? 0 : n(row[field]);
+      const tooltipMaxRebate = veBorrowRowMaxRebate(row);
       const x = centerAt(nearestIndex);
       const y = pending ? yAt(0) - 12 : yAt(value);
       bars.forEach((bar, index) => {
@@ -3171,11 +3427,13 @@ h1{
       const tooltipRows = pending
         ? `
           <div class="tt-row active"><span>Borrow interest</span><b>${usdFull(row.chains?.Berachain?.feesUSD ?? row.feesUSD)}</b></div>
+          <div class="tt-row"><span>Max rebate</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
           <div class="tt-row"><span>Users saved</span><b>Pending</b></div>
           <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)} published so far</b></div>
         `
         : `
           <div class="tt-row active"><span>Borrow interest</span><b>${usdFull(row.chains?.Berachain?.feesUSD ?? row.feesUSD)}</b></div>
+          <div class="tt-row"><span>Max rebate</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
           <div class="tt-row"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
           <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
         `;
@@ -3390,6 +3648,9 @@ h1{
     closeChainCalendar();
   });
   document.addEventListener("click", event => {
+    if (!event.target.closest(".veborrow-wallet-chain-dd")) {
+      closeVeBorrowWalletNetworkMenu();
+    }
     const pop = qs("chainDatePopover");
     const tools = document.querySelector(".chain-range-tools");
     if (!pop || pop.hidden || !tools) return;
@@ -3399,6 +3660,7 @@ h1{
   document.addEventListener("keydown", event => {
     if (event.key === "Escape") {
       closeChainCalendar();
+      closeVeBorrowWalletNetworkMenu();
     }
   });
   renderProtocolInfo();

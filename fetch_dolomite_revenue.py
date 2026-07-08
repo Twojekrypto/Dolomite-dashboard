@@ -698,9 +698,55 @@ def previous_borrow_fee_rebate_data(previous_output):
     }
 
 
+PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS = (
+    "maxRebateUSD",
+    "maxRebateMethod",
+    "maxRebateMarketCount",
+    "maxRebateGeneratedAt",
+)
+
+
+def rebate_epoch_identity(row):
+    return (
+        int_or_none(row.get("epoch")),
+        int_or_none(row.get("periodStartTimestamp")),
+        int_or_none(row.get("periodEndTimestamp")),
+    )
+
+
+def preserve_previous_borrow_fee_rebate_epoch_audits(current_rebate_data, previous_output):
+    if borrow_fee_rebate_epoch_total(current_rebate_data) <= 0:
+        return current_rebate_data
+    previous_rebates = previous_output.get("borrowFeeRebates") if isinstance(previous_output, dict) else None
+    if not isinstance(previous_rebates, dict):
+        return current_rebate_data
+
+    current = json.loads(json.dumps(current_rebate_data))
+    current_chains = current.get("chains") if isinstance(current.get("chains"), dict) else {}
+    previous_chains = previous_rebates.get("chains") if isinstance(previous_rebates.get("chains"), dict) else {}
+    for chain, chain_payload in current_chains.items():
+        previous_payload = previous_chains.get(chain)
+        if not isinstance(chain_payload, dict) or not isinstance(previous_payload, dict):
+            continue
+        previous_by_epoch = {
+            rebate_epoch_identity(row): row
+            for row in borrow_fee_rebate_epoch_rows({"chains": {chain: previous_payload}}, chain)
+        }
+        for row in chain_payload.get("epochRebates") or []:
+            if not isinstance(row, dict):
+                continue
+            previous_row = previous_by_epoch.get(rebate_epoch_identity(row))
+            if not previous_row:
+                continue
+            for field in PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS:
+                if field not in row and field in previous_row:
+                    row[field] = previous_row[field]
+    return current
+
+
 def preserve_previous_borrow_fee_rebate_data(current_rebate_data, previous_output):
     if borrow_fee_rebate_epoch_total(current_rebate_data) > 0:
-        return current_rebate_data
+        return preserve_previous_borrow_fee_rebate_epoch_audits(current_rebate_data, previous_output)
 
     fallback = previous_borrow_fee_rebate_data(previous_output)
     if not fallback:
