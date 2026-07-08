@@ -1007,10 +1007,10 @@ h1{
       <div class="hero-card">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/></svg>
-          30D Total Revenue
+          All-Time Total Revenue
         </div>
-        <div class="hc-value skeleton" id="revenue30d">$0</div>
-        <div class="hc-sub">net borrow + oDOLO exercised</div>
+        <div class="hc-value skeleton" id="revenueAllTime">$0</div>
+        <div class="hc-sub">all-time net borrow + oDOLO exercised</div>
       </div>
     </div>
   </section>
@@ -2573,7 +2573,7 @@ h1{
     setText("dailyFees", usdFull(totals.dailyFeesUSD));
     setText("protocolCut", pct(totals.dailyProtocolCut));
     setText("revenue7d", usd(totalRevenueWindowUSD(7)));
-    setText("revenue30d", usd(totalRevenueWindowUSD(30)));
+    setText("revenueAllTime", usd(totalRevenueWindowUSD(0)));
     const changeEl = qs("dailyChange");
     if (changeEl) {
       changeEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg><span>' + (change >= 0 ? "+" : "") + (change * 100).toFixed(1) + '%</span><span class="lbl">24h</span>';
