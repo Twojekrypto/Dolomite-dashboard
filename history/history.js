@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-claim-filter-fix";
+  const HISTORY_VERSION = "history-20260708-archived-chains";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -97,6 +97,8 @@
     botanix: {
       name: "Botanix",
       short: "BOT",
+      historyLifecycle: "shuttingDown",
+      historyLifecycleLabel: "Shutting down",
       icon: "https://icons.llamao.fi/icons/chains/rsz_botanix.jpg",
       subgraph: `${GRAPH_BASE}/dolomite-botanix/latest/gn`,
       explorerTx: "https://explorer.botanixlabs.dev/tx/",
@@ -110,6 +112,8 @@
     polygonzkevm: {
       name: "Polygon zkEVM",
       short: "zkEVM",
+      historyLifecycle: "archived",
+      historyLifecycleLabel: "Archived",
       icon: "https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg",
       subgraph: `${GRAPH_BASE}/dolomite-polygon-zkevm/latest/gn`,
       explorerTx: "https://zkevm.polygonscan.com/tx/",
@@ -217,7 +221,7 @@
     dateTo: "",
     action: "all",
     selectedActions: new Set(),
-    selectedChains: new Set(Object.keys(CHAINS)),
+    selectedChains: new Set(defaultChainKeys()),
     rows: [],
     filteredRows: [],
     expandedKey: "",
@@ -421,7 +425,7 @@
       dropdownOptionHtml("network", "all", "All Chains", globeIconHtml(), true),
       ...chainFilterKeys().map(key => {
         const chain = CHAINS[key];
-        return dropdownOptionHtml("network", key, chain.name, `<img src="${escapeAttr(chain.icon)}" alt="" onerror="this.style.display='none'">`);
+        return dropdownOptionHtml("network", key, chainMenuLabel(key), `<img src="${escapeAttr(chain.icon)}" alt="" onerror="this.style.display='none'">`);
       }),
     ].join("");
     els.networkMenu.innerHTML = dropdownPanelHtml("Chain", chainOptions);
@@ -432,6 +436,26 @@
     const preferred = CHAIN_FILTER_ORDER.filter(key => CHAINS[key]);
     const seen = new Set(preferred);
     return preferred.concat(Object.keys(CHAINS).filter(key => !seen.has(key)));
+  }
+
+  function defaultChainKeys() {
+    const active = chainFilterKeys().filter(chainKey => !CHAINS[chainKey]?.historyLifecycle);
+    return active.length ? active : chainFilterKeys();
+  }
+
+  function chainSelectionIsDefault() {
+    return chainSetMatches(state.selectedChains, defaultChainKeys());
+  }
+
+  function chainSetMatches(set, keys) {
+    if (!set || set.size !== keys.length) return false;
+    return keys.every(chainKey => set.has(chainKey));
+  }
+
+  function chainMenuLabel(chainKey) {
+    const chain = CHAINS[chainKey];
+    if (!chain) return chainKey;
+    return chain.historyLifecycleLabel ? `${chain.name} · ${chain.historyLifecycleLabel}` : chain.name;
   }
 
   function dropdownPanelHtml(title, optionsHtml) {
@@ -693,9 +717,8 @@
       return;
     }
     if (key === "network") {
-      const allChains = Object.keys(CHAINS);
-      if (state.selectedChains.size === allChains.length) return;
-      state.selectedChains = new Set(allChains);
+      if (chainSelectionIsDefault()) return;
+      state.selectedChains = new Set(defaultChainKeys());
       syncNetworkDropdown();
       closeHistoryDropdowns();
       markHistoryFiltersDirty({ tryClientSide: true });
@@ -1137,14 +1160,15 @@
     event.preventDefault();
     event.stopPropagation();
     const chain = option.dataset.historyNetwork;
-    const allChains = Object.keys(CHAINS);
+    const defaultChains = defaultChainKeys();
+    const defaultSelected = chainSelectionIsDefault();
     if (chain === "all") {
-      state.selectedChains = new Set(allChains);
-    } else if (state.selectedChains.size === allChains.length) {
+      state.selectedChains = new Set(defaultChains);
+    } else if (defaultSelected) {
       state.selectedChains = new Set([chain]);
     } else if (state.selectedChains.has(chain)) {
       state.selectedChains.delete(chain);
-      if (state.selectedChains.size === 0) state.selectedChains = new Set(allChains);
+      if (state.selectedChains.size === 0) state.selectedChains = new Set(defaultChains);
     } else {
       state.selectedChains.add(chain);
     }
@@ -3159,7 +3183,8 @@
         if (result.error) earn.warnings.push(result.error);
       });
 
-      const chainKeys = Object.keys(CHAINS);
+      const chainKeys = selectedChainKeys();
+      const selectedChainSet = new Set(chainKeys);
       const ledgerResults = await mapLimit(chainKeys, 4, async chainKey => {
         const result = await fetchOptionalJson(`${EARN_LEDGER_BASE}/${chainKey}/${address}.json`);
         return { chainKey, result };
@@ -3180,7 +3205,7 @@
         }
       });
 
-      const rewardChains = Object.keys(earn.rewardsManifest?.chains || {}).filter(chainKey => CHAINS[chainKey]);
+      const rewardChains = Object.keys(earn.rewardsManifest?.chains || {}).filter(chainKey => CHAINS[chainKey] && selectedChainSet.has(chainKey));
       const rewardResults = await mapLimit(rewardChains, 4, async chainKey => {
         const result = await fetchOptionalJson(`${EARN_REWARDS_BASE}/${chainKey}/${address}.json`);
         return { chainKey, result };
@@ -5002,11 +5027,13 @@
 
   function syncNetworkDropdown() {
     if (!els.networkMenu) return;
-    const allChains = Object.keys(CHAINS);
-    const selectedCount = state.selectedChains.size;
-    const allSelected = selectedCount === allChains.length;
+    const selectableChains = chainFilterKeys();
+    const defaultChains = defaultChainKeys();
+    const selectedKeys = selectedChainKeys();
+    const selectedCount = selectedKeys.length;
+    const allSelected = chainSelectionIsDefault();
     els.networkLabel.textContent = networkFilterLabel();
-    els.networkCount.textContent = `${selectedCount}/${allChains.length}`;
+    els.networkCount.textContent = allSelected ? `${defaultChains.length}/${defaultChains.length}` : `${selectedCount}/${selectableChains.length}`;
     els.networkButton.classList.toggle("filtered", !allSelected);
     els.networkIcon.innerHTML = networkButtonIconHtml(allSelected);
     els.networkMenu.querySelectorAll("[data-history-network]").forEach(option => {
@@ -5027,11 +5054,10 @@
   }
 
   function networkFilterLabel() {
-    const allChains = Object.keys(CHAINS);
-    if (state.selectedChains.size === allChains.length) return "All Chains";
+    if (chainSelectionIsDefault()) return "All Chains";
     if (state.selectedChains.size === 1) {
       const chainKey = Array.from(state.selectedChains)[0];
-      return CHAINS[chainKey]?.name || chainKey;
+      return chainMenuLabel(chainKey);
     }
     return `${state.selectedChains.size} chains`;
   }
@@ -5042,7 +5068,8 @@
       .filter(([, chain]) => text.startsWith(`${chain.name} `) || text.startsWith(`${chain.name}:`) || text.includes(`${chain.name} reward claim`))
       .map(([chainKey]) => chainKey);
     if (!mentionedChains.length) return true;
-    return mentionedChains.some(chainKey => state.selectedChains.has(chainKey));
+    const selected = new Set(selectedChainKeys());
+    return mentionedChains.some(chainKey => selected.has(chainKey));
   }
 
   function isRewardClaimWarning(message) {
@@ -5897,7 +5924,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
 
   function selectedChainKeys() {
     const keys = chainFilterKeys().filter(chainKey => state.selectedChains.has(chainKey));
-    return keys.length ? keys : chainFilterKeys();
+    return keys.length ? keys : defaultChainKeys();
   }
 
   function downloadJson(filename, payload) {
@@ -6552,8 +6579,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     const actionParam = actionFilterParam();
     if (actionParam) url.searchParams.set("action", actionParam);
     else url.searchParams.delete("action");
-    const allChains = Object.keys(CHAINS);
-    if (state.selectedChains.size && state.selectedChains.size !== allChains.length) {
+    if (state.selectedChains.size && !chainSelectionIsDefault()) {
       url.searchParams.set("chains", selectedChainKeys().join(","));
     } else {
       url.searchParams.delete("chains");

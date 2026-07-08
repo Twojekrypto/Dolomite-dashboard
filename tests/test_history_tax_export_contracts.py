@@ -2681,7 +2681,7 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn(".primary-btn.pending", self.css)
         self.assertIn("#history-year-control{width:176px}", self.css)
         self.assertIn("#history-action-control{width:190px}", self.css)
-        self.assertIn("#history-network-control{width:210px}", self.css)
+        self.assertIn("#history-network-control{width:300px}", self.css)
         self.assertIn("min-width:220px", self.css)
         self.assertIn("text-align:left", self.css)
         self.assertIn('data-history-clear="network"', self.html)
@@ -3109,6 +3109,72 @@ const warningDetail = api.reportStatusDetail(warningReady);
 if (warningReady.canFullReport) throw new Error(`warning allowed export: ${JSON.stringify(warningReady)}`);
 if (api.reportStatusLabel(warningReady) !== "Incomplete data") throw new Error(api.reportStatusLabel(warningReady));
 if (!warningDetail.includes("Arbitrum deposits unavailable")) throw new Error(warningDetail);
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_history_archived_chains_are_manual_archive_only(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyArchiveChainTest = { state, els, defaultChainKeys, selectedChainKeys, chainSelectionIsDefault, chainMenuLabel, networkFilterLabel, warningAppliesToCurrentChains, reportExportReadiness, setUrlAddress };" + marker);
+let replacedUrl = "";
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState(_a, _b, value) { replacedUrl = String(value || ""); } }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyArchiveChainTest;
+api.els.action = { options: [
+  { value: "all", textContent: "All actions" },
+  { value: "deposit", textContent: "Deposit" },
+  { value: "claim", textContent: "Claim" },
+] };
+api.els.networkMenu = { querySelectorAll() { return []; } };
+api.els.networkLabel = { textContent: "" };
+api.els.networkCount = { textContent: "" };
+api.els.networkButton = { classList: { toggle() {} } };
+api.els.networkIcon = { innerHTML: "" };
+const defaults = api.defaultChainKeys();
+if (defaults.includes("polygonzkevm") || defaults.includes("botanix")) throw new Error(`archived chains in defaults: ${defaults.join(",")}`);
+if (!defaults.includes("arbitrum") || !defaults.includes("berachain")) throw new Error(`active chains missing: ${defaults.join(",")}`);
+if (api.selectedChainKeys().join(",") !== defaults.join(",")) throw new Error(`initial selection should use defaults: ${api.selectedChainKeys().join(",")}`);
+if (!api.chainSelectionIsDefault()) throw new Error("initial chain selection should be default-active");
+if (!api.chainMenuLabel("polygonzkevm").includes("Archived")) throw new Error(api.chainMenuLabel("polygonzkevm"));
+if (!api.chainMenuLabel("botanix").includes("Shutting down")) throw new Error(api.chainMenuLabel("botanix"));
+api.state.address = "0x0000000000000000000000000000000000000001";
+api.state.loading = false;
+api.state.filtersDirty = false;
+api.state.gasChecked = 1;
+api.state.gasTotal = 1;
+api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
+api.state.warnings = [
+  "Polygon zkEVM deposits unavailable: Failed to fetch",
+  "Botanix deposits unavailable: Failed to fetch",
+];
+const rows = [{ chainKey: "arbitrum", gas: { status: "ok" }, events: [{ action: "deposit" }] }];
+const defaultReady = api.reportExportReadiness(rows, []);
+if (!defaultReady.canFullReport) throw new Error(`archived warnings blocked default export: ${JSON.stringify(defaultReady)}`);
+api.state.selectedChains = new Set(["polygonzkevm"]);
+const archiveReady = api.reportExportReadiness(rows, []);
+if (archiveReady.canFullReport || archiveReady.dataWarnings !== 1) throw new Error(`manual archive warning should block archive export: ${JSON.stringify(archiveReady)}`);
+api.setUrlAddress(api.state.address);
+if (!replacedUrl.includes("chains=polygonzkevm")) throw new Error(`manual archive chain not preserved in URL: ${replacedUrl}`);
+api.state.selectedChains = new Set(defaults);
+if (!api.chainSelectionIsDefault()) throw new Error(`All Chains should reset to active defaults: ${api.selectedChainKeys().join(",")}`);
+if (api.networkFilterLabel() !== "All Chains") throw new Error(api.networkFilterLabel());
+api.setUrlAddress(api.state.address);
+if (replacedUrl.includes("chains=")) throw new Error(`default-active URL should omit chains param: ${replacedUrl}`);
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
