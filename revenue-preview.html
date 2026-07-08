@@ -737,6 +737,10 @@ h1{
 .chain-audit.warn,.chain-audit.partial,.chain-audit.stale{color:#f0b35a;border-color:rgba(240,179,90,.24);background:rgba(245,158,11,.055)}
 .chain-audit.missing,.chain-audit.not-run{color:var(--fg-4)}
 .chain-audit-detail{margin-top:3px;max-width:210px;color:var(--fg-4);font-size:10.5px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chain-status{margin-top:6px;display:inline-flex;align-items:center;gap:5px;max-width:100%;height:20px;padding:0 7px;border-radius:5px;border:1px solid var(--line-2);background:rgba(255,255,255,.022);font-family:var(--mono);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.45px;color:var(--fg-3);white-space:nowrap}
+.chain-status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9;flex:0 0 auto}
+.chain-status.archived{color:#a8a29e;border-color:rgba(168,162,158,.22);background:rgba(168,162,158,.055)}
+.chain-status.shutting-down{color:#f0b35a;border-color:rgba(240,179,90,.24);background:rgba(245,158,11,.055)}
 .revenue-col-inner{display:inline-flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:128px}
 .revenue-primary{font-family:var(--mono);font-size:14px;font-weight:900;color:#75b87b;text-shadow:0 0 14px rgba(117,184,123,.14)}
 .num-main{font-family:var(--mono);font-size:13px;font-weight:750;color:var(--fg-1)}
@@ -1513,6 +1517,17 @@ h1{
   function chainIcon(chain){
     const key = chainKey(chain);
     return key ? `https://icons.llamao.fi/icons/chains/rsz_${key}.jpg` : "";
+  }
+  function chainLifecycleMeta(chain){
+    const key = normalizeVeBorrowWalletChainKey(chain);
+    if (key === "polygonzkevm") return { label: "Archived network", className: "archived" };
+    if (key === "botanix") return { label: "Shutting down Jul 09", className: "shutting-down" };
+    return null;
+  }
+  function chainLifecycleStatusHtml(chain){
+    const lifecycle = chainLifecycleMeta(chain);
+    if (!lifecycle) return "";
+    return `<div class="chain-status ${esc(lifecycle.className)}">${esc(lifecycle.label)}</div>`;
   }
   function normalizeVeBorrowWalletChainKey(chain){
     const key = String(chain || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -3529,7 +3544,7 @@ h1{
         ? `<img src="${icon}" alt="" onerror="this.parentElement.classList.add('fallback');this.parentElement.textContent='${abbr}';">`
         : chainAbbr(row.chain);
       return `<tr>
-        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div>${auditStatusHtml(row.chain)}</div></div></td>
+        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div>${chainLifecycleStatusHtml(row.chain)}${auditStatusHtml(row.chain)}</div></div></td>
         <td class="revenue-col"><div class="revenue-col-inner"><div class="revenue-primary">${usdFull(row.revenueUSD)}</div></div></td>
         <td><div class="num-main">${usdFull(row.feesUSD)}</div></td>
         <td><div class="num-main">${usdFull(row.supplySideRevenueUSD)}</div></td>
