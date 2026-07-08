@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-history-warning-layout-fix";
+  const HISTORY_VERSION = "history-20260708-report-load-fix";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -23,6 +23,7 @@
   const EARN_LEDGER_BASE = "data/earn-verified-ledger";
   const EARN_REWARDS_BASE = "data/earn-merkl-rewards";
   const EARN_SNAPSHOT_BASE = "data/earn-snapshots";
+  const EARN_SNAPSHOT_SERIES_MAX_DATES = 12;
   const REWARD_CLAIM_EVENTS_URL = "data/reward-claim-events.json";
   const REWARD_CLAIM_EVENTS_BASE = "data/reward-claim-events";
   const ODOLO_CLAIM_EVENTS_URL = "data/odolo-claim-events.json";
@@ -3164,6 +3165,7 @@
       rewards: {},
       yearYields: {},
       prices: {},
+      snapshotSeriesSkipped: null,
       warnings: [],
       generatedAt: "",
     };
@@ -3254,7 +3256,13 @@
     const dates = Array.isArray(manifest.dates) ? manifest.dates : [];
     if (!dates.length || !Object.keys(earn.ledgers || {}).length) return;
     const chainDates = new Map();
-    Object.keys(earn.ledgers || {}).forEach(chainKey => {
+    const snapshotMarketIdsByChain = new Map();
+    Object.entries(earn.ledgers || {}).forEach(([chainKey, ledger]) => {
+      const neededMarketIds = new Set(Object.entries(ledger.markets || {})
+        .filter(([, market]) => marketNeedsEarnSnapshotSeries(ledger, market, bounds))
+        .map(([marketId]) => marketId));
+      if (!neededMarketIds.size) return;
+      snapshotMarketIdsByChain.set(chainKey, neededMarketIds);
       chainDates.set(chainKey, dates.filter(date => {
         if (!timestampOverlapsBounds(dateToUnix(date), bounds)) return false;
         const chainsForDate = manifest.chains?.[date];
@@ -3262,6 +3270,15 @@
       }));
     });
     const neededDates = Array.from(new Set(Array.from(chainDates.values()).flat())).sort();
+    if (!neededDates.length) return;
+    if (neededDates.length > EARN_SNAPSHOT_SERIES_MAX_DATES) {
+      earn.snapshotSeriesSkipped = {
+        reason: "date-count",
+        dateCount: neededDates.length,
+        maxDates: EARN_SNAPSHOT_SERIES_MAX_DATES,
+      };
+      return;
+    }
     if (neededDates.length < 2) {
       earn.warnings.push(`EARN yearly snapshot series unavailable for ${bounds.label}; cumulative ledger fallback may be used.`);
       return;
@@ -3278,11 +3295,13 @@
     });
     Object.entries(earn.ledgers || {}).forEach(([chainKey, ledger]) => {
       const datesForChain = chainDates.get(chainKey) || [];
+      const neededMarketIds = snapshotMarketIdsByChain.get(chainKey) || new Set();
       const marketHistory = {};
       datesForChain.forEach(date => {
         const walletMarkets = snapshotsByDate[date]?.snapshots?.[chainKey]?.[address]?.markets;
         if (!walletMarkets) return;
         Object.entries(walletMarkets).forEach(([marketId, row]) => {
+          if (!neededMarketIds.has(marketId)) return;
           if (!ledger.markets?.[marketId]) return;
           if (!marketHistory[marketId]) marketHistory[marketId] = [];
           marketHistory[marketId].push({
@@ -3587,6 +3606,12 @@
   function canUseEarnLedgerBaselineEntry(entry) {
     const level = earnLedgerEvidenceLevel(entry);
     return level === "verified" || level === "inferred";
+  }
+
+  function marketNeedsEarnSnapshotSeries(ledger, market, bounds) {
+    if (!earnLedgerOverlapsBounds(ledger, market, bounds)) return false;
+    if (canUseEarnLedgerBaselineEntry(market)) return false;
+    return safeBigInt(market?.cumulativeYield) !== 0n;
   }
 
   function earnLedgerEvidenceLevel(entry) {
