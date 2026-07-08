@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-report-readiness-ux";
+  const HISTORY_VERSION = "history-20260708-claim-filter-fix";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -367,7 +367,7 @@
           <label class="history-date-field" for="history-date-from-text">
             <span>From</span>
             <div class="history-date-trigger" id="history-date-from-shell">
-              <input class="history-date-value history-date-manual" id="history-date-from-text" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\\d{1,2}[./-]\\d{1,2}[./-]\\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="History start date">
+              <input class="history-date-value history-date-manual" id="history-date-from-text" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\\d{1,2}(?:[.]|/|-)\\d{1,2}(?:[.]|/|-)\\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="History start date">
               <button class="history-date-icon-btn" id="history-date-from-btn" type="button" data-history-date-bound="from" aria-haspopup="dialog" aria-expanded="false" aria-label="Open start date calendar">${calendarIconHtml()}</button>
             </div>
             <input id="history-date-from" name="from" type="hidden">
@@ -375,7 +375,7 @@
           <label class="history-date-field" for="history-date-to-text">
             <span>To</span>
             <div class="history-date-trigger" id="history-date-to-shell">
-              <input class="history-date-value history-date-manual" id="history-date-to-text" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\\d{1,2}[./-]\\d{1,2}[./-]\\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="History end date">
+              <input class="history-date-value history-date-manual" id="history-date-to-text" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" spellcheck="false" maxlength="10" pattern="\\d{1,2}(?:[.]|/|-)\\d{1,2}(?:[.]|/|-)\\d{4}" title="Format: dd.mm.yyyy" placeholder="dd.mm.yyyy" aria-label="History end date">
               <button class="history-date-icon-btn" id="history-date-to-btn" type="button" data-history-date-bound="to" aria-haspopup="dialog" aria-expanded="false" aria-label="Open end date calendar">${calendarIconHtml()}</button>
             </div>
             <input id="history-date-to" name="to" type="hidden">
@@ -482,7 +482,7 @@
   function normalizeActionFilter(value) {
     const action = String(value || "all");
     if (action === "trade" || action === "zap") return "swap";
-    if (action === "odoloClaim" || action === "rewardClaim") return "claim";
+    if (action === "odoloClaim" || action === "rewardClaim" || action === "vestingClaim") return "claim";
     return action;
   }
 
@@ -3845,18 +3845,22 @@
   function rowMatchesActionFilter(row, action) {
     action = normalizeActionFilter(action);
     if (rowClassificationPending(row)) return false;
+    const rowActions = row.actions || new Set();
     const semanticActions = row.semanticActions || new Set();
+    const hasSwapLikeAction = rowActions.has("trade")
+      || rowActions.has("zap")
+      || (row.events || []).some(event => event?.taxCategory === "swap" || event?.taxCategory === "zap");
     if (action === "borrow") return semanticActions.has("borrow") || semanticActions.has("openBorrow");
-    if (action === "repay") return semanticActions.has("repay") || semanticActions.has("closeBorrow");
+    if (action === "repay") return semanticActions.has("repay");
+    if (action === "closeBorrow") return semanticActions.has("closeBorrow");
     if (action === "addCollateral") return semanticActions.has("addCollateral");
     if (action === "withdrawCollateral") return semanticActions.has("withdrawCollateral");
     if (action === "withdraw" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "deposit" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
+    if (action === "transfer" && hasSwapLikeAction) return false;
     if (action === "swap") {
-      return row.actions.has("trade")
-        || row.actions.has("zap")
-        || (row.events || []).some(event => event?.taxCategory === "swap" || event?.taxCategory === "zap");
+      return hasSwapLikeAction;
     }
     if (action === "vestingPair") {
       return vestingEventsForRow(row).some(event => vestingFlowIsOpen(event.vestingFlowLabel));
@@ -3865,11 +3869,11 @@
       return vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
     }
     if (action === "claim") {
-      return row.actions.has("odoloClaim")
-        || row.actions.has("rewardClaim")
+      return rowActions.has("odoloClaim")
+        || rowActions.has("rewardClaim")
         || vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
     }
-    return row.actions.has(action);
+    return rowActions.has(action);
   }
 
   function rowClassificationPending(row) {

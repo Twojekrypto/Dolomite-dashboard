@@ -1,5 +1,7 @@
 import os
 import sys
+import json
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -9,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import generate_reward_claim_events as rce
 
 ROOT = Path(__file__).resolve().parents[1]
+KNOWN_BERA_ODOLO_CLAIM_TX = "0xe2d1621747cafc1f7d7d18b41a2cc1204369c91edb89eea59628bdd23d8340b2"
 
 
 def _log(block):
@@ -88,6 +91,64 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
             "ALCHEMY_ARBITRUM_RPC_ZEN",
         ):
             self.assertIn(env_name, source)
+
+    def test_sharded_manifest_events_are_reloaded_before_incremental_scan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            chain_dir = root / "data" / "reward-claim-events"
+            chain_dir.mkdir(parents=True)
+            manifest_path = root / "data" / "reward-claim-events.json"
+            manifest_path.parent.mkdir(parents=True, exist_ok=True)
+
+            manifest_path.write_text(json.dumps({
+                "schemaVersion": rce.SCHEMA_VERSION,
+                "events": [],
+                "eventsShardedByChain": True,
+                "chainEventFiles": {
+                    "berachain": "data/reward-claim-events/berachain.json",
+                },
+                "chains": {
+                    "berachain": {"eventCount": 1, "toBlock": 100},
+                },
+            }), encoding="utf-8")
+            chain_event = {
+                "chainKey": "berachain",
+                "txHash": "0x" + "b" * 64,
+                "logIndex": 7,
+                "blockNumber": 99,
+                "timestamp": 12345,
+                "user": "0x" + "1" * 40,
+                "distributor": "0x" + "2" * 40,
+            }
+            (chain_dir / "berachain.json").write_text(json.dumps({
+                "schemaVersion": rce.SCHEMA_VERSION,
+                "chains": {"berachain": {"eventCount": 1, "toBlock": 100}},
+                "events": [chain_event],
+            }), encoding="utf-8")
+
+            with patch.object(rce, "ROOT_DIR", str(root)), \
+                    patch.object(rce, "OUTPUT_JSON", str(manifest_path)), \
+                    patch.object(rce, "CHAIN_OUTPUT_DIR", str(chain_dir)):
+                payload = rce.load_existing_reward_claim_payload()
+
+        self.assertEqual(len(payload["events"]), 1)
+        self.assertEqual(payload["events"][0]["txHash"], chain_event["txHash"])
+
+    def test_known_berachain_odolo_claim_is_indexed(self):
+        payload = json.loads((ROOT / "data" / "reward-claim-events" / "berachain.json").read_text(encoding="utf-8"))
+        matches = [
+            event for event in payload.get("events", [])
+            if str(event.get("txHash", "")).lower() == KNOWN_BERA_ODOLO_CLAIM_TX
+        ]
+
+        self.assertEqual(len(matches), 1)
+        event = matches[0]
+        self.assertEqual(event.get("user"), "0x28da3dde285d8f1f87b2d858f89961bb8b9af180")
+        self.assertEqual(event.get("distributor"), "0x79e6e932bf6686a4d357d7821e6e08835ba8a026")
+        self.assertEqual(event.get("blockNumber"), 23198982)
+        self.assertEqual(event.get("epoch"), 60)
+        self.assertEqual(event.get("amountWei"), "21180233137303023902")
+        self.assertEqual(event.get("tokenSymbol"), "oDOLO")
 
 
 if __name__ == "__main__":
