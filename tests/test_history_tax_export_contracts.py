@@ -3123,6 +3123,14 @@ if (api.historySortValue(rows[0], "details") !== "") throw new Error("details co
         self.assertNotIn("history-asset-summary-list", self.source)
         self.assertNotIn("renderAssetActivitySummary", self.source)
 
+    def test_history_scope_tooltip_layers_above_filter_toolbar(self):
+        toolbar_match = re.search(r"\.history-table-toolbar\{[^}]*z-index:(\d+)", self.css)
+        tooltip_match = re.search(r"\.history-scope-tooltip\{[^}]*z-index:(\d+)", self.css)
+        self.assertIsNotNone(toolbar_match, "history toolbar z-index should stay explicit")
+        self.assertIsNotNone(tooltip_match, "history scope tooltip z-index should stay explicit")
+        self.assertGreater(int(tooltip_match.group(1)), int(toolbar_match.group(1)))
+        self.assertIn(".history-card{margin-bottom:16px;background:var(--bg-2);box-shadow:var(--sh-card);overflow:visible", self.css)
+
     def test_history_keeps_methodology_in_exports_not_page_ui(self):
         self.assertNotIn("history-advanced-evidence", self.html)
         self.assertNotIn("history-more-exports", self.html)
@@ -3356,7 +3364,7 @@ const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync("history/history.js", "utf8");
 const marker = "\n  if (document.readyState === \"loading\") {";
-const instrumented = source.replace(marker, "\n  globalThis.__historyArchiveChainTest = { state, els, chainFilterKeys, defaultChainKeys, selectedChainKeys, chainSelectionIsDefault, chainMenuLabel, networkFilterLabel, warningAppliesToCurrentChains, reportExportReadiness, setUrlAddress };" + marker);
+const instrumented = source.replace(marker, "\n  globalThis.__historyArchiveChainTest = { state, els, chainFilterKeys, defaultChainKeys, selectedChainKeys, chainSelectionIsDefault, chainMenuLabel, chainMenuSubLabel, networkFilterLabel, warningAppliesToCurrentChains, reportExportReadiness, setUrlAddress };" + marker);
 let replacedUrl = "";
 const sandbox = {
   console,
@@ -3390,8 +3398,10 @@ if (!defaults.includes("arbitrum") || !defaults.includes("berachain")) throw new
 if (filterOrder.slice(-2).join(",") !== "polygonzkevm,botanix") throw new Error(`archive chains should be last: ${filterOrder.join(",")}`);
 if (api.selectedChainKeys().join(",") !== defaults.join(",")) throw new Error(`initial selection should use defaults: ${api.selectedChainKeys().join(",")}`);
 if (!api.chainSelectionIsDefault()) throw new Error("initial chain selection should be default-active");
-if (!api.chainMenuLabel("polygonzkevm").includes("Archived")) throw new Error(api.chainMenuLabel("polygonzkevm"));
-if (!api.chainMenuLabel("botanix").includes("Shutting down")) throw new Error(api.chainMenuLabel("botanix"));
+if (api.chainMenuLabel("polygonzkevm") !== "Polygon zkEVM") throw new Error(`archive label should stay compact: ${api.chainMenuLabel("polygonzkevm")}`);
+if (api.chainMenuSubLabel("polygonzkevm") !== "Archived") throw new Error(api.chainMenuSubLabel("polygonzkevm"));
+if (api.chainMenuLabel("botanix") !== "Botanix") throw new Error(`shutdown label should stay compact: ${api.chainMenuLabel("botanix")}`);
+if (api.chainMenuSubLabel("botanix") !== "Shutting down") throw new Error(api.chainMenuSubLabel("botanix"));
 api.state.address = "0x0000000000000000000000000000000000000001";
 api.state.loading = false;
 api.state.filtersDirty = false;
@@ -3418,6 +3428,10 @@ api.setUrlAddress(api.state.address);
 if (replacedUrl.includes("chains=")) throw new Error(`default-active URL should omit chains param: ${replacedUrl}`);
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+        self.assertIn("chainMenuSubLabel", self.source)
+        self.assertIn("history-dd-sub", self.source)
+        self.assertIn(".history-dd-sub", self.css)
+        self.assertIn(".history-dd-copy", self.css)
 
     def test_history_exports_require_complete_data_without_current_view_warnings(self):
         script = r"""

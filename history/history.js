@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-sortable-history-table";
+  const HISTORY_VERSION = "history-20260708-history-tooltip-chain-archive-ux";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -440,7 +440,7 @@
       dropdownOptionHtml("network", "all", "All Chains", globeIconHtml(), true),
       ...chainFilterKeys().map(key => {
         const chain = CHAINS[key];
-        return dropdownOptionHtml("network", key, chainMenuLabel(key), `<img src="${escapeAttr(chain.icon)}" alt="" onerror="this.style.display='none'">`);
+        return dropdownOptionHtml("network", key, chainMenuLabel(key), `<img src="${escapeAttr(chain.icon)}" alt="" onerror="this.style.display='none'">`, false, chainMenuSubLabel(key));
       }),
     ].join("");
     els.networkMenu.innerHTML = dropdownPanelHtml("Chain", chainOptions);
@@ -470,7 +470,11 @@
   function chainMenuLabel(chainKey) {
     const chain = CHAINS[chainKey];
     if (!chain) return chainKey;
-    return chain.historyLifecycleLabel ? `${chain.name} · ${chain.historyLifecycleLabel}` : chain.name;
+    return chain.name;
+  }
+
+  function chainMenuSubLabel(chainKey) {
+    return CHAINS[chainKey]?.historyLifecycleLabel || "";
   }
 
   function dropdownPanelHtml(title, optionsHtml) {
@@ -481,12 +485,16 @@
     `;
   }
 
-  function dropdownOptionHtml(type, value, label, iconHtml, selectAll = false) {
+  function dropdownOptionHtml(type, value, label, iconHtml, selectAll = false, subLabel = "") {
+    const sub = String(subLabel || "").trim();
     return `
       <button class="history-dd-opt ${selectAll ? "select-all" : ""}" type="button" data-history-${escapeAttr(type)}="${escapeAttr(value)}" role="option">
         <span class="history-dd-check">${checkIconHtml()}</span>
         <span class="history-dd-opt-ico">${iconHtml}</span>
-        <span class="history-dd-name">${escapeHtml(label)}</span>
+        <span class="history-dd-copy">
+          <span class="history-dd-name">${escapeHtml(label)}</span>
+          ${sub ? `<span class="history-dd-sub">${escapeHtml(sub)}</span>` : ""}
+        </span>
       </button>
     `;
   }
