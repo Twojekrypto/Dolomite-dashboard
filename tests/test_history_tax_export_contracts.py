@@ -2703,6 +2703,9 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
     def test_history_report_is_consolidated_with_format_choices(self):
         for element_id in [
             "history-report-status",
+            "history-report-detail",
+            "history-report-progress",
+            "history-report-progress-bar",
             "history-report-button",
             "history-report-menu",
             "history-tax-export",
@@ -2795,11 +2798,15 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn(".history-report-panel", self.css)
         self.assertIn(".history-report-panel::before", self.css)
         self.assertIn(".history-report-menu.hover-open .history-report-panel", self.css)
+        self.assertIn(".report-detail", self.css)
+        self.assertIn(".report-progress", self.css)
         self.assertIn("scheduleHistoryReportMenuClose", self.source)
         self.assertIn("clearHistoryReportMenuClose", self.source)
         self.assertIn(".history-table-toolbar .lookup-bar{grid-template-columns:1fr}", self.css)
         self.assertIn(".history-table-toolbar .primary-btn{grid-column:1/-1}", self.css)
         self.assertIn(".report-status", self.css)
+        self.assertIn("reportStatusDetail", self.source)
+        self.assertIn("reportProgressPercent", self.source)
         self.assertNotIn(".ledger-report-panel", self.css)
         self.assertNotIn(".ledger-report-head", self.css)
         self.assertNotIn(".report-grid-single", self.css)
@@ -2812,6 +2819,8 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn("toggleHistoryReportMenu", self.source)
         self.assertIn("closeHistoryReportMenu", self.source)
         self.assertIn("els.reportButton", self.source)
+        self.assertIn("els.reportDetail", self.source)
+        self.assertIn("els.reportProgressBar", self.source)
         self.assertNotIn("history-export", self.html)
         self.assertNotIn("history-export", self.source)
         self.assertNotIn("els.export", self.source)
@@ -3025,13 +3034,13 @@ if (full.skippedRows.length !== 0) throw new Error(JSON.stringify(full));
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
-    def test_history_exports_require_complete_data_without_warnings(self):
+    def test_history_report_menu_explains_disabled_exports_with_progress(self):
         script = r"""
 const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync("history/history.js", "utf8");
 const marker = "\n  if (document.readyState === \"loading\") {";
-const instrumented = source.replace(marker, "\n  globalThis.__historyReportGateTest = { state, reportExportReadiness, reportStatusLabel };" + marker);
+const instrumented = source.replace(marker, "\n  globalThis.__historyReportUxTest = { state, reportExportReadiness, reportStatusLabel, reportStatusDetail, reportProgressPercent };" + marker);
 const sandbox = {
   console,
   URL,
@@ -3039,29 +3048,111 @@ const sandbox = {
   Blob,
   Set,
   Map,
+  Date,
+  Math,
+  Intl,
   document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
   window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
 };
 vm.runInNewContext(instrumented, sandbox);
-const api = sandbox.__historyReportGateTest;
+const api = sandbox.__historyReportUxTest;
 api.state.address = "0x0000000000000000000000000000000000000001";
 api.state.loading = false;
 api.state.filtersDirty = false;
 api.state.warnings = [];
 api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
-const rows = [{ gas: { status: "ready" }, events: [{ action: "deposit" }] }];
+api.state.gasChecked = 20;
+api.state.gasTotal = 80;
+api.state.loadingPhase = "receipts";
+api.state.loadingStartedAt = Date.now() - 5000;
+const rows = Array.from({ length: 80 }, (_, index) => ({
+  chainKey: "arbitrum",
+  gas: { status: index < 20 ? "ok" : "pending" },
+  events: [{ action: "deposit" }],
+}));
+const pending = api.reportExportReadiness(rows, []);
+const detail = api.reportStatusDetail(pending);
+if (pending.canFullReport) throw new Error(`pending evidence allowed export: ${JSON.stringify(pending)}`);
+if (api.reportStatusLabel(pending) !== "Completing evidence") throw new Error(api.reportStatusLabel(pending));
+if (!detail.includes("20/80 receipts")) throw new Error(detail);
+if (!detail.includes("left")) throw new Error(detail);
+const progress = api.reportProgressPercent(pending);
+if (!(progress > 0 && progress < 100)) throw new Error(`bad progress: ${progress}`);
+api.state.gasChecked = 80;
+api.state.gasTotal = 80;
+api.state.loadingPhase = "done";
+const warningRows = rows.map(row => ({ ...row, gas: { status: "ok" } }));
+api.state.warnings = ["Arbitrum deposits unavailable: subgraph timeout."];
+const warningReady = api.reportExportReadiness(warningRows, []);
+const warningDetail = api.reportStatusDetail(warningReady);
+if (warningReady.canFullReport) throw new Error(`warning allowed export: ${JSON.stringify(warningReady)}`);
+if (api.reportStatusLabel(warningReady) !== "Incomplete data") throw new Error(api.reportStatusLabel(warningReady));
+if (!warningDetail.includes("Arbitrum deposits unavailable")) throw new Error(warningDetail);
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_history_exports_require_complete_data_without_current_view_warnings(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyReportGateTest = { state, els, setSelectedActionsFromValues, selectAllActions, reportExportReadiness, reportStatusLabel, reportStatusDetail };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyReportGateTest;
+const actionValues = ["all","deposit","withdraw","borrow","repay","addCollateral","withdrawCollateral","transfer","swap","liquidation","vaporization","asyncDeposit","asyncWithdrawal","amm","vestingPair","vestingClaim","claim","rewardLevelUpdate"];
+api.els.action = { options: actionValues.map(value => ({ value, textContent: value })), value: "all" };
+api.state.address = "0x0000000000000000000000000000000000000001";
+api.state.loading = false;
+api.state.filtersDirty = false;
+api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
+api.state.selectedChains = new Set(["arbitrum"]);
+api.selectAllActions();
+const rows = [{ chainKey: "arbitrum", gas: { status: "ready" }, events: [{ action: "deposit" }] }];
 const ready = api.reportExportReadiness(rows, []);
 if (!ready.canFullReport) throw new Error(`clean report blocked: ${JSON.stringify(ready)}`);
 if (api.reportStatusLabel(ready) !== "Ready") throw new Error(api.reportStatusLabel(ready));
-api.state.warnings = ["Arbitrum reward claim index is current only through an older date."];
+api.state.warnings = [
+  "Arbitrum reward claim index is current only through an older date.",
+  "X Layer reward claim index warning: RPC limit.",
+];
 const warningReady = api.reportExportReadiness(rows, []);
 if (warningReady.canFullReport) throw new Error(`history warnings allowed export: ${JSON.stringify(warningReady)}`);
 if (api.reportStatusLabel(warningReady) !== "Incomplete data") throw new Error(api.reportStatusLabel(warningReady));
+if (warningReady.dataWarnings !== 1) throw new Error(`wrong active warning count: ${JSON.stringify(warningReady)}`);
+if (!api.reportStatusDetail(warningReady).includes("Arbitrum reward claim")) throw new Error(api.reportStatusDetail(warningReady));
+api.setSelectedActionsFromValues(["deposit"]);
+const depositReady = api.reportExportReadiness(rows, []);
+if (!depositReady.canFullReport) throw new Error(`claim warnings blocked deposit export: ${JSON.stringify(depositReady)}`);
+if (api.reportStatusLabel(depositReady) !== "Ready") throw new Error(api.reportStatusLabel(depositReady));
+api.state.warnings = ["Arbitrum deposits unavailable: subgraph timeout."];
+const sourceWarningReady = api.reportExportReadiness(rows, []);
+if (sourceWarningReady.canFullReport) throw new Error(`active source warning allowed export: ${JSON.stringify(sourceWarningReady)}`);
+api.state.selectedChains = new Set(["ethereum"]);
+const otherChainReady = api.reportExportReadiness(rows, []);
+if (!otherChainReady.canFullReport) throw new Error(`other-chain warning blocked export: ${JSON.stringify(otherChainReady)}`);
 api.state.warnings = [];
 api.state.earn.warnings = ["EARN candidate evidence is partial."];
+api.selectAllActions();
 const earnWarningReady = api.reportExportReadiness(rows, []);
 if (earnWarningReady.canFullReport) throw new Error(`earn warnings allowed export: ${JSON.stringify(earnWarningReady)}`);
 if (api.reportStatusLabel(earnWarningReady) !== "Incomplete data") throw new Error(api.reportStatusLabel(earnWarningReady));
+api.setSelectedActionsFromValues(["deposit"]);
+const earnFilteredReady = api.reportExportReadiness(rows, []);
+if (!earnFilteredReady.canFullReport) throw new Error(`earn warning blocked filtered export: ${JSON.stringify(earnFilteredReady)}`);
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 

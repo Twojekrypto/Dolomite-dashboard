@@ -12,14 +12,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script>window.__DOLO_ROUTE="history";</script>
-<link rel="stylesheet" href="history/history.css?v=history-20260708-download-menu-complete-report">
+<link rel="stylesheet" href="history/history.css?v=history-20260708-report-readiness-ux">
 <link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs">
 <link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs">
 <link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260619-links-mobile">
 <script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"></script>
 <script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"></script>
 <script defer src="protocol-footer.js?v=protocol-footer-20260619-links-mobile"></script>
-<script defer src="history/history.js?v=history-20260708-download-menu-complete-report"></script>
+<script defer src="history/history.js?v=history-20260708-report-readiness-ux"></script>
 </head>
 <body>
 <div class="wrap">
@@ -200,15 +200,17 @@
           </button>
           <div class="history-report-panel" role="menu" aria-label="Report download options">
             <strong class="report-status" id="history-report-status">Awaiting wallet</strong>
-            <button class="report-format-btn primary" id="history-tax-export" type="button" role="menuitem" disabled>
+            <span class="report-detail" id="history-report-detail">Load a wallet to generate export files.</span>
+            <span class="report-progress" id="history-report-progress" aria-hidden="true" hidden><span id="history-report-progress-bar"></span></span>
+            <button class="report-format-btn primary" id="history-tax-export" type="button" role="menuitem" aria-describedby="history-report-detail" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 20h14"/></svg>
               CSV
             </button>
-            <button class="report-format-btn" id="history-report-json" type="button" role="menuitem" disabled>
+            <button class="report-format-btn" id="history-report-json" type="button" role="menuitem" aria-describedby="history-report-detail" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10"/><path d="m8 10 4 4 4-4"/><path d="M5 20h14"/></svg>
               JSON
             </button>
-            <button class="report-format-btn" id="history-report-print" type="button" role="menuitem" disabled>
+            <button class="report-format-btn" id="history-report-print" type="button" role="menuitem" aria-describedby="history-report-detail" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
               Print
             </button>

@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-download-menu-complete-report";
+  const HISTORY_VERSION = "history-20260708-report-readiness-ux";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -316,6 +316,9 @@
     els.loadingStepEvidence = document.getElementById("history-step-evidence");
     els.loadingStepReports = document.getElementById("history-step-reports");
     els.reportStatus = document.getElementById("history-report-status");
+    els.reportDetail = document.getElementById("history-report-detail");
+    els.reportProgress = document.getElementById("history-report-progress");
+    els.reportProgressBar = document.getElementById("history-report-progress-bar");
     els.reportJson = document.getElementById("history-report-json");
     els.reportPrint = document.getElementById("history-report-print");
   }
@@ -3642,12 +3645,10 @@
 
   function renderRows() {
     const rows = state.filteredRows;
-    const gasPending = rows.some(row => row.gas?.status === "pending");
-    const gasSkippedFast = rows.some(row => row.gas?.status === FAST_GAS_STATUS);
-    const earnPending = state.earn?.status === "loading";
     const earnEntries = earnTaxEntriesForCurrentView();
+    const readiness = reportExportReadiness(rows, earnEntries);
     els.count.textContent = historyCountLabel(rows, earnEntries);
-    els.taxExport.disabled = (rows.length === 0 && earnEntries.length === 0) || state.loading || state.filtersDirty || gasPending || gasSkippedFast || earnPending;
+    els.taxExport.disabled = !readiness.canFullReport;
     renderHistoryPagination(rows);
 
     if (state.loading) {
@@ -4104,9 +4105,20 @@
     const earnEntries = earnTaxEntriesForCurrentView();
     const readiness = reportExportReadiness(rows, earnEntries);
     els.reportStatus.textContent = reportStatusLabel(readiness);
+    if (els.reportDetail) els.reportDetail.textContent = reportStatusDetail(readiness);
+    if (els.reportMenu) els.reportMenu.dataset.reportState = reportStateName(readiness);
+    const progress = reportProgressPercent(readiness);
+    if (els.reportProgress) els.reportProgress.hidden = progress <= 0 || progress >= 100;
+    if (els.reportProgressBar) els.reportProgressBar.style.width = `${progress}%`;
     els.taxExport.disabled = !readiness.canFullReport;
     els.reportJson.disabled = !readiness.canFullReport;
     els.reportPrint.disabled = !readiness.canFullReport;
+    [els.taxExport, els.reportJson, els.reportPrint].forEach(button => {
+      if (!button) return;
+      const title = readiness.canFullReport ? "Download ready." : reportStatusDetail(readiness);
+      button.title = title;
+      button.setAttribute("aria-disabled", readiness.canFullReport ? "false" : "true");
+    });
   }
 
   function earnSummaryAmountLabel(item) {
@@ -4264,18 +4276,24 @@
     const gasPending = rows.some(row => row.gas?.status === "pending");
     const gasSkippedFast = rows.some(row => row.gas?.status === FAST_GAS_STATUS);
     const earnPending = state.earn?.status === "loading";
-    const dataWarnings = historyWarningCount();
+    const activeWarnings = activeDataWarnings();
+    const dataWarnings = activeWarnings.length;
     const hasRows = rows.length > 0;
     const hasReportRows = hasRows || earnEntries.length > 0;
     const blocked = state.loading || state.filtersDirty || gasPending || gasSkippedFast || earnPending || dataWarnings > 0;
+    const receiptTotal = state.gasTotal || rows.length || 0;
+    const receiptChecked = Math.min(receiptTotal || rows.length, state.gasChecked || rows.filter(row => row.gas?.status && row.gas.status !== "pending").length);
     return {
       gasPending,
       gasSkippedFast,
       earnPending,
       dataWarnings,
+      activeWarnings,
       filtersDirty: state.filtersDirty,
       hasRows,
       hasReportRows,
+      receiptChecked,
+      receiptTotal,
       canFullReport: hasReportRows && !blocked,
     };
   }
@@ -4289,6 +4307,50 @@
     if (readiness.dataWarnings) return "Incomplete data";
     if (!readiness.hasReportRows) return "No rows";
     return "Ready";
+  }
+
+  function reportStatusDetail(readiness) {
+    if (!state.address) return "Load a wallet to generate CSV, JSON and print files.";
+    if (readiness.filtersDirty) return "Filters changed. Click Load history before downloading.";
+    if (state.loading) {
+      return `${loadingProgressPercent()}% loaded. ${loadingEtaText()} left.`;
+    }
+    if (readiness.gasPending) {
+      const checked = readiness.receiptChecked || 0;
+      const total = readiness.receiptTotal || 0;
+      const receiptText = total ? `${checked}/${total} receipts` : "Receipts";
+      return `${receiptText} checked. ${loadingEtaText()} left.`;
+    }
+    if (readiness.earnPending) return `EARN evidence is still loading. ${loadingEtaText()} left.`;
+    if (readiness.gasSkippedFast) return "Legacy fast-mode rows need full gas evidence. Reload and wait for receipts.";
+    if (readiness.dataWarnings) {
+      const first = readiness.activeWarnings?.[0] || "Source data warning.";
+      const more = readiness.dataWarnings > 1 ? ` +${readiness.dataWarnings - 1} more.` : "";
+      return `${first}${more}`;
+    }
+    if (!readiness.hasReportRows) return "No export rows match the current filters.";
+    return "CSV, JSON and print are ready to download.";
+  }
+
+  function reportProgressPercent(readiness) {
+    if (!state.address) return 0;
+    if (readiness.canFullReport) return 100;
+    if (state.loading) return loadingProgressPercent();
+    if (readiness.gasPending) {
+      const total = readiness.receiptTotal || state.gasTotal || 0;
+      if (!total) return 45;
+      return Math.max(8, Math.min(96, Math.round(((readiness.receiptChecked || 0) / Math.max(1, total)) * 100)));
+    }
+    if (readiness.earnPending) return 92;
+    return 0;
+  }
+
+  function reportStateName(readiness) {
+    if (!state.address) return "idle";
+    if (readiness.canFullReport) return "ready";
+    if (state.loading || readiness.gasPending || readiness.earnPending) return "working";
+    if (readiness.filtersDirty || readiness.gasSkippedFast || readiness.dataWarnings) return "blocked";
+    return "idle";
   }
 
   function reportCompletenessForRows(rows, earnEntries = []) {
@@ -4565,8 +4627,10 @@
         add(`claim:${entry.claimProofStatus}`, reviewReasonLabel(entry.claimProofStatus), `${entry.chainName || "EARN"} reward/yield claim proof is ${entry.claimProofStatus}.`);
       }
     });
-    if (state.warnings?.length) add("warnings:history", "History source warnings", state.warnings[0]);
-    if (state.earn?.warnings?.length) add("warnings:earn", "EARN source warnings", state.earn.warnings[0]);
+    const historyWarnings = activeHistoryWarnings();
+    const earnWarnings = activeEarnWarnings();
+    if (historyWarnings.length) add("warnings:history", "History source warnings", historyWarnings[0]);
+    if (earnWarnings.length) add("warnings:earn", "EARN source warnings", earnWarnings[0]);
     return Array.from(reasons.values())
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   }
@@ -4726,9 +4790,9 @@
       if (String(entry.priceSource || "").toLowerCase().includes("unavailable")) addReason("price:missing", "Price missing");
     });
 
-    if (state.warnings?.length) addReason("warnings:history", "Data warnings");
+    if (activeHistoryWarnings().length) addReason("warnings:history", "Data warnings");
     if (includeEarnReview && state.earn?.status === "loading") addReason("earn:loading", "EARN pending", "muted");
-    if (includeEarnReview && state.earn?.warnings?.length) addReason("warnings:earn", "EARN warnings");
+    if (includeEarnReview && activeEarnWarnings().length) addReason("warnings:earn", "EARN warnings");
 
     const rawItems = Array.from(reasons.values())
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
@@ -4968,8 +5032,44 @@
     return `${state.selectedChains.size} chains`;
   }
 
+  function warningAppliesToCurrentChains(message) {
+    const text = String(message || "");
+    const mentionedChains = Object.entries(CHAINS)
+      .filter(([, chain]) => text.startsWith(`${chain.name} `) || text.startsWith(`${chain.name}:`) || text.includes(`${chain.name} reward claim`))
+      .map(([chainKey]) => chainKey);
+    if (!mentionedChains.length) return true;
+    return mentionedChains.some(chainKey => state.selectedChains.has(chainKey));
+  }
+
+  function isRewardClaimWarning(message) {
+    return /reward claim/i.test(String(message || ""));
+  }
+
+  function reportIncludesClaimData() {
+    return actionFilterAllSelected() || selectedActionKeys().includes("claim");
+  }
+
+  function reportIncludesEarnData() {
+    return actionFilterAllSelected();
+  }
+
+  function activeHistoryWarnings() {
+    return (state.warnings || [])
+      .filter(warningAppliesToCurrentChains)
+      .filter(message => reportIncludesClaimData() || !isRewardClaimWarning(message));
+  }
+
+  function activeEarnWarnings() {
+    if (!reportIncludesEarnData()) return [];
+    return (state.earn?.warnings || []).filter(warningAppliesToCurrentChains);
+  }
+
+  function activeDataWarnings() {
+    return activeHistoryWarnings().concat(activeEarnWarnings());
+  }
+
   function historyWarningCount() {
-    return (state.warnings || []).length + (state.earn?.warnings || []).length;
+    return activeDataWarnings().length;
   }
 
   function compactDataWarningText() {
@@ -5596,8 +5696,9 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       setStatus(`${label} waits for candidate evidence to finish so export rows are not omitted.`, "warn");
       return false;
     }
-    if (historyWarningCount()) {
-      setStatus(`${label} waits for complete source data. Review data warnings and reload when indexes are fully current.`, "warn");
+    const activeWarnings = activeDataWarnings();
+    if (activeWarnings.length) {
+      setStatus(`${label} waits for complete source data: ${activeWarnings[0]}${activeWarnings.length > 1 ? ` (+${activeWarnings.length - 1} more)` : ""}`, "warn");
       return false;
     }
     return true;
@@ -5627,7 +5728,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       assetSummary: assetActivitySummaryForRows(rows, earnEntries),
       positionLifecycle: positionLifecycleForRows(rows, earnEntries),
       reviewNotes: reviewNotesForExport(rows),
-      warnings: [...(state.warnings || []), ...(state.earn?.warnings || [])],
+      warnings: activeDataWarnings(),
       rows: rows.map(row => evidenceRowPayload(row)),
       earnEntries: earnEntries.map(entry => ({ ...entry })),
     };
@@ -5741,7 +5842,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       reviewNotes: reviewNotesForExport(rows),
       assetSummary: assetActivitySummaryForRows(rows, earnEntries),
       positionLifecycle: positionLifecycleForRows(rows, earnEntries),
-      warnings: [...(state.warnings || []), ...(state.earn?.warnings || [])],
+      warnings: activeDataWarnings(),
     };
   }
 
@@ -5809,7 +5910,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       chainsIncluded: selectedChainKeys()
         .map(chainKey => CHAINS[chainKey].name)
         .join("; "),
-      warningsCount: String((state.warnings?.length || 0) + (state.earn?.warnings?.length || 0)),
+      warningsCount: String(historyWarningCount()),
       gasCoverage: rows.length ? `${checked}/${rows.length}` : "0/0",
       earnCoverage: `${earnSummary.statusLabel}; ${earnSummary.coverage}; ${earnEntries.length} earn rows`,
       scope: TAX_REPORT_SCOPE,
@@ -6499,8 +6600,9 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
   }
 
   function shortWarnings() {
-    const visible = state.warnings.slice(0, 2).join(" | ");
-    return state.warnings.length > 2 ? `${visible} | +${state.warnings.length - 2} more` : visible;
+    const warnings = activeDataWarnings();
+    const visible = warnings.slice(0, 2).join(" | ");
+    return warnings.length > 2 ? `${visible} | +${warnings.length - 2} more` : visible;
   }
 
   function csvCell(value) {
