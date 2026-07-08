@@ -2667,7 +2667,10 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertNotIn("if (state.rows.length) lookup();", self.source)
         self.assertIn("globeIconHtml", self.source)
         self.assertIn("CHAIN_FILTER_ORDER", self.source)
+        self.assertIn("const HISTORY_GRAPH_OPTIONS = { timeoutMs: 12000, attempts: 2 };", self.source)
+        self.assertIn("const HISTORY_ENTITY_CONCURRENCY = 6;", self.source)
         self.assertIn("clearHistoryFilter", self.source)
+        self.assertIn("rewardClaimMetaWarningText", self.source)
         self.assertIn("networkButtonIconHtml", self.source)
         self.assertIn('!allSelected && state.selectedChains.has(chain)', self.source)
         self.assertIn(".history-dd-btn", self.css)
@@ -2681,7 +2684,7 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn(".primary-btn.pending", self.css)
         self.assertIn("#history-year-control{width:176px}", self.css)
         self.assertIn("#history-action-control{width:190px}", self.css)
-        self.assertIn("#history-network-control{width:300px}", self.css)
+        self.assertIn("#history-network-control{width:210px}", self.css)
         self.assertIn("min-width:220px", self.css)
         self.assertIn("text-align:left", self.css)
         self.assertIn('data-history-clear="network"', self.html)
@@ -3118,7 +3121,7 @@ const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync("history/history.js", "utf8");
 const marker = "\n  if (document.readyState === \"loading\") {";
-const instrumented = source.replace(marker, "\n  globalThis.__historyArchiveChainTest = { state, els, defaultChainKeys, selectedChainKeys, chainSelectionIsDefault, chainMenuLabel, networkFilterLabel, warningAppliesToCurrentChains, reportExportReadiness, setUrlAddress };" + marker);
+const instrumented = source.replace(marker, "\n  globalThis.__historyArchiveChainTest = { state, els, chainFilterKeys, defaultChainKeys, selectedChainKeys, chainSelectionIsDefault, chainMenuLabel, networkFilterLabel, warningAppliesToCurrentChains, reportExportReadiness, setUrlAddress };" + marker);
 let replacedUrl = "";
 const sandbox = {
   console,
@@ -3146,8 +3149,10 @@ api.els.networkCount = { textContent: "" };
 api.els.networkButton = { classList: { toggle() {} } };
 api.els.networkIcon = { innerHTML: "" };
 const defaults = api.defaultChainKeys();
+const filterOrder = api.chainFilterKeys();
 if (defaults.includes("polygonzkevm") || defaults.includes("botanix")) throw new Error(`archived chains in defaults: ${defaults.join(",")}`);
 if (!defaults.includes("arbitrum") || !defaults.includes("berachain")) throw new Error(`active chains missing: ${defaults.join(",")}`);
+if (filterOrder.slice(-2).join(",") !== "polygonzkevm,botanix") throw new Error(`archive chains should be last: ${filterOrder.join(",")}`);
 if (api.selectedChainKeys().join(",") !== defaults.join(",")) throw new Error(`initial selection should use defaults: ${api.selectedChainKeys().join(",")}`);
 if (!api.chainSelectionIsDefault()) throw new Error("initial chain selection should be default-active");
 if (!api.chainMenuLabel("polygonzkevm").includes("Archived")) throw new Error(api.chainMenuLabel("polygonzkevm"));
@@ -3166,6 +3171,7 @@ const rows = [{ chainKey: "arbitrum", gas: { status: "ok" }, events: [{ action: 
 const defaultReady = api.reportExportReadiness(rows, []);
 if (!defaultReady.canFullReport) throw new Error(`archived warnings blocked default export: ${JSON.stringify(defaultReady)}`);
 api.state.selectedChains = new Set(["polygonzkevm"]);
+if (api.networkFilterLabel() !== "Polygon zkEVM") throw new Error(`selected archive label should stay compact: ${api.networkFilterLabel()}`);
 const archiveReady = api.reportExportReadiness(rows, []);
 if (archiveReady.canFullReport || archiveReady.dataWarnings !== 1) throw new Error(`manual archive warning should block archive export: ${JSON.stringify(archiveReady)}`);
 api.setUrlAddress(api.state.address);
@@ -3213,7 +3219,14 @@ const ready = api.reportExportReadiness(rows, []);
 if (!ready.canFullReport) throw new Error(`clean report blocked: ${JSON.stringify(ready)}`);
 if (api.reportStatusLabel(ready) !== "Ready") throw new Error(api.reportStatusLabel(ready));
 api.state.warnings = [
-  "Arbitrum reward claim index is current only through an older date.",
+  "Arbitrum reward claim index is current through 08 Jul 2026; newer reward claims may be missing until the next workflow refresh.",
+];
+const freshIndexReady = api.reportExportReadiness(rows, []);
+if (!freshIndexReady.canFullReport) throw new Error(`fresh same-day reward index warning blocked export: ${JSON.stringify(freshIndexReady)}`);
+if (api.reportStatusLabel(freshIndexReady) !== "Ready") throw new Error(api.reportStatusLabel(freshIndexReady));
+if (api.reportStatusDetail(freshIndexReady).includes("reward claim index")) throw new Error(api.reportStatusDetail(freshIndexReady));
+api.state.warnings = [
+  "Arbitrum reward claim index is stale after 06 Jul 2026; newer reward claims may be missing until the RewardClaimed workflow refreshes.",
   "X Layer reward claim index warning: RPC limit.",
 ];
 const warningReady = api.reportExportReadiness(rows, []);
