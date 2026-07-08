@@ -679,10 +679,17 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("DeFiLlama gross + rebate netting", html)
         self.assertNotIn("onchain audit STALE", html)
         self.assertIn("Net Borrow Revenue", html)
+        self.assertIn("7D Total Revenue", html)
+        self.assertIn("30D Total Revenue", html)
+        self.assertIn("net borrow + oDOLO exercised", html)
+        self.assertIn("totalRevenueWindowUSD", html)
+        self.assertIn("n(row.revenueUSD) + n(row.odoloUsdcUSD)", html)
+        self.assertNotIn("rolling net protocol revenue", html)
+        self.assertNotIn("net retained by protocol", html)
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-chain-lifecycle-status"', route_html)
+        self.assertIn('"version": "revenue-20260708-total-revenue-hero"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
