@@ -2461,7 +2461,6 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(instrumented, sandbox);
 const api = sandbox.__historyStatusTest;
-api.state.fastMode = true;
 api.state.warnings = [
   "Berachain reward claim index is current through 07 Jul 2026; newer reward claims may be missing until the next workflow refresh.",
   "Arbitrum reward claim index is current through 07 Jul 2026; newer reward claims may be missing until the next workflow refresh.",
@@ -2473,10 +2472,12 @@ const complete = api.historyCompletionStatusMessage(80, 12, 3, true);
 if (pending.length > 150) throw new Error(`pending status too long: ${pending}`);
 if (pending.includes("Berachain reward claim index")) throw new Error(`warning detail leaked: ${pending}`);
 if (!pending.includes("progress panel")) throw new Error(`pending status should point to progress panel: ${pending}`);
+if (pending.includes("Fast mode")) throw new Error(`fast mode leaked: ${pending}`);
 if (pending.includes("data warning")) throw new Error(`warning count leaked: ${pending}`);
 if (pending.includes("evidence row")) throw new Error(`evidence count leaked: ${pending}`);
 if (!complete.includes("12 match current filters")) throw new Error(`filter summary missing: ${complete}`);
 if (!complete.includes("Reports ready")) throw new Error(`ready summary missing: ${complete}`);
+if (complete.includes("Fast mode")) throw new Error(`fast mode leaked: ${complete}`);
 if (complete.includes("data warning")) throw new Error(`warning count leaked: ${complete}`);
 if (complete.includes("evidence row")) throw new Error(`evidence count leaked: ${complete}`);
 """
@@ -2792,6 +2793,10 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn(".history-report-menu", self.css)
         self.assertIn(".history-report-button", self.css)
         self.assertIn(".history-report-panel", self.css)
+        self.assertIn(".history-report-panel::before", self.css)
+        self.assertIn(".history-report-menu.hover-open .history-report-panel", self.css)
+        self.assertIn("scheduleHistoryReportMenuClose", self.source)
+        self.assertIn("clearHistoryReportMenuClose", self.source)
         self.assertIn(".history-table-toolbar .lookup-bar{grid-template-columns:1fr}", self.css)
         self.assertIn(".history-table-toolbar .primary-btn{grid-column:1/-1}", self.css)
         self.assertIn(".report-status", self.css)
@@ -2983,9 +2988,16 @@ vm.runInNewContext(instrumented, sandbox);
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
-    def test_history_prioritizes_classification_receipts_and_fast_mode_skips_full_gas(self):
-        self.assertIn('id="history-fast-mode"', self.html)
-        self.assertIn("els.fastMode", self.source)
+    def test_history_prioritizes_classification_receipts_without_fast_mode(self):
+        self.assertNotIn('id="history-fast-mode"', self.html)
+        self.assertNotIn("history-fast-field", self.html)
+        self.assertNotIn("history-fast-toggle", self.css)
+        self.assertNotIn("history-fast-track", self.css)
+        self.assertNotIn("els.fastMode", self.source)
+        self.assertNotIn('params.get("fast")', self.source)
+        self.assertNotIn('searchParams.set("fast"', self.source)
+        self.assertNotIn("Fast mode", self.html)
+        self.assertNotIn("Fast mode", self.source)
         script = r"""
 const fs = require("fs");
 const vm = require("vm");
@@ -3010,10 +3022,46 @@ const full = api.historyRowsForGasPriority([plain, classified], false);
 if (full.classificationRows.map(row => row.txHash).join(",") !== "0xclassified") throw new Error(JSON.stringify(full));
 if (full.backgroundRows.map(row => row.txHash).join(",") !== "0xplain") throw new Error(JSON.stringify(full));
 if (full.skippedRows.length !== 0) throw new Error(JSON.stringify(full));
-const fast = api.historyRowsForGasPriority([plain, classified], true);
-if (fast.classificationRows.map(row => row.txHash).join(",") !== "0xclassified") throw new Error(JSON.stringify(fast));
-if (fast.backgroundRows.length !== 0) throw new Error(JSON.stringify(fast));
-if (fast.skippedRows.map(row => row.txHash).join(",") !== "0xplain") throw new Error(JSON.stringify(fast));
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_history_exports_require_complete_data_without_warnings(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyReportGateTest = { state, reportExportReadiness, reportStatusLabel };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyReportGateTest;
+api.state.address = "0x0000000000000000000000000000000000000001";
+api.state.loading = false;
+api.state.filtersDirty = false;
+api.state.warnings = [];
+api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
+const rows = [{ gas: { status: "ready" }, events: [{ action: "deposit" }] }];
+const ready = api.reportExportReadiness(rows, []);
+if (!ready.canFullReport) throw new Error(`clean report blocked: ${JSON.stringify(ready)}`);
+if (api.reportStatusLabel(ready) !== "Ready") throw new Error(api.reportStatusLabel(ready));
+api.state.warnings = ["Arbitrum reward claim index is current only through an older date."];
+const warningReady = api.reportExportReadiness(rows, []);
+if (warningReady.canFullReport) throw new Error(`history warnings allowed export: ${JSON.stringify(warningReady)}`);
+if (api.reportStatusLabel(warningReady) !== "Incomplete data") throw new Error(api.reportStatusLabel(warningReady));
+api.state.warnings = [];
+api.state.earn.warnings = ["EARN candidate evidence is partial."];
+const earnWarningReady = api.reportExportReadiness(rows, []);
+if (earnWarningReady.canFullReport) throw new Error(`earn warnings allowed export: ${JSON.stringify(earnWarningReady)}`);
+if (api.reportStatusLabel(earnWarningReady) !== "Incomplete data") throw new Error(api.reportStatusLabel(earnWarningReady));
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 

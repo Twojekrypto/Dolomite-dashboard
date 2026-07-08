@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-unified-history-card";
+  const HISTORY_VERSION = "history-20260708-download-menu-complete-report";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -234,7 +234,6 @@
     earn: emptyEarnState(),
     reviewNotes: {},
     filtersDirty: false,
-    fastMode: false,
     loadedScope: null,
   };
 
@@ -244,6 +243,7 @@
   const gasCache = new Map();
   const interestIndexCache = new Map();
   let loadingTicker = 0;
+  let reportMenuCloseTimer = 0;
   let historyDatePicker = { open: "from", monthTs: 0 };
 
   const TX_FIELDS = "transaction { id timestamp blockNumber }";
@@ -294,7 +294,6 @@
     els.networkLabel = document.getElementById("history-network-label");
     els.networkCount = document.getElementById("history-network-count");
     els.networkMenu = document.getElementById("history-network-menu");
-    els.fastMode = document.getElementById("history-fast-mode");
     els.run = document.getElementById("history-run");
     els.body = document.getElementById("history-body");
     els.tableWrap = document.querySelector(".table-wrap");
@@ -510,10 +509,6 @@
       syncActionDropdown();
       markHistoryFiltersDirty({ tryClientSide: true });
     });
-    els.fastMode?.addEventListener("change", () => {
-      state.fastMode = !!els.fastMode.checked;
-      markHistoryFiltersDirty({ tryClientSide: true });
-    });
     [els.dateFrom, els.dateTo].forEach(input => {
       const syncCustomDateInput = () => {
         if (state.year !== "custom") {
@@ -611,6 +606,10 @@
     els.actionMenu.addEventListener("click", handleActionDropdownClick);
     els.networkMenu.addEventListener("click", handleNetworkDropdownClick);
     els.reportButton?.addEventListener("click", toggleHistoryReportMenu);
+    els.reportMenu?.addEventListener("mouseenter", openHistoryReportMenu);
+    els.reportMenu?.addEventListener("mouseleave", scheduleHistoryReportMenuClose);
+    els.reportMenu?.addEventListener("focusin", openHistoryReportMenu);
+    els.reportMenu?.addEventListener("focusout", scheduleHistoryReportMenuClose);
     els.taxExport.addEventListener("click", exportHistoryReportCsv);
     els.reportJson.addEventListener("click", exportEvidenceJson);
     els.reportPrint.addEventListener("click", printAnnualStatement);
@@ -726,13 +725,43 @@
     closeHistoryScopeInfo();
     closeHistoryReportMenu();
     if (!isOpen) {
+      openHistoryReportMenu();
       els.reportMenu.classList.add("open");
-      els.reportButton?.setAttribute("aria-expanded", "true");
     }
   }
 
+  function clearHistoryReportMenuClose() {
+    if (!reportMenuCloseTimer) return;
+    window.clearTimeout(reportMenuCloseTimer);
+    reportMenuCloseTimer = 0;
+  }
+
+  function openHistoryReportMenu() {
+    if (!els.reportMenu) return;
+    clearHistoryReportMenuClose();
+    els.reportMenu.classList.add("hover-open");
+    els.reportButton?.setAttribute("aria-expanded", "true");
+  }
+
+  function scheduleHistoryReportMenuClose() {
+    clearHistoryReportMenuClose();
+    reportMenuCloseTimer = window.setTimeout(() => {
+      const active = document.activeElement;
+      if (active && els.reportMenu?.contains(active)) {
+        reportMenuCloseTimer = 0;
+        return;
+      }
+      els.reportMenu?.classList.remove("hover-open");
+      if (!els.reportMenu?.classList.contains("open")) {
+        els.reportButton?.setAttribute("aria-expanded", "false");
+      }
+      reportMenuCloseTimer = 0;
+    }, 180);
+  }
+
   function closeHistoryReportMenu() {
-    els.reportMenu?.classList.remove("open");
+    clearHistoryReportMenuClose();
+    els.reportMenu?.classList.remove("open", "hover-open");
     els.reportButton?.setAttribute("aria-expanded", "false");
   }
 
@@ -763,7 +792,6 @@
 
   function markHistoryFiltersDirty(options = {}) {
     if (state.loading) return;
-    state.fastMode = !!els.fastMode?.checked;
     state.visiblePage = 1;
     state.expandedKey = "";
     if (options.tryClientSide && filtersCanReuseLoadedRows()) {
@@ -792,7 +820,6 @@
       dateTo: state.dateTo || "",
       action: actionFilterParam() || "all",
       chains: Array.from(chainKeys || selectedChainKeys()),
-      fastMode: !!state.fastMode,
     };
   }
 
@@ -805,8 +832,6 @@
     if (!currentAddress || currentAddress !== normalizeAddress(scope.address)) return false;
     if ((state.year || "custom") !== (scope.year || "custom")) return false;
     if (currentFrom !== (scope.dateFrom || "") || currentTo !== (scope.dateTo || "")) return false;
-    if (scope.fastMode && !state.fastMode) return false;
-
     const loadedChains = new Set(scope.chains || []);
     if (!selectedChainKeys().every(chainKey => loadedChains.has(chainKey))) return false;
 
@@ -1158,8 +1183,6 @@
       const requestedChains = chainParam.split(",").map(item => item.trim()).filter(key => CHAINS[key]);
       if (requestedChains.length) state.selectedChains = new Set(requestedChains);
     }
-    state.fastMode = params.get("fast") === "1";
-    if (els.fastMode) els.fastMode.checked = state.fastMode;
     syncYearDropdown();
     syncDateRangeControls();
     syncActionDropdown();
@@ -1186,7 +1209,6 @@
     state.dateFrom = els.dateFrom.value;
     state.dateTo = els.dateTo.value;
     state.action = actionFilterParam() || "all";
-    state.fastMode = !!els.fastMode?.checked;
     els.action.value = actionFilterAllSelected() ? "all" : (selectedActionKeys()[0] || "all");
     let bounds;
     try {
@@ -1263,10 +1285,8 @@
         return;
       }
 
-      setStatus(state.fastMode
-        ? `Found ${state.rows.length.toLocaleString()} tx. Checking route-sensitive receipts, then skipping full gas evidence in Fast mode...`
-        : `Found ${state.rows.length.toLocaleString()} tx. Checking gas receipts, historical prices, and report evidence...`);
-      const gasPromise = enrichGasForRows(state.rows, address, runId, { fastMode: state.fastMode });
+      setStatus(`Found ${state.rows.length.toLocaleString()} tx. Checking gas receipts, historical prices, and report evidence...`);
+      const gasPromise = enrichGasForRows(state.rows, address, runId);
       const finalizeComplete = await waitForHistoryFinalize([gasPromise, earnPromise], HISTORY_FINALIZE_BUDGET_MS);
       if (runId !== state.runId) return;
       state.loadingPhase = finalizeComplete ? "done" : "receipts";
@@ -2755,7 +2775,7 @@
     return values.length ? Math.max(...values) : 0;
   }
 
-  function historyRowsForGasPriority(rows, fastMode = false) {
+  function historyRowsForGasPriority(rows) {
     const classificationRows = [];
     const backgroundRows = [];
     const skippedRows = [];
@@ -2763,8 +2783,6 @@
       if (row?.gas?.status && row.gas.status !== "pending") return;
       if (row?.receiptClassificationPending) {
         classificationRows.push(row);
-      } else if (fastMode) {
-        skippedRows.push(row);
       } else {
         backgroundRows.push(row);
       }
@@ -2772,9 +2790,9 @@
     return { classificationRows, backgroundRows, skippedRows };
   }
 
-  async function enrichGasForRows(rows, address, runId, options = {}) {
+  async function enrichGasForRows(rows, address, runId) {
     const renderEvery = rows.length > 500 ? 50 : rows.length > 120 ? 20 : 5;
-    const priority = historyRowsForGasPriority(rows, !!options.fastMode);
+    const priority = historyRowsForGasPriority(rows);
     const completeRow = async row => {
       if (runId !== state.runId) return;
       row.gas = await fetchGas(row, address);
@@ -2785,18 +2803,6 @@
       }
     };
     await mapLimit(priority.classificationRows, HISTORY_CLASSIFICATION_RECEIPT_CONCURRENCY, completeRow);
-    if (options.fastMode) {
-      priority.skippedRows.forEach(row => {
-        if (runId !== state.runId) return;
-        row.gas = { status: FAST_GAS_STATUS, paidByWallet: false };
-        state.gasChecked += 1;
-      });
-      if (runId === state.runId) {
-        setStatus("Fast mode processed route-sensitive receipts. Full gas evidence is skipped.");
-        render();
-      }
-      return;
-    }
     await mapLimit(priority.backgroundRows, HISTORY_BACKGROUND_GAS_CONCURRENCY, completeRow);
   }
 
@@ -4127,12 +4133,10 @@
     if (phase === "receipts") {
       const evidenceText = state.earn?.status === "loading" ? "Candidate evidence is still being prepared." : "Candidate evidence is ready.";
       const total = state.gasTotal || state.rows.length;
-      const progressLabel = state.fastMode ? "rows processed" : "receipts checked";
-      const fastText = state.fastMode ? " Fast skips full gas evidence." : "";
       const warningText = compactDataWarningText();
       return {
-        title: state.fastMode ? "Checking classification receipts" : "Checking gas receipts and prices",
-        sub: `${state.gasChecked}/${total} ${progressLabel}. ${evidenceText}${fastText}${warningText}`,
+        title: "Checking gas receipts and prices",
+        sub: `${state.gasChecked}/${total} receipts checked. ${evidenceText}${warningText}`,
       };
     }
     if (phase === "done") {
@@ -4260,13 +4264,15 @@
     const gasPending = rows.some(row => row.gas?.status === "pending");
     const gasSkippedFast = rows.some(row => row.gas?.status === FAST_GAS_STATUS);
     const earnPending = state.earn?.status === "loading";
+    const dataWarnings = historyWarningCount();
     const hasRows = rows.length > 0;
     const hasReportRows = hasRows || earnEntries.length > 0;
-    const blocked = state.loading || state.filtersDirty || gasPending || gasSkippedFast || earnPending;
+    const blocked = state.loading || state.filtersDirty || gasPending || gasSkippedFast || earnPending || dataWarnings > 0;
     return {
       gasPending,
       gasSkippedFast,
       earnPending,
+      dataWarnings,
       filtersDirty: state.filtersDirty,
       hasRows,
       hasReportRows,
@@ -4279,10 +4285,10 @@
     if (readiness.filtersDirty) return "Load required";
     if (state.loading) return "Scanning";
     if (readiness.gasPending || readiness.earnPending) return "Completing evidence";
-    if (readiness.gasSkippedFast) return "Fast view";
+    if (readiness.gasSkippedFast) return "Incomplete gas";
+    if (readiness.dataWarnings) return "Incomplete data";
     if (!readiness.hasReportRows) return "No rows";
-    const warningCount = (state.warnings?.length || 0) + (state.earn?.warnings?.length || 0);
-    return warningCount ? "Ready with warnings" : "Ready";
+    return "Ready";
   }
 
   function reportCompletenessForRows(rows, earnEntries = []) {
@@ -4805,7 +4811,6 @@
     [els.yearButton, els.actionButton, els.networkButton].forEach(button => {
       if (button) button.disabled = state.loading;
     });
-    if (els.fastMode) els.fastMode.disabled = state.loading;
     syncYearDropdown();
     syncDateRangeControls();
     syncActionDropdown();
@@ -4978,11 +4983,8 @@
     const safeVisibleRows = Number(visibleRowCount || 0);
     const parts = [`Loaded ${safeRows.toLocaleString()} tx.`];
     if (!finalizeComplete) {
-      parts.push(state.fastMode
-        ? "Fast mode active; evidence continues in the progress panel."
-        : "Evidence continues in the progress panel.");
+      parts.push("Evidence continues in the progress panel.");
     } else {
-      if (state.fastMode) parts.push("Fast mode active.");
       parts.push("Reports ready.");
     }
     if (safeRows && safeVisibleRows !== safeRows) {
@@ -5587,11 +5589,15 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       return false;
     }
     if (rows.some(row => row.gas?.status === FAST_GAS_STATUS)) {
-      setStatus(`${label} needs full gas evidence. Turn off Fast and load history again.`, "warn");
+      setStatus(`${label} needs full gas evidence. Reload history and wait for receipts to finish.`, "warn");
       return false;
     }
     if (state.earn?.status === "loading") {
       setStatus(`${label} waits for candidate evidence to finish so export rows are not omitted.`, "warn");
+      return false;
+    }
+    if (historyWarningCount()) {
+      setStatus(`${label} waits for complete source data. Review data warnings and reload when indexes are fully current.`, "warn");
       return false;
     }
     return true;
@@ -6072,7 +6078,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       return `<div class="gas-cell"><div class="gas-main muted">Not payer</div></div>`;
     }
     if (gas.status === FAST_GAS_STATUS) {
-      return `<div class="gas-cell"><div class="gas-main muted">Fast mode</div></div>`;
+      return `<div class="gas-cell"><div class="gas-main warn">Incomplete</div></div>`;
     }
     if (gas.status === "missing") {
       return `<div class="gas-cell"><div class="gas-main muted">No receipt</div></div>`;
@@ -6447,8 +6453,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     } else {
       url.searchParams.delete("chains");
     }
-    if (state.fastMode) url.searchParams.set("fast", "1");
-    else url.searchParams.delete("fast");
+    url.searchParams.delete("fast");
     window.history.replaceState(null, "", url.toString());
   }
 
