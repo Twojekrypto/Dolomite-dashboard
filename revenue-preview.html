@@ -999,18 +999,18 @@ h1{
       <div class="hero-card">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg>
-          7D Protocol Revenue
+          7D Total Revenue
         </div>
         <div class="hc-value skeleton" id="revenue7d">$0</div>
-        <div class="hc-sub">rolling net protocol revenue</div>
+        <div class="hc-sub">net borrow + oDOLO exercised</div>
       </div>
       <div class="hero-card">
         <div class="hc-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M3 10h18"/></svg>
-          30D Protocol Revenue
+          30D Total Revenue
         </div>
         <div class="hc-value skeleton" id="revenue30d">$0</div>
-        <div class="hc-sub">net retained by protocol</div>
+        <div class="hc-sub">net borrow + oDOLO exercised</div>
       </div>
     </div>
   </section>
@@ -2558,6 +2558,11 @@ h1{
     };
     svg.onmouseleave = leave;
   }
+  function totalRevenueWindowUSD(days){
+    const rows = allRows();
+    const windowRows = days > 0 ? rows.slice(-days) : rows;
+    return windowRows.reduce((sum, row) => sum + n(row.revenueUSD) + n(row.odoloUsdcUSD), 0);
+  }
   function renderHero(){
     const totals = revenueData.totals || {};
     const assurance = revenueData.assurance || {};
@@ -2567,8 +2572,8 @@ h1{
     setText("dailyRevenue", usdFull(dailyRevenue));
     setText("dailyFees", usdFull(totals.dailyFeesUSD));
     setText("protocolCut", pct(totals.dailyProtocolCut));
-    setText("revenue7d", usd(totals.revenue7dUSD));
-    setText("revenue30d", usd(totals.revenue30dUSD));
+    setText("revenue7d", usd(totalRevenueWindowUSD(7)));
+    setText("revenue30d", usd(totalRevenueWindowUSD(30)));
     const changeEl = qs("dailyChange");
     if (changeEl) {
       changeEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg><span>' + (change >= 0 ? "+" : "") + (change * 100).toFixed(1) + '%</span><span class="lbl">24h</span>';
