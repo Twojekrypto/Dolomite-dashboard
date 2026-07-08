@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-calm-status-details-align";
+  const HISTORY_VERSION = "history-20260708-table-toolbar-export-menu";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -303,6 +303,8 @@
     els.count = document.getElementById("history-count");
     els.scopeInfo = document.querySelector(".history-scope-info");
     els.taxExport = document.getElementById("history-tax-export");
+    els.reportButton = document.getElementById("history-report-button");
+    els.reportMenu = document.getElementById("history-report-menu");
     els.loadingPanel = document.getElementById("history-loading-panel");
     els.loadingTitle = document.getElementById("history-loading-title");
     els.loadingSub = document.getElementById("history-loading-sub");
@@ -597,6 +599,7 @@
     document.addEventListener("keydown", event => {
       if (event.key === "Escape") {
         closeHistoryDropdowns();
+        closeHistoryReportMenu();
         closeHistoryScopeInfo();
       }
     });
@@ -607,9 +610,13 @@
     els.yearMenu.addEventListener("click", handleYearDropdownClick);
     els.actionMenu.addEventListener("click", handleActionDropdownClick);
     els.networkMenu.addEventListener("click", handleNetworkDropdownClick);
+    els.reportButton?.addEventListener("click", toggleHistoryReportMenu);
     els.taxExport.addEventListener("click", exportHistoryReportCsv);
     els.reportJson.addEventListener("click", exportEvidenceJson);
     els.reportPrint.addEventListener("click", printAnnualStatement);
+    els.reportMenu?.addEventListener("click", event => {
+      if (event.target.closest(".report-format-btn")) closeHistoryReportMenu();
+    });
     els.pagination?.addEventListener("click", event => {
       const button = event.target.closest("[data-history-page]");
       if (!button || button.disabled) return;
@@ -650,6 +657,7 @@
     if (!button || !panel || button.disabled) return;
     const wasOpen = panel.classList.contains("show");
     closeHistoryScopeInfo();
+    closeHistoryReportMenu();
     closeHistoryDropdowns();
     if (!wasOpen) {
       panel.classList.add("show");
@@ -694,8 +702,10 @@
 
   function handleDocumentDropdownClick(event) {
     if (event.target.closest(".history-dd")) return;
+    if (event.target.closest(".history-report-menu")) return;
     if (event.target.closest(".history-scope-info")) return;
     closeHistoryDropdowns();
+    closeHistoryReportMenu();
     closeHistoryScopeInfo();
   }
 
@@ -708,11 +718,30 @@
     });
   }
 
+  function toggleHistoryReportMenu(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const isOpen = els.reportMenu?.classList.contains("open");
+    closeHistoryDropdowns();
+    closeHistoryScopeInfo();
+    closeHistoryReportMenu();
+    if (!isOpen) {
+      els.reportMenu.classList.add("open");
+      els.reportButton?.setAttribute("aria-expanded", "true");
+    }
+  }
+
+  function closeHistoryReportMenu() {
+    els.reportMenu?.classList.remove("open");
+    els.reportButton?.setAttribute("aria-expanded", "false");
+  }
+
   function toggleHistoryScopeInfo(event) {
     event.preventDefault();
     event.stopPropagation();
     const isOpen = els.scopeInfo?.classList.contains("open");
     closeHistoryDropdowns();
+    closeHistoryReportMenu();
     closeHistoryScopeInfo();
     if (!isOpen) {
       els.scopeInfo.classList.add("open");
