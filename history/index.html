@@ -12,14 +12,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script>window.__DOLO_ROUTE="history";</script>
-<link rel="stylesheet" href="history/history.css?v=history-20260708-table-toolbar-export-menu">
+<link rel="stylesheet" href="history/history.css?v=history-20260708-unified-history-card">
 <link rel="stylesheet" href="mobile-nav.css?v=mobile-nav-20260602-history-tabs">
 <link rel="stylesheet" href="mobile-polish.css?v=mobile-polish-20260602-history-tabs">
 <link rel="stylesheet" href="protocol-footer.css?v=protocol-footer-20260619-links-mobile">
 <script defer src="mobile-nav.js?v=mobile-nav-20260602-history-tabs"></script>
 <script defer src="mobile-polish.js?v=mobile-polish-20260602-history-tabs"></script>
 <script defer src="protocol-footer.js?v=protocol-footer-20260619-links-mobile"></script>
-<script defer src="history/history.js?v=history-20260708-table-toolbar-export-menu"></script>
+<script defer src="history/history.js?v=history-20260708-unified-history-card"></script>
 </head>
 <body>
 <div class="wrap">
@@ -82,16 +82,6 @@
   </header>
 
   <main>
-    <section class="hero history-hero">
-      <div class="hero-topline">
-        <div>
-          <h1>Dolomite Transaction History</h1>
-          <p>Wallet activity on Dolomite by date range: transactions, gas, and export files.</p>
-        </div>
-        <div class="source-pill"><span class="dot"></span>Subgraph + RPC receipts</div>
-      </div>
-    </section>
-
     <section class="loading-panel" id="history-loading-panel" aria-label="Transaction history loading progress" aria-live="polite" hidden>
       <div class="loading-top">
         <div>
@@ -113,11 +103,11 @@
       </div>
     </section>
 
-    <section class="history-card" aria-label="Dolomite transaction results">
+    <section class="history-card history-primary-card" aria-label="Dolomite transaction history">
       <div class="card-head">
         <div class="card-copy">
           <div class="card-title">
-            <h2>Transaction results</h2>
+            <h1>Dolomite Transaction History</h1>
             <span class="beta-badge">BETA</span>
             <button class="history-scope-info" type="button" aria-label="Dolomite history report scope" aria-expanded="false">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v6"/><path d="M12 7.5h.01"/></svg>
@@ -127,10 +117,10 @@
             </button>
             <span id="history-count" class="count-badge">0 transactions</span>
           </div>
-          <p class="history-scope-line">Complete Dolomite history for the selected wallet and date range, including asset flows, gas fees and EARN/reward candidates where available.</p>
-          <p class="history-beta-note">Best-effort Dolomite history. Verify exports before accounting or tax filing.</p>
+          <p class="history-scope-line">Wallet activity by date range: asset flows, gas evidence, reward candidates and export files.</p>
         </div>
         <div class="card-actions">
+          <div class="source-pill source-pill-inline"><span class="dot"></span>Subgraph + RPC receipts</div>
           <div class="status-line" id="history-status">Enter a wallet to load Dolomite history.</div>
         </div>
       </div>
@@ -260,7 +250,7 @@
           </tbody>
         </table>
       </div>
-      <div class="history-pagination" id="history-pagination" aria-label="Transaction results pagination" hidden></div>
+      <div class="history-pagination" id="history-pagination" aria-label="Transaction history pagination" hidden></div>
     </section>
 
   </main>
