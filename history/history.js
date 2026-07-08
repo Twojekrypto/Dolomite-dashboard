@@ -1,12 +1,21 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-compact-table-flow-amounts";
+  const HISTORY_VERSION = "history-20260708-sortable-history-table";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
   const HISTORY_TABLE_COLSPAN = 7;
   const HISTORY_VISIBLE_PAGE_SIZE = 10;
+  const HISTORY_SORT_DEFAULT_ASC = {
+    chain: true,
+    date: false,
+    action: true,
+    asset: true,
+    value: false,
+    gas: false,
+  };
+  const HISTORY_SORT_KEYS = new Set(Object.keys(HISTORY_SORT_DEFAULT_ASC));
   const PAGE_SIZE = 500;
   const MAX_PAGES = 40;
   const DEFAULT_GRAPH_TIMEOUT_MS = 25000;
@@ -228,6 +237,8 @@
     filteredRows: [],
     expandedKey: "",
     visiblePage: 1,
+    historySortKey: "date",
+    historySortAsc: false,
     loading: false,
     runId: 0,
     gasChecked: 0,
@@ -304,6 +315,7 @@
     els.run = document.getElementById("history-run");
     els.body = document.getElementById("history-body");
     els.tableWrap = document.querySelector(".table-wrap");
+    els.sortHeaders = document.querySelectorAll(".history-table thead th[data-history-sort]");
     els.pagination = document.getElementById("history-pagination");
     els.status = document.getElementById("history-status");
     els.count = document.getElementById("history-count");
@@ -650,6 +662,15 @@
       const button = event.target.closest("[data-history-page]");
       if (!button || button.disabled) return;
       goHistoryPage(Number(button.dataset.historyPage || 1));
+    });
+    els.sortHeaders?.forEach(header => {
+      const sortKey = header.dataset.historySort;
+      header.addEventListener("click", () => setHistorySort(sortKey));
+      header.addEventListener("keydown", event => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        setHistorySort(sortKey);
+      });
     });
     els.body.addEventListener("click", event => {
       const row = event.target.closest("tr[data-row-key]");
@@ -3709,13 +3730,111 @@
     });
   }
 
+  function setHistorySort(key, options = {}) {
+    const nextKey = String(key || "");
+    if (!HISTORY_SORT_KEYS.has(nextKey)) return;
+    if (state.historySortKey === nextKey) {
+      state.historySortAsc = !state.historySortAsc;
+    } else {
+      state.historySortKey = nextKey;
+      state.historySortAsc = historySortDefaultAsc(nextKey);
+    }
+    state.visiblePage = 1;
+    state.expandedKey = "";
+    syncHistorySortHeaders();
+    if (options.render !== false) renderRows();
+  }
+
+  function historySortDefaultAsc(key) {
+    return HISTORY_SORT_DEFAULT_ASC[key] !== false;
+  }
+
+  function sortedHistoryRows(rows = state.filteredRows) {
+    const sourceRows = Array.isArray(rows) ? rows : [];
+    const sortKey = HISTORY_SORT_KEYS.has(state.historySortKey) ? state.historySortKey : "date";
+    const sortAsc = !!state.historySortAsc;
+    return sourceRows
+      .map((row, index) => ({ row, index }))
+      .sort((left, right) => {
+        const comparison = compareHistorySortRows(left.row, right.row, sortKey, sortAsc);
+        return comparison || left.index - right.index;
+      })
+      .map(entry => entry.row);
+  }
+
+  function compareHistorySortRows(left, right, key, asc) {
+    const leftValue = historySortValue(left, key);
+    const rightValue = historySortValue(right, key);
+    const leftMissing = leftValue === null || leftValue === undefined || leftValue === "";
+    const rightMissing = rightValue === null || rightValue === undefined || rightValue === "";
+    if (leftMissing && rightMissing) return 0;
+    if (leftMissing) return 1;
+    if (rightMissing) return -1;
+    const direction = asc ? 1 : -1;
+    if (key === "date" || key === "value" || key === "gas") {
+      const leftNumber = Number(leftValue);
+      const rightNumber = Number(rightValue);
+      const leftInvalid = !Number.isFinite(leftNumber);
+      const rightInvalid = !Number.isFinite(rightNumber);
+      if (leftInvalid && rightInvalid) return 0;
+      if (leftInvalid) return 1;
+      if (rightInvalid) return -1;
+      return (leftNumber - rightNumber) * direction;
+    }
+    return String(leftValue).localeCompare(String(rightValue), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    }) * direction;
+  }
+
+  function historySortValue(row, key) {
+    if (!row || !HISTORY_SORT_KEYS.has(key)) return "";
+    if (key === "chain") return CHAINS[row.chainKey]?.name || row.chainKey || "";
+    if (key === "date") return Number(row.timestamp || 0);
+    if (key === "action") {
+      return displayActionsForRow(row)
+        .map(action => actionDisplayLabel(action, true))
+        .join(" ");
+    }
+    if (key === "asset") return historySortAssetText(row);
+    if (key === "value") return Number(row.usdVolume || 0);
+    if (key === "gas") {
+      const gas = row.gas || {};
+      return gas.status === "ok" && Number.isFinite(Number(gas.gasUsd)) ? Number(gas.gasUsd) : null;
+    }
+    return "";
+  }
+
+  function historySortAssetText(row) {
+    const safeRow = {
+      ...row,
+      events: Array.isArray(row?.events) ? row.events : [],
+      actions: row?.actions instanceof Set ? row.actions : new Set(Array.isArray(row?.actions) ? row.actions : []),
+    };
+    const preview = compactTransactionAssetPreview(safeRow);
+    if (preview) return preview;
+    return safeRow.events.map(event => event?.label).filter(Boolean).join(" | ") || cleanTransactionAssetFlow(safeRow);
+  }
+
+  function syncHistorySortHeaders() {
+    const headers = els.sortHeaders || document.querySelectorAll(".history-table thead th[data-history-sort]");
+    headers?.forEach(header => {
+      const active = header.dataset.historySort === state.historySortKey;
+      header.classList.toggle("sorted", active);
+      header.setAttribute("aria-sort", active ? (state.historySortAsc ? "ascending" : "descending") : "none");
+      const arrow = header.querySelector(".sort-arrow");
+      if (arrow) arrow.textContent = active ? (state.historySortAsc ? "▲" : "▼") : "";
+    });
+  }
+
   function renderRows() {
-    const rows = state.filteredRows;
+    const rows = sortedHistoryRows(state.filteredRows);
     const earnEntries = earnTaxEntriesForCurrentView();
     const readiness = reportExportReadiness(rows, earnEntries);
     els.count.textContent = historyCountLabel(rows, earnEntries);
     els.taxExport.disabled = !readiness.canFullReport;
     renderHistoryPagination(rows);
+    syncHistorySortHeaders();
 
     if (state.loading) {
       els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">Loading Dolomite history...</td></tr>`;

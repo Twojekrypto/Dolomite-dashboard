@@ -268,6 +268,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .history-table th{position:sticky;top:0;z-index:2;font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:10px 12px;background:var(--bg-1);border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none;transition:color .15s var(--ease)}
 .history-table th.num{text-align:right}
 .history-table th.details-th{text-align:center}
+.history-table thead th[data-history-sort]{cursor:pointer;outline:none}
+.history-table thead th[data-history-sort]:hover,.history-table thead th[data-history-sort]:focus-visible{color:var(--fg-1)}
+.history-table thead th[data-history-sort].sorted,.history-table thead th[data-history-sort].sorted:hover,.history-table thead th[data-history-sort].sorted:focus-visible{color:var(--gold-hi)}
+.history-sort-label{display:inline-flex;align-items:center;gap:4px;max-width:100%;vertical-align:middle}
+.history-table thead th.sorted .history-sort-label{color:var(--gold-hi)}
+.history-table th.num .history-sort-label{justify-content:flex-end}
+.history-table thead th .sort-arrow{display:inline-block;min-width:9px;margin-left:2px;color:var(--gold);font-size:8.5px;line-height:1;opacity:.35;transition:opacity .15s var(--ease),color .15s var(--ease)}
+.history-table thead th.sorted .sort-arrow{opacity:1;color:var(--gold-hi)}
 .history-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,.055);vertical-align:middle;color:var(--fg-2);font-variant-numeric:tabular-nums;position:relative;min-width:0;background:transparent}
 .history-table td.num{text-align:right;font-family:var(--mono);font-weight:500}
 .history-table tbody tr[data-row-key]{transition:background .15s var(--ease);cursor:pointer}
