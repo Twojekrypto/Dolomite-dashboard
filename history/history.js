@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260707-history-table-pagination";
+  const HISTORY_VERSION = "history-20260708-calm-status-details-align";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -1241,7 +1241,7 @@
       const finalizeComplete = await waitForHistoryFinalize([gasPromise, earnPromise], HISTORY_FINALIZE_BUDGET_MS);
       if (runId !== state.runId) return;
       state.loadingPhase = finalizeComplete ? "done" : "receipts";
-      const doneTone = historyWarningCount() || !finalizeComplete ? "warn" : "good";
+      const doneTone = !finalizeComplete ? "warn" : "good";
       const visibleRows = rowsMatchingCurrentFilters(state.rows);
       const visibleEvidenceEntries = earnTaxEntriesForCurrentView();
       setStatus(historyCompletionStatusMessage(state.rows.length, visibleRows.length, visibleEvidenceEntries.length, finalizeComplete), doneTone);
@@ -1252,7 +1252,7 @@
           state.loadingPhase = "done";
           const finalVisibleRows = rowsMatchingCurrentFilters(state.rows);
           const finalEvidenceEntries = earnTaxEntriesForCurrentView();
-          const finalTone = historyWarningCount() ? "warn" : "good";
+          const finalTone = "good";
           setStatus(historyCompletionStatusMessage(state.rows.length, finalVisibleRows.length, finalEvidenceEntries.length, true), finalTone);
           render();
         });
@@ -4947,25 +4947,18 @@
   function historyCompletionStatusMessage(rowCount, visibleRowCount, evidenceEntryCount, finalizeComplete) {
     const safeRows = Number(rowCount || 0);
     const safeVisibleRows = Number(visibleRowCount || 0);
-    const safeEvidenceRows = Number(evidenceEntryCount || 0);
     const parts = [`Loaded ${safeRows.toLocaleString()} tx.`];
     if (!finalizeComplete) {
       parts.push(state.fastMode
         ? "Fast mode active; evidence continues in the progress panel."
         : "Evidence continues in the progress panel.");
-    } else if (state.fastMode) {
-      parts.push("Fast mode active; full gas evidence skipped.");
     } else {
-      parts.push("Gas evidence ready.");
+      if (state.fastMode) parts.push("Fast mode active.");
+      parts.push("Reports ready.");
     }
     if (safeRows && safeVisibleRows !== safeRows) {
       parts.push(`${safeVisibleRows.toLocaleString()} match current filters.`);
     }
-    if (safeEvidenceRows) {
-      parts.push(`${safeEvidenceRows.toLocaleString()} evidence row${safeEvidenceRows === 1 ? "" : "s"} available in exports.`);
-    }
-    const warningText = compactDataWarningText().trim();
-    if (warningText) parts.push(warningText);
     return parts.join(" ");
   }
 
