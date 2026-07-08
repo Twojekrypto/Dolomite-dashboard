@@ -2540,7 +2540,7 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertNotIn("tx-hash", self.source)
         self.assertNotIn('class="gas-sub"', self.source)
         self.assertNotIn("gas-sub", self.css)
-        self.assertIn('return `<div class="gas-cell"><div class="gas-main good">${formatUsd(gas.gasUsd)}</div></div>`', self.source)
+        self.assertIn('return `<div class="gas-cell"><div class="gas-main good">${formatGasUsd(gas.gasUsd)}</div></div>`', self.source)
         self.assertIn("Price missing</div></div>`", self.source)
         self.assertIn('class="chain-chip" title="${escapeAttr(chain.name)}"', self.source)
         self.assertIn('<span class="chain-name">${escapeHtml(chain.name)}</span>', self.source)
@@ -3261,6 +3261,109 @@ vm.runInNewContext(instrumented, sandbox);
   console.error(error);
   process.exit(1);
 });
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_history_gas_receipts_retry_when_rpc_returns_null_receipt(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyRpcNullTest = { fetchGas, gasCache, CHAINS };" + marker);
+const calls = [];
+function jsonResponse(payload) {
+  return Promise.resolve({ ok: true, json: () => Promise.resolve(payload) });
+}
+const receipt = {
+  from: "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+  gasUsed: "0x5208",
+  effectiveGasPrice: "0x3b9aca00",
+  logs: [],
+};
+const tx = {
+  from: "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
+  gasPrice: "0x3b9aca00",
+  input: "0x",
+};
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  BigInt,
+  Date,
+  Math,
+  Intl,
+  AbortController,
+  setTimeout() { return 1; },
+  clearTimeout() {},
+  fetch(url, options = {}) {
+    calls.push(String(url));
+    if (String(url).startsWith("https://coins.llama.fi/")) {
+      return jsonResponse({ coins: { "coingecko:berachain-bera": { price: 5 } } });
+    }
+    const body = JSON.parse(options.body || "{}");
+    const method = body.method;
+    if (String(url) === "https://null.example/bera" && method === "eth_getTransactionReceipt") {
+      return jsonResponse({ jsonrpc: "2.0", id: body.id, result: null });
+    }
+    if (method === "eth_getTransactionReceipt") return jsonResponse({ jsonrpc: "2.0", id: body.id, result: receipt });
+    if (method === "eth_getTransactionByHash") return jsonResponse({ jsonrpc: "2.0", id: body.id, result: tx });
+    return Promise.reject(new Error(`unexpected fetch ${url} ${method}`));
+  },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: {
+    __DOLO_RPC_GATEWAY: { berachain: ["https://null.example/bera", "https://good.example/bera"] },
+    location: { href: "http://127.0.0.1/history/" },
+    history: { replaceState() {} },
+    localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+  },
+};
+vm.runInNewContext(instrumented, sandbox);
+(async () => {
+  const api = sandbox.__historyRpcNullTest;
+  api.CHAINS.berachain.rpcs = [];
+  api.CHAINS.berachain.rpcIdx = 0;
+  api.gasCache.clear();
+  const gas = await api.fetchGas({
+    chainKey: "berachain",
+    txHash: "0xe2d1621747cafc1f7d7d18b41a2cc1204369c91edb89eea59628bdd23d8340b2",
+    timestamp: 1783419852,
+    events: [{ action: "odoloClaim" }],
+  }, "0x28da3dde285d8f1f87b2d858f89961bb8b9af180");
+  if (gas.status !== "ok") throw new Error(JSON.stringify(gas));
+  if (!calls.includes("https://good.example/bera")) throw new Error(JSON.stringify(calls));
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+
+    def test_history_gas_cell_marks_tiny_positive_usd_without_rounding_to_zero(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyGasDisplayTest = { gasHtml };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const html = sandbox.__historyGasDisplayTest.gasHtml({ gas: { status: "ok", gasUsd: 0.00000008 } });
+if (!html.includes("<$0.0001")) throw new Error(html);
+if (html.includes("$0.0000")) throw new Error(html);
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 

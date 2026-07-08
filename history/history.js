@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-history-tooltip-chain-archive-ux";
+  const HISTORY_VERSION = "history-20260708-gas-null-receipt-retry";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -45,6 +45,7 @@
   const GAS_STORAGE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const RPC_GATEWAY_STORAGE_KEY = "dolomite-history-rpc-gateway";
   const FAST_GAS_STATUS = "skipped-fast";
+  const RPC_NULL_RESULT_RETRY_METHODS = new Set(["eth_getTransactionReceipt", "eth_getTransactionByHash"]);
   const BORROW_POSITION_LIFECYCLE_ACTIONS = new Set(["borrowPositionOpen", "borrowPositionClose"]);
   const BORROW_POSITION_OPEN_TOPIC = "0xfd9156bd20ce24a786c761efe71a3931de038c1f2620c1bb4720609bc742b58e";
   const BORROW_POSITION_CLOSE_TOPIC = "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7";
@@ -3150,6 +3151,7 @@
     const chain = CHAINS[chainKey];
     const rpcs = rpcUrlsForChain(chainKey);
     let lastError = null;
+    let sawNullResult = false;
     for (let attempt = 0; attempt < rpcs.length * 2; attempt++) {
       const rpc = rpcs[chain.rpcIdx % rpcs.length];
       chain.rpcIdx += 1;
@@ -3166,12 +3168,18 @@
         if (!response.ok) throw new Error(`RPC HTTP ${response.status}`);
         const json = await response.json();
         if (json.error) throw new Error(json.error.message || "RPC error");
+        if (json.result === null && RPC_NULL_RESULT_RETRY_METHODS.has(method)) {
+          sawNullResult = true;
+          lastError = new Error(`${method} returned null`);
+          continue;
+        }
         return json.result;
       } catch (error) {
         clearTimeout(timer);
         lastError = error && error.name === "AbortError" ? new Error("RPC timeout") : error;
       }
     }
+    if (sawNullResult) return null;
     throw lastError || new Error("RPC request failed");
   }
 
@@ -6445,7 +6453,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
       return `<div class="gas-cell"><div class="gas-main muted">Checking...</div></div>`;
     }
     if (gas.status === "ok") {
-      return `<div class="gas-cell"><div class="gas-main good">${formatUsd(gas.gasUsd)}</div></div>`;
+      return `<div class="gas-cell"><div class="gas-main good">${formatGasUsd(gas.gasUsd)}</div></div>`;
     }
     if (gas.status === "price-missing") {
       return `<div class="gas-cell"><div class="gas-main warn">Price missing</div></div>`;
@@ -6594,6 +6602,15 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
     if (Math.abs(number) >= 1) return "$" + number.toFixed(2);
     if (Math.abs(number) > 0) return "$" + number.toFixed(4);
     return "$0.00";
+  }
+
+  function formatGasUsd(value) {
+    const number = Number(value || 0);
+    if (!Number.isFinite(number)) return "$0.00";
+    if (Math.abs(number) > 0 && Math.abs(number) < 0.0001) {
+      return `${number < 0 ? "-" : ""}<$0.0001`;
+    }
+    return formatUsd(number);
   }
 
   function formatHistoryTableUsd(value) {
