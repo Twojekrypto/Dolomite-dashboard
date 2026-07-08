@@ -115,6 +115,7 @@ CHAIN_CONFIGS = {
         "rpcUrls": [
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC") else [os.environ["ALCHEMY_MANTLE_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_2") else [os.environ["ALCHEMY_MANTLE_RPC_2"]]),
+            "https://rpc.mantle.xyz",
             "https://mantle-rpc.publicnode.com/",
             "https://mantle.drpc.org/",
         ],
@@ -647,6 +648,40 @@ def merge_events(existing_events, new_events):
     return sorted(merged.values(), key=lambda row: (row.get("timestamp") or 0, row.get("chainKey") or "", row.get("logIndex") or 0), reverse=True)
 
 
+def reward_claim_shard_path(path):
+    if os.path.isabs(path):
+        return path
+    return os.path.join(ROOT_DIR, path)
+
+
+def load_existing_reward_claim_payload():
+    existing = load_json(OUTPUT_JSON, {})
+    if not isinstance(existing, dict) or not existing:
+        return existing
+
+    events = list(existing.get("events", []) or [])
+    chains = dict(existing.get("chains") or {})
+    should_hydrate_shards = bool(existing.get("eventsShardedByChain") or existing.get("chainEventFiles"))
+    if should_hydrate_shards:
+        chain_files = dict(existing.get("chainEventFiles") or {})
+        for chain_key in chains:
+            chain_files.setdefault(chain_key, f"data/reward-claim-events/{chain_key}.json")
+        for chain_key, path in sorted(chain_files.items()):
+            chain_payload = load_json(reward_claim_shard_path(path), {})
+            if not isinstance(chain_payload, dict):
+                continue
+            chains.update(chain_payload.get("chains") or {})
+            for event in chain_payload.get("events", []) or []:
+                copied = dict(event)
+                copied.setdefault("chainKey", chain_key)
+                events.append(copied)
+
+    hydrated = dict(existing)
+    hydrated["chains"] = chains
+    hydrated["events"] = merge_events([], events)
+    return hydrated
+
+
 def apply_distributor_token_metadata(events, chain_key, config, distributor_tokens):
     updated = []
     for event in events or []:
@@ -946,7 +981,7 @@ def main():
     print("=" * 60)
 
     state = load_json(STATE_FILE, {})
-    existing = load_json(OUTPUT_JSON, {})
+    existing = load_existing_reward_claim_payload()
     if not existing:
         existing = {
             "schemaVersion": SCHEMA_VERSION,

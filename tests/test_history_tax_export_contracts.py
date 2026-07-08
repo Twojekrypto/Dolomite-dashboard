@@ -140,7 +140,7 @@ vm.runInNewContext(instrumented, sandbox);
         filter_match = re.search(r"function rowMatchesActionFilter\(row, action\) \{(?P<body>.*?)\n  \}", self.source, re.S)
         self.assertIsNotNone(filter_match, "rowMatchesActionFilter missing")
         filter_block = filter_match.group("body")
-        for custom_value in ["swap", "vestingPair", "vestingClaim", "claim", "addCollateral"]:
+        for custom_value in ["swap", "vestingPair", "claim", "addCollateral", "closeBorrow"]:
             self.assertIn(f'action === "{custom_value}"', filter_block)
 
     def test_borrow_position_actions_have_distinct_readable_colors(self):
@@ -335,7 +335,7 @@ vm.runInNewContext(instrumented, sandbox);
         self.assertNotIn("DOLO payment amount", self.source)
         self.assertNotIn("Sent ${event.vestingKind", self.source)
         self.assertIn("Pair oDOLO + DOLO", self.html)
-        self.assertIn("Claim veDOLO", self.html)
+        self.assertNotIn('<option value="vestingClaim">Claim veDOLO</option>', self.html)
         self.assertIn("Pair / Claim veDOLO", self.source)
         self.assertIn("Claim veDOLO", self.source)
         self.assertNotIn("Vesting Transfer", self.html)
@@ -1253,6 +1253,19 @@ const zapWithBorrow = {
   semanticActions: new Set(["openBorrow"]),
   events: [{ action: "zap", taxCategory: "zap", legs: [{ direction: "out", symbol: "USDC", amount: "10" }, { direction: "in", symbol: "WETH", amount: "0.003" }] }],
 };
+const transferOnly = {
+  actions: new Set(["transfer"]),
+  semanticActions: new Set(),
+  events: [{ action: "transfer", taxCategory: "wallet_transfer", isSelfTransfer: false, legs: [{ direction: "out", symbol: "USDC", amount: "1" }] }],
+};
+const zapTransfer = {
+  actions: new Set(["zap", "transfer"]),
+  semanticActions: new Set(),
+  events: [
+    { action: "zap", taxCategory: "zap", legs: [{ direction: "out", symbol: "USDC", amount: "1" }, { direction: "in", symbol: "WETH", amount: "0.001" }] },
+    { action: "transfer", taxCategory: "protocol_transfer", isSelfTransfer: true, legs: [{ direction: "out", symbol: "USDC", amount: "1" }] },
+  ],
+};
 const vestingClaimRow = {
   actions: new Set(["vesting"]),
   semanticActions: new Set(),
@@ -1328,12 +1341,16 @@ const results = {
   closeRouteWithMarkerAction: sandbox.__historyTest.cleanTransactionAction(closeBorrowRouteWithMarker),
   closeRouteWithMarkerChip: sandbox.__historyTest.displayActionsForRow(closeBorrowRouteWithMarker).join("|"),
   closeRouteWithMarkerRepayFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowRouteWithMarker, "repay"),
+  closeRouteWithMarkerCloseFilter: sandbox.__historyTest.rowMatchesActionFilter(closeBorrowRouteWithMarker, "closeBorrow"),
   indexedDebt: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.parBalanceToTokenBalance("-5", { borrowIndex: "2", supplyIndex: "1" })),
   indexedSupply: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.parBalanceToTokenBalance("3", { borrowIndex: "2", supplyIndex: "1.5" })),
   scientificSmall: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.decimalToScaledBigInt("1e-6")),
   scientificLarge: sandbox.__historyTest.scaledBigIntToDecimal(sandbox.__historyTest.decimalToScaledBigInt("1.2e3")),
   zapBorrowAction: sandbox.__historyTest.cleanTransactionAction(zapWithBorrow),
   zapBorrowChips: sandbox.__historyTest.displayActionsForRow(zapWithBorrow).join("|"),
+  transferOnlyFilter: sandbox.__historyTest.rowMatchesActionFilter(transferOnly, "transfer"),
+  zapTransferFilter: sandbox.__historyTest.rowMatchesActionFilter(zapTransfer, "transfer"),
+  zapTransferSwapFilter: sandbox.__historyTest.rowMatchesActionFilter(zapTransfer, "swap"),
   vestingClaimSpecificFilter: sandbox.__historyTest.rowMatchesActionFilter(vestingClaimRow, "vestingClaim"),
   vestingClaimGenericFilter: sandbox.__historyTest.rowMatchesActionFilter(vestingClaimRow, "claim"),
 };
@@ -1390,10 +1407,11 @@ if (!results.closeRouteTransferRepayFilter || results.closeRouteTransferTransfer
 if (results.closeRouteTransferPreview !== "0.001 USDC") throw new Error(JSON.stringify(results));
 if (results.closeRouteWithMarkerAction !== "Close Borrow") throw new Error(JSON.stringify(results));
 if (results.closeRouteWithMarkerChip !== "closeBorrow") throw new Error(JSON.stringify(results));
-if (!results.closeRouteWithMarkerRepayFilter) throw new Error(JSON.stringify(results));
+if (results.closeRouteWithMarkerRepayFilter || !results.closeRouteWithMarkerCloseFilter) throw new Error(JSON.stringify(results));
 if (results.indexedDebt !== "-10" || results.indexedSupply !== "4.5") throw new Error(JSON.stringify(results));
 if (results.scientificSmall !== "0.000001" || results.scientificLarge !== "1200") throw new Error(JSON.stringify(results));
 if (results.zapBorrowAction !== "Zap; Open Borrow" || results.zapBorrowChips !== "zap|openBorrow") throw new Error(JSON.stringify(results));
+if (!results.transferOnlyFilter || results.zapTransferFilter || !results.zapTransferSwapFilter) throw new Error(JSON.stringify(results));
 if (!results.vestingClaimSpecificFilter || !results.vestingClaimGenericFilter) throw new Error(JSON.stringify(results));
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
@@ -1916,7 +1934,7 @@ rows.push({
   expectedAction: "Close Borrow",
   expectedChips: "closeBorrow",
   expectedSource: "Borrow position lifecycle",
-  filters: { repay: true, transfer: false, borrow: false },
+  filters: { closeBorrow: true, repay: false, transfer: false, borrow: false },
 });
 const closeLifecycleWithdraw = api.groupEvents([
   routeWithdraw("0x7184a10c65b6727564b5a861f5f3c495a9e8239694c49c9f6e889f13c6ebf064"),
@@ -1932,7 +1950,7 @@ rows.push({
   expectedChips: "closeBorrow",
   expectedSource: "Borrow position lifecycle",
   expectedPreview: "0.00000000001671 WETH",
-  filters: { repay: true, withdraw: false, borrow: false },
+  filters: { closeBorrow: true, repay: false, withdraw: false, borrow: false },
 });
 rows.forEach(fixture => {
   const action = api.cleanTransactionAction(fixture.row);
@@ -2574,10 +2592,8 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
             "Action",
             "Borrow",
             "Repay",
+            "Close Borrow",
             "Trade / Zap",
-            "Debt Settlement",
-            "Delayed Deposit",
-            "Delayed Withdraw",
             "AMM / Liquidity",
             "Claim",
         ]:
@@ -2594,11 +2610,16 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn("normalizeActionFilter", self.source)
         self.assertIn('if (action === "swap")', self.source)
         self.assertIn('if (action === "trade" || action === "zap") return "swap";', self.source)
-        self.assertIn('if (action === "odoloClaim" || action === "rewardClaim") return "claim";', self.source)
+        self.assertIn('if (action === "odoloClaim" || action === "rewardClaim" || action === "vestingClaim") return "claim";', self.source)
         self.assertNotIn('<option value="trade">Trade</option>', self.html)
         self.assertNotIn('<option value="zap">Zap</option>', self.html)
         self.assertNotIn('<option value="odoloClaim">Claim oDOLO</option>', self.html)
         self.assertNotIn('<option value="rewardClaim">Claim Rewards</option>', self.html)
+        self.assertNotIn('<option value="vestingClaim">Claim veDOLO</option>', self.html)
+        self.assertNotIn('<option value="rewardLevelUpdate">Reward Level Update</option>', self.html)
+        self.assertNotIn('<option value="vaporization">Debt Settlement</option>', self.html)
+        self.assertNotIn('<option value="asyncDeposit">Delayed Deposit</option>', self.html)
+        self.assertNotIn('<option value="asyncWithdrawal">Delayed Withdraw</option>', self.html)
         self.assertNotIn("Deposit / Repay", self.html)
         self.assertNotIn("Withdraw / Borrow", self.html)
         for generated_text in [
@@ -2694,8 +2715,8 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn('ammRemoveLiquidity: "Remove LP"', self.source)
         self.assertIn('return "ammTrade";', self.source)
         self.assertIn('if (action === "swap")', self.source)
-        self.assertIn('row.actions.has("trade")', self.source)
-        self.assertIn('row.actions.has("zap")', self.source)
+        self.assertIn('rowActions.has("trade")', self.source)
+        self.assertIn('rowActions.has("zap")', self.source)
         self.assertIn('event?.taxCategory === "swap" || event?.taxCategory === "zap"', self.source)
         self.assertIn('<option value="swap">Trade / Zap</option>', self.html)
         self.assertNotIn('<option value="trade">Trade</option>', self.html)
@@ -3113,7 +3134,7 @@ const sandbox = {
 };
 vm.runInNewContext(instrumented, sandbox);
 const api = sandbox.__historyReportGateTest;
-const actionValues = ["all","deposit","withdraw","borrow","repay","addCollateral","withdrawCollateral","transfer","swap","liquidation","vaporization","asyncDeposit","asyncWithdrawal","amm","vestingPair","vestingClaim","claim","rewardLevelUpdate"];
+const actionValues = ["all","deposit","withdraw","borrow","repay","closeBorrow","addCollateral","withdrawCollateral","transfer","swap","liquidation","amm","vestingPair","claim"];
 api.els.action = { options: actionValues.map(value => ({ value, textContent: value })), value: "all" };
 api.state.address = "0x0000000000000000000000000000000000000001";
 api.state.loading = false;
