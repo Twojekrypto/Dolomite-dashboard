@@ -155,8 +155,9 @@ vm.runInNewContext(instrumented, sandbox);
         self.assertNotIn("<h2>Dolomite Transaction History</h2>", self.html)
         self.assertIn('<span class="beta-badge">BETA</span>', self.html)
         self.assertIn("Best-effort Dolomite history. Verify exports before accounting or tax filing.", self.html)
-        self.assertIn("Download report", self.html)
-        self.assertIn("One Dolomite history report in CSV, JSON or printable format.", self.html)
+        self.assertNotIn("Download report", self.html)
+        self.assertNotIn("One Dolomite history report in CSV, JSON or printable format.", self.html)
+        self.assertNotIn("All Dolomite transactions, gas fees and tax evidence.", self.html)
         self.assertIn("Dolomite Transaction History", self.html)
         self.assertIn('aria-label="Dolomite transaction results"', self.html)
         self.assertNotIn("History overview", self.html)
@@ -2266,7 +2267,8 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn("font-size:10px;text-transform:uppercase;letter-spacing:1.25px;color:var(--gold-hi);font-weight:800", self.css)
         self.assertIn(".beta-badge{display:inline-flex;align-items:center;height:22px", self.css)
         self.assertIn(".history-beta-note{margin-top:6px;color:var(--fg-4);font-size:11.5px", self.css)
-        self.assertIn(".report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 18px", self.css)
+        self.assertNotIn(".report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 18px", self.css)
+        self.assertIn(".history-table-toolbar{display:flex;align-items:flex-end;justify-content:space-between", self.css)
         self.assertIn(".history-table td{padding:12px", self.css)
         self.assertIn(".history-table col.col-chain{width:12%}", self.css)
         self.assertIn(".history-table col.col-date{width:13%}", self.css)
@@ -2377,7 +2379,8 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertNotIn("chain-short", self.source)
         self.assertIn(".chain-name{display:inline}", self.css)
         self.assertNotIn(".summary-strip", self.css)
-        self.assertLess(self.html.index('aria-label="Dolomite history report download"'), self.html.index('<div class="table-wrap">'))
+        self.assertLess(self.html.index('class="history-table-toolbar"'), self.html.index('<div class="table-wrap">'))
+        self.assertLess(self.html.index('class="history-table-controls"'), self.html.index('class="history-report-menu"'))
 
     def test_loading_progress_ux_is_rendered(self):
         for element_id in [
@@ -2683,6 +2686,8 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
     def test_history_report_is_consolidated_with_format_choices(self):
         for element_id in [
             "history-report-status",
+            "history-report-button",
+            "history-report-menu",
             "history-tax-export",
             "history-report-json",
             "history-report-print",
@@ -2710,12 +2715,11 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         ]:
             self.assertNotIn(element_id, self.html)
             self.assertNotIn(element_id, self.source)
-        for text in [
-            "Download report",
-            "Dolomite history report",
-            "All Dolomite transactions, gas fees and tax evidence.",
-        ]:
-            self.assertIn(text, self.html)
+        self.assertIn('aria-label="Download Dolomite history report"', self.html)
+        self.assertIn('aria-label="Report download options"', self.html)
+        self.assertNotIn("Download report", self.html)
+        self.assertNotIn("<strong>Dolomite history report</strong>", self.html)
+        self.assertNotIn("All Dolomite transactions, gas fees and tax evidence.", self.html)
         for removed_text in [
             "Transactions",
             "Gas fees",
@@ -2766,16 +2770,27 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
             "reviewQueueForRows",
         ]:
             self.assertIn(fn, self.source)
-        self.assertIn('aria-label="Dolomite history report download"', self.html)
-        self.assertIn(".ledger-report-panel", self.css)
-        self.assertIn(".ledger-report-head", self.css)
-        self.assertIn(".report-grid-single", self.css)
-        self.assertIn(".report-card-wide", self.css)
+        self.assertIn('aria-label="Transaction table controls"', self.html)
+        self.assertIn(".history-table-toolbar", self.css)
+        self.assertIn(".history-table-controls", self.css)
+        self.assertIn(".history-report-menu", self.css)
+        self.assertIn(".history-report-button", self.css)
+        self.assertIn(".history-report-panel", self.css)
+        self.assertIn(".history-table-toolbar .lookup-bar{grid-template-columns:1fr}", self.css)
+        self.assertIn(".history-table-toolbar .primary-btn{grid-column:1/-1}", self.css)
+        self.assertIn(".report-status", self.css)
+        self.assertNotIn(".ledger-report-panel", self.css)
+        self.assertNotIn(".ledger-report-head", self.css)
+        self.assertNotIn(".report-grid-single", self.css)
+        self.assertNotIn(".report-card-wide", self.css)
         self.assertNotIn(".report-included-list", self.css)
-        self.assertIn(".report-card", self.css)
-        self.assertIn(".report-format-row", self.css)
+        self.assertNotIn(".report-card", self.css)
+        self.assertNotIn(".report-format-row", self.css)
         self.assertIn(".report-format-btn", self.css)
         self.assertEqual(self.html.count("report-format-btn"), 3)
+        self.assertIn("toggleHistoryReportMenu", self.source)
+        self.assertIn("closeHistoryReportMenu", self.source)
+        self.assertIn("els.reportButton", self.source)
         self.assertNotIn("history-export", self.html)
         self.assertNotIn("history-export", self.source)
         self.assertNotIn("els.export", self.source)
@@ -2788,7 +2803,7 @@ if (api.clampHistoryVisiblePage(99, rows.length) !== 3) throw new Error("page cl
         self.assertIn(".history-scope-tooltip", self.css)
         self.assertIn("toggleHistoryScopeInfo", self.source)
         self.assertIn("closeHistoryScopeInfo", self.source)
-        self.assertIn("closeHistoryScopeInfo();\n    closeHistoryDropdowns();", self.source)
+        self.assertIn("closeHistoryDropdowns();\n        closeHistoryReportMenu();\n        closeHistoryScopeInfo();", self.source)
         self.assertIn("els.scopeInfo.querySelector(\".history-scope-tooltip\")?.setAttribute(\"aria-hidden\", \"false\")", self.source)
         self.assertNotIn("els.reportLedger", self.source)
         self.assertNotIn("els.reportStatement", self.source)
