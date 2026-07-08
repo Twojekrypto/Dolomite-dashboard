@@ -579,6 +579,48 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
+    def test_current_rebate_fetch_preserves_previous_epoch_max_rebate_audit(self):
+        latest_ts = START_TS + 30 * DAY_SECONDS
+        current_rebate_data = {
+            "status": "ok",
+            "chains": {
+                "Berachain": {
+                    "status": "ok",
+                    "source": "FeeRebateRollingClaims.MarketIdToMerkleRootSet",
+                    "epochRebates": [{
+                        "epoch": 1,
+                        "periodStartTimestamp": latest_ts,
+                        "periodEndTimestamp": latest_ts + DAY_SECONDS,
+                        "rebateUSD": 5.0,
+                        "marketCount": 2,
+                    }],
+                }
+            },
+        }
+        previous_output = {
+            "borrowFeeRebates": {
+                "chains": {
+                    "Berachain": {
+                        "epochRebates": [{
+                            "epoch": 1,
+                            "periodStartTimestamp": latest_ts,
+                            "periodEndTimestamp": latest_ts + DAY_SECONDS,
+                            "rebateUSD": 5.0,
+                            "marketCount": 2,
+                            "maxRebateUSD": 9.75,
+                            "maxRebateMethod": "eligible_market_daily_current_index",
+                        }],
+                    }
+                },
+            },
+        }
+
+        rebate_data = preserve_previous_borrow_fee_rebate_data(current_rebate_data, previous_output)
+
+        epoch = rebate_data["chains"]["Berachain"]["epochRebates"][0]
+        self.assertEqual(epoch["maxRebateUSD"], 9.75)
+        self.assertEqual(epoch["maxRebateMethod"], "eligible_market_daily_current_index")
+
     def test_validator_does_not_depend_on_liquidation_history_for_revenue(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
         fees_data = metric_payload(total24h=500, latest_value=500, step=10)
@@ -637,10 +679,10 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("DeFiLlama gross + rebate netting", html)
         self.assertNotIn("onchain audit STALE", html)
         self.assertIn("Net Borrow Revenue", html)
-        self.assertIn('dolomite_revenue.json?v=revenue-20260701-ethereum-onchain-override', html)
+        self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260706-flat-veborrow-toolbar-20260706-rewards-nav"', route_html)
+        self.assertIn('"version": "revenue-20260708-veborrow-chain-filter-max-rebate"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
@@ -697,6 +739,16 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("Current veDOLO", html)
         self.assertIn("Current veDOLO saved", html)
         self.assertIn("Max theoretical", html)
+        self.assertIn("Max rebate", html)
+        self.assertIn("Utilization", html)
+        self.assertIn("veBorrowMaxRebateForRows", html)
+        self.assertIn("maxRebateUSD", html)
+        self.assertIn("publishedSelected", html)
+        self.assertIn("!veBorrowPendingDataRow(row)", html)
+        self.assertIn("tooltipMaxRebate", html)
+        self.assertIn("<span>Max rebate</span>", html)
+        self.assertIn("pctFine(utilization)", html)
+        self.assertNotIn("<span>All published</span>", html)
         self.assertIn("currentVeDoloSavedUSD", html)
         self.assertIn("renderVeBorrowSimulationMode", html)
         self.assertIn("Required locked DOLO", html)
@@ -782,20 +834,27 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('<span class="pg-current">${veBorrowWalletPage} <span class="pg-sep">/</span> ${pages}</span>', html)
         self.assertIn('id="veBorrowWalletSearch"', html)
         self.assertIn("Search address...", html)
-        self.assertNotIn('id="veBorrowWalletChainFilter"', html)
-        self.assertNotIn('data-veborrow-wallet-chain="all"', html)
-        self.assertNotIn('data-veborrow-wallet-chain="Ethereum"', html)
-        self.assertNotIn('data-veborrow-wallet-chain="Arbitrum"', html)
-        self.assertNotIn('data-veborrow-wallet-chain="Berachain"', html)
+        self.assertIn('id="veBorrowWalletNetworkControl"', html)
+        self.assertIn('id="veBorrowWalletNetworkButton"', html)
+        self.assertIn('id="veBorrowWalletNetworkMenu"', html)
+        self.assertIn('{ key: "all", name: "All Chains" }', html)
+        self.assertIn('data-veborrow-wallet-chain="${esc(chain.key)}"', html)
+        self.assertIn("veBorrowWalletDefaultChainKeys", html)
+        self.assertIn("veBorrowWalletSelectedChains", html)
+        self.assertIn("setVeBorrowWalletSelectedChains", html)
+        self.assertIn("toggleVeBorrowWalletNetworkMenu", html)
+        self.assertIn("syncVeBorrowWalletNetworkDropdown", html)
+        self.assertIn("veBorrowWalletChainLifecycleLabel", html)
+        self.assertIn('lifecycle: "archived"', html)
+        self.assertIn('lifecycle: "shuttingDown"', html)
+        self.assertIn('!chain.lifecycle', html)
         self.assertIn("veBorrowWalletSearchQuery", html)
-        self.assertNotIn("veBorrowWalletChainFilter", html)
         self.assertIn("filterVeBorrowWallets", html)
-        self.assertNotIn("setVeBorrowWalletChainFilter", html)
         self.assertIn("clearVeBorrowWalletSearch", html)
         self.assertIn("veBorrowWalletSearchQuery = input.value", html)
         self.assertIn("veBorrowWalletDisplayName(row).name", html)
-        self.assertNotIn("rowChains.has(veBorrowWalletChainFilter)", html)
-        self.assertNotIn('event.target.closest("#veBorrowWalletChainFilter")', html)
+        self.assertIn("rowChains.has(chainKey)", html)
+        self.assertIn('event.target.closest(".veborrow-wallet-chain-dd")', html)
         self.assertIn("veBorrowWalletAriaSort", html)
         self.assertIn("veBorrowWalletThClass", html)
         self.assertNotIn('aria-sort="${veBorrowWalletAriaSort("chain")}"', html)
