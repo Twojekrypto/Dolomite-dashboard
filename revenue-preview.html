@@ -537,6 +537,26 @@ h1{
 .veborrow-chart-bar.is-muted{opacity:.34}
 .veborrow-chart-bar.is-active{opacity:1;fill:var(--gold);filter:drop-shadow(0 0 8px rgba(201,162,39,.26))}
 .veborrow-chart-bar.pending.is-active{fill:url(#veBorrowPendingStripeActive)}
+.veborrow-discount-users-panel{margin-top:18px}
+.veborrow-discount-meta{
+  display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 10px;border-radius:999px;
+  border:1px solid var(--line-2);background:rgba(255,255,255,.028);color:var(--fg-2);
+  font-family:var(--mono);font-size:11px;font-weight:800;white-space:nowrap
+}
+.veborrow-discount-chart-wrap{padding-top:18px}
+.veborrow-discount-bar{
+  fill:rgba(117,184,123,.76);stroke:rgba(117,184,123,.24);stroke-width:1;
+  transition:opacity .13s var(--ease),fill .13s var(--ease),filter .13s var(--ease)
+}
+.veborrow-discount-bar.empty{fill:rgba(255,255,255,.06);stroke:rgba(255,255,255,.08)}
+.veborrow-discount-bar.is-muted{opacity:.34}
+.veborrow-discount-bar.is-active{opacity:1;fill:#75b87b;filter:drop-shadow(0 0 8px rgba(117,184,123,.26))}
+.veborrow-discount-label,.veborrow-discount-value,.veborrow-discount-rate{
+  font-family:var(--mono);font-weight:800;fill:var(--fg-2)
+}
+.veborrow-discount-label{font-size:11px}
+.veborrow-discount-value{font-size:12px;fill:var(--fg-1)}
+.veborrow-discount-rate{font-size:10px;fill:var(--fg-3);font-weight:700}
 .veborrow-zero-line{stroke:var(--line-2);stroke-width:1}
 .veborrow-pending-label line{stroke:rgba(240,179,90,.55);stroke-width:1;stroke-dasharray:4 5}
 .veborrow-pending-label text{font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.45px;fill:#f0b35a;text-transform:uppercase}
@@ -1257,6 +1277,23 @@ h1{
     </div>
   </section>
 
+  <section class="panel veborrow-panel veborrow-discount-users-panel" id="veBorrowDiscountUsersPanel">
+    <div class="panel-head veborrow-panel-head">
+      <div>
+        <div class="panel-title">Current discount users</div>
+        <div class="panel-sub">Wallets using discount today from current debt and veDOLO vote weight.</div>
+      </div>
+      <div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">Current borrower view</div>
+    </div>
+    <div class="veborrow-chart-wrap veborrow-discount-chart-wrap" id="veBorrowDiscountUsersChartWrap">
+      <svg class="veborrow-chart-svg" id="veBorrowDiscountUsersChart" viewBox="0 0 1000 260" preserveAspectRatio="none" role="img" aria-label="Current veDOLO discount users by chain"></svg>
+      <div class="revenue-chart-tip" id="veBorrowDiscountUsersChartTip">
+        <div class="tt-date">-</div>
+        <div class="tt-val">-</div>
+      </div>
+    </div>
+  </section>
+
   <section class="veborrow-wallet-panel" id="veBorrowCurrentWalletsPanel">
     <div class="empty-state">Loading current borrower veDOLO savings...</div>
   </section>
@@ -1423,6 +1460,9 @@ h1{
     if (abs >= 1e6) return sign + (abs / 1e6).toFixed(2) + "M" + suffix;
     if (abs >= 1e3) return sign + (abs / 1e3).toFixed(1).replace(".0", "") + "K" + suffix;
     return sign + Math.round(abs).toLocaleString("en-US") + suffix;
+  }
+  function countCompact(value){
+    return tokenCompact(value);
   }
   function pct(value){
     return (n(value) * 100).toFixed(1).replace(".0","") + "%";
@@ -2813,7 +2853,9 @@ h1{
         eligibilityMaxUsersSavedUSD: 0,
         requiredLockedDolo: 0,
         borrowerCount: n(veBorrowSimulationData?.chains?.[chain]?.borrowerCount),
-        borrowersWithVeDoloCount: 0
+        borrowersWithVeDoloCount: 0,
+        discountUserCount: 0,
+        borrowersWithDiscountCount: 0
       };
       return acc;
     }, {});
@@ -2862,6 +2904,10 @@ h1{
         chains[chain].currentVeDoloSavedUSD += chainSaved;
         chains[chain].requiredLockedDolo += n(values.eligibilityMaxUsersSavedUSD) * claimPeriodScale * config.veDoloHoldingFactor / Math.max(config.doloPriceUSD, 1e-18);
         if (veDoloVoteWeight > 0) chains[chain].borrowersWithVeDoloCount += 1;
+        if (chainSaved > 0) {
+          chains[chain].discountUserCount += 1;
+          chains[chain].borrowersWithDiscountCount += 1;
+        }
       });
       wallets.push({
         address,
@@ -2889,8 +2935,12 @@ h1{
       acc.maxUsersSavedUSD += n(row.maxUsersSavedUSD);
       acc.eligibilityMaxUsersSavedUSD += n(row.eligibilityMaxUsersSavedUSD);
       acc.requiredLockedDolo += n(row.requiredLockedDolo);
+      acc.borrowerCount += n(row.borrowerCount);
+      acc.borrowersWithVeDoloCount += n(row.borrowersWithVeDoloCount);
+      acc.discountUserCount += n(row.discountUserCount);
+      acc.borrowersWithDiscountCount += n(row.borrowersWithDiscountCount);
       return acc;
-    }, { borrowInterestUSD: 0, currentVeDoloSavedUSD: 0, maxUsersSavedUSD: 0, eligibilityMaxUsersSavedUSD: 0, requiredLockedDolo: 0 });
+    }, { borrowInterestUSD: 0, currentVeDoloSavedUSD: 0, maxUsersSavedUSD: 0, eligibilityMaxUsersSavedUSD: 0, requiredLockedDolo: 0, borrowerCount: 0, borrowersWithVeDoloCount: 0, discountUserCount: 0, borrowersWithDiscountCount: 0 });
     totals.coverageRatio = totals.maxUsersSavedUSD > 0 ? totals.currentVeDoloSavedUSD / totals.maxUsersSavedUSD : 0;
     wallets.sort((a,b) => n(b.currentVeDoloSavedUSD) - n(a.currentVeDoloSavedUSD));
     return { chains: chainRows, wallets, totals };
@@ -3218,6 +3268,147 @@ h1{
       veBorrowWalletRefocus = false;
     }
   }
+  function veBorrowDiscountUserRows(currentModel){
+    return (Array.isArray(currentModel?.chains) ? currentModel.chains : []).map(row => {
+      const discountUserCount = n(row.discountUserCount || row.borrowersWithDiscountCount);
+      const borrowerCount = n(row.borrowerCount);
+      return {
+        ...row,
+        discountUserCount,
+        borrowersWithDiscountCount: discountUserCount,
+        discountUserRate: borrowerCount > 0 ? discountUserCount / borrowerCount : 0
+      };
+    }).filter(row =>
+      n(row.borrowerCount) > 0 ||
+      n(row.discountUserCount) > 0 ||
+      n(row.currentVeDoloSavedUSD) > 0
+    ).sort((a,b) =>
+      n(b.discountUserCount) - n(a.discountUserCount) ||
+      n(b.currentVeDoloSavedUSD) - n(a.currentVeDoloSavedUSD) ||
+      String(a.chain || "").localeCompare(String(b.chain || ""))
+    );
+  }
+  function renderVeBorrowDiscountUsersChart(currentModel){
+    const svg = qs("veBorrowDiscountUsersChart");
+    const meta = qs("veBorrowDiscountUsersMeta");
+    if (!svg) return;
+    const rows = veBorrowDiscountUserRows(currentModel);
+    const wallets = Array.isArray(currentModel?.wallets) ? currentModel.wallets : [];
+    const uniqueDiscountUsers = wallets.filter(row => n(row.currentVeDoloSavedUSD) > 0).length;
+    const uniqueBorrowers = wallets.filter(row => n(row.borrowInterestUSD) > 0).length;
+    const chainDiscountUsers = rows.reduce((sum, row) => sum + n(row.discountUserCount), 0);
+    const chainBorrowers = rows.reduce((sum, row) => sum + n(row.borrowerCount), 0);
+    const totalDiscountUsers = uniqueDiscountUsers || chainDiscountUsers;
+    const totalBorrowers = uniqueBorrowers || chainBorrowers;
+    if (meta) {
+      meta.textContent = rows.length
+        ? `${Math.round(totalDiscountUsers).toLocaleString("en-US")} unique wallets using discount · ${Math.round(totalBorrowers).toLocaleString("en-US")} current wallets`
+        : "Current borrower view";
+    }
+    if (!rows.length || totalBorrowers <= 0) {
+      svg.onmousemove = null;
+      svg.onmouseleave = null;
+      svg.innerHTML = '<text x="500" y="132" text-anchor="middle" fill="var(--fg-3)" font-size="12">Current discount user data is not available.</text>';
+      return;
+    }
+    const W = 1000, H = 260, P_L = 76, P_R = 34, P_T = 24, P_B = 54;
+    const chartW = W - P_L - P_R;
+    const chartH = H - P_T - P_B;
+    const zeroY = P_T + chartH;
+    const maxValue = Math.max(1, ...rows.map(row => n(row.discountUserCount)));
+    const yMax = maxValue * 1.18;
+    const yAt = value => P_T + (1 - Math.max(0, Math.min(1, n(value) / yMax))) * chartH;
+    const step = chartW / Math.max(1, rows.length);
+    const barW = Math.min(118, Math.max(34, step * .42));
+    const xAt = index => P_L + index * step + (step - barW) / 2;
+    const centerAt = index => P_L + index * step + step / 2;
+    const grid = [];
+    for (let i = 0; i <= 4; i++) {
+      const value = yMax * i / 4;
+      const y = yAt(value);
+      grid.push(`<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"></line>`);
+      grid.push(`<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${countCompact(value)}</text>`);
+    }
+    const bars = rows.map((row, index) => {
+      const value = n(row.discountUserCount);
+      const h = value > 0 ? Math.max(2, zeroY - yAt(value)) : 1.5;
+      const y = zeroY - h;
+      const className = `veborrow-discount-bar${value <= 0 ? " empty" : ""}`;
+      return `<rect class="${className}" data-index="${index}" x="${xAt(index).toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${h.toFixed(2)}" rx="3"></rect>`;
+    }).join("");
+    const valueLabels = rows.map((row, index) => {
+      const value = n(row.discountUserCount);
+      const y = value > 0 ? Math.max(P_T + 12, yAt(value) - 8) : zeroY - 8;
+      return `<text class="veborrow-discount-value" x="${centerAt(index).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">${Math.round(value).toLocaleString("en-US")}</text>`;
+    }).join("");
+    const axis = rows.map((row, index) => `
+      <text class="veborrow-discount-label" x="${centerAt(index).toFixed(1)}" y="${(H-26).toFixed(1)}" text-anchor="middle">${esc(chainAbbr(row.chain) || row.chain)}</text>
+      <text class="veborrow-discount-rate" x="${centerAt(index).toFixed(1)}" y="${(H-10).toFixed(1)}" text-anchor="middle">${pct(row.discountUserRate)}</text>
+    `).join("");
+    svg.innerHTML = [
+      `<g class="veborrow-chart-grid">${grid.join("")}</g>`,
+      `<line class="veborrow-zero-line" x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}"></line>`,
+      `<g class="veborrow-chart-bars">${bars}</g>`,
+      `<g>${valueLabels}</g>`,
+      `<g class="veborrow-chart-axis">${axis}</g>`
+    ].join("");
+    attachVeBorrowDiscountUsersHover(rows, centerAt, yAt, W, H);
+  }
+  function attachVeBorrowDiscountUsersHover(rows, centerAt, yAt, W, H){
+    const svg = qs("veBorrowDiscountUsersChart");
+    const wrap = qs("veBorrowDiscountUsersChartWrap");
+    const tip = qs("veBorrowDiscountUsersChartTip");
+    if (!svg || !wrap || !tip || !rows.length) return;
+    const bars = Array.from(svg.querySelectorAll(".veborrow-discount-bar"));
+    const leave = () => {
+      tip.style.opacity = 0;
+      bars.forEach(bar => {
+        bar.classList.remove("is-active");
+        bar.classList.remove("is-muted");
+      });
+    };
+    svg.onmousemove = event => {
+      const rect = svg.getBoundingClientRect();
+      const px = (event.clientX - rect.left) / rect.width * W;
+      let nearestIndex = 0;
+      let best = Infinity;
+      rows.forEach((row, index) => {
+        const dist = Math.abs(centerAt(index) - px);
+        if (dist < best) {
+          best = dist;
+          nearestIndex = index;
+        }
+      });
+      const row = rows[nearestIndex];
+      const value = n(row.discountUserCount);
+      const x = centerAt(nearestIndex);
+      const y = yAt(value);
+      bars.forEach((bar, index) => {
+        const active = index === nearestIndex;
+        bar.classList.toggle("is-active", active);
+        bar.classList.toggle("is-muted", !active);
+      });
+      tip.innerHTML = `
+        <div class="tt-date">${esc(row.chain)} · current borrower view</div>
+        <div class="tt-table">
+          <div class="tt-row active"><span>Wallets using discount</span><b>${Math.round(value).toLocaleString("en-US")}</b></div>
+          <div class="tt-row"><span>Current borrowers</span><b>${Math.round(n(row.borrowerCount)).toLocaleString("en-US")}</b></div>
+          <div class="tt-row"><span>Borrowers with veDOLO</span><b>${Math.round(n(row.borrowersWithVeDoloCount)).toLocaleString("en-US")}</b></div>
+          <div class="tt-row"><span>Discount user rate</span><b>${pct(row.discountUserRate)}</b></div>
+          <div class="tt-row"><span>Current users saved</span><b>${usdFull(row.currentVeDoloSavedUSD)}</b></div>
+        </div>
+      `;
+      tip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      const screenX = rect.left - wrapRect.left + (x / W) * rect.width;
+      const screenY = rect.top - wrapRect.top + (y / H) * rect.height;
+      const tipW = tip.offsetWidth;
+      const tipH = tip.offsetHeight;
+      tip.style.left = Math.min(Math.max(screenX - tipW / 2, 8), wrap.clientWidth - tipW - 8) + "px";
+      tip.style.top = Math.max(screenY - tipH - 12, 4) + "px";
+    };
+    svg.onmouseleave = leave;
+  }
   function renderVeBorrowSimulation(selected, rows){
     const panel = qs("veBorrowSimulation");
     const toggle = qs("veBorrowSimToggle");
@@ -3329,6 +3520,7 @@ h1{
     const dayCount = model.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
     const config = veBorrowSimulationConfig();
     const currentModel = veBorrowCurrentSimulationRows(model, config);
+    renderVeBorrowDiscountUsersChart(currentModel);
     renderVeBorrowCurrentWalletTable(currentModel.wallets);
   }
   function renderVeBorrowBrush(rows, options = {}){
