@@ -15,6 +15,16 @@ from decimal import Decimal, InvalidOperation, getcontext
 import requests
 from web3 import Web3
 
+from audit_dolomite_revenue_onchain import (
+    CHAIN_CONFIGS as REVENUE_AUDIT_CHAIN_CONFIGS,
+    DOLOMITE_MARGIN_ABI as REVENUE_AUDIT_MARGIN_ABI,
+    OMITTED_IMMATERIAL_PRICE_SOURCE as REVENUE_AUDIT_OMITTED_PRICE_SOURCE,
+    fetch_historical_prices as fetch_revenue_audit_historical_prices,
+    find_block_at_or_before as find_revenue_audit_block_at_or_before,
+    make_web3 as make_revenue_audit_web3,
+    market_interest_rows as revenue_audit_market_interest_rows,
+    resolve_token_price as resolve_revenue_audit_token_price,
+)
 import rpc_client
 
 
@@ -44,6 +54,10 @@ FEE_REBATE_DEPLOYMENTS_URL = "https://raw.githubusercontent.com/dolomite-exchang
 FEE_REBATE_EVENT_SOURCE = "FeeRebateRollingClaims.MarketIdToMerkleRootSet"
 FEE_REBATE_START_TIMESTAMP = 1779321600
 SECONDS_PER_WEEK = 7 * 24 * 60 * 60
+SECONDS_PER_DAY = 24 * 60 * 60
+BORROW_FEE_REBATE_MAX_REBATE_METHOD = "eligible_market_daily_current_index"
+BORROW_FEE_REBATE_PROTOCOL_RESERVE_FACTOR = Decimal("0.20")
+BORROW_FEE_REBATE_MAX_AUDIT_PUBLIC_DAY_DELAY_SECONDS = 8.0
 LOG_CHUNK_SIZE = 10_000
 STABLE_PRICE_SYMBOL_KEYS = {
     "HONEY",
@@ -747,7 +761,12 @@ def previous_borrow_fee_rebate_data(previous_output):
 PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS = (
     "maxRebateUSD",
     "maxRebateMethod",
+    "maxRebateSource",
     "maxRebateMarketCount",
+    "maxRebateEligibleMarketIds",
+    "maxRebateDayCount",
+    "maxRebatePriceFallbackCount",
+    "maxRebatePriceOmissionCount",
     "maxRebateGeneratedAt",
 )
 
@@ -805,6 +824,338 @@ def preserve_previous_borrow_fee_rebate_data(current_rebate_data, previous_outpu
     fallback["chains"][BERACHAIN_CHAIN_NAME]["fallbackCurrentStatus"] = current_chain.get("status")
     fallback["chains"][BERACHAIN_CHAIN_NAME]["fallbackCurrentError"] = current_chain.get("error")
     return fallback
+
+
+def borrow_fee_rebate_chain_info(metadata, chain_id=BERACHAIN_CHAIN_ID):
+    if not isinstance(metadata, dict):
+        return {}
+    all_chain_info = metadata.get("allChainRebateInfo")
+    if not isinstance(all_chain_info, dict):
+        return {}
+    chain_info = all_chain_info.get(str(chain_id))
+    if chain_info is None and str(chain_id).isdigit():
+        chain_info = all_chain_info.get(int(chain_id))
+    return chain_info if isinstance(chain_info, dict) else {}
+
+
+def borrow_fee_rebate_percentage_from_metadata(metadata, chain_id=BERACHAIN_CHAIN_ID):
+    chain_info = borrow_fee_rebate_chain_info(metadata, chain_id=chain_id)
+    rebate_percentage = decimal_from_value(chain_info.get("rebatePercentage"))
+    return rebate_percentage if rebate_percentage > 0 else Decimal("0.10")
+
+
+def active_rebate_market_ids_for_epoch(metadata, epoch, chain_id=BERACHAIN_CHAIN_ID):
+    chain_info = borrow_fee_rebate_chain_info(metadata, chain_id=chain_id)
+    market_info = chain_info.get("marketToRebateInfo") if isinstance(chain_info.get("marketToRebateInfo"), dict) else {}
+    epoch = int_or_none(epoch)
+    if epoch is None:
+        return []
+
+    market_ids = []
+    for market_id, market_payload in market_info.items():
+        if not isinstance(market_payload, dict):
+            continue
+        parsed_market_id = int_or_none(market_id)
+        if parsed_market_id is None:
+            continue
+        start_epoch = int_or_none(market_payload.get("startEpoch")) or 0
+        end_value = market_payload.get("endEpoch")
+        end_epoch = None if end_value is None else int_or_none(end_value)
+        if epoch >= start_epoch and (end_epoch is None or epoch <= end_epoch):
+            market_ids.append(parsed_market_id)
+    return sorted(set(market_ids))
+
+
+def public_berachain_rebate_audit_delay(endpoint):
+    host = rpc_client.safe_host(endpoint)
+    if host in {"rpc.berachain.com", "berachain-rpc.publicnode.com", "berachain.drpc.org"}:
+        try:
+            return max(0.0, float(os.environ.get(
+                "BORROW_FEE_REBATE_MAX_AUDIT_PUBLIC_DAY_DELAY_SECONDS",
+                BORROW_FEE_REBATE_MAX_AUDIT_PUBLIC_DAY_DELAY_SECONDS,
+            )))
+        except (TypeError, ValueError):
+            return BORROW_FEE_REBATE_MAX_AUDIT_PUBLIC_DAY_DELAY_SECONDS
+    return 0.0
+
+
+def borrow_fee_rebate_epoch_has_current_max_audit(row):
+    return (
+        isinstance(row, dict)
+        and safe_number(row.get("rebateUSD")) > 0
+        and safe_number(row.get("maxRebateUSD")) > 0
+        and row.get("maxRebateMethod") == BORROW_FEE_REBATE_MAX_REBATE_METHOD
+        and row.get("maxRebateSource") == ONCHAIN_CURRENT_INDEX_SOURCE
+    )
+
+
+def abi_output_type(component):
+    typ = component.get("type")
+    if str(typ).startswith("tuple"):
+        suffix = str(typ)[len("tuple"):]
+        return "(" + ",".join(abi_output_type(item) for item in component.get("components", [])) + ")" + suffix
+    return typ
+
+
+def function_output_types(function):
+    return [abi_output_type(item) for item in function.abi.get("outputs", [])]
+
+
+def decode_contract_call_result(w3, function, result):
+    raw = hex_to_bytes(result or "0x")
+    decoded = w3.codec.decode(function_output_types(function), raw)
+    return decoded[0] if len(decoded) == 1 else decoded
+
+
+def batch_contract_calls(w3, contract, calls):
+    requests_payload = []
+    functions = []
+    for function, block_identifier in calls:
+        requests_payload.append((
+            "eth_call",
+            [
+                {"to": contract.address, "data": function._encode_transaction_data()},
+                hex(int(block_identifier)) if isinstance(block_identifier, int) else block_identifier,
+            ],
+        ))
+        functions.append(function)
+    responses = w3.provider.make_batch_request(requests_payload)
+    if len(responses) != len(functions):
+        raise RuntimeError(f"JSON-RPC batch returned {len(responses)} response(s) for {len(functions)} request(s)")
+    results = []
+    for function, response in zip(functions, responses):
+        if not isinstance(response, dict):
+            raise RuntimeError("invalid JSON-RPC batch response")
+        if response.get("error"):
+            raise RuntimeError(str(response.get("error")))
+        results.append(decode_contract_call_result(w3, function, response.get("result")))
+    return results
+
+
+def batched_revenue_audit_market_interest_rows(w3, config, from_block, to_block, market_ids, token_cache=None):
+    if config.get("mode") != "standard":
+        return revenue_audit_market_interest_rows(
+            w3,
+            config,
+            from_block,
+            to_block,
+            endpoint_started_at=None,
+            market_ids=market_ids,
+        )
+
+    margin = Web3.to_checksum_address(config["margin"])
+    contract = w3.eth.contract(address=margin, abi=REVENUE_AUDIT_MARGIN_ABI)
+    selected_market_ids = sorted({int(market_id) for market_id in market_ids})
+    calls = [(contract.functions.getEarningsRate(), from_block)]
+    for market_id in selected_market_ids:
+        calls.extend((
+            (contract.functions.getMarket(market_id), from_block),
+            (contract.functions.getMarketCurrentIndex(market_id), from_block),
+            (contract.functions.getMarketCurrentIndex(market_id), to_block),
+        ))
+    results = batch_contract_calls(w3, contract, calls)
+    default_earnings_rate = int(results[0])
+    rows = []
+    offset = 1
+    token_cache = token_cache if isinstance(token_cache, dict) else {}
+    one = Decimal(10) ** 18
+    for market_id in selected_market_ids:
+        market = results[offset]
+        start_index = results[offset + 1]
+        end_index = results[offset + 2]
+        offset += 3
+
+        token = market[0]
+        total_par = market[2]
+        borrow_par = int(total_par[0])
+        start_borrow_index = int(start_index[0])
+        end_borrow_index = int(end_index[0])
+        override = int(market[10][0]) if len(market) > 10 else 0
+        earnings_rate = override if override else default_earnings_rate
+        interest_raw = (end_borrow_index - start_borrow_index) * borrow_par // 10**18
+        if interest_raw <= 0:
+            continue
+
+        checksum_token = Web3.to_checksum_address(token)
+        if checksum_token not in token_cache:
+            symbol, decimals = token_metadata(w3, checksum_token)
+            token_cache[checksum_token] = (symbol, decimals)
+        symbol, decimals = token_cache[checksum_token]
+        amount = Decimal(interest_raw) / (Decimal(10) ** decimals)
+        protocol_fraction = (one - Decimal(earnings_rate)) / one
+        rows.append({
+            "marketId": market_id,
+            "token": checksum_token,
+            "symbol": symbol,
+            "decimals": decimals,
+            "borrowInterestRaw": str(interest_raw),
+            "borrowInterestAmount": amount,
+            "protocolRevenueAmount": amount * protocol_fraction,
+            "protocolCut": protocol_fraction,
+        })
+    return rows
+
+
+def compute_daily_borrow_fee_max_rebate(w3, config, day_start, day_end, market_ids, rebate_percentage, block_cache, token_cache=None):
+    from_block = block_cache.get(day_start)
+    if from_block is None:
+        from_block = find_revenue_audit_block_at_or_before(w3, day_start)
+        block_cache[day_start] = from_block
+    to_block = block_cache.get(day_end)
+    if to_block is None:
+        to_block = find_revenue_audit_block_at_or_before(w3, day_end)
+        block_cache[day_end] = to_block
+
+    rows = batched_revenue_audit_market_interest_rows(
+        w3,
+        config,
+        from_block,
+        to_block,
+        market_ids,
+        token_cache=token_cache,
+    )
+    coin_ids = [f"{config['coinChain']}:{row['token'].lower()}" for row in rows]
+    prices = fetch_revenue_audit_historical_prices(day_end, sorted(set(coin_ids)))
+    fee_usd = Decimal(0)
+    revenue_usd = Decimal(0)
+    missing_price_count = 0
+    price_fallback_count = 0
+    price_omission_count = 0
+
+    for row, coin_id in zip(rows, coin_ids):
+        price, price_source = resolve_revenue_audit_token_price(row, prices.get(coin_id))
+        if price is None:
+            missing_price_count += 1
+            continue
+        fee_usd += row["borrowInterestAmount"] * price
+        revenue_usd += row["protocolRevenueAmount"] * price
+        if price_source == REVENUE_AUDIT_OMITTED_PRICE_SOURCE:
+            price_omission_count += 1
+        elif price_source != "coins-llama":
+            price_fallback_count += 1
+
+    if missing_price_count:
+        raise RuntimeError(f"missing historical prices for {missing_price_count} eligible rebate token(s)")
+
+    expected_protocol_revenue = fee_usd * BORROW_FEE_REBATE_PROTOCOL_RESERVE_FACTOR
+    if expected_protocol_revenue > 0:
+        revenue_factor = max(Decimal(0), min(Decimal(1), revenue_usd / expected_protocol_revenue))
+    else:
+        revenue_factor = Decimal(1)
+    return {
+        "maxRebateUSD": fee_usd * rebate_percentage * revenue_factor,
+        "feeUSD": fee_usd,
+        "revenueUSD": revenue_usd,
+        "priceFallbackCount": price_fallback_count,
+        "priceOmissionCount": price_omission_count,
+    }
+
+
+def audit_borrow_fee_rebate_max_rebates(rebate_metadata, rebate_data):
+    if borrow_fee_rebate_epoch_total(rebate_data) <= 0:
+        return rebate_data
+    if not isinstance(rebate_metadata, dict):
+        return rebate_data
+
+    current = json.loads(json.dumps(rebate_data))
+    chain_payload = ((current.get("chains") or {}).get(BERACHAIN_CHAIN_NAME))
+    if not isinstance(chain_payload, dict):
+        return current
+    epoch_rows = chain_payload.get("epochRebates")
+    if not isinstance(epoch_rows, list):
+        return current
+
+    rows_needing_audit = [
+        row for row in epoch_rows
+        if isinstance(row, dict)
+        and safe_number(row.get("rebateUSD")) > 0
+        and not borrow_fee_rebate_epoch_has_current_max_audit(row)
+    ]
+    if not rows_needing_audit:
+        return current
+
+    config = REVENUE_AUDIT_CHAIN_CONFIGS["berachain"]
+    rebate_percentage = borrow_fee_rebate_percentage_from_metadata(rebate_metadata)
+    try:
+        endpoints = rpc_client.get_endpoints("berachain")
+    except Exception as exc:
+        print(f"   Borrow fee rebate max audit skipped: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
+        return current
+
+    last_error = None
+    for endpoint in endpoints:
+        try:
+            print(f"   Auditing borrow fee rebate max values on {rpc_client.safe_host(endpoint)}")
+            w3 = make_revenue_audit_web3(endpoint, config)
+            block_cache = {}
+            token_cache = {}
+            public_day_delay = public_berachain_rebate_audit_delay(endpoint)
+            generated_at = utc_now_iso()
+            for row in rows_needing_audit:
+                epoch = int_or_none(row.get("epoch"))
+                period_start = int_or_none(row.get("periodStartTimestamp"))
+                period_end = int_or_none(row.get("periodEndTimestamp"))
+                market_ids = active_rebate_market_ids_for_epoch(rebate_metadata, epoch)
+                if epoch is None or period_start is None or period_end is None or period_end <= period_start or not market_ids:
+                    continue
+
+                day = period_start
+                day_count = 0
+                max_rebate_usd = Decimal(0)
+                price_fallback_count = 0
+                price_omission_count = 0
+                while day < period_end:
+                    day_end = min(day + SECONDS_PER_DAY, period_end)
+                    daily = None
+                    for attempt in range(2):
+                        try:
+                            daily = compute_daily_borrow_fee_max_rebate(
+                                w3,
+                                config,
+                                day,
+                                day_end,
+                                market_ids,
+                                rebate_percentage,
+                                block_cache,
+                                token_cache=token_cache,
+                            )
+                            break
+                        except RuntimeError as exc:
+                            if attempt == 0 and "250/minute request limit" in str(exc):
+                                print("      Public RPC rate limit reached; waiting 70s before retry", flush=True)
+                                time.sleep(70)
+                                continue
+                            raise
+                    max_rebate_usd += daily["maxRebateUSD"]
+                    price_fallback_count += daily["priceFallbackCount"]
+                    price_omission_count += daily["priceOmissionCount"]
+                    day_count += 1
+                    day = day_end
+                    if public_day_delay > 0 and day < period_end:
+                        time.sleep(public_day_delay)
+
+                row["maxRebateUSD"] = round(float(max_rebate_usd), 6)
+                row["maxRebateMethod"] = BORROW_FEE_REBATE_MAX_REBATE_METHOD
+                row["maxRebateSource"] = ONCHAIN_CURRENT_INDEX_SOURCE
+                row["maxRebateMarketCount"] = len(market_ids)
+                row["maxRebateEligibleMarketIds"] = [str(market_id) for market_id in market_ids]
+                row["maxRebateDayCount"] = day_count
+                row["maxRebatePriceFallbackCount"] = price_fallback_count
+                row["maxRebatePriceOmissionCount"] = price_omission_count
+                row["maxRebateGeneratedAt"] = generated_at
+                print(
+                    f"      Epoch {epoch}: audited max rebate ${row['maxRebateUSD']:,.2f} "
+                    f"across {day_count} day(s) and {len(market_ids)} market(s)",
+                    flush=True,
+                )
+            return current
+        except Exception as exc:
+            last_error = exc
+            print(f"   Borrow fee rebate max audit failed on {rpc_client.safe_host(endpoint)}: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
+
+    if last_error:
+        print(f"   Borrow fee rebate max audit unavailable: {type(last_error).__name__}: {rpc_client.sanitize_error(last_error)}")
+    return current
 
 
 def load_onchain_revenue_overrides(path=ONCHAIN_REVENUE_OVERRIDES_FILE):
@@ -1196,6 +1547,7 @@ def main():
             fetch_borrow_fee_rebate_data(),
             previous_output,
         )
+        rebate_data = audit_borrow_fee_rebate_max_rebates(rebate_metadata, rebate_data)
         if rebate_data.get("status") == "fallback_previous_closed_epochs":
             print("   Borrow fee rebate fetch unavailable; preserving previous closed-epoch rebate data")
         onchain_audit = load_onchain_audit()

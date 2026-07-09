@@ -651,6 +651,28 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(epoch["maxRebateUSD"], 9.75)
         self.assertEqual(epoch["maxRebateMethod"], "eligible_market_daily_current_index")
 
+    def test_current_revenue_file_has_audited_max_rebate_for_every_closed_epoch(self):
+        data = json.loads((ROOT / "dolomite_revenue.json").read_text())
+        rows = (
+            (data.get("borrowFeeRebates") or {})
+            .get("chains", {})
+            .get("Berachain", {})
+            .get("epochRebates", [])
+        )
+        missing = [
+            row.get("epoch")
+            for row in rows
+            if row.get("rebateUSD", 0) > 0
+            and (
+                not isinstance(row.get("maxRebateUSD"), (int, float))
+                or row.get("maxRebateUSD") <= 0
+                or row.get("maxRebateMethod") != "eligible_market_daily_current_index"
+                or row.get("maxRebateSource") != "onchain-current-index-audit"
+            )
+        ]
+
+        self.assertEqual(missing, [])
+
     def test_validator_does_not_depend_on_liquidation_history_for_revenue(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
         fees_data = metric_payload(total24h=500, latest_value=500, step=10)

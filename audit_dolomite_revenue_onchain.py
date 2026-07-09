@@ -555,7 +555,22 @@ def fetch_historical_prices(timestamp, coin_ids):
     return prices
 
 
-def market_interest_rows(w3, config, from_block, to_block, endpoint_started_at=None):
+def selected_market_ids(market_count, market_ids=None):
+    if market_ids is None:
+        return list(range(int(market_count)))
+    selected = []
+    for value in market_ids:
+        market_id = None
+        try:
+            market_id = int(value)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= market_id < int(market_count):
+            selected.append(market_id)
+    return sorted(set(selected))
+
+
+def market_interest_rows(w3, config, from_block, to_block, endpoint_started_at=None, market_ids=None):
     margin = Web3.to_checksum_address(config["margin"])
     contract = w3.eth.contract(address=margin, abi=DOLOMITE_MARGIN_ABI)
     check_endpoint_budget(endpoint_started_at, "reading market count")
@@ -564,7 +579,7 @@ def market_interest_rows(w3, config, from_block, to_block, endpoint_started_at=N
     default_earnings_rate = int(contract.functions.getEarningsRate().call(block_identifier=from_block))
     rows = []
 
-    for market_id in range(market_count):
+    for market_id in selected_market_ids(market_count, market_ids):
         check_endpoint_budget(endpoint_started_at, f"reading market {market_id}")
         if config["mode"] == "arbitrum":
             token = contract.functions.getMarketTokenAddress(market_id).call(block_identifier=to_block)
