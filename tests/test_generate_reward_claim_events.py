@@ -12,6 +12,7 @@ import generate_reward_claim_events as rce
 
 ROOT = Path(__file__).resolve().parents[1]
 KNOWN_BERA_ODOLO_CLAIM_TX = "0xe2d1621747cafc1f7d7d18b41a2cc1204369c91edb89eea59628bdd23d8340b2"
+RECENT_BERA_ODOLO_CLAIM_TX = "0xf4dd6748b08850a1c871046fdad619acce76a9999038fd6a712ac2efa368cea6"
 
 
 def _log(block):
@@ -157,6 +158,22 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
         self.assertEqual(event.get("blockNumber"), 23198982)
         self.assertEqual(event.get("epoch"), 60)
         self.assertEqual(event.get("amountWei"), "21180233137303023902")
+        self.assertEqual(event.get("tokenSymbol"), "oDOLO")
+
+    def test_recent_berachain_odolo_claim_is_indexed(self):
+        payload = json.loads((ROOT / "data" / "reward-claim-events" / "berachain.json").read_text(encoding="utf-8"))
+        matches = [
+            event for event in payload.get("events", [])
+            if str(event.get("txHash", "")).lower() == RECENT_BERA_ODOLO_CLAIM_TX
+        ]
+
+        self.assertEqual(len(matches), 1)
+        event = matches[0]
+        self.assertEqual(event.get("user"), "0x28da3dde285d8f1f87b2d858f89961bb8b9af180")
+        self.assertEqual(event.get("distributor"), "0x79e6e932bf6686a4d357d7821e6e08835ba8a026")
+        self.assertEqual(event.get("blockNumber"), 23283680)
+        self.assertEqual(event.get("epoch"), 61)
+        self.assertEqual(event.get("amountWei"), "19417570675568485919")
         self.assertEqual(event.get("tokenSymbol"), "oDOLO")
 
 
