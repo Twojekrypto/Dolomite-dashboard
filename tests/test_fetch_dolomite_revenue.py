@@ -10,9 +10,11 @@ from pathlib import Path
 from fetch_dolomite_revenue import (
     build_output,
     expected_onchain_audit_target_date,
+    fee_rebate_epoch_from_transaction_input,
     onchain_audit_assurance,
     preserve_previous_borrow_fee_rebate_data,
 )
+from web3 import Web3
 from validate_data import (
     RULES,
     ValidationResult,
@@ -84,6 +86,34 @@ def borrow_fee_rebate_metadata():
 
 
 class FetchDolomiteRevenueTest(unittest.TestCase):
+    def test_fee_rebate_epoch_uses_handler_expected_epoch_from_calldata(self):
+        w3 = Web3()
+        contract = w3.eth.contract(abi=[{
+            "inputs": [
+                {"internalType": "uint256[]", "name": "_marketIds", "type": "uint256[]"},
+                {"internalType": "bytes32[]", "name": "_merkleRoots", "type": "bytes32[]"},
+                {"internalType": "uint256[]", "name": "_totalAmounts", "type": "uint256[]"},
+                {"internalType": "uint256", "name": "_expectedEpoch", "type": "uint256"},
+                {"internalType": "bool", "name": "_incrementEpoch", "type": "bool"},
+            ],
+            "name": "handlerSetMerkleRoots",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function",
+        }])
+        calldata = contract.encode_abi(
+            "handlerSetMerkleRoots",
+            args=[
+                [0, 1],
+                [b"\x11" * 32, b"\x22" * 32],
+                [123, 456],
+                5,
+                True,
+            ],
+        )
+
+        self.assertEqual(fee_rebate_epoch_from_transaction_input(w3, calldata), 5)
+
     def test_daily_totals_follow_latest_series_when_total24h_lags(self):
         revenue_data = metric_payload(total24h=9_999, latest_value=100, step=2)
         fees_data = metric_payload(total24h=8_888, latest_value=500, step=10)
