@@ -807,6 +807,11 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("Required locked DOLO", html)
         self.assertIn("Simulation only", html)
         self.assertIn("simulate ETH + ARB + BERA", html)
+        veborrow_panel = html[html.index('id="veBorrowPanel"'):html.index('id="veBorrowDiscountUsersPanel"')]
+        self.assertLess(
+            veborrow_panel.index('id="veBorrowSimToggle"'),
+            veborrow_panel.index('class="revenue-mode-toggles veborrow-mode-toggles"'),
+        )
         self.assertIn("Ethereum + Arbitrum + Berachain veBorrow Simulation", html)
         self.assertIn('const VEBORROW_SIM_CHAINS = ["Ethereum", "Arbitrum", "Berachain"]', html)
         self.assertIn("veBorrowDisplaySimulationChains", html)
