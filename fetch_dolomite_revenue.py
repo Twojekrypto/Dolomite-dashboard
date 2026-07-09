@@ -39,6 +39,7 @@ FEE_REBATE_CLAIMER_ADDRESS = "0x6BE1fed8a38B3555A337f58BB9E10FC0465964C0"
 FEE_REBATE_ROLLING_CLAIMS_ADDRESS = "0xea9421044430FA791c3Ab16E0B90f142aa6C11ef"
 FEE_REBATE_ROLLING_CLAIMS_DEPLOY_TX = "0xc7096f2f4e799ff80a25116552932c3baab028cdaec310948e8270bf760ebc43"
 FEE_REBATE_ROLLING_CLAIMS_DEPLOY_BLOCK = 21_228_103
+FEE_REBATE_FIRST_MARKET_ROOT_BLOCK = 22_269_000
 FEE_REBATE_DEPLOYMENTS_URL = "https://raw.githubusercontent.com/dolomite-exchange/dolomite-margin-modules/master/packages/deployment/src/deploy/deployments.json"
 FEE_REBATE_EVENT_SOURCE = "FeeRebateRollingClaims.MarketIdToMerkleRootSet"
 FEE_REBATE_START_TIMESTAMP = 1779321600
@@ -68,6 +69,22 @@ DOLOMITE_MARGIN_ABI = [
 ERC20_ABI = [
     {"inputs": [], "name": "symbol", "outputs": [{"type": "string"}], "stateMutability": "view", "type": "function"},
     {"inputs": [], "name": "decimals", "outputs": [{"type": "uint8"}], "stateMutability": "view", "type": "function"},
+]
+
+FEE_REBATE_ROLLING_CLAIMS_ABI = [
+    {
+        "inputs": [
+            {"internalType": "uint256[]", "name": "_marketIds", "type": "uint256[]"},
+            {"internalType": "bytes32[]", "name": "_merkleRoots", "type": "bytes32[]"},
+            {"internalType": "uint256[]", "name": "_totalAmounts", "type": "uint256[]"},
+            {"internalType": "uint256", "name": "_expectedEpoch", "type": "uint256"},
+            {"internalType": "bool", "name": "_incrementEpoch", "type": "bool"},
+        ],
+        "name": "handlerSetMerkleRoots",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
 ]
 
 
@@ -229,6 +246,34 @@ def rebate_epoch_for_timestamp(timestamp):
     return max(1, int((int(timestamp) - FEE_REBATE_START_TIMESTAMP) // SECONDS_PER_WEEK))
 
 
+def fee_rebate_epoch_from_transaction_input(w3, transaction_input):
+    if not transaction_input:
+        return None
+    try:
+        contract = w3.eth.contract(
+            address=Web3.to_checksum_address(FEE_REBATE_ROLLING_CLAIMS_ADDRESS),
+            abi=FEE_REBATE_ROLLING_CLAIMS_ABI,
+        )
+        _function, args = contract.decode_function_input(transaction_input)
+        epoch = int(args.get("_expectedEpoch") or 0)
+        return epoch if epoch > 0 else None
+    except Exception:
+        return None
+
+
+def fee_rebate_epoch_for_log(w3, log, timestamp, transaction_epoch_cache):
+    tx_hash = log["transactionHash"].hex() if hasattr(log["transactionHash"], "hex") else str(log["transactionHash"])
+    if tx_hash not in transaction_epoch_cache:
+        epoch = None
+        try:
+            tx = w3.eth.get_transaction(log["transactionHash"])
+            epoch = fee_rebate_epoch_from_transaction_input(w3, tx.get("input"))
+        except Exception:
+            epoch = None
+        transaction_epoch_cache[tx_hash] = epoch
+    return transaction_epoch_cache.get(tx_hash) or rebate_epoch_for_timestamp(timestamp)
+
+
 def rebate_epoch_window(epoch):
     start = FEE_REBATE_START_TIMESTAMP + (int(epoch) - 1) * SECONDS_PER_WEEK
     end = FEE_REBATE_START_TIMESTAMP + int(epoch) * SECONDS_PER_WEEK
@@ -271,15 +316,16 @@ def fetch_borrow_fee_rebate_data():
             w3 = Web3(Web3.HTTPProvider(endpoint, request_kwargs={"timeout": 30}))
             try:
                 receipt = w3.eth.get_transaction_receipt(FEE_REBATE_ROLLING_CLAIMS_DEPLOY_TX)
-                from_block = int(receipt["blockNumber"])
+                from_block = max(int(receipt["blockNumber"]), FEE_REBATE_FIRST_MARKET_ROOT_BLOCK)
             except Exception:
-                from_block = FEE_REBATE_ROLLING_CLAIMS_DEPLOY_BLOCK
+                from_block = FEE_REBATE_FIRST_MARKET_ROOT_BLOCK
             to_block = int(w3.eth.block_number)
             logs = get_logs_chunked(w3, FEE_REBATE_ROLLING_CLAIMS_ADDRESS, from_block, to_block, topic)
             logs = sorted(logs, key=lambda item: (int(item["blockNumber"]), int(item["transactionIndex"]), int(item["logIndex"])))
             block_timestamps = {}
             market_cache = {}
             market_totals = {}
+            transaction_epoch_cache = {}
             epoch_rebates = {}
             missing_price_count = 0
             price_fallback_count = 0
@@ -299,7 +345,7 @@ def fetch_borrow_fee_rebate_data():
                 if block_number not in block_timestamps:
                     block_timestamps[block_number] = int(w3.eth.get_block(block_number)["timestamp"])
                 timestamp = block_timestamps[block_number]
-                epoch = rebate_epoch_for_timestamp(timestamp)
+                epoch = fee_rebate_epoch_for_log(w3, log, timestamp, transaction_epoch_cache)
                 period_start, period_end = rebate_epoch_window(epoch)
                 metadata = get_market_token_metadata(w3, market_id, market_cache)
                 coin_id = f"{BERACHAIN_COIN_CHAIN}:{metadata['token'].lower()}"
