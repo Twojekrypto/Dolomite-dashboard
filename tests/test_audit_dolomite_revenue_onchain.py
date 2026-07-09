@@ -13,6 +13,7 @@ from audit_dolomite_revenue_onchain import (
     env_positive_int,
     revenue_chain_totals,
     resolve_token_price,
+    selected_market_ids,
     standard_market_state_from_getters,
 )
 from rpc_client import CHAIN_ENV_KEYS
@@ -246,6 +247,9 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         self.assertEqual(state["startBorrowIndex"], 1_000)
         self.assertEqual(state["endBorrowIndex"], 1_100)
         self.assertEqual(state["earningsRate"], 750_000_000_000_000_000)
+
+    def test_selected_market_ids_preserves_market_zero_for_filtered_audits(self):
+        self.assertEqual(selected_market_ids(6, [0, "1", 1, 9, None, "bad"]), [0, 1])
 
     def test_stable_symbol_price_fallback_is_explicit(self):
         price, source = resolve_token_price({"symbol": "USDa"}, None)

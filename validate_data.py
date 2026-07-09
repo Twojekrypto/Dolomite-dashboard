@@ -431,6 +431,33 @@ def _dolomite_revenue_chain_windows_valid(data):
     return True
 
 
+def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
+    chain = (
+        (data.get("borrowFeeRebates") or {})
+        .get("chains", {})
+        .get("Berachain", {})
+    )
+    rows = chain.get("epochRebates") if isinstance(chain, dict) else None
+    if not isinstance(rows, list):
+        return True
+
+    for row in rows:
+        if not isinstance(row, dict) or _safe_number(row.get("rebateUSD")) <= 0:
+            continue
+        market_ids = row.get("maxRebateEligibleMarketIds")
+        if (
+            _safe_number(row.get("maxRebateUSD")) <= 0
+            or row.get("maxRebateMethod") != "eligible_market_daily_current_index"
+            or row.get("maxRebateSource") != "onchain-current-index-audit"
+            or not isinstance(market_ids, list)
+            or not market_ids
+            or int(row.get("maxRebateMarketCount") or 0) != len(market_ids)
+            or int(row.get("maxRebateDayCount") or 0) <= 0
+        ):
+            return False
+    return True
+
+
 def _dolomite_revenue_onchain_audit_valid(data):
     statuses = {"pass", "warn", "partial", "missing"}
     status = data.get("status")
@@ -799,6 +826,7 @@ RULES = {
             ("revenue rolling windows must reconcile with series", _dolomite_revenue_window_totals_valid),
             ("revenue chain windows must reconcile with series", _dolomite_revenue_chain_windows_valid),
             ("revenue history must be sorted and populated", _dolomite_revenue_series_valid),
+            ("closed veBorrow rebate epochs must have audited max rebate baselines", _dolomite_revenue_borrow_fee_rebate_max_audits_valid),
         ],
         "min_bytes": 10_000,
     },
