@@ -105,6 +105,8 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
     def test_odolo_flow_workflow_refreshes_berachain_claims_before_flows(self):
         workflow = (ROOT / ".github" / "workflows" / "update-odolo-flows.yml").read_text(encoding="utf-8")
 
+        self.assertIn("fetch-depth: 1", workflow)
+        self.assertNotIn("fetch-depth: 0", workflow)
         self.assertIn("REWARD_CLAIM_CHAINS: berachain", workflow)
         self.assertLess(
             workflow.index("Generate Berachain reward claim events"),
