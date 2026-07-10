@@ -91,6 +91,9 @@ RPC_URLS = _rpc_endpoints("berachain")
 
 BLOCK_TIME = 2  # ~2 seconds per block on Berachain
 CHUNK_SIZE = max(1000, int(os.environ.get("ODOLO_FLOW_CHUNK_SIZE", "10000")))
+RECENT_RESCAN_BLOCKS = max(1, int(os.environ.get("ODOLO_FLOW_RECENT_RESCAN_BLOCKS", "10000")))
+REORG_BUFFER_BLOCKS = max(0, int(os.environ.get("ODOLO_FLOW_REORG_BUFFER_BLOCKS", "20")))
+FLOW_STATE_SCHEMA_VERSION = 2
 DEPLOY_BLOCK = 3_500_000  # oDOLO deployed on Berachain mainnet
 
 PERIODS = {
@@ -206,12 +209,15 @@ def load_vedolo_odolo_route_candidates(path=VEDOLO_FLOWS_JSON):
     return candidates
 
 
-def load_reward_claims(path):
+def load_reward_claims(path, min_block=None):
     """Load oDOLO RewardClaimed amounts by wallet from a generated event index."""
     payload = read_json_file(path)
     claims = {}
     events = payload.get("events", []) if isinstance(payload, dict) else []
     for event in events or []:
+        block_number = int(event.get("blockNumber") or 0)
+        if min_block is not None and block_number < min_block:
+            continue
         token = normalize_address(event.get("tokenAddress"))
         symbol = str(event.get("tokenSymbol") or payload.get("token", {}).get("symbol") or "").lower()
         if token and token != ODOLO_CONTRACT:
@@ -252,6 +258,16 @@ def merge_claim_sources(primary, secondary):
             else:
                 added += 1
     return merged, {"added": added, "updated": updated, "source_wallets": len(secondary)}
+
+
+def load_reward_claims_from_sources(paths, min_block=None):
+    """Merge compatibility and chain claim indexes without double counting."""
+    merged = {}
+    for path in paths:
+        source_claims = load_reward_claims(path, min_block=min_block)
+        for wallet, amount in source_claims.items():
+            merged[wallet] = max(merged.get(wallet, 0), amount)
+    return merged
 
 
 def merge_candidate_maps(*maps):
@@ -344,10 +360,10 @@ def build_cutoff_blocks(current_block):
 
 def fetch_transfer_logs(start_block, end_block):
     chunk_size = CHUNK_SIZE
-    if start_block >= end_block:
+    if start_block > end_block:
         return []
 
-    total_blocks = end_block - start_block
+    total_blocks = end_block - start_block + 1
     print(f"  Berachain: scanning blocks {start_block:,} → {end_block:,} ({total_blocks:,} blocks)")
 
     all_transfers = []
@@ -427,6 +443,16 @@ def fetch_transfer_logs(start_block, end_block):
     return all_transfers
 
 
+def replace_transfer_range(cached, refreshed, start_block, end_block):
+    """Replace an inclusive cached block range with authoritative RPC results."""
+    preserved = [
+        tuple(transfer) for transfer in cached
+        if int(transfer[3]) < start_block or int(transfer[3]) > end_block
+    ]
+    merged = preserved + [tuple(transfer) for transfer in refreshed]
+    return sorted(merged, key=lambda transfer: int(transfer[3]))
+
+
 def detect_contracts_batch(addresses):
     contracts = set()
     payloads = []
@@ -475,6 +501,38 @@ def detect_contracts_batch(addresses):
     return contracts
 
 
+def load_address_labels():
+    """Read shared dashboard labels used to distinguish custody from infra."""
+    path = os.path.join(DATA_DIR, "dolo-address-labels.js")
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path) as file:
+            text = file.read()
+    except OSError as exc:
+        print(f"  ⚠️ Could not load address labels: {exc}", flush=True)
+        return {}
+    labels = {}
+    for match in re.finditer(r'"(0x[a-fA-F0-9]{40})"\s*:\s*\{([^}]+)\}', text):
+        body = match.group(2)
+        type_match = re.search(r'type\s*:\s*"([^"]+)"', body)
+        labels[match.group(1).lower()] = {
+            "type": type_match.group(1) if type_match else "",
+        }
+    return labels
+
+
+def select_dynamic_flow_exclusions(detected_contracts, address_labels):
+    """Exclude infrastructure contracts while keeping custody wallets visible."""
+    visible_label_types = {"cex", "multisig", "safe", "contract_wallet"}
+    return {
+        str(address).lower()
+        for address in detected_contracts
+        if str((address_labels.get(str(address).lower()) or {}).get("type") or "").lower()
+        not in visible_label_types
+    }
+
+
 # oDOLO Vester — exercising oDOLO sends tokens here, NOT selling
 VESTER_CONTRACT = "0x3e9b9a16743551da49b5e136c716bba7932d2cec"
 
@@ -497,6 +555,32 @@ def calculate_flows(transfers, excluded):
         flows[from_addr] = flows.get(from_addr, 0) - value
         flows[to_addr] = flows.get(to_addr, 0) + value
     return flows
+
+
+def calculate_flow_components(transfers):
+    """Return gross inflow, gross outflow and net flow for every wallet."""
+    skip_addrs = {
+        ZERO,
+        ODOLO_CONTRACT,
+        "0x0000000000000000000000000000000000000001",
+        VESTER_CONTRACT,
+    }
+    components = {}
+    for from_addr, to_addr, value_wei, _ in transfers:
+        if from_addr in skip_addrs or to_addr in skip_addrs:
+            continue
+        value = value_wei / (10 ** 18)
+        sender = components.setdefault(
+            from_addr, {"gross_inflow": 0.0, "gross_outflow": 0.0, "net_flow": 0.0}
+        )
+        receiver = components.setdefault(
+            to_addr, {"gross_inflow": 0.0, "gross_outflow": 0.0, "net_flow": 0.0}
+        )
+        sender["gross_outflow"] += value
+        sender["net_flow"] -= value
+        receiver["gross_inflow"] += value
+        receiver["net_flow"] += value
+    return components
 
 
 def calculate_gross_outflows(transfers, excluded):
@@ -526,7 +610,7 @@ def count_txs(transfers, excluded):
     return counts
 
 
-def get_top(flows, tx_counts, n, mode="accumulator", excluded=None):
+def get_top(flows, tx_counts, n, mode="accumulator", excluded=None, components=None):
     """Get top N accumulators or sellers, excluding known contracts."""
     if excluded is None:
         excluded = set()
@@ -540,12 +624,20 @@ def get_top(flows, tx_counts, n, mode="accumulator", excluded=None):
         filtered = [(addr, val) for addr, val in sorted_addrs if val >= 0.005 and addr not in excluded]
 
     result = []
-    for addr, net in filtered[:n]:
-        result.append({
+    for addr, value in filtered[:n]:
+        row = {
             "address": addr,
-            "net_flow": round(net, 2),
+            "net_flow": round(value, 2),
             "tx_count": tx_counts.get(addr, 0),
-        })
+        }
+        if components and addr in components:
+            row.update({
+                key: round(component_value, 2)
+                for key, component_value in components[addr].items()
+            })
+            if mode != "accumulator":
+                row["net_flow"] = round(components[addr]["net_flow"], 2)
+        result.append(row)
     return result
 
 
@@ -716,16 +808,17 @@ def main():
 
     # Load incremental state
     state = load_state()
-    is_incremental = bool(state)
+    is_incremental = state.get("schema_version") == FLOW_STATE_SCHEMA_VERSION
     if is_incremental:
         print("📦 Found previous state — running incremental sync")
     else:
-        print("🆕 No previous state — running full sync (first run)")
+        print("🆕 Missing current integrity checkpoint — rebuilding full Transfer history")
 
     # Get current block
     print("\n📡 Getting current block number...")
-    current_block = get_current_block()
-    print(f"  Berachain: block {current_block:,}")
+    chain_head = get_current_block()
+    current_block = max(DEPLOY_BLOCK, chain_head - REORG_BUFFER_BLOCKS)
+    print(f"  Berachain: head {chain_head:,}; confirmed scan end {current_block:,}")
 
     # Calculate cutoff blocks. If current_block is invalid, fail before touching data.
     cutoff_blocks = build_cutoff_blocks(current_block)
@@ -738,16 +831,14 @@ def main():
     last_block = state.get("last_block", 0)
 
     if is_incremental and last_block > 0 and cached_transfers:
-        # Only fetch new blocks since last run
-        fetch_start = last_block + 1
-        if fetch_start >= current_block:
-            print(f"  Berachain: already up to date (block {last_block:,})")
-            new_transfers = []
-        else:
-            new_transfers = fetch_transfer_logs(fetch_start, current_block)
+        # Re-read an overlap on every run. Replacing that range authoritatively
+        # heals short RPC/index gaps and removes transfers orphaned by a reorg.
+        rescan_start = max(oldest_needed, min(last_block, current_block) - RECENT_RESCAN_BLOCKS + 1)
+        refreshed_transfers = fetch_transfer_logs(rescan_start, current_block)
 
-        # Convert cached transfers back from lists to tuples
-        restored = [tuple(t) for t in cached_transfers]
+        # Convert cached transfers back from lists to tuples and discard any
+        # unconfirmed future rows left by an older checkpoint.
+        restored = [tuple(t) for t in cached_transfers if int(t[3]) <= current_block]
 
         # If a previous rolling-window cache pruned early history, backfill it so
         # "all" really means from deployment, not the last 365 days.
@@ -760,14 +851,16 @@ def main():
             print(f"  Berachain: backfilling missing all-time range {oldest_needed:,} → {cached_min_block - 1:,}")
             historical_backfill = fetch_transfer_logs(oldest_needed, cached_min_block - 1)
 
-        # Merge: historical backfill + cached + new
-        merged = historical_backfill + restored + new_transfers
+        # Merge: historical backfill + cached, with the recent overlap replaced.
+        merged = historical_backfill + replace_transfer_range(
+            restored, refreshed_transfers, rescan_start, current_block
+        )
 
         # Prune: drop transfers from blocks older than the oldest needed
         merged = [t for t in merged if t[3] >= oldest_needed]
 
         all_transfers = merged
-        print(f"  Berachain: {len(historical_backfill):,} backfilled + {len(new_transfers):,} new + "
+        print(f"  Berachain: {len(historical_backfill):,} backfilled + {len(refreshed_transfers):,} refreshed + "
               f"{len(restored):,} cached → {len(merged):,} total (after pruning)")
     else:
         # Full scan from the oldest needed block
@@ -775,6 +868,7 @@ def main():
 
     # Update state
     state["last_block"] = current_block
+    state["schema_version"] = FLOW_STATE_SCHEMA_VERSION
     state["transfers"] = [
         list(t) for t in all_transfers
         if t[3] >= oldest_needed
@@ -786,8 +880,12 @@ def main():
     top_by_outflow = sorted(gross_all.items(), key=lambda x: x[1], reverse=True)[:100]
     addrs_to_check = [addr for addr, _ in top_by_outflow if addr not in EXCLUDED_ADDRS]
     contracts = detect_contracts_batch(addrs_to_check)
-    EXCLUDED_ADDRS.update(contracts)
-    print(f"  Excluded {len(contracts)} contract(s)")
+    dynamic_exclusions = select_dynamic_flow_exclusions(contracts, load_address_labels())
+    EXCLUDED_ADDRS.update(dynamic_exclusions)
+    print(
+        f"  Excluded {len(dynamic_exclusions)} infrastructure contract(s); "
+        f"kept {len(contracts) - len(dynamic_exclusions)} labeled custody contract(s) visible"
+    )
 
     # ── Identify claimer wallets first (needed for per-period filtering) ──
     SKIP_ADDRS_CB = {ZERO, ODOLO_CONTRACT, "0x0000000000000000000000000000000000000001"}
@@ -797,10 +895,8 @@ def main():
             val = value_wei / (10 ** 18)
             claims_by_wallet[to_addr] = claims_by_wallet.get(to_addr, 0) + val
 
-    event_claims = {}
-    for claim_path in (ODOLO_CLAIM_EVENTS_JSON, REWARD_CLAIM_EVENTS_BERA_JSON):
-        for wallet, amount in load_reward_claims(claim_path).items():
-            event_claims[wallet] = max(event_claims.get(wallet, 0), amount)
+    claim_paths = (ODOLO_CLAIM_EVENTS_JSON, REWARD_CLAIM_EVENTS_BERA_JSON)
+    event_claims = load_reward_claims_from_sources(claim_paths)
     claims_by_wallet, claim_reconciliation = merge_claim_sources(claims_by_wallet, event_claims)
     claimer_addrs = set(claims_by_wallet.keys())
     print(f"  Found {len(claimer_addrs)} claimer wallets")
@@ -818,16 +914,23 @@ def main():
         cutoff = cutoff_blocks[period]
         period_transfers = [t for t in all_transfers if t[3] >= cutoff]
 
-        flows = calculate_flows(period_transfers, EXCLUDED_ADDRS)
-        gross_out = calculate_gross_outflows(period_transfers, EXCLUDED_ADDRS)
+        flow_components = calculate_flow_components(period_transfers)
+        flows = {addr: values["net_flow"] for addr, values in flow_components.items()}
+        gross_out = {addr: values["gross_outflow"] for addr, values in flow_components.items()}
         tx_counts = count_txs(period_transfers, EXCLUDED_ADDRS)
 
-        accumulators = get_top(flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS)
-        sellers = get_top(gross_out, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
+        accumulators = get_top(
+            flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS, flow_components
+        )
+        sellers = get_top(
+            gross_out, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS, flow_components
+        )
 
         # Filter sellers to only claimers
         claimer_gross = {addr: val for addr, val in gross_out.items() if addr in claimer_addrs}
-        claimer_sellers = get_top(claimer_gross, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
+        claimer_sellers = get_top(
+            claimer_gross, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS, flow_components
+        )
 
         output_periods[period] = {
             "accumulators": accumulators,
@@ -975,6 +1078,11 @@ def main():
         "pct_bought_extra": round(bought_extra_count / max(len(claimer_stats), 1) * 100, 1),
         "count_bought_extra": bought_extra_count,
         "held_source": "balanceOf(wallet)",
+        "claim_attribution_methodology": (
+            "Fungible oDOLO provenance is estimated per wallet: claimed allocation is assigned "
+            "to exercise first, then external outflow, with the residual reported as claim remaining. "
+            "Held is an independent current balanceOf(wallet) value and is not part of that partition."
+        ),
         "all_claimers": all_claimers_list,
     }
     print(f"  Claimers: {len(claimer_stats)}, Claimed: {total_claimed:,.0f}")
@@ -997,6 +1105,8 @@ def main():
             for from_addr, to_addr, value_wei, _ in p_transfers:
                 if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS and to_addr not in EXCLUDED_ADDRS:
                     p_claims[to_addr] = p_claims.get(to_addr, 0) + value_wei / (10 ** 18)
+            period_event_claims = load_reward_claims_from_sources(claim_paths, min_block=cutoff)
+            p_claims, _ = merge_claim_sources(p_claims, period_event_claims)
 
         p_all = []
         for wallet, claimed in p_claims.items():
@@ -1063,6 +1173,7 @@ def main():
     output = {
         "timestamp": datetime.utcnow().isoformat(),
         "current_block": current_block,
+        "chain_head": chain_head,
         "deploy_block": DEPLOY_BLOCK,
         "cutoff_blocks": cutoff_blocks,
         "transfer_coverage": {
@@ -1071,6 +1182,9 @@ def main():
             "min_cached_block": min((t[3] for t in all_transfers), default=0),
             "max_cached_block": max((t[3] for t in all_transfers), default=0),
             "transfer_count": len(all_transfers),
+            "recent_rescan_blocks": RECENT_RESCAN_BLOCKS,
+            "reorg_buffer_blocks": REORG_BUFFER_BLOCKS,
+            "state_schema_version": FLOW_STATE_SCHEMA_VERSION,
         },
         "periods": existing_periods if existing_periods else output_periods,
         "claimer_behavior": existing_cb if existing_cb else claimer_behavior,

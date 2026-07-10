@@ -7,6 +7,7 @@ def _payload(period_counts):
     return {
         "timestamp": "2026-06-20T21:00:00",
         "current_block": 22_500_000,
+        "chain_head": 22_500_020,
         "deploy_block": 3_500_000,
         "cutoff_blocks": {
             "1d": 22_456_800,
@@ -22,6 +23,9 @@ def _payload(period_counts):
             "min_cached_block": 3_500_000,
             "max_cached_block": 22_499_900,
             "transfer_count": period_counts["all"],
+            "recent_rescan_blocks": 10_000,
+            "reorg_buffer_blocks": 20,
+            "state_schema_version": 2,
         },
         "periods": {
             period: {"total_transfers": count}
@@ -69,6 +73,53 @@ class OdoloFlowsValidationTests(unittest.TestCase):
         payload["transfer_coverage"]["scanned_from_block"] = 4_409_129
 
         self.assertFalse(validate_data._odolo_flow_block_metadata_is_valid(payload))
+
+    def test_rejects_legacy_checkpoint_without_overlap_rescan(self):
+        payload = _payload({
+            "1d": 100,
+            "7d": 900,
+            "30d": 4_000,
+            "90d": 12_000,
+            "180d": 30_000,
+            "all": 100_000,
+        })
+        payload["transfer_coverage"]["state_schema_version"] = 1
+        payload["transfer_coverage"]["recent_rescan_blocks"] = 0
+
+        self.assertFalse(validate_data._odolo_flow_block_metadata_is_valid(payload))
+
+    def test_claimer_lifecycle_partition_must_reconcile(self):
+        payload = {
+            "claimer_behavior": {
+                "total_claimed": 100,
+                "all_claimers": [{
+                    "address": "0x" + "1" * 40,
+                    "claimed": 100,
+                    "exercised": 40,
+                    "outflow": 30,
+                    "claim_remaining": 30,
+                    "held": 80,
+                }],
+            },
+            "claimer_periods": {},
+        }
+        self.assertTrue(validate_data._odolo_claimer_partitions_reconcile(payload))
+
+        payload["claimer_behavior"]["all_claimers"][0]["claim_remaining"] = 40
+        self.assertFalse(validate_data._odolo_claimer_partitions_reconcile(payload))
+
+    def test_flow_components_must_reconcile_gross_and_net(self):
+        row = {
+            "address": "0x" + "2" * 40,
+            "gross_inflow": 100,
+            "gross_outflow": 40,
+            "net_flow": 60,
+        }
+        payload = {"periods": {"7d": {"accumulators": [row], "sellers": []}}}
+        self.assertTrue(validate_data._odolo_flow_components_reconcile(payload))
+
+        row["net_flow"] = 70
+        self.assertFalse(validate_data._odolo_flow_components_reconcile(payload))
 
 
 if __name__ == "__main__":
