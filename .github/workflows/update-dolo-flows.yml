@@ -49,8 +49,8 @@ jobs:
             echo "::warning::No Chrome/Chromium binary found; Fresh Wallet DeBank age fallback will be skipped."
           fi
 
-      - name: Run fresh wallet unit tests
-        run: python3 -m unittest tests/test_fresh_wallets.py
+      - name: Run DOLO flow unit tests
+        run: python3 -m unittest tests/test_fresh_wallets.py tests/test_generate_dolo_flows_integrity.py
 
       - name: Restore holders sync state
         uses: actions/cache@v5

@@ -137,6 +137,11 @@ CHAINS = {
     },
 }
 
+# Re-read one normal getLogs chunk on every incremental run and replace that
+# cached range authoritatively. This repairs silent checkpoint holes (including
+# a previously skipped single-block range) without duplicating transfer rows.
+RECENT_RESCAN_BLOCKS = {"eth": 50_000, "bera": 100_000}
+
 PERIODS = {
     "1d": 86400,
     "7d": 86400 * 7,
@@ -263,6 +268,42 @@ def get_current_block(rpcs):
     return 0
 
 
+def block_range_has_work(start_block, end_block):
+    return int(start_block) <= int(end_block)
+
+
+def validated_scan_end(chain_key, rpc_block, reorg_buffer, previous_last_block=0):
+    if int(rpc_block) <= 0:
+        raise RuntimeError(f"{CHAINS[chain_key]['name']}: could not resolve current block")
+    end_block = max(
+        int(CHAINS[chain_key].get("deploy_block", 0)),
+        int(rpc_block) - int(reorg_buffer),
+    )
+    if int(previous_last_block or 0) > end_block:
+        raise RuntimeError(
+            f"{CHAINS[chain_key]['name']}: refusing checkpoint rewind from "
+            f"{int(previous_last_block):,} to {end_block:,}"
+        )
+    return end_block
+
+
+def incremental_refresh_start(last_block, oldest_needed, overlap_blocks):
+    return max(
+        int(oldest_needed),
+        int(last_block) + 1 - max(0, int(overlap_blocks)),
+    )
+
+
+def replace_transfer_range(transfers, replacement, start_block, end_block):
+    authoritative = [
+        transfer for transfer in transfers
+        if not int(start_block) <= int(transfer[3]) <= int(end_block)
+    ]
+    authoritative.extend(replacement)
+    authoritative.sort(key=lambda transfer: int(transfer[3]))
+    return authoritative
+
+
 def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_transfers_so_far=None):
     """Fetch ERC-20 Transfer event logs via eth_getLogs.
     Saves state progressively during long scans so timeout kills preserve progress."""
@@ -270,7 +311,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
     rpcs = cfg["rpcs"]
     chunk_size = cfg["chunk_size"]
 
-    if start_block >= end_block:
+    if not block_range_has_work(start_block, end_block):
         return [], 0, 0  # transfers, failed_chunks, total_chunks
 
     total_blocks = end_block - start_block
@@ -372,7 +413,6 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
         # mid-range gaps are NOT covered by the start-block coverage check.
         gaps = state.setdefault(f"skipped_ranges_{chain_key}", [])
         gaps.extend(skipped_ranges)
-        del gaps[:-200]  # keep the list bounded
 
     print(f"  ✅ {cfg['name']}: {len(all_transfers):,} transfers found")
     return all_transfers, chunks_failed, total_chunks_attempted
@@ -387,6 +427,78 @@ def _save_scan_progress(state, chain_key, last_block_scanned, new_transfers, cac
     state[cached_key] = all_so_far
     state[last_block_key] = last_block_scanned
     save_state(state)
+
+
+def _normalize_skipped_ranges(ranges, oldest_needed, end_block):
+    clipped = []
+    for raw_range in ranges or []:
+        if not isinstance(raw_range, (list, tuple)) or len(raw_range) != 2:
+            continue
+        try:
+            start = max(int(raw_range[0]), int(oldest_needed))
+            end = min(int(raw_range[1]), int(end_block))
+        except (TypeError, ValueError):
+            continue
+        if start <= end:
+            clipped.append([start, end])
+
+    merged = []
+    for start, end in sorted(clipped):
+        if merged and start <= merged[-1][1] + 1:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+    return merged
+
+
+def repair_skipped_ranges(chain_key, transfers, state, oldest_needed, end_block):
+    """Replace previously skipped block ranges with authoritative RPC results.
+
+    A repair range is committed only when its full scan succeeds. Partial rows
+    are discarded so a later retry cannot double-count the successful portion.
+    """
+    gap_key = f"skipped_ranges_{chain_key}"
+    gaps = _normalize_skipped_ranges(state.get(gap_key, []), oldest_needed, end_block)
+    if not gaps:
+        state[gap_key] = []
+        return list(transfers), [], 0
+
+    repaired_transfers = list(transfers)
+    unresolved = []
+    repaired_count = 0
+    print(f"  {CHAINS[chain_key]['name']}: repairing {len(gaps)} skipped range(s)")
+
+    for start, end in gaps:
+        replacement, failed_chunks, _ = fetch_transfer_logs(chain_key, start, end)
+        if failed_chunks:
+            unresolved.append([start, end])
+            continue
+
+        repaired_transfers = replace_transfer_range(
+            repaired_transfers,
+            replacement,
+            start,
+            end,
+        )
+        repaired_count += len(replacement)
+
+    state[gap_key] = unresolved
+    return repaired_transfers, unresolved, repaired_count
+
+
+def require_complete_flow_history(gaps_by_chain):
+    unresolved = []
+    for chain_key, ranges in gaps_by_chain.items():
+        for start, end in ranges or []:
+            chain_name = CHAINS.get(chain_key, {}).get("name", chain_key)
+            unresolved.append(f"{chain_name} {start}-{end}")
+    if unresolved:
+        preview = ", ".join(unresolved[:5])
+        suffix = f" (+{len(unresolved) - 5} more)" if len(unresolved) > 5 else ""
+        raise RuntimeError(
+            "DOLO flow history is incomplete; refusing to publish with unresolved RPC gaps: "
+            f"{preview}{suffix}"
+        )
 
 
 def detect_contracts_batch(addresses, chain_key):
@@ -597,6 +709,28 @@ def calculate_flows(transfers, excluded):
         flows[from_addr] = flows.get(from_addr, 0) - value
         flows[to_addr] = flows.get(to_addr, 0) + value
     return flows
+
+
+def calculate_flow_components(transfers):
+    """Return gross directional amounts and their reconciled net per address."""
+    components = {}
+    for from_addr, to_addr, value_wei, _ in transfers:
+        if from_addr in FLOW_SKIP_ADDRS or to_addr in FLOW_SKIP_ADDRS:
+            continue
+        value = value_wei / (10 ** 18)
+        sender = components.setdefault(
+            from_addr,
+            {"gross_inflow": 0.0, "gross_outflow": 0.0, "net_flow": 0.0},
+        )
+        receiver = components.setdefault(
+            to_addr,
+            {"gross_inflow": 0.0, "gross_outflow": 0.0, "net_flow": 0.0},
+        )
+        sender["gross_outflow"] += value
+        sender["net_flow"] -= value
+        receiver["gross_inflow"] += value
+        receiver["net_flow"] += value
+    return components
 
 
 def calculate_bridge_flows(transfers):
@@ -1082,6 +1216,19 @@ def load_address_labels(vesting_labels=None):
             print(f"  ⚠️ Could not load vesting labels for bucket history: {e}")
     merge_vesting_labels(labels, vesting_labels)
     return labels
+
+
+def select_dynamic_flow_exclusions(detected_contracts, address_labels):
+    """Keep known custody/user contracts visible; exclude infrastructure CAs."""
+    visible_label_types = {"cex", "multisig", "safe", "contract_wallet"}
+    exclusions = set()
+    for raw_addr in detected_contracts:
+        addr = str(raw_addr or "").lower()
+        label_type = str((address_labels.get(addr) or {}).get("type") or "").lower()
+        if addr in USER_CONTRACT_WALLET_ADDRS or label_type in visible_label_types:
+            continue
+        exclusions.add(addr)
+    return exclusions
 
 
 def holder_distribution_type(addr, holder_rows, labels):
@@ -2055,7 +2202,13 @@ def main():
     current_blocks = {}
     for chain_key, cfg in CHAINS.items():
         blk = get_current_block(cfg["rpcs"])
-        buffered = max(cfg.get("deploy_block", 0), blk - REORG_BUFFER_BLOCKS.get(chain_key, 10))
+        previous_last_block = int(state.get(f"{chain_key}_last_block") or 0)
+        buffered = validated_scan_end(
+            chain_key,
+            blk,
+            REORG_BUFFER_BLOCKS.get(chain_key, 10),
+            previous_last_block,
+        )
         current_blocks[chain_key] = buffered
         print(f"  {cfg['name']}: block {blk:,} (scanning to {buffered:,}, reorg buffer)")
 
@@ -2075,6 +2228,7 @@ def main():
     # Fetch transfers — incremental: only new blocks since last run
     print("\n📡 Fetching Transfer events...")
     all_transfers = {}
+    unresolved_history_gaps = {}
     for chain_key in CHAINS:
         oldest_needed = cutoff_blocks[chain_key][max_period]
         end = current_blocks[chain_key]
@@ -2088,8 +2242,14 @@ def main():
         history_coverage_start = None
 
         if is_incremental and last_block > 0 and cached_transfers:
-            # Only fetch new blocks since last run
-            fetch_start = last_block + 1
+            # Replace a recent overlap authoritatively on every run. The old
+            # `last_block + 1` path could silently miss a single block when
+            # fetch_start equaled the buffered chain tip.
+            fetch_start = incremental_refresh_start(
+                last_block,
+                oldest_needed,
+                RECENT_RESCAN_BLOCKS.get(chain_key, 0),
+            )
             restored = [tuple(t) for t in cached_transfers]
             cached_min_block = min((t[3] for t in restored), default=last_block + 1)
             coverage_min_block = int(state.get(history_start_key) or cached_min_block)
@@ -2104,19 +2264,32 @@ def main():
                 if backfill_failed:
                     print(f"  ⚠️ {CHAINS[chain_key]['name']}: {backfill_failed} historical backfill chunks failed")
             history_coverage_start = oldest_needed if backfill_failed == 0 else coverage_min_block
-            if fetch_start >= end:
+            if not block_range_has_work(fetch_start, end):
                 print(f"  {CHAINS[chain_key]['name']}: already up to date (block {last_block:,})")
                 new_transfers = []
                 chunks_failed = 0
             else:
-                # Convert cached for progressive save during fetch
-                cached_as_lists = [list(t) for t in cached_transfers] if isinstance(cached_transfers[0], (list, tuple)) else cached_transfers
+                print(
+                    f"  {CHAINS[chain_key]['name']}: authoritative recent refresh "
+                    f"{fetch_start:,} → {end:,}"
+                )
+                # Keep only rows outside the replacement range in progressive
+                # checkpoints so an interrupted scan cannot save duplicates.
+                cached_as_lists = [
+                    list(t) for t in restored
+                    if not fetch_start <= int(t[3]) <= end
+                ]
                 new_transfers, chunks_failed, _ = fetch_transfer_logs(
                     chain_key, fetch_start, end, state=state, cached_transfers_so_far=cached_as_lists
                 )
 
-            # Merge: cached + new
-            merged = backfill_transfers + restored + new_transfers
+            # Merge: historical backfill + authoritative recent replacement.
+            merged = backfill_transfers + replace_transfer_range(
+                restored,
+                new_transfers,
+                fetch_start,
+                end,
+            )
 
             # Prune: drop transfers from blocks older than the oldest needed
             merged = [t for t in merged if t[3] >= oldest_needed]
@@ -2157,6 +2330,20 @@ def main():
             else:
                 all_transfers[chain_key] = fresh_transfers
 
+        all_transfers[chain_key], unresolved_gaps, repaired_count = repair_skipped_ranges(
+            chain_key,
+            all_transfers[chain_key],
+            state,
+            oldest_needed,
+            end,
+        )
+        unresolved_history_gaps[chain_key] = unresolved_gaps
+        if repaired_count:
+            print(
+                f"  🩹 {CHAINS[chain_key]['name']}: restored "
+                f"{repaired_count:,} transfer(s) from skipped ranges"
+            )
+
         # Diagnostic: warn if chain has 0 transfers
         if len(all_transfers[chain_key]) == 0:
             print(f"  🚨 WARNING: {CHAINS[chain_key]['name']} has 0 transfers! Flow data will be empty for this chain.")
@@ -2178,8 +2365,11 @@ def main():
         save_state(state)
         print(f"  💾 State saved for {CHAINS[chain_key]['name']} (up to block {end:,})")
 
+    require_complete_flow_history(unresolved_history_gaps)
+
     # Detect contracts among top addresses (to exclude DEX routers, etc.)
     print("\n🔍 Detecting contract addresses to exclude...")
+    address_labels = load_address_labels()
     # Collect all unique addresses from transfers
     for chain_key in CHAINS:
         addr_set = set()
@@ -2194,8 +2384,13 @@ def main():
         addrs_to_check = [addr for addr, _ in top_by_flow]
 
         contracts = detect_contracts_batch(addrs_to_check, chain_key)
-        EXCLUDED_ADDRS.update(contracts)
-        print(f"  {CHAINS[chain_key]['name']}: excluded {len(contracts)} contract(s)")
+        dynamic_exclusions = select_dynamic_flow_exclusions(contracts, address_labels)
+        EXCLUDED_ADDRS.update(dynamic_exclusions)
+        visible_contracts = len(contracts) - len(dynamic_exclusions)
+        print(
+            f"  {CHAINS[chain_key]['name']}: excluded {len(dynamic_exclusions)} infrastructure contract(s); "
+            f"kept {visible_contracts} labeled custody/user contract(s) visible"
+        )
 
     # Calculate flows for each period and chain
     # Cross-chain neutralization: detect bridge transfers (same address, opposite
@@ -2208,6 +2403,7 @@ def main():
 
         # Step 1: Compute raw flows per chain for this period
         raw_flows = {}
+        flow_components_by_chain = {}
         period_transfers_by_chain = {}
         tx_counts_by_chain = {}
         for chain_key in CHAINS:
@@ -2215,6 +2411,7 @@ def main():
             period_transfers = [t for t in all_transfers[chain_key] if t[3] >= cutoff]
             period_transfers_by_chain[chain_key] = period_transfers
             raw_flows[chain_key] = calculate_flows(period_transfers, EXCLUDED_ADDRS)
+            flow_components_by_chain[chain_key] = calculate_flow_components(period_transfers)
             tx_counts_by_chain[chain_key] = count_txs(period_transfers, EXCLUDED_ADDRS)
 
         # Step 2: Inject bridge mint/burn flows for cross-chain detection
@@ -2260,6 +2457,11 @@ def main():
 
             accumulators = get_top(flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS)
             sellers = get_top(flows, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
+
+            for entry in accumulators + sellers:
+                components = flow_components_by_chain[chain_key].get(entry["address"], {})
+                entry["gross_inflow"] = round(components.get("gross_inflow", 0), 2)
+                entry["gross_outflow"] = round(components.get("gross_outflow", 0), 2)
 
             # Add USD values
             if dolo_price:
@@ -2425,6 +2627,10 @@ def main():
         "history_gaps": {
             chain_key: state.get(f"skipped_ranges_{chain_key}", [])
             for chain_key in CHAINS
+        },
+        "flow_history_integrity": {
+            "status": "complete",
+            "unresolvedGapCount": 0,
         },
         "dolo_price": dolo_price,
         "periods": output_periods,
