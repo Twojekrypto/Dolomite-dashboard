@@ -243,6 +243,70 @@ class FreshWalletTests(unittest.TestCase):
         self.assertEqual(rows["90d"], [])
         self.assertGreaterEqual(audit["90d"]["oldWalletsExcluded"], 1)
 
+    def test_cached_debank_age_advances_with_elapsed_time(self):
+        base_ts = 2_000_000_000
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "debank",
+            "first_timestamp": base_ts - 91 * 86400,
+            "first_block": 0,
+            "first_tx": "",
+            "source": "debank_age",
+            "debank_age_days": 85,
+            "debank_age_max_days": 86,
+            "checked_at": base_ts - 6 * 86400,
+        }
+
+        self.assertFalse(flows._fresh_activity_within_period(first_activity, "90d", base_ts))
+
+    def test_fresh_holder_reports_current_cached_debank_age(self):
+        base_ts = 2_000_000_000
+        candidate = "0x1111111111111111111111111111111111111111"
+        source = "0x3333333333333333333333333333333333333333"
+        all_transfers = {
+            "eth": [(source, candidate, int(20_000 * 10**18), 150)],
+            "bera": [],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        current_blocks = {"eth": 200, "bera": 200}
+        neutralized = {
+            period: {"eth": {candidate: 20_000}, "bera": {}}
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "debank",
+            "first_timestamp": base_ts - 8 * 86400,
+            "first_block": 0,
+            "first_tx": "",
+            "source": "debank_age",
+            "debank_age_days": 0.0417,
+            "debank_age_max_days": 0.0833,
+            "checked_at": base_ts - 8 * 86400,
+        }
+
+        with patch.object(flows, "load_current_holder_rows", return_value={}), \
+             patch.object(flows, "load_address_labels", return_value={}), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity", return_value=first_activity):
+            rows, _audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                current_blocks,
+                neutralized,
+                base_ts,
+                {},
+            )
+
+        row = rows["90d"][0]
+        self.assertAlmostEqual(row["wallet_age_days"], 8.0, places=4)
+        self.assertAlmostEqual(row["wallet_age_max_days"], 8.0416, places=4)
+
     def test_prior_outgoing_dolo_transfer_excludes_fresh_candidate(self):
         candidate = "0x1111111111111111111111111111111111111111"
         other = "0x2222222222222222222222222222222222222222"
