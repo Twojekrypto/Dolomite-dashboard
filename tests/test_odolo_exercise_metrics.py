@@ -5,10 +5,36 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import generate_exercisers
+import odolo_exercises
 import validate_data
 
 
 class TestOdoloExerciseMetrics(unittest.TestCase):
+    def test_sub_day_lock_duration_is_not_rounded_to_zero(self):
+        timestamp = 1_700_000_000
+        lock_end = timestamp + 2_228
+        tx = {
+            "methodId": odolo_exercises.EXERCISE_METHOD_USDC,
+            "timeStamp": str(timestamp),
+            "input": odolo_exercises.EXERCISE_METHOD_USDC
+                + "0" * 128
+                + hex(lock_end)[2:].zfill(64),
+        }
+
+        self.assertEqual(odolo_exercises.extract_lock_duration_days(tx), 0.0258)
+
+    def test_legacy_zero_usdc_receipt_is_refetched_once(self):
+        legacy = {"paid_token": "USDC.e", "usdc": 0, "odolo": 0.00001}
+        verified = {
+            "paid_token": "USDC.e",
+            "usdc": 0,
+            "odolo": 0.00001,
+            "receipt_version": generate_exercisers.RECEIPT_CACHE_VERSION,
+        }
+
+        self.assertTrue(generate_exercisers.cache_entry_needs_receipt_refresh(legacy))
+        self.assertFalse(generate_exercisers.cache_entry_needs_receipt_refresh(verified))
+
     def test_round_amount_preserves_dust_exercises(self):
         self.assertEqual(generate_exercisers.round_amount(0.000673978684860832), 0.000674)
         self.assertGreater(generate_exercisers.round_amount(0.000673978684860832), 0)
@@ -122,6 +148,22 @@ class TestOdoloExerciseMetrics(unittest.TestCase):
         self.assertTrue(validate_data._odolo_exerciser_address_totals_reconcile(data))
         del data["exercisers"][0]["current_vedolo_locked"]
         self.assertFalse(validate_data._odolo_exerciser_address_totals_reconcile(data))
+
+    def test_validation_rejects_duplicate_or_misdated_exercise_transactions(self):
+        tx = {
+            "hash": "0x" + "a" * 64,
+            "date": "2023-11-14",
+            "timestamp": 1_700_000_000,
+            "paid_token": "USDC.e",
+            "usdc": 10,
+            "vedolo": 100,
+            "lock_days": 7,
+        }
+        data = {"exercisers": [{"txs": [tx]}]}
+        self.assertTrue(validate_data._odolo_exercise_transactions_are_valid(data))
+
+        data["exercisers"][0]["txs"].append(dict(tx))
+        self.assertFalse(validate_data._odolo_exercise_transactions_are_valid(data))
 
 
 if __name__ == "__main__":

@@ -62,4 +62,7 @@ def extract_lock_duration_seconds(tx):
 
 def extract_lock_duration_days(tx):
     seconds = extract_lock_duration_seconds(tx)
-    return round(seconds / 86400, 1) if seconds is not None else None
+    if seconds is None:
+        return None
+    days = seconds / 86400
+    return round(days, 4) if days < 1 else round(days, 1)

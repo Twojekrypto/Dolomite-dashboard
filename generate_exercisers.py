@@ -44,6 +44,7 @@ PAGE_SIZE = 100
 RATE_LIMIT_DELAY = 0.35
 REQUEST_TIMEOUT = 20
 MAX_RETRIES = 3
+RECEIPT_CACHE_VERSION = 2
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "exercisers_cache.json")
@@ -61,6 +62,18 @@ def round_amount(value, decimals=2, tiny_decimals=6):
     places = tiny_decimals if abs(value) < 1 else decimals
     rounded = round(value, places)
     return rounded if rounded != 0 else value
+
+
+def cache_entry_needs_receipt_refresh(entry):
+    """Refresh legacy zero-USDC rows once; verified dust zeroes stay cached."""
+    if not isinstance(entry, dict):
+        return True
+    if entry.get("paid_token") == "DOLO":
+        return False
+    return (
+        (entry.get("usdc") is None or entry.get("usdc") == 0)
+        and int(entry.get("receipt_version") or 0) < RECEIPT_CACHE_VERSION
+    )
 
 
 def has_valid_existing_output():
@@ -279,6 +292,7 @@ def seed_cache_from_existing_output():
                 "lock_days": tx.get("lock_days"),
                 "dolo_paid": tx.get("dolo_paid"),
                 "paid_token": paid_token,
+                "receipt_version": int(tx.get("receipt_version") or 0),
             }
     return seed
 
@@ -415,8 +429,8 @@ def main():
     holder_lookup, holder_snapshot_ts = load_vedolo_holder_lookup()
     lock_token_lookup = load_vedolo_lock_token_lookup()
 
-    # One-time cache invalidation: evict entries with wrong DOLO-as-USDC
-    # data or old dust-rounded oDOLO amounts that were saved as zero.
+    # One-time cache invalidation: evict entries with wrong DOLO-as-USDC,
+    # old dust-rounded oDOLO, or an unverified zero USDC receipt.
     evicted = 0
     evict_keys = []
     for tx_hash, entry in cache.items():
@@ -427,11 +441,13 @@ def main():
                 evict_keys.append(tx_hash)
         elif entry.get("odolo") == 0:
             evict_keys.append(tx_hash)
+        elif cache_entry_needs_receipt_refresh(entry):
+            evict_keys.append(tx_hash)
     for k in evict_keys:
         del cache[k]
         evicted += 1
     if evicted:
-        print(f"  🔄 Invalidated {evicted} old DOLO exercise cache entries (re-fetch needed)")
+        print(f"  🔄 Invalidated {evicted} legacy exercise cache entries (re-fetch needed)")
         save_cache(cache)
 
     print("\n[1/3] Fetching Vester transactions...")
@@ -453,6 +469,22 @@ def main():
         if preserve_existing_output("Routescan returned zero exercise transactions"):
             return
         raise SystemExit(1)
+
+    # Lock duration comes from immutable calldata and is cheaper and more
+    # authoritative than the receipt cache. Recompute it on every build so
+    # old 0.0-day rounding repairs itself without another receipt request.
+    lock_updates = 0
+    for tx in exercise_txs:
+        entry = cache.get(tx.get("hash"))
+        if not entry:
+            continue
+        lock_days = extract_lock_duration(tx)
+        if entry.get("lock_days") != lock_days:
+            entry["lock_days"] = lock_days
+            lock_updates += 1
+    if lock_updates:
+        print(f"  🔄 Recomputed {lock_updates} cached lock duration(s)")
+        save_cache(cache)
     # Count by method
     m1 = sum(1 for tx in exercise_txs if tx.get('methodId') == EXERCISE_METHOD_ID)
     m2 = sum(1 for tx in exercise_txs if tx.get('methodId') == EXERCISE_METHOD_ID_2)
@@ -476,13 +508,14 @@ def main():
 
         if usdc_amount is not None or dolo_amount is not None or odolo_amount is not None:
             cache[tx_hash] = {
-                "usdc": round_amount(usdc_amount) if usdc_amount else None,
-                "odolo": round_amount(odolo_amount) if odolo_amount else None,
+                "usdc": round_amount(usdc_amount) if usdc_amount is not None else None,
+                "odolo": round_amount(odolo_amount) if odolo_amount is not None else None,
                 "lock_days": lock_days,
-                "dolo_paid": round_amount(dolo_amount) if dolo_amount else None,
+                "dolo_paid": round_amount(dolo_amount) if dolo_amount is not None else None,
                 # Classify by the tx's method id (authoritative), not by which
                 # transfer logs happened to be found in the receipt.
                 "paid_token": "DOLO" if str(tx.get("methodId") or tx.get("input", "")[:10]) == "0xf3621c90" else "USDC.e",
+                "receipt_version": RECEIPT_CACHE_VERSION,
             }
         else:
             errors += 1
@@ -513,13 +546,14 @@ def main():
                 recovered += 1
                 errors -= 1
                 cache[tx_hash] = {
-                    "usdc": round_amount(usdc_amount) if usdc_amount else None,
-                    "odolo": round_amount(odolo_amount) if odolo_amount else None,
+                    "usdc": round_amount(usdc_amount) if usdc_amount is not None else None,
+                    "odolo": round_amount(odolo_amount) if odolo_amount is not None else None,
                     "lock_days": lock_days,
-                    "dolo_paid": round_amount(dolo_amount) if dolo_amount else None,
+                    "dolo_paid": round_amount(dolo_amount) if dolo_amount is not None else None,
                     # Classify by the tx's method id (authoritative), not by which
                     # transfer logs happened to be found in the receipt.
                     "paid_token": "DOLO" if str(tx.get("methodId") or tx.get("input", "")[:10]) == "0xf3621c90" else "USDC.e",
+                    "receipt_version": RECEIPT_CACHE_VERSION,
                 }
 
             if (i + 1) % 25 == 0 or i == len(failed_txs) - 1:
@@ -583,6 +617,7 @@ def main():
             "price": price_per_vedolo,
             "lock_days": lock_days,
             "paid_token": paid_token,
+            "receipt_version": int(cached.get("receipt_version") or 0),
         }
         if is_dolo_exercise:
             tx_entry["dolo_paid"] = round_amount(dolo_paid) if dolo_paid else None

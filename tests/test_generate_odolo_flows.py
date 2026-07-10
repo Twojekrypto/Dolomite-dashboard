@@ -48,6 +48,32 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 odolo_flows.fetch_transfer_logs(100, 200)
 
+    def test_transfer_log_fetch_includes_single_block_range(self):
+        response = Mock()
+        response.json.return_value = {"result": []}
+
+        with patch.object(odolo_flows, "RPC_URLS", ["https://rpc.example"]), \
+             patch.object(odolo_flows.requests, "post", return_value=response) as post, \
+             patch.object(odolo_flows.time, "sleep"):
+            transfers = odolo_flows.fetch_transfer_logs(100, 100)
+
+        self.assertEqual(transfers, [])
+        post.assert_called_once()
+        request = post.call_args.kwargs["json"]
+        self.assertEqual(request["params"][0]["fromBlock"], hex(100))
+        self.assertEqual(request["params"][0]["toBlock"], hex(100))
+
+    def test_recent_rescan_replaces_cached_range_authoritatively(self):
+        old_only = ("0x" + "1" * 40, "0x" + "2" * 40, 10, 99)
+        stale = ("0x" + "3" * 40, "0x" + "4" * 40, 20, 100)
+        refreshed = ("0x" + "5" * 40, "0x" + "6" * 40, 30, 101)
+
+        merged = odolo_flows.replace_transfer_range(
+            [old_only, stale], [refreshed], 100, 101
+        )
+
+        self.assertEqual(merged, [old_only, refreshed])
+
     def test_fetch_odolo_balances_uses_multicall_fast_path(self):
         addr = "0x" + "c" * 40
 
@@ -166,6 +192,62 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
         self.assertEqual(merged[wallet], 42.0)
         self.assertEqual(stats["added"], 1)
         self.assertEqual(stats["updated"], 0)
+
+    def test_reward_claim_events_can_be_filtered_by_period_block(self):
+        old_wallet = "0x" + "6" * 40
+        recent_wallet = "0x" + "7" * 40
+        payload = {
+            "token": {"symbol": "oDOLO"},
+            "events": [
+                {
+                    "user": old_wallet,
+                    "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                    "amountWei": str(10 * 10**18),
+                    "blockNumber": 100,
+                },
+                {
+                    "user": recent_wallet,
+                    "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                    "amountWei": str(20 * 10**18),
+                    "blockNumber": 200,
+                },
+            ],
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump(payload, f)
+            path = f.name
+        try:
+            recent = odolo_flows.load_reward_claims(path, min_block=150)
+        finally:
+            os.unlink(path)
+
+        self.assertEqual(recent, {recent_wallet: 20.0})
+
+    def test_flow_components_keep_gross_outflow_separate_from_net_flow(self):
+        wallet = "0x" + "8" * 40
+        peer = "0x" + "9" * 40
+        transfers = [
+            (peer, wallet, 100 * 10**18, 1),
+            (wallet, peer, 40 * 10**18, 2),
+        ]
+
+        components = odolo_flows.calculate_flow_components(transfers)
+
+        self.assertEqual(components[wallet]["gross_inflow"], 100.0)
+        self.assertEqual(components[wallet]["gross_outflow"], 40.0)
+        self.assertEqual(components[wallet]["net_flow"], 60.0)
+
+    def test_labeled_custody_contract_stays_visible_in_flows(self):
+        custody = "0x" + "a" * 40
+        router = "0x" + "b" * 40
+
+        excluded = odolo_flows.select_dynamic_flow_exclusions(
+            {custody, router},
+            {custody: {"type": "cex"}, router: {"type": "contract"}},
+        )
+
+        self.assertNotIn(custody, excluded)
+        self.assertIn(router, excluded)
 
     def test_merge_claim_sources_keeps_larger_total_instead_of_double_counting(self):
         wallet = "0x" + "4" * 40

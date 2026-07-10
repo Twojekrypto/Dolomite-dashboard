@@ -129,6 +129,7 @@ def _odolo_flow_windows_are_not_collapsed(data):
 def _odolo_flow_block_metadata_is_valid(data):
     try:
         current_block = int(data.get("current_block"))
+        chain_head = int(data.get("chain_head"))
         deploy_block = int(data.get("deploy_block"))
         cutoffs = data.get("cutoff_blocks") or {}
         coverage = data.get("transfer_coverage") or {}
@@ -136,9 +137,14 @@ def _odolo_flow_block_metadata_is_valid(data):
         scanned_from = int(coverage.get("scanned_from_block"))
         min_cached = int(coverage.get("min_cached_block"))
         max_cached = int(coverage.get("max_cached_block"))
+        recent_rescan_blocks = int(coverage.get("recent_rescan_blocks"))
+        reorg_buffer_blocks = int(coverage.get("reorg_buffer_blocks"))
+        state_schema_version = int(coverage.get("state_schema_version"))
     except (TypeError, ValueError):
         return False
-    if deploy_block <= 0 or current_block < deploy_block:
+    if deploy_block <= 0 or current_block < deploy_block or chain_head < current_block:
+        return False
+    if recent_rescan_blocks <= 0 or reorg_buffer_blocks < 0 or state_schema_version < 2:
         return False
     if oldest_needed != deploy_block or scanned_from > oldest_needed or max_cached > current_block:
         return False
@@ -158,6 +164,54 @@ def _odolo_flow_block_metadata_is_valid(data):
             return False
         last_cutoff = cutoff
     return int(cutoffs["all"]) == deploy_block
+
+
+def _odolo_claimer_partitions_reconcile(data):
+    """Claim lifecycle is a partition; live Held is intentionally independent."""
+    groups = []
+    behavior = data.get("claimer_behavior") or {}
+    behavior_rows = behavior.get("all_claimers") or []
+    groups.append((behavior_rows, behavior.get("total_claimed"), behavior.get("total_claimers")))
+    for period_data in (data.get("claimer_periods") or {}).values():
+        groups.append((
+            period_data.get("all_claimers") or [],
+            None,
+            period_data.get("total_claimers"),
+        ))
+
+    for rows, expected_claimed, expected_count in groups:
+        addresses = [str(row.get("address") or "").lower() for row in rows]
+        if any(not address for address in addresses) or len(addresses) != len(set(addresses)):
+            return False
+        if expected_count is not None and int(expected_count) != len(rows):
+            return False
+        for row in rows:
+            claimed = _safe_number(row.get("claimed"))
+            partition = sum(_safe_number(row.get(key)) for key in ("exercised", "outflow", "claim_remaining"))
+            if claimed < 0 or not _nearly_equal(claimed, partition, rel=1e-8, abs_tol=0.05):
+                return False
+        if expected_claimed is not None:
+            row_total = sum(_safe_number(row.get("claimed")) for row in rows)
+            if not _nearly_equal(expected_claimed, row_total, rel=1e-8, abs_tol=max(0.05, len(rows) * 0.03)):
+                return False
+    return True
+
+
+def _odolo_flow_components_reconcile(data):
+    for period_data in (data.get("periods") or {}).values():
+        for key in ("accumulators", "sellers", "claimer_sellers"):
+            for row in period_data.get(key, []) or []:
+                try:
+                    gross_inflow = float(row["gross_inflow"])
+                    gross_outflow = float(row["gross_outflow"])
+                    net_flow = float(row["net_flow"])
+                except (KeyError, TypeError, ValueError):
+                    return False
+                if gross_inflow < 0 or gross_outflow < 0:
+                    return False
+                if not _nearly_equal(net_flow, gross_inflow - gross_outflow, abs_tol=0.05):
+                    return False
+    return True
 
 
 def _odolo_exerciser_totals(data):
@@ -226,6 +280,35 @@ def _odolo_exerciser_address_totals_reconcile(data):
         ):
             return False
     return True
+
+
+def _odolo_exercise_transactions_are_valid(data):
+    seen_hashes = set()
+    for exerciser in data.get("exercisers", []):
+        for tx in exerciser.get("txs", []):
+            tx_hash = str(tx.get("hash") or "").lower()
+            if len(tx_hash) != 66 or not tx_hash.startswith("0x") or tx_hash in seen_hashes:
+                return False
+            seen_hashes.add(tx_hash)
+            try:
+                timestamp = int(tx.get("timestamp"))
+                expected_date = datetime.fromtimestamp(timestamp, timezone.utc).strftime("%Y-%m-%d")
+                vedolo = float(tx.get("vedolo") or 0)
+                lock_days = float(tx.get("lock_days"))
+            except (TypeError, ValueError, OSError):
+                return False
+            if timestamp <= 0 or tx.get("date") != expected_date or vedolo <= 0 or lock_days <= 0:
+                return False
+            paid_token = tx.get("paid_token")
+            if paid_token == "DOLO":
+                if float(tx.get("dolo_paid") or 0) < 0 or tx.get("usdc") is not None:
+                    return False
+            elif paid_token == "USDC.e":
+                if float(tx.get("usdc") or 0) < 0 or tx.get("dolo_paid") is not None:
+                    return False
+            else:
+                return False
+    return bool(seen_hashes)
 
 
 def _current_chain_tvls(data):
@@ -722,6 +805,8 @@ RULES = {
             ("period transfer counts must be monotonic by window", _odolo_flow_windows_are_monotonic),
             ("period windows must not collapse to all-time", _odolo_flow_windows_are_not_collapsed),
             ("block metadata must prove full all-time coverage", _odolo_flow_block_metadata_is_valid),
+            ("claimer lifecycle partitions must reconcile", _odolo_claimer_partitions_reconcile),
+            ("gross and net oDOLO flows must reconcile", _odolo_flow_components_reconcile),
         ],
         "min_bytes": 50_000,
     },
@@ -787,6 +872,7 @@ RULES = {
             ("exercisers must have entries", lambda d: len(d.get("exercisers", [])) >= 5),
             ("oDOLO exercise totals must exclude DOLO pairing", _odolo_exerciser_totals_reconcile),
             ("per-address oDOLO exercise totals must reconcile", _odolo_exerciser_address_totals_reconcile),
+            ("exercise transactions must be unique and internally valid", _odolo_exercise_transactions_are_valid),
         ],
         "min_bytes": 50_000,
     },

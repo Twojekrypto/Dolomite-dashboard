@@ -36,6 +36,38 @@ class OdoloPreviewContractsTest(unittest.TestCase):
     def test_odolo_route_no_longer_uses_mistaken_latest_price_cache_bust(self):
         self.assertNotIn("latest-ex-price-20260706", self.route)
 
+    def test_discount_curve_uses_daily_dolo_price_instead_of_theory_as_realized(self):
+        curve = re.search(
+            r'function syncLiveDiscountCurve\(\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        ).group("body")
+
+        self.assertIn('fetchJson("dolo_price_history.json")', self.html)
+        self.assertIn("dailyDoloPrice(tx.date)", curve)
+        self.assertIn("1 - paidPrice / pricePoint.price", curve)
+        self.assertNotIn("discount: expected", curve)
+
+    def test_one_day_filters_compare_exact_transaction_timestamps(self):
+        self.assertIn("return Date.now() - days * 86400000;", self.html)
+        self.assertIn("if(cutoff && exerciseTimeMs(tx) < cutoff) return;", self.html)
+        self.assertNotIn("if(cutoff && tx.date < cutoff) return;", self.html)
+
+    def test_short_locks_render_in_hours_or_minutes(self):
+        self.assertIn('if(days < 1/24) return Math.max(1, Math.round(days*1440)) + "m";', self.html)
+        self.assertIn('if(days < 1) return (days*24).toFixed(1) + "h";', self.html)
+
+    def test_claimer_behavior_donut_uses_non_overlapping_claim_partition(self):
+        behavior = re.search(
+            r'function syncLiveBehavior\(\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        ).group("body")
+
+        self.assertIn("pct_claim_remaining", behavior)
+        self.assertNotIn("pct_held", behavior)
+        self.assertNotIn("pct_bought_extra", behavior)
+
 
 if __name__ == "__main__":
     unittest.main()

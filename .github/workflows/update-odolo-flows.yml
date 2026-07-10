@@ -15,7 +15,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
         with:
@@ -41,6 +41,17 @@ jobs:
           restore-keys: |
             odolo-flows-state-
 
+      - name: Generate Berachain reward claim events
+        env:
+          PYTHONUNBUFFERED: '1'
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+          ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          REWARD_CLAIM_CHAINS: berachain
+          REWARD_CLAIM_CHUNK_SIZE_BERACHAIN: '10000'
+          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_BERACHAIN: '20'
+        run: python generate_reward_claim_events.py
+
       - name: Generate oDOLO flows
         env:
           PYTHONUNBUFFERED: '1'
@@ -50,32 +61,6 @@ jobs:
           ODOLO_FLOW_RPC_BATCH_SIZE: '50'
           ODOLO_FLOW_RPC_RETRIES_PER_ENDPOINT: '2'
         run: python generate_odolo_flows.py
-
-      - name: Generate reward claim events
-        env:
-          PYTHONUNBUFFERED: '1'
-          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
-          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
-          ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
-          ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
-          ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}
-          ALCHEMY_ARBITRUM_RPC_DAN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_DAN }}
-          ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}
-          ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
-          ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 }}
-          ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
-          ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
-          ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}
-          ALCHEMY_XLAYER_RPC: ${{ secrets.ALCHEMY_XLAYER_RPC }}
-          REWARD_CLAIM_CHUNK_SIZE_BERACHAIN: '10000'
-          REWARD_CLAIM_CHUNK_SIZE_ARBITRUM: '250000'
-          REWARD_CLAIM_CHUNK_SIZE_MANTLE: '50000'
-          REWARD_CLAIM_CHUNK_SIZE_XLAYER: '100000'
-          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_MANTLE: '20'
-          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_XLAYER: '20'
-          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_BERACHAIN: '20'
-          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_ARBITRUM: '50'
-        run: python generate_reward_claim_events.py
 
       - name: Validate generated data
         run: python3 validate_data.py odolo_flows.json data/odolo-claim-events.json data/reward-claim-events.json

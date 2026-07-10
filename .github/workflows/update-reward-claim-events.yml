@@ -1,0 +1,79 @@
+name: Update Cross-chain Reward Claim Events
+
+on:
+  schedule:
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: cross-chain-reward-claim-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore reward claim sync state
+        uses: actions/cache@v5
+        with:
+          path: reward_claim_events_state.json
+          key: reward-claim-state-${{ github.run_number }}
+          restore-keys: |
+            reward-claim-state-
+
+      - name: Generate non-Berachain reward claim events
+        env:
+          PYTHONUNBUFFERED: '1'
+          REWARD_CLAIM_CHAINS: arbitrum,mantle,xlayer
+          ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
+          ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}
+          ALCHEMY_ARBITRUM_RPC_DAN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_DAN }}
+          ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}
+          ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
+          ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 }}
+          ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
+          ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
+          ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}
+          ALCHEMY_XLAYER_RPC: ${{ secrets.ALCHEMY_XLAYER_RPC }}
+          REWARD_CLAIM_CHUNK_SIZE_ARBITRUM: '250000'
+          REWARD_CLAIM_CHUNK_SIZE_MANTLE: '50000'
+          REWARD_CLAIM_CHUNK_SIZE_XLAYER: '100000'
+          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_ARBITRUM: '50'
+          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_MANTLE: '20'
+          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_XLAYER: '20'
+        run: python generate_reward_claim_events.py
+
+      - name: Validate generated data
+        run: python3 validate_data.py data/reward-claim-events.json data/odolo-claim-events.json
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/odolo-claim-events.json data/reward-claim-events.json data/reward-claim-events
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Update cross-chain reward claim events — $(date -u '+%Y-%m-%d %H:%M UTC')"
+          pushed=false
+          for i in 1 2 3; do
+            if git pull --rebase -X theirs origin master && git push; then pushed=true; break; fi
+            echo "Push attempt $i failed, retrying..."
+            sleep 5
+          done
+          if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts"; exit 1; fi
