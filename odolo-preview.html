@@ -1258,7 +1258,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <h2>oDOLO Discount Curve</h2>
         <span class="count-badge" id="disc-count">3,535 exercises</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>Exercise price vs daily DOLO price</div>
+      <div class="card-meta"><span class="pulse"></span>Protocol discount by lock duration</div>
     </div>
     <div class="disc3-body">
       <div class="disc3-shell">
@@ -1270,7 +1270,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <span class="disc3-pill" data-key="medium"><span class="dot" style="background:#a8c499"></span>$500 – $5K</span>
         <span class="disc3-pill" data-key="large"><span class="dot" style="background:#fb923c"></span>$5K – $25K</span>
         <span class="disc3-pill" data-key="whale"><span class="dot" style="background:#ec4899;box-shadow:0 0 8px rgba(236,72,153,.55)"></span>&gt; $25K whales</span>
-        <span class="disc3-help">Each dot = one exercise · size = USDC paid</span>
+        <span class="disc3-help">Each dot = one USDC exercise · size = USDC paid</span>
       </div>
     </div>
     <div class="disc3-tooltip" id="disc-tooltip"></div>
@@ -1884,8 +1884,8 @@ const COPY_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 const CHEV_DOWN_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 const EXTERNAL_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
-const LIVE = { contract:null, usd:null, lock:null, exercisers:null, flows:null, prices:null, priceDates:[], loaded:false };
-const DATA_VERSION = "odolo-integrity-20260710";
+const LIVE = { contract:null, usd:null, lock:null, exercisers:null, flows:null, loaded:false };
+const DATA_VERSION = "odolo-integrity-20260710b";
 // Address labels come from the shared single source of truth
 // (dolo-address-labels.js, per lessons.md); shared types are mapped onto this
 // page's TYPE_LABELS vocabulary. Inline fallback covers file-load failure.
@@ -2214,10 +2214,8 @@ function theoreticalDiscount(days){
   return 5 + 45 * (days - 7) / (730 - 7);
 }
 
-/* Synthetic exercise sample shaped from real lock-distribution.
-   In the actual oDOLO protocol the realized discount IS a deterministic
-   function of the chosen lock — every exercise lands on the line — so we
-   keep noise extremely tight (±0.4pp) and let the dots ride on top of it. */
+/* Synthetic fallback shaped from real lock distribution. Protocol discount is
+   deterministic from the chosen lock, so every exercise sits on the line. */
 function generateExercises(){
   const out = [];
   let seed = 42;
@@ -2225,9 +2223,7 @@ function generateExercises(){
 
   function add(days, tier, usd){
     const expected = theoreticalDiscount(days);
-    const noise = (rand() - 0.5) * 0.4;
-    const actual = Math.max(0, Math.min(55, expected + noise));
-    out.push({ days, discount: actual, usd, tier, expected });
+    out.push({ days, discount: expected, usd, tier, expected });
   }
   // Weighted lock pick — given a list of (days, weight)
   function pickWeighted(buckets){
@@ -2287,10 +2283,9 @@ function drawDiscountCurve(){
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
   const xMin = 0, xMax = 760;
-  const discounts = DISC_DATA.map(d => Number(d.discount)).filter(Number.isFinite);
-  const yMin = Math.min(0, Math.floor((Math.min(...discounts, 0) - 2) / 10) * 10);
-  const yMax = Math.max(60, Math.ceil((Math.max(...discounts, 55) + 2) / 10) * 10);
-  const yStep = yMax - yMin > 160 ? 25 : (yMax - yMin > 90 ? 20 : 10);
+  const yMin = 0;
+  const yMax = 50;
+  const yStep = 10;
   const X = d => padL + ((d - xMin)/(xMax - xMin)) * plotW;
   const Y = p => padT + (1 - (p - yMin)/(yMax - yMin)) * plotH;
   const usdToRadius = u => Math.max(3.2, Math.min(15, Math.sqrt(u/35)));
@@ -2337,7 +2332,7 @@ function drawDiscountCurve(){
   ctx.fillStyle = "rgba(166,162,154,.85)";
   ctx.font = "10.5px Inter, system-ui, sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText("Est. realized discount", padL - 50, padT - 16);
+  ctx.fillText("Protocol discount", padL - 50, padT - 16);
   ctx.textAlign = "right";
   ctx.fillText("Lock duration", w - padR, h - padB + 28);
 
@@ -2499,19 +2494,12 @@ function _discHitTest(mx, my){
 
 function _showDiscTip(d, e){
   const c = DISC_COLOURS[d.tier];
-  const dev = d.discount - d.expected;
-  const devStr = (dev >= 0 ? "+" : "") + dev.toFixed(1) + "%";
-  const devClr = dev >= 0 ? "#a8c499" : "#d99586";
   DISC_TIP.innerHTML = `
     <div class="tt-h"><span class="swatch" style="background:${c}"></span>${DISC_TIER_LABELS[d.tier]}</div>
     <div class="tt-row"><span>Lock</span><b>${fmtLock(d.days)}</b></div>
-    <div class="tt-row"><span>Est. realized</span><b style="color:${c}">${d.discount.toFixed(1)}%</b></div>
-    <div class="tt-row"><span>Theoretical</span><b>${d.expected.toFixed(1)}%</b></div>
-    <div class="tt-row"><span>Δ vs theory</span><b style="color:${devClr}">${devStr}</b></div>
+    <div class="tt-row"><span>Protocol discount</span><b style="color:${c}">${d.discount.toFixed(1)}%</b></div>
     <div class="tt-row"><span>Paid</span><b>${"$" + fmtNum(d.usd)}</b></div>
     ${d.paidPrice ? `<div class="tt-row"><span>Exercise price</span><b>${fmtPrice(d.paidPrice)}</b></div>` : ""}
-    ${d.marketPrice ? `<div class="tt-row"><span>DOLO daily price</span><b>${fmtPrice(d.marketPrice)}</b></div>` : ""}
-    ${d.priceDate ? `<div class="tt-row"><span>Price date</span><b>${fmtDate(d.priceDate)}</b></div>` : ""}
   `;
   DISC_TIP.style.display = "block";
   // smart placement
@@ -3944,45 +3932,27 @@ function syncLiveFlowsForPeriod(){
   if(metaEl) metaEl.textContent = "Flow data";
 }
 
-function dailyDoloPrice(date){
-  const prices = LIVE.prices?.prices || {};
-  const dates = LIVE.priceDates;
-  if(!date || !dates.length) return null;
-  let lo = 0, hi = dates.length - 1, match = -1;
-  while(lo <= hi){
-    const mid = (lo + hi) >> 1;
-    if(dates[mid] <= date){ match = mid; lo = mid + 1; }
-    else hi = mid - 1;
-  }
-  if(match < 0) return null;
-  const price = Number(prices[dates[match]]);
-  return Number.isFinite(price) && price > 0 ? { date:dates[match], price } : null;
-}
-
 function syncLiveDiscountCurve(){
   const json = LIVE.exercisers;
-  if(!json || !LIVE.prices) return;
+  if(!json) return;
   const dots = [];
   (json.exercisers || []).forEach(item => {
     (item.txs || []).forEach(tx => {
       const usd = txUsd(tx);
       const days = Number(tx.lock_days);
       const vedolo = txVedolo(tx);
-      const pricePoint = dailyDoloPrice(tx.date);
-      if(!usd || !vedolo || !days || !pricePoint) return;
+      if(!usd || !vedolo || !days) return;
       const paidPrice = usd / vedolo;
-      const discount = (1 - paidPrice / pricePoint.price) * 100;
+      const discount = theoreticalDiscount(days);
       if(!Number.isFinite(discount)) return;
-      const expected = theoreticalDiscount(days);
       dots.push({
-        days, discount, usd, tier:tierForUsd(usd), expected,
-        paidPrice, marketPrice:pricePoint.price, priceDate:pricePoint.date,
+        days, discount, usd, tier:tierForUsd(usd), expected:discount, paidPrice,
       });
     });
   });
   if(dots.length){
     applyRows(DISC_DATA, dots);
-    setMetricText("disc-count", `${dots.length.toLocaleString()} priced exercises`);
+    setMetricText("disc-count", `${dots.length.toLocaleString()} USDC exercises`);
   }
 }
 
@@ -4003,21 +3973,18 @@ function renderAll(){
 async function initOdoloPage(){
   renderAll();
   try{
-    const [contract, usd, lock, exercisers, flows, prices] = await Promise.all([
+    const [contract, usd, lock, exercisers, flows] = await Promise.all([
       fetchJson("odolo_contract_data.json"),
       fetchJson("exercised_usd.json"),
       fetchJson("avg_lock_data.json"),
       fetchJson("exercisers_by_address.json"),
       fetchJson("odolo_flows.json"),
-      fetchJson("dolo_price_history.json"),
     ]);
     LIVE.contract = contract;
     LIVE.usd = usd;
     LIVE.lock = lock;
     LIVE.exercisers = exercisers;
     LIVE.flows = flows;
-    LIVE.prices = prices;
-    LIVE.priceDates = Object.keys(prices?.prices || {}).sort();
     LIVE.loaded = true;
     state.exPeriod = "all";
     state.flowsPeriod = "7d";

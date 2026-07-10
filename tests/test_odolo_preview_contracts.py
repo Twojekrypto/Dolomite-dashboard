@@ -36,17 +36,19 @@ class OdoloPreviewContractsTest(unittest.TestCase):
     def test_odolo_route_no_longer_uses_mistaken_latest_price_cache_bust(self):
         self.assertNotIn("latest-ex-price-20260706", self.route)
 
-    def test_discount_curve_uses_daily_dolo_price_instead_of_theory_as_realized(self):
+    def test_discount_curve_uses_the_protocol_schedule_and_stays_within_zero_to_fifty_percent(self):
         curve = re.search(
             r'function syncLiveDiscountCurve\(\)\{(?P<body>.*?)\n\}',
             self.html,
             re.S,
         ).group("body")
 
-        self.assertIn('fetchJson("dolo_price_history.json")', self.html)
-        self.assertIn("dailyDoloPrice(tx.date)", curve)
-        self.assertIn("1 - paidPrice / pricePoint.price", curve)
-        self.assertNotIn("discount: expected", curve)
+        self.assertIn("const yMin = 0;", self.html)
+        self.assertIn("const yMax = 50;", self.html)
+        self.assertIn("const discount = theoreticalDiscount(days);", curve)
+        self.assertIn("Protocol discount by lock duration", self.html)
+        self.assertNotIn("dailyDoloPrice", self.html)
+        self.assertNotIn('fetchJson("dolo_price_history.json")', self.html)
 
     def test_one_day_filters_compare_exact_transaction_timestamps(self):
         self.assertIn("return Date.now() - days * 86400000;", self.html)

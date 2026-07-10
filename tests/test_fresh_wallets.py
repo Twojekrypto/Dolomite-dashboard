@@ -307,6 +307,64 @@ class FreshWalletTests(unittest.TestCase):
         self.assertAlmostEqual(row["wallet_age_days"], 8.0, places=4)
         self.assertAlmostEqual(row["wallet_age_max_days"], 8.0416, places=4)
 
+    def test_fresh_holder_keeps_explorer_created_tx_when_debank_crosschecks_age(self):
+        base_ts = 2_000_000_000
+        candidate = "0x1111111111111111111111111111111111111111"
+        source = "0x3333333333333333333333333333333333333333"
+        explorer_ts = base_ts - 8 * 86400
+        all_transfers = {
+            "eth": [(source, candidate, int(20_000 * 10**18), 150)],
+            "bera": [],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        neutralized = {
+            period: {"eth": {candidate: 20_000}, "bera": {}}
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "debank",
+            "first_timestamp": base_ts - 9 * 86400,
+            "first_block": 0,
+            "first_tx": "",
+            "source": "debank_age",
+            "debank_age_days": 9,
+            "debank_age_max_days": 10,
+            "explorer_first_activity": {
+                "chain": "eth",
+                "first_timestamp": explorer_ts,
+                "first_block": 321,
+                "first_tx": "0xexplorer",
+                "source": "normal_tx",
+            },
+        }
+
+        with patch.object(flows, "load_current_holder_rows", return_value={}), \
+             patch.object(flows, "load_address_labels", return_value={}), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity", return_value=first_activity):
+            rows, _audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                {"eth": 200, "bera": 200},
+                neutralized,
+                base_ts,
+                {},
+            )
+
+        row = rows["90d"][0]
+        self.assertEqual(row["wallet_created_chain"], "eth")
+        self.assertEqual(row["wallet_created_block"], 321)
+        self.assertEqual(row["wallet_created_tx"], "0xexplorer")
+        self.assertEqual(row["wallet_created_source"], "normal_tx")
+        self.assertEqual(row["verification_source"], "normal_tx+debank_age")
+        self.assertEqual(row["wallet_age_verification_source"], "debank_age")
+        self.assertEqual(row["wallet_created_timestamp"], "2033-05-10T03:33:20Z")
+
     def test_prior_outgoing_dolo_transfer_excludes_fresh_candidate(self):
         candidate = "0x1111111111111111111111111111111111111111"
         other = "0x2222222222222222222222222222222222222222"
