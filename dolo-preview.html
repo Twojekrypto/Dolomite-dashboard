@@ -3991,6 +3991,14 @@ function sortHolders(rows){
     return dir==="asc"?va-vb:vb-va;
   });
 }
+function holderExplorerUrl(row){
+  const address = row?.addr || row?.address || "";
+  const ethBalance = safeHolderNum(row?.balEth ?? row?.balance_eth);
+  const beraBalance = safeHolderNum(row?.balBera ?? row?.balance_bera)
+    + safeHolderNum(row?.locked ?? row?.locked_balance);
+  const explorer = beraBalance > ethBalance ? "https://berascan.com/address/" : "https://etherscan.io/address/";
+  return `${explorer}${encodeURIComponent(address)}`;
+}
 function renderHolders(){
   document.getElementById("tbl-holders")?.classList.toggle("vedolo-on", !!state.holdersIncludeVeDolo);
   const rows = sortHolders(filterHolders());
@@ -4142,7 +4150,8 @@ function renderHolders(){
   }));
   tbody.querySelectorAll("tr:not(.tbl-spacer-row)").forEach(tr => tr.addEventListener("click", e=>{
     if(e.target.closest(".addr-copy")) return;
-    window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
+    const holder = pageRows.find(row => row.addr.toLowerCase() === tr.dataset.addr.toLowerCase());
+    window.open(holderExplorerUrl(holder || {addr:tr.dataset.addr}), "_blank", "noopener");
   }));
   // Charts are NOT rebuilt here: renderHolders runs on every search keystroke,
   // sort, and page change. The two SVG charts only depend on the underlying data
