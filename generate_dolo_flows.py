@@ -1849,6 +1849,19 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 audit[period]["oldWalletsExcluded"] += 1
                 continue
             emit_fresh_audit(period, "fresh", addr, received, current_exposure, liquid_balance, locked_balance, holder_type, first_activity)
+            # DeBank's conservative wallet-age range gates freshness, but when
+            # the explorer supplied the first normal transaction we retain that
+            # exact timestamp for the dashboard's Created column.
+            explorer_first = first_activity.get("explorer_first_activity")
+            created_activity = explorer_first if isinstance(explorer_first, dict) else first_activity
+            wallet_created_ts = int(created_activity.get("first_timestamp") or wallet_created_ts)
+            created_source = created_activity.get("source", "normal_tx")
+            age_verification_source = first_activity.get("source", created_source)
+            verification_source = (
+                f"{created_source}+{age_verification_source}"
+                if created_source != age_verification_source
+                else created_source
+            )
             wallet_age_days = first_activity.get("debank_age_days")
             wallet_age_max_days = first_activity.get("debank_age_max_days")
             if first_activity.get("source") == "debank_age":
@@ -1869,15 +1882,16 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 "type": holder_type,
                 "source": source_label_for_fresh_wallet(first.get("source_address"), address_labels),
                 "source_address": first.get("source_address", ""),
-                "first_chain": first_activity.get("chain", first_chain),
-                "first_block": int(first_activity.get("first_block") or 0),
+                "first_chain": created_activity.get("chain", first_chain),
+                "first_block": int(created_activity.get("first_block") or 0),
                 "first_timestamp_estimate": datetime.utcfromtimestamp(max(0, wallet_created_ts)).isoformat() + "Z",
-                "wallet_created_chain": first_activity.get("chain", ""),
-                "wallet_created_block": int(first_activity.get("first_block") or 0),
-                "wallet_created_tx": first_activity.get("first_tx", ""),
+                "wallet_created_chain": created_activity.get("chain", ""),
+                "wallet_created_block": int(created_activity.get("first_block") or 0),
+                "wallet_created_tx": created_activity.get("first_tx", ""),
                 "wallet_created_timestamp": datetime.utcfromtimestamp(max(0, wallet_created_ts)).isoformat() + "Z",
-                "wallet_created_source": first_activity.get("source", "normal_tx"),
-                "verification_source": first_activity.get("source", "normal_tx"),
+                "wallet_created_source": created_source,
+                "verification_source": verification_source,
+                "wallet_age_verification_source": age_verification_source,
                 "wallet_age_days": round(wallet_age_days, 4) if wallet_age_days is not None else None,
                 "wallet_age_max_days": round(wallet_age_max_days, 4) if wallet_age_max_days is not None else None,
                 "first_dolo_chain": first_chain,
