@@ -89,6 +89,176 @@ vm.runInNewContext(instrumented, sandbox);
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
+    def test_history_uses_cursor_pagination_and_preserves_borrow_replay_coverage(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyPaginationTest = { paginateEntity };" + marker);
+const queries = [];
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  AbortController,
+  setTimeout,
+  clearTimeout,
+  fetch: async (_endpoint, options) => {
+    const query = JSON.parse(options.body).query;
+    queries.push(query);
+    const rows = query.includes('id_gt: "b"') ? [{ id: "c" }] : [{ id: "a" }, { id: "b" }];
+    return { ok: true, json: async () => ({ data: { testEvents: rows } }) };
+  },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyPaginationTest;
+(async () => {
+  const result = await api.paginateEntity("https://example.test", "testEvents", 'user: "0xabc"', "value", "serialId", { attempts: 1 }, { pageSize: 2, maxPages: 3 });
+  if (result.rows.map(row => row.id).join(",") !== "a,b,c") throw new Error(JSON.stringify(result));
+  if (result.truncated) throw new Error(JSON.stringify(result));
+  if (!queries[0].includes("orderBy: id") || !queries[0].includes("orderDirection: asc")) throw new Error(queries[0]);
+  if (!queries[0].includes("id value")) throw new Error(queries[0]);
+  if (queries.some(query => query.includes("skip:"))) throw new Error(JSON.stringify(queries));
+  if (!queries[1].includes('id_gt: "b"')) throw new Error(JSON.stringify(queries));
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+        self.assertIn("current borrow balance replay is incomplete", self.source)
+        self.assertIn("current interest index replay is incomplete", self.source)
+        self.assertIn("truncated: result.truncated || interestIndexResult.truncated", self.source)
+
+    def test_history_covers_intermittent_amm_transaction_events(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyIntermittentAmmTest = { eventFromIntermittentAmmTrade, eventFromIntermittentAmmLiquidity, intermittentAmmTradeEventsForRole, intermittentAmmLiquidityEventsForRole, groupEvents, cleanTransactionAction, rowMatchesActionFilter };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+const api = sandbox.__historyIntermittentAmmTest;
+const transaction = { id: "0xintermittent", timestamp: "1783685646", blockNumber: "123" };
+const pair = { token0: { symbol: "WETH" }, token1: { symbol: "USDC" } };
+const intermittentTradeFixture = { pair, amount0In: "0", amount1In: "20", amount0Out: "0.01", amount1Out: "0", amountUSD: "20" };
+const trade = api.eventFromIntermittentAmmTrade("arbitrum", transaction, { id: "0xintermittent-0", ...intermittentTradeFixture }, "sender");
+const liquidity = api.eventFromIntermittentAmmLiquidity("arbitrum", transaction, {
+  id: "0xintermittent-1", pair, amount0: "0.01", amount1: "20", liquidity: "1", amountUSD: "40",
+}, "mint", "sender");
+const tradeRow = api.groupEvents([trade])[0];
+const liquidityRow = api.groupEvents([liquidity])[0];
+if (trade.txHash !== transaction.id || trade.serialId !== "0xintermittent-0") throw new Error(JSON.stringify(trade));
+if (api.cleanTransactionAction(tradeRow) !== "AMM Trade") throw new Error(JSON.stringify(tradeRow));
+if (!api.rowMatchesActionFilter(tradeRow, "swap") || api.rowMatchesActionFilter(tradeRow, "transfer")) throw new Error(JSON.stringify(tradeRow));
+if (api.cleanTransactionAction(liquidityRow) !== "Add Liquidity") throw new Error(JSON.stringify(liquidityRow));
+if (!api.rowMatchesActionFilter(liquidityRow, "amm")) throw new Error(JSON.stringify(liquidityRow));
+const roleTransaction = {
+  ...transaction,
+  intermittentAmmTrades: [
+    { ...intermittentTradeFixture, id: "sender", sender: "0x0000000000000000000000000000000000000001", from: "0x0000000000000000000000000000000000000002", to: "0x0000000000000000000000000000000000000003" },
+    { ...intermittentTradeFixture, id: "from", sender: "0x0000000000000000000000000000000000000002", from: "0x0000000000000000000000000000000000000001", to: "0x0000000000000000000000000000000000000003" },
+    { ...intermittentTradeFixture, id: "to", sender: "0x0000000000000000000000000000000000000002", from: "0x0000000000000000000000000000000000000003", to: "0x0000000000000000000000000000000000000001" },
+  ],
+};
+const roleEvents = ["sender", "from", "to"].flatMap(role => api.intermittentAmmTradeEventsForRole("arbitrum", roleTransaction, "0x0000000000000000000000000000000000000001", role));
+if (roleEvents.map(event => event.serialId).sort().join(",") !== "from,sender,to") throw new Error(JSON.stringify(roleEvents));
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+        self.assertIn('entity: "transactions"', self.source)
+        self.assertIn("intermittentAmmTrades", self.source)
+        self.assertIn("intermittentAmmMints", self.source)
+        self.assertIn("intermittentAmmBurns", self.source)
+
+    def test_history_retries_interest_indexes_after_a_transient_failure(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyInterestIndexTest = { fetchCurrentInterestIndexes };" + marker);
+let calls = 0;
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  AbortController,
+  setTimeout,
+  clearTimeout,
+  fetch: async () => {
+    calls += 1;
+    if (calls === 1) return { ok: false, status: 503, json: async () => ({}) };
+    return {
+      ok: true,
+      json: async () => ({ data: { interestIndexes: [{ id: "index-1", token: { id: "0x0000000000000000000000000000000000000001" }, borrowIndex: "1", supplyIndex: "1" }] } }),
+    };
+  },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  window: { location: { href: "http://127.0.0.1/history/" }, history: { replaceState() {} }, localStorage: { getItem() { return null; }, setItem() {} } },
+};
+vm.runInNewContext(instrumented, sandbox);
+(async () => {
+  let failed = false;
+  try {
+    await sandbox.__historyInterestIndexTest.fetchCurrentInterestIndexes("arbitrum", { attempts: 1 });
+  } catch (_error) {
+    failed = true;
+  }
+  if (!failed) throw new Error("first interest-index request unexpectedly succeeded");
+  const result = await sandbox.__historyInterestIndexTest.fetchCurrentInterestIndexes("arbitrum", { attempts: 1 });
+  if (calls !== 2 || !result.indexes.has("0x0000000000000000000000000000000000000001")) throw new Error(JSON.stringify({ calls, result: [...result.indexes] }));
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+        subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
+        self.assertIn("interestIndexCache.delete(chainKey)", self.source)
+
+    def test_history_registers_every_audited_transaction_source(self):
+        for source in [
+            "deposits",
+            "withdrawals",
+            "transfers",
+            "trades",
+            "liquidations",
+            "vaporizations",
+            "zaps",
+            "borrowPositions",
+            "asyncDeposits",
+            "asyncWithdrawals",
+            "ammTrades",
+            "ammMints",
+            "ammBurns",
+            "intermittentAmmTrades",
+            "intermittentAmmMints",
+            "intermittentAmmBurns",
+            "liquidityMiningVestingPositionTransfers",
+            "liquidityMiningLevelUpdateRequests",
+        ]:
+            self.assertIn(source, self.source)
+        self.assertIn("fetchRewardClaimEvents", self.source)
+        self.assertIn("RewardClaimed", self.reward_claim_generator)
+
     def test_history_finalize_can_timeout_without_waiting_for_receipts_forever(self):
         script = r"""
 const fs = require("fs");
