@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260708-gas-null-receipt-retry";
+  const HISTORY_VERSION = "history-20260710-cursor-audit";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -17,7 +17,8 @@
   };
   const HISTORY_SORT_KEYS = new Set(Object.keys(HISTORY_SORT_DEFAULT_ASC));
   const PAGE_SIZE = 500;
-  const MAX_PAGES = 40;
+  // A report is never marked ready if an entity still has rows after this ceiling.
+  const MAX_PAGES = 250;
   const DEFAULT_GRAPH_TIMEOUT_MS = 25000;
   const DEFAULT_GRAPH_ATTEMPTS = 2;
   const HISTORY_GRAPH_OPTIONS = { timeoutMs: 12000, attempts: 2 };
@@ -1390,6 +1391,8 @@
     const fulfilmentTimeFilter = `fulfilmentTransaction_: { timestamp_gte: "${bounds.start}", timestamp_lte: "${bounds.end}" }`;
     const directTimeFilter = `timestamp_gte: "${bounds.start}", timestamp_lte: "${bounds.end}"`;
     const user = address.toLowerCase();
+    const intermittentAmmTradeFields = `id timestamp blockNumber intermittentAmmTrades { id sender from to pair { token0 { symbol } token1 { symbol } } amount0In amount1In amount0Out amount1Out amountUSD }`;
+    const intermittentAmmLiquidityFields = `id timestamp blockNumber intermittentAmmMints { id sender to pair { token0 { symbol } token1 { symbol } } amount0 amount1 liquidity amountUSD } intermittentAmmBurns { id sender to pair { token0 { symbol } token1 { symbol } } amount0 amount1 liquidity amountUSD }`;
     const specs = [
       {
         entity: "deposits",
@@ -1543,6 +1546,55 @@
         map: row => eventFromAmmLiquidity(chainKey, row, "burn", "to"),
       },
       {
+        entity: "transactions",
+        orderBy: "id",
+        where: `intermittentAmmTrades_: { sender: "${user}" }, ${directTimeFilter}`,
+        fields: intermittentAmmTradeFields,
+        map: row => intermittentAmmTradeEventsForRole(chainKey, row, user, "sender"),
+      },
+      {
+        entity: "transactions",
+        orderBy: "id",
+        where: `intermittentAmmTrades_: { from: "${user}", sender_not: "${user}" }, ${directTimeFilter}`,
+        fields: intermittentAmmTradeFields,
+        map: row => intermittentAmmTradeEventsForRole(chainKey, row, user, "from"),
+      },
+      {
+        entity: "transactions",
+        orderBy: "id",
+        where: `intermittentAmmTrades_: { to: "${user}", sender_not: "${user}", from_not: "${user}" }, ${directTimeFilter}`,
+        fields: intermittentAmmTradeFields,
+        map: row => intermittentAmmTradeEventsForRole(chainKey, row, user, "to"),
+      },
+      {
+        entity: "transactions",
+        orderBy: "id",
+        where: `intermittentAmmMints_: { sender: "${user}" }, ${directTimeFilter}`,
+        fields: intermittentAmmLiquidityFields,
+        map: row => intermittentAmmLiquidityEventsForRole(chainKey, row, user, "mint", "sender"),
+      },
+      {
+        entity: "transactions",
+        orderBy: "id",
+        where: `intermittentAmmMints_: { to: "${user}", sender_not: "${user}" }, ${directTimeFilter}`,
+        fields: intermittentAmmLiquidityFields,
+        map: row => intermittentAmmLiquidityEventsForRole(chainKey, row, user, "mint", "to"),
+      },
+      {
+        entity: "transactions",
+        orderBy: "id",
+        where: `intermittentAmmBurns_: { sender: "${user}" }, ${directTimeFilter}`,
+        fields: intermittentAmmLiquidityFields,
+        map: row => intermittentAmmLiquidityEventsForRole(chainKey, row, user, "burn", "sender"),
+      },
+      {
+        entity: "transactions",
+        orderBy: "id",
+        where: `intermittentAmmBurns_: { to: "${user}", sender_not: "${user}" }, ${directTimeFilter}`,
+        fields: intermittentAmmLiquidityFields,
+        map: row => intermittentAmmLiquidityEventsForRole(chainKey, row, user, "burn", "to"),
+      },
+      {
         entity: "liquidityMiningVestingPositionTransfers",
         where: `fromEffectiveUser: "${user}", ${timeFilter}`,
         fields: `serialId ${TX_FIELDS} fromEffectiveUser { id } toEffectiveUser { id } vestingPosition { positionId oTokenAmount paymentAmountWei pairTaxesPaid status }`,
@@ -1575,7 +1627,7 @@
       try {
         const result = await paginateEntity(chain.subgraph, spec.entity, spec.where, spec.fields, spec.orderBy, HISTORY_GRAPH_OPTIONS);
         if (result.truncated) {
-          warnings.push(`${chain.name} ${spec.entity} reached ${result.rows.length.toLocaleString()} rows; narrow the year or chain filter for exact export.`);
+          warnings.push(`${chain.name} ${spec.entity} exceeded ${result.rows.length.toLocaleString()} rows; report coverage is incomplete until the date range or chain filter is narrowed.`);
         }
         return result.rows.flatMap(row => eventsWithSourceEntity(spec.map(row), spec.entity));
       } catch (error) {
@@ -1775,8 +1827,14 @@
     const balances = new Map();
     await mapLimit(chainKeys, HISTORY_CHAIN_CONCURRENCY, async chainKey => {
       try {
-        const chainBalances = await fetchCurrentMarginBalances(chainKey, address, HISTORY_GRAPH_OPTIONS);
-        chainBalances.forEach((value, key) => balances.set(key, value));
+        const replay = await fetchCurrentMarginBalances(chainKey, address, HISTORY_GRAPH_OPTIONS);
+        replay.balances.forEach((value, key) => balances.set(key, value));
+        if (replay.balanceTruncated) {
+          warnings.push(`${CHAINS[chainKey].name} current borrow balance replay is incomplete; borrow, repay and collateral classifications require a complete balance replay.`);
+        }
+        if (replay.interestIndexTruncated) {
+          warnings.push(`${CHAINS[chainKey].name} current interest index replay is incomplete; borrow, repay and collateral classifications require complete interest indexes.`);
+        }
       } catch (error) {
         warnings.push(`${CHAINS[chainKey].name} current borrow balances unavailable; borrow/repay labels use in-range activity only.`);
       }
@@ -1792,7 +1850,7 @@
   async function fetchCurrentMarginBalances(chainKey, address, graphOptions = {}) {
     const user = address.toLowerCase();
     const fields = `id accountNumber tokenValues { id token { id symbol decimals marketId } valuePar }`;
-    const [result, interestIndexes] = await Promise.all([
+    const [result, interestIndexResult] = await Promise.all([
       paginateEntity(CHAINS[chainKey].subgraph, "marginAccounts", `effectiveUser: "${user}"`, fields, "id", graphOptions),
       fetchCurrentInterestIndexes(chainKey, graphOptions),
     ]);
@@ -1802,33 +1860,46 @@
       (account.tokenValues || []).forEach(tokenValue => {
         const token = tokenValue.token || {};
         const key = balanceKey(chainKey, accountNumberValue, token.id || token.symbol || tokenValue.id || "");
-        balances.set(key, parBalanceToTokenBalance(tokenValue.valuePar, interestIndexes.get(normalizeAddress(token.id))));
+        balances.set(key, parBalanceToTokenBalance(tokenValue.valuePar, interestIndexResult.indexes.get(normalizeAddress(token.id))));
       });
     });
-    return balances;
+    return {
+      balances,
+      truncated: result.truncated || interestIndexResult.truncated,
+      balanceTruncated: result.truncated,
+      interestIndexTruncated: interestIndexResult.truncated,
+    };
   }
 
   async function fetchCurrentInterestIndexes(chainKey, graphOptions = {}) {
     if (interestIndexCache.has(chainKey)) return interestIndexCache.get(chainKey);
-    const query = `{
-      interestIndexes(first: 200) {
-        token { id symbol marketId }
-        borrowIndex
-        supplyIndex
-      }
-    }`;
-    const data = await graphQuery(CHAINS[chainKey].subgraph, query, graphOptions);
-    const indexes = new Map();
-    (data.interestIndexes || []).forEach(row => {
-      const tokenId = normalizeAddress(row.token?.id || "");
-      if (!tokenId) return;
-      indexes.set(tokenId, {
-        borrowIndex: row.borrowIndex || "1",
-        supplyIndex: row.supplyIndex || "1",
+    const request = (async () => {
+      const result = await paginateEntity(
+        CHAINS[chainKey].subgraph,
+        "interestIndexes",
+        "",
+        "token { id symbol marketId } borrowIndex supplyIndex",
+        "id",
+        graphOptions,
+      );
+      const indexes = new Map();
+      result.rows.forEach(row => {
+        const tokenId = normalizeAddress(row.token?.id || "");
+        if (!tokenId) return;
+        indexes.set(tokenId, {
+          borrowIndex: row.borrowIndex || "1",
+          supplyIndex: row.supplyIndex || "1",
+        });
       });
-    });
-    interestIndexCache.set(chainKey, indexes);
-    return indexes;
+      return { indexes, truncated: result.truncated };
+    })();
+    interestIndexCache.set(chainKey, request);
+    try {
+      return await request;
+    } catch (error) {
+      if (interestIndexCache.get(chainKey) === request) interestIndexCache.delete(chainKey);
+      throw error;
+    }
   }
 
   function parBalanceToTokenBalance(valuePar, indexes) {
@@ -1838,33 +1909,54 @@
     return multiplyScaledDecimal(par, index || "1");
   }
 
-  async function paginateEntity(endpoint, entity, where, fields, orderBy = "serialId", graphOptions = {}) {
+  function graphStringLiteral(value) {
+    return String(value ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  }
+
+  function entityFieldsWithId(fields) {
+    const normalized = String(fields || "").trim();
+    return normalized === "id" || normalized.startsWith("id ") || normalized.startsWith("id\n")
+      ? normalized
+      : `id ${normalized}`;
+  }
+
+  function entityWhereWithCursor(where, cursor) {
+    const parts = [String(where || "").trim()];
+    if (cursor) parts.push(`id_gt: "${graphStringLiteral(cursor)}"`);
+    return parts.filter(Boolean).join(", ");
+  }
+
+  async function paginateEntity(endpoint, entity, where, fields, _legacyOrderBy = "id", graphOptions = {}, paginationOptions = {}) {
     const rows = [];
-    let truncated = false;
-    let lastChunkWasFull = false;
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const skip = page * PAGE_SIZE;
+    const pageSize = Math.max(1, Math.min(PAGE_SIZE, Number(paginationOptions.pageSize) || PAGE_SIZE));
+    const maxPages = Math.max(1, Number(paginationOptions.maxPages) || MAX_PAGES);
+    const entityFields = entityFieldsWithId(fields);
+    let cursor = "";
+    for (let page = 0; page < maxPages; page++) {
+      const whereClause = entityWhereWithCursor(where, cursor);
       const query = `{
-        ${entity}(first: ${PAGE_SIZE}, skip: ${skip}, orderBy: ${orderBy}, orderDirection: desc, where: { ${where} }) {
-          ${fields}
+        ${entity}(first: ${pageSize}, orderBy: id, orderDirection: asc, where: { ${whereClause} }) {
+          ${entityFields}
         }
       }`;
       const data = await graphQuery(endpoint, query, graphOptions);
       const chunk = Array.isArray(data[entity]) ? data[entity] : [];
       rows.push(...chunk);
-      lastChunkWasFull = chunk.length === PAGE_SIZE;
-      if (chunk.length < PAGE_SIZE) break;
+      if (chunk.length < pageSize) return { rows, truncated: false };
+      const nextCursor = String(chunk[chunk.length - 1]?.id || "");
+      if (!nextCursor || nextCursor === cursor) throw new Error(`${entity} cursor pagination stalled`);
+      cursor = nextCursor;
     }
-    if (lastChunkWasFull) {
+    {
+      const whereClause = entityWhereWithCursor(where, cursor);
       const probeQuery = `{
-        ${entity}(first: 1, skip: ${MAX_PAGES * PAGE_SIZE}, orderBy: ${orderBy}, orderDirection: desc, where: { ${where} }) {
+        ${entity}(first: 1, orderBy: id, orderDirection: asc, where: { ${whereClause} }) {
           id
         }
       }`;
       const probeData = await graphQuery(endpoint, probeQuery, graphOptions);
-      truncated = Array.isArray(probeData[entity]) && probeData[entity].length > 0;
+      return { rows, truncated: Array.isArray(probeData[entity]) && probeData[entity].length > 0 };
     }
-    return { rows, truncated };
   }
 
   async function graphQuery(endpoint, query, options = {}) {
@@ -2151,6 +2243,50 @@
       asset: `${token0} / ${token1}`,
       usd: decimalToNumber(row.amountUSD),
     };
+  }
+
+  function eventFromIntermittentAmmTrade(chainKey, transaction, row, role) {
+    return {
+      ...eventFromAmmTrade(chainKey, { ...row, transaction }, role),
+      sourceEntity: "transactions.intermittentAmmTrades",
+    };
+  }
+
+  function eventFromIntermittentAmmLiquidity(chainKey, transaction, row, kind, role) {
+    return {
+      ...eventFromAmmLiquidity(chainKey, { ...row, transaction }, kind, role),
+      sourceEntity: kind === "mint" ? "transactions.intermittentAmmMints" : "transactions.intermittentAmmBurns",
+    };
+  }
+
+  function intermittentAmmTradeEventsForRole(chainKey, transaction, address, role) {
+    return (transaction?.intermittentAmmTrades || [])
+      .filter(row => intermittentAmmTradeMatchesRole(row, address, role))
+      .map(row => eventFromIntermittentAmmTrade(chainKey, transaction, row, role));
+  }
+
+  function intermittentAmmLiquidityEventsForRole(chainKey, transaction, address, kind, role) {
+    const field = kind === "mint" ? "intermittentAmmMints" : "intermittentAmmBurns";
+    return (transaction?.[field] || [])
+      .filter(row => intermittentAmmLiquidityMatchesRole(row, address, role))
+      .map(row => eventFromIntermittentAmmLiquidity(chainKey, transaction, row, kind, role));
+  }
+
+  function intermittentAmmTradeMatchesRole(row, address, role) {
+    const wallet = normalizeAddress(address);
+    const sender = normalizeAddress(row?.sender);
+    const from = normalizeAddress(row?.from);
+    const to = normalizeAddress(row?.to);
+    if (role === "sender") return sender === wallet;
+    if (role === "from") return from === wallet && sender !== wallet;
+    return to === wallet && sender !== wallet && from !== wallet;
+  }
+
+  function intermittentAmmLiquidityMatchesRole(row, address, role) {
+    const wallet = normalizeAddress(address);
+    const sender = normalizeAddress(row?.sender);
+    if (role === "sender") return sender === wallet;
+    return normalizeAddress(row?.to) === wallet && sender !== wallet;
   }
 
   function eventFromVesting(chainKey, row, direction) {
