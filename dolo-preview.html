@@ -4155,6 +4155,16 @@ function effectiveChg(r){
   if(state.flowsChain === "berachain") return r.chgBera;
   return r.chgEth + r.chgBera;
 }
+function effectiveGrossInflow(r){
+  if(state.flowsChain === "ethereum")  return r.grossInEth;
+  if(state.flowsChain === "berachain") return r.grossInBera;
+  return r.grossInEth + r.grossInBera;
+}
+function effectiveGrossOutflow(r){
+  if(state.flowsChain === "ethereum")  return r.grossOutEth;
+  if(state.flowsChain === "berachain") return r.grossOutBera;
+  return r.grossOutEth + r.grossOutBera;
+}
 function effectiveFlowBalance(r){
   if(Number.isFinite(Number(r.balance))) return Number(r.balance);
   const holder = HOLDERS.find(h => h.addr.toLowerCase() === r.addr.toLowerCase());
@@ -4248,6 +4258,9 @@ function renderFlow(target, kind){
   const rowHtml = pageRows.map((r,i)=>{
     const cls = kind==="acc" ? "up" : "down";
     const sign = r.chg > 0 ? "+" : "";
+    const grossIn = Math.max(0, safeHolderNum(effectiveGrossInflow(r)));
+    const grossOut = Math.max(0, safeHolderNum(effectiveGrossOutflow(r)));
+    const flowBreakdown = `In ${fmtNum(grossIn)} · Out ${fmtNum(grossOut)} · Net ${sign}${fmtNum(r.chg)}`;
     const balance = effectiveFlowBalance(r);
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const addrAttr = escHtml(r.addr);
@@ -4274,7 +4287,7 @@ function renderFlow(target, kind){
           </div>
         </td>
         <td class="num"><span class="bal-val">${balance>0 ? fmtNum(balance) : "—"}</span></td>
-        <td class="num"><span class="flows-net ${cls}">${sign}${fmtNum(r.chg)}</span></td>
+        <td class="num"><span class="flows-net ${cls}" data-tooltip="${flowBreakdown}" aria-label="${flowBreakdown}">${sign}${fmtNum(r.chg)}</span></td>
       </tr>
     `;
   }).join("");
@@ -5305,20 +5318,31 @@ renderCexSupplyChart();
           safe: isSafeWallet(holder, info),
           chgEth:0,
           chgBera:0,
+          grossInEth:0,
+          grossOutEth:0,
+          grossInBera:0,
+          grossOutBera:0,
         });
       }
       return byAddr.get(key);
     };
-    [["eth","chgEth"],["bera","chgBera"]].forEach(([chainKey, prop]) => {
+    [
+      ["eth","chgEth","grossInEth","grossOutEth"],
+      ["bera","chgBera","grossInBera","grossOutBera"],
+    ].forEach(([chainKey, prop, grossInProp, grossOutProp]) => {
       const cd = periodData[chainKey] || {};
       (cd.accumulators || []).forEach(item => {
         const row = ensure(item.address);
         row[prop] += safeNum(item.net_flow);
+        row[grossInProp] += safeNum(item.gross_inflow);
+        row[grossOutProp] += safeNum(item.gross_outflow);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
       });
       (cd.sellers || []).forEach(item => {
         const row = ensure(item.address);
         row[prop] -= safeNum(item.net_flow);
+        row[grossInProp] += safeNum(item.gross_inflow);
+        row[grossOutProp] += safeNum(item.gross_outflow);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
       });
     });
