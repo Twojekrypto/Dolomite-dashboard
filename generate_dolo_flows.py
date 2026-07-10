@@ -1471,14 +1471,25 @@ def _normalize_cached_debank_age(item):
     return item
 
 
+def _current_debank_age_range(first_activity, base_ts):
+    _normalize_cached_debank_age(first_activity)
+    age_days = first_activity.get("debank_age_days")
+    age_max_days = first_activity.get("debank_age_max_days")
+    first_timestamp = int(first_activity.get("first_timestamp") or 0)
+    if age_days is None or age_max_days is None:
+        return None, None
+    if first_timestamp <= 0:
+        return float(age_days), float(age_max_days)
+    uncertainty_days = max(0.0, float(age_max_days) - float(age_days))
+    current_age_days = max(0.0, (int(base_ts) - first_timestamp) / 86400)
+    return current_age_days, current_age_days + uncertainty_days
+
+
 def _fresh_activity_within_period(first_activity, period, base_ts):
     if first_activity.get("source") == "debank_age":
-        age_max_days = first_activity.get("debank_age_max_days")
-        if age_max_days is None:
-            _normalize_cached_debank_age(first_activity)
-            age_max_days = first_activity.get("debank_age_max_days")
+        _age_days, age_max_days = _current_debank_age_range(first_activity, base_ts)
         if age_max_days is not None:
-            return float(age_max_days) <= (PERIODS[period] / 86400)
+            return age_max_days <= (PERIODS[period] / 86400)
     wallet_created_ts = int(first_activity.get("first_timestamp") or 0)
     period_start_ts = int(base_ts) - PERIODS[period]
     return wallet_created_ts >= period_start_ts
@@ -1838,6 +1849,10 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 audit[period]["oldWalletsExcluded"] += 1
                 continue
             emit_fresh_audit(period, "fresh", addr, received, current_exposure, liquid_balance, locked_balance, holder_type, first_activity)
+            wallet_age_days = first_activity.get("debank_age_days")
+            wallet_age_max_days = first_activity.get("debank_age_max_days")
+            if first_activity.get("source") == "debank_age":
+                wallet_age_days, wallet_age_max_days = _current_debank_age_range(first_activity, base_ts)
             chains = []
             if balance_eth > 0.0001:
                 chains.append("eth")
@@ -1863,8 +1878,8 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
                 "wallet_created_timestamp": datetime.utcfromtimestamp(max(0, wallet_created_ts)).isoformat() + "Z",
                 "wallet_created_source": first_activity.get("source", "normal_tx"),
                 "verification_source": first_activity.get("source", "normal_tx"),
-                "wallet_age_days": first_activity.get("debank_age_days"),
-                "wallet_age_max_days": first_activity.get("debank_age_max_days"),
+                "wallet_age_days": round(wallet_age_days, 4) if wallet_age_days is not None else None,
+                "wallet_age_max_days": round(wallet_age_max_days, 4) if wallet_age_max_days is not None else None,
                 "first_dolo_chain": first_chain,
                 "first_dolo_block": first["block"],
                 "first_dolo_timestamp_estimate": datetime.utcfromtimestamp(max(0, first["estimated_ts"])).isoformat() + "Z",
