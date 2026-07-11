@@ -78,6 +78,14 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('#latest-pairs-section #dd-pair-period .dd-opt.active .dd-opt-check', self.html)
         self.assertIn('odolo-pair-green-controls-20260711', self.route)
 
+    def test_latest_exercise_controls_match_the_pair_green_interactions(self):
+        self.assertIn('id="latest-exercises-section"', self.html)
+        self.assertIn('--latest-exercise-accent:#75b87b', self.html)
+        self.assertIn('#latest-exercises-section .search:focus-within', self.html)
+        self.assertIn('#latest-exercises-section #dd-latest-period .dd-btn.open', self.html)
+        self.assertIn('#latest-exercises-section #dd-latest-period .dd-opt.active .dd-opt-check', self.html)
+        self.assertIn('odolo-exercise-green-controls-20260711', self.route)
+
 
 if __name__ == "__main__":
     unittest.main()
