@@ -1,4 +1,5 @@
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -74,6 +75,107 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("earn_isTrustedReplayYieldStatus(strictVerificationStatus)", self.source)
         self.assertIn("earn_isTrustedReplayYieldStatus(String(itemYieldCalc.verificationStatus || ''))", self.source)
         self.assertIn("trustedHistoryMethods.has(histMethod)", self.source)
+
+    def test_aligned_live_balance_drift_is_included_in_replay_yield(self):
+        self.assertIn(
+            "const adjustedInterestYieldCandidate = interestYieldCandidate !== null && alignedReplayWeiDrift\n"
+            "                ? interestYieldCandidate + alignedReplayWeiDrift.totalYieldCorrection\n"
+            "                : interestYieldCandidate;",
+            self.source,
+        )
+        self.assertIn(
+            "method = alignedReplayWeiDrift\n"
+            "                    ? 'interest-ledger-live-balance-adjusted'\n"
+            "                    : (canOverrideMismatchedSnapshot ? 'interest-ledger-override' : 'interest-ledger');",
+            self.source,
+        )
+
+    def test_decimal_parser_preserves_scientific_notation_exactly(self):
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+const start = source.indexOf('function earn_decimalToBigInt(');
+const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+if (start < 0 || end < 0) throw new Error('earn_decimalToBigInt not found');
+eval(source.slice(start, end));
+const cases = [
+  ['1e-7', 18, '100000000000'],
+  ['1.234567e1', 6, '12345670'],
+  ['-2.5e-3', 6, '-2500'],
+  ['1', Infinity, '1'],
+];
+for (const [input, decimals, expected] of cases) {
+  const actual = earn_decimalToBigInt(input, decimals).toString();
+  if (actual !== expected) throw new Error(`${input}: expected ${expected}, got ${actual}`);
+}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_yield_calculation_release_invalidates_prior_lookup_cache(self):
+        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 12;", self.source)
+        self.assertIn("parsed.version !== EARN_LOOKUP_CACHE_VERSION", self.source)
+
+    def test_truncated_subgraph_replay_is_never_strictly_verified(self):
+        self.assertIn("const replayTruncated = [", self.source)
+        self.assertIn("verificationIncomplete: replayTruncated", self.source)
+        self.assertIn("earn_replayTruncatedSubgraphMarkets = replay.verificationIncomplete", self.source)
+        self.assertIn("const subgraphReplayTruncated = earn_replayTruncatedSubgraphMarkets.has(String(mid));", self.source)
+        self.assertIn("|| subgraphReplayTruncated;", self.source)
+
+    def test_truncated_subgraph_replay_explains_the_actual_verification_gap(self):
+        self.assertIn("subgraphReplayTruncated", self.source)
+        self.assertIn("Subgraph fallback returned only part of this market", self.source)
+
+    def test_subgraph_replay_paginates_with_cursor_instead_of_a_hard_offset_cap(self):
+        self.assertIn("orderBy: id, orderDirection: asc", self.source)
+        self.assertIn("id_gt:", self.source)
+        self.assertNotIn("if (skip > 10000 && hasMore)", self.source)
+
+    def test_subgraph_cursor_paginator_collects_each_page_without_offset_loss(self):
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+const start = source.indexOf('async function earn_subgraphPaginateAll(');
+const end = source.indexOf(String.fromCharCode(10) + '        async function ', start + 1);
+if (start < 0 || end < 0) throw new Error('earn_subgraphPaginateAll not found');
+eval(source.slice(start, end));
+
+const makePage = (start, count) => Array.from({ length: count }, (_, index) => ({
+  id: `event-${String(start + index).padStart(6, '0')}`,
+}));
+const pages = [makePage(0, 1000), makePage(1000, 1000), makePage(2000, 1)];
+const queries = [];
+globalThis.earn_subgraphQuery = async (_endpoint, query) => {
+  queries.push(query);
+  return { events: pages.shift() || [] };
+};
+
+(async () => {
+  const rows = await earn_subgraphPaginateAll('', 'events', '{ owner: "0xabc" }', 'serialId');
+  if (rows.length !== 2001) throw new Error(`expected 2001 rows, got ${rows.length}`);
+  if (rows.truncated) throw new Error('complete cursor pagination was marked truncated');
+  if (!queries[1].includes('id_gt: "event-000999"')) throw new Error('second page did not use the first page cursor');
+  if (!queries[2].includes('id_gt: "event-001999"')) throw new Error('third page did not use the second page cursor');
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_earn_shows_verified_background_refresh_status(self):
         self.assertIn("earn-data-freshness-pill", self.source)
@@ -253,6 +355,56 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("const rewardSymbol = String(ys.rewardSymbol || '').trim()", self.source)
         self.assertIn("EARN_MERKL_REWARDS_BASE", self.source)
         self.assertIn("earn_fetchCachedMerklRewards", self.source)
+
+    def test_merkl_live_rewards_use_v4_and_count_pending_without_cross_market_attribution(self):
+        self.assertIn("/v4/users/${encodeURIComponent(addr)}/protocols/dolomite/rewards?chainId=${numericId}", self.source)
+        self.assertNotIn("api.merkl.xyz/v3/rewards", self.source)
+        self.assertIn("function earn_parseMerklV4Rewards", self.source)
+        self.assertIn("earn_getMerklV4AccumulatedRaw", self.source)
+        self.assertIn("earn_getMerklV4UnclaimedRaw", self.source)
+        self.assertIn("earn_getMerklOpportunityTokenMap", self.source)
+
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+const start = source.indexOf('function earn_createRewardBucket(');
+const end = source.indexOf(String.fromCharCode(10) + '        function earn_applyMerklRewardsResult', start + 1);
+if (start < 0 || end < 0) throw new Error('Merkl v4 parser not found');
+globalThis.earn_bigIntToDecimalNumber = (value, decimals) => Number(value) / (10 ** decimals);
+globalThis.earn_resolveMerklReasonTokenAddress = (_chain, reason) => {
+  if (reason.startsWith('Dolomite_')) return '0xusd1';
+  if (reason.startsWith('MultiLogPerAdditionalParam_')) return '0xusdc';
+  return '';
+};
+eval(source.slice(start, end));
+
+const payload = [{
+  chain: { id: 1 },
+  rewards: [{
+    token: { symbol: 'WLFI', decimals: 6, address: '0xreward' },
+    breakdowns: [
+      { reason: 'Dolomite_0xmarket', amount: '1500000', claimed: '500000', pending: '250000' },
+      { reason: 'MultiLogPerAdditionalParam_accountNumber_0_1', amount: '2000000', claimed: '2000000', pending: '0' },
+      { reason: 'not-dolomite', amount: '999999999', claimed: '0', pending: '0' },
+    ],
+  }],
+}];
+const rewards = earn_parseMerklV4Rewards('ethereum', 1, payload, {});
+const wlfi = rewards.WLFI;
+if (!wlfi) throw new Error('expected WLFI bucket');
+if (wlfi.accumulated !== 3.75) throw new Error(`wrong accumulated ${wlfi.accumulated}`);
+if (wlfi.unclaimed !== 1.25) throw new Error(`wrong unclaimed ${wlfi.unclaimed}`);
+if (wlfi.perToken['0xusd1'] !== 1.75 || wlfi.perToken['0xusdc'] !== 2) throw new Error(JSON.stringify(wlfi.perToken));
+if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc'] !== 2) throw new Error('account 0 attribution missing');
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_ethereum_canonical_workflow_rebuilds_verified_ledger_on_fresh_history(self):
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
