@@ -310,7 +310,7 @@ vm.runInNewContext(instrumented, sandbox);
         filter_match = re.search(r"function rowMatchesActionFilter\(row, action\) \{(?P<body>.*?)\n  \}", self.source, re.S)
         self.assertIsNotNone(filter_match, "rowMatchesActionFilter missing")
         filter_block = filter_match.group("body")
-        for custom_value in ["swap", "vestingPair", "claim", "addCollateral", "closeBorrow"]:
+        for custom_value in ["swap", "vestingPair", "exercise", "claim", "addCollateral", "closeBorrow"]:
             self.assertIn(f'action === "{custom_value}"', filter_block)
 
     def test_borrow_position_actions_have_distinct_readable_colors(self):
@@ -480,7 +480,7 @@ vm.runInNewContext(instrumented, sandbox);
         self.assertIn("vestingPositionAmountLabel(position, flowLabel)", self.source)
         self.assertIn('label: `${vestingActionLabel(flowLabel)}${positionId}${amountLabel ? ` (${amountLabel})` : ""}`', self.source)
         self.assertIn('return "Pair oDOLO + DOLO";', self.source)
-        self.assertIn('return "Claim veDOLO";', self.source)
+        self.assertIn('return "Exercise oDOLO";', self.source)
         self.assertIn("oDOLO/DOLO vesting pair", self.source)
         self.assertIn("USDC exercise cost", self.source)
         self.assertIn("vestingTaxCategory(flowLabel)", self.source)
@@ -504,10 +504,10 @@ vm.runInNewContext(instrumented, sandbox);
         self.assertNotIn("paired/locked DOLO", self.source)
         self.assertNotIn("DOLO payment amount", self.source)
         self.assertNotIn("Sent ${event.vestingKind", self.source)
-        self.assertIn("Pair oDOLO + DOLO", self.html)
+        self.assertIn('<option value="vestingPair">Pair</option>', self.html)
         self.assertNotIn('<option value="vestingClaim">Claim veDOLO</option>', self.html)
-        self.assertIn("Pair / Claim veDOLO", self.source)
-        self.assertIn("Claim veDOLO", self.source)
+        self.assertIn("oDOLO / veDOLO position", self.source)
+        self.assertIn("Exercise oDOLO", self.source)
         self.assertNotIn("Vesting Transfer", self.html)
         self.assertNotIn("Vesting Transfer", self.source)
         self.assertIn("summarizeUniqueCsvLabels(summaries, 4)", self.source)
@@ -1068,7 +1068,7 @@ const fs = require("fs");
 const vm = require("vm");
 const source = fs.readFileSync("history/history.js", "utf8");
 const marker = "\n  if (document.readyState === \"loading\") {";
-const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { cleanTransactionAction, cleanTransactionAssetFlow, compactTransactionAssetPreview, cleanHistoryReportHeaders, cleanHistoryReportCsvRows, cleanEarnAssetFlow, assetActivitySummaryForRows, eventFromZap, eventFromVesting, groupEvents, displayActionsForRow, rowMatchesActionFilter, activityGroupForEvent, cleanReportActionLabel, state };" + marker);
+const instrumented = source.replace(marker, "\n  globalThis.__historyTest = { cleanTransactionAction, cleanTransactionAssetFlow, compactTransactionAssetPreview, cleanHistoryReportHeaders, cleanHistoryReportCsvRows, cleanEarnAssetFlow, assetActivitySummaryForRows, eventFromZap, eventFromVesting, groupEvents, displayActionsForRow, rowMatchesActionFilter, normalizeActionFilter, activityGroupForEvent, cleanReportActionLabel, state };" + marker);
 const sandbox = {
   console,
   URL,
@@ -1212,6 +1212,10 @@ const combinedVesting = {
   actions: new Set(["vesting"]),
   events: [pairFromSubgraph, claimFromSubgraph],
 };
+const rewardClaim = {
+  actions: new Set(["odoloClaim"]),
+  events: [{ action: "odoloClaim", label: "Claim 21 oDOLO", legs: [] }],
+};
 const combinedVestingChipLabels = sandbox.__historyTest.displayActionsForRow(combinedVesting)
   .filter(action => action && typeof action === "object")
   .map(action => action.label)
@@ -1250,8 +1254,13 @@ const results = {
   combinedVestingTablePreview: sandbox.__historyTest.compactTransactionAssetPreview(combinedVesting),
   combinedVestingChipLabels,
   vestingPairFilter: sandbox.__historyTest.rowMatchesActionFilter(vesting, "vestingPair"),
-  vestingClaimFilter: sandbox.__historyTest.rowMatchesActionFilter(vestingOut, "vestingClaim"),
-  vestingPairDoesNotMatchClaim: sandbox.__historyTest.rowMatchesActionFilter(vesting, "vestingClaim"),
+  exerciseFilter: sandbox.__historyTest.rowMatchesActionFilter(vestingOut, "exercise"),
+  legacyVestingClaimFilter: sandbox.__historyTest.rowMatchesActionFilter(vestingOut, "vestingClaim"),
+  claimDoesNotMatchExercise: sandbox.__historyTest.rowMatchesActionFilter(vestingOut, "claim"),
+  exerciseDoesNotMatchClaim: sandbox.__historyTest.rowMatchesActionFilter(rewardClaim, "exercise"),
+  claimMatchesReward: sandbox.__historyTest.rowMatchesActionFilter(rewardClaim, "claim"),
+  normalizedVestingClaim: sandbox.__historyTest.normalizeActionFilter("vestingClaim"),
+  vestingPairDoesNotMatchExercise: sandbox.__historyTest.rowMatchesActionFilter(vesting, "exercise"),
   rewardFlow: sandbox.__historyTest.cleanEarnAssetFlow(reward),
   reviewOnlyYieldFlow: sandbox.__historyTest.cleanEarnAssetFlow(reviewOnlyYield),
   zapLabel: zapFromSubgraph.label,
@@ -1309,20 +1318,20 @@ if (results.noUsdZapRouteConfidence !== "medium") throw new Error(JSON.stringify
 if (!results.swapFilterMatchesTradeZap || !results.legacyTradeFilterMatchesTradeZap || !results.legacyZapFilterMatchesTradeZap) throw new Error(JSON.stringify(results));
 if (results.depositFlow !== "0.00160549 WBTC") throw new Error(JSON.stringify(results));
 if (results.vestingAction !== "Pair oDOLO + DOLO") throw new Error(JSON.stringify(results));
-if (results.vestingOutAction !== "Claim veDOLO") throw new Error(JSON.stringify(results));
+if (results.vestingOutAction !== "Exercise oDOLO") throw new Error(JSON.stringify(results));
 if (results.mixedVestingAction !== "Trade; Pair oDOLO + DOLO") throw new Error(JSON.stringify(results));
 if (results.vestingFlow !== "Pair oDOLO + DOLO #3903 (paired 67055.73715564 oDOLO + 67055.73715564 DOLO), current status: Active") throw new Error(JSON.stringify(results));
-if (results.vestingOutFlow !== "Claim veDOLO #3903 (paid 1071.799454 USDC; used 67055.73715564 paired oDOLO/DOLO; received veDOLO lock), current status: Closed") throw new Error(JSON.stringify(results));
+if (results.vestingOutFlow !== "Exercise oDOLO #3903 (paid 1071.799454 USDC; used 67055.73715564 paired oDOLO/DOLO; received veDOLO lock), current status: Closed") throw new Error(JSON.stringify(results));
 if (results.vestingTablePreview !== "67,055.74 oDOLO + DOLO -> Position #3903") throw new Error(JSON.stringify(results));
 if (results.vestingOutTablePreview !== "veDOLO #3903 · paid 1,071.80 USDC") throw new Error(JSON.stringify(results));
 if (results.vestingChipLabel !== "PAIR") throw new Error(JSON.stringify(results));
-if (results.vestingOutChipLabel !== "CLAIM") throw new Error(JSON.stringify(results));
+if (results.vestingOutChipLabel !== "EXERCISED") throw new Error(JSON.stringify(results));
 if (results.mixedVestingChipLabel !== "PAIR") throw new Error(JSON.stringify(results));
 if (results.pairFromSubgraphLabel !== "Pair oDOLO + DOLO") throw new Error(JSON.stringify(results));
 if (results.pairFromSubgraphTaxCategory !== "odolo_dolo_pair") throw new Error(JSON.stringify(results));
 if (results.pairFromSubgraphActivityGroup !== "odolo_dolo_pair") throw new Error(JSON.stringify(results));
 if (results.pairFromSubgraphLegs !== "out:oDOLO:67055.73715564|out:DOLO:67055.73715564") throw new Error(JSON.stringify(results));
-if (results.claimFromSubgraphLabel !== "Claim veDOLO") throw new Error(JSON.stringify(results));
+if (results.claimFromSubgraphLabel !== "Exercise oDOLO") throw new Error(JSON.stringify(results));
 if (results.claimFromSubgraphTaxCategory !== "vedolo_claim") throw new Error(JSON.stringify(results));
 if (results.claimFromSubgraphActivityGroup !== "vedolo_claim") throw new Error(JSON.stringify(results));
 if (results.claimFromSubgraphLegs !== "out:oDOLO/DOLO vesting pair:67055.73715564|in:veDOLO lock:67055.73715564|out:USDC exercise cost:1071.799454") throw new Error(JSON.stringify(results));
@@ -1330,11 +1339,11 @@ if (results.internalMoveLabel !== "Move veDOLO position") throw new Error(JSON.s
 if (results.internalMoveFlow !== "Move veDOLO position #3904 (vesting pair 1000 oDOLO/DOLO), current status: Active") throw new Error(JSON.stringify(results));
 if (results.internalMoveTaxCategory !== "vesting_internal_move") throw new Error(JSON.stringify(results));
 if (results.internalMoveReviewReason !== "odolo_vedolo_internal_move_review") throw new Error(JSON.stringify(results));
-if (results.combinedVestingAction !== "Pair oDOLO + DOLO; Claim veDOLO") throw new Error(JSON.stringify(results));
-if (!results.combinedVestingFlow.includes("Pair oDOLO + DOLO #3903") || !results.combinedVestingFlow.includes("Claim veDOLO #3903")) throw new Error(JSON.stringify(results));
+if (results.combinedVestingAction !== "Pair oDOLO + DOLO; Exercise oDOLO") throw new Error(JSON.stringify(results));
+if (!results.combinedVestingFlow.includes("Pair oDOLO + DOLO #3903") || !results.combinedVestingFlow.includes("Exercise oDOLO #3903")) throw new Error(JSON.stringify(results));
 if (!results.combinedVestingTablePreview.includes("Position #3903") || !results.combinedVestingTablePreview.includes("veDOLO #3903")) throw new Error(JSON.stringify(results));
-if (results.combinedVestingChipLabels !== "PAIR|CLAIM") throw new Error(JSON.stringify(results));
-if (!results.vestingPairFilter || !results.vestingClaimFilter || results.vestingPairDoesNotMatchClaim) throw new Error(JSON.stringify(results));
+if (results.combinedVestingChipLabels !== "PAIR|EXERCISED") throw new Error(JSON.stringify(results));
+if (results.normalizedVestingClaim !== "exercise" || !results.exerciseFilter || !results.legacyVestingClaimFilter || results.claimDoesNotMatchExercise || results.exerciseDoesNotMatchClaim || !results.claimMatchesReward || results.vestingPairDoesNotMatchExercise) throw new Error(JSON.stringify(results));
 if (results.rewardFlow !== "Reward candidate: 12.5 DOLO") throw new Error(JSON.stringify(results));
 if (results.reviewOnlyYieldFlow !== "Review-only yield candidate: 5 USDC") throw new Error(JSON.stringify(results));
 const reportApi = sandbox.__historyTest;
@@ -1674,7 +1683,7 @@ if (results.indexedDebt !== "-10" || results.indexedSupply !== "4.5") throw new 
 if (results.scientificSmall !== "0.000001" || results.scientificLarge !== "1200") throw new Error(JSON.stringify(results));
 if (results.zapBorrowAction !== "Zap; Open Borrow" || results.zapBorrowChips !== "zap|openBorrow") throw new Error(JSON.stringify(results));
 if (!results.transferOnlyFilter || results.zapTransferFilter || !results.zapTransferSwapFilter) throw new Error(JSON.stringify(results));
-if (!results.vestingClaimSpecificFilter || !results.vestingClaimGenericFilter) throw new Error(JSON.stringify(results));
+if (!results.vestingClaimSpecificFilter || results.vestingClaimGenericFilter) throw new Error(JSON.stringify(results));
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
@@ -3000,6 +3009,8 @@ if (api.historySortValue(rows[0], "details") !== "") throw new Error("details co
             "Close Borrow",
             "Trade / Zap",
             "AMM / Liquidity",
+            "Pair",
+            "Exercise",
             "Claim",
         ]:
             self.assertIn(text, self.html)
@@ -3015,7 +3026,14 @@ if (api.historySortValue(rows[0], "details") !== "") throw new Error("details co
         self.assertIn("normalizeActionFilter", self.source)
         self.assertIn('if (action === "swap")', self.source)
         self.assertIn('if (action === "trade" || action === "zap") return "swap";', self.source)
-        self.assertIn('if (action === "odoloClaim" || action === "rewardClaim" || action === "vestingClaim") return "claim";', self.source)
+        self.assertIn('if (action === "odoloClaim" || action === "rewardClaim") return "claim";', self.source)
+        self.assertIn('if (action === "vestingClaim") return "exercise";', self.source)
+        self.assertIn('class="history-action-odolo action-icon-${escapeAttr(normalized)}"', self.source)
+        self.assertIn('class="history-action-icon action-icon-${escapeAttr(normalized)}"', self.source)
+        self.assertIn('.history-action-icon.action-icon-exercise', self.css)
+        self.assertIn('<option value="exercise">Exercise</option>', self.html)
+        self.assertIn('<option value="vestingPair">Pair</option>', self.html)
+        self.assertIn('<option value="claim">Claim rewards</option>', self.html)
         self.assertNotIn('<option value="trade">Trade</option>', self.html)
         self.assertNotIn('<option value="zap">Zap</option>', self.html)
         self.assertNotIn('<option value="odoloClaim">Claim oDOLO</option>', self.html)
