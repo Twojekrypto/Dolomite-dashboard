@@ -252,6 +252,49 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 #dd-cb-period .dd-panel,#dd-latest-period .dd-panel,#dd-pair-period .dd-panel,#dd-ex-period .dd-panel,#dd-flows-period .dd-panel{min-width:148px;max-width:148px;width:148px}
 #dd-cb-period .dd-opt,#dd-latest-period .dd-opt,#dd-pair-period .dd-opt,#dd-ex-period .dd-opt,#dd-flows-period .dd-opt{gap:9px;padding:8px 9px}
 #dd-cb-period .dd-opt-name,#dd-latest-period .dd-opt-name,#dd-pair-period .dd-opt-name,#dd-ex-period .dd-opt-name,#dd-flows-period .dd-opt-name{white-space:nowrap}
+#latest-exercises-section{
+  --latest-exercise-accent:#75b87b;
+  --latest-exercise-line:rgba(117,184,123,.30);
+  --latest-exercise-wash:rgba(117,184,123,.10);
+}
+#latest-exercises-section .search{
+  border-color:rgba(117,184,123,.20);
+  background:rgba(117,184,123,.045);
+}
+#latest-exercises-section .search:focus-within{
+  border-color:var(--latest-exercise-line);
+  box-shadow:0 0 0 3px var(--latest-exercise-wash);
+}
+#latest-exercises-section .search:focus-within svg{color:var(--latest-exercise-accent)}
+#latest-exercises-section .search-clear:hover{
+  color:var(--latest-exercise-accent);
+  border-color:var(--latest-exercise-line);
+  background:var(--latest-exercise-wash);
+}
+#latest-exercises-section #dd-latest-period .dd-btn{
+  border-color:rgba(117,184,123,.20);
+  background:rgba(117,184,123,.045);
+}
+#latest-exercises-section #dd-latest-period .dd-btn:hover,
+#latest-exercises-section #dd-latest-period .dd-btn.open{
+  border-color:var(--latest-exercise-line);
+  background:rgba(117,184,123,.075);
+  box-shadow:0 0 0 3px var(--latest-exercise-wash);
+}
+#latest-exercises-section #dd-latest-period .dd-btn .icon,
+#latest-exercises-section #dd-latest-period .dd-btn.open .chev{color:var(--latest-exercise-accent)}
+#latest-exercises-section #dd-latest-period .dd-panel{
+  border-color:rgba(117,184,123,.20);
+  background:linear-gradient(180deg,rgba(18,28,20,.98),rgba(12,14,13,.98));
+}
+#latest-exercises-section #dd-latest-period .dd-panel-head{color:var(--latest-exercise-accent)}
+#latest-exercises-section #dd-latest-period .dd-opt + .dd-opt{border-top-color:rgba(117,184,123,.10)}
+#latest-exercises-section #dd-latest-period .dd-opt:hover,
+#latest-exercises-section #dd-latest-period .dd-opt.active{background:rgba(117,184,123,.075);color:var(--fg-1)}
+#latest-exercises-section #dd-latest-period .dd-opt.active .dd-opt-check{
+  background:var(--latest-exercise-accent);
+  border-color:var(--latest-exercise-accent);
+}
 #latest-pairs-section{
   --latest-pair-accent:#75b87b;
   --latest-pair-line:rgba(117,184,123,.30);

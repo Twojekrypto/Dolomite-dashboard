@@ -319,6 +319,11 @@ vm.runInNewContext(instrumented, sandbox);
         self.assertIn(".action-chip.repay{color:#86efac", self.css)
         self.assertIn(".action-chip.closeBorrow{color:#5eead4", self.css)
 
+    def test_action_dropdown_icons_distinguish_borrow_transfer_and_trade_routes(self):
+        self.assertIn('borrow: `<rect x="3" y="5" width="12" height="14" rx="2"/>', self.source)
+        self.assertIn('transfer: `<path d="M7 7h10"/>', self.source)
+        self.assertIn('swap: `<circle cx="7" cy="7" r="3"/>', self.source)
+
     def test_history_is_positioned_as_transaction_history_first(self):
         self.assertIn("<h1>Dolomite Transaction History</h1>", self.html)
         self.assertNotIn('<section class="hero history-hero">', self.html)
