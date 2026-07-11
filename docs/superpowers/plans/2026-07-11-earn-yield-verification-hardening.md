@@ -156,6 +156,40 @@ Run: `git diff --check && git diff -- dashboard-core.js tests/test_earn_dashboar
 
 Expected: only scoped changes; no whitespace errors.
 
-- [ ] **Step 4: Commit and push**
+- [x] **Step 4: Commit and push**
 
 Run: `git add dashboard-core.js build_earn_verified_ledger.py build_earn_quality_status.py data/earn-quality/status.json tests/test_earn_dashboard_contracts.py tests/test_build_earn_verified_ledger.py tests/test_build_earn_quality_status.py docs/superpowers && git commit -m "fix: harden earn yield verification" && git push dolomite-dashboard master`
+
+### Task 6: Remove remaining non-exact strict bypasses and rebuild old ledgers
+
+**Files:**
+- Modify: `dashboard-core.js`, `tests/test_earn_dashboard_contracts.py`
+- Regenerate: `data/earn-verified-ledger/*/*.json`, `data/earn-verified-ledger/manifest.json`, `data/earn-quality/status.json`
+
+**Interfaces:**
+- Consumes: `earn_getStrictVerificationStatus(entry)`, strict-status-to-total aggregation, and the verified-ledger builder.
+- Produces: strict `Verified` only for exact current replay reconciliation; diagnostics may retain adjusted values but cannot enter strict totals.
+
+- [x] **Step 1: Add two executable regression tests**
+
+Assert that (a) a same-`Par`, non-zero `Wei` drift and (b) a missing live borrow/collateral that replay still expects both produce `mismatch`, not `verified`.
+
+- [x] **Step 2: Verify both tests fail before the fix**
+
+Run the two targeted `EarnDashboardContractsTest` tests; each must reproduce the current erroneous `verified` status.
+
+- [x] **Step 3: Keep strict verification exact**
+
+Remove the two permissive branches from `earn_getStrictVerificationStatus`. Keep adjusted values only for explicitly non-strict diagnostic paths; remove `live_balance_adjusted` from trusted replay status/method sets and invalidate lookup cache v13.
+
+- [x] **Step 4: Verify the regression tests and full contract suite**
+
+Run JavaScript syntax check and the targeted contracts; confirm an adjusted result cannot become `trustedForTotal`.
+
+- [x] **Step 5: Rebuild every existing ledger and quality status**
+
+Run `build_earn_verified_ledger.py --existing-addresses` for every ledger chain, then regenerate `data/earn-quality/status.json`. Confirm no `verified` static `netflow+snapshot` or `recent-cycle+snapshot` entry remains.
+
+- [ ] **Step 6: Run full audit, review, commit, and push**
+
+Run `npm run check:earn-audit`, `git diff --check`, stage only scoped files, commit, and push `master` without force.

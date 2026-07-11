@@ -1,6 +1,9 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from build_earn_verified_ledger import _derive_strict_verification, _select_best_baseline
+from build_earn_verified_ledger import _derive_strict_verification, _select_best_baseline, _write_or_remove_ledger
 
 
 class BuildEarnVerifiedLedgerTest(unittest.TestCase):
@@ -48,6 +51,51 @@ class BuildEarnVerifiedLedgerTest(unittest.TestCase):
         self.assertEqual(strict_status, "inferred")
         self.assertEqual(strict_method, "netflow+snapshot")
         self.assertEqual(strict_reason, "snapshot_netflow_match_requires_inference")
+
+    def test_existing_refresh_removes_ledger_with_no_current_markets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp)
+            path = output_dir / "arbitrum" / "0x1111111111111111111111111111111111111111.json"
+            path.parent.mkdir(parents=True)
+            path.write_text('{"markets":{"0":{"strictStatus":"verified"}}}', encoding="utf-8")
+
+            wrote = _write_or_remove_ledger(
+                output_dir,
+                "arbitrum",
+                "0x1111111111111111111111111111111111111111",
+                None,
+                remove_stale=True,
+            )
+
+            self.assertFalse(wrote)
+            self.assertFalse(path.exists())
+
+    def test_equivalent_existing_ledger_keeps_its_generated_timestamp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp)
+            address = "0x2222222222222222222222222222222222222222"
+            path = output_dir / "arbitrum" / f"{address}.json"
+            path.parent.mkdir(parents=True)
+            existing = {
+                "generatedAt": "2026-07-01T00:00:00Z",
+                "markets": {"0": {"strictStatus": "inferred"}},
+            }
+            path.write_text(json.dumps(existing), encoding="utf-8")
+            rebuilt = {
+                "generatedAt": "2026-07-11T00:00:00Z",
+                "markets": {"0": {"strictStatus": "inferred"}},
+            }
+
+            wrote = _write_or_remove_ledger(
+                output_dir,
+                "arbitrum",
+                address,
+                rebuilt,
+                remove_stale=True,
+            )
+
+            self.assertTrue(wrote)
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), existing)
 
 
 if __name__ == "__main__":

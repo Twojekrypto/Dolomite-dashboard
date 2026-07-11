@@ -105,16 +105,17 @@ if (!earn_canUseVerifiedLedgerMarketEntry(entry)) {
         self.assertIn("strictLedgerMarkets++;", self.source)
         self.assertIn("'Total Yield Earned · Historical evidence'", self.source)
 
-    def test_live_balance_adjusted_replay_is_trusted_for_total_yield(self):
+    def test_live_balance_adjusted_replay_is_diagnostic_not_trusted_for_total_yield(self):
         self.assertIn("function earn_isTrustedReplayYieldMethod(method)", self.source)
         self.assertIn("method === 'interest-ledger-live-balance-adjusted'", self.source)
         self.assertIn("function earn_isTrustedReplayYieldStatus(status)", self.source)
-        self.assertIn("status === 'live_balance_adjusted'", self.source)
+        self.assertNotIn("|| status === 'live_balance_adjusted';", self.source)
+        self.assertNotIn("|| method === 'interest-ledger-live-balance-adjusted';", self.source)
         self.assertIn("earn_isTrustedReplayYieldStatus(strictVerificationStatus)", self.source)
         self.assertIn("earn_isTrustedReplayYieldStatus(String(itemYieldCalc.verificationStatus || ''))", self.source)
         self.assertIn("trustedHistoryMethods.has(histMethod)", self.source)
 
-    def test_aligned_live_balance_drift_is_included_in_replay_yield(self):
+    def test_aligned_live_balance_drift_is_kept_out_of_strict_yield(self):
         self.assertIn(
             "const adjustedInterestYieldCandidate = interestYieldCandidate !== null && alignedReplayWeiDrift\n"
             "                ? interestYieldCandidate + alignedReplayWeiDrift.totalYieldCorrection\n"
@@ -122,9 +123,8 @@ if (!earn_canUseVerifiedLedgerMarketEntry(entry)) {
             self.source,
         )
         self.assertIn(
-            "method = alignedReplayWeiDrift\n"
-            "                    ? 'interest-ledger-live-balance-adjusted'\n"
-            "                    : (canOverrideMismatchedSnapshot ? 'interest-ledger-override' : 'interest-ledger');",
+            "method === 'interest-ledger-live-balance-adjusted'\n"
+            "                    ? 'coverage_incomplete'",
             self.source,
         )
 
@@ -157,7 +157,7 @@ for (const [input, decimals, expected] of cases) {
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_yield_calculation_release_invalidates_prior_lookup_cache(self):
-        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 13;", self.source)
+        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 14;", self.source)
         self.assertIn("parsed.version !== EARN_LOOKUP_CACHE_VERSION", self.source)
 
     def test_truncated_subgraph_replay_is_never_strictly_verified(self):
@@ -250,6 +250,78 @@ if (actual !== 'coverage_incomplete') {{
 
     def test_reconciled_replay_state_cannot_be_strict_verified(self):
         self._assert_strict_status_for_incomplete_replay("replayStateAdjusted")
+
+    def _assert_non_exact_replay_is_mismatch(self, overrides):
+        script = f"""
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+for (const name of [
+  'earn_absBigInt',
+  'earn_shouldTrustVisibleSupplyReplayMismatch',
+  'earn_getAlignedReplayWeiDriftAdjustment',
+  'earn_shouldTrustAlignedReplayWeiDrift',
+  'earn_getStrictVerificationStatus',
+]) {{
+  const start = source.indexOf(`function ${{name}}(`);
+  if (start < 0) continue;
+  const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+  if (end < 0) throw new Error(`incomplete ${{name}}`);
+  eval(source.slice(start, end));
+}}
+const entry = {{
+  counted: true,
+  canVerify: true,
+  snapshotIncomplete: false,
+  subgraphReplayTruncated: false,
+  replayStateAdjusted: false,
+  rawVerified: false,
+  actualSupplyPar: 100n,
+  expectedSupplyPar: 100n,
+  actualSupplyWei: 100n,
+  expectedSupplyWei: 100n,
+  actualCollateralPar: 0n,
+  expectedCollateralPar: 0n,
+  actualCollateralWei: 0n,
+  expectedCollateralWei: 0n,
+  actualBorrowPar: 0n,
+  expectedBorrowPar: 0n,
+  actualBorrowWei: 0n,
+  expectedBorrowWei: 0n,
+  supplyParDiff: 0n,
+  supplyWeiDiff: 0n,
+  collateralParDiff: 0n,
+  collateralWeiDiff: 0n,
+  borrowParDiff: 0n,
+  borrowWeiDiff: 0n,
+  parTolerance: 0n,
+  supplyWeiTolerance: 0n,
+  collateralWeiTolerance: 0n,
+  borrowWeiTolerance: 0n,
+  {overrides}
+}};
+const actual = earn_getStrictVerificationStatus(entry);
+if (actual !== 'mismatch') {{
+  throw new Error(`expected mismatch, got ${{actual}}`);
+}}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_aligned_wei_drift_cannot_be_strict_verified(self):
+        self._assert_non_exact_replay_is_mismatch(
+            "actualSupplyWei: 200n, supplyWeiDiff: 100n,"
+        )
+
+    def test_ghost_borrow_cannot_be_strict_verified(self):
+        self._assert_non_exact_replay_is_mismatch(
+            "expectedBorrowPar: 500n, expectedBorrowWei: 600n, borrowParDiff: -500n, borrowWeiDiff: -600n,"
+        )
 
     def test_render_yield_cache_calculates_each_asset_once(self):
         script = """
