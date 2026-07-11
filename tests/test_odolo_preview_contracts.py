@@ -70,6 +70,14 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         self.assertNotIn("pct_held", behavior)
         self.assertNotIn("pct_bought_extra", behavior)
 
+    def test_latest_pair_controls_use_portfolio_green_interactions(self):
+        self.assertIn('id="latest-pairs-section"', self.html)
+        self.assertIn('--latest-pair-accent:#75b87b', self.html)
+        self.assertIn('#latest-pairs-section .search:focus-within', self.html)
+        self.assertIn('#latest-pairs-section #dd-pair-period .dd-btn.open', self.html)
+        self.assertIn('#latest-pairs-section #dd-pair-period .dd-opt.active .dd-opt-check', self.html)
+        self.assertIn('odolo-pair-green-controls-20260711', self.route)
+
 
 if __name__ == "__main__":
     unittest.main()
