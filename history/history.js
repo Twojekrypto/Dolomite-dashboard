@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260710-cursor-audit";
+  const HISTORY_VERSION = "history-20260711-action-routes";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -174,11 +174,12 @@
     ammTrade: "AMM Trade",
     ammAddLiquidity: "Add Liquidity",
     ammRemoveLiquidity: "Remove Liquidity",
-    vesting: "Pair / Claim veDOLO",
+    vesting: "oDOLO / veDOLO position",
     vestingPair: "Pair oDOLO + DOLO",
-    vestingClaim: "Claim veDOLO",
+    vestingClaim: "Exercise oDOLO",
     vestingInternal: "Move veDOLO position",
-    claim: "Claim",
+    exercise: "Exercise oDOLO",
+    claim: "Claim rewards",
     odoloClaim: "Claim oDOLO",
     rewardClaim: "Claim Rewards",
     rewardLevelUpdate: "Reward Level Update",
@@ -207,13 +208,14 @@
     ammTrade: "AMM Trade",
     ammAddLiquidity: "Add LP",
     ammRemoveLiquidity: "Remove LP",
-    vesting: "Pair / Claim",
+    vesting: "POSITION",
     vestingPair: "PAIR",
-    vestingClaim: "CLAIM",
+    vestingClaim: "EXERCISED",
     vestingInternal: "MOVE",
-    claim: "Claim",
-    odoloClaim: "oDOLO Claim",
-    rewardClaim: "Reward Claim",
+    exercise: "EXERCISED",
+    claim: "CLAIM",
+    odoloClaim: "CLAIM",
+    rewardClaim: "CLAIM",
     rewardLevelUpdate: "Reward Level",
     classificationPending: "Checking classification...",
   };
@@ -522,16 +524,36 @@
   }
 
   function actionIconHtml(action) {
-    if (action === "all") {
+    const normalized = normalizeActionFilter(action);
+    if (normalized === "all") {
       return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`;
     }
-    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h10"/></svg>`;
+    if (normalized === "vestingPair" || normalized === "exercise") {
+      return `<img class="history-action-odolo action-icon-${escapeAttr(normalized)}" src="odolo-logo-official.svg" alt="">`;
+    }
+    const icons = {
+      deposit: `<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>`,
+      withdraw: `<path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M5 3h14"/>`,
+      borrow: `<path d="M4 7h16"/><path d="m14 3 4 4-4 4"/><path d="M20 17H4"/><path d="m10 13-4 4 4 4"/>`,
+      repay: `<path d="M4 7h16"/><path d="m10 3-4 4 4 4"/><path d="M20 17H4"/><path d="m14 13 4 4-4 4"/>`,
+      closeBorrow: `<circle cx="12" cy="12" r="8"/><path d="m9 9 6 6m0-6-6 6"/>`,
+      addCollateral: `<path d="M12 20V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>`,
+      withdrawCollateral: `<path d="M12 4v16"/><path d="m7 15 5 5 5-5"/><path d="M5 4h14"/>`,
+      transfer: `<path d="M7 7h10"/><path d="m13 3 4 4-4 4"/><path d="M17 17H7"/><path d="m11 13-4 4 4 4"/>`,
+      swap: `<path d="M7 7h10"/><path d="m13 3 4 4-4 4"/><path d="M17 17H7"/><path d="m11 13-4 4 4 4"/>`,
+      liquidation: `<path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v5"/><path d="M12 17h.01"/>`,
+      amm: `<path d="M4 18c2-7 5-10 8-10s6 3 8 10"/><path d="M4 18h16"/><circle cx="12" cy="8" r="2"/>`,
+      claim: `<path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5A2.5 2.5 0 1 1 12 4.5V7z"/><path d="M12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7z"/>`,
+    };
+    const paths = icons[normalized] || `<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h10"/>`;
+    return `<svg class="history-action-icon action-icon-${escapeAttr(normalized)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
   }
 
   function normalizeActionFilter(value) {
     const action = String(value || "all");
     if (action === "trade" || action === "zap") return "swap";
-    if (action === "odoloClaim" || action === "rewardClaim" || action === "vestingClaim") return "claim";
+    if (action === "vestingClaim") return "exercise";
+    if (action === "odoloClaim" || action === "rewardClaim") return "claim";
     return action;
   }
 
@@ -2330,7 +2352,7 @@
 
   function vestingActionLabel(flowLabel) {
     if (vestingFlowIsOpen(flowLabel)) return "Pair oDOLO + DOLO";
-    if (vestingFlowIsExercise(flowLabel)) return "Claim veDOLO";
+    if (vestingFlowIsExercise(flowLabel)) return "Exercise oDOLO";
     if (vestingFlowIsInternal(flowLabel)) return "Move veDOLO position";
     return `${flowLabel || "Move"} vesting position`;
   }
@@ -4202,13 +4224,12 @@
     if (action === "vestingPair") {
       return vestingEventsForRow(row).some(event => vestingFlowIsOpen(event.vestingFlowLabel));
     }
-    if (action === "vestingClaim") {
+    if (action === "exercise") {
       return vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
     }
     if (action === "claim") {
       return rowActions.has("odoloClaim")
-        || rowActions.has("rewardClaim")
-        || vestingEventsForRow(row).some(event => vestingFlowIsExercise(event.vestingFlowLabel));
+        || rowActions.has("rewardClaim");
     }
     return rowActions.has(action);
   }
