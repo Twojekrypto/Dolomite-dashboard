@@ -95,10 +95,16 @@ def _ledger_market_quality(data_dir: Path, chain: str, address: str, market_id: 
             "reason": "missing_market",
             "coverage": str(payload.get("canonicalHistory", {}).get("coverageStatus") or "unknown"),
         }
+    status = _normalize_status(market.get("strictStatus") or market.get("status"))
+    method = str(market.get("strictMethod") or market.get("method") or "unknown")
+    reason = str(market.get("strictReason") or "unknown")
+    if status == "verified" and method in {"netflow+snapshot", "recent-cycle+snapshot"}:
+        status = "inferred"
+        reason = "snapshot_netflow_match_requires_inference"
     return {
-        "status": _normalize_status(market.get("strictStatus") or market.get("status")),
-        "method": str(market.get("strictMethod") or market.get("method") or "unknown"),
-        "reason": str(market.get("strictReason") or "unknown"),
+        "status": status,
+        "method": method,
+        "reason": reason,
         "coverage": str(market.get("canonicalHistoryCoverageStatus") or "unknown"),
     }
 

@@ -58,7 +58,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("if (fallbackStatus === 'verified')", self.source)
         self.assertIn("const yieldQualityPresentation = earn_getYieldQualityPresentation(yieldCalc)", self.source)
         self.assertIn("method === 'all-netflow-verified'", self.source)
-        self.assertIn("label: 'Inferred Carry'", self.source)
+        self.assertIn("'Inferred Carry'", self.source)
         self.assertIn("label: 'Fallback'", self.source)
         self.assertIn("label: 'Inferred'", self.source)
 
@@ -66,6 +66,44 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("rawLabel: 'Netflow Match'", self.source)
         self.assertIn("'This yield reconciles through public netflow plus snapshot history, but it is not strict replay verification.'", self.source)
         self.assertIn("? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : 'inferred')", self.source)
+
+    def test_fresh_snapshot_netflow_inference_is_usable_but_not_strict(self):
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+for (const name of [
+  'earn_isTrustedReplayYieldStatus',
+  'earn_canUseVerifiedLedgerMarketEntry',
+]) {
+  const start = source.indexOf(`function ${name}(`);
+  const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+  if (start < 0 || end < 0) throw new Error(`missing ${name}`);
+  eval(source.slice(start, end));
+}
+const entry = {
+  strictStatus: 'inferred',
+  status: 'verified',
+  strictMethod: 'netflow+snapshot',
+  method: 'netflow+snapshot',
+  canonicalHistoryCoverageStatus: 'fresh',
+};
+if (!earn_canUseVerifiedLedgerMarketEntry(entry)) {
+  throw new Error('fresh snapshot/netflow inference was not reusable');
+}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_inferred_ledger_does_not_receive_a_verified_historical_header(self):
+        self.assertIn("let strictLedgerMarkets = 0;", self.source)
+        self.assertIn("strictLedgerMarkets++;", self.source)
+        self.assertIn("'Total Yield Earned · Historical evidence'", self.source)
 
     def test_live_balance_adjusted_replay_is_trusted_for_total_yield(self):
         self.assertIn("function earn_isTrustedReplayYieldMethod(method)", self.source)
@@ -119,19 +157,142 @@ for (const [input, decimals, expected] of cases) {
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_yield_calculation_release_invalidates_prior_lookup_cache(self):
-        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 12;", self.source)
+        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 13;", self.source)
         self.assertIn("parsed.version !== EARN_LOOKUP_CACHE_VERSION", self.source)
 
     def test_truncated_subgraph_replay_is_never_strictly_verified(self):
         self.assertIn("const replayTruncated = [", self.source)
         self.assertIn("verificationIncomplete: replayTruncated", self.source)
         self.assertIn("earn_replayTruncatedSubgraphMarkets = replay.verificationIncomplete", self.source)
-        self.assertIn("const subgraphReplayTruncated = earn_replayTruncatedSubgraphMarkets.has(String(mid));", self.source)
-        self.assertIn("|| subgraphReplayTruncated;", self.source)
+        self.assertIn(
+            "const subgraphReplayTruncated = earn_replaySubgraphHistoryIncomplete\n"
+            "                    || earn_replayTruncatedSubgraphMarkets.has(String(mid));",
+            self.source,
+        )
+        self.assertIn("|| subgraphReplayTruncated\n                    || replayStateAdjusted;", self.source)
+
+    def test_incomplete_subgraph_replay_withholds_strict_status_for_every_market(self):
+        self.assertIn("let earn_replaySubgraphHistoryIncomplete = false;", self.source)
+        self.assertIn("earn_replaySubgraphHistoryIncomplete = !!replay.verificationIncomplete;", self.source)
+        self.assertIn(
+            "const subgraphReplayTruncated = earn_replaySubgraphHistoryIncomplete\n"
+            "                    || earn_replayTruncatedSubgraphMarkets.has(String(mid));",
+            self.source,
+        )
 
     def test_truncated_subgraph_replay_explains_the_actual_verification_gap(self):
         self.assertIn("subgraphReplayTruncated", self.source)
         self.assertIn("Subgraph fallback returned only part of this market", self.source)
+
+    def _assert_strict_status_for_incomplete_replay(self, provenance_flag):
+        script = f"""
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+for (const name of [
+  'earn_absBigInt',
+  'earn_getStrictVerificationStatus',
+]) {{
+  const start = source.indexOf(`function ${{name}}(`);
+  const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+  if (start < 0 || end < 0) throw new Error(`missing ${{name}}`);
+  eval(source.slice(start, end));
+}}
+const entry = {{
+  counted: true,
+  canVerify: true,
+  snapshotIncomplete: true,
+  {provenance_flag}: true,
+  rawVerified: true,
+  usdDriftVerified: true,
+  maxUsdDrift: 0,
+  actualSupplyPar: 100n,
+  actualSupplyWei: 110n,
+  actualCollateralPar: 0n,
+  actualCollateralWei: 0n,
+  actualBorrowPar: 0n,
+  actualBorrowWei: 0n,
+  expectedSupplyPar: 100n,
+  expectedSupplyWei: 110n,
+  expectedCollateralPar: 0n,
+  expectedCollateralWei: 0n,
+  expectedBorrowPar: 0n,
+  expectedBorrowWei: 0n,
+  supplyParDiff: 0n,
+  supplyWeiDiff: 0n,
+  collateralParDiff: 0n,
+  collateralWeiDiff: 0n,
+  borrowParDiff: 0n,
+  borrowWeiDiff: 0n,
+  parTolerance: 0n,
+  supplyWeiTolerance: 0n,
+  collateralWeiTolerance: 0n,
+  borrowWeiTolerance: 0n,
+}};
+const actual = earn_getStrictVerificationStatus(entry);
+if (actual !== 'coverage_incomplete') {{
+  throw new Error(`expected coverage_incomplete, got ${{actual}}`);
+}}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_truncated_replay_cannot_be_strict_verified(self):
+        self._assert_strict_status_for_incomplete_replay("subgraphReplayTruncated")
+
+    def test_snapshot_supplemented_replay_cannot_be_strict_verified(self):
+        self._assert_strict_status_for_incomplete_replay("snapshotSupplemented")
+
+    def test_reconciled_replay_state_cannot_be_strict_verified(self):
+        self._assert_strict_status_for_incomplete_replay("replayStateAdjusted")
+
+    def test_render_yield_cache_calculates_each_asset_once(self):
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+const start = source.indexOf('function earn_createVerifiedYieldCalcCache(');
+const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+if (start < 0 || end < 0) throw new Error('earn_createVerifiedYieldCalcCache not found');
+let calls = 0;
+let receivedOpts = null;
+globalThis.earn_calculateYield = (position, opts) => {
+  calls += 1;
+  receivedOpts = opts;
+  return { position, calls };
+};
+eval(source.slice(start, end));
+const getVerifiedYieldCalc = earn_createVerifiedYieldCalcCache();
+const asset = { marketId: '7' };
+const first = getVerifiedYieldCalc(asset);
+const second = getVerifiedYieldCalc(asset);
+if (calls !== 1) throw new Error(`expected one calculation, got ${calls}`);
+if (first !== second) throw new Error('cached result identity changed');
+if (!receivedOpts || receivedOpts.requireVerifiedInterest !== true) {
+  throw new Error('cache did not request verified interest');
+}
+const renderStart = source.indexOf('function earn_renderResults(');
+const renderEnd = source.indexOf(String.fromCharCode(10) + '        function ', renderStart + 1);
+const renderSource = source.slice(renderStart, renderEnd);
+if (!renderSource.includes('const getVerifiedYieldCalc = earn_createVerifiedYieldCalcCache();')) {
+  throw new Error('render does not create a verified-yield cache');
+}
+if ((renderSource.match(/getVerifiedYieldCalc\(a\)/g) || []).length < 2) {
+  throw new Error('render does not reuse the verified-yield cache in table and summary paths');
+}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_subgraph_replay_paginates_with_cursor_instead_of_a_hard_offset_cap(self):
         self.assertIn("orderBy: id, orderDirection: asc", self.source)
