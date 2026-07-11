@@ -7138,6 +7138,7 @@
         let earn_canonicalSubaccountHistoryLastScannedBlock = null; // latest canonical subaccount-history block for current lookup
         let earn_canonicalSubaccountHistoryFreshForBorrowRouting = false; // whether canonical subaccount history covers the replay block tag
         let earn_replayVerificationIncompleteMarkets = new Set(); // markets where current-state RPC coverage was incomplete
+        let earn_replayTruncatedSubgraphMarkets = new Set(); // markets touched by an incomplete subgraph replay
         let earn_replayActualSupplyMap = {};
         let earn_replayActualBorrowMap = {};
         let earn_replayActualCollateralMap = {};
@@ -7163,7 +7164,7 @@
         let earn_replayStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        const EARN_LOOKUP_CACHE_VERSION = 11;
+        const EARN_LOOKUP_CACHE_VERSION = 12;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         const earn_rewardRequestCache = {
@@ -7654,6 +7655,7 @@
             earn_replayBlockTag = null;
             earn_resetCanonicalSubaccountHistoryState();
             earn_replayVerificationIncompleteMarkets = new Set();
+            earn_replayTruncatedSubgraphMarkets = new Set();
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
             earn_replayActualCollateralMap = {};
@@ -10105,7 +10107,10 @@
         }
 
         function earn_decimalToBigInt(value, decimals) {
-            const places = Math.max(0, Number(decimals || 0));
+            const suppliedPlaces = Number(decimals || 0);
+            const places = Number.isSafeInteger(suppliedPlaces) && suppliedPlaces >= 0 && suppliedPlaces <= 512
+                ? suppliedPlaces
+                : 0;
             let raw = String(value ?? '0').trim();
             if (!raw) return 0n;
             let negative = false;
@@ -10114,13 +10119,24 @@
                 raw = raw.slice(1);
             }
             if (!raw) return 0n;
-            const parts = raw.split('.');
-            const whole = parts[0] || '0';
-            const frac = (parts[1] || '').replace(/[^0-9]/g, '');
-            const wholeDigits = whole.replace(/[^0-9]/g, '') || '0';
-            const fracDigits = (frac + '0'.repeat(places)).slice(0, places) || '0';
-            const scale = 10n ** BigInt(places);
-            const result = (BigInt(wholeDigits) * scale) + BigInt(fracDigits || '0');
+            const match = raw.match(/^(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/);
+            if (!match) return 0n;
+
+            const wholeDigits = match[1] || '';
+            const fractionalDigits = match[2] || '';
+            if (!wholeDigits && !fractionalDigits) return 0n;
+
+            const exponent = match[3] === undefined ? 0 : Number(match[3]);
+            if (!Number.isSafeInteger(exponent) || Math.abs(exponent) > 512) return 0n;
+
+            const significantDigits = (wholeDigits + fractionalDigits).replace(/^0+/, '') || '0';
+            const shift = places + exponent - fractionalDigits.length;
+            if (shift > 512 || shift < -significantDigits.length) return 0n;
+
+            const significant = BigInt(significantDigits);
+            const result = shift >= 0
+                ? significant * (10n ** BigInt(shift))
+                : significant / (10n ** BigInt(-shift));
             return negative ? -result : result;
         }
 
@@ -11492,6 +11508,7 @@
                 accountStateData: mergedAccountStateData,
                 currentIndexMap: mergedCurrentIndexMap,
                 eventTrace: mergedEventTrace,
+                verificationIncomplete: !!primaryReplay.verificationIncomplete || !!supplementReplay.verificationIncomplete,
             };
         }
 
@@ -11568,6 +11585,7 @@
                 accountStateData: mergedAccountStateData,
                 currentIndexMap: mergedCurrentIndexMap,
                 eventTrace: mergedEventTrace,
+                verificationIncomplete: !!primaryReplay.verificationIncomplete || !!supplementReplay.verificationIncomplete,
             };
         }
 
@@ -11578,6 +11596,9 @@
             }
             if (entry.status === 'coverage_incomplete' || entry.status === 'unverified') {
                 if (entry.snapshotIncomplete) {
+                    if (entry.subgraphReplayTruncated) {
+                        return 'Subgraph fallback returned only part of this market\'s event history, so replay verification is withheld until onchain replay is complete.';
+                    }
                     return 'Current onchain balance snapshot was incomplete for this market, so replay verification is temporarily withheld instead of flagging a mismatch.';
                 }
                 if (entry.usdDriftVerified) {
@@ -11635,6 +11656,9 @@
 
             if (entry && entry.counted && (fallbackStatus === 'unverified' || fallbackStatus === 'coverage_incomplete')) {
                 const fallbackMethods = new Set(['snapshot', 'snapshot-partial', 'acct0-netflow', 'all-netflow', 'all-netflow-guarded', 'recent-cycle']);
+                const incompleteTitle = entry.subgraphReplayTruncated
+                    ? 'Subgraph fallback returned only part of this market\'s event history, so verification remains pending until onchain replay is complete.'
+                    : 'Current balance reconciliation is incomplete for this market because missing live balances were supplemented from snapshot data. Verification will remain pending until a full RPC response is available.';
                 const usesFallbackSource = !!(
                     earn_replayUsedSubgraphFallback ||
                     entry.snapshotIncomplete ||
@@ -11651,7 +11675,7 @@
                         ? 'fallback'
                         : 'checking';
                 const title = entry.snapshotIncomplete
-                    ? 'Current balance reconciliation is incomplete for this market because missing live balances were supplemented from snapshot data. Verification will remain pending until a full RPC response is available.'
+                    ? incompleteTitle
                     : usesFallbackSource
                         ? 'This market is currently using fallback balance or yield data because live replay verification is unavailable.'
                         : 'Replay verification for this market is still in progress.';
@@ -12361,7 +12385,9 @@
                 const maxUsdDrift = hasUsdDrift ? Math.max(supplyUsdDrift || 0, collateralUsdDrift || 0, borrowUsdDrift || 0) : null;
                 const usdVerificationThreshold = 1;
                 const usdDriftVerified = canVerify && hasUsdDrift && maxUsdDrift < usdVerificationThreshold;
-                const snapshotIncomplete = earn_replayVerificationIncompleteMarkets.has(String(mid));
+                const subgraphReplayTruncated = earn_replayTruncatedSubgraphMarkets.has(String(mid));
+                const snapshotIncomplete = earn_replayVerificationIncompleteMarkets.has(String(mid))
+                    || subgraphReplayTruncated;
 
                 verificationData[mid] = {
                     status: 'unverified',
@@ -12396,6 +12422,7 @@
                     hasUsdDrift,
                     usdDriftVerified,
                     snapshotIncomplete,
+                    subgraphReplayTruncated,
                     usdVerificationThreshold,
                     supplyUsdDrift,
                     collateralUsdDrift,
@@ -12609,7 +12636,9 @@
             const canUseUnverifiedInterest = interestYieldCandidate !== null && !interestTrust.trusted && !requireVerifiedInterest;
             const replayVerificationPending = interestTrust.status === 'pending';
             const alignedReplayWeiDrift = earn_getAlignedReplayWeiDriftAdjustment(interestTrust.entry);
-            const adjustedInterestYieldCandidate = interestYieldCandidate;
+            const adjustedInterestYieldCandidate = interestYieldCandidate !== null && alignedReplayWeiDrift
+                ? interestYieldCandidate + alignedReplayWeiDrift.totalYieldCorrection
+                : interestYieldCandidate;
             const hasComplexNetflow = !!(flowMeta && flowMeta.hasBreakdown && (
                 flowMeta.totalBorrowed !== 0n ||
                 flowMeta.totalSwapped !== 0n ||
@@ -12656,7 +12685,9 @@
 
             if (canUseVerifiedInterest || canOverrideMismatchedSnapshot) {
                 totalYield = adjustedInterestYieldCandidate;
-                method = canOverrideMismatchedSnapshot ? 'interest-ledger-override' : 'interest-ledger';
+                method = alignedReplayWeiDrift
+                    ? 'interest-ledger-live-balance-adjusted'
+                    : (canOverrideMismatchedSnapshot ? 'interest-ledger-override' : 'interest-ledger');
             } else if (publicLedgerInference && publicLedgerInference.status === 'verified') {
                 totalYield = publicLedgerInference.canonicalYield;
                 method = publicLedgerInference.verificationBaseline === 'recent-cycle'
@@ -12907,7 +12938,12 @@
             if (!key.startsWith('MultiLogPerAdditionalParam_')) return '';
             const directAddress = earn_normalizeEvmAddress(reward && reward.mainParameter);
             if (directAddress) return directAddress;
-            const campaignId = earn_normalizeMerklCampaignId(reward && reward.mainParameter);
+            const opportunityId = String(reward && reward.opportunityId ? reward.opportunityId : '').trim();
+            const opportunityTokenMap = earn_getMerklOpportunityTokenMap(chainId);
+            if (opportunityId && opportunityTokenMap[opportunityId]) {
+                return opportunityTokenMap[opportunityId].toLowerCase();
+            }
+            const campaignId = earn_normalizeMerklCampaignId(reward && (reward.mainParameter || reward.campaignId));
             if (!campaignId) return '';
             return (campaignTokenMap[campaignId] || campaignTokenMap['0x' + campaignId] || '').toLowerCase();
         }
@@ -12995,6 +13031,17 @@
                     // to resolve back to the underlying Dolomite market for token detail views.
                     '576387d3d84237f5': '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d', // USD1
                     '2ed15ca6f6a47991': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
+                },
+            };
+            return historicalMaps[String(chainId || '').toLowerCase()] || {};
+        }
+
+        function earn_getMerklOpportunityTokenMap(chainId) {
+            const historicalMaps = {
+                ethereum: {
+                    '4237566951584909094': '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d', // USD1
+                    '8510007982293035752': '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d', // USD1 account-number campaign
+                    '13418763536600599808': '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
                 },
             };
             return historicalMaps[String(chainId || '').toLowerCase()] || {};
@@ -14324,6 +14371,69 @@
             };
         }
 
+        function earn_parseMerklRawAmount(value) {
+            try {
+                const parsed = BigInt(String(value ?? '0'));
+                return parsed > 0n ? parsed : 0n;
+            } catch (_) {
+                return 0n;
+            }
+        }
+
+        function earn_getMerklV4AccumulatedRaw(reward) {
+            return earn_parseMerklRawAmount(reward && reward.amount)
+                + earn_parseMerklRawAmount(reward && reward.pending);
+        }
+
+        function earn_getMerklV4UnclaimedRaw(reward) {
+            const amount = earn_parseMerklRawAmount(reward && reward.amount);
+            const claimed = earn_parseMerklRawAmount(reward && reward.claimed);
+            const pending = earn_parseMerklRawAmount(reward && reward.pending);
+            return (amount > claimed ? amount - claimed : 0n) + pending;
+        }
+
+        function earn_parseMerklV4Rewards(chainId, numericId, payload, campaignTokenMap) {
+            if (!Array.isArray(payload)) return {};
+            const dolomiteRewards = {};
+            for (const chainEntry of payload) {
+                if (!chainEntry || String(chainEntry.chain && chainEntry.chain.id) !== String(numericId)) continue;
+                for (const reward of (chainEntry.rewards || [])) {
+                    if (!reward || typeof reward !== 'object') continue;
+                    const tokenMeta = reward.token && typeof reward.token === 'object' ? reward.token : {};
+                    const symbol = String(tokenMeta.symbol || reward.symbol || '').trim();
+                    const decimals = Number(tokenMeta.decimals ?? reward.decimals ?? 18);
+                    const tokenAddr = String(tokenMeta.address || reward.token || '');
+                    if (!symbol || !Number.isSafeInteger(decimals) || decimals < 0 || decimals > 512) continue;
+
+                    for (const breakdown of (reward.breakdowns || [])) {
+                        if (!breakdown || typeof breakdown !== 'object') continue;
+                        const reasonKey = String(breakdown.reason || '');
+                        const marketTokenAddr = earn_resolveMerklReasonTokenAddress(chainId, reasonKey, breakdown, campaignTokenMap);
+                        if (!marketTokenAddr) continue;
+
+                        const bucket = dolomiteRewards[symbol] || (dolomiteRewards[symbol] = earn_createRewardBucket(decimals, tokenAddr));
+                        const accumulated = earn_bigIntToDecimalNumber(earn_getMerklV4AccumulatedRaw(breakdown), decimals);
+                        const unclaimed = earn_bigIntToDecimalNumber(earn_getMerklV4UnclaimedRaw(breakdown), decimals);
+                        bucket.accumulated += accumulated;
+                        bucket.unclaimed += unclaimed;
+                        bucket.perToken[marketTokenAddr] = (bucket.perToken[marketTokenAddr] || 0) + accumulated;
+                        bucket.unclaimedPerToken[marketTokenAddr] = (bucket.unclaimedPerToken[marketTokenAddr] || 0) + unclaimed;
+
+                        const accountMatch = reasonKey.match(/^MultiLogPerAdditionalParam_accountNumber_([^_]+)_/);
+                        if (!accountMatch) continue;
+                        const accountNumber = String(accountMatch[1]);
+                        const accountRewards = bucket.perAccountToken[accountNumber] || (bucket.perAccountToken[accountNumber] = {});
+                        const accountUnclaimed = bucket.unclaimedPerAccountToken[accountNumber] || (bucket.unclaimedPerAccountToken[accountNumber] = {});
+                        accountRewards[marketTokenAddr] = (accountRewards[marketTokenAddr] || 0) + accumulated;
+                        accountUnclaimed[marketTokenAddr] = (accountUnclaimed[marketTokenAddr] || 0) + unclaimed;
+                        bucket.assignedPerToken[marketTokenAddr] = (bucket.assignedPerToken[marketTokenAddr] || 0) + accumulated;
+                        bucket.assignedUnclaimedPerToken[marketTokenAddr] = (bucket.assignedUnclaimedPerToken[marketTokenAddr] || 0) + unclaimed;
+                    }
+                }
+            }
+            return dolomiteRewards;
+        }
+
         function earn_applyMerklRewardsResult(dolomiteRewards, userAddr, chainId, requestKey) {
             // Stale-response guard: never let wallet A's late Merkl result
             // overwrite globals while wallet B's lookup is on screen.
@@ -14412,7 +14522,7 @@
                     console.warn('MERKL campaign map rate prefetch failed:', e);
                     return null;
                 });
-                const url = `https://api.merkl.xyz/v3/rewards?chainIds=${numericId}&user=${addr}`;
+                const url = `https://api.merkl.xyz/v4/users/${encodeURIComponent(addr)}/protocols/dolomite/rewards?chainId=${numericId}`;
                 // 10s timeout via AbortController — a hung api.merkl.xyz must not block the
                 // whole lending section forever (every other fetch wrapper has this guard).
                 const merklCtrl = new AbortController();
@@ -14435,74 +14545,9 @@
                     return {};
                 }
                 const data = await resp.json();
-                const chainData = data[String(numericId)];
-                if (!chainData) {
-                    earn_merklRewards = {};
-                    earn_merklRewardsLoaded = true;
-                    earn_merklRewardsLoadedFor = requestKey;
-                    earn_setMerklFetchState('success', '', userAddr, chainId);
-                    return {};
-                }
                 await merklRatesReady;
                 const campaignTokenMap = earn_getMerklCampaignTokenMap(chainId);
-                // Extract Dolomite-specific rewards from campaignData
-                const dolomiteRewards = {};
-                const unresolvedSymbols = new Set();
-                for (const [, reasons] of Object.entries(chainData.campaignData || {})) {
-                    for (const [reasonKey, reward] of Object.entries(reasons)) {
-                        let tokenAddr = '';
-                        let accountNumber = '';
-                        let hasExplicitAccountNumber = false;
-                        if (reasonKey.startsWith('Dolomite_') || reasonKey.startsWith('MultiLogPerAdditionalParam_')) {
-                            tokenAddr = earn_resolveMerklReasonTokenAddress(chainId, reasonKey, reward, campaignTokenMap);
-                            const accountMatch = reasonKey.match(/^MultiLogPerAdditionalParam_accountNumber_([^_]+)_/);
-                            hasExplicitAccountNumber = !!accountMatch;
-                            accountNumber = accountMatch ? String(accountMatch[1]) : '';
-                        } else {
-                            continue;
-                        }
-                        const sym = reward.symbol;
-                        const dec = reward.decimals || 18;
-                        if (!tokenAddr) {
-                            if (sym) unresolvedSymbols.add(sym);
-                            continue;
-                        }
-                        if (!dolomiteRewards[sym]) dolomiteRewards[sym] = earn_createRewardBucket(dec, reward.token);
-                        const amt = earn_bigIntToDecimalNumber(reward.accumulated || '0', dec);
-                        const uncl = earn_bigIntToDecimalNumber(reward.unclaimed || '0', dec);
-                        dolomiteRewards[sym].accumulated += amt;
-                        dolomiteRewards[sym].unclaimed += uncl;
-                        // Track per collateral token for per-position attribution
-                        if (!dolomiteRewards[sym].perToken[tokenAddr]) dolomiteRewards[sym].perToken[tokenAddr] = 0;
-                        dolomiteRewards[sym].perToken[tokenAddr] += amt;
-                        if (!dolomiteRewards[sym].unclaimedPerToken[tokenAddr]) dolomiteRewards[sym].unclaimedPerToken[tokenAddr] = 0;
-                        dolomiteRewards[sym].unclaimedPerToken[tokenAddr] += uncl;
-                        // Account number "0" is a valid Dolomite subaccount and must not
-                        // be treated as "unattributed" Merkl rewards.
-                        if (hasExplicitAccountNumber) {
-                            if (!dolomiteRewards[sym].perAccountToken[accountNumber]) dolomiteRewards[sym].perAccountToken[accountNumber] = {};
-                            if (!dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr]) dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr] = 0;
-                            dolomiteRewards[sym].perAccountToken[accountNumber][tokenAddr] += amt;
-                            if (!dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber]) dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber] = {};
-                            if (!dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber][tokenAddr]) dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber][tokenAddr] = 0;
-                            dolomiteRewards[sym].unclaimedPerAccountToken[accountNumber][tokenAddr] += uncl;
-                            if (!dolomiteRewards[sym].assignedPerToken[tokenAddr]) dolomiteRewards[sym].assignedPerToken[tokenAddr] = 0;
-                            dolomiteRewards[sym].assignedPerToken[tokenAddr] += amt;
-                            if (!dolomiteRewards[sym].assignedUnclaimedPerToken[tokenAddr]) dolomiteRewards[sym].assignedUnclaimedPerToken[tokenAddr] = 0;
-                            dolomiteRewards[sym].assignedUnclaimedPerToken[tokenAddr] += uncl;
-                        }
-                    }
-                }
-                for (const [, tokenData] of Object.entries(chainData.tokenData || {})) {
-                    const sym = tokenData && tokenData.symbol ? tokenData.symbol : '';
-                    if (!sym || !unresolvedSymbols.has(sym)) continue;
-                    const dec = tokenData.decimals || 18;
-                    const totalAmt = earn_bigIntToDecimalNumber(tokenData.accumulated || '0', dec);
-                    const totalUncl = earn_bigIntToDecimalNumber(tokenData.unclaimed || '0', dec);
-                    if (!dolomiteRewards[sym]) dolomiteRewards[sym] = earn_createRewardBucket(dec, tokenData.token);
-                    dolomiteRewards[sym].accumulated = Math.max(dolomiteRewards[sym].accumulated || 0, totalAmt);
-                    dolomiteRewards[sym].unclaimed = Math.max(dolomiteRewards[sym].unclaimed || 0, totalUncl);
-                }
+                const dolomiteRewards = earn_parseMerklV4Rewards(chainId, numericId, data, campaignTokenMap);
                 return earn_applyMerklRewardsResult(dolomiteRewards, userAddr, chainId, requestKey);
             })().catch(e => {
                 console.warn('MERKL rewards fetch failed:', e);
@@ -14613,24 +14658,28 @@
         async function earn_subgraphPaginateAll(endpoint, entityName, whereClause, fields) {
             const PAGE_SIZE = 1000;
             let allResults = [];
-            let skip = 0;
-            let hasMore = true;
-            while (hasMore) {
-                const query = `{ ${entityName}(first: ${PAGE_SIZE}, skip: ${skip}, where: ${whereClause}) { ${fields} } }`;
+            let cursorId = '';
+            const baseWhere = String(whereClause || '')
+                .trim()
+                .replace(/^\{\s*|\s*\}$/g, '');
+
+            while (true) {
+                const escapedCursor = cursorId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                const cursorFilter = cursorId ? `${baseWhere ? ', ' : ''}id_gt: "${escapedCursor}"` : '';
+                const query = `{ ${entityName}(first: ${PAGE_SIZE}, orderBy: id, orderDirection: asc, where: { ${baseWhere}${cursorFilter} }) { id ${fields} } }`;
                 const data = await earn_subgraphQuery(endpoint, query);
                 const batch = data[entityName] || [];
                 allResults = allResults.concat(batch);
-                hasMore = batch.length === PAGE_SIZE;
-                skip += PAGE_SIZE;
-                if (skip > 10000 && hasMore) {
-                    // Skip-based pagination is capped; there are more rows we can't reach
-                    // this way. Flag the truncation instead of silently returning a partial
-                    // set (would understate yield for addresses with >10k events).
-                    console.warn(`earn_subgraphPaginateAll: ${entityName} truncated at skip=${skip} (more rows exist; consider cursor-based serialId_gt paging)`);
+                if (batch.length < PAGE_SIZE) break;
+
+                const nextCursorId = String(batch[batch.length - 1]?.id || '');
+                if (!nextCursorId || nextCursorId === cursorId) {
+                    // Never continue with a partial replay if a provider omits a stable cursor.
+                    console.warn(`earn_subgraphPaginateAll: ${entityName} stopped without a valid cursor after ${allResults.length} rows.`);
                     allResults.truncated = true;
                     break;
                 }
-                if (skip > 10000) break;
+                cursorId = nextCursorId;
             }
             return allResults;
         }
@@ -15219,6 +15268,14 @@
                     'serialId heldToken { marketId decimals } borrowedToken { marketId decimals } heldTokenAmountDeltaWei borrowedTokenAmountDeltaWei vaporBorrowedTokenAmountDeltaPar heldInterestIndex borrowedInterestIndex vaporMarginAccount { accountNumber }'
                 ),
             ]);
+            const replayTruncated = [
+                deposits, withdrawals, takerTrades, makerTrades, transfersFrom, transfersTo,
+                liqsSolid, liqsLiquid, borrowPositions, allTransfersFrom, allTransfersTo,
+                vapSolid, vapVapor,
+            ].some(rows => !!(rows && rows.truncated));
+            if (replayTruncated) {
+                console.warn('Subgraph replay is incomplete because at least one event query exceeded the pagination limit. Yield verification will remain pending until onchain replay covers this address.');
+            }
 
             deposits.forEach(dep => {
                 const dec = parseDecimals(dep.token && dep.token.decimals);
@@ -15482,6 +15539,7 @@
                 accountStateData: replayAccountStateData,
                 currentIndexMap: replayCurrentIndexMap,
                 eventTrace: replayEventTrace,
+                verificationIncomplete: replayTruncated,
             };
         }
 
@@ -15697,6 +15755,7 @@
             earn_replayVerificationReady = false;
             earn_replayBlockTag = opts.blockTag || earn_replayBlockTag || null;
             earn_replayVerificationIncompleteMarkets = new Set();
+            earn_replayTruncatedSubgraphMarkets = new Set();
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
             earn_replayActualCollateralMap = {};
@@ -15752,6 +15811,13 @@
                 });
 
                 earn_replayUsedSubgraphFallback = !!useSubgraphMode;
+                earn_replayTruncatedSubgraphMarkets = replay.verificationIncomplete
+                    ? new Set([
+                        ...Object.keys(replay.netflows || {}),
+                        ...Object.keys(replay.interestYieldData || {}),
+                        ...Object.keys(replay.replayStateData || {}),
+                    ].map(mid => String(mid)))
+                    : new Set();
                 earn_replayAccountNumbers = replay.accountNumbers || [];
                 earn_netflowData = replay.netflows || {};
                 earn_interestYieldData = replay.interestYieldData || {};
@@ -16584,6 +16650,7 @@
             earn_replayBlockTag = null;
             earn_resetCanonicalSubaccountHistoryState();
             earn_replayVerificationIncompleteMarkets = new Set();
+            earn_replayTruncatedSubgraphMarkets = new Set();
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
             earn_replayActualCollateralMap = {};
