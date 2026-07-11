@@ -162,6 +162,49 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #dd-exit-period .dd-panel,#dd-flow-period .dd-panel{min-width:148px;max-width:148px;width:148px}
 #dd-exit-period .dd-opt,#dd-flow-period .dd-opt{gap:9px;padding:8px 9px}
 #dd-exit-period .dd-opt-name,#dd-flow-period .dd-opt-name{white-space:nowrap}
+#recent-early-exits-section{
+  --recent-exit-accent:var(--down);
+  --recent-exit-line:rgba(180,121,107,.38);
+  --recent-exit-wash:rgba(180,121,107,.10);
+}
+#recent-early-exits-section .search{
+  border-color:rgba(180,121,107,.22);
+  background:rgba(180,121,107,.045);
+}
+#recent-early-exits-section .search:focus-within{
+  border-color:var(--recent-exit-line);
+  box-shadow:0 0 0 3px var(--recent-exit-wash);
+}
+#recent-early-exits-section .search:focus-within svg{color:var(--recent-exit-accent)}
+#recent-early-exits-section .search-clear:hover{
+  color:var(--recent-exit-accent);
+  border-color:var(--recent-exit-line);
+  background:var(--recent-exit-wash);
+}
+#recent-early-exits-section #dd-exit-period .dd-btn{
+  border-color:rgba(180,121,107,.22);
+  background:rgba(180,121,107,.045);
+}
+#recent-early-exits-section #dd-exit-period .dd-btn:hover,
+#recent-early-exits-section #dd-exit-period .dd-btn.open{
+  border-color:var(--recent-exit-line);
+  background:rgba(180,121,107,.075);
+  box-shadow:0 0 0 3px var(--recent-exit-wash);
+}
+#recent-early-exits-section #dd-exit-period .dd-btn .icon,
+#recent-early-exits-section #dd-exit-period .dd-btn.open .chev{color:var(--recent-exit-accent)}
+#recent-early-exits-section #dd-exit-period .dd-panel{
+  border-color:rgba(180,121,107,.22);
+  background:linear-gradient(180deg,rgba(32,20,19,.98),rgba(16,13,13,.98));
+}
+#recent-early-exits-section #dd-exit-period .dd-panel-head{color:var(--recent-exit-accent)}
+#recent-early-exits-section #dd-exit-period .dd-opt + .dd-opt{border-top-color:rgba(180,121,107,.10)}
+#recent-early-exits-section #dd-exit-period .dd-opt:hover,
+#recent-early-exits-section #dd-exit-period .dd-opt.active{background:rgba(180,121,107,.075);color:var(--fg-1)}
+#recent-early-exits-section #dd-exit-period .dd-opt.active .dd-opt-check{
+  background:var(--recent-exit-accent);
+  border-color:var(--recent-exit-accent);
+}
 .seg{
   display:inline-grid;grid-auto-flow:column;grid-auto-columns:minmax(82px,1fr);align-items:center;gap:3px;height:34px;
   max-width:100%;padding:3px;border:1px solid var(--line-2);border-radius:12px;background:var(--bg-3);
@@ -874,7 +917,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     </div>
   </section>
 
-  <section class="card exit-suite exit-table-card">
+  <section class="card exit-suite exit-table-card" id="recent-early-exits-section">
     <div class="exit-table-head">
       <div class="exit-table-title">
         <div class="exit-title-row"><h3>Recent Early Exits</h3><span class="count-badge" id="exits-count">--</span></div>

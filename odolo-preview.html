@@ -252,6 +252,49 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 #dd-cb-period .dd-panel,#dd-latest-period .dd-panel,#dd-pair-period .dd-panel,#dd-ex-period .dd-panel,#dd-flows-period .dd-panel{min-width:148px;max-width:148px;width:148px}
 #dd-cb-period .dd-opt,#dd-latest-period .dd-opt,#dd-pair-period .dd-opt,#dd-ex-period .dd-opt,#dd-flows-period .dd-opt{gap:9px;padding:8px 9px}
 #dd-cb-period .dd-opt-name,#dd-latest-period .dd-opt-name,#dd-pair-period .dd-opt-name,#dd-ex-period .dd-opt-name,#dd-flows-period .dd-opt-name{white-space:nowrap}
+#latest-pairs-section{
+  --latest-pair-accent:#75b87b;
+  --latest-pair-line:rgba(117,184,123,.30);
+  --latest-pair-wash:rgba(117,184,123,.10);
+}
+#latest-pairs-section .search{
+  border-color:rgba(117,184,123,.20);
+  background:rgba(117,184,123,.045);
+}
+#latest-pairs-section .search:focus-within{
+  border-color:var(--latest-pair-line);
+  box-shadow:0 0 0 3px var(--latest-pair-wash);
+}
+#latest-pairs-section .search:focus-within svg{color:var(--latest-pair-accent)}
+#latest-pairs-section .search-clear:hover{
+  color:var(--latest-pair-accent);
+  border-color:var(--latest-pair-line);
+  background:var(--latest-pair-wash);
+}
+#latest-pairs-section #dd-pair-period .dd-btn{
+  border-color:rgba(117,184,123,.20);
+  background:rgba(117,184,123,.045);
+}
+#latest-pairs-section #dd-pair-period .dd-btn:hover,
+#latest-pairs-section #dd-pair-period .dd-btn.open{
+  border-color:var(--latest-pair-line);
+  background:rgba(117,184,123,.075);
+  box-shadow:0 0 0 3px var(--latest-pair-wash);
+}
+#latest-pairs-section #dd-pair-period .dd-btn .icon,
+#latest-pairs-section #dd-pair-period .dd-btn.open .chev{color:var(--latest-pair-accent)}
+#latest-pairs-section #dd-pair-period .dd-panel{
+  border-color:rgba(117,184,123,.20);
+  background:linear-gradient(180deg,rgba(18,28,20,.98),rgba(12,14,13,.98));
+}
+#latest-pairs-section #dd-pair-period .dd-panel-head{color:var(--latest-pair-accent)}
+#latest-pairs-section #dd-pair-period .dd-opt + .dd-opt{border-top-color:rgba(117,184,123,.10)}
+#latest-pairs-section #dd-pair-period .dd-opt:hover,
+#latest-pairs-section #dd-pair-period .dd-opt.active{background:rgba(117,184,123,.075);color:var(--fg-1)}
+#latest-pairs-section #dd-pair-period .dd-opt.active .dd-opt-check{
+  background:var(--latest-pair-accent);
+  border-color:var(--latest-pair-accent);
+}
 .dd-clear{
   display:none;align-items:center;justify-content:center;
   width:18px;height:18px;border-radius:4px;margin-left:-2px;

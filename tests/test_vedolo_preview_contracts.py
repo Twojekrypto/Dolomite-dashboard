@@ -99,6 +99,14 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
     def test_vedolo_route_busts_preview_cache_for_claimable_table(self):
         self.assertIn("claimable-ready-title-20260706", self.route)
 
+    def test_recent_early_exit_controls_use_red_interactions(self):
+        self.assertIn('id="recent-early-exits-section"', self.html)
+        self.assertIn('--recent-exit-accent:var(--down)', self.html)
+        self.assertIn('#recent-early-exits-section .search:focus-within', self.html)
+        self.assertIn('#recent-early-exits-section #dd-exit-period .dd-btn.open', self.html)
+        self.assertIn('#recent-early-exits-section #dd-exit-period .dd-opt.active .dd-opt-check', self.html)
+        self.assertIn('vedolo-exit-red-controls-20260711', self.route)
+
 
 if __name__ == "__main__":
     unittest.main()
