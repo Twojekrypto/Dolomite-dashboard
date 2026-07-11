@@ -49,7 +49,7 @@ const LIVE_CHAINS = {
     subgraph: "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn",
   },
 };
-const RETIRED_CHAIN_KEYS = new Set(["polygonzkevm"]);
+const RETIRED_CHAIN_KEYS = new Set(["botanix", "polygonzkevm"]);
 
 function activeChainKeys() {
   return Object.keys(LIVE_CHAINS).filter((chainKey) => !RETIRED_CHAIN_KEYS.has(chainKey));

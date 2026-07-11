@@ -114,9 +114,21 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("rateFallbackSourceGeneratedAt", source)
         self.assertIn("rateFallbackMaxAgeMinutes", source)
         self.assertIn("cached-rate-fallback", source)
-        self.assertIn('const RETIRED_CHAIN_KEYS = new Set(["polygonzkevm"]);', source)
+        self.assertIn('const RETIRED_CHAIN_KEYS = new Set(["botanix", "polygonzkevm"]);', source)
         self.assertIn("function activeChainKeys()", source)
         self.assertIn("retiredChains", source)
+
+    def test_archived_chains_are_not_scheduled_for_live_earn_refreshes(self):
+        for workflow_path in (
+            EARN_SNAPSHOTS_WORKFLOW,
+            SECONDARY_CANONICAL_WORKFLOW,
+            NETFLOW_WORKFLOW,
+            EARN_MERKL_REWARDS_WORKFLOW,
+            EARN_FRESHNESS_WORKFLOW,
+        ):
+            workflow = workflow_path.read_text(encoding="utf-8")
+            self.assertNotIn("botanix", workflow, workflow_path.name)
+            self.assertNotIn("polygonzkevm", workflow, workflow_path.name)
 
     def test_assets_live_workflow_warns_on_stale_cached_rate_fallback(self):
         workflow = ASSETS_LIVE_WORKFLOW.read_text(encoding="utf-8")
@@ -268,12 +280,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/ethereum", workflow)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum", workflow)
 
-    def test_snapshot_workflow_skips_retired_polygon_verified_ledger_cache(self):
+    def test_snapshot_workflow_skips_archived_verified_ledger_caches(self):
         workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Build Ethereum verified ledger cache", workflow)
-        self.assertNotIn("Build Polygon zkEVM verified ledger cache", workflow)
-        self.assertNotIn("--chain polygonzkevm", workflow)
-        self.assertNotIn("data/earn-verified-ledger/polygonzkevm/", workflow)
+        for chain in ("botanix", "polygonzkevm"):
+            self.assertNotIn(chain, workflow)
 
     def test_coverage_report_can_resolve_live_target_block(self):
         source = EARN_COVERAGE_REPORT.read_text(encoding="utf-8")
@@ -366,54 +377,39 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_secondary_canonical_workflow_targets_secondary_chains(self):
         workflow = SECONDARY_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '23,53 * * * *'", workflow)
-        self.assertIn("cron: '28,58 * * * *'", workflow)
-        self.assertIn("cron: '33 * * * *'", workflow)
         # XLayer runs twice hourly like primary chains — a single hourly slot
         # left it stale for days after one failed completion (2026-06 audit).
         self.assertIn("cron: '8,38 * * * *'", workflow)
         self.assertIn("type: choice", workflow)
         self.assertIn("          - mantle", workflow)
-        self.assertIn("          - botanix", workflow)
-        self.assertIn("          - polygonzkevm", workflow)
         self.assertIn("          - xlayer", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
         self.assertIn("run-name: Refresh Secondary Canonical EARN History", workflow)
         self.assertIn("'23,53 * * * *' && 'mantle'", workflow)
-        self.assertIn("'28,58 * * * *' && 'botanix'", workflow)
-        self.assertIn("'33 * * * *' && 'polygonzkevm'", workflow)
         self.assertIn("'8,38 * * * *' && 'xlayer'", workflow)
         self.assertIn("Plan selected secondary chains", workflow)
         self.assertIn("needs: plan-secondary-canonical", workflow)
         self.assertIn("matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}", workflow)
         self.assertIn("group: earn-secondary-canonical-history-${{ matrix.chain }}", workflow)
-        self.assertIn('"polygonzkevm": {', workflow)
         self.assertIn('"xlayer": {', workflow)
         self.assertIn('"hot_limit": positive_int(hot_limit_override, 160)', workflow)
-        self.assertIn('"hot_limit": positive_int(hot_limit_override, 500)', workflow)
-        self.assertIn('"hot_limit": positive_int(hot_limit_override, 250)', workflow)
         self.assertIn('"hot_limit": positive_int(hot_limit_override, 300)', workflow)
         self.assertIn('"checkpoint_steps": positive_int(checkpoint_steps_override, 30)', workflow)
-        self.assertIn('"checkpoint_steps": positive_int(checkpoint_steps_override, 45)', workflow)
         self.assertIn('"max_resume_target_lag_blocks": 3600', workflow)
-        self.assertIn('"max_resume_target_lag_blocks": 1200', workflow)
-        self.assertIn('"max_resume_target_lag_blocks": 2250', workflow)
         self.assertIn('"max_resume_target_lag_blocks": 7200', workflow)
         self.assertIn("CHECKPOINT_STEPS: ${{ matrix.checkpoint_steps }}", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: ${{ matrix.max_resume_target_lag_blocks }}", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
-        self.assertIn("ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}", workflow)
-        self.assertIn("DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}", workflow)
         self.assertIn("XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}", workflow)
         self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
         self.assertIn("DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}", workflow)
         self.assertIn("Check secondary RPC redundancy", workflow)
         self.assertIn("QUICKNODE_MANTLE_RPC_2: ${{ secrets.QUICKNODE_MANTLE_RPC_2 }}", workflow)
         self.assertIn("DRPC_MANTLE_RPC: ${{ secrets.DRPC_MANTLE_RPC }}", workflow)
-        self.assertIn("QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}", workflow)
-        self.assertIn("DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}", workflow)
-        self.assertIn("ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}", workflow)
+        self.assertNotIn("botanix", workflow)
+        self.assertNotIn("polygonzkevm", workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
         self.assertIn('--max-steps "$CHECKPOINT_STEPS"', workflow)
         self.assertIn('--command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS"', workflow)
@@ -621,9 +617,10 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_freshness_routes_secondary_refreshes_with_chain_inputs(self):
         source = EARN_FRESHNESS_SCRIPT.read_text(encoding="utf-8")
         self.assertIn('"canonicalWorkflowInputs": {"chain": "mantle"}', source)
-        self.assertIn('"canonicalWorkflowInputs": {"chain": "botanix"}', source)
-        self.assertIn('"canonicalWorkflowInputs": {"chain": "polygonzkevm"}', source)
         self.assertIn('"canonicalWorkflowInputs": {"chain": "xlayer"}', source)
+        self.assertIn('ARCHIVED_CHAINS = {"botanix", "polygonzkevm"}', source)
+        self.assertNotIn('"canonicalWorkflowInputs": {"chain": "botanix"}', source)
+        self.assertNotIn('"canonicalWorkflowInputs": {"chain": "polygonzkevm"}', source)
         self.assertIn('"xlayer": {', source)
         self.assertIn('"verifiedBlockLag": 7200', source)
         self.assertIn('"backgroundRefreshRecommended"', source)
@@ -664,13 +661,14 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn('"partialOutputIntervalSeconds": chains[chain]["partialOutputIntervalSeconds"]', workflow)
         self.assertIn('"arbitrum": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0}', workflow)
         self.assertIn('"mantle": {"maxRuntimeSeconds": 7200, "partialOutputIntervalSeconds": 1800}', workflow)
-        self.assertIn('"polygonzkevm": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600}', workflow)
         self.assertIn('"xlayer": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600}', workflow)
         self.assertIn("path: data/.netflow-progress/${{ matrix.chain }}.json", workflow)
         self.assertIn('git add "data/earn-netflow/${CHAIN}.json"', workflow)
         self.assertIn("X Layer netflow did not make progress past block 0", workflow)
-        for chain in ("arbitrum", "ethereum", "mantle", "botanix", "polygonzkevm", "xlayer"):
+        for chain in ("arbitrum", "ethereum", "mantle", "xlayer"):
             self.assertIn(f'"{chain}"', workflow)
+        self.assertNotIn("botanix", workflow)
+        self.assertNotIn("polygonzkevm", workflow)
         self.assertNotIn("scan_earn_netflow.py arbitrum,ethereum,mantle,botanix,polygonzkevm --max-runtime-seconds 19800", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}", workflow)
@@ -678,17 +676,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}", workflow)
         self.assertIn("ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}", workflow)
         self.assertIn("ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}", workflow)
-        self.assertIn("ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}", workflow)
-        self.assertIn("DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}", workflow)
         self.assertIn("XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}", workflow)
         self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
         self.assertIn("DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}", workflow)
         self.assertIn("Check secondary RPC redundancy", workflow)
         self.assertIn("QUICKNODE_MANTLE_RPC_2: ${{ secrets.QUICKNODE_MANTLE_RPC_2 }}", workflow)
         self.assertIn("DRPC_MANTLE_RPC: ${{ secrets.DRPC_MANTLE_RPC }}", workflow)
-        self.assertIn("QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}", workflow)
-        self.assertIn("DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}", workflow)
-        self.assertIn("ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}", workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
         self.assertNotIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
 

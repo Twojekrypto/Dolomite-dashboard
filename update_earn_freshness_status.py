@@ -24,6 +24,7 @@ DEFAULT_OUTPUT = ROOT / "data" / "earn-freshness" / "status.json"
 REFRESH_AFTER_MINUTES = 30
 VERIFIED_AFTER_HOURS = 2
 STALE_AFTER_HOURS = 3
+ARCHIVED_CHAINS = {"botanix", "polygonzkevm"}
 
 CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "ethereum": {
@@ -52,30 +53,12 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "canonicalSupported": True,
         "canonicalCoverageCompleteness": "advisory",
     },
-    "botanix": {
-        "label": "Botanix",
-        "blockTimeSeconds": 6.0,
-        "verifiedBlockLag": 1200,
-        "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
-        "canonicalWorkflowInputs": {"chain": "botanix"},
-        "canonicalSupported": True,
-        "canonicalCoverageCompleteness": "required",
-    },
     "mantle": {
         "label": "Mantle",
         "blockTimeSeconds": 2.0,
         "verifiedBlockLag": 3600,
         "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
         "canonicalWorkflowInputs": {"chain": "mantle"},
-        "canonicalSupported": True,
-        "canonicalCoverageCompleteness": "advisory",
-    },
-    "polygonzkevm": {
-        "label": "Polygon zkEVM",
-        "blockTimeSeconds": 3.2,
-        "verifiedBlockLag": 2250,
-        "canonicalWorkflow": "update-earn-secondary-canonical-history.yml",
-        "canonicalWorkflowInputs": {"chain": "polygonzkevm"},
         "canonicalSupported": True,
         "canonicalCoverageCompleteness": "advisory",
     },
@@ -97,7 +80,6 @@ CANONICAL_CATCHUP_INPUTS: Dict[str, Dict[str, str]] = {
     "arbitrum": {"hot_limit": "120", "checkpoint_steps": "24"},
     "berachain": {"hot_limit": "180", "checkpoint_steps": "150"},
     "mantle": {"hot_limit": "160", "checkpoint_steps": "30"},
-    "polygonzkevm": {"hot_limit": "250", "checkpoint_steps": "45"},
 }
 
 

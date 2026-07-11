@@ -38,7 +38,7 @@ GRAPH_ENDPOINTS = {
     "xlayer": f"{DOLOMITE_SUPPLY_BASE}/dolomite-x-layer/latest/gn",
     "polygon_zkevm": f"{DOLOMITE_SUPPLY_BASE}/dolomite-polygon-zkevm/latest/gn",
 }
-RETIRED_GRAPH_CHAINS = {"polygon_zkevm"}
+RETIRED_GRAPH_CHAINS = {"botanix", "polygon_zkevm"}
 DEFAULT_GRAPH_CHAINS = [chain for chain in GRAPH_ENDPOINTS if chain not in RETIRED_GRAPH_CHAINS]
 
 DEFAULT_SYMBOLS = {

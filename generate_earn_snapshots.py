@@ -31,7 +31,7 @@ CHAINS = {
     "polygonzkevm": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn",
     "xlayer": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn",
 }
-RETIRED_CHAINS = {"polygonzkevm"}
+RETIRED_CHAINS = {"botanix", "polygonzkevm"}
 DEFAULT_CHAINS = [chain for chain in CHAINS if chain not in RETIRED_CHAINS]
 
 INTEREST_INDEXES_QUERY = """

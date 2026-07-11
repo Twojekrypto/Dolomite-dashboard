@@ -22,7 +22,7 @@ ASSETS_CHAINS = {
     "Polygon zkEVM": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn",
     "X Layer": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"
 }
-RETIRED_ASSETS_CHAINS = {"Polygon zkEVM"}
+RETIRED_ASSETS_CHAINS = {"Botanix", "Polygon zkEVM"}
 ACTIVE_ASSETS_CHAINS = {
     chain: endpoint
     for chain, endpoint in ASSETS_CHAINS.items()
@@ -231,6 +231,7 @@ def build_snapshot_from_official_liquidity(chain_payloads, token_payloads, price
         "chainTokensInUsd": chain_token_output,
         "chainMeta": chain_meta,
         "staleChains": stale_chains,
+        "retiredChains": sorted(RETIRED_ASSETS_CHAINS),
         "freshnessMaxAgeSeconds": STALE_CHAIN_SECONDS,
         "source": "dolomite_api_token_liquidity_prices",
         "supplyLiquidity": to_float(global_supply),

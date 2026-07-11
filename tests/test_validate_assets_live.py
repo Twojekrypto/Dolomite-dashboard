@@ -4,21 +4,21 @@ import validate_data
 
 
 class AssetsLiveValidationTest(unittest.TestCase):
-    def test_assets_live_accepts_active_chain_count_with_retired_polygon_recorded(self):
+    def test_assets_live_accepts_active_chain_count_with_archived_chains_recorded(self):
         payload = {
             "chainCount": validate_data.EXPECTED_ASSETS_LIVE_CHAIN_COUNT,
-            "chains": ["arbitrum", "ethereum", "berachain", "mantle", "botanix", "xlayer"],
-            "retiredChains": ["polygonzkevm"],
+            "chains": ["arbitrum", "ethereum", "berachain", "mantle", "xlayer"],
+            "retiredChains": ["botanix", "polygonzkevm"],
         }
 
         self.assertTrue(validate_data._has_expected_assets_live_chains(payload))
         self.assertTrue(validate_data._has_expected_assets_live_retired_chains(payload))
 
-    def test_assets_live_rejects_missing_retired_polygon_record(self):
+    def test_assets_live_rejects_missing_archived_chain_record(self):
         payload = {
             "chainCount": validate_data.EXPECTED_ASSETS_LIVE_CHAIN_COUNT,
-            "chains": ["arbitrum", "ethereum", "berachain", "mantle", "botanix", "xlayer"],
-            "retiredChains": [],
+            "chains": ["arbitrum", "ethereum", "berachain", "mantle", "xlayer"],
+            "retiredChains": ["polygonzkevm"],
         }
 
         self.assertFalse(validate_data._has_expected_assets_live_retired_chains(payload))
@@ -32,17 +32,16 @@ class AssetsLiveValidationTest(unittest.TestCase):
         self.assertTrue(validate_data._has_expected_assets_live_chains(payload))
         self.assertTrue(validate_data._has_expected_assets_live_retired_chains(payload))
 
-    def test_tvl_accepts_active_chains_with_retired_polygon_recorded(self):
+    def test_tvl_accepts_active_chains_with_archived_chains_recorded(self):
         payload = {
             "currentChainTvls": {
                 "Ethereum": 1,
                 "Berachain": 1,
-                "Botanix": 1,
                 "Mantle": 1,
                 "Arbitrum": 1,
                 "X Layer": 1,
             },
-            "retiredChains": ["Polygon zkEVM"],
+            "retiredChains": ["Botanix", "Polygon zkEVM"],
         }
 
         self.assertTrue(validate_data._has_expected_tvl_chains(payload))
