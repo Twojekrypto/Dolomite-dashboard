@@ -7139,6 +7139,8 @@
         let earn_canonicalSubaccountHistoryFreshForBorrowRouting = false; // whether canonical subaccount history covers the replay block tag
         let earn_replayVerificationIncompleteMarkets = new Set(); // markets where current-state RPC coverage was incomplete
         let earn_replayTruncatedSubgraphMarkets = new Set(); // markets touched by an incomplete subgraph replay
+        let earn_replaySubgraphHistoryIncomplete = false; // a truncated fallback can omit events for any market
+        let earn_replayReconciledMarkets = new Set(); // markets whose replay state was adjusted to match current positions
         let earn_replayActualSupplyMap = {};
         let earn_replayActualBorrowMap = {};
         let earn_replayActualCollateralMap = {};
@@ -7164,7 +7166,9 @@
         let earn_replayStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        const EARN_LOOKUP_CACHE_VERSION = 12;
+        // Verification provenance changed in v13. Do not revive v12 entries that may
+        // have cached a reconciled or truncated replay as strictly verified.
+        const EARN_LOOKUP_CACHE_VERSION = 13;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         const earn_rewardRequestCache = {
@@ -7656,6 +7660,8 @@
             earn_resetCanonicalSubaccountHistoryState();
             earn_replayVerificationIncompleteMarkets = new Set();
             earn_replayTruncatedSubgraphMarkets = new Set();
+            earn_replaySubgraphHistoryIncomplete = false;
+            earn_replayReconciledMarkets = new Set();
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
             earn_replayActualCollateralMap = {};
@@ -10226,73 +10232,18 @@
             return !!earn_getAlignedReplayWeiDriftAdjustment(entry);
         }
 
-        function earn_shouldTrustSnapshotSupplementedReplay(entry) {
-            if (!entry || !entry.snapshotIncomplete || !entry.counted) return false;
-            if (!(entry.rawVerified || entry.usdDriftVerified)) return false;
-            const actualSupplyPositive = entry.actualSupplyPar > 0n || entry.actualSupplyWei > 0n;
-            const actualCollateralPositive = entry.actualCollateralPar > 0n || entry.actualCollateralWei > 0n;
-            const actualBorrowPositive = entry.actualBorrowPar !== 0n || entry.actualBorrowWei !== 0n;
-            const expectedSupplyPositive = entry.expectedSupplyPar > 0n || entry.expectedSupplyWei > 0n;
-            const expectedCollateralPositive = entry.expectedCollateralPar > 0n || entry.expectedCollateralWei > 0n;
-            const expectedBorrowPositive = entry.expectedBorrowPar !== 0n || entry.expectedBorrowWei !== 0n;
-
-            // Snapshot supplementation can still be trusted for mixed supply/collateral exposure
-            // as long as replay and current-state agree on which sides are open. We only reject
-            // genuinely contradictory patterns such as ghost collateral/borrow that exists only
-            // on one side of the comparison.
-            if (!actualSupplyPositive && !actualCollateralPositive && !actualBorrowPositive) return false;
-            if (actualSupplyPositive !== expectedSupplyPositive) return false;
-            if (actualCollateralPositive !== expectedCollateralPositive) return false;
-            if (actualBorrowPositive && !expectedBorrowPositive) return false;
-
-            if (entry.usdDriftVerified) {
-                const tinyUsdDust = entry.maxUsdDrift != null && Number(entry.maxUsdDrift) < 0.1;
-                if (tinyUsdDust) {
-                    const noBorrowMismatch = actualBorrowPositive === expectedBorrowPositive;
-                    const sameExposureSides = actualSupplyPositive === expectedSupplyPositive
-                        && actualCollateralPositive === expectedCollateralPositive;
-                    if (sameExposureSides && noBorrowMismatch) return true;
-                }
-            }
-
-            if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return false;
-            if (earn_absBigInt(entry.collateralParDiff) > entry.parTolerance) return false;
-            const supplyWithinWeiTolerance = earn_absBigInt(entry.supplyWeiDiff) <= entry.supplyWeiTolerance;
-            const collateralWithinWeiTolerance = earn_absBigInt(entry.collateralWeiDiff) <= entry.collateralWeiTolerance;
-            const borrowWithinParTolerance = earn_absBigInt(entry.borrowParDiff) <= entry.parTolerance;
-            const borrowWithinWeiTolerance = earn_absBigInt(entry.borrowWeiDiff) <= entry.borrowWeiTolerance;
-
-            if (entry.rawVerified && borrowWithinParTolerance && borrowWithinWeiTolerance) return true;
-            if (!entry.usdDriftVerified) return false;
-
-            // For snapshot-supplemented markets we allow tiny current-state wei drift to resolve
-            // via the existing <$1 usdDriftVerified rule, but only after exposure patterns and
-            // non-borrow par reconciliation already matched exactly. Borrow dust can settle to
-            // zero between replay and the follow-up balance check, so we tolerate tiny residual
-            // borrow drift when the only disagreement is sub-dollar borrow dust.
-            if (actualSupplyPositive && !supplyWithinWeiTolerance) return true;
-            if (actualCollateralPositive && !collateralWithinWeiTolerance) return true;
-            if (actualBorrowPositive === expectedBorrowPositive) return true;
-            return !actualBorrowPositive && expectedBorrowPositive;
-        }
-
         function earn_getStrictVerificationStatus(entry) {
             if (!entry || !entry.counted) return 'unverified';
             if (!entry.canVerify) return 'coverage_incomplete';
-            if (entry.snapshotIncomplete && earn_shouldTrustSnapshotSupplementedReplay(entry)) {
-                return 'verified';
+            if (entry.snapshotIncomplete || entry.subgraphReplayTruncated || entry.replayStateAdjusted) {
+                return 'coverage_incomplete';
             }
             if (entry.rawVerified) {
-                if (!entry.snapshotIncomplete) {
-                    return 'verified';
-                }
+                return 'verified';
             }
-            if (!entry.snapshotIncomplete) {
-                if (earn_shouldTrustVisibleSupplyReplayMismatch(entry)) return 'verified';
-                if (earn_shouldTrustAlignedReplayWeiDrift(entry)) return 'verified';
-                return 'mismatch';
-            }
-            return 'coverage_incomplete';
+            if (earn_shouldTrustVisibleSupplyReplayMismatch(entry)) return 'verified';
+            if (earn_shouldTrustAlignedReplayWeiDrift(entry)) return 'verified';
+            return 'mismatch';
         }
 
         function earn_shouldHideGhostCurrentMarket(entry) {
@@ -10365,18 +10316,19 @@
             }
             const snapshotOnly = rawStatus === 'no_netflow' || (!flowMeta && (source === 'verified-ledger' || source === 'snapshot-series' || !source));
             if (status === 'inferred' || rawStatus === 'pre_snapshot_carry') {
+                const isPreSnapshotCarry = rawStatus === 'pre_snapshot_carry';
                 return {
                     counted: true,
                     status: 'inferred',
-                    label: 'Inferred Carry',
-                    title: rawStatus === 'pre_snapshot_carry'
+                    label: isPreSnapshotCarry ? 'Inferred Carry' : 'Inferred',
+                    title: isPreSnapshotCarry
                         ? 'Historical snapshot data suggests older carry existed before local coverage began. This is useful evidence, but not strict replay verification.'
-                        : 'Historical snapshot data is available for this market, but it is not treated as strict replay verification.',
+                        : 'Snapshot and public netflow reconcile for this market, but principal can change between snapshots, so this remains historical evidence rather than strict replay verification.',
                     rawStatus: rawStatus || status,
-                    rawLabel: rawStatus === 'pre_snapshot_carry' ? 'Pre-Snapshot Carry' : 'Historical',
-                    rawTitle: rawStatus === 'pre_snapshot_carry'
+                    rawLabel: isPreSnapshotCarry ? 'Pre-Snapshot Carry' : 'Netflow Match',
+                    rawTitle: isPreSnapshotCarry
                         ? 'Replay yield includes carry accrued before the first locally captured snapshot for this market.'
-                        : 'Historical ledger data is available, but strict verification still requires replay-grade evidence.',
+                        : 'Snapshot and public netflow reconcile, but strict verification still requires replay-grade evidence.',
                     overridden: true,
                     entry: null,
                 };
@@ -11060,6 +11012,7 @@
 
             const states = earn_deserializeReplayStateMap(earn_replayAccountStateData);
             let adjustedStates = 0;
+            const adjustedMarkets = new Set();
 
             Object.entries(states).forEach(([key, state]) => {
                 const prevPar = BigInt(state.par || 0n);
@@ -11095,6 +11048,7 @@
                         : null;
                 state.lastIndex = nextIndex === null || nextIndex === undefined ? null : BigInt(nextIndex);
                 adjustedStates += 1;
+                adjustedMarkets.add(String(state.marketId));
             });
 
             const serialized = earn_serializeReplayStateMap(states);
@@ -11108,6 +11062,7 @@
             earn_replayStateData = summary.replayStateData || {};
             earn_openBorrowAccounts = new Set((summary.openBorrowAccounts || []).map(v => String(v)));
             if (adjustedStates > 0) {
+                adjustedMarkets.forEach(mid => earn_replayReconciledMarkets.add(mid));
                 console.log(`Reconciled ${adjustedStates} replay state(s) to current positions.`);
             } else {
                 console.log(`Reclassified replay summary using ${currentBorrowAccounts.size} current borrow account(s).`);
@@ -11599,6 +11554,9 @@
                     if (entry.subgraphReplayTruncated) {
                         return 'Subgraph fallback returned only part of this market\'s event history, so replay verification is withheld until onchain replay is complete.';
                     }
+                    if (entry.replayStateAdjusted) {
+                        return 'Replay state was adjusted to match the latest position, so verification is withheld until complete ordered replay confirms the missing transition.';
+                    }
                     return 'Current onchain balance snapshot was incomplete for this market, so replay verification is temporarily withheld instead of flagging a mismatch.';
                 }
                 if (entry.usdDriftVerified) {
@@ -11658,6 +11616,8 @@
                 const fallbackMethods = new Set(['snapshot', 'snapshot-partial', 'acct0-netflow', 'all-netflow', 'all-netflow-guarded', 'recent-cycle']);
                 const incompleteTitle = entry.subgraphReplayTruncated
                     ? 'Subgraph fallback returned only part of this market\'s event history, so verification remains pending until onchain replay is complete.'
+                    : entry.replayStateAdjusted
+                        ? 'Replay state was adjusted to match the latest position, so verification remains pending until complete ordered replay confirms the missing transition.'
                     : 'Current balance reconciliation is incomplete for this market because missing live balances were supplemented from snapshot data. Verification will remain pending until a full RPC response is available.';
                 const usesFallbackSource = !!(
                     earn_replayUsedSubgraphFallback ||
@@ -12385,9 +12345,12 @@
                 const maxUsdDrift = hasUsdDrift ? Math.max(supplyUsdDrift || 0, collateralUsdDrift || 0, borrowUsdDrift || 0) : null;
                 const usdVerificationThreshold = 1;
                 const usdDriftVerified = canVerify && hasUsdDrift && maxUsdDrift < usdVerificationThreshold;
-                const subgraphReplayTruncated = earn_replayTruncatedSubgraphMarkets.has(String(mid));
+                const subgraphReplayTruncated = earn_replaySubgraphHistoryIncomplete
+                    || earn_replayTruncatedSubgraphMarkets.has(String(mid));
+                const replayStateAdjusted = earn_replayReconciledMarkets.has(String(mid));
                 const snapshotIncomplete = earn_replayVerificationIncompleteMarkets.has(String(mid))
-                    || subgraphReplayTruncated;
+                    || subgraphReplayTruncated
+                    || replayStateAdjusted;
 
                 verificationData[mid] = {
                     status: 'unverified',
@@ -12423,6 +12386,7 @@
                     usdDriftVerified,
                     snapshotIncomplete,
                     subgraphReplayTruncated,
+                    replayStateAdjusted,
                     usdVerificationThreshold,
                     supplyUsdDrift,
                     collateralUsdDrift,
@@ -12825,6 +12789,16 @@
                     ? null
                     : String(earn_canonicalSubaccountHistoryLastScannedBlock),
                 canonicalHistoryFreshForBorrowRouting: !!earn_canonicalSubaccountHistoryFreshForBorrowRouting,
+            };
+        }
+
+        function earn_createVerifiedYieldCalcCache() {
+            const cache = new WeakMap();
+            return position => {
+                if (!cache.has(position)) {
+                    cache.set(position, earn_calculateYield(position, { requireVerifiedInterest: true }));
+                }
+                return cache.get(position);
             };
         }
 
@@ -14056,9 +14030,15 @@
             if (earn_isTrustedReplayYieldStatus(status)) return true;
             if (
                 status === 'inferred'
-                && rawStatus === 'pre_snapshot_carry'
                 && canonicalCoverage === 'fresh'
                 && method !== 'snapshot-fallback'
+                && (
+                    rawStatus === 'pre_snapshot_carry'
+                    || (
+                        rawStatus === 'verified'
+                        && (method === 'netflow+snapshot' || method === 'recent-cycle+snapshot')
+                    )
+                )
             ) return true;
             if (
                 status === 'mismatch'
@@ -14125,9 +14105,13 @@
 
             // Preferred source: precomputed verified ledger for this exact address+chain.
             const verifiedLedger = await earn_fetchVerifiedLedgerForAddress(chainId, addr);
-            let trustedLedgerMarkets = 0;
+            let loadedLedgerMarkets = 0;
+            let strictLedgerMarkets = 0;
             let deferredLedgerMarkets = 0;
             const deferredLedgerMetaByMarket = {};
+            const historicalYieldHeader = allYieldDataStrict => allYieldDataStrict
+                ? 'Total Yield Earned ✓ Historical'
+                : 'Total Yield Earned · Historical evidence';
             if (verifiedLedger && verifiedLedger.markets && Object.keys(verifiedLedger.markets).length > 0) {
                 if (!earn_isLookupRunCurrent(runId)) return false;
                 Object.entries(verifiedLedger.markets).forEach(([mid, m]) => {
@@ -14191,25 +14175,30 @@
                         canonicalHistoryLastScannedBlock: m.canonicalHistoryLastScannedBlock == null ? null : String(m.canonicalHistoryLastScannedBlock),
                         canonicalHistoryFreshForBorrowRouting: String(m.canonicalHistoryCoverageStatus || '').toLowerCase() === 'fresh',
                     };
-                    trustedLedgerMarkets++;
+                    loadedLedgerMarkets++;
+                    if (earn_isTrustedReplayYieldStatus(String(m.strictStatus || m.status || ''))) {
+                        strictLedgerMarkets++;
+                    }
                     nextTotalYieldDays = Math.max(nextTotalYieldDays, Number(m.days || 0));
                 });
-                if (trustedLedgerMarkets > 0) {
+                if (loadedLedgerMarkets > 0) {
                     console.log(
                         'Total yield: loaded historical ledger entries for',
-                        trustedLedgerMarkets,
+                        loadedLedgerMarkets,
                         'markets',
                         deferredLedgerMarkets > 0 ? `(deferred ${deferredLedgerMarkets} markets to snapshot series)` : ''
                     );
                 }
             }
             const marketsToCompute = new Set(Array.from(neededMarkets).filter(mid => !Object.prototype.hasOwnProperty.call(nextTotalYieldData, String(mid))));
-            if (marketsToCompute.size === 0 && trustedLedgerMarkets > 0) {
+            if (marketsToCompute.size === 0 && loadedLedgerMarkets > 0) {
                 if (!earn_isLookupRunCurrent(runId)) return false;
                 earn_totalYieldData = nextTotalYieldData;
                 earn_totalYieldDays = nextTotalYieldDays;
                 earn_totalYieldStatus = 'ready';
-                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Historical';
+                if (yieldHeader) {
+                    yieldHeader.textContent = historicalYieldHeader(strictLedgerMarkets === loadedLedgerMarkets);
+                }
                 earn_refreshHistoryYieldData();
                 if (!suppressRender) {
                     earn_renderHistory(earn_historyData || []);
@@ -14226,8 +14215,8 @@
                 earn_totalYieldDays = nextTotalYieldDays;
                 earn_totalYieldStatus = 'ready';
                 if (yieldHeader) {
-                    yieldHeader.textContent = trustedLedgerMarkets > 0
-                        ? 'Total Yield Earned ✓ Historical'
+                    yieldHeader.textContent = loadedLedgerMarkets > 0
+                        ? historicalYieldHeader(strictLedgerMarkets === loadedLedgerMarkets && marketsToCompute.size === 0)
                         : 'Total Yield Earned';
                 }
                 earn_refreshHistoryYieldData();
@@ -14327,15 +14316,19 @@
             earn_totalYieldData = nextTotalYieldData;
             earn_totalYieldDays = nextTotalYieldDays;
             earn_totalYieldStatus = 'ready';
-            if (trustedLedgerMarkets > 0 && marketsWithData === 0) {
-                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓ Historical';
-            } else if (marketsWithData > 0 || trustedLedgerMarkets > 0) {
-                if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned ✓';
+            const allYieldDataStrict = strictLedgerMarkets > 0
+                && strictLedgerMarkets === loadedLedgerMarkets
+                && marketsToCompute.size === 0
+                && marketsWithData === 0;
+            if (loadedLedgerMarkets > 0 && marketsWithData === 0) {
+                if (yieldHeader) yieldHeader.textContent = historicalYieldHeader(allYieldDataStrict);
+            } else if (marketsWithData > 0 || loadedLedgerMarkets > 0) {
+                if (yieldHeader) yieldHeader.textContent = historicalYieldHeader(allYieldDataStrict);
                 console.log(
                     'Total yield: computed index-based yield for',
                     marketsWithData,
                     'markets',
-                    trustedLedgerMarkets > 0 ? `after keeping ${trustedLedgerMarkets} trusted ledger markets` : ''
+                    loadedLedgerMarkets > 0 ? `after keeping ${loadedLedgerMarkets} historical ledger markets` : ''
                 );
             } else {
                 if (yieldHeader) yieldHeader.textContent = 'Total Yield Earned';
@@ -15756,6 +15749,8 @@
             earn_replayBlockTag = opts.blockTag || earn_replayBlockTag || null;
             earn_replayVerificationIncompleteMarkets = new Set();
             earn_replayTruncatedSubgraphMarkets = new Set();
+            earn_replaySubgraphHistoryIncomplete = false;
+            earn_replayReconciledMarkets = new Set();
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
             earn_replayActualCollateralMap = {};
@@ -15788,6 +15783,7 @@
             };
 
             const applyReplayResult = (replay, useSubgraphMode) => {
+                earn_replayReconciledMarkets = new Set();
                 earn_updateCanonicalSubaccountHistoryStateFromReplay(replay);
                 Object.entries(replay.marketMeta || {}).forEach(([mid, meta]) => {
                     // XSS guard: replay metadata carries subgraph-sourced
@@ -15811,6 +15807,7 @@
                 });
 
                 earn_replayUsedSubgraphFallback = !!useSubgraphMode;
+                earn_replaySubgraphHistoryIncomplete = !!replay.verificationIncomplete;
                 earn_replayTruncatedSubgraphMarkets = replay.verificationIncomplete
                     ? new Set([
                         ...Object.keys(replay.netflows || {}),
@@ -16651,6 +16648,8 @@
             earn_resetCanonicalSubaccountHistoryState();
             earn_replayVerificationIncompleteMarkets = new Set();
             earn_replayTruncatedSubgraphMarkets = new Set();
+            earn_replaySubgraphHistoryIncomplete = false;
+            earn_replayReconciledMarkets = new Set();
             earn_replayActualSupplyMap = {};
             earn_replayActualBorrowMap = {};
             earn_replayActualCollateralMap = {};
@@ -18819,6 +18818,7 @@
 
         function earn_renderResults(assets, opts) {
             opts = opts || {};
+            const getVerifiedYieldCalc = earn_createVerifiedYieldCalcCache();
             if (earn_globalEmptyState) {
                 const resultsEl = document.getElementById('earn-results');
                 if (resultsEl) resultsEl.classList.remove('visible', 'is-refreshing');
@@ -18886,7 +18886,7 @@
 
             supplyAssets.forEach((a, idx) => {
                 let yieldCellHtml;
-                const yieldCalc = earn_calculateYield(a);
+                const yieldCalc = getVerifiedYieldCalc(a);
                 const verifyBadge = earn_renderVerificationBadge(a.marketId, a.symbol, a.decimals, yieldCalc);
 
                 if (yieldCalc.hasData) {
@@ -19153,7 +19153,7 @@
                         if (a.isBorrow || a.isCollateral) return; // skip borrow entries and collateral parked in borrow accounts
                         if (a.usdValue < dustThreshold) return;
                         totalUsd += (a.usdValue || 0);
-                        const verifiedYieldCalc = earn_calculateYield(a, { requireVerifiedInterest: true });
+                        const verifiedYieldCalc = getVerifiedYieldCalc(a);
                         const verifyPresentation = earn_getVerificationPresentation(a.marketId, verifiedYieldCalc, a.symbol, a.decimals);
                         if (verifyPresentation && verifyPresentation.counted) {
                             visibleVerifySummary.total++;

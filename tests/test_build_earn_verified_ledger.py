@@ -1,6 +1,6 @@
 import unittest
 
-from build_earn_verified_ledger import _select_best_baseline
+from build_earn_verified_ledger import _derive_strict_verification, _select_best_baseline
 
 
 class BuildEarnVerifiedLedgerTest(unittest.TestCase):
@@ -37,6 +37,17 @@ class BuildEarnVerifiedLedgerTest(unittest.TestCase):
             tolerance=1,
         )
         self.assertEqual(chosen["name"], "recent-cycle")
+
+    def test_snapshot_netflow_match_is_inferred_even_with_fresh_canonical_history(self):
+        strict_status, strict_method, strict_reason = _derive_strict_verification(
+            "verified",
+            "netflow+snapshot",
+            canonical_coverage_status="fresh",
+            canonical_consistency_status="match",
+        )
+        self.assertEqual(strict_status, "inferred")
+        self.assertEqual(strict_method, "netflow+snapshot")
+        self.assertEqual(strict_reason, "snapshot_netflow_match_requires_inference")
 
 
 if __name__ == "__main__":

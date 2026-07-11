@@ -113,6 +113,45 @@ class EarnQualityStatusTest(unittest.TestCase):
         self.assertEqual(chain["actionableBlockingMarketCount"], 0)
         self.assertEqual(chain["marketStatusCounts"], {"verified": 1})
 
+    def test_snapshot_netflow_strict_status_is_reclassified_as_inferred(self):
+        wallet = "0x5555555555555555555555555555555555555555"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-snapshots/manifest.json",
+                {"dates": ["2026-05-16"], "chains": {"2026-05-16": ["arbitrum"]}},
+            )
+            self._write_json(
+                root,
+                "earn-snapshots/2026-05-16.json",
+                {"snapshots": {"arbitrum": {wallet: {"markets": {"0": {"symbol": "USDC"}}}}}},
+            )
+            self._write_json(
+                root,
+                f"earn-verified-ledger/arbitrum/{wallet}.json",
+                {
+                    "markets": {
+                        "0": {
+                            "strictStatus": "verified",
+                            "strictMethod": "netflow+snapshot",
+                            "strictReason": "exact_snapshot_netflow_match",
+                            "status": "verified",
+                            "method": "netflow+snapshot",
+                            "canonicalHistoryCoverageStatus": "fresh",
+                        }
+                    }
+                },
+            )
+
+            status = build_quality_status(data_dir=root)
+
+        chain = status["chains"]["arbitrum"]
+        self.assertEqual(chain["strictVerifiedMarketCount"], 0)
+        self.assertEqual(chain["inferredMarketCount"], 1)
+        self.assertEqual(chain["marketStatusCounts"], {"inferred": 1})
+        self.assertEqual(chain["marketReasonCounts"], {"snapshot_netflow_match_requires_inference": 1})
+
     def test_mismatch_is_actionable_blocking_but_inference_is_not(self):
         wallet = "0x4444444444444444444444444444444444444444"
         with tempfile.TemporaryDirectory() as tmp:

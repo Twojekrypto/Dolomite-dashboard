@@ -26,25 +26,29 @@
 - Consumes: `earn_shouldTrustSnapshotSupplementedReplay(entry)` and `earn_getStrictVerificationStatus(entry)` from `dashboard-core.js`.
 - Produces: regression coverage that executes the classifier, not merely searches source text.
 
-- [ ] **Step 1: Write a failing test for truncated replay**
+- [x] **Step 1: Write a failing test for truncated replay**
 
 Add a Node-backed unit test that extracts the three classifier helpers, builds an otherwise exactly reconciled entry with `snapshotIncomplete: true` and `subgraphReplayTruncated: true`, and asserts `earn_getStrictVerificationStatus(entry) === 'coverage_incomplete'`.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `python3 -m unittest tests.test_earn_dashboard_contracts.EarnDashboardContractsTest.test_truncated_replay_cannot_be_strict_verified -v`
 
 Expected: FAIL because the current classifier returns `verified`.
 
-- [ ] **Step 3: Write a failing test for replay-state adjustment**
+- [x] **Step 3: Write a failing test for replay-state adjustment**
 
 Add the same executable classifier test with `replayStateAdjusted: true` and otherwise exact balances. Assert `coverage_incomplete`.
 
-- [ ] **Step 4: Run it to verify it fails**
+- [x] **Step 4: Run it to verify it fails**
 
 Run: `python3 -m unittest tests.test_earn_dashboard_contracts.EarnDashboardContractsTest.test_reconciled_replay_state_cannot_be_strict_verified -v`
 
 Expected: FAIL because the current classifier does not receive or reject that provenance.
+
+- [x] **Step 5: Write and fail a snapshot-supplement regression**
+
+Build an otherwise exactly reconciled entry with `snapshotIncomplete: true`, assert `coverage_incomplete`, and confirm it fails while the former trust path is still active.
 
 ### Task 2: Propagate provenance and harden strict verification
 
@@ -56,23 +60,23 @@ Expected: FAIL because the current classifier does not receive or reject that pr
 - Consumes: `earn_reconcileReplayToCurrentPositions`, `earn_buildReplayVerification`, and `earn_getStrictVerificationStatus`.
 - Produces: `earn_replayReconciledMarkets: Set<string>` and verification entries with `replayStateAdjusted`.
 
-- [ ] **Step 1: Add per-market provenance**
+- [x] **Step 1: Add per-market provenance**
 
 Declare and reset `earn_replayReconciledMarkets` with the other replay state. When `earn_reconcileReplayToCurrentPositions` adjusts a state, record its normalized market ID.
 
-- [ ] **Step 2: Feed provenance into verification**
+- [x] **Step 2: Feed provenance into verification**
 
-In `earn_buildReplayVerification`, set `replayStateAdjusted` from the set, include it in `snapshotIncomplete`, and retain `subgraphReplayTruncated` separately for presentation.
+In `earn_buildReplayVerification`, set `replayStateAdjusted` from the set, include it in `snapshotIncomplete`, and retain `subgraphReplayTruncated` separately for presentation. If a fallback query was globally truncated, carry a global incomplete flag into every market because the omitted events cannot be attributed safely.
 
-- [ ] **Step 3: Make strict eligibility defensive**
+- [x] **Step 3: Make strict eligibility defensive**
 
-Make `earn_shouldTrustSnapshotSupplementedReplay` return false for truncated or replay-state-adjusted entries. Make `earn_getStrictVerificationStatus` return `coverage_incomplete` for either flag before any trusted-supplement path.
+Remove the trusted snapshot-supplement path. Make `earn_getStrictVerificationStatus` return `coverage_incomplete` for any incomplete snapshot, truncated replay, or adjusted replay state before any verified path.
 
-- [ ] **Step 4: Explain the actual gap**
+- [x] **Step 4: Explain the actual gap**
 
 Extend verification title/presentation copy so a replay-state correction explains that verification is withheld until complete ordered replay is available.
 
-- [ ] **Step 5: Run the two regression tests**
+- [x] **Step 5: Run the two regression tests**
 
 Run: `python3 -m unittest tests.test_earn_dashboard_contracts.EarnDashboardContractsTest.test_truncated_replay_cannot_be_strict_verified tests.test_earn_dashboard_contracts.EarnDashboardContractsTest.test_reconciled_replay_state_cannot_be_strict_verified -v`
 
@@ -88,30 +92,53 @@ Expected: PASS.
 - Consumes: `earn_renderResults(assets, opts)` and `earn_calculateYield(position, opts)`.
 - Produces: render-local lookup of equivalent default calculations.
 
-- [ ] **Step 1: Add a render-local cache**
+- [x] **Step 1: Add a render-local cache**
 
-At the start of `earn_renderResults`, create a `Map` keyed by asset object and a `getDefaultYieldCalc(asset)` helper that calls `earn_calculateYield(asset)` once per asset for default options.
+At the start of `earn_renderResults`, create a `WeakMap` keyed by asset object and a `getVerifiedYieldCalc(asset)` helper that calls `earn_calculateYield(asset, { requireVerifiedInterest: true })` once per asset per render.
 
-- [ ] **Step 2: Reuse it in table and summary paths**
+- [x] **Step 2: Reuse it in table and summary paths**
 
-Replace default-option calls within `earn_renderResults` with the helper. Do not cache calls that explicitly pass non-default options.
+Replace equivalent verified-interest calls within `earn_renderResults` with the helper. Do not cache calls that use different options.
 
-- [ ] **Step 3: Add a source contract**
+- [x] **Step 3: Add a source contract**
 
-Assert the render function contains `getDefaultYieldCalc` and uses it for both the supply table and verified summary, guarding against comparator-style repeated recomputation.
+Execute the helper in a Node-backed test and assert it computes once per asset, then assert `earn_renderResults` uses it in both the supply table and verified summary.
 
-- [ ] **Step 4: Run targeted checks**
+- [x] **Step 4: Run targeted checks**
 
 Run: `node --check dashboard-core.js && python3 -m unittest tests.test_earn_dashboard_contracts -v`
 
 Expected: PASS.
 
-### Task 4: Verify and publish
+### Task 4: Mark snapshot/netflow evidence as inferred
+
+**Files:**
+- Modify: `build_earn_verified_ledger.py`, `build_earn_quality_status.py`
+- Test: `tests/test_build_earn_verified_ledger.py`, `tests/test_build_earn_quality_status.py`
+- Regenerate: `data/earn-quality/status.json`
+
+- [x] **Step 1: Classify pairwise snapshot/netflow matches conservatively**
+
+Fresh canonical snapshots may reconcile balances, but they cannot prove interest exactly when principal can change inside the interval. Keep the raw source method, but classify strict status as `inferred`.
+
+- [x] **Step 2: Defend generated quality output against prior ledger versions**
+
+Reclassify the legacy static `netflow+snapshot` and `recent-cycle+snapshot` entries while building quality status, so status output remains correct until all ledger files are regenerated.
+
+- [x] **Step 3: Add and run regression tests**
+
+Run targeted ledger/status tests and regenerate `data/earn-quality/status.json`.
+
+- [x] **Step 4: Keep strict and inferred presentation distinct**
+
+Reuse fresh snapshot/netflow evidence without aggregating it as verified, and display the historical checkmark only when every contributing ledger entry is strict.
+
+### Task 5: Verify and publish
 
 **Files:**
 - Verify: `dashboard-core.js`, `tests/test_earn_dashboard_contracts.py`
 
-- [ ] **Step 1: Run the full audit suite**
+- [x] **Step 1: Run the full audit suite**
 
 Run: `npm run check:earn-audit`
 
@@ -121,7 +148,9 @@ Expected: all Earn audit checks pass.
 
 Run a local server and check a standard Earn address plus a borrow-route address. Confirm the page renders, has no relevant console error, and that incomplete status is not displayed as Verified.
 
-- [ ] **Step 3: Review the exact diff**
+The local server responded successfully, but the available in-app browser session could not attach newly created tabs. This remains an environment-level manual follow-up rather than a reason to weaken verification logic.
+
+- [x] **Step 3: Review the exact diff**
 
 Run: `git diff --check && git diff -- dashboard-core.js tests/test_earn_dashboard_contracts.py docs/superpowers`
 
@@ -129,4 +158,4 @@ Expected: only scoped changes; no whitespace errors.
 
 - [ ] **Step 4: Commit and push**
 
-Run: `git add dashboard-core.js tests/test_earn_dashboard_contracts.py docs/superpowers && git commit -m "fix: harden earn yield verification" && git push dolomite-dashboard master`
+Run: `git add dashboard-core.js build_earn_verified_ledger.py build_earn_quality_status.py data/earn-quality/status.json tests/test_earn_dashboard_contracts.py tests/test_build_earn_verified_ledger.py tests/test_build_earn_quality_status.py docs/superpowers && git commit -m "fix: harden earn yield verification" && git push dolomite-dashboard master`

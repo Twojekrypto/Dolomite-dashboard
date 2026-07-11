@@ -156,7 +156,7 @@ def _derive_strict_verification(raw_status, raw_method, *, canonical_coverage_st
             return ("coverage_incomplete", "canonical-history-coverage", "canonical_history_not_fresh")
         if canonical_consistency_status != "match":
             return ("mismatch", "canonical-history-mismatch", f"canonical_history_{canonical_consistency_status}")
-        return ("verified", raw_method, "exact_snapshot_netflow_match")
+        return ("inferred", raw_method, "snapshot_netflow_match_requires_inference")
     if raw_status == "pre_snapshot_carry":
         if canonical_coverage_status != "fresh":
             return ("coverage_incomplete", "canonical-history-coverage", "canonical_history_not_fresh")
