@@ -7166,9 +7166,9 @@
         let earn_replayStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        // Verification provenance changed in v13. Do not revive v12 entries that may
-        // have cached a reconciled or truncated replay as strictly verified.
-        const EARN_LOOKUP_CACHE_VERSION = 13;
+        // Strict replay eligibility changed in v14. Do not revive v13 entries that
+        // could have treated adjusted Wei drift as strictly verified.
+        const EARN_LOOKUP_CACHE_VERSION = 14;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         const earn_rewardRequestCache = {
@@ -10189,19 +10189,6 @@
             return earn_replayVerificationData ? (earn_replayVerificationData[String(mid)] || null) : null;
         }
 
-        function earn_shouldTrustVisibleSupplyReplayMismatch(entry) {
-            if (!entry || entry.snapshotIncomplete) return false;
-            if (entry.actualSupplyPar <= 0n || entry.actualSupplyWei <= 0n) return false;
-            if (entry.actualCollateralPar !== 0n || entry.actualCollateralWei !== 0n) return false;
-            if (entry.actualBorrowPar !== 0n || entry.actualBorrowWei !== 0n) return false;
-            if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return false;
-            if (earn_absBigInt(entry.supplyWeiDiff) > entry.supplyWeiTolerance) return false;
-
-            const hasGhostCollateral = entry.expectedCollateralPar !== 0n || entry.expectedCollateralWei !== 0n;
-            const hasGhostBorrow = entry.expectedBorrowPar !== 0n || entry.expectedBorrowWei !== 0n;
-            return hasGhostCollateral || hasGhostBorrow;
-        }
-
         function earn_getAlignedReplayWeiDriftAdjustment(entry) {
             if (!entry || entry.snapshotIncomplete || !entry.counted) return null;
             if (earn_absBigInt(entry.supplyParDiff) > entry.parTolerance) return null;
@@ -10228,10 +10215,6 @@
             };
         }
 
-        function earn_shouldTrustAlignedReplayWeiDrift(entry) {
-            return !!earn_getAlignedReplayWeiDriftAdjustment(entry);
-        }
-
         function earn_getStrictVerificationStatus(entry) {
             if (!entry || !entry.counted) return 'unverified';
             if (!entry.canVerify) return 'coverage_incomplete';
@@ -10241,8 +10224,6 @@
             if (entry.rawVerified) {
                 return 'verified';
             }
-            if (earn_shouldTrustVisibleSupplyReplayMismatch(entry)) return 'verified';
-            if (earn_shouldTrustAlignedReplayWeiDrift(entry)) return 'verified';
             return 'mismatch';
         }
 
@@ -10622,13 +10603,11 @@
 
         function earn_isTrustedReplayYieldMethod(method) {
             return method === 'interest-ledger'
-                || method === 'interest-ledger-override'
-                || method === 'interest-ledger-live-balance-adjusted';
+                || method === 'interest-ledger-override';
         }
 
         function earn_isTrustedReplayYieldStatus(status) {
-            return status === 'verified'
-                || status === 'live_balance_adjusted';
+            return status === 'verified';
         }
 
         function earn_isTrustedInterestLedgerYieldCalc(yieldCalc) {
@@ -12739,7 +12718,7 @@
             const strictVerificationStatus = (method === 'interest-ledger' || method === 'interest-ledger-override')
                 ? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : (interestTrust.status || 'unverified'))
                 : method === 'interest-ledger-live-balance-adjusted'
-                    ? (canonicalHistoryCoverageIncomplete ? 'coverage_incomplete' : 'live_balance_adjusted')
+                    ? 'coverage_incomplete'
                     : publicLedgerInference
                         ? (
                             publicLedgerInference.status === 'verified'
@@ -19188,7 +19167,6 @@
                         const trustedHistoryMethods = new Set([
                             'interest-ledger',
                             'interest-ledger-override',
-                            'interest-ledger-live-balance-adjusted',
                         ]);
                         earn_historyData.forEach(item => {
                             if (item.isActive || item.isIsolation) return;

@@ -42,6 +42,26 @@ def _write_json(path, payload):
     tmp.replace(path)
 
 
+def _write_or_remove_ledger(output_dir, chain, address, ledger, *, remove_stale=False):
+    out_path = output_dir / chain / f"{address}.json"
+    if ledger and ledger.get("markets"):
+        if out_path.is_file():
+            try:
+                existing = _read_json(out_path)
+            except (OSError, json.JSONDecodeError):
+                existing = None
+            if isinstance(existing, dict) and existing.get("generatedAt"):
+                candidate = dict(ledger)
+                candidate["generatedAt"] = existing["generatedAt"]
+                if candidate == existing:
+                    return True
+        _write_json(out_path, ledger)
+        return True
+    if remove_stale and out_path.is_file():
+        out_path.unlink()
+    return False
+
+
 def _parse_int(value, default=0):
     try:
         return int(str(value))
@@ -708,22 +728,30 @@ def main():
 
         print(f"[{chain}] snapshot={latest_date} addresses={len(addresses)}")
         wrote = 0
+        removed = 0
         for address in sorted(addresses):
             if not (address.startswith("0x") and len(address) == 42):
                 continue
             ledger = _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_addr)
-            if not ledger or not ledger.get("markets"):
-                continue
             out_path = output_dir / chain / f"{address}.json"
-            _write_json(out_path, ledger)
-            wrote += 1
+            had_existing_output = out_path.is_file()
+            if _write_or_remove_ledger(
+                output_dir,
+                chain,
+                address,
+                ledger,
+                remove_stale=args.existing_addresses,
+            ):
+                wrote += 1
+            elif args.existing_addresses and had_existing_output:
+                removed += 1
 
         chain_meta[chain] = {
             "snapshotDate": latest_date,
             "lastNetflowBlock": netflow_payload["lastBlock"],
             "addressCount": wrote,
         }
-        print(f"[{chain}] wrote {wrote} address ledger files")
+        print(f"[{chain}] wrote {wrote} address ledger files; removed {removed} stale files")
 
     if chain_meta:
         _update_manifest(output_dir, chain_meta)
