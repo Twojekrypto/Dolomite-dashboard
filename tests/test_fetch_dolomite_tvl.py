@@ -5,17 +5,20 @@ import fetch_dolomite_tvl
 
 
 class FetchDolomiteTvlTest(unittest.TestCase):
-    def test_retired_polygon_failure_does_not_block_active_tvl_snapshot(self):
+    def test_archived_chain_failures_do_not_block_active_tvl_snapshot(self):
+        archived = {"Polygon zkEVM", "Botanix"}
         payloads = {
             chain: {}
             for chain in fetch_dolomite_tvl.ASSETS_CHAINS
-            if chain != "Polygon zkEVM"
+            if chain not in archived
         }
 
-        failed, missing = fetch_dolomite_tvl.blocking_tvl_failures(["Polygon zkEVM"], payloads)
+        failed, missing = fetch_dolomite_tvl.blocking_tvl_failures(sorted(archived), payloads)
 
         self.assertEqual([], failed)
         self.assertEqual([], missing)
+        self.assertTrue(archived.issubset(fetch_dolomite_tvl.RETIRED_ASSETS_CHAINS))
+        self.assertFalse(archived & set(fetch_dolomite_tvl.ACTIVE_ASSETS_CHAINS))
 
     def test_active_chain_failure_still_blocks_tvl_snapshot(self):
         payloads = {

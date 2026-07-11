@@ -16,8 +16,6 @@ on:
           - arbitrum
           - ethereum
           - mantle
-          - botanix
-          - polygonzkevm
           - xlayer
       reset_chain:
         description: 'Chain to re-scan from scratch. Leave empty for normal incremental update.'
@@ -50,8 +48,6 @@ jobs:
               "arbitrum": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0},
               "ethereum": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0},
               "mantle": {"maxRuntimeSeconds": 7200, "partialOutputIntervalSeconds": 1800},
-              "botanix": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0},
-              "polygonzkevm": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600},
               "xlayer": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600},
           }
           requested = (os.environ.get("REQUESTED_CHAIN") or "all").strip().lower()
@@ -159,16 +155,6 @@ jobs:
           ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
           ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
           ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
-          BOTANIX_RPC: ${{ secrets.BOTANIX_RPC }}
-          BOTANIX_RPC_2: ${{ secrets.BOTANIX_RPC_2 }}
-          BOTANIX_RPC_3: ${{ secrets.BOTANIX_RPC_3 }}
-          QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}
-          QUICKNODE_BOTANIX_RPC_2: ${{ secrets.QUICKNODE_BOTANIX_RPC_2 }}
-          DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}
-          ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}
-          ALCHEMY_BOTANIX_RPC: ${{ secrets.ALCHEMY_BOTANIX_RPC }}
-          ALCHEMY_BOTANIX_RPC_2: ${{ secrets.ALCHEMY_BOTANIX_RPC_2 }}
-          ALCHEMY_BOTANIX_RPC_3: ${{ secrets.ALCHEMY_BOTANIX_RPC_3 }}
         run: |
           set -euo pipefail
           case "$CHAIN" in
@@ -180,9 +166,6 @@ jobs:
               ;;
             mantle)
               names=(MANTLE_RPC MANTLE_RPC_2 QUICKNODE_MANTLE_RPC QUICKNODE_MANTLE_RPC_2 MANTLE_RPC_QUICKNODE_TWOJE DRPC_MANTLE_RPC DRPC_MANTLE_RPC_ZEN ALCHEMY_MANTLE_RPC_ZEN ALCHEMY_MANTLE_RPC_DANU ALCHEMY_MANTLE_RPC ALCHEMY_MANTLE_RPC_2 ALCHEMY_MANTLE_RPC_3)
-              ;;
-            botanix)
-              names=(BOTANIX_RPC BOTANIX_RPC_2 BOTANIX_RPC_3 QUICKNODE_BOTANIX_RPC QUICKNODE_BOTANIX_RPC_2 DRPC_BOTANIX_RPC_ZEN ALCHEMY_BOTANIX_RPC_ZEN ALCHEMY_BOTANIX_RPC ALCHEMY_BOTANIX_RPC_2 ALCHEMY_BOTANIX_RPC_3)
               ;;
             *)
               exit 0
@@ -229,20 +212,6 @@ jobs:
           ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
           ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
           ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
-          BOTANIX_RPC: ${{ secrets.BOTANIX_RPC }}
-          BOTANIX_RPC_2: ${{ secrets.BOTANIX_RPC_2 }}
-          BOTANIX_RPC_3: ${{ secrets.BOTANIX_RPC_3 }}
-          QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}
-          QUICKNODE_BOTANIX_RPC_2: ${{ secrets.QUICKNODE_BOTANIX_RPC_2 }}
-          DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}
-          ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}
-          ALCHEMY_BOTANIX_RPC: ${{ secrets.ALCHEMY_BOTANIX_RPC }}
-          ALCHEMY_BOTANIX_RPC_2: ${{ secrets.ALCHEMY_BOTANIX_RPC_2 }}
-          ALCHEMY_BOTANIX_RPC_3: ${{ secrets.ALCHEMY_BOTANIX_RPC_3 }}
-          POLYGONZKEVM_RPC: ${{ secrets.POLYGONZKEVM_RPC }}
-          POLYGONZKEVM_RPC_2: ${{ secrets.POLYGONZKEVM_RPC_2 }}
-          ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}
-          DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}
           XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}
           XLAYER_RPC: ${{ secrets.XLAYER_RPC }}
           XLAYER_RPC_2: ${{ secrets.XLAYER_RPC_2 }}

@@ -1,11 +1,9 @@
 name: Refresh Secondary Canonical EARN History
-run-name: Refresh Secondary Canonical EARN History [${{ github.event.inputs.chain || (github.event.schedule == '23,53 * * * *' && 'mantle') || (github.event.schedule == '28,58 * * * *' && 'botanix') || (github.event.schedule == '33 * * * *' && 'polygonzkevm') || (github.event.schedule == '8,38 * * * *' && 'xlayer') || 'all' }}]
+run-name: Refresh Secondary Canonical EARN History [${{ github.event.inputs.chain || (github.event.schedule == '23,53 * * * *' && 'mantle') || (github.event.schedule == '8,38 * * * *' && 'xlayer') || 'all' }}]
 
 on:
   schedule:
     - cron: '23,53 * * * *'  # Mantle only, staggered from primary chains
-    - cron: '28,58 * * * *'  # Botanix only, staggered from Mantle
-    - cron: '33 * * * *'     # Polygon zkEVM only
     - cron: '8,38 * * * *'   # X Layer only — twice hourly like primary chains (was stuck stale for days on a single hourly slot)
   workflow_dispatch:
     inputs:
@@ -17,8 +15,6 @@ on:
         options:
           - all
           - mantle
-          - botanix
-          - polygonzkevm
           - xlayer
       hot_limit:
         description: 'Optional wallet limit override for checkpointed refreshes.'
@@ -76,28 +72,6 @@ jobs:
                   "checkpoint_steps": positive_int(checkpoint_steps_override, 30),
                   "max_resume_target_lag_blocks": 3600,
               },
-              "botanix": {
-                  "chain": "botanix",
-                  "label": "Botanix",
-                  "hot_limit": positive_int(hot_limit_override, 500),
-                  "scan_workers": 4,
-                  "materialize_workers": 4,
-                  "incremental_scan_workers": 4,
-                  "incremental_apply_workers": 4,
-                  "checkpoint_steps": positive_int(checkpoint_steps_override, 45),
-                  "max_resume_target_lag_blocks": 1200,
-              },
-              "polygonzkevm": {
-                  "chain": "polygonzkevm",
-                  "label": "Polygon zkEVM",
-                  "hot_limit": positive_int(hot_limit_override, 250),
-                  "scan_workers": 5,
-                  "materialize_workers": 5,
-                  "incremental_scan_workers": 5,
-                  "incremental_apply_workers": 5,
-                  "checkpoint_steps": positive_int(checkpoint_steps_override, 45),
-                  "max_resume_target_lag_blocks": 2250,
-              },
               "xlayer": {
                   "chain": "xlayer",
                   "label": "X Layer",
@@ -116,7 +90,7 @@ jobs:
 
           if event_name == "workflow_dispatch":
               if dispatch_chain in {"", "all"}:
-                  selected = ["mantle", "botanix", "polygonzkevm", "xlayer"]
+                  selected = ["mantle", "xlayer"]
               elif dispatch_chain in chains:
                   selected = [dispatch_chain]
               else:
@@ -124,10 +98,6 @@ jobs:
                   sys.exit(1)
           elif event_name == "schedule" and schedule == "23,53 * * * *":
               selected = ["mantle"]
-          elif event_name == "schedule" and schedule == "28,58 * * * *":
-              selected = ["botanix"]
-          elif event_name == "schedule" and schedule == "33 * * * *":
-              selected = ["polygonzkevm"]
           elif event_name == "schedule" and schedule == "8,38 * * * *":
               selected = ["xlayer"]
           else:
@@ -175,20 +145,6 @@ jobs:
       ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
       ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
       ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
-      BOTANIX_RPC: ${{ secrets.BOTANIX_RPC }}
-      BOTANIX_RPC_2: ${{ secrets.BOTANIX_RPC_2 }}
-      BOTANIX_RPC_3: ${{ secrets.BOTANIX_RPC_3 }}
-      QUICKNODE_BOTANIX_RPC: ${{ secrets.QUICKNODE_BOTANIX_RPC }}
-      QUICKNODE_BOTANIX_RPC_2: ${{ secrets.QUICKNODE_BOTANIX_RPC_2 }}
-      DRPC_BOTANIX_RPC_ZEN: ${{ secrets.DRPC_BOTANIX_RPC_ZEN }}
-      ALCHEMY_BOTANIX_RPC_ZEN: ${{ secrets.ALCHEMY_BOTANIX_RPC_ZEN }}
-      ALCHEMY_BOTANIX_RPC: ${{ secrets.ALCHEMY_BOTANIX_RPC }}
-      ALCHEMY_BOTANIX_RPC_2: ${{ secrets.ALCHEMY_BOTANIX_RPC_2 }}
-      ALCHEMY_BOTANIX_RPC_3: ${{ secrets.ALCHEMY_BOTANIX_RPC_3 }}
-      ALCHEMY_POLYGONZKEVM_RPC_ZEN: ${{ secrets.ALCHEMY_POLYGONZKEVM_RPC_ZEN }}
-      DRP_POLYGONZKEVM_RPC_TWO: ${{ secrets.DRP_POLYGONZKEVM_RPC_TWO }}
-      POLYGONZKEVM_RPC: ${{ secrets.POLYGONZKEVM_RPC }}
-      POLYGONZKEVM_RPC_2: ${{ secrets.POLYGONZKEVM_RPC_2 }}
       XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}
       ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}
       DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}
@@ -216,9 +172,6 @@ jobs:
           case "$CHAIN" in
             mantle)
               names=(MANTLE_RPC MANTLE_RPC_2 QUICKNODE_MANTLE_RPC QUICKNODE_MANTLE_RPC_2 MANTLE_RPC_QUICKNODE_TWOJE DRPC_MANTLE_RPC DRPC_MANTLE_RPC_ZEN ALCHEMY_MANTLE_RPC_ZEN ALCHEMY_MANTLE_RPC_DANU ALCHEMY_MANTLE_RPC ALCHEMY_MANTLE_RPC_2 ALCHEMY_MANTLE_RPC_3)
-              ;;
-            botanix)
-              names=(BOTANIX_RPC BOTANIX_RPC_2 BOTANIX_RPC_3 QUICKNODE_BOTANIX_RPC QUICKNODE_BOTANIX_RPC_2 DRPC_BOTANIX_RPC_ZEN ALCHEMY_BOTANIX_RPC_ZEN ALCHEMY_BOTANIX_RPC ALCHEMY_BOTANIX_RPC_2 ALCHEMY_BOTANIX_RPC_3)
               ;;
             *)
               exit 0

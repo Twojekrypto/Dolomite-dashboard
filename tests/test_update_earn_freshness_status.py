@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 from update_earn_freshness_status import (
+    ARCHIVED_CHAINS,
     CHAIN_POLICIES,
     NETFLOW_WORKFLOW,
     REFRESH_AFTER_MINUTES,
@@ -25,9 +26,9 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(28_800, CHAIN_POLICIES["arbitrum"]["verifiedBlockLag"])
         self.assertEqual(3_600, CHAIN_POLICIES["berachain"]["verifiedBlockLag"])
         self.assertEqual(3_600, CHAIN_POLICIES["mantle"]["verifiedBlockLag"])
-        self.assertEqual(2_250, CHAIN_POLICIES["polygonzkevm"]["verifiedBlockLag"])
         self.assertEqual(7_200, CHAIN_POLICIES["xlayer"]["verifiedBlockLag"])
-        self.assertEqual(1_200, CHAIN_POLICIES["botanix"]["verifiedBlockLag"])
+        self.assertEqual({"botanix", "polygonzkevm"}, ARCHIVED_CHAINS)
+        self.assertTrue(ARCHIVED_CHAINS.isdisjoint(CHAIN_POLICIES))
 
     def _write_json(self, root: Path, rel: str, payload: dict) -> None:
         path = root / rel
@@ -219,18 +220,17 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertIn("update-earn-berachain-netflow.yml", status["summary"]["refreshWorkflows"])
         self.assertNotIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
 
-    def test_secondary_canonical_refresh_jobs_stay_chain_specific(self):
+    def test_archived_chains_are_omitted_from_refresh_jobs(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             supported = {
                 chain: {"lastBlock": 123, "updatedAt": "2026-05-08T11:59:00Z"}
                 for chain, policy in CHAIN_POLICIES.items()
-                if policy.get("canonicalSupported")
-                and chain not in {"polygonzkevm", "xlayer"}
+                if policy.get("canonicalSupported") and chain != "xlayer"
             }
             self._write_json(root, "earn-subaccount-history/manifest.json", {"chains": supported})
-            for chain in (*supported.keys(), "polygonzkevm", "xlayer"):
+            for chain in (*supported.keys(), "botanix", "polygonzkevm", "xlayer"):
                 self._write_json(
                     root,
                     f"earn-netflow/{chain}.json",
@@ -244,21 +244,13 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 now=now,
             )
 
-        self.assertEqual(status["chains"]["polygonzkevm"]["status"], "syncing")
-        self.assertEqual(status["chains"]["polygonzkevm"]["canonical"]["status"], "missing")
-        self.assertEqual(status["chains"]["polygonzkevm"]["supportMode"], "canonical-ledger")
+        self.assertNotIn("botanix", status["chains"])
+        self.assertNotIn("polygonzkevm", status["chains"])
         self.assertEqual(status["chains"]["xlayer"]["status"], "syncing")
         self.assertEqual(status["chains"]["xlayer"]["canonical"]["status"], "missing")
         self.assertEqual(status["chains"]["xlayer"]["supportMode"], "canonical-ledger")
         self.assertEqual(status["summary"]["limitedChains"], [])
         self.assertIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
-        self._assert_refresh_job(
-            status["summary"]["refreshJobs"],
-            workflow="update-earn-secondary-canonical-history.yml",
-            inputs={"chain": "polygonzkevm", "hot_limit": "250", "checkpoint_steps": "45"},
-            mode="catchup",
-            priority=0,
-        )
         self._assert_refresh_job(
             status["summary"]["refreshJobs"],
             workflow="update-earn-secondary-canonical-history.yml",
@@ -271,10 +263,10 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             status["summary"]["refreshJobs"],
         )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
-        self.assertEqual(report["polygonzkevm"]["weakPoint"], "canonical missing")
+        self.assertNotIn("polygonzkevm", report)
         self.assertEqual(report["xlayer"]["weakPoint"], "canonical missing")
 
-    def test_recent_partial_netflow_is_reported_as_catching_up(self):
+    def test_archived_partial_netflow_does_not_trigger_a_refresh(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -318,20 +310,9 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 now=now,
             )
 
-        polygon = status["chains"]["polygonzkevm"]
-        self.assertEqual(polygon["netflow"]["status"], "catching_up")
-        self.assertEqual(polygon["netflow"]["refreshMode"], "catchup")
-        self.assertEqual(polygon["status"], "syncing")
-        self.assertTrue(status["summary"]["catchupRefreshRecommended"])
-        self._assert_refresh_job(
-            status["summary"]["refreshJobs"],
-            workflow=NETFLOW_WORKFLOW,
-            inputs={"chain": "polygonzkevm"},
-            mode="catchup",
-            priority=25,
-        )
-        report = {entry["chain"]: entry for entry in status["chainReport"]}
-        self.assertEqual(report["polygonzkevm"]["weakPoint"], "netflow catching_up")
+        self.assertNotIn("polygonzkevm", status["chains"])
+        self.assertFalse(status["summary"]["refreshRecommended"])
+        self.assertEqual([], status["summary"]["refreshJobs"])
 
     def test_partial_canonical_wallet_coverage_triggers_catchup(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)

@@ -11,6 +11,7 @@ from audit_dolomite_revenue_onchain import (
     classify_chain_result,
     default_target_date,
     env_positive_int,
+    parse_args,
     revenue_chain_totals,
     resolve_token_price,
     selected_market_ids,
@@ -81,6 +82,14 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
         now = datetime(2026, 6, 23, 12, 0, tzinfo=timezone.utc)
 
         self.assertEqual(default_target_date(now), "2026-06-21")
+
+    def test_default_audit_skips_archived_polygon_zkevm(self):
+        with mock.patch("sys.argv", ["audit_dolomite_revenue_onchain.py"]):
+            args = parse_args()
+
+        self.assertNotIn("polygon_zkevm", args.chains.split(","))
+        workflow = (ROOT / ".github" / "workflows" / "audit-dolomite-revenue-onchain.yml").read_text(encoding="utf-8")
+        self.assertNotIn("POLYGONZKEVM", workflow)
 
     def test_audit_window_replays_the_named_utc_day(self):
         start, end = audit_window_for_date("2026-06-21")

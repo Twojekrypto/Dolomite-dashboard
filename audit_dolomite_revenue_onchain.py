@@ -731,7 +731,7 @@ def run_audit(target_date, chains, revenue_file, tolerance_pct, protocol_cut_tol
 def parse_args():
     parser = argparse.ArgumentParser(description="Audit Dolomite revenue against onchain DolomiteMargin state")
     parser.add_argument("--date", default=default_target_date(), help="DeFiLlama row date to audit, default UTC T-2")
-    parser.add_argument("--chains", default="arbitrum,ethereum,berachain,mantle,polygon_zkevm", help="Comma-separated chain keys")
+    parser.add_argument("--chains", default="arbitrum,ethereum,berachain,mantle", help="Comma-separated chain keys")
     parser.add_argument("--revenue-file", default=DEFAULT_REVENUE_FILE)
     parser.add_argument("--output", default=DEFAULT_OUTPUT_FILE)
     parser.add_argument("--tolerance-pct", type=float, default=0.02)
