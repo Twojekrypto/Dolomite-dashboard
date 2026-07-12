@@ -643,20 +643,23 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '12,42 * * * *'", workflow)
         self.assertIn("timeout-minutes: 90", workflow)
-        self.assertIn("default: '2400'", workflow)
-        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '2400' }}", workflow)
+        self.assertIn("default: '240'", workflow)
+        self.assertIn("default: '1200'", workflow)
+        self.assertIn("HOT_LIMIT: ${{ github.event.inputs.hot_limit || '240' }}", workflow)
+        self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1200' }}", workflow)
         for env_name in (
             "ALCHEMY_ETHEREUM_RPC_KAT",
             "ALCHEMY_ETHEREUM_RPC_DAN",
             "ALCHEMY_ETHEREUM_RPC_ZEN",
         ):
             self.assertIn(env_name, workflow)
-        self.assertIn("--existing-history-only", workflow)
+        self.assertNotIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
-        self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
+        self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '28800'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
-        self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '10'", workflow)
-        self.assertIn("--max-incremental-scan-workers 4", workflow)
+        self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)
+        self.assertIn("--max-incremental-scan-workers 12", workflow)
+        self.assertIn("--max-incremental-apply-workers 12", workflow)
         self.assertIn('--max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS"', workflow)
         self.assertIn('--max-delta-scan-blocks-per-task "$MAX_DELTA_SCAN_BLOCKS_PER_TASK"', workflow)
         self.assertIn("Build Ethereum verified ledger cache", workflow)
