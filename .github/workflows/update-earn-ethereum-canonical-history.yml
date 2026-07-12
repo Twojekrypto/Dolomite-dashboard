@@ -8,11 +8,11 @@ on:
       hot_limit:
         description: 'Maximum Ethereum wallets to refresh in this checkpoint.'
         required: false
-        default: '80'
+        default: '240'
       checkpoint_steps:
         description: 'Polling steps before checkpointing this run.'
         required: false
-        default: '2400'
+        default: '1200'
 
 concurrency:
   group: earn-ethereum-canonical-history
@@ -29,12 +29,16 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: ethereum
-      HOT_LIMIT: ${{ github.event.inputs.hot_limit || '80' }}
-      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '2400' }}
+      HOT_LIMIT: ${{ github.event.inputs.hot_limit || '240' }}
+      CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1200' }}
       CHECKPOINT_SLEEP_SECONDS: '2'
       COMMAND_TIMEOUT_SECONDS: '180'
-      MAX_RESUME_TARGET_LAG_BLOCKS: '600'
-      MAX_DELTA_SCAN_BLOCKS_PER_TASK: '10'
+      # Preserve a multi-run event scan instead of discarding its completed
+      # shards whenever Ethereum advances between scheduled checkpoints.
+      MAX_RESUME_TARGET_LAG_BLOCKS: '28800'
+      # The scanner halves unsafe RPC ranges itself; avoid 10-block task
+      # process overhead across a large canonical catch-up window.
+      MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'
       MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS: '300'
       ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
       ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
@@ -79,7 +83,6 @@ jobs:
             --limit "$HOT_LIMIT" \
             --priority-address-file config/earn_canonical_priority_addresses.txt \
             --include-priority-even-if-unknown \
-            --existing-history-only \
             --prefer-stale-history \
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
@@ -93,11 +96,11 @@ jobs:
           python3 run_earn_canonical_history_refresh.py \
             --chain "$CHAIN" \
             --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
-            --max-scan-workers 8 \
-            --max-materialize-workers 8 \
-            --max-incremental-scan-workers 4 \
-            --max-incremental-apply-workers 8 \
-            --max-new-backfill-workers 4 \
+            --max-scan-workers 12 \
+            --max-materialize-workers 12 \
+            --max-incremental-scan-workers 12 \
+            --max-incremental-apply-workers 12 \
+            --max-new-backfill-workers 6 \
             --max-steps "$CHECKPOINT_STEPS" \
             --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \
             --command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS" \

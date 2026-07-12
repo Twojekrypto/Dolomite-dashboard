@@ -460,7 +460,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self._assert_refresh_job(
             status["summary"]["refreshJobs"],
             workflow="update-earn-ethereum-canonical-history.yml",
-            inputs={"hot_limit": "80", "checkpoint_steps": "90"},
+            inputs={"hot_limit": "240", "checkpoint_steps": "1200"},
             mode="catchup",
             priority=0,
         )
