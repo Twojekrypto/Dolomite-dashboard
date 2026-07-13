@@ -71,8 +71,8 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn(".pf-hf-badge.unknown", self.html)
         self.assertIn("pf-hf-dot", self.html)
         self.assertIn("${hfText(r.hf)}", self.html)
-        self.assertIn('td colspan="6"', borrow_render)
-        self.assertNotIn('td colspan="7"', borrow_render)
+        self.assertIn('td colspan="7"', borrow_render)
+        self.assertNotIn('td colspan="6"', borrow_render)
         self.assertIn("collateralTokens", self.html)
         self.assertIn("debtTokens", self.html)
         self.assertIn("BORROW_DUST_USD = 1", self.html)
@@ -88,6 +88,30 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("color:#34d399", self.html)
         self.assertIn("color:#f87171", self.html)
         self.assertIn("No non-dust borrow positions match the filter.", self.html)
+        self.assertNotIn("portfolio-layout-editor", self.html)
+        for key in ("chain", "account", "health", "emode", "spacer", "collateral", "debt"):
+            self.assertIn(f'data-column="{key}"', self.html)
+        self.assertIn(
+            '<colgroup><col data-column="chain"><col data-column="account"><col data-column="health"><col data-column="emode"><col data-column="spacer"><col data-column="collateral"><col data-column="debt"></colgroup>',
+            self.html,
+        )
+        for column, width in (
+            ("chain", "11"),
+            ("account", "12.037612"),
+            ("health", "10.509403"),
+            ("emode", "13.560098"),
+            ("spacer", "21.956611"),
+            ("collateral", "14.970480"),
+            ("debt", "15.965796"),
+        ):
+            self.assertIn(
+                f'.pf-borrow-positions col[data-column="{column}"]{{width:{width}%}}',
+                self.html,
+            )
+        self.assertIn('<td data-column="spacer" aria-hidden="true"></td>', borrow_render)
+        self.assertIn('data-column="collateral"><div class="pf-money-cell">', borrow_render)
+        self.assertIn('data-column="debt"><div class="pf-money-cell">', borrow_render)
+        self.assertNotIn('#pf-borrows-section .pf-table tbody td:nth-child(5)', self.html)
 
     def test_odolo_pending_summary_does_not_count_paired_dolo(self):
         self.assertIn("const total = held + ve + vOTok;", self.html)
