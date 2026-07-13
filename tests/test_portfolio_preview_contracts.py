@@ -113,6 +113,28 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('data-column="debt"><div class="pf-money-cell">', borrow_render)
         self.assertNotIn('#pf-borrows-section .pf-table tbody td:nth-child(5)', self.html)
 
+    def test_open_borrows_expands_hidden_assets(self):
+        self.assertIn("expandedBorrows: new Set()", self.html)
+        self.assertIn("function borrowRowKey(row)", self.html)
+        self.assertIn("return `${row.chain}:${row.accountId || row.account || row.search}`;", self.html)
+        self.assertIn("function hasBorrowTokenOverflow(row)", self.html)
+        self.assertIn("collateralTokens.length > 3 || debtTokens.length > 3", self.html)
+        self.assertIn("function tokenPills(tokens, chain, options = {})", self.html)
+        self.assertIn("list.slice(0, limit)", self.html)
+        self.assertIn("list.slice(limit)", self.html)
+        self.assertIn('class="pf-token-pill-extra-wrap" aria-hidden="${expanded ? "false" : "true"}"', self.html)
+        self.assertIn('class="pf-token-pill pf-token-more">+${list.length - limit}</span>', self.html)
+        self.assertIn('data-borrow-row-key="${esc(rowKey)}"', self.html)
+        self.assertIn('tabindex="0" aria-expanded="${isExpanded ? "true" : "false"}"', self.html)
+        self.assertIn("function shouldIgnoreBorrowExpandClick(target)", self.html)
+        self.assertIn("a,button,input,select,textarea,[data-copy]", self.html)
+        self.assertIn("function setBorrowRowExpanded(row, expanded)", self.html)
+        self.assertIn("function toggleBorrowRowExpanded(row)", self.html)
+        self.assertIn('e.key !== "Enter" && e.key !== " "', self.html)
+        self.assertIn("state.expandedBorrows.clear();", self.html)
+        self.assertIn("tr.has-token-overflow", self.html)
+        self.assertIn("tr.position-row-expanded", self.html)
+
     def test_odolo_pending_summary_does_not_count_paired_dolo(self):
         self.assertIn("const total = held + ve + vOTok;", self.html)
         self.assertNotIn("const total = held + ve + vPair;", self.html)

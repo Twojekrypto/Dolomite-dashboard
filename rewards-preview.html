@@ -459,9 +459,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   function shortProgramName(program) {
     const market = (program.marketTokens || [])[0] || '';
     const action = String(program.action || '').toUpperCase();
-    if (market && action === 'LEND') return `Lend ${market}`;
+    if (market && action === 'LEND') return `Supply ${market}`;
     if (market && action === 'BORROW') return `Borrow ${market}`;
     let name = String(program.name || '');
+    name = name.replace(/^Lend\s+/i, 'Supply ');
     name = name.replace(/\s*·\s*oDOLO$/, '').replace(/\s+(on|to)\s+.*$/i, '');
     return name || '—';
   }
