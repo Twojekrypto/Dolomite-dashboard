@@ -2818,11 +2818,12 @@ body.supply-draft-route #supply-activity-table .supply-activity-date-cell .suppl
 }
 
 body.supply-draft-route #supply-activity-pagination,
-body.supply-draft-route #supply-pagination {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+body.supply-draft-route #supply-pagination,
+body.supply-draft-route #supply-health-pagination {
+  display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 4px;
   padding: 14px 24px !important;
   border-top: 1px solid var(--supply-line-1) !important;
   background: transparent !important;
@@ -2857,7 +2858,8 @@ body.supply-draft-route #supply-pagination .flow-pager-total {
 }
 
 body.supply-draft-route #supply-activity-pagination .flow-pager-btn,
-body.supply-draft-route #supply-pagination .flow-pager-btn {
+body.supply-draft-route #supply-pagination .flow-pager-btn,
+body.supply-draft-route #supply-health-pagination .flow-pager-btn {
   min-width: 30px !important;
   width: 30px !important;
   height: 30px !important;
@@ -2872,22 +2874,25 @@ body.supply-draft-route #supply-pagination .flow-pager-btn {
 }
 
 body.supply-draft-route #supply-activity-pagination .flow-pager-btn:hover:not(:disabled),
-body.supply-draft-route #supply-pagination .flow-pager-btn:hover:not(:disabled) {
-  color: var(--supply-fg-1) !important;
-  background: var(--supply-bg-4) !important;
-  border-color: var(--supply-line-3) !important;
+body.supply-draft-route #supply-pagination .flow-pager-btn:hover:not(:disabled),
+body.supply-draft-route #supply-health-pagination .flow-pager-btn:hover:not(:disabled) {
+  color: var(--supply-gold) !important;
+  background: var(--supply-gold-wash) !important;
+  border-color: var(--supply-gold-line) !important;
   box-shadow: none !important;
   transform: none !important;
 }
 
 body.supply-draft-route #supply-activity-pagination .flow-pager-btn:disabled,
-body.supply-draft-route #supply-pagination .flow-pager-btn:disabled {
+body.supply-draft-route #supply-pagination .flow-pager-btn:disabled,
+body.supply-draft-route #supply-health-pagination .flow-pager-btn:disabled {
   opacity: .35 !important;
   cursor: not-allowed !important;
 }
 
 body.supply-draft-route #supply-activity-pagination .flow-pager-info,
-body.supply-draft-route #supply-pagination .flow-pager-info {
+body.supply-draft-route #supply-pagination .flow-pager-info,
+body.supply-draft-route #supply-health-pagination .flow-pager-info {
   min-width: auto;
   padding: 0 10px;
   color: var(--supply-fg-1);
@@ -3214,7 +3219,7 @@ body.supply-draft-route .supply-health-card .table-card-inner {
   overflow: visible;
   border-color: var(--supply-line-2) !important;
   background: var(--bg-2, #141417) !important;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 18px 48px rgba(0, 0, 0, .28) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .03) inset !important;
 }
 
 body.supply-draft-route .supply-health-header {
@@ -3416,6 +3421,11 @@ body.supply-draft-route .supply-health-row:focus-visible td {
   color: var(--supply-fg-1);
 }
 
+body.supply-draft-route .supply-health-row td:first-child {
+  border-left: 0 !important;
+  box-shadow: none !important;
+}
+
 body.supply-draft-route .supply-health-row td:first-child::before {
   content: "";
   position: absolute;
@@ -3439,6 +3449,14 @@ body.supply-draft-route .supply-health-row.expanded td {
   background: var(--supply-gold-wash) !important;
   color: var(--supply-fg-1);
   border-bottom-color: transparent !important;
+}
+
+body.supply-draft-route .supply-health-spacer-row td {
+  height: 62px;
+  padding: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, .055) !important;
+  opacity: 0;
+  pointer-events: none;
 }
 
 body.supply-draft-route .supply-health-expander {

@@ -1208,28 +1208,23 @@
     const el = document.getElementById('supply-activity-pagination');
     if (!el) return;
     let page = 1;
-    let perPage = 12;
+    let perPage = 10;
     try {
       page = supplyActivityPage || 1;
-      perPage = SUPPLY_ACTIVITY_PAGE_SIZE || 12;
+      perPage = SUPPLY_ACTIVITY_PAGE_SIZE || 10;
     } catch (error) {}
     const totalPages = Math.max(1, Math.ceil((Number(totalLen) || 0) / perPage));
     page = Math.max(1, Math.min(page, totalPages));
-    const start = totalLen > 0 ? ((page - 1) * perPage + 1) : 0;
-    const end = totalLen > 0 ? Math.min(totalLen, page * perPage) : 0;
-    const safeTotal = (Number(totalLen) || 0).toLocaleString('en-US');
-    const range = totalLen > 0 ? `${start.toLocaleString('en-US')}-${end.toLocaleString('en-US')} of ${safeTotal}` : 'No matches';
-    el.innerHTML = `
-      <span class="supply-page-range">${range}</span>
-      <span class="supply-pager-controls">
-        <button class="flow-pager-btn" onclick="supplyGoActivityPage(1)" ${page === 1 ? 'disabled' : ''}>«</button>
-        <button class="flow-pager-btn" onclick="supplyGoActivityPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>
-        <span class="flow-pager-info">${page} / ${totalPages}</span>
-        <button class="flow-pager-btn" onclick="supplyGoActivityPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>
-        <button class="flow-pager-btn" onclick="supplyGoActivityPage(${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>
-      </span>
-      <span class="flow-pager-total">${safeTotal} events</span>
-    `;
+    if (totalPages <= 1) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML =
+      `<button class="flow-pager-btn" aria-label="First page" onclick="supplyGoActivityPage(1)" ${page === 1 ? 'disabled' : ''}>«</button>` +
+      `<button class="flow-pager-btn" aria-label="Previous page" onclick="supplyGoActivityPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>` +
+      `<span class="flow-pager-info">${page} / ${totalPages}</span>` +
+      `<button class="flow-pager-btn" aria-label="Next page" onclick="supplyGoActivityPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>` +
+      `<button class="flow-pager-btn" aria-label="Last page" onclick="supplyGoActivityPage(${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>`;
   }
 
   function polishSupplyActivityPagination() {
@@ -1254,28 +1249,23 @@
     const el = document.getElementById('supply-pagination');
     if (!el) return;
     let page = 1;
-    let perPage = 12;
+    let perPage = 10;
     try {
       page = supplyPage || 1;
-      perPage = SUPPLY_PER_PAGE || 12;
+      perPage = SUPPLY_PER_PAGE || 10;
     } catch (error) {}
     const totalPages = Math.max(1, Math.ceil((Number(totalLen) || 0) / perPage));
     page = Math.max(1, Math.min(page, totalPages));
-    const start = totalLen > 0 ? ((page - 1) * perPage + 1) : 0;
-    const end = totalLen > 0 ? Math.min(totalLen, page * perPage) : 0;
-    const safeTotal = (Number(totalLen) || 0).toLocaleString('en-US');
-    const range = totalLen > 0 ? `${start.toLocaleString('en-US')}-${end.toLocaleString('en-US')} of ${safeTotal}` : 'No matches';
-    el.innerHTML = `
-      <span class="supply-page-range">${range}</span>
-      <span class="supply-pager-controls">
-        <button class="flow-pager-btn" onclick="supply_goPage(1)" ${page === 1 ? 'disabled' : ''}>«</button>
-        <button class="flow-pager-btn" onclick="supply_goPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>
-        <span class="flow-pager-info">${page} / ${totalPages}</span>
-        <button class="flow-pager-btn" onclick="supply_goPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>
-        <button class="flow-pager-btn" onclick="supply_goPage(${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>
-      </span>
-      <span class="flow-pager-total">${safeTotal} suppliers</span>
-    `;
+    if (totalPages <= 1) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML =
+      `<button class="flow-pager-btn" aria-label="First page" onclick="supply_goPage(1)" ${page === 1 ? 'disabled' : ''}>«</button>` +
+      `<button class="flow-pager-btn" aria-label="Previous page" onclick="supply_goPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>` +
+      `<span class="flow-pager-info">${page} / ${totalPages}</span>` +
+      `<button class="flow-pager-btn" aria-label="Next page" onclick="supply_goPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>` +
+      `<button class="flow-pager-btn" aria-label="Last page" onclick="supply_goPage(${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>`;
   }
 
   function patchSupplyTableRenderer() {
@@ -1442,12 +1432,21 @@
   }
 
   function getIconPath(token) {
+    const iconKey = token?.chain && token?.tokenId
+      ? `${String(token.chain).toLowerCase()}:${String(token.tokenId).toLowerCase()}`
+      : '';
+    if (iconKey && supplyHealthAssetIconOverrides[iconKey]) {
+      return supplyHealthAssetIconOverrides[iconKey];
+    }
     try {
       if (token && typeof getTokenIcon === 'function' && typeof truncateTokenName === 'function') {
-        return getTokenIcon(truncateTokenName(token.symbol));
+        return getTokenIcon(token.symbol)
+          || getTokenIcon(truncateTokenName(token.symbol))
+          || supplyHealthSymbolIconFallbacks[token.symbol]
+          || '';
       }
     } catch (error) {}
-    return '';
+    return supplyHealthSymbolIconFallbacks[token?.symbol] || '';
   }
 
   function setSelectorUi(token, pending) {
@@ -1676,6 +1675,40 @@
   let supplyHealthSortField = 'supplyUsd';
   let supplyHealthSortAsc = false;
   let supplyHealthExpandedKey = '';
+  const SUPPLY_HEALTH_PAGE_SIZE = 10;
+  let supplyHealthPage = 1;
+  const SUPPLY_HEALTH_ICON_CDN = 'https://app.dolomite.io/static/media/';
+  const supplyHealthAssetIconOverrides = {
+    'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': SUPPLY_HEALTH_ICON_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
+    'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': SUPPLY_HEALTH_ICON_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+    'arbitrum:0x505582242757f16d72f8c4462a616e388ca1b074': SUPPLY_HEALTH_ICON_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+    'arbitrum:0x18cb14564fbb015bd3439220d177799355abc0e0': SUPPLY_HEALTH_ICON_CDN + 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg',
+    'arbitrum:0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8': SUPPLY_HEALTH_ICON_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+    'arbitrum:0x2d165a76dd3e552df3860789331ab73c5a3d7f92': SUPPLY_HEALTH_ICON_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+    'arbitrum:0x20d51cb520c4622dcc3d7e35003dbab07d547e7e': SUPPLY_HEALTH_ICON_CDN + 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg',
+    'arbitrum:0x24c9121c75c099b38d40020872b8a0d2c27c614d': SUPPLY_HEALTH_ICON_CDN + 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg',
+    'arbitrum:0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1': SUPPLY_HEALTH_ICON_CDN + 'gmDOGE.36090e2ebcd305890c779e005d41d331.svg',
+    'arbitrum:0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c': SUPPLY_HEALTH_ICON_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+    'arbitrum:0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412': SUPPLY_HEALTH_ICON_CDN + 'gmSOL.73d56a4a2dcf3d39fc5c946b8c65c631.svg',
+    'arbitrum:0xc587646f67b38739006ed0200e2e0a26fdb01c9b': SUPPLY_HEALTH_ICON_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+    'arbitrum:0xcf248baf933c7b1b876b997246f25021a65383b3': SUPPLY_HEALTH_ICON_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+    'arbitrum:0xe5d6fe410c69b44c357403a1936b3bfaddbe340b': SUPPLY_HEALTH_ICON_CDN + 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg',
+    'arbitrum:0x6586f1db71513daf94b0431156d225a46c00f20b': SUPPLY_HEALTH_ICON_CDN + 'gmPEPE.966f4beb1b823729066c29c52921b664.svg',
+    'arbitrum:0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3': SUPPLY_HEALTH_ICON_CDN + 'gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg',
+    'arbitrum:0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e': SUPPLY_HEALTH_ICON_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
+    'arbitrum:0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4': SUPPLY_HEALTH_ICON_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
+    'arbitrum:0x51fc0f6660482ea73330e414efd7808811a57fa2': SUPPLY_HEALTH_ICON_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
+    'berachain:0xe946dd7d03f6f5c440f68c84808ca88d26475fc5': SUPPLY_HEALTH_ICON_CDN + 'WBTC.f3c8718835179e7543b5.png',
+    'berachain:0x1fcca65fb6ae3b2758b9b2b394cb227eae404e1e': SUPPLY_HEALTH_ICON_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  };
+  const supplyHealthSymbolIconFallbacks = {
+    stBTC: SUPPLY_HEALTH_ICON_CDN + 'stBTC.3935aab6a35bd55630f244a1f56631ba.svg',
+    rswETH: SUPPLY_HEALTH_ICON_CDN + 'rswETH.fc4bdb76a764bf110676766fd0185dfe.svg',
+    'pumpBTC.bera': SUPPLY_HEALTH_ICON_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+    PREMIA: SUPPLY_HEALTH_ICON_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
+    ylBTCLST: SUPPLY_HEALTH_ICON_CDN + 'WBTC.f3c8718835179e7543b5.png',
+    'SolvBTC.BBN': SUPPLY_HEALTH_ICON_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  };
 
   function getHealthChainKey() {
     const selected = document.getElementById('supply-chain-select')?.value || 'ethereum';
@@ -1690,6 +1723,7 @@
 
   function syncSupplyHealthChain() {
     supplyHealthExpandedKey = '';
+    supplyHealthPage = 1;
     renderSupplyHealthTable();
   }
 
@@ -1766,6 +1800,7 @@
             <tbody id="supply-health-table-body"></tbody>
           </table>
         </div>
+        <div class="supply-health-pagination" id="supply-health-pagination" aria-label="Supply pool health pages"></div>
         <div class="supply-health-footnote">Wallet counts are on-chain addresses: one supplier can split funds across wallets, and vaults/protocol contracts count as a single wallet — treat concentration as an upper bound.</div>
       </div>
     `;
@@ -1781,6 +1816,7 @@
           supplyHealthSortField = field;
           supplyHealthSortAsc = field === 'symbol';
         }
+        supplyHealthPage = 1;
         renderSupplyHealthTable();
       });
     });
@@ -1895,6 +1931,34 @@
     `;
   }
 
+  function renderSupplyHealthPagination(totalRows) {
+    const pager = document.getElementById('supply-health-pagination');
+    if (!pager) return;
+    const totalPages = Math.max(1, Math.ceil(totalRows / SUPPLY_HEALTH_PAGE_SIZE));
+    supplyHealthPage = Math.max(1, Math.min(supplyHealthPage, totalPages));
+    if (totalPages <= 1) {
+      pager.innerHTML = '';
+      return;
+    }
+    pager.innerHTML =
+      `<button class="flow-pager-btn" aria-label="First page" onclick="supplyHealthGoPage(1)" ${supplyHealthPage === 1 ? 'disabled' : ''}>«</button>` +
+      `<button class="flow-pager-btn" aria-label="Previous page" onclick="supplyHealthGoPage(${supplyHealthPage - 1})" ${supplyHealthPage === 1 ? 'disabled' : ''}>‹</button>` +
+      `<span class="flow-pager-info">${supplyHealthPage} / ${totalPages}</span>` +
+      `<button class="flow-pager-btn" aria-label="Next page" onclick="supplyHealthGoPage(${supplyHealthPage + 1})" ${supplyHealthPage === totalPages ? 'disabled' : ''}>›</button>` +
+      `<button class="flow-pager-btn" aria-label="Last page" onclick="supplyHealthGoPage(${totalPages})" ${supplyHealthPage === totalPages ? 'disabled' : ''}>»</button>`;
+  }
+
+  function supplyHealthGoPage(page) {
+    const markets = supplyHealthPayload?.markets?.filter(market => market.chain === getHealthChainKey()) || [];
+    const totalPages = Math.max(1, Math.ceil(markets.length / SUPPLY_HEALTH_PAGE_SIZE));
+    supplyHealthPage = Math.max(1, Math.min(Number(page) || 1, totalPages));
+    supplyHealthExpandedKey = '';
+    renderSupplyHealthTable();
+    document.querySelector('.supply-health-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  window.supplyHealthGoPage = supplyHealthGoPage;
+
   function renderSupplyHealthTable() {
     const table = document.getElementById('supply-health-table');
     const body = document.getElementById('supply-health-table-body');
@@ -1912,6 +1976,10 @@
       const cmp = typeof va === 'string' ? va.localeCompare(vb) : (va - vb);
       return supplyHealthSortAsc ? cmp : -cmp;
     });
+    const totalPages = Math.max(1, Math.ceil(markets.length / SUPPLY_HEALTH_PAGE_SIZE));
+    supplyHealthPage = Math.max(1, Math.min(supplyHealthPage, totalPages));
+    const start = (supplyHealthPage - 1) * SUPPLY_HEALTH_PAGE_SIZE;
+    const pageMarkets = markets.slice(start, start + SUPPLY_HEALTH_PAGE_SIZE);
 
     if (count) count.textContent = markets.length ? `${markets.length} markets` : '';
     if (chainLabel) chainLabel.textContent = getHealthChainLabel();
@@ -1932,6 +2000,7 @@
 
     if (!markets.length) {
       table.style.display = 'none';
+      renderSupplyHealthPagination(0);
       if (state) {
         state.style.display = 'block';
         state.textContent = 'No pool health data for this chain yet.';
@@ -1941,7 +2010,7 @@
     if (state) state.style.display = 'none';
     table.style.display = 'table';
 
-    body.innerHTML = markets.map(market => {
+    const healthRows = pageMarkets.map(market => {
       const key = healthMarketKey(market);
       const expanded = key === supplyHealthExpandedKey;
       const score = market.score || {};
@@ -1976,6 +2045,12 @@
         ${detailRow}
       `;
     }).join('');
+    const spacerRows = Array.from(
+      { length: Math.max(0, SUPPLY_HEALTH_PAGE_SIZE - pageMarkets.length) },
+      () => '<tr class="supply-health-spacer-row" aria-hidden="true"><td colspan="8">&nbsp;</td></tr>'
+    ).join('');
+    body.innerHTML = healthRows + spacerRows;
+    renderSupplyHealthPagination(markets.length);
 
     const toggleRow = key => {
       supplyHealthExpandedKey = supplyHealthExpandedKey === key ? '' : key;
