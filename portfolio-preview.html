@@ -1269,23 +1269,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-token-name{font-weight:700;font-size:14px;letter-spacing:.2px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pf-token-sub{font-size:10px;color:var(--fg-3);font-family:var(--mono)}
 .pf-amt-sym{font-size:11px;color:var(--fg-3);font-weight:400;margin-left:3px}
-#pf-borrows-section .holder-wallet{display:flex;flex-direction:column;gap:4px;min-width:0}
-#pf-borrows-section .holder-wallet-top{display:flex;align-items:center;gap:6px;min-width:0}
-#pf-borrows-section .holder-wallet-bottom{display:flex;align-items:center;gap:6px;min-width:0}
-#pf-borrows-section .addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
-#pf-borrows-section .addr-name.addr-generic{color:var(--fg-1);font-weight:600}
-#pf-borrows-section .addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:112px}
-#pf-borrows-section .pf-table tbody tr:hover .addr-mono{color:var(--fg-2)}
-#pf-borrows-section .addr-copy,
-#pf-borrows-section .addr-debank{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;transition:all .15s var(--ease);cursor:pointer}
-#pf-borrows-section .addr-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
-#pf-borrows-section .addr-copy.copied{color:var(--up);border-color:rgba(138,163,123,.4)}
-#pf-borrows-section .addr-copy svg{width:11px;height:11px;pointer-events:none}
-#pf-borrows-section .addr-debank{padding:0;overflow:hidden}
-#pf-borrows-section .addr-debank img{width:14px;height:14px;border-radius:3px;opacity:.7;transition:opacity .15s var(--ease)}
-#pf-borrows-section .addr-debank:hover{border-color:#fe815f;background:rgba(254,129,95,.08)}
-#pf-borrows-section .addr-debank:hover img{opacity:1}
-#pf-borrows-section .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
 .pf-mini-chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:var(--fg-3);font-size:9px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}
 .pf-hf-badge{display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:28px;padding:0 10px;border-radius:7px;font-family:var(--mono);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.025);color:var(--fg-1)}
 .pf-hf-badge.danger{color:var(--down);background:rgba(255,91,91,.075);border-color:rgba(255,91,91,.22)}
@@ -1301,13 +1284,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-borrow-positions{
   table-layout:fixed;
 }
-.pf-borrow-positions colgroup col:nth-child(1){width:10%}
-.pf-borrow-positions colgroup col:nth-child(2){width:18%}
-.pf-borrow-positions colgroup col:nth-child(3){width:9%}
-.pf-borrow-positions colgroup col:nth-child(4){width:11%}
-.pf-borrow-positions colgroup col:nth-child(5){width:9%}
-.pf-borrow-positions colgroup col:nth-child(6){width:21.5%}
-.pf-borrow-positions colgroup col:nth-child(7){width:21.5%}
+.pf-borrow-positions colgroup col:nth-child(1){width:11%}
+.pf-borrow-positions colgroup col:nth-child(2){width:14%}
+.pf-borrow-positions colgroup col:nth-child(3){width:11%}
+.pf-borrow-positions colgroup col:nth-child(4){width:8%}
+.pf-borrow-positions colgroup col:nth-child(5){width:28%}
+.pf-borrow-positions colgroup col:nth-child(6){width:28%}
 #pf-borrows-section .pf-table thead th{
   padding:10px 12px;
   font-size:9.5px;
@@ -1336,18 +1318,17 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-borrows-section .pf-table tbody td:nth-child(1),
 #pf-borrows-section .pf-table tbody td:nth-child(2),
 #pf-borrows-section .pf-table tbody td:nth-child(3),
-#pf-borrows-section .pf-table tbody td:nth-child(4),
-#pf-borrows-section .pf-table tbody td:nth-child(5){
+#pf-borrows-section .pf-table tbody td:nth-child(4){
   overflow:visible;
 }
+#pf-borrows-section .pf-table thead th:nth-child(5),
 #pf-borrows-section .pf-table thead th:nth-child(6),
-#pf-borrows-section .pf-table thead th:nth-child(7),
-#pf-borrows-section .pf-table tbody td:nth-child(6),
-#pf-borrows-section .pf-table tbody td:nth-child(7){
+#pf-borrows-section .pf-table tbody td:nth-child(5),
+#pf-borrows-section .pf-table tbody td:nth-child(6){
   text-align:left;
 }
-#pf-borrows-section .pf-table tbody td:nth-child(6),
-#pf-borrows-section .pf-table tbody td:nth-child(7){
+#pf-borrows-section .pf-table tbody td:nth-child(5),
+#pf-borrows-section .pf-table tbody td:nth-child(6){
   white-space:normal;
   overflow:visible;
 }
@@ -1705,7 +1686,7 @@ body:not(.pf-active) #pf-results{display:none}
 @media (max-width:760px){
   .pf-table{table-layout:auto}
   .pf-table thead th:nth-child(1),.pf-table td:nth-child(1){display:none}
-  .pf-table.pf-borrow-positions{min-width:960px}
+  .pf-table.pf-borrow-positions{min-width:860px}
   .pf-table.pf-exercise-table{min-width:940px}
   .pf-table.pf-borrow-positions thead th:nth-child(1),.pf-table.pf-borrow-positions td:nth-child(1),
   .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1){display:table-cell}
@@ -1881,8 +1862,8 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="pf-filters" id="pf-borrows-filters"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-borrow-positions">
-          <colgroup><col><col><col><col><col><col><col></colgroup>
-          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="address" data-table="bor">Address<span class="pf-sort"></span></th><th>Account</th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
+          <colgroup><col><col><col><col><col><col></colgroup>
+          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th>Account</th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-borrows-body"></tbody>
         </table>
       </div>
@@ -2483,18 +2464,6 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const value = Number(t.usd) ? fmtUSD(t.usd) : "—";
       return `<span class="pf-token-pill" title="${esc(sym)} ${esc(value)}"><img src="${icon}" alt="" onerror="this.remove();this.parentElement.textContent='${mono} ${esc(value)}'"><span>${esc(sym)}</span><span>${esc(value)}</span></span>`;
     }).join("")}${list.length > 3 ? `<span class="pf-token-pill">+${list.length - 3}</span>` : ""}</div>`;
-  }
-  function portfolioAddressCell(addr){
-    const displayAddr = normAddr(addr);
-    if (!displayAddr) return `<span class="pf-empty-dash">—</span>`;
-    return `<div class="holder-wallet">
-      <div class="holder-wallet-top"><span class="addr-name addr-generic">Wallet</span></div>
-      <div class="holder-wallet-bottom">
-        <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</span>
-        <button class="addr-copy" type="button" data-copy="${esc(displayAddr)}" aria-label="Copy address">${COPY_ICON}</button>
-        <a class="addr-debank" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()"><img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'"></a>
-      </div>
-    </div>`;
   }
   function shortAccountNumber(account){
     const number = String(account == null ? "" : account).trim();
@@ -3245,12 +3214,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const body = $("#pf-borrows-body");
     if (!state.borrows.length){
       $(ids.foot).style.display = "none";
-      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No open borrow positions in the risk dataset.</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="6"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No open borrow positions in the risk dataset.</div></td></tr>`;
       return;
     }
     if (!filtered.length){
       $(ids.foot).style.display = "none";
-      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty">${state.borFilter.hideDust ? "No non-dust borrow positions match the filter." : "No positions match the filter."}</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="6"><div class="pf-empty">${state.borFilter.hideDust ? "No non-dust borrow positions match the filter." : "No positions match the filter."}</div></td></tr>`;
       return;
     }
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -3260,7 +3229,6 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     body.innerHTML = pageRows.map(r => `
       <tr class="pf-row">
         <td>${chainChip(r.chain)}</td>
-        <td>${portfolioAddressCell(r.address)}</td>
         <td>${accountNumberCell(r.account)}</td>
         <td><span class="pf-hf-badge ${hfClass(r.hf)}"><span class="pf-hf-dot"></span>${hfText(r.hf)}</span></td>
         <td class="pf-emode-cell">${emodeCell(r.eMode)}</td>
@@ -3280,7 +3248,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     if (totalPages > 1 && pageRows.length < PAGE_SIZE){
       const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 64;
       body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
-        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="7" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="6" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
     }
     $(ids.foot).style.display = "";
     $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
@@ -3418,7 +3386,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
   function setLoadingTables(){
     const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
-    const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:96px"></span></td><td><span class="pf-skel" style="width:42px"></span></td><td><span class="pf-skel" style="width:50px"></span></td><td><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td><span class="pf-skel" style="width:104px"></span></td><td><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
+    const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:82px"></span></td><td><span class="pf-skel" style="width:50px"></span></td><td><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td><span class="pf-skel" style="width:104px"></span></td><td><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
     const exSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:86px"></span></td><td><span class="pf-skel" style="width:150px"></span></td><td class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:78px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;
     $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none"; $("#pf-exercises-foot").style.display = "none";
