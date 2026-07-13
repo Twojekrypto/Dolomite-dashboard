@@ -27,3 +27,14 @@ function heroSection() {
   assert(/providerTag\(program\)/.test(html), 'Program cells should pass the full program to providerTag');
   assert(/class="type-tag \$\{cls\} provider-link"/.test(html), 'Provider tag should render as a clickable link');
 }
+
+{
+  const nameRenderer = html.slice(
+    html.indexOf('function shortProgramName(program)'),
+    html.indexOf('function chainBadge(chain)')
+  );
+  assert(nameRenderer.includes("if (market && action === 'LEND') return `Supply ${market}`;"), 'LEND rewards should use Supply in visible program names');
+  assert(nameRenderer.includes("replace(/^Lend\\s+/i, 'Supply ')"), 'Provider names beginning with Lend should be normalized to Supply');
+  assert(!nameRenderer.includes('return `Lend ${market}`'), 'Rewards should not show Lend for supply programs');
+  assert(html.includes("action === 'LEND'"), 'Source LEND classification should remain intact');
+}

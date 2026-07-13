@@ -17566,6 +17566,14 @@
             return 'strong';
         }
 
+        const EARN_EMODE_TIP = "E-Mode applies special risk parameters for correlated assets in the same category. It can improve borrow efficiency, but liquidation still depends on the account's collateral, debt, and selected E-Mode category.";
+        const EARN_EMODE_ICON = '<span class="earn-emode-icon" aria-hidden="true"><svg class="earn-emode-flame" viewBox="0 0 24 24"><path d="M12.2 1.25c.2 3.05-1.3 5.2-3.85 7.36-1.85 1.58-3 3.6-3 6.03a6.65 6.65 0 0 0 13.3 0c0-5.03-3.2-8.56-6.45-13.39Z" fill="#fb923c"/><path d="M12.2 8.05c.18 2.08-1.9 3.1-1.9 5.2a1.9 1.9 0 1 0 3.8 0c0-1.76-.78-3.08-1.9-5.2Z" fill="#fbbf24"/><path d="M12.2 11.45c.1.93-.78 1.32-.78 2.22a.78.78 0 1 0 1.56 0c0-.74-.3-1.35-.78-2.22Z" fill="#fff1c1"/></svg></span>';
+        function earn_emodeBadge(active) {
+            return active
+                ? `<span class="earn-hf-emode-inline" data-tip="${EARN_EMODE_TIP}">${EARN_EMODE_ICON}E-Mode</span>`
+                : '';
+        }
+
         function earn_formatUSD(n) {
             if (n === null || n === undefined) return '—';
             const value = Number(n);
@@ -18065,8 +18073,6 @@
                 });
                 if (!earn_isLookupRunCurrent(runId)) return null;
 
-                const FLAME_SVG = '<svg class="earn-emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
-
                 tbody.innerHTML = positions.map((p, i) => {
                     const riskClass = earn_getRiskClass(p);
                     const hfDecimals = ['good', 'strong', 'balanced'].includes(riskClass) ? 2 : 4;
@@ -18075,9 +18081,7 @@
                         : '—';
 
                     // E-Mode inline with HF
-                    const emodeBadge = p.eMode
-                        ? `<span class="earn-hf-emode-inline">${FLAME_SVG}E</span>`
-                        : '';
+                    const emodeBadge = earn_emodeBadge(p.eMode);
 
                     const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
 
@@ -18632,7 +18636,6 @@
             if (!tbody || !earn_lendingPositions || earn_lendingPositions.length === 0) return;
 
             const positions = earn_lendingPositions;
-            const FLAME_SVG = '<svg class="earn-emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
             const useApy = typeof earn_showApy !== 'undefined' && earn_showApy;
             const rateLabel = useApy ? 'APY' : 'APR';
 
@@ -18643,9 +18646,7 @@
                     ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                     : '—';
 
-                const emodeBadge = p.eMode
-                    ? `<span class="earn-hf-emode-inline">${FLAME_SVG}E</span>`
-                    : '';
+                const emodeBadge = earn_emodeBadge(p.eMode);
 
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
 

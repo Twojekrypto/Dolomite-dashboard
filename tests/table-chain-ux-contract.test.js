@@ -79,7 +79,7 @@ function assertBefore(source, first, second, message) {
 
 {
   assertBefore(historyHtml, '<col class="col-chain">', '<col class="col-date">', 'History results should put Chain col before Date');
-  assertBefore(historyHtml, '<th>Chain</th>', '<th>Date</th>', 'History results should put Chain header before Date');
+  assertBefore(historyHtml, 'data-history-sort="chain"', 'data-history-sort="date"', 'History results should put Chain header before Date');
   const rowHtml = between(historyJs, 'function rowHtml(row, expanded, index = 0)', 'function displayActionsForRow(row)');
   assertBefore(rowHtml, '<td class="chain-td">${chainChip(row.chainKey)}</td>', '<td class="date-td">', 'History result rows should put Chain before Date');
   assert(historyCss.includes('.chain-chip{display:inline-flex;align-items:center;gap:7px;color:var(--fg-1);font-size:12.5px;font-weight:500'), 'History chain chips should match the Rewards chain badge styling');

@@ -4344,23 +4344,29 @@
         }
         /* E-Mode badge */
         .emode-badge {
-            display: inline-flex; align-items: center; gap: 2px;
-            padding: 1px 5px 1px 3px;
-            border-radius: 4px;
+            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+            min-height: 24px;
+            padding: 2px 7px 2px 3px;
+            border-radius: 999px;
             font-size: 9px; font-weight: 600;
             white-space: nowrap;
             cursor: help;
-            transition: all 0.2s ease;
+            transition: transform 0.15s ease, filter 0.15s ease, border-color 0.15s ease;
             letter-spacing: 0.2px;
             background: rgba(251,146,60,0.10); color: #fdba74;
             border: 1px solid rgba(251,146,60,0.18);
             line-height: 1.2;
         }
-        .emode-badge:hover { transform: scale(1.08); filter: drop-shadow(0 0 6px rgba(251,146,60,0.4)); }
-        .emode-badge .emode-flame {
-            width: 11px; height: 11px;
-            flex-shrink: 0;
+        .emode-badge:hover { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(251,146,60,0.4)); border-color: rgba(251,146,60,0.34); }
+        .emode-icon {
+            display: inline-grid; place-items: center;
+            width: 18px; height: 18px; flex: 0 0 18px;
+            border: 1px solid rgba(251,191,36,0.46); border-radius: 50%;
+            background: radial-gradient(circle at 50% 72%,rgba(251,191,36,0.30),transparent 60%),rgba(251,146,60,0.16);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.14),0 1px 6px rgba(251,146,60,0.28);
         }
+        .emode-icon svg { display: block; width: 12px; height: 12px; }
+        .emode-icon .emode-flame { width: 14px; height: 14px; filter: drop-shadow(0 0 2px rgba(255,216,132,0.8)) drop-shadow(0 0 4px rgba(251,146,60,0.55)); }
 
         /* E-Mode row highlight */
         .positions-table tbody tr.emode-row {
@@ -14103,7 +14109,7 @@
                     ? renderTokenPills(p.debtTokens, { limit: 3, expanded: isExpanded, collapsible: hasTokenOverflow })
                     : `<span class="pos-merged-empty">—</span>`;
 
-                const FLAME_SVG = '<svg class="emode-flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
+                const FLAME_SVG = '<span class="emode-icon" aria-hidden="true"><svg class="emode-flame" viewBox="0 0 24 24"><path d="M12.2 1.25c.2 3.05-1.3 5.2-3.85 7.36-1.85 1.58-3 3.6-3 6.03a6.65 6.65 0 0 0 13.3 0c0-5.03-3.2-8.56-6.45-13.39Z" fill="#fb923c"/><path d="M12.2 8.05c.18 2.08-1.9 3.1-1.9 5.2a1.9 1.9 0 1 0 3.8 0c0-1.76-.78-3.08-1.9-5.2Z" fill="#fbbf24"/><path d="M12.2 11.45c.1.93-.78 1.32-.78 2.22a.78.78 0 1 0 1.56 0c0-.74-.3-1.35-.78-2.22Z" fill="#fff1c1"/></svg></span>';
                 const emodeCell = p.eMode
                     ? `<span class="emode-badge" data-tooltip="E-Mode applies special risk parameters for correlated assets in the same category. It can improve borrow efficiency, but liquidation still depends on the account's collateral, debt, and selected E-Mode category.">${FLAME_SVG}E-Mode</span>`
                     : '<span style="color:var(--text-muted);font-size:11px">—</span>';

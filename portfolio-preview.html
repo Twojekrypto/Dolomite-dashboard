@@ -1279,6 +1279,19 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-token-pills{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:5px}
 .pf-token-pill{display:inline-flex;align-items:center;gap:5px;max-width:150px;height:22px;padding:0 7px;border-radius:7px;background:rgba(255,255,255,.026);border:1px solid rgba(255,255,255,.065);font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
 .pf-token-pill img{width:13px;height:13px;border-radius:50%;object-fit:contain;flex-shrink:0}
+.pf-borrow-positions tbody tr.has-token-overflow{cursor:pointer}
+.pf-borrow-positions tbody tr.has-token-overflow:focus-visible{outline:0;box-shadow:inset 0 0 0 1px var(--gold-line)}
+.pf-borrow-positions tbody tr.position-row-expanded td{background:rgba(201,162,39,.028)}
+.pf-token-pill-extra-wrap{
+  display:inline-flex;align-items:flex-end;gap:6px;flex-wrap:wrap;
+  max-width:0;max-height:22px;overflow:hidden;opacity:0;transform:translateY(-2px);
+  transition:max-width .24s var(--ease),max-height .24s var(--ease),opacity .18s var(--ease),transform .24s var(--ease)
+}
+.pf-borrow-positions tbody tr.position-row-expanded .pf-token-pill-extra-wrap{
+  max-width:100%;max-height:220px;opacity:1;transform:translateY(0)
+}
+.pf-token-more{color:var(--gold);border-color:var(--gold-line);transition:opacity .18s var(--ease),max-width .18s var(--ease),padding .18s var(--ease),border-width .18s var(--ease)}
+.pf-borrow-positions tbody tr.position-row-expanded .pf-token-more{max-width:0;padding-left:0;padding-right:0;border-width:0;opacity:0;overflow:hidden}
 .pf-money-cell{display:flex;flex-direction:column;align-items:flex-end;gap:0}
 .pf-money-main{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums}
 .pf-borrow-positions{
@@ -2469,16 +2482,25 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const img = `<img src="${icon}" alt="" class="${gs.trim()}" onerror="this.remove();this.parentElement.classList.add('mono');this.parentElement.textContent='${mono}'">`;
     return `<div class="pf-token"><span class="pf-token-mark">${img}</span><span class="pf-token-name" title="${sym}">${sym}</span></div>`;
   }
-  function tokenPills(tokens, chain){
+  function tokenPills(tokens, chain, options = {}){
     const list = Array.isArray(tokens) ? tokens : [];
     if (!list.length) return `<div class="pf-token-pills"><span class="pf-token-pill">—</span></div>`;
-    return `<div class="pf-token-pills">${list.slice(0, 3).map(t => {
+    const limit = Number.isFinite(options.limit) ? Math.max(0, options.limit) : list.length;
+    const expanded = !!options.expanded;
+    const collapsible = !!options.collapsible;
+    const renderToken = t => {
       const sym = t.symbol || "?";
       const mono = sym.replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "?";
       const icon = tokenIcon(sym, { chain });
       const value = Number(t.usd) ? fmtUSD(t.usd) : "—";
       return `<span class="pf-token-pill" title="${esc(sym)} ${esc(value)}"><img src="${icon}" alt="" onerror="this.remove();this.parentElement.textContent='${mono} ${esc(value)}'"><span>${esc(sym)}</span><span>${esc(value)}</span></span>`;
-    }).join("")}${list.length > 3 ? `<span class="pf-token-pill">+${list.length - 3}</span>` : ""}</div>`;
+    };
+    if (collapsible && list.length > limit){
+      const primary = list.slice(0, limit).map(renderToken).join("");
+      const extra = list.slice(limit).map(renderToken).join("");
+      return `<div class="pf-token-pills">${primary}<span class="pf-token-pill pf-token-more">+${list.length - limit}</span><span class="pf-token-pill-extra-wrap" aria-hidden="${expanded ? "false" : "true"}">${extra}</span></div>`;
+    }
+    return `<div class="pf-token-pills">${list.map(renderToken).join("")}</div>`;
   }
   function shortAccountNumber(account){
     const number = String(account == null ? "" : account).trim();
@@ -2551,6 +2573,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       search: row.sym || "position",
       source: "subgraph",
     }))).filter(r => r.debt > 0.000001);
+  }
+  function borrowRowKey(row){
+    return `${row.chain}:${row.accountId || row.account || row.search}`;
+  }
+  function hasBorrowTokenOverflow(row){
+    const collateralTokens = Array.isArray(row.collateralTokens) ? row.collateralTokens : [];
+    const debtTokens = Array.isArray(row.debtTokens) ? row.debtTokens : [];
+    return collateralTokens.length > 3 || debtTokens.length > 3;
   }
   function flowTimeSec(row){
     const ms = exerciseTimeMs(row);
@@ -2890,6 +2920,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     depPage: 0,
     borPage: 0,
     exPage: 0,
+    expandedBorrows: new Set(),
   };
 
   // ---------- DOLO wallet summary (main card) ----------
@@ -3241,8 +3272,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     state.borPage = Math.min(Math.max(0, state.borPage), totalPages - 1);
     const start = state.borPage * PAGE_SIZE;
     const pageRows = filtered.slice(start, start + PAGE_SIZE);
-    body.innerHTML = pageRows.map(r => `
-      <tr class="pf-row">
+    body.innerHTML = pageRows.map(r => {
+      const rowKey = borrowRowKey(r);
+      const hasOverflow = hasBorrowTokenOverflow(r);
+      const isExpanded = state.expandedBorrows.has(rowKey);
+      const rowClass = `${hasOverflow ? " has-token-overflow" : ""}${isExpanded ? " position-row-expanded" : ""}`;
+      const rowAttrs = hasOverflow
+        ? ` data-borrow-row-key="${esc(rowKey)}" tabindex="0" aria-expanded="${isExpanded ? "true" : "false"}"`
+        : "";
+      return `
+      <tr class="pf-row${rowClass}"${rowAttrs}>
         <td data-column="chain">${chainChip(r.chain)}</td>
         <td data-column="account">${accountNumberCell(r.account)}</td>
         <td data-column="health"><span class="pf-hf-badge ${hfClass(r.hf)}"><span class="pf-hf-dot"></span>${hfText(r.hf)}</span></td>
@@ -3250,15 +3289,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         <td data-column="spacer" aria-hidden="true"></td>
         <td data-column="collateral"><div class="pf-money-cell">
             <div class="pf-money-main pf-collateral-main">${fmtUSD(r.collateral)}</div>
-            ${tokenPills(r.collateralTokens, r.chain)}
+            ${tokenPills(r.collateralTokens, r.chain, { limit: 3, expanded: isExpanded, collapsible: hasOverflow })}
           </div>
         </td>
         <td data-column="debt"><div class="pf-money-cell">
             <div class="pf-money-main pf-debt-main">${fmtUSD(r.debt)}</div>
-            ${tokenPills(r.debtTokens, r.chain)}
+            ${tokenPills(r.debtTokens, r.chain, { limit: 3, expanded: isExpanded, collapsible: hasOverflow })}
           </div>
         </td>
-      </tr>`).join("");
+      </tr>`;
+    }).join("");
     if (totalPages > 1 && pageRows.length < PAGE_SIZE){
       const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 64;
       body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
@@ -3385,6 +3425,23 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     renderBorrowPositionsTable();
     renderExerciseTable();
   }
+  function shouldIgnoreBorrowExpandClick(target){
+    return !!target?.closest?.("a,button,input,select,textarea,[data-copy]");
+  }
+  function setBorrowRowExpanded(row, expanded){
+    const rowKey = row && row.dataset ? row.dataset.borrowRowKey : "";
+    if (!rowKey) return;
+    if (expanded) state.expandedBorrows.add(rowKey);
+    else state.expandedBorrows.delete(rowKey);
+    row.classList.toggle("position-row-expanded", expanded);
+    row.setAttribute("aria-expanded", expanded ? "true" : "false");
+    row.querySelectorAll(".pf-token-pill-extra-wrap").forEach(el => {
+      el.setAttribute("aria-hidden", expanded ? "false" : "true");
+    });
+  }
+  function toggleBorrowRowExpanded(row){
+    setBorrowRowExpanded(row, !row.classList.contains("position-row-expanded"));
+  }
   function wireSortHeaders(){
     document.querySelectorAll("#pf-results th[data-sort]").forEach(th => th.addEventListener("click", () => {
       const tk = th.dataset.table, key = th.dataset.sort;
@@ -3413,6 +3470,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
   async function loadWallet(addr){
     addr = normAddr(addr);
+    state.expandedBorrows.clear();
     document.body.classList.add("pf-active");
     $("#pf-idle").classList.remove("show");
     setLoadingTables();
@@ -3482,6 +3540,18 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
   $("#pf-go").addEventListener("click", submit);
   $("#pf-addr").addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+  $("#pf-borrows-body").addEventListener("click", e => {
+    const row = e.target && e.target.closest("tr.has-token-overflow[data-borrow-row-key]");
+    if (!row || shouldIgnoreBorrowExpandClick(e.target)) return;
+    toggleBorrowRowExpanded(row);
+  });
+  $("#pf-borrows-body").addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const row = e.target && e.target.closest("tr.has-token-overflow[data-borrow-row-key]");
+    if (!row) return;
+    e.preventDefault();
+    toggleBorrowRowExpanded(row);
+  });
   document.addEventListener("click", async e => {
     const btn = e.target && e.target.closest("[data-copy]");
     if (!btn) return;
