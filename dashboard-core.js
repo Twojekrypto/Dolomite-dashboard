@@ -13249,11 +13249,13 @@
             return `${(value / 60).toFixed(value >= 600 ? 0 : 1)}h lag`;
         }
 
-        function earn_formatCanonicalCoverageLabel(coverage) {
-            const fresh = Number(coverage?.freshWalletCount);
+        function earn_formatCanonicalCoverageLabel(coverage, useBackfill = false) {
+            const count = Number(useBackfill
+                ? (coverage?.backfilledWalletCount ?? coverage?.freshWalletCount)
+                : (coverage?.headFreshWalletCount ?? coverage?.freshWalletCount));
             const known = Number(coverage?.knownAddressCount);
-            if (!Number.isFinite(fresh) || !Number.isFinite(known) || known <= 0) return '';
-            return `${Math.max(0, Math.min(fresh, known))}/${known} wallets`;
+            if (!Number.isFinite(count) || !Number.isFinite(known) || known <= 0) return '';
+            return `${Math.max(0, Math.min(count, known))}/${known} wallets`;
         }
 
         function earn_updateFreshnessPill() {
@@ -13283,7 +13285,7 @@
             const recencyFresh = ['verified', 'ahead'].includes(recencyStatus)
                 || (Number.isFinite(blockLag) && Number.isFinite(verifiedBlockLag) && verifiedBlockLag > 0 && blockLag <= verifiedBlockLag);
             if (canonicalCoverageCatchup || canonicalCoverageBacklog) {
-                const coverageLabel = earn_formatCanonicalCoverageLabel(canonicalCoverage);
+                const coverageLabel = earn_formatCanonicalCoverageLabel(canonicalCoverage, canonicalCoverageBacklog);
                 const parts = [
                     recencyFresh ? 'Fresh chain data' : 'Chain data syncing',
                     canonicalCoverageCatchup

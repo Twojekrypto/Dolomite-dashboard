@@ -243,31 +243,52 @@ def _known_addresses_from_public_data(data_dir: Path, chain: str) -> list[str]:
     return sorted(address for address in addresses if address.startswith("0x") and len(address) == 42)
 
 
-def _canonical_coverage_status(*, data_dir: Path, chain: str, target_block: Optional[int]) -> Dict[str, Any]:
+def _canonical_coverage_status(
+    *,
+    data_dir: Path,
+    chain: str,
+    target_block: Optional[int],
+    from_block: Optional[int] = None,
+) -> Dict[str, Any]:
     target = _safe_int(target_block)
+    canonical_from = _safe_int(from_block)
     addresses = _known_addresses_from_public_data(data_dir, chain)
     if target <= 0:
         return {
             "status": "missing_target",
+            "backfillStatus": "missing_target",
             "targetBlock": target_block,
+            "fromBlock": canonical_from or None,
             "knownAddressCount": len(addresses),
             "freshWalletCount": 0,
+            "headFreshWalletCount": 0,
+            "backfilledWalletCount": 0,
+            "incompleteBackfillWalletCount": 0,
             "partialWalletCount": 0,
             "missingWalletCount": len(addresses),
             "freshCoverageRatio": 0.0,
+            "backfillCoverageRatio": 0.0,
         }
     if not addresses:
         return {
             "status": "unknown",
+            "backfillStatus": "unknown",
             "targetBlock": target,
+            "fromBlock": canonical_from or None,
             "knownAddressCount": 0,
             "freshWalletCount": 0,
+            "headFreshWalletCount": 0,
+            "backfilledWalletCount": 0,
+            "incompleteBackfillWalletCount": 0,
             "partialWalletCount": 0,
             "missingWalletCount": 0,
             "freshCoverageRatio": None,
+            "backfillCoverageRatio": None,
         }
 
     fresh_count = 0
+    backfilled_count = 0
+    incomplete_backfill_count = 0
     partial_count = 0
     missing_count = 0
     min_last_scanned: Optional[int] = None
@@ -279,22 +300,46 @@ def _canonical_coverage_status(*, data_dir: Path, chain: str, target_block: Opti
             missing_count += 1
             continue
         last_scanned = _safe_int(payload.get("lastScannedBlock"))
+        scan_range = payload.get("scanRange") or {}
+        scan_from = _safe_int(scan_range.get("fromBlock")) if isinstance(scan_range, dict) else 0
         min_last_scanned = last_scanned if min_last_scanned is None else min(min_last_scanned, last_scanned)
         max_last_scanned = last_scanned if max_last_scanned is None else max(max_last_scanned, last_scanned)
+        has_full_backfill = (
+            last_scanned > 0
+            and (
+                canonical_from <= 0
+                or (scan_from > 0 and scan_from <= canonical_from and last_scanned >= canonical_from)
+            )
+        )
+        if has_full_backfill:
+            backfilled_count += 1
+        else:
+            incomplete_backfill_count += 1
         if last_scanned >= target:
             fresh_count += 1
         else:
             partial_count += 1
 
-    complete = fresh_count == len(addresses) and partial_count == 0 and missing_count == 0
+    head_complete = fresh_count == len(addresses) and partial_count == 0 and missing_count == 0
+    backfill_complete = (
+        backfilled_count == len(addresses)
+        and incomplete_backfill_count == 0
+        and missing_count == 0
+    )
     return {
-        "status": "full" if complete else "partial",
+        "status": "full" if head_complete else "partial",
+        "backfillStatus": "full" if backfill_complete else "partial",
         "targetBlock": target,
+        "fromBlock": canonical_from or None,
         "knownAddressCount": len(addresses),
         "freshWalletCount": fresh_count,
+        "headFreshWalletCount": fresh_count,
+        "backfilledWalletCount": backfilled_count,
+        "incompleteBackfillWalletCount": incomplete_backfill_count,
         "partialWalletCount": partial_count,
         "missingWalletCount": missing_count,
         "freshCoverageRatio": round(fresh_count / len(addresses), 6),
+        "backfillCoverageRatio": round(backfilled_count / len(addresses), 6),
         "minLastScannedBlock": min_last_scanned,
         "maxLastScannedBlock": max_last_scanned,
     }
@@ -314,7 +359,10 @@ def _apply_canonical_coverage(
     completeness = _canonical_coverage_completeness(policy)
     component["coverage"] = coverage
     component["coverageCompleteness"] = completeness
-    if coverage.get("status") != "partial":
+    coverage_status = coverage.get("status")
+    backfill_status = coverage.get("backfillStatus", coverage_status)
+    incomplete = backfill_status == "partial" if completeness == "advisory" else coverage_status == "partial"
+    if not incomplete:
         component["coverageCatchup"] = False
         component["coverageBacklog"] = False
         return component
@@ -323,8 +371,8 @@ def _apply_canonical_coverage(
         component["coverageCatchup"] = False
         component["coverageBacklog"] = True
         component["reason"] = (
-            f"canonical global backfill pending: {coverage.get('freshWalletCount')}/"
-            f"{coverage.get('knownAddressCount')} wallets fresh"
+            f"canonical global backfill pending: {coverage.get('backfilledWalletCount')}/"
+            f"{coverage.get('knownAddressCount')} wallets backfilled"
         )
         return component
     component["refreshRecommended"] = True
@@ -459,10 +507,10 @@ def _weak_point(
     for name, component in (("canonical", canonical), ("netflow", netflow)):
         if component.get("refreshMode") == "background":
             return f"{name} background refresh due"
-    if canonical_coverage.get("status") == "partial" and canonical.get("coverageBacklog"):
+    if canonical.get("coverageBacklog"):
         return (
-            f"canonical global backfill {canonical_coverage.get('freshWalletCount')}/"
-            f"{canonical_coverage.get('knownAddressCount')} wallets fresh"
+            f"canonical global backfill {canonical_coverage.get('backfilledWalletCount')}/"
+            f"{canonical_coverage.get('knownAddressCount')} wallets backfilled"
         )
     return "none"
 
@@ -539,6 +587,7 @@ def build_status(
                 data_dir=data_dir,
                 chain=chain,
                 target_block=history_meta.get("lastBlock"),
+                from_block=history_meta.get("fromBlock"),
             )
             canonical = _apply_canonical_coverage(canonical, coverage, policy=policy)
         netflow_supported = (CHAINS.get(chain) or {}).get("start_block", 0) >= 0

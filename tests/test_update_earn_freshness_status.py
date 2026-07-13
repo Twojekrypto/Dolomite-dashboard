@@ -12,6 +12,7 @@ from update_earn_freshness_status import (
     REFRESH_AFTER_MINUTES,
     STALE_AFTER_HOURS,
     VERIFIED_AFTER_HOURS,
+    _canonical_coverage_status,
     build_status,
     write_actions_output,
 )
@@ -30,6 +31,61 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual("advisory", CHAIN_POLICIES["ethereum"]["canonicalCoverageCompleteness"])
         self.assertEqual({"botanix", "polygonzkevm"}, ARCHIVED_CHAINS)
         self.assertTrue(ARCHIVED_CHAINS.isdisjoint(CHAIN_POLICIES))
+
+    def test_canonical_coverage_separates_historical_backfill_from_head_freshness(self):
+        full = "0x1111111111111111111111111111111111111111"
+        short = "0x2222222222222222222222222222222222222222"
+        missing = "0x3333333333333333333333333333333333333333"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-snapshots/manifest.json",
+                {"dates": ["2026-05-08"], "chains": {"2026-05-08": ["ethereum"]}},
+            )
+            self._write_json(
+                root,
+                "earn-snapshots/2026-05-08.json",
+                {
+                    "snapshots": {
+                        "ethereum": {
+                            full: {"markets": {"0": {"par": "1"}}},
+                            short: {"markets": {"0": {"par": "1"}}},
+                            missing: {"markets": {"0": {"par": "1"}}},
+                        }
+                    }
+                },
+            )
+            self._write_json(
+                root,
+                f"earn-subaccount-history/ethereum/{full}.json",
+                {
+                    "lastScannedBlock": 900,
+                    "scanRange": {"fromBlock": 100, "toBlock": 900},
+                },
+            )
+            self._write_json(
+                root,
+                f"earn-subaccount-history/ethereum/{short}.json",
+                {
+                    "lastScannedBlock": 900,
+                    "scanRange": {"fromBlock": 200, "toBlock": 900},
+                },
+            )
+
+            coverage = _canonical_coverage_status(
+                data_dir=root,
+                chain="ethereum",
+                target_block=1_000,
+                from_block=100,
+            )
+
+        self.assertEqual(0, coverage["headFreshWalletCount"])
+        self.assertEqual(1, coverage["backfilledWalletCount"])
+        self.assertEqual(1, coverage["incompleteBackfillWalletCount"])
+        self.assertEqual(1, coverage["missingWalletCount"])
+        self.assertEqual("partial", coverage["backfillStatus"])
+        self.assertAlmostEqual(1 / 3, coverage["backfillCoverageRatio"], places=6)
 
     def _write_json(self, root: Path, rel: str, payload: dict) -> None:
         path = root / rel
@@ -476,7 +532,11 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 "earn-subaccount-history/manifest.json",
                 {
                     "chains": {
-                        chain: {"lastBlock": 10_000, "updatedAt": "2026-05-08T11:59:00Z"}
+                        chain: {
+                            "fromBlock": 1,
+                            "lastBlock": 10_000,
+                            "updatedAt": "2026-05-08T11:59:00Z",
+                        }
                         for chain in CHAIN_POLICIES
                     }
                 },
@@ -496,7 +556,12 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             self._write_json(
                 root,
                 f"earn-subaccount-history/arbitrum/{wallet}.json",
-                {"address": wallet, "lastScannedBlock": 9_999, "accounts": {}},
+                {
+                    "address": wallet,
+                    "lastScannedBlock": 9_999,
+                    "scanRange": {"fromBlock": 2, "toBlock": 9_999},
+                    "accounts": {},
+                },
             )
             self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
 
@@ -517,7 +582,59 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(status["summary"]["status"], "verified")
         self.assertEqual(status["summary"]["refreshJobs"], [])
         report = {entry["chain"]: entry for entry in status["chainReport"]}
-        self.assertEqual(report["arbitrum"]["weakPoint"], "canonical global backfill 0/1 wallets fresh")
+        self.assertEqual(report["arbitrum"]["weakPoint"], "canonical global backfill 0/1 wallets backfilled")
+
+    def test_advisory_head_gap_is_not_reported_as_historical_backfill(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        wallet = "0x4444444444444444444444444444444444444444"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                "earn-subaccount-history/manifest.json",
+                {
+                    "chains": {
+                        "ethereum": {
+                            "fromBlock": 100,
+                            "lastBlock": 10_000,
+                            "updatedAt": "2026-05-08T11:59:00Z",
+                        }
+                    }
+                },
+            )
+            self._write_json(
+                root,
+                f"earn-subaccount-history/ethereum/{wallet}.json",
+                {
+                    "address": wallet,
+                    "lastScannedBlock": 9_999,
+                    "scanRange": {"fromBlock": 100, "toBlock": 9_999},
+                    "accounts": {},
+                },
+            )
+            self._write_json(
+                root,
+                "earn-netflow/ethereum.json",
+                {
+                    "chain": "ethereum",
+                    "lastBlock": 10_000,
+                    "updatedAt": "2026-05-08T11:59:00Z",
+                    "netflows": {wallet: {"1": {"endingPar": "1"}}},
+                },
+            )
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={chain: (10_000 if chain == "ethereum" else None) for chain in CHAIN_POLICIES},
+                now=now,
+            )
+
+        ethereum = status["chains"]["ethereum"]
+        self.assertEqual("partial", ethereum["canonical"]["coverage"]["status"])
+        self.assertEqual("full", ethereum["canonical"]["coverage"]["backfillStatus"])
+        self.assertEqual(1, ethereum["canonical"]["coverage"]["backfilledWalletCount"])
+        self.assertFalse(ethereum["canonical"]["coverageBacklog"])
 
     def test_generic_netflow_refresh_jobs_stay_chain_specific(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)

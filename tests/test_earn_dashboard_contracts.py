@@ -563,6 +563,12 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         self.assertIn("chainStatus?.canonical?.coverageCatchup === true", self.source)
         self.assertIn("chainStatus?.canonical?.coverageBacklog === true", self.source)
         self.assertIn("canonical backfill", self.source)
+        self.assertIn("coverage?.backfilledWalletCount", self.source)
+        self.assertIn("coverage?.headFreshWalletCount ?? coverage?.freshWalletCount", self.source)
+        self.assertIn(
+            "earn_formatCanonicalCoverageLabel(canonicalCoverage, canonicalCoverageBacklog)",
+            self.source,
+        )
 
     def test_earn_chain_filter_keeps_archived_networks_last_and_labeled(self):
         start = self.source.index("const EARN_CHAINS = {")
@@ -808,6 +814,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
             self.assertIn(env_name, workflow)
         self.assertNotIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
+        self.assertIn("Select missing and oldest Ethereum canonical wallets", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)
@@ -1015,7 +1022,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertEqual(2, len(selected))
         self.assertEqual(3, metadata["missingHistoryAddressCount"])
 
-    def test_hot_wallet_selector_prioritizes_scored_wallets_before_cold_stale_backlog(self):
+    def test_hot_wallet_selector_prioritizes_oldest_watermark_before_score(self):
         import select_earn_canonical_hot_addresses as selector
 
         chain = "berachain"
@@ -1071,8 +1078,9 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
                             prefer_stale_history=True,
                         )
 
-        self.assertEqual([active_stale], selected)
+        self.assertEqual([cold_stale], selected)
         self.assertEqual(2, metadata["staleHistoryAddressCount"])
+        self.assertEqual("missing-then-oldest-watermark", metadata["selectionPolicy"])
 
     def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
         workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")

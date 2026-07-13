@@ -199,21 +199,23 @@ def build_selection(
             last_scanned = _history_last_scanned_block(history_dir, chain, address)
             if last_scanned < coverage_target:
                 stale_rows.append((last_scanned, address))
-        stale_history = [address for _last_scanned, address in sorted(stale_rows)]
+        stale_history = [
+            address
+            for _last_scanned, address in sorted(
+                stale_rows,
+                key=lambda row: (row[0], -scores.get(row[1], 0), row[1]),
+            )
+        ]
 
-    stale_set = set(stale_history)
-    missing_set = set(missing_history)
-    stale_ranked = [address for address in ranked_addresses if address in stale_set]
-    missing_ranked = [address for address in ranked_addresses if address in missing_set]
-    stale_unscored = [address for address in stale_history if address not in scores]
-    missing_unscored = [address for address in missing_history if address not in scores]
+    missing_history = sorted(
+        missing_history,
+        key=lambda address: (-scores.get(address, 0), address),
+    )
     selected = _unique_preserve_order([
         *priority,
-        *stale_ranked,
-        *missing_ranked,
+        *missing_history,
+        *stale_history,
         *ranked_addresses,
-        *stale_unscored,
-        *missing_unscored,
     ])
     if existing_history_only:
         selected = [address for address in selected if address in existing_history]
@@ -229,6 +231,7 @@ def build_selection(
         "scoredAddressCount": len(scores),
         "priorityAddressCount": len(priority),
         "preferStaleHistory": bool(prefer_stale_history),
+        "selectionPolicy": "missing-then-oldest-watermark" if prefer_stale_history else "score-ranked",
         "coverageTargetBlock": coverage_target or None,
         "staleHistoryAddressCount": len(stale_history),
         "missingHistoryAddressCount": len(missing_history),
