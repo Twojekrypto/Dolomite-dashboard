@@ -27,6 +27,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(3_600, CHAIN_POLICIES["berachain"]["verifiedBlockLag"])
         self.assertEqual(3_600, CHAIN_POLICIES["mantle"]["verifiedBlockLag"])
         self.assertEqual(7_200, CHAIN_POLICIES["xlayer"]["verifiedBlockLag"])
+        self.assertEqual("advisory", CHAIN_POLICIES["ethereum"]["canonicalCoverageCompleteness"])
         self.assertEqual({"botanix", "polygonzkevm"}, ARCHIVED_CHAINS)
         self.assertTrue(ARCHIVED_CHAINS.isdisjoint(CHAIN_POLICIES))
 

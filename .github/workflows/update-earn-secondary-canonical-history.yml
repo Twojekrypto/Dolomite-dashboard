@@ -131,6 +131,8 @@ jobs:
       INCREMENTAL_APPLY_WORKERS: ${{ matrix.incremental_apply_workers }}
       CHECKPOINT_STEPS: ${{ matrix.checkpoint_steps }}
       MAX_RESUME_TARGET_LAG_BLOCKS: ${{ matrix.max_resume_target_lag_blocks }}
+      MAX_DELTA_SCAN_BLOCKS_PER_TASK: '10000'
+      MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS: '300'
       CHECKPOINT_SLEEP_SECONDS: '20'
       COMMAND_TIMEOUT_SECONDS: '180'
       MANTLE_RPC: ${{ secrets.MANTLE_RPC }}
@@ -227,6 +229,8 @@ jobs:
             --max-materialize-workers "$MATERIALIZE_WORKERS" \
             --max-incremental-scan-workers "$INCREMENTAL_SCAN_WORKERS" \
             --max-incremental-apply-workers "$INCREMENTAL_APPLY_WORKERS" \
+            --max-delta-scan-blocks-per-task "$MAX_DELTA_SCAN_BLOCKS_PER_TASK" \
+            --max-incremental-scan-worker-runtime-seconds "$MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS" \
             --max-new-backfill-workers 4 \
             --max-steps "$CHECKPOINT_STEPS" \
             --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \

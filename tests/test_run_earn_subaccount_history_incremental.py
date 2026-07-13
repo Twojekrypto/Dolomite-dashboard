@@ -9,6 +9,66 @@ from run_earn_subaccount_history_incremental import _should_build_fresh_plan
 
 
 class RunEarnSubaccountHistoryIncrementalTest(unittest.TestCase):
+    def test_short_completed_scan_does_not_satisfy_the_planned_range(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            events_dir = root / "events"
+            progress_dir = events_dir / ".progress"
+            progress_dir.mkdir(parents=True)
+            (progress_dir / "ethereum--d1of1.json").write_text(
+                '{"status":"completed","fromBlock":1,"toBlock":90,"lastBlockExclusive":91}',
+                encoding="utf-8",
+            )
+            plan = {
+                "targetBlock": 100,
+                "cycleRoot": str(root / "cycle"),
+                "deltaEventsDir": str(events_dir),
+                "scanTasks": [{"progressKey": "d1of1", "fromBlock": 1, "toBlock": 100}],
+            }
+
+            status = incremental_runner._scan_stage_status(plan, "ethereum")
+
+        self.assertFalse(status["complete"])
+        self.assertEqual(0, status["completedWorkerCount"])
+        self.assertEqual("completed_for_previous_target", status["workers"][0]["status"])
+
+    def test_scan_launcher_restarts_a_short_completed_range(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            cycle_root = root / "cycle"
+            events_dir = cycle_root / "events"
+            progress_dir = events_dir / ".progress"
+            progress_dir.mkdir(parents=True)
+            (progress_dir / "ethereum--d1of1.json").write_text(
+                '{"status":"completed","fromBlock":1,"toBlock":90,"lastBlockExclusive":91}',
+                encoding="utf-8",
+            )
+            address_file = root / "addresses.txt"
+            address_file.write_text(
+                "0x1111111111111111111111111111111111111111\n",
+                encoding="utf-8",
+            )
+            plan = {
+                "chain": "ethereum",
+                "cycleId": "ethereum-f1-t100",
+                "cycleRoot": str(cycle_root),
+                "deltaEventsDir": str(events_dir),
+                "targetBlock": 100,
+                "maxScanWorkers": 1,
+                "scanTasks": [{
+                    "progressKey": "d1of1",
+                    "fromBlock": 1,
+                    "toBlock": 100,
+                    "addressFile": str(address_file),
+                }],
+            }
+
+            with patch.object(incremental_runner, "_start_task", return_value=456) as start_task:
+                result = incremental_runner._ensure_scan_running(plan, "ethereum")
+
+        start_task.assert_called_once()
+        self.assertEqual("d1of1", result["started"][0]["progressKey"])
+
     def test_continue_does_not_auto_refresh_completed_cycle(self):
         self.assertFalse(
             _should_build_fresh_plan(

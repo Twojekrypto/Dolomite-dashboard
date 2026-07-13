@@ -33,9 +33,9 @@ jobs:
       CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1200' }}
       CHECKPOINT_SLEEP_SECONDS: '2'
       COMMAND_TIMEOUT_SECONDS: '180'
-      # Preserve a multi-run event scan instead of discarding its completed
-      # shards whenever Ethereum advances between scheduled checkpoints.
-      MAX_RESUME_TARGET_LAG_BLOCKS: '28800'
+      # Never publish a completed checkpoint whose locked target is already
+      # outside the dashboard's two-hour Ethereum freshness window.
+      MAX_RESUME_TARGET_LAG_BLOCKS: '600'
       # The scanner halves unsafe RPC ranges itself; avoid 10-block task
       # process overhead across a large canonical catch-up window.
       MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'

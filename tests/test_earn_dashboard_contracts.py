@@ -112,7 +112,7 @@ if (!earn_canUseVerifiedLedgerMarketEntry(entry)) {
         self.assertNotIn("|| status === 'live_balance_adjusted';", self.source)
         self.assertNotIn("|| method === 'interest-ledger-live-balance-adjusted';", self.source)
         self.assertIn("earn_isTrustedReplayYieldStatus(strictVerificationStatus)", self.source)
-        self.assertIn("earn_isTrustedReplayYieldStatus(String(itemYieldCalc.verificationStatus || ''))", self.source)
+        self.assertIn("earn_isTrustedInterestLedgerYieldCalc(itemYieldCalc)", self.source)
         self.assertIn("trustedHistoryMethods.has(histMethod)", self.source)
 
     def test_aligned_live_balance_drift_is_kept_out_of_strict_yield(self):
@@ -366,6 +366,145 @@ if ((renderSource.match(/getVerifiedYieldCalc\(a\)/g) || []).length < 2) {
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
+    def test_summary_does_not_label_missing_yield_as_verified_zero(self):
+        self.assertIn(
+            "const hasVerifiedTotalYield = trustedYieldAssetCount > 0;",
+            self.source,
+        )
+        self.assertIn(
+            "(earn_totalYieldStatus === 'loading' || earn_replayStatus === 'loading')",
+            self.source,
+        )
+        self.assertIn("'No verified yield data'", self.source)
+        self.assertIn("hasVerifiedTotalYield ? `${yieldSign}${earn_formatUSD(Math.abs(totalYieldUsd))}` : '—'", self.source)
+        self.assertIn("hasBorrowOnlyEarnContext ? '—' : isTotalYieldLoading ? 'Loading...'", self.source)
+
+    def test_unverified_yield_is_never_rendered_as_a_numeric_result(self):
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+for (const name of [
+  'earn_isTrustedReplayYieldMethod',
+  'earn_isTrustedReplayYieldStatus',
+  'earn_isTrustedInterestLedgerYieldCalc',
+]) {
+  const start = source.indexOf(`function ${name}(`);
+  const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+  if (start < 0 || end < 0) throw new Error(`missing ${name}`);
+  eval(source.slice(start, end));
+}
+const cases = [
+  [{ hasData: true, trustedForTotal: true, verificationStatus: 'verified', method: 'interest-ledger' }, true],
+  [{ hasData: true, trustedForTotal: true, verificationStatus: 'verified', method: 'interest-ledger-override' }, true],
+  [{ hasData: true, trustedForTotal: false, verificationStatus: 'fallback', method: 'all-netflow' }, false],
+  [{ hasData: true, trustedForTotal: false, verificationStatus: 'coverage_incomplete', method: 'interest-ledger' }, false],
+  [{ hasData: true, trustedForTotal: false, verificationStatus: 'mismatch', method: 'interest-ledger' }, false],
+  [{ hasData: true, trustedForTotal: true, verificationStatus: 'verified', method: 'all-netflow-verified' }, false],
+  [{ hasData: false, trustedForTotal: true, verificationStatus: 'verified', method: 'interest-ledger' }, false],
+];
+for (const [value, expected] of cases) {
+  const actual = earn_isTrustedInterestLedgerYieldCalc(value);
+  if (actual !== expected) throw new Error(`${JSON.stringify(value)}: expected ${expected}, got ${actual}`);
+}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+        self.assertIn(
+            "const hasVerifiedYield = earn_isTrustedInterestLedgerYieldCalc(yieldCalc);",
+            self.source,
+        )
+        self.assertIn(
+            "item.yieldTrustedForDisplay = earn_isTrustedInterestLedgerYieldCalc(calc);",
+            self.source,
+        )
+        self.assertIn(
+            "resolvedTrustedForTotal = earn_isTrustedInterestLedgerYieldCalc(yieldCalc);",
+            self.source,
+        )
+        self.assertIn(
+            "histMeta.resolvedTrustedForTotal === true",
+            self.source,
+        )
+        self.assertIn(
+            "if (earn_isTrustedInterestLedgerYieldCalc(yieldCalc))",
+            self.source,
+        )
+
+    def test_replay_keeps_closed_borrow_cost_out_of_earn_yield(self):
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+for (const name of [
+  'earn_normalizeMarketId',
+  'earn_addSettledYield',
+  'earn_settleReducedExposureYield',
+  'earn_summarizeReplayAccountStates',
+]) {
+  const start = source.indexOf(`function ${name}(`);
+  const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+  if (start < 0 || end < 0) throw new Error(`missing ${name}`);
+  eval(source.slice(start, end));
+}
+
+const supplyState = {
+  par: 100n,
+  liveYield: 10n,
+  settledYield: 0n,
+  settledSupplyYield: 0n,
+  settledBorrowYield: 0n,
+};
+earn_settleReducedExposureYield(supplyState, 0n);
+if (supplyState.settledSupplyYield !== 10n || supplyState.settledBorrowYield !== 0n) {
+  throw new Error('closed supply yield was not routed to settledSupplyYield');
+}
+
+const borrowState = {
+  par: -100n,
+  liveYield: -5n,
+  settledYield: 0n,
+  settledSupplyYield: 0n,
+  settledBorrowYield: 0n,
+};
+earn_settleReducedExposureYield(borrowState, 0n);
+if (borrowState.settledSupplyYield !== 0n || borrowState.settledBorrowYield !== -5n) {
+  throw new Error('closed borrow cost was not routed to settledBorrowYield');
+}
+
+const result = earn_summarizeReplayAccountStates({
+  '0|1': {
+    account: '0', marketId: '1', par: '0', settledYield: '10',
+    settledSupplyYield: '10', settledBorrowYield: '0', liveYield: '0',
+    hadSupply: true, hadBorrow: false,
+  },
+  '1|1': {
+    account: '1', marketId: '1', par: '0', settledYield: '-5',
+    settledSupplyYield: '0', settledBorrowYield: '-5', liveYield: '0',
+    hadSupply: false, hadBorrow: true,
+  },
+}, {});
+const market = result.interestYieldData['1'];
+if (market.earnYield !== '10') throw new Error(`earn yield included borrow cost: ${market.earnYield}`);
+if (market.settledYield !== '10') throw new Error(`settled supply yield is ${market.settledYield}`);
+if (market.settledBorrowYield !== '-5') throw new Error(`settled borrow cost is ${market.settledBorrowYield}`);
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("const hasSupplyYield = interestMeta", self.source)
+        self.assertNotIn("const hasSettledYield = interestMeta", self.source)
+
     def test_subgraph_replay_paginates_with_cursor_instead_of_a_hard_offset_cap(self):
         self.assertIn("orderBy: id, orderDirection: asc", self.source)
         self.assertIn("id_gt:", self.source)
@@ -422,6 +561,20 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         self.assertIn("canonical coverage syncing", self.source)
         self.assertIn("Fresh chain data", self.source)
         self.assertIn("chainStatus?.canonical?.coverageCatchup === true", self.source)
+        self.assertIn("chainStatus?.canonical?.coverageBacklog === true", self.source)
+        self.assertIn("canonical backfill", self.source)
+
+    def test_earn_chain_filter_keeps_archived_networks_last_and_labeled(self):
+        start = self.source.index("const EARN_CHAINS = {")
+        end = self.source.index("// oDOLO token address", start)
+        chains = self.source[start:end]
+
+        self.assertLess(chains.index("xlayer: {"), chains.index("polygonzkevm: {"))
+        self.assertLess(chains.index("polygonzkevm: {"), chains.index("botanix: {"))
+        self.assertEqual(2, chains.count("earnLifecycle: 'archived'"))
+        self.assertEqual(2, chains.count("earnLifecycleLabel: 'Archived'"))
+        self.assertIn("earn-chain-option-copy", self.source)
+        self.assertIn("earn-chain-option-status", self.source)
 
     def test_earn_freshness_pill_wraps_inside_mobile_width(self):
         self.assertIn(".earn-data-freshness-pill", self.source)
@@ -655,7 +808,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
             self.assertIn(env_name, workflow)
         self.assertNotIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
-        self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '28800'", workflow)
+        self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)
         self.assertIn("--max-incremental-scan-workers 12", workflow)
@@ -787,6 +940,8 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn('"max_resume_target_lag_blocks": 7200', workflow)
         self.assertIn("CHECKPOINT_STEPS: ${{ matrix.checkpoint_steps }}", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: ${{ matrix.max_resume_target_lag_blocks }}", workflow)
+        self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '10000'", workflow)
+        self.assertIn("MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS: '300'", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
@@ -802,6 +957,8 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn('--max-steps "$CHECKPOINT_STEPS"', workflow)
         self.assertIn('--command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS"', workflow)
         self.assertIn('--max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS"', workflow)
+        self.assertIn('--max-delta-scan-blocks-per-task "$MAX_DELTA_SCAN_BLOCKS_PER_TASK"', workflow)
+        self.assertIn('--max-incremental-scan-worker-runtime-seconds "$MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS"', workflow)
         self.assertNotIn("Resolve selected chain", workflow)
         self.assertNotIn("Skipping $CHAIN for this trigger.", workflow)
         self.assertNotIn("max-parallel: 1", workflow)
