@@ -69,6 +69,47 @@ class RunEarnSubaccountHistoryIncrementalTest(unittest.TestCase):
         start_task.assert_called_once()
         self.assertEqual("d1of1", result["started"][0]["progressKey"])
 
+    def test_scan_launcher_rotates_rpc_after_a_cached_worker_attempt(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            cycle_root = root / "cycle"
+            launch_dir = cycle_root / ".progress"
+            launch_dir.mkdir(parents=True)
+            (launch_dir / "scan-launch.json").write_text(
+                '{"runs":[{"progressKey":"d1of1","pid":123,"rpcStartOffset":2,'
+                '"runnerSessionId":"previous-run"}]}',
+                encoding="utf-8",
+            )
+            address_file = root / "addresses.txt"
+            address_file.write_text(
+                "0x1111111111111111111111111111111111111111\n",
+                encoding="utf-8",
+            )
+            plan = {
+                "chain": "xlayer",
+                "cycleId": "xlayer-f1-t100",
+                "cycleRoot": str(cycle_root),
+                "deltaEventsDir": str(cycle_root / "events"),
+                "targetBlock": 100,
+                "maxScanWorkers": 1,
+                "scanTasks": [{
+                    "progressKey": "d1of1",
+                    "fromBlock": 1,
+                    "toBlock": 100,
+                    "addressFile": str(address_file),
+                }],
+            }
+
+            with patch.object(incremental_runner, "_start_task", return_value=456) as start_task:
+                incremental_runner._ensure_scan_running(plan, "xlayer")
+
+            argv = start_task.call_args.args[0]
+            offset_index = argv.index("--rpc-start-offset")
+            self.assertEqual("3", argv[offset_index + 1])
+            launch = incremental_runner._read_json(launch_dir / "scan-launch.json", {})
+
+        self.assertEqual(3, launch["runs"][0]["rpcStartOffset"])
+
     def test_continue_does_not_auto_refresh_completed_cycle(self):
         self.assertFalse(
             _should_build_fresh_plan(

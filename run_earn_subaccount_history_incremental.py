@@ -317,7 +317,7 @@ def _apply_progress_path(history_dir: Path, chain: str, progress_key: str) -> Pa
     return history_dir / PROGRESS_SUBDIR / f"{chain}--{progress_key}.json"
 
 
-def _scan_task_argv(plan: dict, chain: str, task: dict) -> List[str]:
+def _scan_task_argv(plan: dict, chain: str, task: dict, *, rpc_start_offset: int = 0) -> List[str]:
     return [
         "python3",
         "scan_earn_subaccount_history_events.py",
@@ -331,6 +331,8 @@ def _scan_task_argv(plan: dict, chain: str, task: dict) -> List[str]:
         str(task["toBlock"]),
         "--progress-key",
         str(task["progressKey"]),
+        "--rpc-start-offset",
+        str(max(0, int(rpc_start_offset))),
         "--output-dir",
         str(plan["deltaEventsDir"]),
     ]
@@ -359,8 +361,15 @@ def _apply_task_argv(plan: dict, chain: str, task: dict, history_dir: Path) -> L
     ]
 
 
-def _task_run_payload(progress_key: str, pid: int, argv: List[str], log_path: Path) -> dict:
-    return {
+def _task_run_payload(
+    progress_key: str,
+    pid: int,
+    argv: List[str],
+    log_path: Path,
+    *,
+    rpc_start_offset: Optional[int] = None,
+) -> dict:
+    payload = {
         "progressKey": progress_key,
         "pid": pid,
         "argv": argv,
@@ -368,6 +377,9 @@ def _task_run_payload(progress_key: str, pid: int, argv: List[str], log_path: Pa
         "startedAt": _utc_now_iso(),
         "runnerSessionId": RUNNER_SESSION_ID,
     }
+    if rpc_start_offset is not None:
+        payload["rpcStartOffset"] = max(0, int(rpc_start_offset))
+    return payload
 
 
 def _stage_launch_status(plan: dict, stage: str) -> dict:
@@ -639,10 +651,24 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
         if alive_count >= max_concurrent:
             skipped.append({"progressKey": key, "reason": "queued"})
             continue
+        if existing:
+            try:
+                previous_rpc_offset = int(existing.get("rpcStartOffset"))
+            except (TypeError, ValueError):
+                previous_rpc_offset = 0
+            rpc_start_offset = previous_rpc_offset + 1
+        else:
+            rpc_start_offset = 0
         log_path = _cycle_log_dir(plan) / f"scan-{key}.log"
-        argv = _scan_task_argv(plan, chain, task)
+        argv = _scan_task_argv(plan, chain, task, rpc_start_offset=rpc_start_offset)
         pid = _start_task(argv, cwd=ROOT, log_path=log_path)
-        runs[key] = _task_run_payload(key, pid, argv, log_path)
+        runs[key] = _task_run_payload(
+            key,
+            pid,
+            argv,
+            log_path,
+            rpc_start_offset=rpc_start_offset,
+        )
         alive_count += 1
         started.append({"progressKey": key, "pid": pid})
     _save_launch(launch_path, {
