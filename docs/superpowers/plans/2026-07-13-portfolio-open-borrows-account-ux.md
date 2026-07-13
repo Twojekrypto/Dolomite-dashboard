@@ -4,7 +4,7 @@
 
 **Goal:** Reduce visual noise in Portfolio Open Borrows by replacing the repeated Address column with the already-supported Dolomite Account number.
 
-**Architecture:** The table remains a fixed-layout HTML table. Its six-column contract removes the repeated address, while `accountNumberCell` preserves and copies exact identifiers and renders a fixed-width `#123…789` label for long values. A header help trigger explains Account ID without changing table data, and the E-Mode renderer uses a centered two-tone flame inside its existing state pill.
+**Architecture:** The table remains a fixed-layout HTML table. Its six-column contract removes the repeated address, while `accountNumberCell` preserves and copies exact identifiers and renders a fixed-width `#123…789` label for long values. A header help trigger explains Account ID without changing table data, and the E-Mode renderer uses a centered, high-contrast three-tone flame inside its existing state pill.
 
 **Tech Stack:** Static HTML, inline CSS and JavaScript, Python `unittest`, in-app browser verification.
 
@@ -169,7 +169,7 @@ git commit -m "refactor: standardize portfolio account labels"
 
 **Interfaces:**
 - Consumes: static Open Borrows `<th>` markup, the shared `data-tooltip` runtime, and `emodeCell(active)`.
-- Produces: an `Account ID` header with a focusable help icon whose shared tooltip opens on pointer hover or keyboard focus; `EMODE_ICON` renders a two-tone flame inside a fixed circular `.pf-emode-icon` tile while active E-Mode rows retain their existing tooltip and `E-Mode` text.
+- Produces: an `Account ID` header with a focusable help icon whose shared tooltip opens on pointer hover or keyboard focus; `EMODE_ICON` renders a high-contrast three-tone flame inside a fixed circular `.pf-emode-icon` tile while active E-Mode rows retain their existing tooltip and `E-Mode` text.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -200,7 +200,7 @@ Expected: `test_open_borrows_uses_risk_positions_ux` fails because the current h
 ```
 
 ```js
-const EMODE_ICON = '<span class="pf-emode-icon" aria-hidden="true"><svg class="pf-emode-flame" viewBox="0 0 24 24"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity=".95"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg></span>';
+const EMODE_ICON = '<span class="pf-emode-icon" aria-hidden="true"><svg class="pf-emode-flame" viewBox="0 0 24 24"><path d="M12.2 1.25c.2 3.05-1.3 5.2-3.85 7.36-1.85 1.58-3 3.6-3 6.03a6.65 6.65 0 0 0 13.3 0c0-5.03-3.2-8.56-6.45-13.39Z" fill="#fb923c"/><path d="M12.2 8.05c.18 2.08-1.9 3.1-1.9 5.2a1.9 1.9 0 1 0 3.8 0c0-1.76-.78-3.08-1.9-5.2Z" fill="#fbbf24"/><path d="M12.2 11.45c.1.93-.78 1.32-.78 2.22a.78.78 0 1 0 1.56 0c0-.74-.3-1.35-.78-2.22Z" fill="#fff1c1"/></svg></span>';
 ```
 
 ```css
