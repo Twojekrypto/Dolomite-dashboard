@@ -4,7 +4,7 @@
 
 **Goal:** Reduce visual noise in Portfolio Open Borrows by replacing the repeated Address column with the already-supported Dolomite Account number.
 
-**Architecture:** The table remains a fixed-layout HTML table. Only its presentational column contract changes from seven columns to six; the existing `accountNumberCell` continues to preserve and copy account identifiers exactly.
+**Architecture:** The table remains a fixed-layout HTML table. Its six-column contract removes the repeated address, while `accountNumberCell` preserves and copies exact identifiers and renders a fixed-width `#123…789` label for long values.
 
 **Tech Stack:** Static HTML, inline CSS and JavaScript, Python `unittest`, in-app browser verification.
 
@@ -13,6 +13,7 @@
 - Preserve account-number strings exactly, including `0`; do not coerce them through a falsy fallback.
 - Keep the table's `colgroup`, row cells, skeletons, empty states, spacer rows, and `nth-child` CSS selectors synchronized.
 - Retain the existing account tooltip and full-number copy control.
+- Render long account numbers with exactly three leading and three trailing digits; keep the visual chip width fixed.
 - Verify desktop geometry against a real borrow wallet served by `python3 -m http.server`.
 
 ---
@@ -92,4 +93,64 @@ Expected: all tests pass and `git diff --check` has no output.
 ```bash
 git add portfolio-preview.html tests/test_portfolio_preview_contracts.py
 git commit -m "refactor: simplify portfolio borrow account UX"
+```
+
+### Task 2: Standardize the Account label width
+
+**Files:**
+- Modify: `tests/test_portfolio_preview_contracts.py`
+- Modify: `portfolio-preview.html:1368-1378,2465-2472`
+- Test: `tests/test_portfolio_preview_contracts.py`
+
+**Interfaces:**
+- Consumes: `shortAccountNumber(account)` with a string account identifier.
+- Produces: The full input when it has six or fewer digits, otherwise `first three digits + ellipsis + last three digits`; `accountNumberCell` continues to receive the exact string for its `data-copy` value.
+
+- [ ] **Step 1: Write the failing test**
+
+```python
+self.assertIn('return number.length > 6 ? `${number.slice(0, 3)}…${number.slice(-3)}` : number;', self.html)
+self.assertIn('width:72px;', self.html)
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `python3 -m unittest tests/test_portfolio_preview_contracts.py -v`
+
+Expected: `test_open_borrows_uses_risk_positions_ux` fails because the existing source keeps six leading and trailing digits and has no fixed account-chip width.
+
+- [ ] **Step 3: Write the minimal implementation**
+
+```js
+function shortAccountNumber(account){
+  const number = String(account == null ? "" : account).trim();
+  return number.length > 6 ? `${number.slice(0, 3)}…${number.slice(-3)}` : number;
+}
+```
+
+```css
+.pf-account-number,.pf-account-unknown{width:72px;min-width:72px}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `python3 -m unittest tests/test_portfolio_preview_contracts.py -v`
+
+Expected: all Portfolio contract tests pass.
+
+- [ ] **Step 5: Verify rendered UI and exact copy behavior**
+
+Run: `python3 -m http.server 4173`
+
+Load wallet `0x0480f1cbe27fd5eae8ae7c4d5ff764e30f91aa5f` in `portfolio-preview.html`. Confirm each visible Account label matches `#ddd…ddd`, every `.pf-account-number` has the same computed width, and clicking the `#742…937` copy control writes `74231045533973466746745298919099460939860226000975118112653482510195681276937` to the clipboard.
+
+- [ ] **Step 6: Run focused regression suite and commit**
+
+Run: `python3 -m unittest tests/test_portfolio_preview_contracts.py tests/test_earn_dashboard_contracts.py -q && git diff --check`
+
+Expected: all tests pass and `git diff --check` has no output.
+
+```bash
+git add portfolio-preview.html tests/test_portfolio_preview_contracts.py docs/superpowers/specs/2026-07-13-portfolio-open-borrows-account-ux-design.md docs/superpowers/plans/2026-07-13-portfolio-open-borrows-account-ux.md
+git commit -m "refactor: standardize portfolio account labels"
 ```
