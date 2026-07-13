@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PORTFOLIO_HTML = ROOT / "portfolio-preview.html"
+SHARED_TOOLTIPS = ROOT / "shared-hover-tooltips.js"
 EXERCISERS_JSON = ROOT / "exercisers_by_address.json"
 GENERATE_EXERCISERS = ROOT / "generate_exercisers.py"
 
@@ -13,6 +14,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.html = PORTFOLIO_HTML.read_text(encoding="utf-8")
+        cls.shared_tooltips = SHARED_TOOLTIPS.read_text(encoding="utf-8")
 
     def test_open_borrows_uses_risk_positions_ux(self):
         borrow_render = self.html.split("function renderBorrowPositionsTable()", 1)[1].split("function exerciseSummaryItem", 1)[0]
@@ -21,7 +23,13 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('class="pf-table pf-borrow-positions"', self.html)
         self.assertIn('data-sort="hf" data-table="bor"', self.html)
         self.assertNotIn('data-sort="address" data-table="bor">Address', self.html)
-        self.assertIn('>Account</th>', self.html)
+        self.assertIn('>Account ID<span class="pf-table-head-info"', self.html)
+        self.assertIn('aria-label="About Account ID"', self.html)
+        self.assertIn('tabindex="0"', self.html)
+        self.assertIn("Dolomite Account ID identifies", self.html)
+        self.assertIn("It can contain multiple collateral and debt assets", self.html)
+        self.assertIn("document.addEventListener('focusin'", self.shared_tooltips)
+        self.assertIn("document.addEventListener('focusout'", self.shared_tooltips)
         self.assertIn("function accountNumberCell(account)", self.html)
         self.assertIn("function shortAccountNumber(account)", self.html)
         self.assertIn('return number.length > 6 ? `${number.slice(0, 3)}…${number.slice(-3)}` : number;', self.html)
@@ -34,6 +42,11 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('data-sort="emode" data-table="bor"', self.html)
         self.assertIn("function emodeCell(active)", self.html)
         self.assertIn("pf-emode-badge", self.html)
+        self.assertIn("const EMODE_ICON =", self.html)
+        self.assertIn('class="pf-emode-icon"', self.html)
+        self.assertIn('width:18px;height:18px', self.html)
+        self.assertIn('min-height:24px', self.html)
+        self.assertNotIn("EMODE_FLAME", self.html)
         self.assertIn("E-Mode applies special risk parameters", self.html)
         self.assertNotIn("${portfolioAddressCell(r.address)}", borrow_render)
         self.assertNotIn("function portfolioAddressCell(addr)", self.html)

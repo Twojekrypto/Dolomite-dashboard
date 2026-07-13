@@ -1365,6 +1365,14 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 .pf-borrow-positions .pf-token-pill img{width:12px;height:12px}
 .pf-emode-cell{text-align:center!important}
+.pf-table-head-help{display:inline-flex;align-items:center;gap:5px}
+.pf-table-head-info{
+  display:inline-grid;place-items:center;width:15px;height:15px;padding:0;
+  border:1px solid var(--line-2);border-radius:50%;color:var(--fg-3);cursor:default;
+  transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease);
+}
+.pf-table-head-info:hover,.pf-table-head-info:focus-visible{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash);outline:0}
+.pf-table-head-info svg{width:9px;height:9px}
 .pf-account-wrap{display:inline-flex;align-items:center;gap:4px;max-width:100%}
 .pf-account-number,.pf-account-unknown{
   display:inline-flex;align-items:center;justify-content:center;width:72px;min-width:72px;height:26px;padding:0 7px;
@@ -1376,12 +1384,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-account-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 .pf-account-copy svg{width:12px;height:12px}
 .pf-emode-badge{
-  display:inline-flex;align-items:center;gap:2px;
-  padding:1px 5px 1px 3px;
-  border-radius:4px;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:24px;
+  padding:2px 7px 2px 3px;
+  border-radius:999px;
   font-size:9px;font-weight:600;
   white-space:nowrap;
-  cursor:help;
+  cursor:default;
   transition:transform .2s var(--ease),filter .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease);
   letter-spacing:.2px;
   background:rgba(251,146,60,.10);
@@ -1389,8 +1397,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border:1px solid rgba(251,146,60,.18);
   line-height:1.2;
 }
-.pf-emode-badge:hover{transform:scale(1.08);filter:drop-shadow(0 0 6px rgba(251,146,60,.4));border-color:rgba(251,146,60,.34)}
-.pf-emode-badge svg{width:11px;height:11px;flex-shrink:0}
+.pf-emode-badge:hover{transform:scale(1.04);filter:drop-shadow(0 0 6px rgba(251,146,60,.4));border-color:rgba(251,146,60,.34)}
+.pf-emode-icon{
+  display:inline-grid;place-items:center;width:18px;height:18px;flex:0 0 18px;
+  border:1px solid rgba(251,191,36,.32);border-radius:50%;background:rgba(251,191,36,.12);color:#fcd34d;
+}
+.pf-emode-icon svg{width:12px;height:12px}
 .pf-emode-empty{color:var(--fg-3);font-family:var(--mono);font-size:11px}
 .pf-action-cell{display:flex;align-items:center;gap:10px;min-width:0}
 .pf-action-mark{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:linear-gradient(135deg,rgba(201,162,39,.14),rgba(255,255,255,.035));border:1px solid var(--line-2);overflow:hidden}
@@ -1863,7 +1875,7 @@ body:not(.pf-active) #pf-results{display:none}
       <div style="overflow-x:auto">
         <table class="pf-table pf-borrow-positions">
           <colgroup><col><col><col><col><col><col></colgroup>
-          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th>Account</th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
+          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th><span class="pf-table-head-help">Account ID<span class="pf-table-head-info" tabindex="0" data-tooltip="Dolomite Account ID identifies this wallet's subaccount on the selected chain. It can contain multiple collateral and debt assets, so it is not a loan ID." aria-label="About Account ID"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg></span></span></th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-borrows-body"></tbody>
         </table>
       </div>
@@ -2471,7 +2483,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
   function accountNumberCell(account){
     const number = String(account == null ? "" : account).trim();
-    const tip = "Dolomite account number. It identifies this wallet's subaccount on the selected chain; it is not a loan ID. Use the copy icon for the full number.";
+    const tip = "Dolomite Account ID identifies this wallet's subaccount on the selected chain. It can contain multiple collateral and debt assets, so it is not a loan ID. Use the copy icon for the full ID.";
     if (!/^\d+$/.test(number)) return `<span class="pf-account-unknown" data-tooltip="${esc(tip)}">—</span>`;
     return `<span class="pf-account-wrap" data-tooltip="${esc(tip)}"><span class="pf-account-number">#${esc(shortAccountNumber(number))}</span><button class="pf-account-copy" type="button" data-copy="${esc(number)}" aria-label="Copy full Dolomite account number">${COPY_ICON}</button></span>`;
   }
@@ -2487,11 +2499,11 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     hf = Number(hf) || 0;
     return hf ? hf.toFixed(hf >= 10 ? 1 : 2) : "0.00";
   }
-  const EMODE_FLAME = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity="0.9"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg>';
+  const EMODE_ICON = '<span class="pf-emode-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M15 8H9v8h6M9 12h5"/></svg></span>';
   const emodeTip = "E-Mode applies special risk parameters for correlated assets in the same category. It can improve borrow efficiency, but liquidation still depends on the account's collateral, debt, and selected E-Mode category.";
   function emodeCell(active){
     return active
-      ? `<span class="pf-emode-badge" data-tooltip="${emodeTip}">${EMODE_FLAME}E-Mode</span>`
+      ? `<span class="pf-emode-badge" data-tooltip="${emodeTip}">${EMODE_ICON}E-Mode</span>`
       : `<span class="pf-emode-empty">—</span>`;
   }
   function buildRiskBorrowRows(riskJson, addr){
