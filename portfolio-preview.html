@@ -2330,6 +2330,18 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const p = fetch(path, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
     jsonCache[path] = p; return p;
   }
+  async function loadRiskForWallet(addr){
+    const address = normAddr(addr);
+    if (!address) return { positions: [] };
+    const prefix = address.slice(2, 4);
+    const base = "data/liquidation-risk";
+    const manifest = await loadJson(`${base}/manifest.json`);
+    const chains = Object.keys((manifest && manifest.chains) || {});
+    const shards = await Promise.all(chains.map(chain => loadJson(`${base}/${chain}/${prefix}.json`)));
+    return {
+      positions: shards.flatMap(shard => ((shard && shard.positions) || []).filter(position => normAddr(position.address) === address)),
+    };
+  }
   async function sgQuery(endpoint, query){
     try {
       const r = await fetch(endpoint, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ query }) });
@@ -3478,7 +3490,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
     // off-chain JSON lookups + price
     const [doloHolders, vedoloHolders, exercisers, doloPriceJson, riskJson, vedoloFlows] = await Promise.all([
-      loadJson("dolo_holders.json"), loadJson("vedolo_holders.json"), loadJson("exercisers_by_address.json"), loadJson("dolo_price.json"), loadJson("liquidation_risk.json"), loadJson("vedolo_flows.json"),
+      loadJson("dolo_holders.json"), loadJson("vedolo_holders.json"), loadJson("exercisers_by_address.json"), loadJson("dolo_price.json"), loadRiskForWallet(addr), loadJson("vedolo_flows.json"),
     ]);
     const doloPrice = doloPriceJson && (doloPriceJson.price || (doloPriceJson.data && doloPriceJson.data.price)) || 0;
 

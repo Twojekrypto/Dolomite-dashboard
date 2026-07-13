@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dolomite Earn</title>
+    <meta name="description" content="Dolomite Earn balances, yield, historical P&amp;L, and verification status.">
+    <link rel="shortcut icon" href="favicon.ico" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260713">
+    <link rel="dns-prefetch" href="//api.dolomite.io">
+    <link rel="dns-prefetch" href="//coins.llama.fi">
+    <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
+    <script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
+</head>
+<body class="earn-draft-route">
+    <div class="page-wrapper">
+<header class="site-header anim">
+            <div class="header-top-logo">
+                <a href="https://dolomite.io/" target="_blank"><img src="main-logo-dashboard.png" alt="Dolomite"></a>
+            </div>
+            <nav class="header-nav-bar">
+                <div class="nav-tabs">
+                    <a class="nav-tab" id="tab-portfolio" href="./portfolio/" data-tab="portfolio">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 7h18v12H3z" />
+                            <path d="M3 7l3-4h12l3 4" />
+                            <path d="M3 12h6a3 3 0 0 0 6 0h6" />
+                        </svg>
+                        PORTFOLIO
+                    </a>
+                    <a class="nav-tab" id="tab-assets" href="./assets/" data-tab="assets">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M7 16l4-8 4 4 4-6" />
+                        </svg>
+                        ASSETS
+                    </a>
+                    <a class="nav-tab" id="tab-tvl" href="./tvl/" data-tab="tvl">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 21H4.6c-.56 0-.84 0-1.054-.109a1 1 0 01-.437-.437C3 20.24 3 19.96 3 19.4V3" />
+                            <path d="M7 14l4-4 4 4 6-6" />
+                        </svg>
+                        TVL
+                    </a>
+                    <a class="nav-tab active" id="tab-dolo" href="./dolo/" data-tab="dolo">
+                        <img src="dolo-logo.svg" alt="DOLO">
+                        DOLO
+                    </a>
+                    <a class="nav-tab" id="tab-odolo" href="./odolo/" data-tab="odolo">
+                        <img src="odolo-logo-official.svg" alt="oDOLO">
+                        oDOLO
+                    </a>
+                    <a class="nav-tab" id="tab-vedolo" href="./vedolo/" data-tab="vedolo">
+                        <img src="vedolo-logo.svg" alt="veDOLO">
+                        veDOLO
+                    </a>
+                    <a class="nav-tab" id="tab-earn" href="./earn/" data-tab="earn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                        EARN
+                    </a>
+                    <a class="nav-tab" id="tab-borrow" href="./borrow/" data-tab="borrow">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="5" width="18" height="14" rx="2" />
+                            <path d="M3 10h18" />
+                            <path d="M12 13v4" />
+                            <path d="m9.5 15 2.5 2.5L14.5 15" />
+                        </svg>
+                        BORROW
+                    </a>
+                    <a class="nav-tab" id="tab-supply" href="./supply/" data-tab="supply">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="1" x2="12" y2="23" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
+                        SUPPLY
+                    </a>
+                    <a class="nav-tab" id="tab-rewards" href="./rewards/" data-tab="rewards">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="8" width="18" height="4" rx="1" />
+                            <path d="M12 8v13" />
+                            <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+                            <path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5" />
+                        </svg>
+                        REWARDS
+                    </a>
+                    <a class="nav-tab" id="tab-revenue" href="./revenue/" data-tab="revenue">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18" />
+                            <path d="M7 15l4-4 3 3 5-7" />
+                            <path d="M16 7h3v3" />
+                        </svg>
+                        REVENUE
+                    </a>
+                    <a class="nav-tab" id="tab-history" href="./history/" data-tab="history">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 3-6.7" />
+                            <path d="M3 3v6h6" />
+                            <path d="M12 7v5l3 2" />
+                        </svg>
+                        HISTORY
+                    </a>
+                    <button class="nav-tab" id="tab-lending" onclick="switchView('lending')" style="display:none">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                            <path d="M12 8v4M12 16h.01" />
+                        </svg>
+                        LENDING
+                    </button>
+
+                </div>
+            </nav>
+        </header>
+<!-- EARN VIEW -->
+        <div id="view-earn" class="view-section active">
+
+            <style>
+                @keyframes earn-border-glow {
+
+                    0%,
+                    100% {
+                        opacity: .6;
+                        filter: blur(12px);
+                    }
+
+                    50% {
+                        opacity: 1;
+                        filter: blur(18px);
+                    }
+                }
+
+                .earn-hero-outer {
+                    position: relative;
+                    border-radius: 18px;
+                    padding: 2px;
+                    background: linear-gradient(135deg, rgba(52, 211, 153, .35), rgba(34, 211, 238, .25), rgba(99, 102, 241, .15));
+                    overflow: visible;
+                    margin-bottom: 28px;
+                    z-index: 200;
+                }
+
+                .earn-hero-outer::before {
+                    content: '';
+                    position: absolute;
+                    inset: -2px;
+                    border-radius: 20px;
+                    background: linear-gradient(135deg, rgba(52, 211, 153, .25), rgba(34, 211, 238, .2), rgba(99, 102, 241, .1));
+                    animation: earn-border-glow 4s ease-in-out infinite;
+                    z-index: 0;
+                    pointer-events: none;
+                    clip-path: inset(-2px round 20px);
+                }
+
+                .earn-hero-inner {
+                    position: relative;
+                    z-index: 1;
+                    border-radius: 16px;
+                    background: linear-gradient(145deg, rgba(10, 15, 28, .97) 0%, rgba(10, 20, 30, .96) 40%, rgba(12, 14, 28, .98) 100%);
+                    padding: 28px 32px 24px;
+                    overflow: visible;
+                }
+
+                .earn-hero-inner::after {
+                    content: '';
+                    position: absolute;
+                    top: -50%;
+                    left: -20%;
+                    width: 60%;
+                    height: 120%;
+                    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .015), transparent);
+                    animation: tvl-shine 8s ease-in-out infinite;
+                    pointer-events: none;
+                }
+
+                @media (max-width:768px) {
+                    .earn-hero-inner {
+                        padding: 20px 16px 18px;
+                    }
+                }
+            </style>
+
+            <div class="earn-hero-outer anim">
+                <div class="earn-hero-inner">
+                    <!-- Glow orbs -->
+                    <div
+                        style="position:absolute;top:-60px;right:-30px;width:220px;height:220px;background:radial-gradient(circle,rgba(52,211,153,.08) 0%,transparent 65%);pointer-events:none">
+                    </div>
+                    <div
+                        style="position:absolute;bottom:-40px;left:-20px;width:160px;height:160px;background:radial-gradient(circle,rgba(34,211,238,.06) 0%,transparent 65%);pointer-events:none">
+                    </div>
+
+                    <!-- Top label -->
+                    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap">
+                        <img src="dolo-logo.svg" alt=""
+                            style="width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.1)">
+                        <span
+                            style="font-size:12px;color:#fff;text-transform:uppercase;letter-spacing:1.8px;font-weight:600">DOLOMITE
+                            EARNINGS</span>
+                    </div>
+
+                    <!-- Title -->
+                    <div
+                        style="font-size:clamp(24px,4vw,32px);font-weight:800;color:#fff;letter-spacing:-0.5px;line-height:1.15;margin-bottom:4px">
+                        Track Your <span
+                            style="background:linear-gradient(135deg,#34d399,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Earnings</span>
+                    </div>
+                    <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:20px">Deposit balances and
+                        accrued yield across all markets</div>
+
+                    <!-- Integrated search input -->
+                    <div class="earn-input-card" style="margin-bottom:0;max-width:100%">
+                        <div class="earn-input-row">
+                            <div class="earn-input-wrapper">
+                                <input type="text" class="earn-input" id="earn-address"
+                                    placeholder="Search address (0x...)" spellcheck="false" autocomplete="off">
+                            </div>
+                            <div class="earn-chain-dropdown" id="earn-chain-dropdown">
+                                <input type="hidden" id="earn-chain" value="ethereum">
+                                <input type="hidden" id="earn-account-num" value="0">
+                                <button type="button" class="earn-chain-trigger" id="earn-chain-trigger"
+                                    onclick="earnChainToggle()">
+                                    <img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" alt="">
+                                    <span>Ethereum</span>
+                                </button>
+                                <div class="earn-chain-menu" id="earn-chain-menu"></div>
+                            </div>
+                            <button class="earn-search-btn" id="earn-search-btn" onclick="earn_lookup()">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8" />
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                </svg>
+                                <span class="btn-text">Search</span>
+                                <div class="spinner"></div>
+                            </button>
+                        </div>
+                        <div class="earn-data-freshness-pill" id="earn-data-freshness-pill" aria-live="polite" aria-hidden="true"></div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="earn-mode-toggle" id="earn-mode-toggle"></div>
+
+            <div class="earn-error" id="earn-error">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                <span id="earn-error-msg"></span>
+            </div>
+
+            <div class="earn-empty" id="earn-empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                    <path d="M2 10h20" />
+                    <circle cx="16" cy="15" r="2" />
+                </svg>
+                <h3 id="earn-empty-title">No deposits found</h3>
+                <p id="earn-empty-msg">This address has no active deposits on Dolomite</p>
+            </div>
+
+            <div class="earn-results" id="earn-results">
+                <div class="earn-loading-panel" id="earn-loading-panel" aria-live="polite"></div>
+                <div class="earn-notices" id="earn-notices"></div>
+                <!-- Summary card -->
+                <div class="earn-summary-card" id="earn-summary-card"></div>
+
+                <!-- Controls bar between summary card and table -->
+                <!-- Controls now inline in Supply Assets header -->
+
+                <div class="table-section earn-section-card open" id="earn-supply-section">
+                    <div class="earn-supply-header open">
+                        <span class="earn-section-icon-shell">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                                <polyline points="17 6 23 6 23 12" />
+                            </svg>
+                        </span>
+                        <span class="earn-section-title">Supply Assets</span>
+                        <span class="earn-supply-count earn-section-count" id="earn-supply-count"></span>
+                        <span class="earn-live-refresh-badge" id="earn-live-refresh-badge" aria-hidden="true"></span>
+                        <div class="earn-supply-controls">
+                            <div class="dust-pill" id="earn-dust-toggle" onclick="earn_toggleDust()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();earn_toggleDust();}" tabindex="0" role="switch" aria-checked="false">
+                                <div class="dust-switch-track"><div class="dust-switch-knob"></div></div>
+                                <span class="dust-pill-label">Hide Dust</span>
+                            </div>
+                            <div class="apr-pill" id="earn-apr-pill" onclick="earn_toggleAprApy()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();earn_toggleAprApy();}" tabindex="0" role="radiogroup">
+                                <div class="apr-pill-slider" id="earn-apr-pill-slider"></div>
+                                <span class="apr-pill-opt active" id="earn-apr-opt">APR</span>
+                                <span class="apr-pill-opt" id="earn-apy-opt">APY</span>
+                            </div>
+                        </div>
+                        <button type="button" class="earn-section-collapse-button" id="earn-supply-collapse" aria-label="Toggle Supply Assets" aria-controls="earn-supply-body" aria-expanded="true" onclick="earn_toggleEarnSection('supply')">
+                            <svg class="earn-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="table-scroll earn-section-table-shell earn-collapsible-body open" id="earn-supply-body">
+                        <table class="earn-asset-table">
+                            <colgroup>
+                                <col>
+                                <col>
+                                <col>
+                                <col>
+                                <col>
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <div style="display:flex;align-items:center;gap:12px">
+                                            <div style="width:34px;flex-shrink:0"></div>
+                                            <span>Token</span>
+                                        </div>
+                                    </th>
+                                    <th data-sort="apr" onclick="earn_sortAssets('apr')">
+                                        Supply APR <span class="earn-sort-arrow">▼</span>
+                                    </th>
+                                    <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
+                                        Current Balance <span class="earn-sort-arrow">▼</span></th>
+                                    <th data-sort="yield" onclick="earn_sortAssets('yield')">
+                                        <span>Total Yield Earned</span>
+                                        <span class="earn-sort-arrow">▼</span>
+                                    </th>
+                                    <th class="earn-details-th">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="earn-table-body"></tbody>
+                            <tfoot id="earn-table-foot" style="display:none"></tfoot>
+                        </table>
+                    </div>
+                    <div class="earn-supply-empty-state" id="earn-supply-empty-state" style="display:none"></div>
+                </div>
+
+                <!-- Historical/routed section — outside the scrollable table, always visible -->
+                <!-- Lending Positions (Borrow) section -->
+                <div id="earn-lending-section" class="earn-section-card open" style="display:none;margin-top:16px">
+                    <div class="earn-lending-header open">
+                        <span class="earn-section-icon-shell">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="12" y1="1" x2="12" y2="23" />
+                                <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+                            </svg>
+                        </span>
+                        <span class="earn-section-title">Borrow Positions</span>
+                        <span class="earn-lending-count earn-section-count" id="earn-lending-count"></span>
+                        <button type="button" class="earn-section-collapse-button" id="earn-lending-collapse" aria-label="Toggle Borrow Positions" aria-controls="earn-lending-body" aria-expanded="true" onclick="earn_toggleEarnSection('lending')">
+                            <svg class="earn-section-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="earn-table-scroll earn-section-table-shell earn-collapsible-body open" id="earn-lending-body" style="overflow-x:auto">
+                        <table class="earn-data-table earn-lending-table">
+                            <colgroup>
+                                <col style="width:20%">
+                                <col style="width:25%">
+                                <col style="width:25%">
+                                <col style="width:18%">
+                                <col style="width:12%">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th data-sort="lend-hf" onclick="earn_sortLendPositions('hf')"
+                                        style="cursor:pointer;user-select:none">
+                                        Health Factor <span class="earn-sort-arrow">▲</span>
+                                    </th>
+                                    <th data-sort="lend-collateral" onclick="earn_sortLendPositions('collateral')"
+                                        style="cursor:pointer;user-select:none">
+                                        Collateral <span class="earn-sort-arrow">▼</span>
+                                    </th>
+                                    <th data-sort="lend-debt" onclick="earn_sortLendPositions('debt')"
+                                        style="cursor:pointer;user-select:none">
+                                        Debt <span class="earn-sort-arrow">▼</span>
+                                    </th>
+                                    <th data-sort="lend-pnl" onclick="earn_sortLendPositions('pnl')"
+                                        style="cursor:pointer;user-select:none;text-align:right">
+                                        Net P&amp;L <span class="earn-sort-arrow">▼</span>
+                                    </th>
+                                    <th class="earn-details-th">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="earn-lending-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Past & routed assets — same UX as Earn supply rows -->
+                <div id="earn-past-section" class="earn-section-card" style="display:none;margin-top:8px">
+                    <div class="earn-past-header" id="earn-past-toggle" role="button" tabindex="0" aria-label="Toggle Past & Routed Assets" aria-controls="earn-past-body" aria-expanded="false" onclick="earn_togglePastPositions()" onkeydown="earn_handlePastHeaderKey(event)">
+                        <span class="earn-section-icon-shell">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </span>
+                        <span class="earn-past-title earn-section-title">Past &amp; Routed Assets</span>
+                        <span class="earn-past-count earn-section-count" id="earn-past-count">0</span>
+                        <svg class="earn-section-chevron earn-past-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </div>
+                    <div class="earn-past-body earn-section-table-shell" id="earn-past-body">
+                        <table class="earn-asset-table earn-past-table">
+                            <colgroup>
+                                <col>
+                                <col>
+                                <col>
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <div style="display:flex;align-items:center;gap:12px">
+                                            <div style="width:34px;flex-shrink:0"></div>
+                                            <span>Token</span>
+                                        </div>
+                                    </th>
+                                    <th data-sort="yield" class="sort-active" onclick="earn_sortPastPositions('yield')"
+                                        style="text-align:right">
+                                        Total Yield Earned <span class="earn-sort-arrow">▼</span>
+                                    </th>
+                                    <th class="earn-details-th">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="earn-past-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol Info -->
+            <div class="card anim anim-d4 protocol-info-card" style="margin-top:24px">
+                <div class="card-header">
+                    <div class="proto-brand"><img src="dolomite-logo.svg" alt="Dolomite"></div>
+                </div>
+                <div class="protocol-links-row proto-links"></div>
+                <div class="protocol-contracts proto-contracts"></div>
+            </div>
+
+        </div><!-- /view-earn -->
+        <div id="toggle-tooltip-float"></div>
+<!-- Snapshot Calendar Picker Modal -->
+        <div class="earn-custom-date-overlay" id="earn-custom-date-overlay"
+            onclick="if(event.target===this)earn_closeCustomDate()">
+            <div class="earn-custom-date-modal">
+                <div class="earn-cal-header">
+                    <h4>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        Select Date
+                    </h4>
+                    <button class="earn-cal-close" onclick="earn_closeCustomDate()">&times;</button>
+                </div>
+                <div class="earn-cal-nav">
+                    <button onclick="earn_calNavigate(-1)">&#8249;</button>
+                    <span class="earn-cal-month-label" id="earn-cal-month-label"></span>
+                    <button onclick="earn_calNavigate(1)">&#8250;</button>
+                </div>
+                <div class="earn-cal-weekdays">
+                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                </div>
+                <div class="earn-cal-grid" id="earn-cal-grid"></div>
+                <div class="earn-cal-hint">
+                    Only verified on-chain snapshot dates can be selected
+                    <div class="earn-cal-legend">
+                        <span class="legend-item"><span class="legend-dot available"></span> Data available</span>
+                        <span class="legend-item"><span class="legend-dot today-dot"></span> Today</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+<footer class="site-footer anim anim-d4">
+            Generated <span id="footer-date"></span> · Data from <a href="https://berascan.com"
+                target="_blank">BeraScan</a>
+        </footer>
+    </div>
+    <div class="toast" id="copy-toast">Address copied!</div>
+    <script src="earn/earn-core.js?v=earn-core-20260713"></script>
+</body>
+</html>

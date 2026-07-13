@@ -1623,7 +1623,7 @@
       const result = originalSelectChain.apply(this, arguments);
       syncSupplyChainOptions();
       syncApplyButton();
-      setTimeout(renderSupplyHealthTable, 0);
+      setTimeout(syncSupplyHealthChain, 0);
       setTimeout(setAssetPlaceholder, 0);
       setTimeout(autoApplyDefaultSupplyAsset, 0);
       setTimeout(syncSupplyChainOptions, 0);
@@ -1648,6 +1648,22 @@
   // ---- Supply Pool Health (community proposal, 2026-06-29) ----
   // Static data from data/supply-health/latest.json (generate_supply_health.py).
   const healthChainAliases = { base: 'botanix' };
+  const healthChainLabels = {
+    ethereum: 'Ethereum',
+    berachain: 'Berachain',
+    arbitrum: 'Arbitrum',
+    mantle: 'Mantle',
+    botanix: 'Botanix',
+    polygon_zkevm: 'Polygon zkEVM',
+    xlayer: 'X Layer',
+  };
+  const healthExplorerAddresses = {
+    ethereum: 'https://etherscan.io/address/',
+    berachain: 'https://berascan.com/address/',
+    arbitrum: 'https://arbiscan.io/address/',
+    mantle: 'https://mantlescan.xyz/address/',
+    xlayer: 'https://www.okx.com/web3/explorer/xlayer/address/',
+  };
   const healthScoreWeights = [
     { key: 'wallet', label: 'Wallet Distribution', weight: 25 },
     { key: 'concentration', label: 'Concentration Risk', weight: 30 },
@@ -1664,6 +1680,17 @@
   function getHealthChainKey() {
     const selected = document.getElementById('supply-chain-select')?.value || 'ethereum';
     return healthChainAliases[selected] || selected;
+  }
+
+  function getHealthChainLabel() {
+    const selected = document.getElementById('supply-chain-select')?.value || 'ethereum';
+    const key = healthChainAliases[selected] || selected;
+    return healthChainLabels[key] || key;
+  }
+
+  function syncSupplyHealthChain() {
+    supplyHealthExpandedKey = '';
+    renderSupplyHealthTable();
   }
 
   function healthMarketKey(market) {
@@ -1712,10 +1739,14 @@
       <div class="table-card-inner">
         <div class="table-card-header supply-health-header">
           <div class="supply-health-heading">
+            <div class="supply-health-eyebrow">Market intelligence</div>
             <h3><span>Supply Pool Health</span> <span class="header-count" id="supply-health-count"></span></h3>
-            <div class="supply-health-subtitle">Market depth, supplier breadth, and concentration per asset — with a weighted Supply Quality Score.</div>
+            <div class="supply-health-subtitle">Supplier breadth, concentration, and resilience for the selected chain.</div>
           </div>
-          <div class="supply-health-asof" id="supply-health-asof"></div>
+          <div class="supply-health-header-meta">
+            <div class="supply-health-chain" id="supply-health-chain"></div>
+            <div class="supply-health-asof" id="supply-health-asof"></div>
+          </div>
         </div>
         <div class="table-scroll supply-health-scroll">
           <div class="supply-health-state" id="supply-health-state">Loading pool health…</div>
@@ -1724,12 +1755,12 @@
               <tr>
                 <th data-health-sort="symbol">Asset</th>
                 <th class="num" data-health-sort="supplyUsd">Supply</th>
-                <th class="num" data-health-sort="wallets">Wallets</th>
-                <th class="num" data-health-sort="avgWalletUsd">Avg / Wallet</th>
+                <th class="num" data-health-sort="wallets">Suppliers</th>
+                <th class="num" data-health-sort="avgWalletUsd">Average</th>
                 <th class="num" data-health-sort="top10Pct">Top 10</th>
                 <th class="num" data-health-sort="largestPct">Largest</th>
-                <th class="num" data-health-sort="supply30dPct">30D Supply</th>
-                <th class="num" data-health-sort="scoreTotal">Score</th>
+                <th class="num" data-health-sort="supply30dPct">30D Change</th>
+                <th class="num" data-health-sort="scoreTotal">Quality</th>
               </tr>
             </thead>
             <tbody id="supply-health-table-body"></tbody>
@@ -1753,6 +1784,11 @@
         renderSupplyHealthTable();
       });
     });
+    const supplyChainSelect = document.getElementById('supply-chain-select');
+    if (supplyChainSelect && supplyChainSelect.dataset.supplyHealthReady !== 'true') {
+      supplyChainSelect.dataset.supplyHealthReady = 'true';
+      supplyChainSelect.addEventListener('change', syncSupplyHealthChain);
+    }
   }
 
   function fetchSupplyHealth() {
@@ -1816,10 +1852,13 @@
   function renderSupplyHealthDetail(market) {
     const growth = market.growth || {};
     const top = Array.isArray(market.topWallets) ? market.topWallets.slice(0, 3) : [];
+    const explorer = healthExplorerAddresses[market.chain] || '';
     const topRows = top.map((wallet, index) => `
       <div class="supply-health-top-wallet">
         <span class="supply-health-top-rank">#${index + 1}</span>
-        <span class="supply-health-top-addr">${supplyDraftEscape(shortHealthAddress(wallet.address))}</span>
+        ${explorer && wallet.address
+          ? `<a class="supply-health-top-addr" href="${supplyDraftEscape(explorer + wallet.address)}" target="_blank" rel="noopener" title="Open ${supplyDraftEscape(wallet.address)} in explorer">${supplyDraftEscape(shortHealthAddress(wallet.address))}</a>`
+          : `<span class="supply-health-top-addr">${supplyDraftEscape(shortHealthAddress(wallet.address))}</span>`}
         <span class="supply-health-top-share">${formatHealthPct(wallet.sharePct, 2)}</span>
         <span class="supply-health-top-usd">${supplyDraftFormatUsd(wallet.usd)}</span>
       </div>
@@ -1862,6 +1901,7 @@
     const state = document.getElementById('supply-health-state');
     const count = document.getElementById('supply-health-count');
     const asof = document.getElementById('supply-health-asof');
+    const chainLabel = document.getElementById('supply-health-chain');
     if (!table || !body || !supplyHealthPayload) return;
 
     const chain = getHealthChainKey();
@@ -1874,6 +1914,7 @@
     });
 
     if (count) count.textContent = markets.length ? `${markets.length} markets` : '';
+    if (chainLabel) chainLabel.textContent = getHealthChainLabel();
     if (asof && supplyHealthPayload.generatedAt) {
       try {
         const stamp = new Date(supplyHealthPayload.generatedAt);
@@ -1913,11 +1954,13 @@
         ? `<tr class="supply-health-detail-row"><td colspan="8">${renderSupplyHealthDetail(market)}</td></tr>`
         : '';
       return `
-        <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${supplyDraftEscape(key)}">
+        <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${supplyDraftEscape(key)}" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}">
           <td class="supply-health-asset-cell">
-            <span class="supply-health-expander">${expanded ? '−' : '+'}</span>
+            <button type="button" class="supply-health-expander" data-health-toggle="${supplyDraftEscape(key)}" aria-label="${expanded ? 'Hide' : 'Show'} ${supplyDraftEscape(market.symbol || 'asset')} health details" aria-expanded="${expanded ? 'true' : 'false'}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
             ${icon}
-            <span class="supply-health-asset-symbol">${supplyDraftEscape(market.symbol || '')}</span>
+            <span class="supply-health-asset-copy"><span class="supply-health-asset-symbol">${supplyDraftEscape(market.symbol || '')}</span><span class="supply-health-asset-name">${supplyDraftEscape(market.name || '')}</span></span>
           </td>
           <td class="num">${supplyDraftFormatUsd(market.supplyUsd)}</td>
           <td class="num">${Number(market.wallets || 0).toLocaleString('en-US')}</td>
@@ -1934,11 +1977,26 @@
       `;
     }).join('');
 
+    const toggleRow = key => {
+      supplyHealthExpandedKey = supplyHealthExpandedKey === key ? '' : key;
+      renderSupplyHealthTable();
+    };
     body.querySelectorAll('tr.supply-health-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const key = row.dataset.healthKey || '';
-        supplyHealthExpandedKey = supplyHealthExpandedKey === key ? '' : key;
-        renderSupplyHealthTable();
+      row.addEventListener('click', event => {
+        if (event.target.closest('a, button')) return;
+        toggleRow(row.dataset.healthKey || '');
+      });
+      row.addEventListener('keydown', event => {
+        const isToggleKey = event.key === 'Enter' || event.key === ' ';
+        if (event.target !== row || !isToggleKey) return;
+        event.preventDefault();
+        toggleRow(row.dataset.healthKey || '');
+      });
+    });
+    body.querySelectorAll('[data-health-toggle]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        toggleRow(button.dataset.healthToggle || '');
       });
     });
     body.querySelectorAll('[data-health-open]').forEach(button => {

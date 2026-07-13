@@ -18,6 +18,7 @@ import time
 import urllib.request
 import urllib.error
 from decimal import Decimal, getcontext
+from pathlib import Path
 
 import rpc_usage  # stdlib-only RPC/CU accounting
 
@@ -137,11 +138,66 @@ OUTPUT_FILE = "liquidation_risk.json"
 # consumers that only need positions/stats (portfolio, earn, liq-monitor) do
 # not download it. Only liquidation-preview fetches this file on demand.
 HISTORY_FILE = "liquidation_history.json"
+LIQUIDATION_SHARD_DIR = Path("data/liquidation-risk")
 # LiquidatorProxyV6 transfers Dolomite's liquidation fee rake to the registry
 # fee agent. This is a protocol address, not a secret. Keep the metric
 # conservative: only subgraph-confirmed fee-agent transfers count as protocol
 # liquidation fee revenue.
 DOLOMITE_PROTOCOL_FEE_AGENT = "0x4d5f0344d245f1d13607e5b61dd317de3b3178b8"
+
+
+def write_liquidation_risk_shards(payload, output_dir=LIQUIDATION_SHARD_DIR, prefix_length=2):
+    """Write deterministic per-chain/address-prefix position shards."""
+    output_dir = Path(output_dir)
+    metadata = {key: value for key, value in payload.items() if key != "positions"}
+    grouped = {}
+    for position in payload.get("positions") or []:
+        chain = str(position.get("chain") or "").strip().lower()
+        address = str(position.get("address") or "").strip().lower()
+        if not chain or not address.startswith("0x") or len(address) != 42:
+            continue
+        prefix = address[2:2 + prefix_length]
+        grouped.setdefault(chain, {}).setdefault(prefix, []).append(position)
+
+    chains = {}
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for chain, prefixes in sorted(grouped.items()):
+        chain_dir = output_dir / chain
+        chain_dir.mkdir(parents=True, exist_ok=True)
+        for stale in chain_dir.glob("*.json"):
+            stale.unlink()
+        shards = {}
+        position_count = 0
+        for prefix, positions in sorted(prefixes.items()):
+            positions.sort(key=lambda row: (str(row.get("address") or ""), str(row.get("accountNumber") or "")))
+            relative = f"{chain}/{prefix}.json"
+            shard = {
+                "version": 1,
+                "chain": chain,
+                "prefix": prefix,
+                "generatedAtISO": payload.get("generatedAtISO"),
+                "positions": positions,
+            }
+            (output_dir / relative).write_text(json.dumps(shard, separators=(",", ":")), encoding="utf-8")
+            position_count += len(positions)
+            shards[prefix] = {"path": relative, "positionCount": len(positions)}
+        chains[chain] = {
+            "prefixLength": prefix_length,
+            "positionCount": position_count,
+            "shardCount": len(shards),
+            "shards": shards,
+        }
+
+    manifest = {
+        "version": 1,
+        "prefixLength": prefix_length,
+        "generatedAt": payload.get("generatedAt"),
+        "generatedAtISO": payload.get("generatedAtISO"),
+        "metadata": metadata,
+        "chains": chains,
+    }
+    (output_dir / "manifest.json").write_text(json.dumps(manifest, separators=(",", ":")), encoding="utf-8")
+    return manifest
 
 # ─── GraphQL Queries ──────────────────────────────────────────────────────────
 
@@ -1518,6 +1574,7 @@ def generate_sample_data():
 
     with open(OUTPUT_FILE, "w") as f:
         json.dump(output, f, separators=(",", ":"))
+    write_liquidation_risk_shards(output)
 
     with open(HISTORY_FILE, "w") as f:
         json.dump({
