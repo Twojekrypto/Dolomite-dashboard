@@ -12,7 +12,7 @@ Open Borrows will use six columns:
 
 The `Address` column is removed because the Portfolio page is scoped to one wallet entered above the table. `Account ID` uses a fixed-width monospace chip. Account numbers longer than six digits render as `#123…789`; six-digit and shorter values, including the valid number `0`, render in full. Its header has an inline, keyboard-focusable information icon explaining that it identifies this wallet's Dolomite subaccount on the selected chain, can contain multiple collateral and debt assets, and is not a loan ID. The shared tooltip runtime responds to both pointer hover and keyboard focus. The hover explanation and copy control retain access to the exact full number. Unknown fallback rows display an em dash.
 
-Active E-Mode rows use a compact amber pill with a centered circular `E` icon. The fixed 18px icon tile and 24px pill height keep every badge visually aligned while preserving the existing E-Mode label and explanatory tooltip.
+Active E-Mode rows use a compact amber pill with a centered two-tone Dolomite flame. The fixed 18px circular icon tile and 24px pill height keep every badge visually aligned while preserving the existing E-Mode label and explanatory tooltip.
 
 ## Constraints
 

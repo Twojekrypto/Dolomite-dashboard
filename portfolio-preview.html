@@ -1400,9 +1400,11 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-emode-badge:hover{transform:scale(1.04);filter:drop-shadow(0 0 6px rgba(251,146,60,.4));border-color:rgba(251,146,60,.34)}
 .pf-emode-icon{
   display:inline-grid;place-items:center;width:18px;height:18px;flex:0 0 18px;
-  border:1px solid rgba(251,191,36,.32);border-radius:50%;background:rgba(251,191,36,.12);color:#fcd34d;
+  border:1px solid rgba(251,191,36,.32);border-radius:50%;
+  background:radial-gradient(circle at 50% 72%,rgba(251,191,36,.20),transparent 58%),rgba(251,146,60,.10);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 1px 5px rgba(251,146,60,.15);
 }
-.pf-emode-icon svg{width:12px;height:12px}
+.pf-emode-icon svg{display:block;width:12px;height:12px}
 .pf-emode-empty{color:var(--fg-3);font-family:var(--mono);font-size:11px}
 .pf-action-cell{display:flex;align-items:center;gap:10px;min-width:0}
 .pf-action-mark{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex-shrink:0;background:linear-gradient(135deg,rgba(201,162,39,.14),rgba(255,255,255,.035));border:1px solid var(--line-2);overflow:hidden}
@@ -2499,7 +2501,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     hf = Number(hf) || 0;
     return hf ? hf.toFixed(hf >= 10 ? 1 : 2) : "0.00";
   }
-  const EMODE_ICON = '<span class="pf-emode-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M15 8H9v8h6M9 12h5"/></svg></span>';
+  const EMODE_ICON = '<span class="pf-emode-icon" aria-hidden="true"><svg class="pf-emode-flame" viewBox="0 0 24 24"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity=".95"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg></span>';
   const emodeTip = "E-Mode applies special risk parameters for correlated assets in the same category. It can improve borrow efficiency, but liquidation still depends on the account's collateral, debt, and selected E-Mode category.";
   function emodeCell(active){
     return active

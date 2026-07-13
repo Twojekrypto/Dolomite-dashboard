@@ -4,7 +4,7 @@
 
 **Goal:** Reduce visual noise in Portfolio Open Borrows by replacing the repeated Address column with the already-supported Dolomite Account number.
 
-**Architecture:** The table remains a fixed-layout HTML table. Its six-column contract removes the repeated address, while `accountNumberCell` preserves and copies exact identifiers and renders a fixed-width `#123…789` label for long values. A header help trigger explains Account ID without changing table data, and the E-Mode renderer uses a centered circular SVG icon inside its existing state pill.
+**Architecture:** The table remains a fixed-layout HTML table. Its six-column contract removes the repeated address, while `accountNumberCell` preserves and copies exact identifiers and renders a fixed-width `#123…789` label for long values. A header help trigger explains Account ID without changing table data, and the E-Mode renderer uses a centered two-tone flame inside its existing state pill.
 
 **Tech Stack:** Static HTML, inline CSS and JavaScript, Python `unittest`, in-app browser verification.
 
@@ -15,7 +15,7 @@
 - Retain the existing account tooltip and full-number copy control.
 - Render long account numbers with exactly three leading and three trailing digits; keep the visual chip width fixed.
 - Name the second column `Account ID` and explain it through the shared `data-tooltip` system: it identifies the wallet's Dolomite subaccount on the selected chain, can contain multiple collateral/debt assets, and is not a loan ID.
-- Preserve E-Mode data, sort behavior, label, and tooltip while using an 18px centered circular icon tile and a 24px-high badge.
+- Preserve E-Mode data, sort behavior, label, and tooltip while using an 18px centered circular flame tile and a 24px-high badge.
 - Verify desktop geometry against a real borrow wallet served by `python3 -m http.server`.
 
 ---
@@ -169,7 +169,7 @@ git commit -m "refactor: standardize portfolio account labels"
 
 **Interfaces:**
 - Consumes: static Open Borrows `<th>` markup, the shared `data-tooltip` runtime, and `emodeCell(active)`.
-- Produces: an `Account ID` header with a focusable help icon whose shared tooltip opens on pointer hover or keyboard focus; `EMODE_ICON` renders inside a fixed circular `.pf-emode-icon` tile while active E-Mode rows retain their existing tooltip and `E-Mode` text.
+- Produces: an `Account ID` header with a focusable help icon whose shared tooltip opens on pointer hover or keyboard focus; `EMODE_ICON` renders a two-tone flame inside a fixed circular `.pf-emode-icon` tile while active E-Mode rows retain their existing tooltip and `E-Mode` text.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -200,7 +200,7 @@ Expected: `test_open_borrows_uses_risk_positions_ux` fails because the current h
 ```
 
 ```js
-const EMODE_ICON = '<span class="pf-emode-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M15 8H9v8h6M9 12h5"/></svg></span>';
+const EMODE_ICON = '<span class="pf-emode-icon" aria-hidden="true"><svg class="pf-emode-flame" viewBox="0 0 24 24"><path d="M12 2c0 4-4 6-4 10a4 4 0 0 0 8 0c0-4-4-6-4-10z" fill="#fb923c" opacity=".95"/><path d="M12 8c0 2.5-2 3.5-2 6a2 2 0 0 0 4 0c0-2.5-2-3.5-2-6z" fill="#fbbf24"/></svg></span>';
 ```
 
 ```css
