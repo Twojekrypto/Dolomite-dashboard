@@ -19,6 +19,13 @@ class ScanEarnSubaccountHistoryEventsTest(unittest.TestCase):
         self.assertEqual(_initial_rpc_index(["rpc-a", "rpc-b"], None), 0)
         self.assertEqual(_initial_rpc_index([], "d1of4"), 0)
 
+    def test_initial_rpc_index_rotates_after_worker_restart(self):
+        rpcs = ["rpc-a", "rpc-b", "rpc-c", "rpc-d"]
+        initial = _initial_rpc_index(rpcs, "d1of4")
+
+        self.assertEqual((initial + 1) % len(rpcs), _initial_rpc_index(rpcs, "d1of4", 1))
+        self.assertEqual(initial, _initial_rpc_index(rpcs, "d1of4", len(rpcs)))
+
     def test_topic_fallback_allows_mixed_bad_request_and_rate_limit_tail(self):
         exc = RuntimeError(
             "All RPCs failed after 9 attempts; recent errors: "

@@ -55,11 +55,18 @@ def _selection_hash(addresses: Sequence[str]) -> str:
     return digest.hexdigest()
 
 
-def _initial_rpc_index(rpcs: Sequence[str], progress_key: Optional[str]) -> int:
-    if not rpcs or not progress_key:
+def _initial_rpc_index(
+    rpcs: Sequence[str],
+    progress_key: Optional[str],
+    rpc_start_offset: int = 0,
+) -> int:
+    if not rpcs:
         return 0
-    digest = hashlib.sha256(str(progress_key).encode("utf-8")).hexdigest()
-    return int(digest[:8], 16) % len(rpcs)
+    base_index = 0
+    if progress_key:
+        digest = hashlib.sha256(str(progress_key).encode("utf-8")).hexdigest()
+        base_index = int(digest[:8], 16) % len(rpcs)
+    return (base_index + max(0, int(rpc_start_offset))) % len(rpcs)
 
 
 def _should_fallback_to_single_topics(exc: Exception) -> bool:
@@ -315,6 +322,7 @@ def scan_chain_to_event_shards(
     chunk_size: int,
     no_resume: bool,
     progress_key: Optional[str],
+    rpc_start_offset: int = 0,
 ) -> dict:
     if not selected_addresses:
         raise ValueError("No addresses selected")
@@ -322,7 +330,7 @@ def scan_chain_to_event_shards(
     config = CHAINS[chain]
     contract = config["margin"]
     rpcs = config["rpcs"]
-    rpc_idx = [_initial_rpc_index(rpcs, progress_key)]
+    rpc_idx = [_initial_rpc_index(rpcs, progress_key, rpc_start_offset)]
     latest_chain_block = int(get_block_number(rpcs, rpc_idx))
     resolved_from_block = int(config["start_block"] if from_block is None else from_block)
     resolved_to_block = min(int(to_block) if to_block is not None else latest_chain_block, latest_chain_block)
@@ -503,6 +511,7 @@ def main() -> int:
     parser.add_argument("--to-block", type=int, default=None)
     parser.add_argument("--chunk-size", type=int, default=None)
     parser.add_argument("--progress-key", default=None)
+    parser.add_argument("--rpc-start-offset", type=int, default=0)
     parser.add_argument("--no-resume", action="store_true")
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR))
     args = parser.parse_args()
@@ -528,6 +537,7 @@ def main() -> int:
         chunk_size=max(1_000, int(args.chunk_size or (CHAINS[args.chain].get("max_block_chunk") or BLOCK_CHUNK))),
         no_resume=bool(args.no_resume),
         progress_key=args.progress_key,
+        rpc_start_offset=args.rpc_start_offset,
     )
     print(json.dumps(payload, ensure_ascii=True, indent=2))
     return 0
