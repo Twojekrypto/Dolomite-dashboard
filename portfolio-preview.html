@@ -1301,13 +1301,13 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-borrow-positions{
   table-layout:fixed;
 }
-.pf-borrow-positions colgroup col:nth-child(1){width:10.5%}
+.pf-borrow-positions colgroup col:nth-child(1){width:10%}
 .pf-borrow-positions colgroup col:nth-child(2){width:18%}
-.pf-borrow-positions colgroup col:nth-child(3){width:11.5%}
-.pf-borrow-positions colgroup col:nth-child(4){width:8.8%}
-.pf-borrow-positions colgroup col:nth-child(5){width:18.6%}
-.pf-borrow-positions colgroup col:nth-child(6){width:18%}
-.pf-borrow-positions colgroup col:nth-child(7){width:14.6%}
+.pf-borrow-positions colgroup col:nth-child(3){width:9%}
+.pf-borrow-positions colgroup col:nth-child(4){width:11%}
+.pf-borrow-positions colgroup col:nth-child(5){width:9%}
+.pf-borrow-positions colgroup col:nth-child(6){width:21.5%}
+.pf-borrow-positions colgroup col:nth-child(7){width:21.5%}
 #pf-borrows-section .pf-table thead th{
   padding:10px 12px;
   font-size:9.5px;
@@ -1336,7 +1336,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-borrows-section .pf-table tbody td:nth-child(1),
 #pf-borrows-section .pf-table tbody td:nth-child(2),
 #pf-borrows-section .pf-table tbody td:nth-child(3),
-#pf-borrows-section .pf-table tbody td:nth-child(4){
+#pf-borrows-section .pf-table tbody td:nth-child(4),
+#pf-borrows-section .pf-table tbody td:nth-child(5){
   overflow:visible;
 }
 #pf-borrows-section .pf-table thead th:nth-child(6),
@@ -1382,8 +1383,17 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   gap:4px;
 }
 .pf-borrow-positions .pf-token-pill img{width:12px;height:12px}
-.pf-col-spacer{padding:0!important}
 .pf-emode-cell{text-align:center!important}
+.pf-account-wrap{display:inline-flex;align-items:center;gap:4px;max-width:100%}
+.pf-account-number,.pf-account-unknown{
+  display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:26px;padding:0 7px;
+  border-radius:6px;border:1px solid rgba(201,162,39,.24);background:rgba(201,162,39,.07);
+  color:var(--gold-hi);font-family:var(--mono);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.pf-account-unknown{color:var(--fg-4);border-color:rgba(255,255,255,.075);background:rgba(255,255,255,.025)}
+.pf-account-copy{width:24px;height:24px;display:inline-grid;place-items:center;border:1px solid var(--line-2);border-radius:6px;color:var(--fg-3);flex-shrink:0}
+.pf-account-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.pf-account-copy svg{width:12px;height:12px}
 .pf-emode-badge{
   display:inline-flex;align-items:center;gap:2px;
   padding:1px 5px 1px 3px;
@@ -1872,7 +1882,7 @@ body:not(.pf-active) #pf-results{display:none}
       <div style="overflow-x:auto">
         <table class="pf-table pf-borrow-positions">
           <colgroup><col><col><col><col><col><col><col></colgroup>
-          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="address" data-table="bor">Address<span class="pf-sort"></span></th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th class="pf-col-spacer" aria-hidden="true"></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
+          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-sort="address" data-table="bor">Address<span class="pf-sort"></span></th><th>Account</th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-borrows-body"></tbody>
         </table>
       </div>
@@ -2486,6 +2496,16 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       </div>
     </div>`;
   }
+  function shortAccountNumber(account){
+    const number = String(account == null ? "" : account).trim();
+    return number.length > 14 ? `${number.slice(0, 6)}…${number.slice(-6)}` : number;
+  }
+  function accountNumberCell(account){
+    const number = String(account == null ? "" : account).trim();
+    const tip = "Dolomite account number. It identifies this wallet's subaccount on the selected chain; it is not a loan ID. Use the copy icon for the full number.";
+    if (!/^\d+$/.test(number)) return `<span class="pf-account-unknown" data-tooltip="${esc(tip)}">—</span>`;
+    return `<span class="pf-account-wrap" data-tooltip="${esc(tip)}"><span class="pf-account-number">#${esc(shortAccountNumber(number))}</span><button class="pf-account-copy" type="button" data-copy="${esc(number)}" aria-label="Copy full Dolomite account number">${COPY_ICON}</button></span>`;
+  }
   function hfClass(hf){
     if (hf == null || !Number.isFinite(Number(hf))) return "unknown";
     hf = Number(hf) || 0;
@@ -2517,7 +2537,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         return {
           chain,
           address: normAddr(p.address) || a,
-          account: String(p.accountNumber || ""),
+          account: p.accountNumber == null ? "" : String(p.accountNumber),
           accountId: p.accountId || "",
           hf: Number(p.healthFactor) || 0,
           collateral: Number(p.collateralUSD) || 0,
@@ -3241,9 +3261,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       <tr class="pf-row">
         <td>${chainChip(r.chain)}</td>
         <td>${portfolioAddressCell(r.address)}</td>
+        <td>${accountNumberCell(r.account)}</td>
         <td><span class="pf-hf-badge ${hfClass(r.hf)}"><span class="pf-hf-dot"></span>${hfText(r.hf)}</span></td>
         <td class="pf-emode-cell">${emodeCell(r.eMode)}</td>
-        <td class="pf-col-spacer"></td>
         <td>
           <div class="pf-money-cell">
             <div class="pf-money-main pf-collateral-main">${fmtUSD(r.collateral)}</div>
@@ -3398,7 +3418,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
   function setLoadingTables(){
     const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
-    const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:96px"></span></td><td><span class="pf-skel" style="width:50px"></span></td><td><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td class="pf-col-spacer"></td><td><span class="pf-skel" style="width:104px"></span></td><td><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
+    const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:96px"></span></td><td><span class="pf-skel" style="width:42px"></span></td><td><span class="pf-skel" style="width:50px"></span></td><td><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td><span class="pf-skel" style="width:104px"></span></td><td><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
     const exSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:86px"></span></td><td><span class="pf-skel" style="width:150px"></span></td><td class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:78px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;
     $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none"; $("#pf-exercises-foot").style.display = "none";
