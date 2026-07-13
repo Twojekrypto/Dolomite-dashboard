@@ -1284,12 +1284,13 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-borrow-positions{
   table-layout:fixed;
 }
-.pf-borrow-positions colgroup col:nth-child(1){width:11%}
-.pf-borrow-positions colgroup col:nth-child(2){width:14%}
-.pf-borrow-positions colgroup col:nth-child(3){width:11%}
-.pf-borrow-positions colgroup col:nth-child(4){width:8%}
-.pf-borrow-positions colgroup col:nth-child(5){width:28%}
-.pf-borrow-positions colgroup col:nth-child(6){width:28%}
+.pf-borrow-positions col[data-column="chain"]{width:11%}
+.pf-borrow-positions col[data-column="account"]{width:12.037612%}
+.pf-borrow-positions col[data-column="health"]{width:10.509403%}
+.pf-borrow-positions col[data-column="emode"]{width:13.560098%}
+.pf-borrow-positions col[data-column="spacer"]{width:21.956611%}
+.pf-borrow-positions col[data-column="collateral"]{width:14.970480%}
+.pf-borrow-positions col[data-column="debt"]{width:15.965796%}
 #pf-borrows-section .pf-table thead th{
   padding:10px 12px;
   font-size:9.5px;
@@ -1315,20 +1316,19 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   padding:8px 12px;
   font-size:12px;
 }
-#pf-borrows-section .pf-table tbody td:nth-child(1),
-#pf-borrows-section .pf-table tbody td:nth-child(2),
-#pf-borrows-section .pf-table tbody td:nth-child(3),
-#pf-borrows-section .pf-table tbody td:nth-child(4){
+#pf-borrows-section .pf-table [data-column="chain"],
+#pf-borrows-section .pf-table [data-column="account"],
+#pf-borrows-section .pf-table [data-column="health"],
+#pf-borrows-section .pf-table [data-column="emode"]{
   overflow:visible;
 }
-#pf-borrows-section .pf-table thead th:nth-child(5),
-#pf-borrows-section .pf-table thead th:nth-child(6),
-#pf-borrows-section .pf-table tbody td:nth-child(5),
-#pf-borrows-section .pf-table tbody td:nth-child(6){
-  text-align:left;
+#pf-borrows-section .pf-table [data-column="spacer"]{
+  padding-left:0;
+  padding-right:0;
 }
-#pf-borrows-section .pf-table tbody td:nth-child(5),
-#pf-borrows-section .pf-table tbody td:nth-child(6){
+#pf-borrows-section .pf-table [data-column="collateral"],
+#pf-borrows-section .pf-table [data-column="debt"]{
+  text-align:left;
   white-space:normal;
   overflow:visible;
 }
@@ -1703,7 +1703,7 @@ body:not(.pf-active) #pf-results{display:none}
   .pf-table thead th:nth-child(1),.pf-table td:nth-child(1){display:none}
   .pf-table.pf-borrow-positions{min-width:860px}
   .pf-table.pf-exercise-table{min-width:940px}
-  .pf-table.pf-borrow-positions thead th:nth-child(1),.pf-table.pf-borrow-positions td:nth-child(1),
+  .pf-table.pf-borrow-positions thead th[data-column],.pf-table.pf-borrow-positions td[data-column],
   .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1){display:table-cell}
   .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:none}
   .pf-table tbody td,.pf-table thead th{padding-left:16px;padding-right:16px}
@@ -1877,8 +1877,8 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="pf-filters" id="pf-borrows-filters"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-borrow-positions">
-          <colgroup><col><col><col><col><col><col></colgroup>
-          <thead><tr><th data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th><span class="pf-table-head-help">Account ID<span class="pf-table-head-info" tabindex="0" data-tooltip="Dolomite Account ID identifies this wallet's subaccount on the selected chain. It can contain multiple collateral and debt assets, so it is not a loan ID." aria-label="About Account ID"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg></span></span></th><th data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
+          <colgroup><col data-column="chain"><col data-column="account"><col data-column="health"><col data-column="emode"><col data-column="spacer"><col data-column="collateral"><col data-column="debt"></colgroup>
+          <thead><tr><th data-column="chain" data-sort="chain" data-table="bor">Chain<span class="pf-sort"></span></th><th data-column="account"><span class="pf-table-head-help">Account ID<span class="pf-table-head-info" tabindex="0" data-tooltip="Dolomite Account ID identifies this wallet's subaccount on the selected chain. It can contain multiple collateral and debt assets, so it is not a loan ID." aria-label="About Account ID"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg></span></span></th><th data-column="health" data-sort="hf" data-table="bor">Health Factor<span class="pf-sort"></span></th><th data-column="emode" data-sort="emode" data-table="bor" style="text-align:center">E-Mode<span class="pf-sort"></span></th><th data-column="spacer" aria-hidden="true"></th><th data-column="collateral" data-sort="collateral" data-table="bor">Collateral<span class="pf-sort"></span></th><th class="sort-active" data-column="debt" data-sort="debt" data-table="bor">Debt<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-borrows-body"></tbody>
         </table>
       </div>
@@ -3229,12 +3229,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const body = $("#pf-borrows-body");
     if (!state.borrows.length){
       $(ids.foot).style.display = "none";
-      body.innerHTML = `<tr><td colspan="6"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No open borrow positions in the risk dataset.</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No open borrow positions in the risk dataset.</div></td></tr>`;
       return;
     }
     if (!filtered.length){
       $(ids.foot).style.display = "none";
-      body.innerHTML = `<tr><td colspan="6"><div class="pf-empty">${state.borFilter.hideDust ? "No non-dust borrow positions match the filter." : "No positions match the filter."}</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty">${state.borFilter.hideDust ? "No non-dust borrow positions match the filter." : "No positions match the filter."}</div></td></tr>`;
       return;
     }
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -3243,18 +3243,17 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const pageRows = filtered.slice(start, start + PAGE_SIZE);
     body.innerHTML = pageRows.map(r => `
       <tr class="pf-row">
-        <td>${chainChip(r.chain)}</td>
-        <td>${accountNumberCell(r.account)}</td>
-        <td><span class="pf-hf-badge ${hfClass(r.hf)}"><span class="pf-hf-dot"></span>${hfText(r.hf)}</span></td>
-        <td class="pf-emode-cell">${emodeCell(r.eMode)}</td>
-        <td>
-          <div class="pf-money-cell">
+        <td data-column="chain">${chainChip(r.chain)}</td>
+        <td data-column="account">${accountNumberCell(r.account)}</td>
+        <td data-column="health"><span class="pf-hf-badge ${hfClass(r.hf)}"><span class="pf-hf-dot"></span>${hfText(r.hf)}</span></td>
+        <td class="pf-emode-cell" data-column="emode">${emodeCell(r.eMode)}</td>
+        <td data-column="spacer" aria-hidden="true"></td>
+        <td data-column="collateral"><div class="pf-money-cell">
             <div class="pf-money-main pf-collateral-main">${fmtUSD(r.collateral)}</div>
             ${tokenPills(r.collateralTokens, r.chain)}
           </div>
         </td>
-        <td>
-          <div class="pf-money-cell">
+        <td data-column="debt"><div class="pf-money-cell">
             <div class="pf-money-main pf-debt-main">${fmtUSD(r.debt)}</div>
             ${tokenPills(r.debtTokens, r.chain)}
           </div>
@@ -3263,7 +3262,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     if (totalPages > 1 && pageRows.length < PAGE_SIZE){
       const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 64;
       body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
-        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="6" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="7" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
     }
     $(ids.foot).style.display = "";
     $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
@@ -3401,7 +3400,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
   function setLoadingTables(){
     const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
-    const borSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:58px"></span></td><td><span class="pf-skel" style="width:82px"></span></td><td><span class="pf-skel" style="width:50px"></span></td><td><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td><span class="pf-skel" style="width:104px"></span></td><td><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
+    const borSkel = `<tr class="pf-skel-row"><td data-column="chain"><span class="pf-skel" style="width:58px"></span></td><td data-column="account"><span class="pf-skel" style="width:82px"></span></td><td data-column="health"><span class="pf-skel" style="width:50px"></span></td><td data-column="emode"><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td data-column="spacer" aria-hidden="true"></td><td data-column="collateral"><span class="pf-skel" style="width:104px"></span></td><td data-column="debt"><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
     const exSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:86px"></span></td><td><span class="pf-skel" style="width:150px"></span></td><td class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:78px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;
     $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none"; $("#pf-exercises-foot").style.display = "none";
