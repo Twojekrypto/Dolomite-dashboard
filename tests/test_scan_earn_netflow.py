@@ -13,6 +13,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ScanEarnNetflowTest(unittest.TestCase):
+    def test_ethereum_prefers_verified_archive_log_endpoints(self):
+        rpcs = scan_earn_netflow.CHAINS["ethereum"]["rpcs"]
+
+        self.assertEqual(
+            [
+                "https://eth.drpc.org/",
+                "https://eth.api.onfinality.io/public",
+            ],
+            rpcs[:2],
+        )
+        self.assertNotIn("https://ethereum-rpc.publicnode.com/", rpcs)
+        self.assertNotIn("https://eth.llamarpc.com/", rpcs)
+
     def test_detects_payload_size_errors_from_rpc_tail(self):
         self.assertTrue(_is_chunk_too_large_error("HTTP Error 413: Request Entity Too Large"))
         self.assertTrue(_is_chunk_too_large_error("All RPCs failed; recent errors: payload too large"))

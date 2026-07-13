@@ -41,21 +41,24 @@ CHAINS = {
     "ethereum": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
         "rpcs": [
+            # These public endpoints were cross-checked against each other on
+            # historical and head ranges. Keep them first so canonical scans
+            # do not stall behind free-tier or non-archive providers.
+            "https://eth.drpc.org/",
+            "https://eth.api.onfinality.io/public",
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_KAT") else [os.environ["ALCHEMY_ETHEREUM_RPC_KAT"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_DAN") else [os.environ["ALCHEMY_ETHEREUM_RPC_DAN"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_ZEN") else [os.environ["ALCHEMY_ETHEREUM_RPC_ZEN"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC") else [os.environ["ALCHEMY_ETHEREUM_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_2") else [os.environ["ALCHEMY_ETHEREUM_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_ETHEREUM_RPC_3") else [os.environ["ALCHEMY_ETHEREUM_RPC_3"]]),
-            "https://ethereum-rpc.publicnode.com/",
             "https://1rpc.io/eth",
-            "https://eth.llamarpc.com/",
         ],
         "start_block": 22_790_000,
         # 1rpc's public Ethereum endpoint rejects eth_getLogs ranges above 50
         # blocks. That is a single-endpoint quirk, now enforced per-endpoint via
         # ENDPOINT_BLOCK_CAPS (rpc_call skips 1rpc for wider getLogs) so capable
-        # endpoints (Alchemy/publicnode/llama) scan full BLOCK_CHUNK ranges
+        # archive-capable endpoints scan full BLOCK_CHUNK ranges
         # instead of the whole chain being throttled to 50 blocks per request.
     },
     "berachain": {

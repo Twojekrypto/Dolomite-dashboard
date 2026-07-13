@@ -388,6 +388,24 @@ def _stage_launch_status(plan: dict, stage: str) -> dict:
     }
 
 
+def _scan_progress_covers_task(progress: object, task: dict) -> bool:
+    if not isinstance(progress, dict) or str(progress.get("status") or "") != "completed":
+        return False
+    try:
+        expected_from = int(task.get("fromBlock"))
+        expected_to = int(task.get("toBlock"))
+        actual_from = int(progress.get("fromBlock"))
+        actual_to = int(progress.get("toBlock"))
+        last_exclusive = int(progress.get("lastBlockExclusive") or 0)
+    except (TypeError, ValueError):
+        return False
+    return (
+        actual_from == expected_from
+        and actual_to == expected_to
+        and last_exclusive >= expected_to + 1
+    )
+
+
 def _scan_stage_status(plan: dict, chain: str) -> dict:
     tasks = plan.get("scanTasks") or []
     launch = _load_launch(_launch_path(plan, "scan"))
@@ -397,14 +415,19 @@ def _scan_stage_status(plan: dict, chain: str) -> dict:
     for task in tasks:
         key = str(task["progressKey"])
         progress = _read_json(_scan_progress_path(plan, chain, key), None)
-        status = str((progress or {}).get("status") or "pending")
-        if status == "completed":
+        raw_status = str((progress or {}).get("status") or "pending")
+        done = _scan_progress_covers_task(progress, task)
+        if done:
             completed += 1
         run = runs.get(key)
+        alive = _is_launch_run_alive(run)
+        status = raw_status
+        if raw_status == "completed" and not done:
+            status = "running" if alive else "completed_for_previous_target"
         worker_rows.append({
             "progressKey": key,
             "status": status,
-            "alive": _is_launch_run_alive(run),
+            "alive": alive,
             "fromBlock": task.get("fromBlock"),
             "toBlock": task.get("toBlock"),
             "eventCount": (progress or {}).get("eventCount"),
@@ -606,7 +629,7 @@ def _ensure_scan_running(plan: dict, chain: str) -> dict:
     for task in tasks:
         key = str(task["progressKey"])
         progress = _read_json(_scan_progress_path(plan, chain, key), None)
-        if isinstance(progress, dict) and str(progress.get("status") or "") == "completed":
+        if _scan_progress_covers_task(progress, task):
             skipped.append({"progressKey": key, "reason": "completed"})
             continue
         existing = runs.get(key)

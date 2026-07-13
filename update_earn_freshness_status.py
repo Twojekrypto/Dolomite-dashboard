@@ -33,7 +33,9 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
         "verifiedBlockLag": 600,
         "canonicalWorkflow": "update-earn-ethereum-canonical-history.yml",
         "canonicalSupported": True,
-        "canonicalCoverageCompleteness": "required",
+        # Per-wallet strictness is enforced by each history file. Global
+        # backfill progress must not turn a fresh chain head into stale data.
+        "canonicalCoverageCompleteness": "advisory",
     },
     "berachain": {
         "label": "Berachain",

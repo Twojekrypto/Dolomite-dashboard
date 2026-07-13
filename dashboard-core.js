@@ -7022,7 +7022,7 @@
                 llamaPlatform: 'ethereum',
                 explorer: 'https://etherscan.io',
                 margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D',
-                rpcs: ['https://eth.llamarpc.com/', 'https://ethereum-rpc.publicnode.com/', 'https://eth.drpc.org/'],
+                rpcs: ['https://eth.drpc.org/', 'https://eth.api.onfinality.io/public'],
                 rpcIdx: 0,
                 logStartBlock: 22790000,
             },
@@ -7061,27 +7061,6 @@
                 llamaPlatform: 'mantle',
                 logStartBlock: 64046000,
             },
-            botanix: {
-                name: 'Botanix',
-                icon: 'https://icons.llamao.fi/icons/chains/rsz_botanix.jpg',
-                twChain: null,
-                llamaPlatform: 'botanix',
-                explorer: 'https://explorer.botanixlabs.dev',
-                margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D',
-                rpcs: ['https://rpc.botanixlabs.com', 'https://rpc.ankr.com/botanix_mainnet'],
-                rpcIdx: 0,
-                logStartBlock: 690000,
-            },
-            polygonzkevm: {
-                name: 'Polygon zkEVM',
-                icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon_zkevm.jpg',
-                twChain: null,
-                explorer: 'https://zkevm.polygonscan.com',
-                margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5',
-                rpcs: ['https://zkevm-rpc.com/', 'https://polygon-zkevm.drpc.org/'],
-                rpcIdx: 0,
-                logStartBlock: 9860000,
-            },
             xlayer: {
                 name: 'X Layer',
                 icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg',
@@ -7090,6 +7069,31 @@
                 margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5',
                 rpcs: ['https://rpc.xlayer.tech/', 'https://xlayer.drpc.org/'],
                 rpcIdx: 0,
+            },
+            polygonzkevm: {
+                name: 'Polygon zkEVM',
+                earnLifecycle: 'archived',
+                earnLifecycleLabel: 'Archived',
+                icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon_zkevm.jpg',
+                twChain: null,
+                explorer: 'https://zkevm.polygonscan.com',
+                margin: '0x836b557cf9ef29fcf49c776841191782df34e4e5',
+                rpcs: ['https://zkevm-rpc.com/', 'https://polygon-zkevm.drpc.org/'],
+                rpcIdx: 0,
+                logStartBlock: 9860000,
+            },
+            botanix: {
+                name: 'Botanix',
+                earnLifecycle: 'archived',
+                earnLifecycleLabel: 'Archived',
+                icon: 'https://icons.llamao.fi/icons/chains/rsz_botanix.jpg',
+                twChain: null,
+                llamaPlatform: 'botanix',
+                explorer: 'https://explorer.botanixlabs.dev',
+                margin: '0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D',
+                rpcs: ['https://rpc.botanixlabs.com', 'https://rpc.ankr.com/botanix_mainnet'],
+                rpcIdx: 0,
+                logStartBlock: 690000,
             },
         };
 
@@ -7701,8 +7705,11 @@
                 const iconHtml = chain.icon
                     ? `<img src="${chain.icon}" alt="">`
                     : `<span class="chain-text-icon">${chain.textIcon || '○'}</span>`;
+                const lifecycleHtml = chain.earnLifecycleLabel
+                    ? `<span class="earn-chain-option-status">${chain.earnLifecycleLabel}</span>`
+                    : '';
                 html += `<div class="earn-chain-option${key === 'ethereum' ? ' active' : ''}" data-chain="${key}" onclick="earnChainSelect('${key}')">
-                    ${iconHtml}<span>${chain.name}</span>
+                    ${iconHtml}<span class="earn-chain-option-copy"><span class="earn-chain-option-name">${chain.name}</span>${lifecycleHtml}</span>
                 </div>`;
             }
             menu.innerHTML = html;
@@ -9744,16 +9751,18 @@
                     const interestMeta = earn_interestYieldData && earn_interestYieldData[midStr];
                     const currentBorrowPar = interestMeta ? BigInt(interestMeta.currentBorrowPar || '0') : 0n;
                     const currentCollateralPar = interestMeta ? BigInt(interestMeta.currentCollateralSupplyPar || '0') : 0n;
-                    const hasSettledYield = interestMeta ? BigInt(interestMeta.earnYield || '0') !== 0n : false;
+                    const hasSupplyYield = interestMeta
+                        ? !!interestMeta.hadSupply || BigInt(interestMeta.earnYield || '0') !== 0n
+                        : false;
                     if (!flowMeta && !interestMeta) continue;
 
                     // Skip markets where user has NO supply deposits — these are borrow-only or
                     // swap-only positions where the netflow formula produces false "yield".
-                    if (hasBreakdown && totalDeposited === 0n && totalBorrowed > 0n && !hasSettledYield) continue;
+                    if (hasBreakdown && totalDeposited === 0n && totalBorrowed > 0n && !hasSupplyYield) continue;
 
                     const isActive = !!activeBalances[midStr];
                     const isCollateralized = !isActive && !!collateralBalances[midStr];
-                    if (!isActive && currentBorrowPar > 0n && !hasSettledYield) continue; // open borrow cost stays in Lending until closure
+                    if (!isActive && currentBorrowPar > 0n && !hasSupplyYield) continue; // open borrow cost stays in Lending until closure
                     const currentPosition = activeBalances[midStr] || collateralBalances[midStr] || null;
                     const currentWei = currentPosition ? currentPosition.wei : 0n;
 
@@ -9829,7 +9838,8 @@
                 // Remove dust positions (balance value < $1)
                 const chainId = document.getElementById('earn-chain').value;
                 const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
-                if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) return false;
+                const verifiedYieldUsdScaled = item.yieldTrustedForDisplay ? (item.yieldUsdScaled || 0n) : 0n;
+                if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, verifiedYieldUsdScaled)) return false;
                 return true;
             });
 
@@ -9839,7 +9849,9 @@
             let totalWithdrawn = 0;
             items.forEach(item => {
                 // Exclude isolation mode tokens from total yield
-                if (!item.isIsolation) totalYieldUsdScaled += BigInt(item.yieldUsdScaled || 0n);
+                if (!item.isIsolation && item.yieldTrustedForDisplay) {
+                    totalYieldUsdScaled += BigInt(item.yieldUsdScaled || 0n);
+                }
                 if (item.isActive) totalActive++; else totalWithdrawn++;
             });
 
@@ -9934,11 +9946,13 @@
                 let yieldHtml;
                 if (isClosedIsolation) {
                     yieldHtml = `<span class="earn-amount" style="color:var(--text-muted);font-size:13px" data-tip="This was an isolation mode wrapper token used as collateral. The position has been fully closed.">Position Closed</span>`;
-                } else {
+                } else if (item.yieldTrustedForDisplay) {
                     const yieldUsdFmt = item.yieldUsd !== 0
                         ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${item.yieldUsd > 0 ? '+' : item.yieldUsd < 0 ? '-' : ''}$${Math.abs(item.yieldUsd).toFixed(2)}</div>`
                         : '';
                     yieldHtml = `<span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>${yieldUsdFmt}`;
+                } else {
+                    yieldHtml = '<span class="earn-amount" style="color:var(--text-muted)">—</span>';
                 }
 
                 // Explorer link for this token
@@ -10157,6 +10171,18 @@
             return 'flat';
         }
 
+        function earn_addSettledYield(state, amount, positionPar) {
+            const settled = BigInt(amount || 0n);
+            const par = BigInt(positionPar || 0n);
+            if (settled === 0n || par === 0n) return 0n;
+            state.settledYield = BigInt(state.settledYield || 0n) + settled;
+            state.settledSupplyYield = BigInt(state.settledSupplyYield || 0n);
+            state.settledBorrowYield = BigInt(state.settledBorrowYield || 0n);
+            if (par > 0n) state.settledSupplyYield += settled;
+            if (par < 0n) state.settledBorrowYield += settled;
+            return settled;
+        }
+
         function earn_settleReducedExposureYield(state, nextPar) {
             const prevPar = BigInt(state && state.par ? state.par : 0n);
             const next = BigInt(nextPar || 0n);
@@ -10165,7 +10191,7 @@
             if (prevPar > 0n && next >= 0n && next < prevPar) {
                 const reducedPar = prevPar - next;
                 const realizedYield = (state.liveYield * reducedPar) / prevPar;
-                state.settledYield += realizedYield;
+                earn_addSettledYield(state, realizedYield, prevPar);
                 state.liveYield -= realizedYield;
                 return realizedYield;
             }
@@ -10176,7 +10202,7 @@
                 if (nextDebt < prevDebt && prevDebt > 0n) {
                     const reducedDebt = prevDebt - nextDebt;
                     const realizedYield = (state.liveYield * reducedDebt) / prevDebt;
-                    state.settledYield += realizedYield;
+                    earn_addSettledYield(state, realizedYield, prevPar);
                     state.liveYield -= realizedYield;
                     return realizedYield;
                 }
@@ -10655,7 +10681,7 @@
                 resolvedMethod = String(yieldCalc.method || resolvedMethod);
                 resolvedSource = earn_getResolvedTotalYieldSource(resolvedMethod, rawSource);
                 resolvedCumulativeYield = String(yieldCalc.totalYield || '0');
-                resolvedTrustedForTotal = !!yieldCalc.trustedForTotal;
+                resolvedTrustedForTotal = earn_isTrustedInterestLedgerYieldCalc(yieldCalc);
                 resolvedCanonicalHistoryCoverageStatus = String(
                     yieldCalc.canonicalHistoryCoverageStatus || resolvedCanonicalHistoryCoverageStatus
                 );
@@ -10943,6 +10969,8 @@
                     par: String(state.par || 0n),
                     lastIndex: state.lastIndex === null || state.lastIndex === undefined ? null : String(state.lastIndex),
                     settledYield: String(state.settledYield || 0n),
+                    settledSupplyYield: String(state.settledSupplyYield || 0n),
+                    settledBorrowYield: String(state.settledBorrowYield || 0n),
                     liveYield: String(state.liveYield || 0n),
                     hadSupply: !!state.hadSupply,
                     hadBorrow: !!state.hadBorrow,
@@ -10960,6 +10988,8 @@
                     par: BigInt(state.par || '0'),
                     lastIndex: state.lastIndex === null || state.lastIndex === undefined ? null : BigInt(state.lastIndex),
                     settledYield: BigInt(state.settledYield || '0'),
+                    settledSupplyYield: BigInt(state.settledSupplyYield || '0'),
+                    settledBorrowYield: BigInt(state.settledBorrowYield || '0'),
                     liveYield: BigInt(state.liveYield || '0'),
                     hadSupply: !!state.hadSupply,
                     hadBorrow: !!state.hadBorrow,
@@ -11015,7 +11045,7 @@
                 if (state.par > 0n) state.hadSupply = true;
                 if (state.par < 0n) state.hadBorrow = true;
                 if (state.par === 0n || flipsSign) {
-                    state.settledYield += state.liveYield;
+                    earn_addSettledYield(state, state.liveYield, prevPar);
                     state.liveYield = 0n;
                 }
 
@@ -11056,6 +11086,8 @@
                 marketId: earn_normalizeMarketId(state.marketId),
                 par: BigInt(state.par || '0'),
                 settledYield: BigInt(state.settledYield || '0'),
+                settledSupplyYield: BigInt(state.settledSupplyYield || '0'),
+                settledBorrowYield: BigInt(state.settledBorrowYield || '0'),
                 liveYield: BigInt(state.liveYield || '0'),
                 hadSupply: !!state.hadSupply,
                 hadBorrow: !!state.hadBorrow,
@@ -11089,6 +11121,8 @@
                     interestYieldData[state.marketId] = {
                         earnYield: 0n,
                         settledYield: 0n,
+                        settledSupplyYield: 0n,
+                        settledBorrowYield: 0n,
                         openBorrowYield: 0n,
                         openSupplyYield: 0n,
                         openCollateralYield: 0n,
@@ -11102,7 +11136,9 @@
                 const entry = interestYieldData[state.marketId];
                 entry.hadSupply = entry.hadSupply || state.hadSupply;
                 entry.hadBorrow = entry.hadBorrow || state.hadBorrow;
-                entry.settledYield += state.settledYield;
+                entry.settledSupplyYield += state.settledSupplyYield;
+                entry.settledBorrowYield += state.settledBorrowYield;
+                entry.settledYield += state.settledSupplyYield;
 
                 if (!replayStateData[state.marketId]) {
                     replayStateData[state.marketId] = {
@@ -11122,7 +11158,7 @@
                 stateEntry.hadBorrow = stateEntry.hadBorrow || state.hadBorrow;
 
                 if (state.par > 0n) {
-                    entry.earnYield += state.settledYield + state.liveYield;
+                    entry.earnYield += state.settledSupplyYield + state.liveYield;
                     const isCollateralSupply = !!accountHasOpenBorrow[state.account];
                     if (isCollateralSupply) {
                         entry.openCollateralYield += state.liveYield;
@@ -11147,7 +11183,7 @@
                 } else if (state.par < 0n) {
                     entry.currentBorrowPar += (-state.par);
                     entry.openBorrowYield += state.liveYield;
-                    entry.earnYield += state.settledYield;
+                    entry.earnYield += state.settledSupplyYield;
                     const borrowPar = -state.par;
                     stateEntry.expectedBorrowPar += borrowPar;
                     const idxMeta = currentIndexMap ? currentIndexMap[state.marketId] : null;
@@ -11160,13 +11196,15 @@
                         stateEntry.expectedBorrowWei += (borrowPar * borrowIndex) / (10n ** 18n);
                     }
                 } else {
-                    entry.earnYield += state.settledYield;
+                    entry.earnYield += state.settledSupplyYield;
                 }
             });
 
             Object.values(interestYieldData).forEach(entry => {
                 entry.earnYield = entry.earnYield.toString();
                 entry.settledYield = entry.settledYield.toString();
+                entry.settledSupplyYield = entry.settledSupplyYield.toString();
+                entry.settledBorrowYield = entry.settledBorrowYield.toString();
                 entry.openBorrowYield = entry.openBorrowYield.toString();
                 entry.openSupplyYield = entry.openSupplyYield.toString();
                 entry.openCollateralYield = entry.openCollateralYield.toString();
@@ -12119,24 +12157,25 @@
             const isOpenBorrowRouteYield = !!opts.openBorrowRouteYield;
             const yieldPanelLabel = isOpenBorrowRouteYield ? 'Borrow Route Yield' : 'Yield Performance';
             const yieldHeroLabel = isOpenBorrowRouteYield ? 'Open Borrow Collateral Yield' : 'Total Net Yield';
-            const heroYield = yieldCalc && yieldCalc.hasData
+            const hasVerifiedYield = earn_isTrustedInterestLedgerYieldCalc(yieldCalc);
+            const heroYield = hasVerifiedYield
                 ? (isOpenBorrowRouteYield ? BigInt(yieldCalc.openCollateralYield || '0') : BigInt(yieldCalc.totalYield || '0'))
                 : 0n;
             const heroYieldAbs = heroYield < 0n ? -heroYield : heroYield;
-            const heroYieldClass = !yieldCalc || !yieldCalc.hasData
+            const heroYieldClass = !hasVerifiedYield
                 ? ''
                 : heroYield >= 0n
                     ? 'positive'
                     : 'negative';
             const heroYieldSign = heroYield > 0n ? '+' : heroYield < 0n ? '-' : '';
             const heroYieldFmt = earn_formatAmount(heroYieldAbs, decimals, symbol);
-            const liveEarnClass = (yieldCalc && yieldCalc.hasData)
+            const liveEarnClass = hasVerifiedYield
                 ? (yieldCalc.openSupplyYield >= 0n ? 'positive' : 'negative')
                 : '';
-            const settledClass = (yieldCalc && yieldCalc.hasData)
+            const settledClass = hasVerifiedYield
                 ? (yieldCalc.settledYield >= 0n ? 'positive' : 'negative')
                 : '';
-            const parkedBorrowClass = (yieldCalc && yieldCalc.hasData)
+            const parkedBorrowClass = hasVerifiedYield
                 ? (yieldCalc.openCollateralYield >= 0n ? 'positive' : 'negative')
                 : '';
 
@@ -12217,20 +12256,20 @@
 
                                 <div class="earn-detail-hero">
                                     <div class="earn-detail-hero-label">${yieldHeroLabel}</div>
-                                    <div class="earn-detail-hero-value ${heroYieldClass}">${yieldCalc && yieldCalc.hasData ? `${heroYieldSign}${heroYieldFmt} <span style="font-size:12px;color:currentColor;opacity:0.72;font-weight:600">${symbol}</span>` : '—'}</div>
+                                    <div class="earn-detail-hero-value ${heroYieldClass}">${hasVerifiedYield ? `${heroYieldSign}${heroYieldFmt} <span style="font-size:12px;color:currentColor;opacity:0.72;font-weight:600">${symbol}</span>` : '—'}</div>
                                 </div>
 
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Settled before moves</span>
-                                    <span class="earn-detail-rowline-value ${settledClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.settledYield > 0n ? '+' : yieldCalc.settledYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.settledYield), decimals, symbol)} ${symbol}` : '—'}</span>
+                                    <span class="earn-detail-rowline-value ${settledClass}">${hasVerifiedYield ? `${yieldCalc.settledYield > 0n ? '+' : yieldCalc.settledYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.settledYield), decimals, symbol)} ${symbol}` : '—'}</span>
                                 </div>
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Live in active earn</span>
-                                    <span class="earn-detail-rowline-value ${liveEarnClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openSupplyYield > 0n ? '+' : yieldCalc.openSupplyYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openSupplyYield), decimals, symbol)} ${symbol}` : '—'}</span>
+                                    <span class="earn-detail-rowline-value ${liveEarnClass}">${hasVerifiedYield ? `${yieldCalc.openSupplyYield > 0n ? '+' : yieldCalc.openSupplyYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openSupplyYield), decimals, symbol)} ${symbol}` : '—'}</span>
                                 </div>
                                 <div class="earn-detail-rowline">
                                     <span class="earn-detail-rowline-label" style="color:rgba(255,255,255,0.5)">Open borrow collateral yield</span>
-                                    <span class="earn-detail-rowline-value ${parkedBorrowClass}">${yieldCalc && yieldCalc.hasData ? `${yieldCalc.openCollateralYield > 0n ? '+' : yieldCalc.openCollateralYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openCollateralYield), decimals, symbol)} ${symbol}` : '—'}</span>
+                                    <span class="earn-detail-rowline-value ${parkedBorrowClass}">${hasVerifiedYield ? `${yieldCalc.openCollateralYield > 0n ? '+' : yieldCalc.openCollateralYield < 0n ? '-' : ''}${earn_formatAmount(earn_absBigInt(yieldCalc.openCollateralYield), decimals, symbol)} ${symbol}` : '—'}</span>
                                 </div>
                             </div>
                             ${rewardsCardHtml}
@@ -12805,6 +12844,7 @@
 
                 item.hasYieldData = calc.hasData;
                 item.yieldMethod = calc.method;
+                item.yieldTrustedForDisplay = earn_isTrustedInterestLedgerYieldCalc(calc);
                 item.yieldWei = calc.hasData ? displayYieldWei : 0n;
                 item.yieldUsdScaled = calc.hasData ? displayYieldUsdScaled : 0n;
                 item.yieldUsd = calc.hasData ? earn_scaledUsdToNumber(displayYieldUsdScaled) : 0;
@@ -13233,21 +13273,24 @@
                 && freshnessModes.includes('background');
             const canonicalCoverage = chainStatus?.canonical?.coverage || null;
             const canonicalCoverageCatchup = chainStatus?.canonical?.coverageCatchup === true;
+            const canonicalCoverageBacklog = chainStatus?.canonical?.coverageBacklog === true;
             const canonicalLag = Number(chainStatus?.canonical?.estimatedLagMinutes || 0);
             const netflowLag = Number(chainStatus?.netflow?.estimatedLagMinutes || 0);
             const lagLabel = earn_formatFreshnessLag(Math.max(canonicalLag, netflowLag));
-            if (canonicalCoverageCatchup) {
-                const recencyStatus = String(chainStatus?.canonical?.recencyStatus || chainStatus?.canonical?.status || '').toLowerCase();
-                const blockLag = Number(chainStatus?.canonical?.blockLag);
-                const verifiedBlockLag = Number(chainStatus?.canonical?.verifiedBlockLag);
-                const recencyFresh = ['verified', 'ahead'].includes(recencyStatus)
-                    || (Number.isFinite(blockLag) && Number.isFinite(verifiedBlockLag) && verifiedBlockLag > 0 && blockLag <= verifiedBlockLag);
+            const recencyStatus = String(chainStatus?.canonical?.recencyStatus || chainStatus?.canonical?.status || '').toLowerCase();
+            const blockLag = Number(chainStatus?.canonical?.blockLag);
+            const verifiedBlockLag = Number(chainStatus?.canonical?.verifiedBlockLag);
+            const recencyFresh = ['verified', 'ahead'].includes(recencyStatus)
+                || (Number.isFinite(blockLag) && Number.isFinite(verifiedBlockLag) && verifiedBlockLag > 0 && blockLag <= verifiedBlockLag);
+            if (canonicalCoverageCatchup || canonicalCoverageBacklog) {
                 const coverageLabel = earn_formatCanonicalCoverageLabel(canonicalCoverage);
                 const parts = [
                     recencyFresh ? 'Fresh chain data' : 'Chain data syncing',
-                    coverageLabel ? `canonical coverage syncing · ${coverageLabel}` : 'canonical coverage syncing',
+                    canonicalCoverageCatchup
+                        ? (coverageLabel ? `canonical coverage syncing · ${coverageLabel}` : 'canonical coverage syncing')
+                        : (coverageLabel ? `canonical backfill · ${coverageLabel}` : 'canonical backfill'),
                 ];
-                if (lagLabel) parts.push(lagLabel);
+                if (!recencyFresh && lagLabel) parts.push(lagLabel);
                 pill.textContent = parts.join(' · ');
                 pill.classList.add('visible');
                 pill.setAttribute('aria-hidden', 'false');
@@ -13812,6 +13855,8 @@
                         par: latestPar,
                         lastIndex: existingState ? existingState.lastIndex : null,
                         settledYield: existingState ? existingState.settledYield : 0n,
+                        settledSupplyYield: existingState ? existingState.settledSupplyYield : 0n,
+                        settledBorrowYield: existingState ? existingState.settledBorrowYield : 0n,
                         liveYield: existingState ? existingState.liveYield : 0n,
                         hadSupply: true,
                         hadBorrow: existingState ? !!existingState.hadBorrow : false,
@@ -15107,6 +15152,8 @@
                             par: 0n,
                             lastIndex: null,
                             settledYield: 0n,
+                            settledSupplyYield: 0n,
+                            settledBorrowYield: 0n,
                             liveYield: 0n,
                             hadSupply: false,
                             hadBorrow: false,
@@ -15157,7 +15204,7 @@
                     if (state.par > 0n) state.hadSupply = true;
                     if (state.par < 0n) state.hadBorrow = true;
                     if (state.par === 0n || flipsSign) {
-                        state.settledYield += state.liveYield;
+                        earn_addSettledYield(state, state.liveYield, prevPar);
                         state.liveYield = 0n;
                     }
                     state.lastIndex = state.par === 0n ? null : ev.index;
@@ -15586,6 +15633,8 @@
                         par: 0n,
                         lastIndex: null,
                         settledYield: 0n,
+                        settledSupplyYield: 0n,
+                        settledBorrowYield: 0n,
                         liveYield: 0n,
                         hadSupply: false,
                         hadBorrow: false,
@@ -15659,7 +15708,7 @@
                 if (prevPar > 0n || state.par > 0n) state.hadSupply = true;
                 if (prevPar < 0n || state.par < 0n) state.hadBorrow = true;
                 if (state.par === 0n || flipsSign) {
-                    state.settledYield += state.liveYield;
+                    earn_addSettledYield(state, state.liveYield, prevPar);
                     state.liveYield = 0n;
                 }
                 state.lastIndex = state.par > 0n ? idxMeta.supplyIndex : state.par < 0n ? idxMeta.borrowIndex : null;
@@ -18385,7 +18434,8 @@
                 if (activeAddrs.has(item.tokenAddr?.toLowerCase())) return false;
                 // Filter dust unless dust filter is off
                 const balUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
-                if (!earn_showDust && earn_isSubDollarYieldPair(balUsdScaled, item.yieldUsdScaled || 0n)) return false;
+                const verifiedYieldUsdScaled = item.yieldTrustedForDisplay ? (item.yieldUsdScaled || 0n) : 0n;
+                if (!earn_showDust && earn_isSubDollarYieldPair(balUsdScaled, verifiedYieldUsdScaled)) return false;
                 return true;
             });
 
@@ -18396,7 +18446,9 @@
 
             if (earn_pastSortKey === 'yield') {
                 inactiveItems.sort((a, b) => {
-                    const diff = earn_compareBigInt(a.yieldUsdScaled || 0n, b.yieldUsdScaled || 0n);
+                    const aYield = a.yieldTrustedForDisplay ? (a.yieldUsdScaled || 0n) : 0n;
+                    const bYield = b.yieldTrustedForDisplay ? (b.yieldUsdScaled || 0n) : 0n;
+                    const diff = earn_compareBigInt(aYield, bYield);
                     return earn_pastSortDesc ? -diff : diff;
                 });
             }
@@ -18458,7 +18510,7 @@
                 };
 
                 let yieldCellHtml;
-                if (item.yieldWei !== 0n) {
+                if (earn_isTrustedInterestLedgerYieldCalc(yieldCalc)) {
                     yieldCellHtml = `<span class="earn-amount ${yieldColor}">${yieldSign}${yieldFmt}<span class="earn-amount-sym">${item.symbol}</span></span>${yieldUsdStr}`;
                 } else {
                     yieldCellHtml = `<span class="earn-amount" style="color:var(--text-muted)">—</span>`;
@@ -18869,7 +18921,7 @@
                 const yieldCalc = getVerifiedYieldCalc(a);
                 const verifyBadge = earn_renderVerificationBadge(a.marketId, a.symbol, a.decimals, yieldCalc);
 
-                if (yieldCalc.hasData) {
+                if (earn_isTrustedInterestLedgerYieldCalc(yieldCalc)) {
                     const yieldUsdStr = Math.abs(yieldCalc.yieldUsd) >= 0.01
                         ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldCalc.yieldSign}$${Math.abs(yieldCalc.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
                         : '';
@@ -19040,7 +19092,8 @@
                     if (activeTokenAddrs.has(item.tokenAddr?.toLowerCase())) return false;
                     const chainId = document.getElementById('earn-chain').value;
                     const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
-                    if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) return false;
+                    const verifiedYieldUsdScaled = item.yieldTrustedForDisplay ? (item.yieldUsdScaled || 0n) : 0n;
+                    if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, verifiedYieldUsdScaled)) return false;
                     return true;
                 });
 
@@ -19127,6 +19180,11 @@
                     const visibleVerifySummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
 
                     const dustThreshold = earn_showDust ? 0 : 1;
+                    const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= dustThreshold).length;
+                    const hasBorrowOnlyEarnContext = activeCount === 0
+                        && withdrawnCount === 0
+                        && (((earn_cachedAssets || []).some(a => a.isBorrow || a.isCollateral))
+                            || ((earn_lendingPositions || []).length > 0));
 
                     // Active assets (supply only — borrows come from lending positions)
                     (earn_cachedAssets || []).forEach(a => {
@@ -19139,7 +19197,7 @@
                             visibleVerifySummary.total++;
                             visibleVerifySummary[verifyPresentation.status] = (visibleVerifySummary[verifyPresentation.status] || 0) + 1;
                         }
-                        if (verifiedYieldCalc.hasData && verifiedYieldCalc.trustedForTotal) {
+                        if (earn_isTrustedInterestLedgerYieldCalc(verifiedYieldCalc)) {
                             trustedYieldAssetCount++;
                             const countableYieldUsdScaled = BigInt(verifiedYieldCalc.yieldUsdScaled || 0n);
                             const routeYieldUsdScaled = BigInt(verifiedYieldCalc.openCollateralYieldUsdScaled || 0n);
@@ -19173,7 +19231,8 @@
                             if (item.isActive || item.isIsolation) return;
                             const chainId = document.getElementById('earn-chain').value;
                             const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
-                            if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) return;
+                            const verifiedYieldUsdScaled = item.yieldTrustedForDisplay ? (item.yieldUsdScaled || 0n) : 0n;
+                            if (!earn_showDust && earn_isSubDollarYieldPair(balanceUsdScaled, verifiedYieldUsdScaled)) return;
                             const itemYieldCalc = earn_calculateYield({
                                 marketId: item.marketId,
                                 tokenAddr: item.tokenAddr,
@@ -19182,14 +19241,7 @@
                                 currentWei: item.currentWei,
                                 currentPar: item.currentPar,
                             }, { applyHistoryGuards: true });
-                            const calcMethod = String(itemYieldCalc && itemYieldCalc.method || '');
-                            const calcTrusted = !!(
-                                itemYieldCalc
-                                && itemYieldCalc.hasData
-                                && itemYieldCalc.trustedForTotal
-                                && earn_isTrustedReplayYieldStatus(String(itemYieldCalc.verificationStatus || ''))
-                                && trustedHistoryMethods.has(calcMethod)
-                            );
+                            const calcTrusted = earn_isTrustedInterestLedgerYieldCalc(itemYieldCalc);
                             const histMeta = earn_getResolvedTotalYieldEntry(item.marketId);
                             const histStatus = histMeta
                                 ? String(histMeta.resolvedVerificationStatus || histMeta.verificationStatus || '')
@@ -19200,7 +19252,13 @@
                                 : String(item.yieldMethod || '');
                             const histUsesReplay = trustedHistoryMethods.has(histMethod);
                             const histStatusTrusted = histUsesReplay && earn_isTrustedReplayYieldStatus(histStatus);
-                            const histTrusted = trustedHistoryMethods.has(histMethod) && histStatusTrusted && histIsLatest;
+                            const histTrusted = !!(
+                                histMeta
+                                && histMeta.resolvedTrustedForTotal === true
+                                && trustedHistoryMethods.has(histMethod)
+                                && histStatusTrusted
+                                && histIsLatest
+                            );
                             if (!calcTrusted && !histTrusted) {
                                 if ((item.yieldUsdScaled || 0n) !== 0n) pendingYieldAssetCount++;
                                 return;
@@ -19226,25 +19284,33 @@
                     const openRouteYieldUsd = earn_scaledUsdToNumber(openRouteYieldUsdScaled);
                     const bestYieldUsd = earn_scaledUsdToNumber(bestYieldUsdScaled);
                     const portfolioValueTitle = earn_escapeHtml(earn_formatUSDExact(totalUsd));
-                    const totalYieldTitle = earn_escapeHtml(openRouteYieldAssetCount > 0
-                        ? `${earn_formatUSDExact(totalYieldUsd)} supply/closed-route yield. Open borrow-route collateral yield is shown separately: ${earn_formatUSDExact(openRouteYieldUsd)}.`
-                        : earn_formatUSDExact(totalYieldUsd));
+                    const hasVerifiedTotalYield = trustedYieldAssetCount > 0;
+                    const totalYieldTitle = earn_escapeHtml(!hasVerifiedTotalYield
+                        ? 'No strict verified yield is available for this wallet.'
+                        : openRouteYieldAssetCount > 0
+                            ? `${earn_formatUSDExact(totalYieldUsd)} supply/closed-route yield. Open borrow-route collateral yield is shown separately: ${earn_formatUSDExact(openRouteYieldUsd)}.`
+                            : earn_formatUSDExact(totalYieldUsd));
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
                     const openRouteYieldClass = openRouteYieldUsd >= 0 ? 'positive' : 'negative';
                     const openRouteYieldSign = openRouteYieldUsd >= 0 ? '+' : '-';
                     const bestYieldSign = bestYieldUsd > 0 ? '+' : bestYieldUsd < 0 ? '-' : '';
-                    const isTotalYieldLoading = earn_totalYieldStatus === 'loading' && trustedYieldAssetCount === 0;
-                    const isTotalYieldRefreshing = earn_totalYieldStatus === 'loading' && trustedYieldAssetCount > 0;
-                    const totalYieldSub = isTotalYieldLoading
-                        ? 'Building verified yield'
-                        : isTotalYieldRefreshing
-                            ? 'Refreshing verified yield'
-                            : pendingYieldAssetCount > 0
-                                ? `Verified yield · ${pendingYieldAssetCount} pending`
-                                : openRouteYieldAssetCount > 0
-                                    ? 'Verified supply / closed-route yield'
-                                    : 'Verified lifetime yield';
+                    const isYieldPipelineLoading = (earn_totalYieldStatus === 'loading' || earn_replayStatus === 'loading');
+                    const isTotalYieldLoading = isYieldPipelineLoading && !hasVerifiedTotalYield && !hasBorrowOnlyEarnContext;
+                    const isTotalYieldRefreshing = isYieldPipelineLoading && hasVerifiedTotalYield;
+                    const totalYieldSub = hasBorrowOnlyEarnContext
+                        ? 'Not applicable for borrow-only accounts'
+                        : isTotalYieldLoading
+                            ? 'Building verified yield'
+                            : isTotalYieldRefreshing
+                                ? 'Refreshing verified yield'
+                                : pendingYieldAssetCount > 0
+                                    ? `${trustedYieldAssetCount} verified · ${pendingYieldAssetCount} pending`
+                                    : openRouteYieldAssetCount > 0
+                                        ? 'Verified supply / closed-route yield'
+                                        : hasVerifiedTotalYield
+                                            ? 'Verified lifetime yield'
+                                            : 'No verified yield data';
                     const provisionalVerifyTotal = trustedYieldAssetCount + pendingYieldAssetCount;
                     const hasProvisionalVerifySummary = !earn_replayVerificationReady && provisionalVerifyTotal > 0;
                     const verifySummary = visibleVerifySummary.total > 0
@@ -19323,12 +19389,6 @@
                                 ? 'Collateral is parked inside an open borrow route'
                                 : 'No open borrow route';
 
-                    // Count active non-dust supply assets
-                    const activeCount = (earn_cachedAssets || []).filter(a => !a.isBorrow && !a.isCollateral && a.usdValue >= dustThreshold).length;
-                    const hasBorrowOnlyEarnContext = activeCount === 0
-                        && withdrawnCount === 0
-                        && (((earn_cachedAssets || []).some(a => a.isBorrow || a.isCollateral))
-                            || ((earn_lendingPositions || []).length > 0));
                     const finalVerifyValue = hasBorrowOnlyEarnContext ? 'N/A' : verifyValue;
                     const finalVerifyClass = hasBorrowOnlyEarnContext ? 'neutral' : verifyClass;
                     const finalVerifySub = hasBorrowOnlyEarnContext
@@ -19423,7 +19483,7 @@
                             <div class="earn-summary-primary-grid">
                                 <div class="earn-summary-stat kpi-primary">
                                     <div class="earn-summary-label">Total Yield Earned</div>
-                                    <div class="earn-summary-value ${isTotalYieldLoading ? 'neutral' : yieldClass}" data-tip="${totalYieldTitle}">${isTotalYieldLoading ? 'Loading...' : `${yieldSign}${earn_formatUSD(Math.abs(totalYieldUsd))}`}</div>
+                                    <div class="earn-summary-value ${isTotalYieldLoading || !hasVerifiedTotalYield ? 'neutral' : yieldClass}" data-tip="${totalYieldTitle}">${hasBorrowOnlyEarnContext ? '—' : isTotalYieldLoading ? 'Loading...' : hasVerifiedTotalYield ? `${yieldSign}${earn_formatUSD(Math.abs(totalYieldUsd))}` : '—'}</div>
                                     <div class="earn-summary-sub">${totalYieldSub}</div>
                                 </div>
                                 <div class="earn-summary-stat kpi-primary">
@@ -19678,8 +19738,11 @@
                 // Count dust in active supply assets (always visible)
                 (earn_cachedAssets || []).forEach(a => {
                     if (a.isBorrow || a.isCollateral) return;
-                    const yieldCalc = earn_calculateYield(a, { requireVerifiedInterest: false });
-                    if (a.usdValue < 1 && earn_absUsdScaled(yieldCalc.yieldUsdScaled || 0n) < EARN_USD_SCALE) dustCount++;
+                    const yieldCalc = getVerifiedYieldCalc(a);
+                    const verifiedYieldUsdScaled = earn_isTrustedInterestLedgerYieldCalc(yieldCalc)
+                        ? (yieldCalc.yieldUsdScaled || 0n)
+                        : 0n;
+                    if (a.usdValue < 1 && earn_absUsdScaled(verifiedYieldUsdScaled) < EARN_USD_SCALE) dustCount++;
                 });
                 // Count dust in withdrawn items ONLY if withdrawn section is visible
                 const withdrawnSection = document.getElementById('earn-withdrawn-section');
@@ -19692,7 +19755,8 @@
                         if (activeAddrs.has(item.tokenAddr?.toLowerCase())) return;
                         const chainId = document.getElementById('earn-chain').value;
                         const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
-                        if (earn_isSubDollarYieldPair(balanceUsdScaled, item.yieldUsdScaled || 0n)) dustCount++;
+                        const verifiedYieldUsdScaled = item.yieldTrustedForDisplay ? (item.yieldUsdScaled || 0n) : 0n;
+                        if (earn_isSubDollarYieldPair(balanceUsdScaled, verifiedYieldUsdScaled)) dustCount++;
                     });
                 }
                 const keepDustToggleVisible = shouldShowSupplySection;

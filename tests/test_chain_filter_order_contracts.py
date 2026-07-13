@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "botanix", "polygonzkevm", "xlayer"]
 CHAIN_LABEL_ORDER = ["Ethereum", "Berachain", "Arbitrum", "Mantle", "Botanix", "Polygon zkEVM", "X Layer"]
+EARN_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer", "polygonzkevm", "botanix"]
 
 
 class ChainFilterOrderContractsTest(unittest.TestCase):
@@ -34,12 +35,12 @@ class ChainFilterOrderContractsTest(unittest.TestCase):
         ]
         self.assertEqual(CHAIN_ORDER, keys)
 
-    def test_earn_chain_menu_uses_total_supply_rank(self):
+    def test_earn_chain_menu_keeps_archived_networks_last(self):
         text = (ROOT / "dashboard-core.js").read_text(encoding="utf-8")
         block = re.search(r"const EARN_CHAINS = \{([\s\S]*?)\n        \};", text)
         self.assertIsNotNone(block)
         keys = re.findall(r"^\s{12}([a-z][a-z0-9]*): \{", block.group(1), flags=re.MULTILINE)
-        self.assertEqual(CHAIN_ORDER, keys[: len(CHAIN_ORDER)])
+        self.assertEqual(EARN_CHAIN_ORDER, keys[: len(EARN_CHAIN_ORDER)])
 
     def test_supply_chain_dropdown_order_matches_total_supply_rank(self):
         text = (ROOT / "liquidation-preview.html").read_text(encoding="utf-8")
