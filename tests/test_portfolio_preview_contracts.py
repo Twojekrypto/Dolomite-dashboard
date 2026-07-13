@@ -24,6 +24,8 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('>Account</th>', self.html)
         self.assertIn("function accountNumberCell(account)", self.html)
         self.assertIn("function shortAccountNumber(account)", self.html)
+        self.assertIn('return number.length > 6 ? `${number.slice(0, 3)}…${number.slice(-3)}` : number;', self.html)
+        self.assertIn('width:72px;min-width:72px', self.html)
         self.assertIn("${accountNumberCell(r.account)}", self.html)
         self.assertIn("Dolomite account number", self.html)
         self.assertIn('data-copy="${esc(number)}"', self.html)
