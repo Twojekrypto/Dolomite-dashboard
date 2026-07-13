@@ -47,6 +47,8 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('class="pf-emode-flame"', self.html)
         self.assertIn('fill="#fb923c"', self.html)
         self.assertIn('fill="#fbbf24"', self.html)
+        self.assertIn('fill="#fff1c1"', self.html)
+        self.assertIn('.pf-emode-icon .pf-emode-flame{width:14px;height:14px', self.html)
         self.assertIn('width:18px;height:18px', self.html)
         self.assertIn('min-height:24px', self.html)
         self.assertNotIn("EMODE_FLAME", self.html)
