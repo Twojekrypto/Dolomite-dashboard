@@ -195,6 +195,17 @@
     scheduleHide();
   });
 
+  document.addEventListener('focusin', function (event) {
+    var data = tooltipText(event.target);
+    if (!data || !data.text) return;
+    show(data);
+  });
+
+  document.addEventListener('focusout', function (event) {
+    if (!tooltipText(event.target)) return;
+    scheduleHide();
+  });
+
   normalizeTooltipAttributes(document);
   new MutationObserver(function (records) {
     records.forEach(function (record) {
