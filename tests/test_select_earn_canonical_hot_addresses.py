@@ -76,6 +76,75 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
         self.assertEqual(selected, [stale, fresh])
         self.assertEqual(metadata["staleHistoryAddressCount"], 1)
 
+    def test_prefer_stale_history_selects_oldest_wallet_before_higher_score(self):
+        oldest = "0x1111111111111111111111111111111111111111"
+        recent = "0x2222222222222222222222222222222222222222"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            history_dir = Path(tmp) / "earn-subaccount-history"
+            chain_dir = history_dir / "ethereum"
+            chain_dir.mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"ethereum":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{oldest}.json").write_text('{"lastScannedBlock":10}', encoding="utf-8")
+            (chain_dir / f"{recent}.json").write_text('{"lastScannedBlock":90}', encoding="utf-8")
+
+            def score_snapshot(_chain, scores):
+                scores[oldest] = 1
+                scores[recent] = 1_000
+
+            with (
+                patch("select_earn_canonical_hot_addresses._load_known_addresses", return_value=[oldest, recent]),
+                patch("select_earn_canonical_hot_addresses._score_snapshot_wallets", side_effect=score_snapshot),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, _metadata = build_selection(
+                    "ethereum",
+                    limit=1,
+                    priority_files=[],
+                    include_priority_even_if_unknown=True,
+                    history_dir=history_dir,
+                    prefer_stale_history=True,
+                )
+
+        self.assertEqual(selected, [oldest])
+
+    def test_prefer_stale_history_selects_missing_history_before_stale(self):
+        stale = "0x1111111111111111111111111111111111111111"
+        missing = "0x2222222222222222222222222222222222222222"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            history_dir = Path(tmp) / "earn-subaccount-history"
+            chain_dir = history_dir / "ethereum"
+            chain_dir.mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"ethereum":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{stale}.json").write_text('{"lastScannedBlock":10}', encoding="utf-8")
+
+            def score_snapshot(_chain, scores):
+                scores[stale] = 1_000
+                scores[missing] = 1
+
+            with (
+                patch("select_earn_canonical_hot_addresses._load_known_addresses", return_value=[stale, missing]),
+                patch("select_earn_canonical_hot_addresses._score_snapshot_wallets", side_effect=score_snapshot),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, _metadata = build_selection(
+                    "ethereum",
+                    limit=1,
+                    priority_files=[],
+                    include_priority_even_if_unknown=True,
+                    history_dir=history_dir,
+                    prefer_stale_history=True,
+                )
+
+        self.assertEqual(selected, [missing])
+
 
 if __name__ == "__main__":
     unittest.main()
