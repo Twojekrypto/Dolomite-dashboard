@@ -11,6 +11,13 @@ import scripts.smoke_live_pages as smoke
 
 
 class SmokeLivePagesTests(unittest.TestCase):
+    def test_earn_route_uses_dedicated_generated_bundle(self):
+        route_html = (ROOT / "earn" / "index.html").read_text(encoding="utf-8")
+
+        self.assertEqual(smoke.ROUTE_CHECKS["/earn/"], ("earn/earn-core.html", "Earn"))
+        self.assertIn('"target": "../earn/earn-core.html"', route_html)
+        self.assertIn("/earn/earn-core.js", smoke.ASSET_CHECKS)
+
     def test_liquidation_route_check_matches_route_shell(self):
         route_html = (ROOT / "liquidation" / "index.html").read_text(encoding="utf-8")
 

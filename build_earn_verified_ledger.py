@@ -19,6 +19,7 @@ explicitly for chains where the runtime needs a fast per-wallet lookup.
 import argparse
 import json
 from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 
 
@@ -27,6 +28,7 @@ SNAPSHOT_DIR = ROOT / "data" / "earn-snapshots"
 NETFLOW_DIR = ROOT / "data" / "earn-netflow"
 HISTORY_DIR = ROOT / "data" / "earn-subaccount-history"
 OUTPUT_DIR = ROOT / "data" / "earn-verified-ledger"
+HISTORICAL_PRICE_DIR = ROOT / "data" / "earn-historical-prices"
 
 
 def _read_json(path):
@@ -319,7 +321,64 @@ def _get_pre_snapshot_carry_meta(decimals, snapshot_yield, diff, first_par, firs
     }
 
 
-def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_addr):
+STABLE_SYMBOLS = {
+    "USDC", "USDC.E", "USDT", "USDT0", "DAI", "FRAX", "LUSD", "USD0",
+    "USD1", "USDE", "HONEY", "MIM", "USDS",
+}
+
+
+def _decimal_text(value):
+    text = format(value.normalize(), "f")
+    return "0" if text in {"", "-0"} else text
+
+
+def _calculate_historical_yield_pnl(history, prices_by_date, *, decimals, symbol):
+    eligible = 0
+    priced = 0
+    skipped_flow = 0
+    missing_price = 0
+    total_usd = Decimal(0)
+    scale = Decimal(10) ** max(0, int(decimals))
+    stable_fallback = str(symbol or "").upper() in STABLE_SYMBOLS
+
+    for previous, current in zip(history, history[1:]):
+        previous_par = int(previous.get("par") or 0)
+        current_par = int(current.get("par") or 0)
+        if previous_par <= 0 or current_par <= 0 or previous_par != current_par:
+            skipped_flow += 1
+            continue
+        eligible += 1
+        price_raw = (prices_by_date or {}).get(str(current.get("date") or ""))
+        if price_raw in {None, ""} and stable_fallback:
+            price_raw = "1"
+        try:
+            price = Decimal(str(price_raw))
+        except Exception:
+            price = Decimal(0)
+        if price <= 0:
+            missing_price += 1
+            continue
+        interval_yield = int(current.get("wei") or 0) - int(previous.get("wei") or 0)
+        total_usd += (Decimal(interval_yield) / scale) * price
+        priced += 1
+
+    status = "unavailable"
+    if eligible > 0 and priced == eligible:
+        status = "complete"
+    elif priced > 0:
+        status = "partial"
+    return {
+        "historicalYieldUsd": _decimal_text(total_usd),
+        "historicalYieldEligibleIntervals": eligible,
+        "historicalYieldPricedIntervals": priced,
+        "historicalYieldSkippedFlowIntervals": skipped_flow,
+        "historicalYieldMissingPriceIntervals": missing_price,
+        "historicalYieldValuationStatus": status,
+        "historicalYieldValuationMethod": "daily-snapshot-constant-par",
+    }
+
+
+def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_addr, historical_prices=None):
     address = address.lower()
     history_by_market = {}
     meta_by_market = {}
@@ -573,6 +632,13 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             "canonicalHistoryHasBorrowAccount": bool(canonical_row.get("hasBorrowAccount")),
             "canonicalHistoryHasLegacyUnknownAccount": bool(canonical_row.get("hasLegacyUnknownAccount")),
         }
+        token_prices = ((historical_prices or {}).get(str(meta.get("token", "")).lower()) or {})
+        payload.update(_calculate_historical_yield_pnl(
+            hist,
+            token_prices,
+            decimals=decimals,
+            symbol=meta.get("symbol", ""),
+        ))
         if snapshot_yield is not None:
             payload["snapshotYield"] = str(snapshot_yield)
         if netflow_yield is not None:
@@ -635,6 +701,14 @@ def _load_netflow_for_chain(chain):
         "lastBlock": _parse_int(payload.get("lastBlock", 0)),
         "netflows": payload.get("netflows", {}) or {},
     }
+
+
+def _load_historical_prices(chain):
+    path = HISTORICAL_PRICE_DIR / f"{chain}.json"
+    if not path.is_file():
+        return {}
+    payload = _read_json(path)
+    return payload.get("prices", {}) if isinstance(payload, dict) else {}
 
 
 def _discover_existing_addresses(output_dir, chain):
@@ -719,6 +793,7 @@ def main():
         latest_date, latest_chain_data = snapshots[-1]
         netflow_payload = _load_netflow_for_chain(chain)
         netflow_by_addr = netflow_payload["netflows"]
+        historical_prices = _load_historical_prices(chain)
         existing_addresses = _discover_existing_addresses(output_dir, chain) if args.existing_addresses else set()
 
         if args.all_addresses:
@@ -732,7 +807,7 @@ def main():
         for address in sorted(addresses):
             if not (address.startswith("0x") and len(address) == 42):
                 continue
-            ledger = _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_addr)
+            ledger = _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_addr, historical_prices)
             out_path = output_dir / chain / f"{address}.json"
             had_existing_output = out_path.is_file()
             if _write_or_remove_ledger(

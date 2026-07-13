@@ -29,6 +29,32 @@ class TestSafeFloat(unittest.TestCase):
         self.assertEqual(flr.safe_float("abc", 7.0), 7.0)
 
 
+class TestPositionShards(unittest.TestCase):
+    def test_writes_chain_and_address_prefix_shards(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            payload = {
+                "generatedAtISO": "2026-07-13T00:00:00Z",
+                "chainStats": {"arbitrum": {"positions": 2}},
+                "positions": [
+                    {"chain": "arbitrum", "address": "0xab11111111111111111111111111111111111111", "debtUSD": 10},
+                    {"chain": "arbitrum", "address": "0xcd11111111111111111111111111111111111111", "debtUSD": 20},
+                ],
+            }
+
+            manifest = flr.write_liquidation_risk_shards(payload, root)
+
+            self.assertEqual(manifest["chains"]["arbitrum"]["positionCount"], 2)
+            self.assertTrue((root / "arbitrum" / "ab.json").is_file())
+            shard = json.loads((root / "arbitrum" / "ab.json").read_text(encoding="utf-8"))
+            self.assertEqual(len(shard["positions"]), 1)
+            self.assertEqual(shard["positions"][0]["debtUSD"], 10)
+
+
 class TestComputeHealthFactor(unittest.TestCase):
     def test_simple_position(self):
         # 300 USD collateral, 100 USD debt, liq ratio 1.15 → HF = 300 / 115

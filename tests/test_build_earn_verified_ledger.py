@@ -3,10 +3,49 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from build_earn_verified_ledger import _derive_strict_verification, _select_best_baseline, _write_or_remove_ledger
+from build_earn_verified_ledger import (
+    _calculate_historical_yield_pnl,
+    _derive_strict_verification,
+    _select_best_baseline,
+    _write_or_remove_ledger,
+)
 
 
 class BuildEarnVerifiedLedgerTest(unittest.TestCase):
+    def test_historical_pnl_prices_only_constant_positive_principal_intervals(self):
+        result = _calculate_historical_yield_pnl(
+            [
+                {"date": "2026-07-01", "par": 1_000_000, "wei": 1_000_000},
+                {"date": "2026-07-02", "par": 1_000_000, "wei": 1_010_000},
+                {"date": "2026-07-03", "par": 2_000_000, "wei": 2_020_000},
+                {"date": "2026-07-04", "par": 2_000_000, "wei": 2_030_000},
+            ],
+            {"2026-07-02": "2", "2026-07-04": "3"},
+            decimals=6,
+            symbol="TEST",
+        )
+
+        self.assertEqual(result["historicalYieldUsd"], "0.05")
+        self.assertEqual(result["historicalYieldEligibleIntervals"], 2)
+        self.assertEqual(result["historicalYieldPricedIntervals"], 2)
+        self.assertEqual(result["historicalYieldSkippedFlowIntervals"], 1)
+        self.assertEqual(result["historicalYieldValuationStatus"], "complete")
+
+    def test_historical_pnl_reports_missing_non_stable_price(self):
+        result = _calculate_historical_yield_pnl(
+            [
+                {"date": "2026-07-01", "par": 10**18, "wei": 10**18},
+                {"date": "2026-07-02", "par": 10**18, "wei": 2 * 10**18},
+            ],
+            {},
+            decimals=18,
+            symbol="WETH",
+        )
+
+        self.assertEqual(result["historicalYieldUsd"], "0")
+        self.assertEqual(result["historicalYieldMissingPriceIntervals"], 1)
+        self.assertEqual(result["historicalYieldValuationStatus"], "unavailable")
+
     def test_select_best_baseline_prefers_closest_exact_match(self):
         chosen = _select_best_baseline(
             [

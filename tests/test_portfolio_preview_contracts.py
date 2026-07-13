@@ -18,7 +18,9 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
 
     def test_open_borrows_uses_risk_positions_ux(self):
         borrow_render = self.html.split("function renderBorrowPositionsTable()", 1)[1].split("function exerciseSummaryItem", 1)[0]
-        self.assertIn("liquidation_risk.json", self.html)
+        self.assertIn("data/liquidation-risk", self.html)
+        self.assertIn("loadRiskForWallet", self.html)
+        self.assertNotIn('loadJson("liquidation_risk.json")', self.html)
         self.assertIn("buildRiskBorrowRows", self.html)
         self.assertIn('class="pf-table pf-borrow-positions"', self.html)
         self.assertIn('data-sort="hf" data-table="bor"', self.html)

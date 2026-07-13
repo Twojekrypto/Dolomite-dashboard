@@ -53,6 +53,70 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("source: replayDebtCostWei !== null ? 'replay-ledger' : 'index-estimate'", self.source)
         self.assertNotIn("const accruedTokens = actualTokens - absPar; // cost accrued", self.source)
 
+    def test_dedicated_earn_route_skips_unrelated_dashboard_warmups(self):
+        self.assertIn("function earn_isDedicatedRoutePage()", self.source)
+        self.assertIn(
+            "if (!earn_isDedicatedRoutePage()) {\n"
+            "            fetch('vedolo_expiry.json'",
+            self.source,
+        )
+        self.assertIn(
+            "if (!earn_isDedicatedRoutePage()) {\n"
+            "            fetch('vesting_investors.json'",
+            self.source,
+        )
+        self.assertIn(
+            "if (!earn_isDedicatedRoutePage()) {\n"
+            "                assets_setupWarmupTriggers();",
+            self.source,
+        )
+
+    def test_arbitrum_and_berachain_workflows_admit_missing_canonical_histories(self):
+        for filename in [
+            "update-earn-arbitrum-canonical-history.yml",
+            "update-earn-berachain-canonical-history.yml",
+        ]:
+            workflow = (ROOT / ".github" / "workflows" / filename).read_text(encoding="utf-8")
+            self.assertNotIn("--existing-history-only", workflow)
+            self.assertIn("--max-new-backfill-workers", workflow)
+
+    def test_verified_ledger_fetch_falls_back_to_address_prefix_shard(self):
+        self.assertIn("VERIFIED_LEDGER_SHARD_BASE", self.source)
+        self.assertIn("addr.slice(2, 4)", self.source)
+        self.assertIn("shard.ledgers[addr]", self.source)
+        self.assertLess(
+            self.source.index("`${VERIFIED_LEDGER_SHARD_BASE}/${chainId}/${prefix}.json`"),
+            self.source.index("`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`"),
+        )
+
+    def test_liquidation_risk_fetch_uses_wallet_shard(self):
+        self.assertIn("LIQUIDATION_RISK_SHARD_BASE", self.source)
+        self.assertIn("earn_fetchLiqRiskForWallet", self.source)
+        self.assertNotIn("fetch('liquidation_risk.json')", self.source)
+
+    def test_summary_keeps_historical_pnl_separate_from_current_price_total_yield(self):
+        self.assertIn("Historical Yield P&amp;L", self.source)
+        self.assertIn("historicalYieldUsd", self.source)
+        self.assertIn("daily-snapshot-constant-par", self.source)
+
+    def test_liquidation_risk_payload_is_only_loaded_for_current_borrow_debt(self):
+        self.assertNotIn(
+            "// Prefetch liquidation_risk.json in parallel with balance lookup",
+            self.source,
+        )
+        self.assertIn(
+            "const currentAccounts = await earn_fetchCurrentAccountsFromSubgraph(addr).catch(() => null);",
+            self.source,
+        )
+        self.assertIn("const hasCurrentBorrow = currentAccounts.positions.some", self.source)
+        self.assertIn("if (currentAccounts && sgEndpoint) {", self.source)
+        self.assertIn("if (!hasCurrentBorrow) {", self.source)
+
+    def test_yield_summary_distinguishes_current_market_checks_and_current_usd_value(self):
+        self.assertIn('<div class="earn-summary-label">Current Markets Check</div>', self.source)
+        self.assertNotIn('<div class="earn-summary-label">Ledger Check</div>', self.source)
+        self.assertIn("' at current token prices'", self.source)
+
     def test_non_strict_yield_quality_can_override_verified_balance_badge(self):
         self.assertIn("function earn_getYieldQualityPresentation", self.source)
         self.assertIn("if (fallbackStatus === 'verified')", self.source)
@@ -648,6 +712,31 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         self.assertNotIn("- Update Earn freshness and quality status", workflow)
         self.assertNotIn("- Update oDOLO Contract Data", workflow)
 
+    def test_pages_deployment_checks_generated_bundle_and_representative_markets(self):
+        workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("python3 build_earn_bundle.py --check", workflow)
+        self.assertIn("python3 build_earn_representative_audit.py --check", workflow)
+
+    def test_earn_refresh_workflows_publish_compact_ledger_shards(self):
+        for path in (
+            ARBITRUM_CANONICAL_WORKFLOW,
+            BERACHAIN_CANONICAL_WORKFLOW,
+            ETHEREUM_CANONICAL_WORKFLOW,
+            SECONDARY_CANONICAL_WORKFLOW,
+            EARN_SNAPSHOTS_WORKFLOW,
+        ):
+            workflow = path.read_text(encoding="utf-8")
+            self.assertIn("build_earn_verified_ledger_shards.py", workflow, path.name)
+            self.assertIn("data/earn-verified-ledger-shards", workflow, path.name)
+
+    def test_snapshot_workflow_refreshes_historical_prices_before_ledgers(self):
+        workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertLess(
+            workflow.index("build_earn_historical_prices.py"),
+            workflow.index("build_earn_verified_ledger.py"),
+        )
+        self.assertIn("data/earn-historical-prices", workflow)
+
     def test_earn_commit_helper_dispatches_pages_after_action_token_push(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
         self.assertIn("EARN_DISPATCH_PAGES_AFTER_PUSH", helper)
@@ -830,7 +919,10 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
 
     def test_snapshot_workflow_skips_archived_verified_ledger_caches(self):
         workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("Build Ethereum verified ledger cache", workflow)
+        self.assertIn("Build active-chain verified ledger caches", workflow)
+        self.assertIn("Publish active-chain verified ledger shards", workflow)
+        for chain in ("ethereum", "arbitrum", "berachain", "mantle", "xlayer"):
+            self.assertIn(f"--chain {chain}", workflow)
         for chain in ("botanix", "polygonzkevm"):
             self.assertNotIn(chain, workflow)
 
@@ -855,7 +947,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_KAT", workflow)
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_DAN", workflow)
-        self.assertIn("--existing-history-only", workflow)
+        self.assertNotIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '28800'", workflow)
         self.assertIn('--max-steps "$CHECKPOINT_STEPS"', workflow)
@@ -877,7 +969,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("has_public_baseline", workflow)
-        self.assertIn("--existing-history-only", workflow)
+        self.assertNotIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '3600'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)
@@ -950,7 +1042,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '10000'", workflow)
         self.assertIn("MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS: '300'", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
-        self.assertIn("--existing-history-only", workflow)
+        self.assertNotIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}", workflow)
         self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)

@@ -41,6 +41,12 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
+      - name: Validate generated EARN assets
+        run: python3 build_earn_bundle.py --check
+
+      - name: Audit representative EARN markets
+        run: python3 build_earn_representative_audit.py --check
+
       - name: Build static site
         run: |
           rm -rf _site

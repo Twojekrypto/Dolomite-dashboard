@@ -56,20 +56,49 @@ jobs:
           print(f"Validated earn snapshots for {today}: {sorted(snapshot_chains)}")
           PY
 
-      - name: Build Ethereum verified ledger cache
+      - name: Refresh historical EARN prices
+        run: |
+          python3 build_earn_historical_prices.py \
+            --chain ethereum \
+            --chain arbitrum \
+            --chain berachain \
+            --chain mantle \
+            --chain xlayer
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Build active-chain verified ledger caches
         run: |
           python3 build_earn_verified_ledger.py \
             --chain ethereum \
+            --chain arbitrum \
+            --chain berachain \
+            --chain mantle \
+            --chain xlayer \
             --all-addresses
         env:
           PYTHONUNBUFFERED: '1'
+
+      - name: Publish active-chain verified ledger shards
+        run: |
+          python3 build_earn_verified_ledger_shards.py \
+            --chain ethereum \
+            --chain arbitrum \
+            --chain berachain \
+            --chain mantle \
+            --chain xlayer
+
+      - name: Audit representative EARN markets
+        run: python3 build_earn_representative_audit.py --check
 
       - name: Validate generated earn data
         run: |
           python3 validate_data.py \
             data/earn-snapshots \
+            data/earn-historical-prices \
             data/earn-verified-ledger \
-            data/earn-verified-ledger/ethereum
+            data/earn-verified-ledger/ethereum \
+            data/earn-verified-ledger-shards
 
       - name: Commit & push changes
         env:
@@ -79,7 +108,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/earn-snapshots/
+          git add data/earn-historical-prices/
           git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum/
+          git add -f data/earn-verified-ledger-shards/
           if git diff --staged --quiet; then
             echo "No changes to commit"
             exit 0

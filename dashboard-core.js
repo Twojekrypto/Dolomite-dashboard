@@ -1,3 +1,12 @@
+        function earn_isDedicatedRoutePage() {
+            const explicitRoute = String(window.__DOLO_ROUTE || '').trim().toLowerCase();
+            if (explicitRoute === 'earn') return true;
+            const pathname = String((window.location && window.location.pathname) || '')
+                .replace(/\/+$/, '')
+                .toLowerCase();
+            return pathname.endsWith('/earn') || pathname.endsWith('/earn/index.html');
+        }
+
 // ===== DATA =====
         let HOLDER_DATA = [];
         const STATS = { total_minted: 23516, total_burned: 8659, active_nfts: 14857, unique_holders: 10971, total_locked_dolo: 50842522.01, total_vote_weight: 32432491.2401 };
@@ -452,20 +461,22 @@
         let expiryTotalDolo = 0;
         let expiryPreloaded = null;  // pre-computed from vedolo_expiry.json
 
-        // Preload tiny expiry JSON for instant chart rendering
-        fetch('vedolo_expiry.json', { cache: 'no-cache' })
-            .then(r => r.ok ? r.json() : null)
-            .then(data => {
-                if (data && data.buckets && data.buckets.length) {
-                    expiryPreloaded = data;
-                    // Render chart immediately if expiry section is visible
-                    if (document.getElementById('expiry-canvas')) {
-                        renderExpiryChart();
-                        setupExpiryInteraction();
+        // Preload tiny expiry JSON for instant chart rendering outside the dedicated EARN route.
+        if (!earn_isDedicatedRoutePage()) {
+            fetch('vedolo_expiry.json', { cache: 'no-cache' })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (data && data.buckets && data.buckets.length) {
+                        expiryPreloaded = data;
+                        // Render chart immediately if expiry section is visible
+                        if (document.getElementById('expiry-canvas')) {
+                            renderExpiryChart();
+                            setupExpiryInteraction();
+                        }
                     }
-                }
-            })
-            .catch(() => { });
+                })
+                .catch(() => { });
+        }
 
         function renderExpiryChart(hoveredIdx) {
             const canvas = document.getElementById('expiry-canvas');
@@ -4268,27 +4279,29 @@
 
         // --- DYNAMIC LABELS (Fetched from Backend Pipeline) ---
         // --- DYNAMIC LABELS (Fetched from Backend Pipeline) ---
-        fetch('vesting_investors.json').then(r => r.json()).then(data => {
-            if (Array.isArray(data)) return; // skip if old format cached
-            if (data.early_investors) {
-                data.early_investors.forEach(addr => {
-                    const lower = addr.toLowerCase();
-                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Early Investor', type: 'investor', source: 'vesting_investors', confidence: 'confirmed' };
-                });
-            }
-            if (data.investors) {
-                data.investors.forEach(addr => {
-                    const lower = addr.toLowerCase();
-                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Investor', type: 'investor', source: 'vesting_investors', confidence: 'confirmed' };
-                });
-            }
-            if (data.team) {
-                data.team.forEach(addr => {
-                    const lower = addr.toLowerCase();
-                    if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Core Team', type: 'protocol', treasury: true, source: 'vesting_investors', confidence: 'confirmed' };
-                });
-            }
-        }).catch(e => console.log('vesting_investors.json load skipped or missing'));
+        if (!earn_isDedicatedRoutePage()) {
+            fetch('vesting_investors.json').then(r => r.json()).then(data => {
+                if (Array.isArray(data)) return; // skip if old format cached
+                if (data.early_investors) {
+                    data.early_investors.forEach(addr => {
+                        const lower = addr.toLowerCase();
+                        if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Early Investor', type: 'investor', source: 'vesting_investors', confidence: 'confirmed' };
+                    });
+                }
+                if (data.investors) {
+                    data.investors.forEach(addr => {
+                        const lower = addr.toLowerCase();
+                        if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Investor', type: 'investor', source: 'vesting_investors', confidence: 'confirmed' };
+                    });
+                }
+                if (data.team) {
+                    data.team.forEach(addr => {
+                        const lower = addr.toLowerCase();
+                        if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Core Team', type: 'protocol', treasury: true, source: 'vesting_investors', confidence: 'confirmed' };
+                    });
+                }
+            }).catch(e => console.log('vesting_investors.json load skipped or missing'));
+        }
 
         function dolo_labelBadge(addr) {
             const info = DOLO_ADDR_LABELS[addr.toLowerCase()];
@@ -5921,7 +5934,9 @@
 
         // Bind reward row toggles in settings dropdown
         document.addEventListener('DOMContentLoaded', function() {
-            assets_setupWarmupTriggers();
+            if (!earn_isDedicatedRoutePage()) {
+                assets_setupWarmupTriggers();
+            }
             const rewardMap = {
                 'settings-row-odolo':  { key: 'odolo',   dotId: 'settings-dot-odolo' },
                 'settings-row-yield':  { key: 'yield',   dotId: 'settings-dot-yield' },
@@ -13221,6 +13236,8 @@
         const SNAPSHOT_BASE = `${EARN_DATA_BASE}/earn-snapshots`;
         const NETFLOW_BASE = `${EARN_DATA_BASE}/earn-netflow`;
         const VERIFIED_LEDGER_BASE = `${EARN_DATA_BASE}/earn-verified-ledger`;
+        const VERIFIED_LEDGER_SHARD_BASE = `${EARN_DATA_BASE}/earn-verified-ledger-shards`;
+        const LIQUIDATION_RISK_SHARD_BASE = `${EARN_DATA_BASE}/liquidation-risk`;
         const EARN_MERKL_REWARDS_BASE = `${EARN_DATA_BASE}/earn-merkl-rewards`;
         const SUBACCOUNT_HISTORY_BASE = `${EARN_DATA_BASE}/earn-subaccount-history`;
         const EARN_FRESHNESS_STATUS_URL = `${EARN_DATA_BASE}/earn-freshness/status.json`;
@@ -13229,6 +13246,7 @@
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
         let earn_verifiedLedgerCache = {}; // { "chain:address" : payload|null }
         let earn_verifiedLedgerRequestCache = {}; // { "chain:address" : Promise<payload|null> }
+        let earn_verifiedLedgerShardRequestCache = {}; // { "chain:prefix" : Promise<shard|null> }
         let earn_subaccountHistoryCache = {}; // { "chain:address" : payload|null }
         let earn_subaccountHistoryRequestCache = {}; // { "chain:address" : Promise<payload|null> }
         let earn_marketRatesRequestCache = {}; // { chainId : Promise<rates> }
@@ -14007,15 +14025,47 @@
                 return earn_verifiedLedgerRequestCache[cacheKey];
             }
             const request = (async () => {
-                const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`, {
-                    cache: 'no-store',
-                });
-                if (!resp.ok) {
-                    // Cache only genuine 404s; transient errors stay uncached for retry.
-                    if (resp.status === 404) earn_verifiedLedgerCache[cacheKey] = null;
-                    return null;
+                let data = null;
+                const prefix = addr.slice(2, 4);
+                const shardKey = `${chainId}:${prefix}`;
+                if (!earn_verifiedLedgerShardRequestCache[shardKey]) {
+                    earn_verifiedLedgerShardRequestCache[shardKey] = fetch(
+                        `${VERIFIED_LEDGER_SHARD_BASE}/${chainId}/${prefix}.json`,
+                        { cache: 'no-store' }
+                    ).then(shardResp => shardResp.ok ? shardResp.json() : null).catch(() => null);
                 }
-                const data = await resp.json();
+                const shard = await earn_verifiedLedgerShardRequestCache[shardKey];
+                const shardEntry = shard && shard.ledgers ? (shard.ledgers[addr] || null) : null;
+                if (Array.isArray(shardEntry) && shardEntry.length >= 2) {
+                    const fields = (shard.schema && shard.schema.market) || [];
+                    const markets = {};
+                    Object.entries(shardEntry[1] || {}).forEach(([marketId, values]) => {
+                        markets[marketId] = {};
+                        fields.forEach((field, index) => {
+                            if (Array.isArray(values) && values[index] !== null && values[index] !== undefined) {
+                                markets[marketId][field] = values[index];
+                            }
+                        });
+                    });
+                    data = { snapshotDate: String(shardEntry[0] || shard.snapshotDate || ''), markets };
+                } else if (shardEntry && typeof shardEntry === 'object') {
+                    data = shardEntry;
+                }
+
+                // Compatibility fallback for chains that have not published shards yet.
+                if (!data) {
+                    const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`, {
+                        cache: 'no-store',
+                    });
+                    if (resp.ok) {
+                        data = await resp.json();
+                    } else if (resp.status === 404) {
+                        earn_verifiedLedgerCache[cacheKey] = null;
+                    } else {
+                        // Transient errors stay uncached so the lookup can retry.
+                        return null;
+                    }
+                }
                 if (!data || typeof data !== 'object' || !data.markets || typeof data.markets !== 'object') {
                     earn_verifiedLedgerCache[cacheKey] = null;
                     return null;
@@ -14164,6 +14214,13 @@
                                 canonicalHistoryCoverageStatus: String(m.canonicalHistoryCoverageStatus || ''),
                                 canonicalHistoryLastScannedBlock: m.canonicalHistoryLastScannedBlock == null ? null : String(m.canonicalHistoryLastScannedBlock),
                                 canonicalHistoryFreshForBorrowRouting: String(m.canonicalHistoryCoverageStatus || '').toLowerCase() === 'fresh',
+                                historicalYieldUsd: String(m.historicalYieldUsd || '0'),
+                                historicalYieldEligibleIntervals: Number(m.historicalYieldEligibleIntervals || 0),
+                                historicalYieldPricedIntervals: Number(m.historicalYieldPricedIntervals || 0),
+                                historicalYieldSkippedFlowIntervals: Number(m.historicalYieldSkippedFlowIntervals || 0),
+                                historicalYieldMissingPriceIntervals: Number(m.historicalYieldMissingPriceIntervals || 0),
+                                historicalYieldValuationStatus: String(m.historicalYieldValuationStatus || 'unavailable'),
+                                historicalYieldValuationMethod: String(m.historicalYieldValuationMethod || ''),
                             };
                             nextTotalYieldDays = Math.max(nextTotalYieldDays, Number(m.days || 0));
                             deferredLedgerMetaByMarket[String(mid)] = {
@@ -14200,6 +14257,13 @@
                         canonicalHistoryCoverageStatus: String(m.canonicalHistoryCoverageStatus || ''),
                         canonicalHistoryLastScannedBlock: m.canonicalHistoryLastScannedBlock == null ? null : String(m.canonicalHistoryLastScannedBlock),
                         canonicalHistoryFreshForBorrowRouting: String(m.canonicalHistoryCoverageStatus || '').toLowerCase() === 'fresh',
+                        historicalYieldUsd: String(m.historicalYieldUsd || '0'),
+                        historicalYieldEligibleIntervals: Number(m.historicalYieldEligibleIntervals || 0),
+                        historicalYieldPricedIntervals: Number(m.historicalYieldPricedIntervals || 0),
+                        historicalYieldSkippedFlowIntervals: Number(m.historicalYieldSkippedFlowIntervals || 0),
+                        historicalYieldMissingPriceIntervals: Number(m.historicalYieldMissingPriceIntervals || 0),
+                        historicalYieldValuationStatus: String(m.historicalYieldValuationStatus || 'unavailable'),
+                        historicalYieldValuationMethod: String(m.historicalYieldValuationMethod || ''),
                     };
                     loadedLedgerMarkets++;
                     if (earn_isTrustedReplayYieldStatus(String(m.strictStatus || m.status || ''))) {
@@ -16752,9 +16816,6 @@
                 if (chainId === 'arbitrum') summaryPrefetchTasks.push(earn_fetchDGMXRewards(addr).catch(() => null));
                 const summaryPrefetchPromise = Promise.allSettled(summaryPrefetchTasks);
 
-                // Prefetch liquidation_risk.json in parallel with balance lookup (don't await yet)
-                earn_prefetchLiqRisk();
-
                 const replayBlockTagPromise = Promise.all([
                     earn_rpcRequest('eth_blockNumber', [], 3),
                     earn_fetchSubaccountHistoryForAddress(chainId, addr).catch(() => null),
@@ -17594,14 +17655,21 @@
                 <div class="earn-breakdown-items">${itemsHtml}</div>
             </div>`;
         }
-        // ═══════ Lending Positions (Borrow) — fetch from liquidation_risk.json ═══════
-        let earn_lendingPositions = []; // cached positions from liquidation_risk.json
-        let _liqRiskPromise = null; // cached promise for liquidation_risk.json (fetched once per session)
-        function earn_prefetchLiqRisk() {
-            if (!_liqRiskPromise) {
-                _liqRiskPromise = fetch('liquidation_risk.json').then(r => r.ok ? r.json() : null).catch(() => null);
+        // ═══════ Lending Positions (Borrow) — address-prefix risk shards ═══════
+        let earn_lendingPositions = [];
+        const earn_liqRiskShardPromises = {};
+        function earn_fetchLiqRiskForWallet(chainKey, address) {
+            const addr = String(address || '').trim().toLowerCase();
+            if (!/^0x[a-f0-9]{40}$/.test(addr)) return Promise.resolve(null);
+            const prefix = addr.slice(2, 4);
+            const cacheKey = `${chainKey}:${prefix}`;
+            if (!earn_liqRiskShardPromises[cacheKey]) {
+                earn_liqRiskShardPromises[cacheKey] = fetch(
+                    `${LIQUIDATION_RISK_SHARD_BASE}/${chainKey}/${prefix}.json`,
+                    { cache: 'no-store' }
+                ).then(response => response.ok ? response.json() : null).catch(() => null);
             }
-            return _liqRiskPromise;
+            return earn_liqRiskShardPromises[cacheKey];
         }
 
         function earn_getRiskClass(p) {
@@ -17809,8 +17877,22 @@
             const sgEndpoint = SUBGRAPH_ENDPOINTS[chainId];
 
             try {
-                // Fire all network calls in parallel: liqRisk JSON + subgraph queries + external rewards
-                const liqRiskPromise = earn_prefetchLiqRisk();
+                const currentAccounts = await earn_fetchCurrentAccountsFromSubgraph(addr).catch(() => null);
+                if (!earn_isLookupRunCurrent(runId)) return null;
+                if (currentAccounts && sgEndpoint) {
+                    const hasCurrentBorrow = currentAccounts.positions.some(position =>
+                        BigInt(position.par || '0') < 0n || BigInt(position.wei || '0') < 0n
+                    );
+                    if (!hasCurrentBorrow) {
+                        earn_lendingPositions = [];
+                        section.style.display = 'none';
+                        earn_updateSummaryDebt([]);
+                        return [];
+                    }
+                }
+
+                // Fire the wallet risk shard, subgraph queries, and rewards in parallel.
+                const liqRiskPromise = earn_fetchLiqRiskForWallet(chainKey, addr);
                 const merklPromise = earn_fetchMerklRewards(addr, chainId);
                 const odoloMetaPromise = earn_fetchOdoloMetadata();
                 // Chain-specific reward fetches (run in parallel, results stored in globals)
@@ -17834,7 +17916,19 @@
 
                 const data = await liqRiskPromise;
                 if (!earn_isLookupRunCurrent(runId)) return null;
-                if (!data) { section.style.display = 'none'; return; }
+                if (!data) {
+                    const replayFallbackPositions = earn_buildReplayFallbackLendingPositions();
+                    earn_lendingPositions = replayFallbackPositions;
+                    if (replayFallbackPositions.length > 0) {
+                        countEl.textContent = replayFallbackPositions.length;
+                        section.style.display = '';
+                        earn_reRenderLendingRows();
+                        earn_updateSummaryDebt(replayFallbackPositions);
+                        return replayFallbackPositions;
+                    }
+                    section.style.display = 'none';
+                    return;
+                }
                 const positions = (data.positions || []).filter(p =>
                     p.address.toLowerCase() === addr && p.chain.toLowerCase() === chainKey
                 );
@@ -19285,13 +19379,34 @@
                     const totalYieldUsd = earn_scaledUsdToNumber(totalYieldUsdScaled);
                     const openRouteYieldUsd = earn_scaledUsdToNumber(openRouteYieldUsdScaled);
                     const bestYieldUsd = earn_scaledUsdToNumber(bestYieldUsdScaled);
+                    const historicalPnlEntries = Object.values(earn_totalYieldData || {}).filter(entry =>
+                        entry && entry.historicalYieldValuationMethod === 'daily-snapshot-constant-par'
+                    );
+                    const historicalPnlUsd = historicalPnlEntries.reduce((sum, entry) => {
+                        const value = Number(entry.historicalYieldUsd || 0);
+                        return Number.isFinite(value) ? sum + value : sum;
+                    }, 0);
+                    const historicalPnlEligible = historicalPnlEntries.reduce((sum, entry) => sum + Number(entry.historicalYieldEligibleIntervals || 0), 0);
+                    const historicalPnlPriced = historicalPnlEntries.reduce((sum, entry) => sum + Number(entry.historicalYieldPricedIntervals || 0), 0);
+                    const historicalPnlSkipped = historicalPnlEntries.reduce((sum, entry) => sum + Number(entry.historicalYieldSkippedFlowIntervals || 0), 0);
+                    const hasHistoricalPnl = historicalPnlPriced > 0;
+                    const historicalPnlClass = historicalPnlUsd >= 0 ? 'positive' : 'negative';
+                    const historicalPnlSign = historicalPnlUsd >= 0 ? '+' : '-';
+                    const historicalPnlLoading = (earn_totalYieldStatus === 'loading' || earn_replayStatus === 'loading');
+                    const historicalPnlSub = hasHistoricalPnl
+                        ? `${historicalPnlPriced}/${historicalPnlEligible} daily intervals priced${historicalPnlSkipped > 0 ? ` · ${historicalPnlSkipped} principal changes excluded` : ''}`
+                        : historicalPnlLoading ? 'Building historical valuation' : 'No priced yield intervals yet';
+                    const historicalPnlTitle = earn_escapeHtml(
+                        'Yield is valued with the token price for each daily accrual interval. Intervals with deposits, withdrawals, or other principal changes are excluded. Method: daily-snapshot-constant-par.'
+                    );
                     const portfolioValueTitle = earn_escapeHtml(earn_formatUSDExact(totalUsd));
                     const hasVerifiedTotalYield = trustedYieldAssetCount > 0;
+                    const totalYieldCurrentValueLabel = ' at current token prices';
                     const totalYieldTitle = earn_escapeHtml(!hasVerifiedTotalYield
                         ? 'No strict verified yield is available for this wallet.'
                         : openRouteYieldAssetCount > 0
-                            ? `${earn_formatUSDExact(totalYieldUsd)} supply/closed-route yield. Open borrow-route collateral yield is shown separately: ${earn_formatUSDExact(openRouteYieldUsd)}.`
-                            : earn_formatUSDExact(totalYieldUsd));
+                            ? `${earn_formatUSDExact(totalYieldUsd)} supply/closed-route yield${totalYieldCurrentValueLabel}. Open borrow-route collateral yield is shown separately: ${earn_formatUSDExact(openRouteYieldUsd)}${totalYieldCurrentValueLabel}.`
+                            : `${earn_formatUSDExact(totalYieldUsd)}${totalYieldCurrentValueLabel}`);
                     const yieldClass = totalYieldUsd >= 0 ? 'positive' : 'negative';
                     const yieldSign = totalYieldUsd >= 0 ? '+' : '-';
                     const openRouteYieldClass = openRouteYieldUsd >= 0 ? 'positive' : 'negative';
@@ -19489,7 +19604,12 @@
                                     <div class="earn-summary-sub">${totalYieldSub}</div>
                                 </div>
                                 <div class="earn-summary-stat kpi-primary">
-                                    <div class="earn-summary-label">Ledger Check</div>
+                                    <div class="earn-summary-label">Historical Yield P&amp;L</div>
+                                    <div class="earn-summary-value ${hasHistoricalPnl ? historicalPnlClass : 'neutral'}" data-tip="${historicalPnlTitle}">${hasHistoricalPnl ? `${historicalPnlSign}${earn_formatUSD(Math.abs(historicalPnlUsd))}` : isYieldPipelineLoading ? 'Loading...' : '—'}</div>
+                                    <div class="earn-summary-sub">${historicalPnlSub}</div>
+                                </div>
+                                <div class="earn-summary-stat kpi-primary">
+                                    <div class="earn-summary-label">Current Markets Check</div>
                                     <div class="earn-summary-value ${finalVerifyClass}">${finalVerifyValue}</div>
                                     <div class="earn-summary-sub">${finalVerifySub}</div>
                                 </div>

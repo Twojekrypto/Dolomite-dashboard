@@ -78,7 +78,6 @@ jobs:
             --priority-address-file config/earn_canonical_priority_addresses.txt \
             --priority-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
             --include-priority-even-if-unknown \
-            --existing-history-only \
             --prefer-stale-history \
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
@@ -134,6 +133,13 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
 
+      - name: Publish Arbitrum verified ledger shards
+        if: steps.refresh.outputs.complete == 'true' && steps.refresh.outputs.skipped != 'true'
+        run: |
+          python3 build_earn_verified_ledger_shards.py \
+            --chain "$CHAIN" \
+            --address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
+
       - name: Save Arbitrum canonical runtime cache
         if: always()
         uses: actions/cache/save@v5
@@ -164,4 +170,5 @@ jobs:
           if [ -d "data/earn-verified-ledger/${CHAIN}" ]; then
             git add -f "data/earn-verified-ledger/${CHAIN}"
           fi
+          git add -f data/earn-verified-ledger-shards
           bash scripts/commit_with_fresh_earn_status.sh "Refresh Arbitrum canonical EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"

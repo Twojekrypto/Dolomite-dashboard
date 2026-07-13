@@ -23,6 +23,11 @@ PYTHON_FILES = [
     ROOT / "audit_earn_asset.py",
     ROOT / "build_earn_subaccount_history.py",
     ROOT / "build_earn_quality_status.py",
+    ROOT / "build_earn_bundle.py",
+    ROOT / "build_earn_historical_prices.py",
+    ROOT / "build_earn_representative_audit.py",
+    ROOT / "build_earn_verified_ledger.py",
+    ROOT / "build_earn_verified_ledger_shards.py",
     ROOT / "earn_live_config.py",
     ROOT / "materialize_earn_subaccount_history.py",
     ROOT / "plan_earn_subaccount_history_incremental.py",
@@ -40,6 +45,7 @@ PYTHON_FILES = [
 JAVASCRIPT_FILES = [
     ROOT / "dolo-address-labels.js",
     ROOT / "earn" / "earn-draft.js",
+    ROOT / "earn" / "earn-core.js",
     ROOT / "dashboard-core.js",
     ROOT / "route-loader.js",
 ]
@@ -52,6 +58,7 @@ def run(cmd: list[str], *, cwd: Path) -> None:
 
 
 def main() -> int:
+    run(["python3", "build_earn_bundle.py", "--check"], cwd=ROOT)
     run(["python3", "-m", "py_compile", *[str(path) for path in PYTHON_FILES]], cwd=ROOT)
 
     for js_file in JAVASCRIPT_FILES:
