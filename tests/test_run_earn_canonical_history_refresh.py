@@ -7,6 +7,7 @@ from run_earn_canonical_history_refresh import (
     RefreshIncomplete,
     _has_complete_baseline,
     _incomplete_cycle_exceeds_scan_task_span,
+    _incomplete_cycle_requires_scan_task_upgrade,
     _target_lag_exceeds_resume_budget,
     _status_payload,
     _write_status_output,
@@ -45,6 +46,7 @@ class RunEarnCanonicalHistoryRefreshTest(unittest.TestCase):
             plan_path.write_text(
                 json.dumps(
                     {
+                        "maxScanBlocksPerTask": 10,
                         "scanTasks": [
                             {"fromBlock": 1, "toBlock": 1_000},
                             {"fromBlock": 1_001, "toBlock": 2_000},
@@ -62,6 +64,36 @@ class RunEarnCanonicalHistoryRefreshTest(unittest.TestCase):
             )
             self.assertFalse(
                 _incomplete_cycle_exceeds_scan_task_span(
+                    plan_path,
+                    max_delta_scan_blocks_per_task=1_000,
+                )
+            )
+            self.assertTrue(
+                _incomplete_cycle_requires_scan_task_upgrade(
+                    plan_path,
+                    max_delta_scan_blocks_per_task=1_000,
+                )
+            )
+            self.assertFalse(
+                _incomplete_cycle_requires_scan_task_upgrade(
+                    plan_path,
+                    max_delta_scan_blocks_per_task=10,
+                )
+            )
+
+    def test_scan_task_span_guards_ignore_non_object_plan_payload(self):
+        with TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "incremental-plan.json"
+            plan_path.write_text("[]", encoding="utf-8")
+
+            self.assertFalse(
+                _incomplete_cycle_exceeds_scan_task_span(
+                    plan_path,
+                    max_delta_scan_blocks_per_task=500,
+                )
+            )
+            self.assertFalse(
+                _incomplete_cycle_requires_scan_task_upgrade(
                     plan_path,
                     max_delta_scan_blocks_per_task=1_000,
                 )
