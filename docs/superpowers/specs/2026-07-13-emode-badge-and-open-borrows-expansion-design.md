@@ -75,3 +75,10 @@ Browser verification uses a served local Portfolio wallet with an injected or
 fixture-backed position containing at least four collateral or debt tokens, and
 checks collapsed/expanded row heights, visible token counts, row interaction,
 table overflow, and the E-Mode badge in Portfolio, Liquidation, and Earn.
+
+## Rewards Copy
+
+The Rewards UI normalizes user-facing supply campaign names from `Lend TOKEN`
+to `Supply TOKEN`. Source `action: "LEND"` values remain unchanged because they
+are data classifications used by the generator and renderer, not visible UX.
+Already-correct `Supply ...` names and non-supply actions remain unchanged.
