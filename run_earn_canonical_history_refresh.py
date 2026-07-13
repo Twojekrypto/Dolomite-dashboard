@@ -518,6 +518,8 @@ def _incremental_prior_cycle_complete(args: argparse.Namespace) -> bool:
     max_delta_scan_blocks_per_task = int(getattr(args, "max_delta_scan_blocks_per_task", 0) or 0)
     if not status.get("complete") and max_delta_scan_blocks_per_task > 0:
         state = _read_json(args.history_dir / ".incremental-plans" / f"{args.chain}-runner-state.json", {})
+        if not isinstance(state, dict):
+            state = {}
         plan_path = Path(str(state.get("planPath") or ""))
         if _incomplete_cycle_exceeds_scan_task_span(
             plan_path,
@@ -526,6 +528,16 @@ def _incremental_prior_cycle_complete(args: argparse.Namespace) -> bool:
             print(
                 f"♻️ {args.chain}: incomplete cycle scan tasks exceed "
                 f"{max_delta_scan_blocks_per_task} blocks; starting smaller-block plan",
+                flush=True,
+            )
+            return True
+        if _incomplete_cycle_requires_scan_task_upgrade(
+            plan_path,
+            max_delta_scan_blocks_per_task=max_delta_scan_blocks_per_task,
+        ):
+            print(
+                f"♻️ {args.chain}: incomplete cycle uses smaller scan tasks; "
+                f"starting larger-block plan ({max_delta_scan_blocks_per_task} blocks)",
                 flush=True,
             )
             return True
@@ -576,6 +588,8 @@ def _incomplete_cycle_exceeds_scan_task_span(
     if max_delta_scan_blocks_per_task <= 0 or not plan_path.exists():
         return False
     plan = _read_json(plan_path, {})
+    if not isinstance(plan, dict):
+        return False
     for task in (plan.get("scanTasks") or []):
         try:
             span = int(task.get("toBlock")) - int(task.get("fromBlock")) + 1
@@ -584,6 +598,30 @@ def _incomplete_cycle_exceeds_scan_task_span(
         if span > int(max_delta_scan_blocks_per_task):
             return True
     return False
+
+
+def _incomplete_cycle_requires_scan_task_upgrade(
+    plan_path: Path,
+    *,
+    max_delta_scan_blocks_per_task: int,
+) -> bool:
+    """Rebuild only when an incomplete plan predates a larger safe task size.
+
+    Individual scan workers can adaptively split their RPC range below this
+    value. The plan's configured span remains unchanged, so this comparison
+    migrates an old fragmented plan exactly once without repeatedly discarding
+    adaptive retry work.
+    """
+    if max_delta_scan_blocks_per_task <= 0 or not plan_path.exists():
+        return False
+    plan = _read_json(plan_path, {})
+    if not isinstance(plan, dict):
+        return False
+    try:
+        planned_span = int(plan.get("maxScanBlocksPerTask") or 0)
+    except (TypeError, ValueError):
+        return False
+    return 0 < planned_span < int(max_delta_scan_blocks_per_task)
 
 
 def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]) -> dict:
