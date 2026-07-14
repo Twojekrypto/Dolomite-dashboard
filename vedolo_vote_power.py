@@ -3,6 +3,9 @@ from typing import Mapping, Sequence
 
 
 WEEK_SECONDS = 7 * 24 * 60 * 60
+DAY_SECONDS = 24 * 60 * 60
+WEI_DECIMALS = 18
+VEDOLO_CONTRACT = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
 
 
 @dataclass(frozen=True)
@@ -11,6 +14,15 @@ class GlobalPoint:
     slope: int
     timestamp: int
     block: int
+
+
+@dataclass(frozen=True)
+class CanonicalSnapshot:
+    block_number: int
+    timestamp: int
+    total_supply_wei: int
+    locked_supply_wei: int
+    epoch: int
 
 
 def decode_signed_word(word: str) -> int:
@@ -56,3 +68,76 @@ def evaluate_vote_power_at(
         slope += slope_changes.get(boundary, 0)
         last_ts = boundary
     return max(0, bias)
+
+
+def wei_to_decimal(value_wei: int) -> str:
+    if value_wei < 0:
+        raise ValueError("wei value cannot be negative")
+    whole, fraction = divmod(value_wei, 10 ** WEI_DECIMALS)
+    if fraction == 0:
+        return str(whole)
+    return f"{whole}.{fraction:018d}".rstrip("0")
+
+
+def build_vote_power_payload(
+    snapshot: CanonicalSnapshot,
+    points: Sequence[GlobalPoint],
+    slope_changes: Mapping[int, int],
+    day_seconds: int = DAY_SECONDS,
+) -> dict:
+    if not points:
+        raise ValueError("global point history cannot be empty")
+    if day_seconds <= 0:
+        raise ValueError("day_seconds must be positive")
+
+    week_seconds = WEEK_SECONDS if day_seconds == DAY_SECONDS else day_seconds
+
+    first_observation = min(point.timestamp for point in points)
+    if first_observation > snapshot.timestamp:
+        raise ValueError("global point history starts after the target timestamp")
+
+    observation_timestamps = [first_observation]
+    next_midnight = ((first_observation // day_seconds) + 1) * day_seconds
+    while next_midnight < snapshot.timestamp:
+        observation_timestamps.append(next_midnight)
+        next_midnight += day_seconds
+    if observation_timestamps[-1] != snapshot.timestamp:
+        observation_timestamps.append(snapshot.timestamp)
+
+    observations = [
+        [
+            timestamp,
+            wei_to_decimal(
+                evaluate_vote_power_at(
+                    timestamp, points, slope_changes, week_seconds=week_seconds
+                )
+            ),
+        ]
+        for timestamp in observation_timestamps
+    ]
+    last_value_wei = evaluate_vote_power_at(
+        snapshot.timestamp, points, slope_changes, week_seconds=week_seconds
+    )
+    if last_value_wei != snapshot.total_supply_wei:
+        raise ValueError(
+            f"vote power {last_value_wei} does not match totalSupply "
+            f"{snapshot.total_supply_wei}"
+        )
+
+    return {
+        "schemaVersion": 1,
+        "metric": "votePower",
+        "chain": "berachain",
+        "contract": VEDOLO_CONTRACT,
+        "source": "global-point-history",
+        "targetBlock": snapshot.block_number,
+        "targetTimestamp": snapshot.timestamp,
+        "totalSupplyWei": str(snapshot.total_supply_wei),
+        "lockedSupplyWei": str(snapshot.locked_supply_wei),
+        "lastPointWei": str(last_value_wei),
+        "coverage": {
+            "from": first_observation,
+            "through": snapshot.timestamp,
+        },
+        "points": observations,
+    }
