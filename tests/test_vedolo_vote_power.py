@@ -1,7 +1,9 @@
 import unittest
 
 from vedolo_vote_power import (
+    CanonicalSnapshot,
     GlobalPoint,
+    build_vote_power_payload,
     decode_global_point,
     decode_signed_word,
     evaluate_vote_power_at,
@@ -56,6 +58,37 @@ class VeDoloVotePowerTests(unittest.TestCase):
         ]
 
         self.assertEqual(evaluate_vote_power_at(10, points, {}), 200)
+
+    def test_payload_ends_with_exact_contract_total_supply(self):
+        snapshot = CanonicalSnapshot(123, 15, 875, 1000, 1)
+        payload = build_vote_power_payload(
+            snapshot,
+            [GlobalPoint(1000, 10, 0, 1)],
+            {10: -5},
+            day_seconds=10,
+        )
+
+        self.assertEqual(payload["lastPointWei"], "875")
+        self.assertEqual(payload["points"][-1], [15, "0.000000000000000875"])
+
+    def test_payload_rejects_mismatched_contract_total_supply(self):
+        with self.assertRaisesRegex(ValueError, "totalSupply"):
+            build_vote_power_payload(
+                CanonicalSnapshot(123, 15, 876, 1000, 1),
+                [GlobalPoint(1000, 10, 0, 1)],
+                {10: -5},
+                day_seconds=10,
+            )
+
+    def test_history_generator_imports_on_supported_python(self):
+        import generate_vedolo_vote_power_history
+
+        self.assertTrue(generate_vedolo_vote_power_history.PUBLIC_OUTPUT_PATH)
+
+    def test_history_generator_decodes_compact_rpc_quantities(self):
+        from generate_vedolo_vote_power_history import _decode_uint
+
+        self.assertEqual(_decode_uint("0x1", "target block"), 1)
 
 
 if __name__ == "__main__":
