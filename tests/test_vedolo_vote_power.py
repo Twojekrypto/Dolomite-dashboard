@@ -256,6 +256,45 @@ class VeDoloVotePowerTests(unittest.TestCase):
                 self.assertEqual(stats["total_vote_weight_block"], snapshot.block_number)
                 self.assertEqual(stats["total_vote_weight_timestamp"], snapshot.timestamp)
 
+    def test_history_sync_preserves_existing_holders_field_order(self):
+        from generate_vedolo_vote_power_history import write_vote_power_history
+
+        snapshot = CanonicalSnapshot(123, 0, 10, 0, 0)
+        original_holders = """{
+  \"contract\": \"0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4\",
+  \"network\": \"berachain\",
+  \"timestamp\": \"before\",
+  \"stats\": {\"total_vote_weight\": 1},
+  \"holders\": [{\"address\": \"0x1\", \"nft_count\": 1}]
+}\n"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            stats_path = root / "vedolo_stats.json"
+            holders_path = root / "vedolo_holders.json"
+            stats_path.write_text(json.dumps({"stats": {"total_vote_weight": 1}}))
+            holders_path.write_text(original_holders)
+
+            with patch(
+                "generate_vedolo_vote_power_history.fetch_canonical_snapshot",
+                return_value=snapshot,
+            ), patch(
+                "generate_vedolo_vote_power_history._fetch_global_point_results",
+                return_value=[encode_global_point(10, 0, 0, 1)],
+            ):
+                write_vote_power_history(
+                    root / "history.json",
+                    root / "state.json",
+                    sync_stats=True,
+                    stats_path=stats_path,
+                    holders_path=holders_path,
+                )
+
+            saved = holders_path.read_text()
+
+        self.assertLess(saved.index('"network"'), saved.index('"stats"'))
+        self.assertLess(saved.index('"stats"'), saved.index('"holders"'))
+        self.assertLess(saved.index('"address"'), saved.index('"nft_count"'))
+
     def test_history_generator_imports_on_supported_python(self):
         import generate_vedolo_vote_power_history
 

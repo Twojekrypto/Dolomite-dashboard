@@ -158,7 +158,7 @@ def _atomic_write_json(path: Path, value: dict) -> None:
             mode="w", encoding="utf-8", dir=path.parent, delete=False
         ) as temp_file:
             temp_name = temp_file.name
-            json.dump(value, temp_file, indent=2, sort_keys=True)
+            json.dump(value, temp_file, indent=2)
             temp_file.write("\n")
             temp_file.flush()
             os.fsync(temp_file.fileno())
