@@ -116,6 +116,28 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('class="locked-chart-mode"', heading)
         self.assertIn('.locked-chart-heading .card-title,.locked-chart-mode,.locked-chart-heading .card-meta{width:100%}', self.html)
 
+    def test_locked_chart_narrow_order_keeps_zoom_meta_between_title_and_metric_switch(self):
+        heading = re.search(
+            r'<div class="locked-chart-heading">(?P<body>.*?)</div>\n    <div class="locked-chart-wrap"',
+            self.html,
+            re.S,
+        ).group("body")
+        title_pos = heading.index('class="card-title"')
+        meta_pos = heading.index('class="card-meta"')
+        mode_pos = heading.index('class="locked-chart-mode"')
+        self.assertLess(title_pos, meta_pos)
+        self.assertLess(meta_pos, mode_pos)
+        self.assertIn('@media (max-width:560px){', self.html)
+        self.assertIn('.locked-chart-heading{align-items:flex-start;flex-direction:column}', self.html)
+
+    def test_vote_power_availability_repeat_safe_setters_and_removals(self):
+        self.assertIn('const LOCKED_CHART_VOTE_UNAVAILABLE_TIP = "Verified vote-power history is unavailable.";', self.html)
+        self.assertIn('help.setAttribute("data-tip", LOCKED_CHART_VOTE_UNAVAILABLE_TIP);', self.html)
+        self.assertIn('help.setAttribute("tabindex", "0");', self.html)
+        self.assertIn('help.removeAttribute("data-tip");', self.html)
+        self.assertIn('help.removeAttribute("tabindex");', self.html)
+        self.assertNotIn('help.toggleAttribute(', self.html)
+
     def test_unavailable_vote_power_tooltip_uses_focusable_wrapper(self):
         match = re.search(
             r'(?P<wrapper><span class="locked-chart-vote-help"[^>]*>\s*<button[^>]*data-locked-chart-mode="vote".*?</button>\s*</span>)',
