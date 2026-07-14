@@ -1,5 +1,5 @@
 (function () {
-  const VERSION = "protocol-footer-20260714-table-surfaces";
+  const VERSION = "protocol-footer-20260619-links-mobile";
   const FOOTER_SELECTOR = ".dolo-protocol-footer";
   const LEGACY_SELECTOR = ".proto, .earn-dolo-proto, .protocol-info-card, footer.foot, div.foot";
   const SUBTITLE = 'Lending &amp; margin · <b>66 live markets</b> · <b>7 chains</b>';
