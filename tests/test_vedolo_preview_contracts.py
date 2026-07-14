@@ -99,6 +99,17 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
     def test_vedolo_route_busts_preview_cache_for_claimable_table(self):
         self.assertIn("claimable-ready-title-20260706", self.route)
 
+    def test_locked_chart_has_accessible_metric_switch(self):
+        self.assertIn('id="lockedChartMode"', self.html)
+        self.assertIn('data-locked-chart-mode="locked"', self.html)
+        self.assertIn('data-locked-chart-mode="vote"', self.html)
+        self.assertIn('id="lockedChartTitle"', self.html)
+        self.assertIn('aria-pressed="true"', self.html)
+
+    def test_vote_power_view_loads_static_history_only(self):
+        self.assertIn('fetchJson("data/vedolo-vote-power-history.json")', self.html)
+        self.assertNotIn('rpc.berachain.com', self.html)
+
     def test_recent_early_exit_controls_use_red_interactions(self):
         self.assertIn('id="recent-early-exits-section"', self.html)
         self.assertIn('--recent-exit-accent:var(--down)', self.html)

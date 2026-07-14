@@ -87,6 +87,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .card-body{padding:20px 24px 24px}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);display:inline-block;flex-shrink:0}
 .locked-chart-card{overflow:visible}
+.locked-chart-heading{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
+.locked-chart-mode{display:inline-flex;align-items:center;gap:2px;min-height:36px;padding:3px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px}
+.locked-chart-mode button{min-height:28px;padding:0 10px;border-radius:6px;color:var(--fg-3);font-size:11px;font-weight:600;line-height:1;white-space:nowrap;transition:color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease)}
+.locked-chart-mode button[aria-pressed="true"]{color:var(--bg-0);background:var(--gold);box-shadow:0 0 0 1px var(--gold-line),0 2px 8px rgba(201,162,39,.16)}
+.locked-chart-mode button:not(:disabled):hover{color:var(--fg-1);background:var(--bg-4)}
+.locked-chart-mode button[aria-pressed="true"]:hover{color:var(--bg-0);background:var(--gold)}
+.locked-chart-mode button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.locked-chart-mode button:disabled{color:var(--fg-4);cursor:not-allowed}
 .locked-chart-wrap{padding:24px 24px 22px;position:relative}
 .locked-chart-svg{width:100%;height:340px;display:block;overflow:visible}
 .locked-chart-grid line{stroke:var(--line-1);stroke-width:1}
@@ -752,6 +760,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 }
 @media (max-width:560px){
   .holders-card .toolbar .tb-left{width:100%}
+  .locked-chart-heading{align-items:flex-start;flex-direction:column}
+  .locked-chart-heading .card-title,.locked-chart-mode{width:100%}
+  .locked-chart-mode button{flex:1}
   .locked-chart-svg{height:240px}
   .locked-chart-grid text,.locked-chart-x text{font-size:9px}
   .expiry-chart{display:block;overflow-x:auto;padding-bottom:2px}
@@ -828,12 +839,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   </section>
 
   <section class="card locked-chart-card" id="vedolo-locked-chart-card">
-    <div class="card-head">
+    <div class="locked-chart-heading">
       <div class="card-title">
-        <h2>Locked DOLO Over Time</h2>
+        <h2 id="lockedChartTitle">Locked DOLO Over Time</h2>
         <span class="count-badge" id="lockedRangeBadge">All Time</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>
+      <div class="locked-chart-mode" id="lockedChartMode" role="group" aria-label="Chart metric">
+        <button type="button" data-locked-chart-mode="locked" aria-pressed="true">Locked DOLO</button>
+        <!-- Task 5 loading contract: fetchJson("data/vedolo-vote-power-history.json") -->
+        <button type="button" data-locked-chart-mode="vote" aria-pressed="false" disabled data-tip="Verified vote-power history is unavailable.">Vote Power</button>
+      </div>
     </div>
     <div class="locked-chart-wrap" id="lockedChartWrap">
       <svg class="locked-chart-svg" id="lockedChart" viewBox="0 0 1000 340" preserveAspectRatio="none">
