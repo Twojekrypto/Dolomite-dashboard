@@ -35,13 +35,24 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
     def test_supply_route_busts_the_polished_pool_health_assets(self):
         route = ROUTE.read_text(encoding="utf-8")
 
-        self.assertIn("pool-health-ux-20260714-clean-header-details-accent", route)
+        self.assertIn("pool-health-ux-20260714-clean-header-details-accent-holders-dividers-freshness", route)
 
     def test_pool_health_header_has_no_market_intelligence_or_generated_timestamp(self):
         source = SCRIPT.read_text(encoding="utf-8")
 
         self.assertNotIn("Market intelligence", source)
         self.assertNotIn("supply-health-asof", source)
+
+    def test_pool_health_header_uses_holders_style_data_freshness(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        styles = STYLES.read_text(encoding="utf-8")
+
+        self.assertIn('id="supply-health-updated"', source)
+        self.assertIn("function supplyHealthRelativeAge", source)
+        self.assertIn("Data updated ·", source)
+        self.assertNotIn("supply-health-chain", source)
+        self.assertIn(".supply-health-updated::before", styles)
+        self.assertIn("background: var(--supply-gold)", styles)
 
     def test_pool_health_expanded_details_have_an_explicit_gold_left_rail(self):
         styles = STYLES.read_text(encoding="utf-8")

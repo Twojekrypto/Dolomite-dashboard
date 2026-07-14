@@ -1488,15 +1488,6 @@
   // ---- Supply Pool Health (community proposal, 2026-06-29) ----
   // Static data from data/supply-health/latest.json (generate_supply_health.py).
   const healthChainAliases = { base: 'botanix' };
-  const healthChainLabels = {
-    ethereum: 'Ethereum',
-    berachain: 'Berachain',
-    arbitrum: 'Arbitrum',
-    mantle: 'Mantle',
-    botanix: 'Botanix',
-    polygon_zkevm: 'Polygon zkEVM',
-    xlayer: 'X Layer',
-  };
   const healthExplorerAddresses = {
     ethereum: 'https://etherscan.io/address/',
     berachain: 'https://berascan.com/address/',
@@ -1556,10 +1547,15 @@
     return healthChainAliases[selected] || selected;
   }
 
-  function getHealthChainLabel() {
-    const selected = document.getElementById('supply-chain-select')?.value || 'ethereum';
-    const key = healthChainAliases[selected] || selected;
-    return healthChainLabels[key] || key;
+  function supplyHealthRelativeAge(timestamp) {
+    const time = Date.parse(String(timestamp || ''));
+    if (!Number.isFinite(time)) return 'recently';
+    const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+    if (minutes < 1) return 'now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   }
 
   function syncSupplyHealthChain() {
@@ -1618,7 +1614,7 @@
             <div class="supply-health-subtitle">Supplier breadth, concentration, and resilience for the selected chain.</div>
           </div>
           <div class="supply-health-header-meta">
-            <div class="supply-health-chain" id="supply-health-chain"></div>
+            <div class="supply-health-updated" id="supply-health-updated" aria-live="polite"></div>
           </div>
         </div>
         <div class="table-scroll supply-health-scroll">
@@ -1803,7 +1799,7 @@
     const body = document.getElementById('supply-health-table-body');
     const state = document.getElementById('supply-health-state');
     const count = document.getElementById('supply-health-count');
-    const chainLabel = document.getElementById('supply-health-chain');
+    const updatedLabel = document.getElementById('supply-health-updated');
     if (!table || !body || !supplyHealthPayload) return;
 
     const chain = getHealthChainKey();
@@ -1820,7 +1816,9 @@
     const pageMarkets = markets.slice(start, start + SUPPLY_HEALTH_PAGE_SIZE);
 
     if (count) count.textContent = markets.length ? `${markets.length} markets` : '';
-    if (chainLabel) chainLabel.textContent = getHealthChainLabel();
+    if (updatedLabel) {
+      updatedLabel.textContent = `Data updated · ${supplyHealthRelativeAge(supplyHealthPayload.generatedAt)}`;
+    }
 
     table.querySelectorAll('th[data-health-sort]').forEach(th => {
       const isActive = th.dataset.healthSort === supplyHealthSortField;
