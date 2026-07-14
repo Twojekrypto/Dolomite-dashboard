@@ -26,7 +26,17 @@ class CanonicalSnapshot:
 
 
 def decode_signed_word(word: str) -> int:
-    raw = int(word.removeprefix("0x"), 16)
+    if (
+        not isinstance(word, str)
+        or not word.startswith("0x")
+        or len(word) != 66
+        or any(character not in "0123456789abcdefABCDEF" for character in word[2:])
+    ):
+        raise ValueError(
+            "response must be exactly one ABI word: a string starting with 0x "
+            "followed by 64 hexadecimal characters"
+        )
+    raw = int(word[2:], 16)
     return raw - (1 << 256) if raw >= (1 << 255) else raw
 
 
@@ -41,8 +51,8 @@ def decode_global_point(result: str) -> GlobalPoint:
         raise ValueError("global point response must be hexadecimal") from exc
 
     return GlobalPoint(
-        bias=decode_signed_word(words[0]),
-        slope=decode_signed_word(words[1]),
+        bias=decode_signed_word("0x" + words[0]),
+        slope=decode_signed_word("0x" + words[1]),
         timestamp=int(words[2], 16),
         block=int(words[3], 16),
     )

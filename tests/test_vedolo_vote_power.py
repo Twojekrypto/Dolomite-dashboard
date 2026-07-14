@@ -1,4 +1,8 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from vedolo_vote_power import (
     CanonicalSnapshot,
@@ -8,6 +12,13 @@ from vedolo_vote_power import (
     decode_signed_word,
     evaluate_vote_power_at,
 )
+
+
+def encode_global_point(bias, slope, timestamp, block):
+    return "0x" + "".join(
+        f"{value & ((1 << 256) - 1):064x}"
+        for value in (bias, slope, timestamp, block)
+    )
 
 
 class VeDoloVotePowerTests(unittest.TestCase):
@@ -24,10 +35,24 @@ class VeDoloVotePowerTests(unittest.TestCase):
         self.assertEqual(result, 875)
 
     def test_decodes_sign_extended_solidity_integer(self):
-        self.assertEqual(decode_signed_word("f" * 64), -1)
+        self.assertEqual(decode_signed_word("0x" + "f" * 64), -1)
+
+    def test_rejects_malformed_signed_word_outputs(self):
+        malformed_words = (
+            "f" * 64,
+            "0x" + "f" * 63,
+            "0x" + "f" * 65,
+            "0x" + "g" * 64,
+            None,
+        )
+
+        for word in malformed_words:
+            with self.subTest(word=word):
+                with self.assertRaisesRegex(ValueError, "exactly one ABI word"):
+                    decode_signed_word(word)
 
     def test_decodes_global_point_from_four_32_byte_words(self):
-        result = "".join(
+        result = "0x" + "".join(
             format(word, "064x")
             for word in (123, 7, 1_700_000_000, 42)
         )
@@ -39,7 +64,7 @@ class VeDoloVotePowerTests(unittest.TestCase):
 
     def test_decodes_signed_bias_and_slope_in_global_point(self):
         negative_one = "f" * 64
-        result = negative_one + negative_one + "0" * 128
+        result = "0x" + negative_one + negative_one + "0" * 128
 
         self.assertEqual(
             decode_global_point(result),
@@ -89,6 +114,126 @@ class VeDoloVotePowerTests(unittest.TestCase):
         from generate_vedolo_vote_power_history import _decode_uint
 
         self.assertEqual(_decode_uint("0x1", "target block"), 1)
+
+    def test_invalid_cached_points_trigger_a_full_rebuild(self):
+        from generate_vedolo_vote_power_history import fetch_global_points
+
+        snapshot = CanonicalSnapshot(123, 30, 0, 0, 1)
+        invalid_caches = {
+            "nonmonotonic timestamp": [
+                encode_global_point(10, 1, 10, 1),
+                encode_global_point(9, 1, 9, 2),
+            ],
+            "nonmonotonic block": [
+                encode_global_point(10, 1, 10, 2),
+                encode_global_point(9, 1, 11, 1),
+            ],
+            "negative bias": [
+                encode_global_point(-1, 1, 10, 1),
+                encode_global_point(0, 1, 11, 2),
+            ],
+            "duplicate sequence": [
+                encode_global_point(10, 1, 10, 1),
+                encode_global_point(9, 1, 10, 1),
+            ],
+        }
+        fresh_points = [
+            encode_global_point(10, 1, 10, 1),
+            encode_global_point(9, 1, 11, 2),
+        ]
+
+        for name, cached_points in invalid_caches.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                state_path = Path(directory) / "state.json"
+                state_path.write_text(
+                    json.dumps(
+                        {
+                            "schemaVersion": 1,
+                            "epoch": 1,
+                            "points": cached_points,
+                        }
+                    )
+                )
+                requested_indices = []
+
+                def fetch_results(indices, block_tag):
+                    requested_indices.extend(indices)
+                    return fresh_points
+
+                with patch(
+                    "generate_vedolo_vote_power_history._fetch_global_point_results",
+                    side_effect=fetch_results,
+                ):
+                    points = fetch_global_points(snapshot, state_path)
+
+                self.assertEqual(requested_indices, [0, 1])
+                self.assertEqual(
+                    points,
+                    [
+                        GlobalPoint(10, 1, 10, 1),
+                        GlobalPoint(9, 1, 11, 2),
+                    ],
+                )
+
+    def test_invalid_fresh_points_abort_before_cache_or_publication(self):
+        from generate_vedolo_vote_power_history import write_vote_power_history
+
+        snapshot = CanonicalSnapshot(123, 30, 0, 0, 1)
+        invalid_points = [
+            encode_global_point(10, 1, 10, 2),
+            encode_global_point(9, 1, 11, 1),
+        ]
+
+        with tempfile.TemporaryDirectory() as directory:
+            output_path = Path(directory) / "public.json"
+            state_path = Path(directory) / "state.json"
+            with patch(
+                "generate_vedolo_vote_power_history.fetch_canonical_snapshot",
+                return_value=snapshot,
+            ), patch(
+                "generate_vedolo_vote_power_history._fetch_global_point_results",
+                return_value=invalid_points,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "strictly increasing"):
+                    write_vote_power_history(output_path, state_path)
+
+            self.assertFalse(state_path.exists())
+            self.assertFalse(output_path.exists())
+
+    def test_rejects_malformed_total_supply_eth_call_response(self):
+        from generate_vedolo_vote_power_history import fetch_canonical_snapshot
+
+        abi_word = "0x" + "0" * 63 + "1"
+
+        def rpc_response(endpoints, payload, describe):
+            method = payload["method"]
+            if method == "eth_blockNumber":
+                return {"result": "0x7b"}
+            if method == "eth_getBlockByNumber":
+                return {"result": {"timestamp": "0x1e"}}
+            selector = payload["params"][0]["data"]
+            result = "0x1" if selector == "0x18160ddd" else abi_word
+            return {"result": result}
+
+        with patch(
+            "generate_vedolo_vote_power_history.rpc_single_request",
+            side_effect=rpc_response,
+        ), patch("generate_vedolo_vote_power_history.get_endpoints", return_value=[]):
+            with self.assertRaisesRegex(RuntimeError, "exactly one ABI word"):
+                fetch_canonical_snapshot()
+
+    def test_rejects_malformed_slope_change_eth_call_response(self):
+        from generate_vedolo_vote_power_history import WEEK_SECONDS, fetch_slope_changes
+
+        snapshot = CanonicalSnapshot(123, WEEK_SECONDS, 0, 0, 0)
+        responses = {"slope:%d" % WEEK_SECONDS: {"result": "f" * 64}}
+
+        with patch(
+            "generate_vedolo_vote_power_history.rpc_batch_requests",
+            return_value=(responses, []),
+        ), patch("generate_vedolo_vote_power_history.get_endpoints", return_value=[]):
+            with self.assertRaisesRegex(ValueError, "exactly one ABI word"):
+                fetch_slope_changes([GlobalPoint(0, 0, 0, 1)], snapshot)
 
 
 if __name__ == "__main__":
