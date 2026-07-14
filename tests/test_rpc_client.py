@@ -132,6 +132,29 @@ class TestRpcClient(unittest.TestCase):
         self.assertEqual(responses["a"]["result"], "0x1")
         self.assertEqual(missing, ["b"])
 
+    def test_generic_batch_records_successful_methods(self):
+        payloads = [
+            {"jsonrpc": "2.0", "method": "eth_call", "params": [], "id": "a"},
+            {"jsonrpc": "2.0", "method": "eth_getLogs", "params": [], "id": "b"},
+        ]
+        response = _response([
+            {"jsonrpc": "2.0", "id": "a", "result": "0x1"},
+            {"jsonrpc": "2.0", "id": "b", "result": "0x2"},
+        ])
+        with mock.patch.object(rpc_client.requests, "post", return_value=response), \
+             mock.patch.object(rpc_client.rpc_usage, "record_methods") as record_methods, \
+             mock.patch.object(rpc_client.time, "sleep"):
+            responses, missing = rpc_batch_requests(
+                ["https://a.example"],
+                payloads,
+                quiet=True,
+                retries_per_endpoint=1,
+            )
+
+        self.assertEqual(set(responses), {"a", "b"})
+        self.assertEqual(missing, [])
+        record_methods.assert_called_once_with(["eth_call", "eth_getLogs"])
+
     def test_generic_single_request_rotates_to_next_endpoint(self):
         ok = _response({"jsonrpc": "2.0", "id": 1, "result": "0x7"})
         with mock.patch.object(rpc_client.requests, "post", side_effect=[Exception("down"), ok]):
