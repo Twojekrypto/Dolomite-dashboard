@@ -64,7 +64,7 @@ jobs:
           VEDOLO_VOTE_ZERO_RETRY_LIMIT: '20'
 
       - name: Generate canonical veDOLO vote power history
-        run: python3 generate_vedolo_vote_power_history.py
+        run: python3 generate_vedolo_vote_power_history.py --sync-stats
         env:
           PYTHONUNBUFFERED: '1'
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
