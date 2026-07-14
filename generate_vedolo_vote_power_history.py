@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate the canonical veDOLO global vote-power history."""
 
+import argparse
 import json
 import os
 import tempfile
@@ -27,6 +28,8 @@ SLOPE_CHANGES_SELECTOR = "0x71197484"
 
 PUBLIC_OUTPUT_PATH = Path("data/vedolo-vote-power-history.json")
 STATE_PATH = Path("vedolo_vote_power_history_state.json")
+STATS_PATH = Path("vedolo_stats.json")
+HOLDERS_PATH = Path("vedolo_holders.json")
 CACHE_SCHEMA_VERSION = 1
 ABI_WORD_ERROR = (
     "response must be exactly one ABI word: a string starting with 0x followed by "
@@ -169,6 +172,35 @@ def _atomic_write_json(path: Path, value: dict) -> None:
             os.unlink(temp_name)
 
 
+def apply_canonical_vote_weight(stats: dict, snapshot: CanonicalSnapshot) -> dict:
+    holder_sum = stats.get("total_vote_weight_holder_sum", stats.get("total_vote_weight", 0))
+    stats["total_vote_weight_holder_sum"] = round(float(holder_sum), 4)
+    stats["total_vote_weight"] = round(snapshot.total_supply_wei / 10**18, 4)
+    stats["total_vote_weight_source"] = "contract_totalSupply"
+    stats["total_vote_weight_block"] = snapshot.block_number
+    stats["total_vote_weight_timestamp"] = snapshot.timestamp
+    return stats
+
+
+def sync_vote_weight_stats(
+    snapshot: CanonicalSnapshot,
+    stats_path: Path = STATS_PATH,
+    holders_path: Path = HOLDERS_PATH,
+) -> None:
+    """Apply one canonical snapshot to both published veDOLO stats payloads."""
+    for path in (Path(stats_path), Path(holders_path)):
+        try:
+            with path.open(encoding="utf-8") as file:
+                payload = json.load(file)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Could not load veDOLO stats for canonical sync: {path}") from exc
+        if not isinstance(payload, dict) or not isinstance(payload.get("stats"), dict):
+            raise RuntimeError(f"veDOLO stats payload is missing stats object: {path}")
+
+        apply_canonical_vote_weight(payload["stats"], snapshot)
+        _atomic_write_json(path, payload)
+
+
 def _fetch_global_point_results(indices: Iterable[int], block_tag: str) -> list[str]:
     indices = list(indices)
     if not indices:
@@ -288,15 +320,29 @@ def fetch_slope_changes(
 
 
 def write_vote_power_history(
-    output_path: Path = PUBLIC_OUTPUT_PATH, state_path: Path = STATE_PATH
+    output_path: Path = PUBLIC_OUTPUT_PATH,
+    state_path: Path = STATE_PATH,
+    *,
+    sync_stats: bool = False,
+    stats_path: Path = STATS_PATH,
+    holders_path: Path = HOLDERS_PATH,
 ) -> dict:
     snapshot = fetch_canonical_snapshot()
     points = fetch_global_points(snapshot, state_path)
     slope_changes = fetch_slope_changes(points, snapshot)
     payload = build_vote_power_payload(snapshot, points, slope_changes)
     _atomic_write_json(Path(output_path), payload)
+    if sync_stats:
+        sync_vote_weight_stats(snapshot, stats_path, holders_path)
     return payload
 
 
 if __name__ == "__main__":
-    write_vote_power_history()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--sync-stats",
+        action="store_true",
+        help="synchronize veDOLO stats files with the history snapshot",
+    )
+    args = parser.parse_args()
+    write_vote_power_history(sync_stats=args.sync_stats)

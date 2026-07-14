@@ -39,7 +39,10 @@ RPC_URL = "https://rpc.berachain.com/"
 # Endpoint list comes from the shared client (env-injected Alchemy keys first,
 # then public fallbacks) — single source of truth for RPC endpoints.
 from rpc_client import get_endpoints as _rpc_endpoints
-from generate_vedolo_vote_power_history import fetch_canonical_snapshot
+from generate_vedolo_vote_power_history import (
+    apply_canonical_vote_weight,
+    fetch_canonical_snapshot,
+)
 
 import rpc_usage
 
@@ -75,16 +78,6 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_holders.json")
 OUTPUT_CSV = os.path.join(DATA_DIR, "vedolo_holders.csv")
 
 API_KEY = os.environ.get("BERASCAN_API_KEY", "")
-
-
-def apply_canonical_vote_weight(stats, snapshot):
-    holder_sum = stats.get("total_vote_weight", 0)
-    stats["total_vote_weight_holder_sum"] = round(float(holder_sum), 4)
-    stats["total_vote_weight"] = round(snapshot.total_supply_wei / 10**18, 4)
-    stats["total_vote_weight_source"] = "contract_totalSupply"
-    stats["total_vote_weight_block"] = snapshot.block_number
-    stats["total_vote_weight_timestamp"] = snapshot.timestamp
-    return stats
 
 
 class IncompleteNftTransferFetch(RuntimeError):

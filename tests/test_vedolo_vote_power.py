@@ -54,12 +54,24 @@ class VeDoloVotePowerTests(unittest.TestCase):
                 self.assertFalse(validate_data._vedolo_vote_power_history_valid(replace(payload)))
 
     def test_history_validation_rejects_last_point_different_from_total_supply(self):
-        contract = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
+        payload = {
+            "schemaVersion": 1,
+            "metric": "votePower",
+            "chain": "berachain",
+            "contract": "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4",
+            "source": "global-point-history",
+            "targetBlock": 1,
+            "targetTimestamp": 2,
+            "totalSupplyWei": "8",
+            "lockedSupplyWei": "9",
+            "lastPointWei": "8",
+            "coverage": {"from": 1, "through": 2},
+            "points": [[1, "0.000000000000000007"], [2, "0.000000000000000008"]],
+        }
+        self.assertTrue(validate_data._vedolo_vote_power_history_valid(payload))
         self.assertFalse(validate_data._vedolo_vote_power_history_valid({
-            "schemaVersion": 1, "metric": "votePower", "chain": "berachain",
-            "contract": contract, "targetBlock": 1, "targetTimestamp": 2,
-            "totalSupplyWei": "9", "lastPointWei": "8", "coverage": {"from": 1, "through": 2},
-            "points": [[1, "0.000000000000000008"]],
+            **payload,
+            "lastPointWei": "7",
         }))
 
     def test_history_validation_requires_canonical_history_contract(self):
@@ -188,6 +200,62 @@ class VeDoloVotePowerTests(unittest.TestCase):
                 {10: -5},
                 day_seconds=10,
             )
+
+    def test_history_syncs_both_stats_files_from_its_single_snapshot(self):
+        from generate_vedolo_vote_power_history import write_vote_power_history
+
+        snapshot = CanonicalSnapshot(123, 0, 123_450_000_000_000_000_000, 0, 0)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output_path = root / "history.json"
+            state_path = root / "state.json"
+            stats_path = root / "vedolo_stats.json"
+            holders_path = root / "vedolo_holders.json"
+            stats_path.write_text(json.dumps({
+                "stats": {
+                    "total_vote_weight": 101.25,
+                    "total_vote_weight_holder_sum": 101.25,
+                },
+                "timestamp": "before",
+            }))
+            holders_path.write_text(json.dumps({
+                "stats": {
+                    "total_vote_weight": 202.5,
+                    "total_vote_weight_holder_sum": 202.5,
+                },
+                "holders": [],
+            }))
+
+            with patch(
+                "generate_vedolo_vote_power_history.fetch_canonical_snapshot",
+                return_value=snapshot,
+            ) as fetch_snapshot, patch(
+                "generate_vedolo_vote_power_history._fetch_global_point_results",
+                return_value=[encode_global_point(snapshot.total_supply_wei, 0, 0, 1)],
+            ):
+                payload = write_vote_power_history(
+                    output_path,
+                    state_path,
+                    sync_stats=True,
+                    stats_path=stats_path,
+                    holders_path=holders_path,
+                )
+
+            self.assertEqual(fetch_snapshot.call_count, 1)
+            self.assertEqual(payload["totalSupplyWei"], str(snapshot.total_supply_wei))
+            self.assertEqual(payload["lastPointWei"], str(snapshot.total_supply_wei))
+
+            stats_payload = json.loads(stats_path.read_text())
+            holders_payload = json.loads(holders_path.read_text())
+            for stats, holder_sum in (
+                (stats_payload["stats"], 101.25),
+                (holders_payload["stats"], 202.5),
+            ):
+                self.assertEqual(stats["total_vote_weight"], 123.45)
+                self.assertEqual(stats["total_vote_weight_holder_sum"], holder_sum)
+                self.assertEqual(stats["total_vote_weight_source"], "contract_totalSupply")
+                self.assertEqual(stats["total_vote_weight_block"], snapshot.block_number)
+                self.assertEqual(stats["total_vote_weight_timestamp"], snapshot.timestamp)
 
     def test_history_generator_imports_on_supported_python(self):
         import generate_vedolo_vote_power_history

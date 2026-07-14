@@ -145,19 +145,24 @@ class TestRpcEndpoints(unittest.TestCase):
     def test_update_workflow_preserves_vedolo_history_deployment_contract(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-data.yml").read_text()
 
-        self.assertIn("path: vedolo_vote_power_history_state.json", workflow)
-
+        cache_position = workflow.index("path: vedolo_vote_power_history_state.json")
         update_position = workflow.index("run: python update_data.py")
-        generator_position = workflow.index("run: python3 generate_vedolo_vote_power_history.py")
-        self.assertLess(update_position, generator_position)
-
-        validation_line = next(
-            line for line in workflow.splitlines() if "validate_data.py" in line
+        generator_position = workflow.index(
+            "run: python3 generate_vedolo_vote_power_history.py --sync-stats"
         )
-        self.assertIn("data/vedolo-vote-power-history.json", validation_line)
+        validation_position = workflow.index(
+            "validate_data.py vedolo_holders.json vedolo_stats.json vedolo_expiry.json "
+            "data/vedolo-vote-power-history.json"
+        )
+        git_add_position = workflow.index(
+            "git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json "
+            "vedolo_expiry.json data/vedolo-vote-power-history.json"
+        )
 
-        git_add_line = next(line for line in workflow.splitlines() if "git add " in line)
-        self.assertIn("data/vedolo-vote-power-history.json", git_add_line)
+        self.assertLess(cache_position, update_position)
+        self.assertLess(update_position, generator_position)
+        self.assertLess(generator_position, validation_position)
+        self.assertLess(validation_position, git_add_position)
 
 
 class TestCanonicalVoteWeight(unittest.TestCase):
