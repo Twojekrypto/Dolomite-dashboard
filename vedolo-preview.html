@@ -1340,6 +1340,11 @@ async function fetchJson(name){
   if(!res.ok) throw new Error(`${name} HTTP ${res.status}`);
   return res.json();
 }
+async function fetchStaticJson(name, version){
+  const res = await fetch(`${name}?v=${encodeURIComponent(version)}`, {cache:"no-cache"});
+  if(!res.ok) throw new Error(`${name} HTTP ${res.status}`);
+  return res.json();
+}
 function matchesText(row, q, fields){
   if(!q) return true;
   q = q.toLowerCase();
@@ -1374,9 +1379,9 @@ function lockedChartWindowLabel(from, to, totalSpan){
   return `${days}D window`;
 }
 function votePowerDecimalToWei(value){
-  if(typeof value !== "string" || !/^(0|[1-9]\d*)\.\d{18}$/.test(value)) throw new Error("Invalid Vote Power decimal");
-  const [whole, fraction] = value.split(".");
-  return BigInt(whole + fraction);
+  if(typeof value !== "string" || !/^(0|[1-9]\d*)(?:\.\d{1,18})?$/.test(value)) throw new Error("Invalid Vote Power decimal");
+  const [whole, fraction = ""] = value.split(".");
+  return BigInt(whole + fraction.padEnd(18, "0"));
 }
 function parseVotePowerHistory(payload){
   if(!payload || typeof payload !== "object") throw new Error("Missing Vote Power history");
@@ -1427,6 +1432,7 @@ function setLockedChartMode(mode){
     button.classList.toggle("active", active);
   });
   clampLockedBrushToActiveSeries();
+  clearLockedChartHover();
   renderLockedChart();
 }
 function lockedChartValueLabel(value){
@@ -1538,7 +1544,7 @@ function renderLockedChartFor(series){
       const v = maxY * i / 5;
       const y = yAt(v);
       grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y}" y2="${y}"/>`;
-      grid.innerHTML += `<text x="${P_L-10}" y="${y+3}" text-anchor="end">${lockedChartValueLabel(v)}</text>`;
+      grid.innerHTML += `<text x="${P_L-10}" y="${y+3}" text-anchor="end">${fmtCompact(v)}</text>`;
     }
   }
 
@@ -1553,6 +1559,14 @@ function renderLockedChartFor(series){
   }
   attachLockedHover(series, xAt, yAt);
 }
+function clearLockedChartHover(){
+  const line = qs("#lockedHoverLine");
+  const dot = qs("#lockedHoverDot");
+  const tip = qs("#lockedChartTip");
+  if(line) line.style.opacity = 0;
+  if(dot) dot.style.opacity = 0;
+  if(tip) tip.style.opacity = 0;
+}
 function attachLockedHover(series, xAt, yAt){
   const {H,P_T,P_B} = LOCKED_CHART;
   const svg = qs("#lockedChart");
@@ -1564,9 +1578,7 @@ function attachLockedHover(series, xAt, yAt){
   line.setAttribute("y1", P_T);
   line.setAttribute("y2", H - P_B);
   function leave(){
-    line.style.opacity = 0;
-    dot.style.opacity = 0;
-    tip.style.opacity = 0;
+    clearLockedChartHover();
   }
   function move(e){
     const {W,P_L,P_R} = LOCKED_CHART;
@@ -1695,7 +1707,6 @@ function bindLockedBrushInteractions(){
     }else if(drag.kind === "r"){
       state.lockedBrush.to = Math.max(drag.startFrom + minWindow, Math.min(maxX, drag.startTo + dt));
     }
-    renderLockedBrush();
     renderLockedChart();
   }
   function onUp(){
@@ -1710,6 +1721,7 @@ function bindLockedBrushInteractions(){
   document.addEventListener("mousemove", onMove);
   document.addEventListener("mouseup", onUp);
   brushSvg.addEventListener("click", e => {
+    const {minX,maxX} = bounds();
     const rect = overlay.getBoundingClientRect();
     const t = pxToTime(e.clientX - rect.left);
     const span = state.lockedBrush.to - state.lockedBrush.from;
@@ -3193,7 +3205,7 @@ async function boot(){
     const flowsPromise = fetchJson("vedolo_flows.json").catch(() => null);
     const expiryPromise = fetchJson("vedolo_expiry.json").catch(() => null);
     const exercisesPromise = fetchJson("exercisers_by_address.json").catch(() => null);
-    const votePowerPromise = fetchJson("data/vedolo-vote-power-history.json").catch(() => null);
+    const votePowerPromise = fetchStaticJson("data/vedolo-vote-power-history.json", "vedolo-vote-power-history-20260714").catch(() => null);
 
     const [stats, price] = await Promise.all([statsPromise, pricePromise]);
     state.stats = stats?.stats || {};

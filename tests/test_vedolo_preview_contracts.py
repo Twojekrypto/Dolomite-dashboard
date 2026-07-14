@@ -156,7 +156,8 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('attributeFilter:["disabled"]', self.html)
 
     def test_vote_power_view_loads_static_history_only(self):
-        self.assertIn('const votePowerPromise = fetchJson("data/vedolo-vote-power-history.json")', self.html)
+        self.assertIn('const votePowerPromise = fetchStaticJson("data/vedolo-vote-power-history.json", "vedolo-vote-power-history-20260714")', self.html)
+        self.assertIn('async function fetchStaticJson(name, version)', self.html)
         self.assertNotIn('rpc.berachain.com', self.html)
 
     def test_locked_chart_uses_independent_vote_power_state_and_shared_brush(self):
@@ -175,6 +176,31 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('timestamp <= previousTimestamp', self.html)
         self.assertIn('Number.isFinite(value)', self.html)
         self.assertIn('value < 0', self.html)
+
+    def test_vote_power_parser_accepts_generator_compact_decimals(self):
+        self.assertIn('^(0|[1-9]\\d*)(?:\\.\\d{1,18})?$', self.html)
+        self.assertIn('fraction.padEnd(18, "0")', self.html)
+
+    def test_locked_chart_switch_clears_previous_metric_hover(self):
+        mode_switch = re.search(
+            r'function setLockedChartMode\(mode\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(mode_switch)
+        self.assertIn('clearLockedChartHover();', mode_switch.group('body'))
+
+    def test_locked_brush_click_reads_active_series_bounds(self):
+        click_handler = re.search(
+            r'brushSvg\.addEventListener\("click", e => \{(?P<body>.*?)\n  \}\);',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(click_handler)
+        self.assertIn('const {minX,maxX} = bounds();', click_handler.group('body'))
+
+    def test_locked_chart_axis_uses_compact_value_without_metric_suffix(self):
+        self.assertIn('>${fmtCompact(v)}</text>`', self.html)
 
     def test_locked_chart_switcher_is_mode_aware_and_clamps_shared_brush(self):
         self.assertIn('clampLockedBrushToActiveSeries();', self.html)
