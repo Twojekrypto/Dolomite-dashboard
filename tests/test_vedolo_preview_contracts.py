@@ -221,6 +221,9 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
     def test_vedolo_route_busts_cache_for_vote_power_chart(self):
         self.assertIn('vedolo-vote-power-history-20260714', self.route)
 
+    def test_vedolo_route_busts_preview_cache_for_stacked_chart_controls(self):
+        self.assertIn('vedolo-chart-controls-stack-20260714', self.route)
+
     def test_recent_early_exit_controls_use_red_interactions(self):
         self.assertIn('id="recent-early-exits-section"', self.html)
         self.assertIn('--recent-exit-accent:var(--down)', self.html)
