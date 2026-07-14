@@ -41,9 +41,16 @@ def decode_signed_word(word: str) -> int:
 
 
 def decode_global_point(result: str) -> GlobalPoint:
-    payload = result.removeprefix("0x")
-    if len(payload) != 4 * 64:
-        raise ValueError("global point response must contain exactly four 32-byte words")
+    if (
+        not isinstance(result, str)
+        or not result.startswith("0x")
+        or len(result) != 2 + 4 * 64
+        or any(character not in "0123456789abcdefABCDEF" for character in result[2:])
+    ):
+        raise ValueError(
+            "global point response must be 0x followed by exactly 256 hexadecimal characters"
+        )
+    payload = result[2:]
     try:
         words = [payload[offset : offset + 64] for offset in range(0, len(payload), 64)]
         [int(word, 16) for word in words]
