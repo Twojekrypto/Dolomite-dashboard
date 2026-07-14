@@ -31,6 +31,7 @@ function assertBefore(source, first, second, message) {
 
 {
   const liveTable = between(rewards, '<!-- LIVE PROGRAMS -->', '<!-- ENDED PROGRAMS -->');
+  assert(rewards.includes('.card-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1)'), 'Rewards table headers should use the DOLO Holders divider');
   assert(!liveTable.includes('data-sort="rank"'), 'Live Programs should not render the # ranking column');
   assertBefore(liveTable, '<th data-sort="chain"', '<th data-sort="name"', 'Live Programs should put Chain before Program');
   assert(liveTable.includes('id="rwRateSwitch"'), 'Live Programs should expose an APR/APY rate switch');

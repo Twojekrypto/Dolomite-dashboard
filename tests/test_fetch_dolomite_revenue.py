@@ -747,7 +747,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero"', route_html)
+        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
@@ -888,6 +888,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('</section>\n\n  <section class="veborrow-wallet-panel" id="veBorrowCurrentWalletsPanel">', html)
         self.assertIn('<table class="veborrow-wallet-table">', html)
         self.assertNotIn('<table class="revenue-table veborrow-wallet-table">', html)
+
         self.assertIn(".veborrow-wallet-table tbody tr:nth-child(even) td{background:transparent}", html)
         self.assertNotIn('id="veBorrowSimulationWallets"', html)
         simulation_start = html.index('id="veBorrowSimulation"')
@@ -965,6 +966,15 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertLess(borrow_interest_index, user_saved_index)
         self.assertLess(user_saved_index, cumulative_index)
         self.assertNotIn("Net Berachain revenue", html)
+
+    def test_revenue_panel_headers_use_the_holders_table_divider(self):
+        html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
+
+        panel_head_start = html.index(".panel-head{")
+        panel_head = html[panel_head_start:html.index("}", panel_head_start)]
+        self.assertIn("border-bottom:1px solid var(--line-1)", panel_head)
+        self.assertIn("padding:20px", panel_head)
+        self.assertEqual(html.count('<div class="panel-head'), 5)
 
     def test_protocol_revenue_chain_range_uses_borrow_interest_brush_only(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
