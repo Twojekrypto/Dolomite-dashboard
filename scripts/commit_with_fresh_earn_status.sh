@@ -54,6 +54,15 @@ fi
 
 git commit -m "$commit_message"
 
+# Any tracked files left modified-but-unstaged by generation steps would make
+# every `git pull --rebase` attempt below fail with "You have unstaged changes".
+# Surface them loudly, then drop them so the push loop can proceed.
+if ! git diff --quiet; then
+  echo "::warning::Discarding unstaged tracked changes left in the working tree (stage them in the workflow if they should be committed):"
+  git diff --name-only | sed 's/^/::warning::  /'
+  git checkout -- .
+fi
+
 pushed=false
 for i in $(seq 1 "$attempts"); do
   if git pull --rebase -X theirs "$git_remote" "$git_branch"; then
