@@ -29,7 +29,6 @@
     { key: 'all', short: 'All', label: 'All time', days: null },
   ];
   let activityPeriodKey = '30d';
-  let flowSnapshotPeriodKey = '30d';
 
   function setAssetState(selected) {
     document.body.classList.toggle('supply-has-asset', !!selected);
@@ -89,70 +88,22 @@
     document.getElementById('supply-activity-card')?.classList.add('supply-draft-activity-card');
   }
 
-  function ensureSupplyFlowSnapshotCard() {
-    const summary = document.getElementById('supply-activity-summary');
+  function ensureSupplyActivityStats() {
     const activityCard = document.getElementById('supply-activity-card');
-    if (!summary || !activityCard?.parentElement) return null;
-
-    let card = document.getElementById('supply-flow-snapshot-card');
-    if (!card) {
-      card = document.createElement('section');
-      card.id = 'supply-flow-snapshot-card';
-      card.className = 'table-card-outer supply-flow-snapshot-card';
-      card.style.display = 'none';
-      card.innerHTML = `
-        <div class="table-card-inner">
-          <div class="table-card-header supply-flow-snapshot-header">
-            <div class="supply-flow-snapshot-heading">
-              <h3>Flow Snapshot</h3>
-              <div class="supply-flow-snapshot-actions">
-                <span class="supply-flow-snapshot-market" id="supply-flow-snapshot-market">Selected market</span>
-                <div class="supply-activity-type-filter supply-flow-period-filter" id="supply-flow-period-filter">
-                  <button type="button" class="supply-activity-type-trigger" aria-haspopup="menu" aria-expanded="false">
-                    <svg class="supply-activity-period-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                    <span class="supply-activity-type-label">30D</span>
-                    ${chevronIcon}
-                  </button>
-                  <div class="supply-activity-type-menu" role="menu">
-                    ${activityPeriodOptions.map(option => `
-                      <button type="button" class="supply-activity-type-option" data-flow-period="${option.key}" role="menuitemradio" aria-checked="${option.key === flowSnapshotPeriodKey ? 'true' : 'false'}">
-                        <span class="supply-activity-type-check" aria-hidden="true">
-                          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg>
-                        </span>
-                        <span class="supply-activity-type-option-label">${option.label}</span>
-                      </button>
-                    `).join('')}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="supply-flow-snapshot-body"></div>
-        </div>
-      `;
-      activityCard.parentElement.insertBefore(card, activityCard);
+    const inner = activityCard?.querySelector('.table-card-inner');
+    if (!inner) return null;
+    // Legacy standalone Flow Snapshot card — its data now lives in this strip.
+    document.getElementById('supply-flow-snapshot-card')?.remove();
+    let stats = document.getElementById('supply-activity-stats');
+    if (!stats) {
+      stats = document.createElement('div');
+      stats.id = 'supply-activity-stats';
+      stats.className = 'supply-activity-stats';
+      const header = inner.querySelector('.table-card-header');
+      if (header) header.insertAdjacentElement('afterend', stats);
+      else inner.insertBefore(stats, inner.firstChild);
     }
-
-    const body = card.querySelector('.supply-flow-snapshot-body');
-    if (body && summary.parentElement !== body) {
-      body.appendChild(summary);
-    }
-
-    if (card.dataset.flowObserver !== 'true') {
-      card.dataset.flowObserver = 'true';
-      const grid = document.getElementById('supply-activity-summary-grid');
-      const observer = new MutationObserver(() => syncSupplyFlowSnapshotCard());
-      observer.observe(summary, { attributes: true, attributeFilter: ['style'] });
-      if (grid) observer.observe(grid, { childList: true });
-    }
-
-    installSupplyFlowSnapshotPeriodControls(card);
-    syncSupplyFlowSnapshotPeriodDropdown();
-    return card;
-  }
-
-  function getFlowSnapshotPeriodMeta(key = flowSnapshotPeriodKey) {
-    return activityPeriodOptions.find(option => option.key === key) || activityPeriodOptions[2];
+    return stats;
   }
 
   function isActivityAllTimePeriod(meta) {
@@ -161,75 +112,6 @@
 
   function activityPeriodNeedsFullHistory(meta) {
     return !!meta && (isActivityAllTimePeriod(meta) || Number(meta.days || 0) > 30);
-  }
-
-  function maybeLoadFullActivityForFlowPeriod() {
-    const meta = getFlowSnapshotPeriodMeta();
-    if (!activityPeriodNeedsFullHistory(meta)) return;
-    try {
-      if (currentSupplyOverview?.activityStage !== 'full' && !currentSupplyOverview?.activityFullLoading && typeof supplyLoadFullActivityHistory === 'function') {
-        supplyLoadFullActivityHistory();
-      }
-    } catch (error) {}
-  }
-
-  function syncSupplyFlowSnapshotPeriodDropdown() {
-    const dropdown = document.getElementById('supply-flow-period-filter');
-    if (!dropdown) return;
-    const meta = getFlowSnapshotPeriodMeta();
-    const label = dropdown.querySelector('.supply-activity-type-label');
-    if (label) label.textContent = meta.short;
-    dropdown.querySelectorAll('.supply-activity-type-option').forEach(option => {
-      const isActive = option.dataset.flowPeriod === flowSnapshotPeriodKey;
-      option.classList.toggle('active', isActive);
-      option.setAttribute('aria-checked', isActive ? 'true' : 'false');
-    });
-  }
-
-  function selectSupplyFlowSnapshotPeriod(key) {
-    if (!activityPeriodOptions.some(option => option.key === key)) return;
-    flowSnapshotPeriodKey = key;
-    syncSupplyFlowSnapshotPeriodDropdown();
-    maybeLoadFullActivityForFlowPeriod();
-    const grid = document.getElementById('supply-activity-summary-grid');
-    if (grid) delete grid.dataset.supplyPremiumKey;
-    syncSupplyFlowSnapshotCard();
-  }
-
-  function installSupplyFlowSnapshotPeriodControls(card) {
-    const dropdown = card?.querySelector('#supply-flow-period-filter');
-    if (!dropdown || dropdown.dataset.supplyFlowPeriodReady === 'true') return;
-    dropdown.dataset.supplyFlowPeriodReady = 'true';
-    const trigger = dropdown.querySelector('.supply-activity-type-trigger');
-    trigger?.addEventListener('click', event => {
-      event.stopPropagation();
-      document.querySelectorAll('.supply-activity-type-filter.open').forEach(current => {
-        if (current === dropdown) return;
-        current.classList.remove('open');
-        current.querySelector('.supply-activity-type-trigger')?.setAttribute('aria-expanded', 'false');
-      });
-      const isOpen = dropdown.classList.toggle('open');
-      trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    });
-    dropdown.querySelectorAll('.supply-activity-type-option').forEach(option => {
-      option.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        selectSupplyFlowSnapshotPeriod(option.dataset.flowPeriod);
-        dropdown.classList.remove('open');
-        trigger?.setAttribute('aria-expanded', 'false');
-      });
-    });
-    if (document.body.dataset.supplyFlowPeriodClickClose !== 'true') {
-      document.body.dataset.supplyFlowPeriodClickClose = 'true';
-      document.addEventListener('click', event => {
-        document.querySelectorAll('.supply-flow-period-filter.open').forEach(current => {
-          if (current.contains(event.target)) return;
-          current.classList.remove('open');
-          current.querySelector('.supply-activity-type-trigger')?.setAttribute('aria-expanded', 'false');
-        });
-      });
-    }
   }
 
   function supplyDraftEscape(value) {
@@ -291,23 +173,21 @@
     return `${sign}${Math.abs(numeric).toFixed(2)}%`;
   }
 
-  function polishSupplyFlowSnapshotPremium() {
-    const grid = document.getElementById('supply-activity-summary-grid');
-    if (!grid || typeof summarizeSupplyActivityRows !== 'function') {
-      return false;
-    }
+  function renderSupplyActivityStats() {
+    const stats = ensureSupplyActivityStats();
+    if (!stats || typeof summarizeSupplyActivityRows !== 'function') return;
 
     let rows = [];
     try {
       rows = Array.isArray(currentSupplyActivity) ? currentSupplyActivity : [];
     } catch (error) {
-      return false;
+      return;
     }
 
-    const meta = getFlowSnapshotPeriodMeta();
+    const meta = getActivityPeriodMeta();
     const nowTs = Math.floor(Date.now() / 1000);
     const cutoffTs = isActivityAllTimePeriod(meta) ? null : nowTs - (meta.days * 24 * 60 * 60);
-    const summary = summarizeSupplyActivityRows(Array.isArray(rows) ? rows : [], cutoffTs);
+    const summary = summarizeSupplyActivityRows(rows, cutoffTs);
     const isSyncingOlder = activityPeriodNeedsFullHistory(meta)
       && !!currentSupplyOverview?.activityFullLoading
       && currentSupplyOverview?.activityStage !== 'full';
@@ -318,21 +198,15 @@
       liveSupply = Number(currentSupplyOverview?.supply || 0);
     } catch (error) {}
 
-    const netClass = summary.netUsd > 0 ? 'positive' : summary.netUsd < 0 ? 'negative' : 'neutral';
-    const tokenSuffix = tokenSymbol ? ` ${tokenSymbol}` : '';
-    const netTokenText = `${supplyDraftFormatSignedToken(summary.netToken)}${tokenSuffix}`;
-    const netShareText = liveSupply > 0
-      ? `${supplyDraftFormatSignedShare((summary.netToken / liveSupply) * 100)} supply`
-      : '';
-    const premiumKey = JSON.stringify([
-      'premium',
-      flowSnapshotPeriodKey,
+    const statsKey = JSON.stringify([
+      'stats',
+      activityPeriodKey,
       supplyActivityRowsVersion,
       rows.length,
       tokenSymbol,
       liveSupply,
       currentSupplyOverview?.activityStage || '',
-      currentSupplyOverview?.activityFullLoading ? 'loading' : 'ready',
+      isSyncingOlder ? 'loading' : 'ready',
       summary.netUsd,
       summary.inflowUsd,
       summary.outflowUsd,
@@ -341,104 +215,59 @@
       summary.events,
       Math.floor(nowTs / 60),
     ]);
-    if (grid.dataset.supplyPremiumKey === premiumKey && grid.querySelector('.supply-flow-premium')) {
-      return true;
-    }
+    if (stats.dataset.supplyStatsKey === statsKey && stats.children.length > 0) return;
+    stats.dataset.supplyStatsKey = statsKey;
 
-    const metrics = [
+    const netClass = summary.netUsd > 0 ? 'positive' : summary.netUsd < 0 ? 'negative' : 'neutral';
+    const tokenSuffix = tokenSymbol ? ` ${tokenSymbol}` : '';
+    const netTokenText = `${supplyDraftFormatSignedToken(summary.netToken)}${tokenSuffix}`;
+    const netShareText = liveSupply > 0
+      ? `${supplyDraftFormatSignedShare((summary.netToken / liveSupply) * 100)} supply`
+      : '';
+    const netSub = isSyncingOlder
+      ? 'syncing older tx…'
+      : [netTokenText, netShareText].filter(Boolean).join(' · ');
+
+    const cells = [
+      {
+        label: `Net Flow · ${meta.short}`,
+        value: supplyDraftFormatSignedUsd(summary.netUsd),
+        sub: netSub,
+        cls: `primary ${netClass}`,
+      },
       {
         label: 'Deposits',
         value: supplyDraftFormatUsd(summary.inflowUsd),
         sub: `${supplyDraftFormatToken(summary.inflowToken)}${tokenSuffix}`,
-        tone: 'inflow',
+        cls: '',
       },
       {
         label: 'Withdrawals',
         value: supplyDraftFormatUsd(summary.outflowUsd),
         sub: `${supplyDraftFormatToken(summary.outflowToken)}${tokenSuffix}`,
-        tone: 'outflow',
+        cls: '',
       },
       {
         label: 'Transfers',
         value: supplyDraftFormatUsd(summary.internalUsd),
         sub: `${supplyDraftFormatToken(summary.internalToken)}${tokenSuffix}`,
-        tone: 'internal',
+        cls: '',
       },
       {
         label: 'Active Wallets',
         value: Number(summary.wallets || 0).toLocaleString('en-US'),
         sub: `${Number(summary.events || 0).toLocaleString('en-US')} events`,
-        tone: 'wallets',
+        cls: '',
       },
     ];
 
-    grid.dataset.supplyPremiumKey = premiumKey;
-    grid.innerHTML = `
-      <div class="supply-flow-premium" data-net="${netClass}">
-        <div class="supply-flow-premium-hero">
-          <div class="supply-flow-premium-period">
-            <strong>${supplyDraftEscape(meta.short)}</strong>
-            <span>${isSyncingOlder ? 'Syncing older tx' : 'Snapshot range'}</span>
-          </div>
-          <div class="supply-flow-premium-main">
-            <div class="supply-flow-premium-label">Net Flow</div>
-            <div class="supply-flow-premium-value ${netClass}">${supplyDraftEscape(supplyDraftFormatSignedUsd(summary.netUsd))}</div>
-            <div class="supply-flow-premium-sub">
-              <span>${supplyDraftEscape(netTokenText)}</span>
-              ${netShareText ? `<span>${supplyDraftEscape(netShareText)}</span>` : ''}
-            </div>
-          </div>
-        </div>
-        <div class="supply-flow-premium-metrics">
-          ${metrics.map(metric => `
-            <div class="supply-flow-premium-metric">
-              <div class="supply-flow-premium-metric-label">${supplyDraftEscape(metric.label)}</div>
-              <div class="supply-flow-premium-metric-value ${supplyDraftEscape(metric.tone)}">${supplyDraftEscape(metric.value)}</div>
-              <div class="supply-flow-premium-metric-sub">${supplyDraftEscape(metric.sub)}</div>
-            </div>
-          `).join('')}
-        </div>
+    stats.innerHTML = cells.map(cell => `
+      <div class="supply-activity-stat ${cell.cls}">
+        <div class="label">${supplyDraftEscape(cell.label)}</div>
+        <div class="value">${supplyDraftEscape(cell.value)}</div>
+        <div class="sub">${supplyDraftEscape(cell.sub)}</div>
       </div>
-    `;
-    return true;
-  }
-
-  function syncSupplyFlowSnapshotCard() {
-    const card = ensureSupplyFlowSnapshotCard();
-    const summary = document.getElementById('supply-activity-summary');
-    const grid = document.getElementById('supply-activity-summary-grid');
-    if (!card || !summary || !grid) return;
-
-    let token = '';
-    try {
-      token = currentSupplyOverview?.token?.symbol || '';
-    } catch (error) {}
-    const chain = document.getElementById('supply-chain-select')?.value || '';
-    let chainName = chain;
-    try {
-      if (typeof CHAIN_DISPLAY_NAMES !== 'undefined') {
-        chainName = CHAIN_DISPLAY_NAMES[chain] || chain;
-      }
-    } catch (error) {}
-    const market = document.getElementById('supply-flow-snapshot-market');
-    if (market) {
-      let iconPath = '';
-      try {
-        iconPath = getIconPath(currentSupplyOverview?.token);
-      } catch (error) {}
-      const marketText = token && chainName ? `${token} · ${chainName}` : 'Selected market';
-      market.innerHTML = `
-        ${iconPath ? `<span class="supply-flow-snapshot-market-icon"><img src="${supplyDraftEscape(iconPath)}" alt="${supplyDraftEscape(token)}" onerror="this.closest('.supply-flow-snapshot-market-icon').style.display='none'"></span>` : ''}
-        <span class="supply-flow-snapshot-market-text">${supplyDraftEscape(marketText)}</span>
-      `;
-    }
-
-    polishSupplyFlowSnapshotPremium();
-
-    const shouldShow = document.body.classList.contains('supply-has-asset')
-      && grid.children.length > 0;
-    if (shouldShow) summary.style.display = 'block';
-    card.style.display = shouldShow ? 'block' : 'none';
+    `).join('');
   }
 
   function enhanceSupplyHistoryShell() {
@@ -1237,7 +1066,7 @@
 
   function polishSupplyActivityUi() {
     polishSearchClear('supply-activity-search-clear');
-    syncSupplyFlowSnapshotCard();
+    renderSupplyActivityStats();
     polishSupplyActivityHeaders();
     polishSupplyActivityRows();
     stripSupplyActivityHoverExplanations();
@@ -1322,7 +1151,7 @@
     polishSupplyHeaders();
     polishSupplyRows();
     polishSearchClear('supply-activity-search-clear');
-    syncSupplyFlowSnapshotCard();
+    renderSupplyActivityStats();
     polishSupplyActivityUi();
   }
 

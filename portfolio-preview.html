@@ -1469,47 +1469,40 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-exercises-section .pf-exercise-summary{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:10px;
-  padding:16px 24px 18px;
-  border-bottom:1px solid rgba(117,184,123,.12);
-  background:linear-gradient(180deg,rgba(117,184,123,.035),rgba(9,9,11,.10));
+  gap:0;
+  border-bottom:1px solid var(--line-1);
+  background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));
 }
 #pf-exercises-section .pf-exercise-summary-item{
   min-width:0;
-  border:1px solid rgba(117,184,123,.12);
-  border-radius:8px;
-  background:rgba(255,255,255,.018);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
-  min-height:78px;
-  padding:13px 14px;
+  padding:15px 18px;
+  border-left:1px solid var(--line-1);
 }
-#pf-exercises-section .pf-exercise-summary-item.primary{
-  border-color:rgba(117,184,123,.22);
-  background:rgba(117,184,123,.055);
-}
-#pf-exercises-section .pf-exercise-summary-item.accent{
-  border-color:rgba(117,184,123,.20);
-  background:rgba(117,184,123,.035);
-}
+#pf-exercises-section .pf-exercise-summary-item:first-child{border-left:0}
 #pf-exercises-section .pf-exercise-summary-label{
-  font-size:9.5px;
+  font-size:10px;
   font-weight:800;
-  letter-spacing:.08em;
+  letter-spacing:1px;
   line-height:1.15;
   text-transform:uppercase;
   color:var(--fg-3);
-}
-#pf-exercises-section .pf-exercise-summary-value{
-  margin-top:7px;
-  font-family:var(--mono);
-  font-size:14.5px;
-  font-weight:800;
-  line-height:1.15;
-  color:var(--fg-1);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
+#pf-exercises-section .pf-exercise-summary-value{
+  margin-top:7px;
+  font-family:var(--mono);
+  font-size:16px;
+  font-weight:800;
+  line-height:1.15;
+  color:var(--fg-1);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{font-size:17px}
 #pf-exercises-section .pf-exercise-summary-value .unit{
   margin-left:5px;
   font-size:9.5px;
@@ -1720,7 +1713,9 @@ body:not(.pf-active) #pf-results{display:none}
   .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1){display:table-cell}
   .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:none}
   .pf-table tbody td,.pf-table thead th{padding-left:16px;padding-right:16px}
-  #pf-exercises-section .pf-exercise-summary{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px 14px}
+  #pf-exercises-section .pf-exercise-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #pf-exercises-section .pf-exercise-summary-item:nth-child(odd){border-left:0}
+  #pf-exercises-section .pf-exercise-summary-item:nth-child(n+3){border-top:1px solid var(--line-1)}
   .pf-token-name{max-width:128px}
   .pf-filters .pf-search-tbl{width:100%}
   #pf-borrows-section .pf-borrow-actions{width:100%;margin-left:0}
@@ -1728,6 +1723,8 @@ body:not(.pf-active) #pf-results{display:none}
 }
 @media (max-width:430px){
   #pf-exercises-section .pf-exercise-summary{grid-template-columns:1fr}
+  #pf-exercises-section .pf-exercise-summary-item{border-left:0}
+  #pf-exercises-section .pf-exercise-summary-item:nth-child(n+2){border-top:1px solid var(--line-1)}
   .pf-token-name{max-width:78px}
   .pf-token-mark{width:28px;height:28px}
   .pf-table tbody td,.pf-table thead th{padding-left:12px;padding-right:12px}
