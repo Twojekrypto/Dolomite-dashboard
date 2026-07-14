@@ -106,6 +106,33 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('id="lockedChartTitle"', self.html)
         self.assertIn('aria-pressed="true"', self.html)
 
+    def test_locked_chart_preserves_zoom_meta_with_responsive_metric_control(self):
+        heading = re.search(
+            r'<div class="locked-chart-heading">(?P<body>.*?)</div>\n    <div class="locked-chart-wrap"',
+            self.html,
+            re.S,
+        ).group("body")
+        self.assertIn('<div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>', heading)
+        self.assertIn('class="locked-chart-mode"', heading)
+        self.assertIn('.locked-chart-heading .card-title,.locked-chart-mode,.locked-chart-heading .card-meta{width:100%}', self.html)
+
+    def test_unavailable_vote_power_tooltip_uses_focusable_wrapper(self):
+        match = re.search(
+            r'(?P<wrapper><span class="locked-chart-vote-help"[^>]*>\s*<button[^>]*data-locked-chart-mode="vote".*?</button>\s*</span>)',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(match, "Vote Power unavailable state must use a focusable tooltip wrapper")
+        if match is None:
+            return
+        vote = match.group("wrapper")
+        self.assertIn('data-tip="Verified vote-power history is unavailable."', vote)
+        self.assertIn('tabindex="0"', vote)
+        self.assertIn('disabled', vote)
+        self.assertNotIn('data-tip=', re.sub(r'<span[^>]*>', '', vote, count=1))
+        self.assertIn('function syncLockedChartVoteAvailability()', self.html)
+        self.assertIn('attributeFilter:["disabled"]', self.html)
+
     def test_vote_power_view_loads_static_history_only(self):
         self.assertIn('fetchJson("data/vedolo-vote-power-history.json")', self.html)
         self.assertNotIn('rpc.berachain.com', self.html)
