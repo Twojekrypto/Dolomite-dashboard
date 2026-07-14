@@ -490,9 +490,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .fresh-stat{padding:15px 18px;border-left:1px solid var(--line-1);min-width:0}
 .fresh-stat:first-child{border-left:0}
-.fresh-stat .label{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fresh-stat .label{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fresh-stat .label svg{width:13px;height:13px;flex:0 0 13px;opacity:.85}
 .fresh-stat .value{margin-top:7px;font-family:var(--mono);font-size:16px;font-weight:800;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
 .fresh-stat.primary .value{color:var(--gold);font-size:17px}
+.fresh-stat .value .trend{margin-left:8px;padding:1px 6px;border-radius:5px;font-size:10px;font-weight:700;vertical-align:2px;letter-spacing:0}
+.fresh-stat .value .trend.up{color:var(--up);background:var(--up-wash);border:1px solid rgba(117,184,123,.28)}
+.fresh-stat .value .trend.down{color:var(--down);background:var(--down-wash);border:1px solid rgba(180,121,107,.3)}
+.fresh-stat .bar{height:4px;margin-top:7px;border-radius:3px;background:var(--bg-4);overflow:hidden;max-width:120px}
+.fresh-stat .bar span{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi))}
 .fresh-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fresh-wallets-table{min-width:960px}
 .fresh-wallets-table thead th[data-fresh-sort]{cursor:pointer}
@@ -4528,11 +4534,26 @@ function renderFreshStats(rows){
   const balance = rows.reduce((sum, row) => sum + row.balance, 0);
   const locked = rows.reduce((sum, row) => sum + safeHolderNum(row.lockedBalance), 0);
   const retained = received > 0 ? Math.min(100, balance / received * 100) : 0;
+  const ICONS = {
+    wallets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/></svg>',
+    received: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
+    exposure: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+    retention: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 15 6-6"/><path d="M9.5 9.5h.01"/><path d="M14.5 14.5h.01"/></svg>',
+  };
+  // Momentum chip: wallets created inside a shorter recent slice of the window.
+  const meta = freshPeriodMeta();
+  const windowDays = {"1d":1,"7d":7,"30d":30,"90d":90}[meta.key] || 30;
+  const sliceDays = windowDays > 7 ? 7 : 1;
+  const sliceCutoff = Math.floor(Date.now() / 1000) - sliceDays * 86400;
+  const recent = windowDays > 1 ? rows.filter(row => safeHolderNum(row.createdTs) >= sliceCutoff).length : 0;
+  const trendChip = recent > 0 && windowDays > sliceDays
+    ? `<span class="trend up">▲ ${recent.toLocaleString()} · ${sliceDays}D</span>`
+    : "";
   box.innerHTML = `
-    <div class="fresh-stat primary"><div class="label">Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ exposure</div></div>
-    <div class="fresh-stat"><div class="label">DOLO Received</div><div class="value">${fmtNum(received)}</div><div class="sub">fresh 10K+ wallets</div></div>
-    <div class="fresh-stat"><div class="label">Current Exposure</div><div class="value">${fmtNum(balance)}</div><div class="sub">${locked > 0 ? `${fmtNum(locked)} locked` : "liquid + locked"}</div></div>
-    <div class="fresh-stat"><div class="label">Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept exposure</div></div>
+    <div class="fresh-stat primary"><div class="label">${ICONS.wallets}Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}${trendChip}</div><div class="sub">10K+ exposure</div></div>
+    <div class="fresh-stat"><div class="label">${ICONS.received}DOLO Received</div><div class="value">${fmtNum(received)}</div><div class="sub">fresh 10K+ wallets</div></div>
+    <div class="fresh-stat"><div class="label">${ICONS.exposure}Current Exposure</div><div class="value">${fmtNum(balance)}</div><div class="sub">${locked > 0 ? `${fmtNum(locked)} locked` : "liquid + locked"}</div></div>
+    <div class="fresh-stat"><div class="label">${ICONS.retention}Retention</div><div class="value">${fmtPct(retained)}</div><div class="bar"><span style="width:${Math.max(2, Math.min(100, retained)).toFixed(1)}%"></span></div><div class="sub">kept exposure</div></div>
   `;
 }
 function renderFreshPager(totalRows){

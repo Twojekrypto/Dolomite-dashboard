@@ -1480,6 +1480,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-exercises-section .pf-exercise-summary-item:first-child{border-left:0}
 #pf-exercises-section .pf-exercise-summary-label{
+  display:flex;
+  align-items:center;
+  gap:7px;
   font-size:10px;
   font-weight:800;
   letter-spacing:1px;
@@ -1489,6 +1492,26 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+}
+#pf-exercises-section .pf-exercise-summary-label svg{
+  width:13px;
+  height:13px;
+  flex:0 0 13px;
+  opacity:.85;
+}
+#pf-exercises-section .pf-exercise-summary-bar{
+  height:4px;
+  margin-top:7px;
+  border-radius:3px;
+  background:var(--bg-4);
+  overflow:hidden;
+  max-width:120px;
+}
+#pf-exercises-section .pf-exercise-summary-bar span{
+  display:block;
+  height:100%;
+  border-radius:3px;
+  background:linear-gradient(90deg,rgba(117,184,123,.5),var(--pf-ex-green));
 }
 #pf-exercises-section .pf-exercise-summary-value{
   margin-top:7px;
@@ -3317,14 +3340,24 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
     renderPager($(ids.pager), state.borPage + 1, totalPages, p => { state.borPage = p; renderAll(); });
   }
-  function exerciseSummaryItem(label, value, sub, primary, accent, subHtml){
+  function exerciseSummaryItem(label, value, sub, primary, accent, subHtml, icon, barPct){
     const subContent = subHtml ? sub : esc(sub);
+    const bar = Number.isFinite(barPct)
+      ? `<div class="pf-exercise-summary-bar"><span style="width:${Math.max(2, Math.min(100, barPct)).toFixed(1)}%"></span></div>`
+      : "";
     return `<div class="pf-exercise-summary-item${primary ? " primary" : ""}${accent ? " accent" : ""}">
-      <div class="pf-exercise-summary-label">${esc(label)}</div>
+      <div class="pf-exercise-summary-label">${icon || ""}${esc(label)}</div>
       <div class="pf-exercise-summary-value">${value}</div>
+      ${bar}
       <div class="pf-exercise-summary-sub">${subContent}</div>
     </div>`;
   }
+  const EXERCISE_SUMMARY_ICONS = {
+    locked: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+    exercises: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+    price: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 12 22l-8.59-8.59A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.41.59L22 12z"/><path d="M7.5 7.5h.01"/></svg>',
+    vote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>',
+  };
   function renderExerciseSummary(rows){
     const el = $("#pf-exercises-summary");
     if (!el) return;
@@ -3348,7 +3381,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         `${fmtCompact(lockedVe)} <span class="unit">veDOLO</span>`,
         currentNfts ? `${currentNfts} current position${currentNfts === 1 ? "" : "s"}` : "From loaded position activity",
         true,
-        false
+        false,
+        false,
+        EXERCISE_SUMMARY_ICONS.locked
       ),
       exerciseSummaryItem(
         "oDOLO Exercises",
@@ -3356,21 +3391,27 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         claimRows.length ? `${claimRows.length} exercises · <span class="accent-money">${fmtUSD(claimPaid)} USDC paid</span>` : "No oDOLO option exercises",
         false,
         true,
-        claimRows.length
+        claimRows.length,
+        EXERCISE_SUMMARY_ICONS.exercises,
+        lockedVe > 0 && claimVe > 0 ? claimVe / lockedVe * 100 : NaN
       ),
       exerciseSummaryItem(
         "Avg price",
         `<span class="accent-price">${fmtExercisePrice(avgClaimPrice)}</span>`,
         claimRows.length ? "USDC per veDOLO" : "Only shown for oDOLO Exercises",
         false,
-        false
+        false,
+        false,
+        EXERCISE_SUMMARY_ICONS.price
       ),
       exerciseSummaryItem(
         "Vote power",
         `${fmtCompact(currentVote)} <span class="unit">veDOLO</span>`,
         currentNfts ? "Current voting weight" : "Current snapshot unavailable",
         false,
-        false
+        false,
+        false,
+        EXERCISE_SUMMARY_ICONS.vote
       ),
     ].join("");
     el.style.display = "";
