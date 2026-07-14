@@ -39,6 +39,7 @@ RPC_URL = "https://rpc.berachain.com/"
 # Endpoint list comes from the shared client (env-injected Alchemy keys first,
 # then public fallbacks) — single source of truth for RPC endpoints.
 from rpc_client import get_endpoints as _rpc_endpoints
+from generate_vedolo_vote_power_history import fetch_canonical_snapshot
 
 import rpc_usage
 
@@ -74,6 +75,16 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_holders.json")
 OUTPUT_CSV = os.path.join(DATA_DIR, "vedolo_holders.csv")
 
 API_KEY = os.environ.get("BERASCAN_API_KEY", "")
+
+
+def apply_canonical_vote_weight(stats, snapshot):
+    holder_sum = stats.get("total_vote_weight", 0)
+    stats["total_vote_weight_holder_sum"] = round(float(holder_sum), 4)
+    stats["total_vote_weight"] = round(snapshot.total_supply_wei / 10**18, 4)
+    stats["total_vote_weight_source"] = "contract_totalSupply"
+    stats["total_vote_weight_block"] = snapshot.block_number
+    stats["total_vote_weight_timestamp"] = snapshot.timestamp
+    return stats
 
 
 class IncompleteNftTransferFetch(RuntimeError):
@@ -1141,6 +1152,8 @@ def main():
 
     stats["total_locked_dolo"] = round(total_locked_dolo, 2)
     stats["total_vote_weight"] = round(total_vote_weight, 4)
+    apply_canonical_vote_weight(stats, fetch_canonical_snapshot())
+    total_vote_weight = stats["total_vote_weight"]
 
     # ===== GROUND TRUTH: Use on-chain balanceOf as definitive DOLO Locked =====
     # Individual locked() calls may fail (RPC rate limits), but balanceOf is a
@@ -1163,8 +1176,6 @@ def main():
             with open(OUTPUT_JSON) as f:
                 prev = json.load(f)
             prev_locked = prev.get("stats", {}).get("total_locked_dolo", 0)
-            prev_vote = prev.get("stats", {}).get("total_vote_weight", 0)
-
             if prev_locked > 0:
                 drop_pct = (1 - total_locked_dolo / prev_locked) * 100 if prev_locked > 0 else 0
                 if total_locked_dolo == 0 or drop_pct > 50:
@@ -1172,10 +1183,8 @@ def main():
                     print(f"   Previous: {prev_locked:,.2f}  New: {total_locked_dolo:,.2f}")
                     print(f"   This likely means RPC calls failed. Preserving previous locked DOLO stats.")
                     stats["total_locked_dolo"] = prev_locked
-                    stats["total_vote_weight"] = prev_vote
                     stats["_stale_data"] = True
                     total_locked_dolo = prev_locked
-                    total_vote_weight = prev_vote
     except Exception as e:
         print(f"   ⚠️ Could not read previous data: {e}")
 

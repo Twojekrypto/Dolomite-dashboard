@@ -8,6 +8,7 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import update_data
+from vedolo_vote_power import CanonicalSnapshot
 
 ZERO = "0x0000000000000000000000000000000000000000"
 ALICE = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -139,6 +140,41 @@ class TestRpcEndpoints(unittest.TestCase):
         # always present; env-injected keys would be prepended in CI).
         self.assertIn("https://rpc.berachain.com/", update_data.RPC_URLS)
         self.assertGreaterEqual(len(update_data.RPC_URLS), 3)
+
+
+class TestCanonicalVoteWeight(unittest.TestCase):
+    def test_canonical_snapshot_replaces_only_aggregate_vote_weight(self):
+        stats = {"total_vote_weight": 100.0}
+
+        out = update_data.apply_canonical_vote_weight(
+            stats,
+            CanonicalSnapshot(44, 55, 123_450_000_000_000_000_000, 0, 3),
+        )
+
+        self.assertEqual(out["total_vote_weight"], 123.45)
+        self.assertEqual(out["total_vote_weight_holder_sum"], 100.0)
+        self.assertEqual(out["total_vote_weight_source"], "contract_totalSupply")
+        self.assertEqual(out["total_vote_weight_block"], 44)
+        self.assertEqual(out["total_vote_weight_timestamp"], 55)
+
+    def test_update_aborts_before_writing_when_canonical_snapshot_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            original_output = update_data.OUTPUT_JSON
+            temporary_output = os.path.join(directory, "vedolo_holders.json")
+            update_data.OUTPUT_JSON = temporary_output
+            try:
+                with patch.object(update_data, "fetch_all_nft_transfers", return_value=[tx(1, ZERO, ALICE, 100)]), \
+                     patch.object(update_data, "ownership_snapshot_issues", return_value=[]), \
+                     patch.object(update_data, "load_recent_flow_lock_fallbacks", return_value={}), \
+                     patch.object(update_data, "fetch_locked_dolo", return_value={}), \
+                     patch.object(update_data, "fetch_vote_weights", return_value={1: 100.0}), \
+                     patch.object(update_data, "fetch_canonical_snapshot", side_effect=RuntimeError("pinned read failed")):
+                    with self.assertRaisesRegex(RuntimeError, "pinned read failed"):
+                        update_data.main()
+            finally:
+                update_data.OUTPUT_JSON = original_output
+
+            self.assertFalse(os.path.exists(temporary_output))
 
 
 class TestBoundedHolderRefresh(unittest.TestCase):
