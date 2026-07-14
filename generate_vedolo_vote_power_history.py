@@ -28,6 +28,10 @@ SLOPE_CHANGES_SELECTOR = "0x71197484"
 PUBLIC_OUTPUT_PATH = Path("data/vedolo-vote-power-history.json")
 STATE_PATH = Path("vedolo_vote_power_history_state.json")
 CACHE_SCHEMA_VERSION = 1
+ABI_WORD_ERROR = (
+    "response must be exactly one ABI word: a string starting with 0x followed by "
+    "64 hexadecimal characters"
+)
 
 
 def _word(value: int) -> str:
@@ -46,6 +50,17 @@ def _decode_uint(result: str, description: str) -> int:
         raise RuntimeError(f"Pinned veDOLO {description} response was not hexadecimal") from exc
 
 
+def _require_abi_word(result: object) -> str:
+    if (
+        not isinstance(result, str)
+        or not result.startswith("0x")
+        or len(result) != 66
+        or any(character not in "0123456789abcdefABCDEF" for character in result[2:])
+    ):
+        raise RuntimeError(ABI_WORD_ERROR)
+    return result
+
+
 def call_at_block(data: str, block_tag: str) -> str:
     payload = {
         "jsonrpc": "2.0",
@@ -60,7 +75,7 @@ def call_at_block(data: str, block_tag: str) -> str:
     )
     if response.get("error") or not response.get("result"):
         raise RuntimeError("Pinned veDOLO eth_call failed")
-    return response["result"]
+    return _require_abi_word(response["result"])
 
 
 def fetch_canonical_snapshot() -> CanonicalSnapshot:
@@ -113,9 +128,27 @@ def _read_cached_points(state_path: Path) -> Optional[Tuple[int, List[GlobalPoin
         ):
             return None
         points = [decode_global_point(point) for point in encoded_points]
+        _validate_global_points(points, epoch)
         return epoch, points
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
         return None
+
+
+def _validate_global_points(points: List[GlobalPoint], epoch: int) -> None:
+    if len(points) != epoch + 1:
+        raise ValueError("global point indexes must be contiguous through the epoch")
+
+    previous = None
+    for point in points:
+        if point.bias < 0 or point.slope < 0:
+            raise ValueError("global point bias and slope must be nonnegative")
+        if previous and (
+            point.timestamp <= previous.timestamp or point.block <= previous.block
+        ):
+            raise ValueError(
+                "global point timestamps and blocks must be strictly increasing"
+            )
+        previous = point
 
 
 def _atomic_write_json(path: Path, value: dict) -> None:
@@ -186,8 +219,10 @@ def fetch_global_points(
         range(start_index, snapshot.epoch + 1), block_tag
     )
     points.extend(decode_global_point(result) for result in encoded_points)
-    if len(points) != snapshot.epoch + 1:
-        raise RuntimeError("Pinned veDOLO point history did not cover the contract epoch")
+    try:
+        _validate_global_points(points, snapshot.epoch)
+    except ValueError as exc:
+        raise RuntimeError(f"Pinned veDOLO point history was not canonical: {exc}") from exc
 
     _atomic_write_json(
         state_path,
