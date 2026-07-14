@@ -44,12 +44,12 @@ A workflow generates `data/vedolo-vote-power-history.json`. It contains:
   latest complete day, followed by the exact latest canonical observation.
 - Values are decimal strings in the generated file. Precision is retained by
   the generator and rounded only for dashboard rendering.
-- The canonical source is the veDOLO contract's verified global vote-power
-  checkpoint/state at the relevant historical block. The implementation must
-  first verify the exact ABI and storage semantics against the deployed
-  contract. If the contract exposes global point history, use its
-  bias/slope/checkpoint data. If it does not, replay the complete canonical
-  lock state only when that replay proves equal to contract reads.
+- The deployed veDOLO contract exposes the verified global checkpoint
+  interface: `epoch()`, `point_history(uint256)`, `slope_changes(uint256)`,
+  and `totalSupply()`. The generator pins all reads to one target block, uses
+  the latest global point at or before each observation, then applies the
+  contract's scheduled weekly slope changes to calculate exact global Vote
+  Power. It does not require archive-node calls.
 - `vedolo_flows.json` is useful audit evidence but is not itself an approved
   vote-power source. Its existing lock/unlock reconstruction is sufficiently
   close for the Locked DOLO chart but does not reconcile exactly to live Vote
@@ -66,10 +66,12 @@ A workflow generates `data/vedolo-vote-power-history.json`. It contains:
 - The generator must reject a result when any point is malformed, negative,
   out of chronological order, has a coverage gap, or cannot be reproduced
   from the verified contract method.
-- Before publishing, compare the latest generated observation to the same
-  `balanceOfNFT`-derived total used by `vedolo_stats.json`. The comparison uses
-  raw precision and an explicit, documented timestamp/block tolerance. A
-  mismatch is a workflow failure, not a silently degraded dashboard update.
+- Before publishing, compare the latest generated observation with
+  `totalSupply()` at the same pinned block in raw wei. The values must match
+  exactly. The workflow also synchronizes `vedolo_stats.json`'s aggregate Vote
+  Weight to that canonical value; the cached per-NFT sum remains diagnostic
+  evidence, not the source of the aggregate metric. A mismatch is a workflow
+  failure, not a silently degraded dashboard update.
 - Add the new file to `validate_data.py` and to the workflow's explicit
   `git add` list, so a successful generator run also deploys the data.
 
@@ -103,6 +105,8 @@ A workflow generates `data/vedolo-vote-power-history.json`. It contains:
 
 ## Scope Boundaries
 
-This change adds only the second view inside the existing veDOLO chart. It
-does not change the hero metrics, holder table, lock-flow data semantics, or
-the calculation displayed in the existing Locked DOLO view.
+This change adds only the second view inside the existing veDOLO chart and
+does not change hero or table UX, lock-flow data semantics, or the calculation
+displayed in the existing Locked DOLO view. The existing aggregate Vote Weight
+value is upgraded to the contract's canonical global source so it stays
+consistent with the chart.
