@@ -156,8 +156,36 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('attributeFilter:["disabled"]', self.html)
 
     def test_vote_power_view_loads_static_history_only(self):
-        self.assertIn('fetchJson("data/vedolo-vote-power-history.json")', self.html)
+        self.assertIn('const votePowerPromise = fetchJson("data/vedolo-vote-power-history.json")', self.html)
         self.assertNotIn('rpc.berachain.com', self.html)
+
+    def test_locked_chart_uses_independent_vote_power_state_and_shared_brush(self):
+        self.assertIn('votePowerHistory:[]', self.html)
+        self.assertIn('lockedChartMode:"locked"', self.html)
+        self.assertIn('function activeLockedChartSeries()', self.html)
+        self.assertIn('function setLockedChartMode(mode)', self.html)
+        self.assertIn('state.lockedBrush', self.html)
+
+    def test_vote_power_parser_requires_canonical_static_contract(self):
+        self.assertIn('function parseVotePowerHistory(payload)', self.html)
+        self.assertIn('payload.schemaVersion !== 1', self.html)
+        self.assertIn('payload.metric !== "votePower"', self.html)
+        self.assertIn('payload.chain !== "berachain"', self.html)
+        self.assertIn('payload.lastPointWei !== payload.totalSupplyWei', self.html)
+        self.assertIn('timestamp <= previousTimestamp', self.html)
+        self.assertIn('Number.isFinite(value)', self.html)
+        self.assertIn('value < 0', self.html)
+
+    def test_locked_chart_switcher_is_mode_aware_and_clamps_shared_brush(self):
+        self.assertIn('clampLockedBrushToActiveSeries();', self.html)
+        self.assertIn('fmtCompact(value) + " Vote Power"', self.html)
+        self.assertIn('activeLockedChartSeries().unit', self.html)
+        self.assertIn('setVotePowerAvailability(state.votePowerHistory.length >= 2);', self.html)
+        self.assertIn('function bindLockedBrushInteractions()', self.html)
+        self.assertIn('state.lockedBrushListenersBound', self.html)
+
+    def test_vedolo_route_busts_cache_for_vote_power_chart(self):
+        self.assertIn('vedolo-vote-power-history-20260714', self.route)
 
     def test_recent_early_exit_controls_use_red_interactions(self):
         self.assertIn('id="recent-early-exits-section"', self.html)
