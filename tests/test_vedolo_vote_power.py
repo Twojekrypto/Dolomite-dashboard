@@ -24,6 +24,35 @@ def encode_global_point(bias, slope, timestamp, block):
 
 
 class VeDoloVotePowerTests(unittest.TestCase):
+    def test_history_validation_rejects_booleans_in_exact_integer_fields(self):
+        payload = {
+            "schemaVersion": 1,
+            "metric": "votePower",
+            "chain": "berachain",
+            "contract": "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4",
+            "source": "global-point-history",
+            "targetBlock": 1,
+            "targetTimestamp": 2,
+            "totalSupplyWei": "8",
+            "lockedSupplyWei": "9",
+            "lastPointWei": "8",
+            "coverage": {"from": 1, "through": 2},
+            "points": [[1, "0.000000000000000007"], [2, "0.000000000000000008"]],
+        }
+        replacements = {
+            "schemaVersion": lambda value: {**value, "schemaVersion": True},
+            "targetBlock": lambda value: {**value, "targetBlock": True},
+            "targetTimestamp": lambda value: {**value, "targetTimestamp": True},
+            "coverage.from": lambda value: {**value, "coverage": {"from": True, "through": 2}},
+            "coverage.through": lambda value: {**value, "coverage": {"from": 1, "through": True}},
+            "points[0].timestamp": lambda value: {**value, "points": [[True, value["points"][0][1]], value["points"][1]]},
+            "points[1].timestamp": lambda value: {**value, "points": [value["points"][0], [True, value["points"][1][1]]]},
+        }
+
+        for field, replace in replacements.items():
+            with self.subTest(field=field):
+                self.assertFalse(validate_data._vedolo_vote_power_history_valid(replace(payload)))
+
     def test_history_validation_rejects_last_point_different_from_total_supply(self):
         contract = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
         self.assertFalse(validate_data._vedolo_vote_power_history_valid({

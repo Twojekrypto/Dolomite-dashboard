@@ -89,6 +89,10 @@ def _nonnegative_integer(value):
     return int(value)
 
 
+def _is_exact_integer(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def _decimal_to_wei(value):
     if not isinstance(value, str) or not value or value.startswith("-"):
         return None
@@ -102,7 +106,8 @@ def _decimal_to_wei(value):
 
 def _vedolo_vote_power_history_valid(data):
     if not isinstance(data, dict) or (
-        data.get("schemaVersion") != 1
+        not _is_exact_integer(data.get("schemaVersion"))
+        or data.get("schemaVersion") != 1
         or data.get("metric") != "votePower"
         or data.get("chain") != "berachain"
         or str(data.get("contract", "")).lower() != VEDOLO_CONTRACT.lower()
@@ -118,9 +123,9 @@ def _vedolo_vote_power_history_valid(data):
     coverage = data.get("coverage")
     points = data.get("points")
     if (
-        not isinstance(target_block, int)
+        not _is_exact_integer(target_block)
         or target_block < 0
-        or not isinstance(target_timestamp, int)
+        or not _is_exact_integer(target_timestamp)
         or target_timestamp < 0
         or total_supply_wei is None
         or locked_supply_wei is None
@@ -138,7 +143,7 @@ def _vedolo_vote_power_history_valid(data):
             return False
         timestamp, decimal_value = point
         if (
-            not isinstance(timestamp, int)
+            not _is_exact_integer(timestamp)
             or timestamp < 0
             or (previous_timestamp is not None and timestamp <= previous_timestamp)
         ):
@@ -149,7 +154,9 @@ def _vedolo_vote_power_history_valid(data):
         previous_timestamp = timestamp
 
     return (
-        coverage.get("from") == points[0][0]
+        _is_exact_integer(coverage.get("from"))
+        and _is_exact_integer(coverage.get("through"))
+        and coverage.get("from") == points[0][0]
         and coverage.get("through") == target_timestamp
         and points[-1][0] == target_timestamp
         and point_wei == last_point_wei == total_supply_wei
