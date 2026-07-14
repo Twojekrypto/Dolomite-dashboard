@@ -2698,17 +2698,6 @@ body.supply-draft-route .supply-health-heading h3 {
   line-height: 1.2;
 }
 
-body.supply-draft-route .supply-health-eyebrow {
-  margin-bottom: 5px;
-  color: var(--supply-gold);
-  font-family: var(--supply-mono);
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 1.15px;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
 body.supply-draft-route .supply-health-heading .header-count {
   min-width: 0;
   padding: 3px 7px;
@@ -2736,8 +2725,7 @@ body.supply-draft-route .supply-health-header-meta {
   flex-wrap: wrap;
 }
 
-body.supply-draft-route .supply-health-chain,
-body.supply-draft-route .supply-health-asof {
+body.supply-draft-route .supply-health-chain {
   display: inline-flex;
   align-items: center;
   min-height: 28px;
@@ -2766,11 +2754,6 @@ body.supply-draft-route .supply-health-chain::before {
   box-shadow: 0 0 8px var(--supply-gold-line);
 }
 
-body.supply-draft-route .supply-health-asof {
-  flex: 0 0 auto;
-}
-
-body.supply-draft-route .supply-health-asof:empty,
 body.supply-draft-route .supply-health-chain:empty {
   display: none;
 }
@@ -3029,10 +3012,25 @@ body.supply-draft-route .supply-health-grade.grade-d { color: #d0a06a; border-co
 body.supply-draft-route .supply-health-grade.grade-f { color: #d08a7d; border-color: rgba(208, 138, 125, .3); background: rgba(208, 138, 125, .08); }
 
 body.supply-draft-route .supply-health-detail-row td {
+  position: relative;
   padding: 0 !important;
   white-space: normal;
+  border-left: 0 !important;
   border-bottom-color: var(--supply-line-2) !important;
   background: var(--supply-bg-1) !important;
+  box-shadow: none !important;
+}
+
+body.supply-draft-route .supply-health-detail-row td::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--supply-gold);
+  box-shadow: 0 0 12px var(--supply-gold-line);
 }
 
 body.supply-draft-route .supply-health-detail {
@@ -3292,6 +3290,18 @@ body.supply-draft-route .supply-activity-stat.primary.positive .value {
 
 body.supply-draft-route .supply-activity-stat.primary.negative .value {
   color: #d08a7d;
+}
+
+body.supply-draft-route .supply-activity-stat.deposit .value {
+  color: var(--supply-green-hi);
+}
+
+body.supply-draft-route .supply-activity-stat.withdraw .value {
+  color: #d08a7d;
+}
+
+body.supply-draft-route .supply-activity-stat.transfer .value {
+  color: #93c5fd;
 }
 
 body.supply-draft-route .supply-activity-stat .sub {

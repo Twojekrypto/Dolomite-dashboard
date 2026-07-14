@@ -248,21 +248,21 @@
         label: 'Deposits',
         value: supplyDraftFormatUsd(summary.inflowUsd),
         sub: `${supplyDraftFormatToken(summary.inflowToken)}${tokenSuffix}`,
-        cls: '',
+        cls: 'deposit',
       },
       {
         icon: statIcons.withdrawals,
         label: 'Withdrawals',
         value: supplyDraftFormatUsd(summary.outflowUsd),
         sub: `${supplyDraftFormatToken(summary.outflowToken)}${tokenSuffix}`,
-        cls: '',
+        cls: 'withdraw',
       },
       {
         icon: statIcons.transfers,
         label: 'Transfers',
         value: supplyDraftFormatUsd(summary.internalUsd),
         sub: `${supplyDraftFormatToken(summary.internalToken)}${tokenSuffix}`,
-        cls: '',
+        cls: 'transfer',
       },
       {
         icon: statIcons.wallets,
@@ -1614,13 +1614,11 @@
       <div class="table-card-inner">
         <div class="table-card-header supply-health-header">
           <div class="supply-health-heading">
-            <div class="supply-health-eyebrow">Market intelligence</div>
             <h3><span>Supply Pool Health</span> <span class="header-count" id="supply-health-count"></span></h3>
             <div class="supply-health-subtitle">Supplier breadth, concentration, and resilience for the selected chain.</div>
           </div>
           <div class="supply-health-header-meta">
             <div class="supply-health-chain" id="supply-health-chain"></div>
-            <div class="supply-health-asof" id="supply-health-asof"></div>
           </div>
         </div>
         <div class="table-scroll supply-health-scroll">
@@ -1805,7 +1803,6 @@
     const body = document.getElementById('supply-health-table-body');
     const state = document.getElementById('supply-health-state');
     const count = document.getElementById('supply-health-count');
-    const asof = document.getElementById('supply-health-asof');
     const chainLabel = document.getElementById('supply-health-chain');
     if (!table || !body || !supplyHealthPayload) return;
 
@@ -1824,12 +1821,6 @@
 
     if (count) count.textContent = markets.length ? `${markets.length} markets` : '';
     if (chainLabel) chainLabel.textContent = getHealthChainLabel();
-    if (asof && supplyHealthPayload.generatedAt) {
-      try {
-        const stamp = new Date(supplyHealthPayload.generatedAt);
-        asof.textContent = `as of ${stamp.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })} UTC`;
-      } catch (error) {}
-    }
 
     table.querySelectorAll('th[data-health-sort]').forEach(th => {
       const isActive = th.dataset.healthSort === supplyHealthSortField;
