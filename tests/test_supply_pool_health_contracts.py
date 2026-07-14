@@ -35,7 +35,33 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
     def test_supply_route_busts_the_polished_pool_health_assets(self):
         route = ROUTE.read_text(encoding="utf-8")
 
-        self.assertIn("pool-health-ux-20260714-table-pager-icons", route)
+        self.assertIn("pool-health-ux-20260714-clean-header-details-accent", route)
+
+    def test_pool_health_header_has_no_market_intelligence_or_generated_timestamp(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+
+        self.assertNotIn("Market intelligence", source)
+        self.assertNotIn("supply-health-asof", source)
+
+    def test_pool_health_expanded_details_have_an_explicit_gold_left_rail(self):
+        styles = STYLES.read_text(encoding="utf-8")
+
+        selector = "body.supply-draft-route .supply-health-detail-row td::before"
+        start = styles.index(selector)
+        block = styles[start:styles.index("}", start)]
+        self.assertIn("background: var(--supply-gold)", block)
+        self.assertNotIn("supply-green", block)
+
+    def test_asset_activity_summary_uses_semantic_flow_colours(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        styles = STYLES.read_text(encoding="utf-8")
+
+        self.assertIn("cls: 'deposit'", source)
+        self.assertIn("cls: 'withdraw'", source)
+        self.assertIn("cls: 'transfer'", source)
+        self.assertIn(".supply-activity-stat.deposit .value", styles)
+        self.assertIn(".supply-activity-stat.withdraw .value", styles)
+        self.assertIn(".supply-activity-stat.transfer .value", styles)
 
     def test_supply_pool_health_uses_ten_row_pages_and_the_shared_pager_pattern(self):
         source = SCRIPT.read_text(encoding="utf-8")
