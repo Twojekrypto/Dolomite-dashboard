@@ -200,7 +200,7 @@ def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
                 }
                 if by_id:
                     chunk_responses = by_id
-                    _record_methods(_methods_from_payload(chunk))
+                    rpc_usage.record_methods(rpc_usage.methods_from_payload(chunk))
                     break
                 raise ValueError("JSON-RPC batch response contained no matching ids")
             except Exception as exc:
