@@ -235,20 +235,12 @@
       transfers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
       wallets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     };
-    // Deposits-vs-withdrawals proportion bar under Net Flow.
-    const grossFlow = Number(summary.inflowUsd || 0) + Number(summary.outflowUsd || 0);
-    const inflowShare = grossFlow > 0 ? (Number(summary.inflowUsd || 0) / grossFlow) * 100 : 0;
-    const netBar = grossFlow > 0
-      ? `<div class="bar split"><span class="in" style="width:${inflowShare.toFixed(1)}%"></span></div>`
-      : '';
-
     const cells = [
       {
         icon: statIcons.net,
         label: `Net Flow · ${meta.short}`,
         value: supplyDraftFormatSignedUsd(summary.netUsd),
         sub: netSub,
-        extra: netBar,
         cls: `primary ${netClass}`,
       },
       {
@@ -256,7 +248,6 @@
         label: 'Deposits',
         value: supplyDraftFormatUsd(summary.inflowUsd),
         sub: `${supplyDraftFormatToken(summary.inflowToken)}${tokenSuffix}`,
-        extra: '',
         cls: '',
       },
       {
@@ -264,7 +255,6 @@
         label: 'Withdrawals',
         value: supplyDraftFormatUsd(summary.outflowUsd),
         sub: `${supplyDraftFormatToken(summary.outflowToken)}${tokenSuffix}`,
-        extra: '',
         cls: '',
       },
       {
@@ -272,7 +262,6 @@
         label: 'Transfers',
         value: supplyDraftFormatUsd(summary.internalUsd),
         sub: `${supplyDraftFormatToken(summary.internalToken)}${tokenSuffix}`,
-        extra: '',
         cls: '',
       },
       {
@@ -280,7 +269,6 @@
         label: 'Active Wallets',
         value: Number(summary.wallets || 0).toLocaleString('en-US'),
         sub: `${Number(summary.events || 0).toLocaleString('en-US')} events`,
-        extra: '',
         cls: '',
       },
     ];
@@ -289,7 +277,6 @@
       <div class="supply-activity-stat ${cell.cls}">
         <div class="label">${cell.icon}${supplyDraftEscape(cell.label)}</div>
         <div class="value">${supplyDraftEscape(cell.value)}</div>
-        ${cell.extra}
         <div class="sub">${supplyDraftEscape(cell.sub)}</div>
       </div>
     `).join('');

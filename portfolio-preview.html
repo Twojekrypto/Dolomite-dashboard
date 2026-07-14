@@ -1499,20 +1499,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   flex:0 0 13px;
   opacity:.85;
 }
-#pf-exercises-section .pf-exercise-summary-bar{
-  height:4px;
-  margin-top:7px;
-  border-radius:3px;
-  background:var(--bg-4);
-  overflow:hidden;
-  max-width:120px;
-}
-#pf-exercises-section .pf-exercise-summary-bar span{
-  display:block;
-  height:100%;
-  border-radius:3px;
-  background:linear-gradient(90deg,rgba(117,184,123,.5),var(--pf-ex-green));
-}
 #pf-exercises-section .pf-exercise-summary-value{
   margin-top:7px;
   font-family:var(--mono);
@@ -3340,15 +3326,11 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     $(ids.info).textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length.toLocaleString("en-US")}`;
     renderPager($(ids.pager), state.borPage + 1, totalPages, p => { state.borPage = p; renderAll(); });
   }
-  function exerciseSummaryItem(label, value, sub, primary, accent, subHtml, icon, barPct){
+  function exerciseSummaryItem(label, value, sub, primary, accent, subHtml, icon){
     const subContent = subHtml ? sub : esc(sub);
-    const bar = Number.isFinite(barPct)
-      ? `<div class="pf-exercise-summary-bar"><span style="width:${Math.max(2, Math.min(100, barPct)).toFixed(1)}%"></span></div>`
-      : "";
     return `<div class="pf-exercise-summary-item${primary ? " primary" : ""}${accent ? " accent" : ""}">
       <div class="pf-exercise-summary-label">${icon || ""}${esc(label)}</div>
       <div class="pf-exercise-summary-value">${value}</div>
-      ${bar}
       <div class="pf-exercise-summary-sub">${subContent}</div>
     </div>`;
   }
@@ -3392,8 +3374,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         false,
         true,
         claimRows.length,
-        EXERCISE_SUMMARY_ICONS.exercises,
-        lockedVe > 0 && claimVe > 0 ? claimVe / lockedVe * 100 : NaN
+        EXERCISE_SUMMARY_ICONS.exercises
       ),
       exerciseSummaryItem(
         "Avg price",
