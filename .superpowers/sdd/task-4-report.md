@@ -57,3 +57,26 @@ Ready for commit. Unrelated edits were preserved; the scoped work changed only `
 ### Concern
 
 No browser session was started for this narrow source-contract fix. The responsive relationship and tooltip/tab-stop lifecycle are covered by source contracts; a browser-computed-style pass remains a residual risk.
+
+## Task 4 Remaining P2s
+
+### Status
+
+Implemented and committed. Unrelated edits were preserved. The implementation commit is `a844e70ab0a` (`Fix remaining veDOLO review P2s`).
+
+### Changes
+
+- Reordered the locked-chart header children so narrow-screen stacking is title/badge, `drag window below to zoom`, then the metric switch.
+- Added source-contract coverage for the DOM order and narrow breakpoint stacking rule.
+- Added the stable unavailable-tip constant and repeat-safe explicit setters/removals for `data-tip` and `tabindex`.
+- Added source-contract coverage for the exact availability transition operations and prohibited `toggleAttribute` in this path.
+
+### TDD And Verification
+
+- Red run: both new contracts failed for the pre-fix order and toggle implementation; existing contracts passed.
+- Green run: `python3 -m unittest tests/test_vedolo_preview_contracts.py -v` passed, 16/16.
+- `git diff --check` passed.
+
+### Concern
+
+No browser-computed-style pass was run for this source-contract-only remediation. The source order, responsive rule, and repeat-safe attribute lifecycle are covered; browser visual/computed-style verification remains the residual risk.
