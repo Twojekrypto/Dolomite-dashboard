@@ -3,6 +3,7 @@ import sys
 import json
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -140,6 +141,23 @@ class TestRpcEndpoints(unittest.TestCase):
         # always present; env-injected keys would be prepended in CI).
         self.assertIn("https://rpc.berachain.com/", update_data.RPC_URLS)
         self.assertGreaterEqual(len(update_data.RPC_URLS), 3)
+
+    def test_update_workflow_preserves_vedolo_history_deployment_contract(self):
+        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-data.yml").read_text()
+
+        self.assertIn("path: vedolo_vote_power_history_state.json", workflow)
+
+        update_position = workflow.index("run: python update_data.py")
+        generator_position = workflow.index("run: python3 generate_vedolo_vote_power_history.py")
+        self.assertLess(update_position, generator_position)
+
+        validation_line = next(
+            line for line in workflow.splitlines() if "validate_data.py" in line
+        )
+        self.assertIn("data/vedolo-vote-power-history.json", validation_line)
+
+        git_add_line = next(line for line in workflow.splitlines() if "git add " in line)
+        self.assertIn("data/vedolo-vote-power-history.json", git_add_line)
 
 
 class TestCanonicalVoteWeight(unittest.TestCase):
