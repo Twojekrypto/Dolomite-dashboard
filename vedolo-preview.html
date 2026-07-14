@@ -761,7 +761,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 @media (max-width:560px){
   .holders-card .toolbar .tb-left{width:100%}
   .locked-chart-heading{align-items:flex-start;flex-direction:column}
-  .locked-chart-heading .card-title,.locked-chart-mode{width:100%}
+  .locked-chart-heading .card-title,.locked-chart-mode,.locked-chart-heading .card-meta{width:100%}
   .locked-chart-mode button{flex:1}
   .locked-chart-svg{height:240px}
   .locked-chart-grid text,.locked-chart-x text{font-size:9px}
@@ -847,8 +847,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="locked-chart-mode" id="lockedChartMode" role="group" aria-label="Chart metric">
         <button type="button" data-locked-chart-mode="locked" aria-pressed="true">Locked DOLO</button>
         <!-- Task 5 loading contract: fetchJson("data/vedolo-vote-power-history.json") -->
-        <button type="button" data-locked-chart-mode="vote" aria-pressed="false" disabled data-tip="Verified vote-power history is unavailable.">Vote Power</button>
+        <span class="locked-chart-vote-help" tabindex="0" data-tip="Verified vote-power history is unavailable."><button type="button" data-locked-chart-mode="vote" aria-pressed="false" disabled>Vote Power</button></span>
       </div>
+      <div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>
     </div>
     <div class="locked-chart-wrap" id="lockedChartWrap">
       <svg class="locked-chart-svg" id="lockedChart" viewBox="0 0 1000 340" preserveAspectRatio="none">
@@ -1207,6 +1208,20 @@ const DURATION_BUCKETS = [
 
 const qs = s => document.querySelector(s);
 const qsa = s => [...document.querySelectorAll(s)];
+function syncLockedChartVoteAvailability(){
+  const button = qs('#lockedChartMode button[data-locked-chart-mode="vote"]');
+  const help = button?.closest(".locked-chart-vote-help");
+  if(!button || !help) return;
+  const unavailable = button.disabled;
+  help.toggleAttribute("tabindex", unavailable);
+  help.toggleAttribute("data-tip", unavailable);
+}
+function initLockedChartVoteAvailability(){
+  const button = qs('#lockedChartMode button[data-locked-chart-mode="vote"]');
+  if(!button) return;
+  syncLockedChartVoteAvailability();
+  new MutationObserver(syncLockedChartVoteAvailability).observe(button, {attributes:true, attributeFilter:["disabled"]});
+}
 const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
 const num = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 const shortAddr = a => a ? `${a.slice(0,6)}...${a.slice(-4)}` : "--";
@@ -3070,6 +3085,7 @@ function bindFlowSourceTooltips(){
   });
 }
 async function boot(){
+  initLockedChartVoteAvailability();
   bindUi();
   bindFlowSourceTooltips();
   renderProtocolInfo();
