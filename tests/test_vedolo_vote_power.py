@@ -75,6 +75,20 @@ class VeDoloVotePowerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             decode_global_point("0" * 63)
 
+    def test_requires_exact_prefixed_four_word_abi_result(self):
+        malformed_results = (
+            "0" * 256,
+            "0x" + "0" * 255,
+            "0x" + "0" * 257,
+            None,
+            "0x" + "0" * 255 + "g",
+        )
+
+        for result in malformed_results:
+            with self.subTest(result=result):
+                with self.assertRaises(ValueError):
+                    decode_global_point(result)
+
     def test_uses_latest_point_by_timestamp_then_block(self):
         points = [
             GlobalPoint(bias=100, slope=0, timestamp=10, block=2),
@@ -120,6 +134,10 @@ class VeDoloVotePowerTests(unittest.TestCase):
 
         snapshot = CanonicalSnapshot(123, 30, 0, 0, 1)
         invalid_caches = {
+            "bare ABI payload": [
+                "0" * 256,
+                encode_global_point(9, 1, 11, 2),
+            ],
             "nonmonotonic timestamp": [
                 encode_global_point(10, 1, 10, 1),
                 encode_global_point(9, 1, 9, 2),
@@ -195,6 +213,31 @@ class VeDoloVotePowerTests(unittest.TestCase):
                 return_value=invalid_points,
             ):
                 with self.assertRaisesRegex(RuntimeError, "strictly increasing"):
+                    write_vote_power_history(output_path, state_path)
+
+            self.assertFalse(state_path.exists())
+            self.assertFalse(output_path.exists())
+
+    def test_malformed_fresh_point_aborts_before_cache_or_publication(self):
+        from generate_vedolo_vote_power_history import write_vote_power_history
+
+        snapshot = CanonicalSnapshot(123, 30, 0, 0, 1)
+        invalid_points = [
+            "0" * 256,
+            encode_global_point(9, 1, 11, 2),
+        ]
+
+        with tempfile.TemporaryDirectory() as directory:
+            output_path = Path(directory) / "public.json"
+            state_path = Path(directory) / "state.json"
+            with patch(
+                "generate_vedolo_vote_power_history.fetch_canonical_snapshot",
+                return_value=snapshot,
+            ), patch(
+                "generate_vedolo_vote_power_history._fetch_global_point_results",
+                return_value=invalid_points,
+            ):
+                with self.assertRaises(ValueError):
                     write_vote_power_history(output_path, state_path)
 
             self.assertFalse(state_path.exists())
