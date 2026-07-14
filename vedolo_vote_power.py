@@ -71,10 +71,12 @@ def evaluate_vote_power_at(
     slope_changes: Mapping[int, int],
     week_seconds: int = WEEK_SECONDS,
 ) -> int:
-    anchor = max(
-        (point for point in points if point.timestamp <= observation_ts),
-        key=lambda point: (point.timestamp, point.block),
-    )
+    candidates = [
+        (index, point)
+        for index, point in enumerate(points)
+        if point.timestamp <= observation_ts
+    ]
+    anchor = max(candidates, key=lambda candidate: (candidate[1].timestamp, candidate[0]))[1]
     bias, slope, last_ts = anchor.bias, anchor.slope, anchor.timestamp
     boundary = (last_ts // week_seconds) * week_seconds
     while last_ts < observation_ts:
