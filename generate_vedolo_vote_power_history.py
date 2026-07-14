@@ -145,12 +145,8 @@ def _validate_global_points(points: List[GlobalPoint], epoch: int) -> None:
     for point in points:
         if point.bias < 0 or point.slope < 0:
             raise ValueError("global point bias and slope must be nonnegative")
-        if previous and (
-            point.timestamp <= previous.timestamp or point.block <= previous.block
-        ):
-            raise ValueError(
-                "global point timestamps and blocks must be strictly increasing"
-            )
+        if previous and point.timestamp < previous.timestamp:
+            raise ValueError("global point timestamps must be nondecreasing")
         previous = point
 
 

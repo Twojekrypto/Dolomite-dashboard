@@ -171,11 +171,10 @@ class VeDoloVotePowerTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     decode_global_point(result)
 
-    def test_uses_latest_point_by_timestamp_then_block(self):
+    def test_uses_latest_epoch_for_points_in_the_same_block_and_timestamp(self):
         points = [
             GlobalPoint(bias=100, slope=0, timestamp=10, block=2),
-            GlobalPoint(bias=200, slope=0, timestamp=10, block=3),
-            GlobalPoint(bias=300, slope=0, timestamp=9, block=99),
+            GlobalPoint(bias=200, slope=0, timestamp=10, block=2),
         ]
 
         self.assertEqual(evaluate_vote_power_at(10, points, {}), 200)
@@ -280,17 +279,9 @@ class VeDoloVotePowerTests(unittest.TestCase):
                 encode_global_point(10, 1, 10, 1),
                 encode_global_point(9, 1, 9, 2),
             ],
-            "nonmonotonic block": [
-                encode_global_point(10, 1, 10, 2),
-                encode_global_point(9, 1, 11, 1),
-            ],
             "negative bias": [
                 encode_global_point(-1, 1, 10, 1),
                 encode_global_point(0, 1, 11, 2),
-            ],
-            "duplicate sequence": [
-                encode_global_point(10, 1, 10, 1),
-                encode_global_point(9, 1, 10, 1),
             ],
         }
         fresh_points = [
@@ -331,13 +322,38 @@ class VeDoloVotePowerTests(unittest.TestCase):
                     ],
                 )
 
+    def test_cached_points_allow_same_block_and_timestamp_in_epoch_order(self):
+        from generate_vedolo_vote_power_history import fetch_global_points
+
+        snapshot = CanonicalSnapshot(123, 30, 0, 0, 1)
+        cached_points = [
+            encode_global_point(10, 1, 10, 1),
+            encode_global_point(20, 2, 10, 1),
+        ]
+
+        with tempfile.TemporaryDirectory() as directory:
+            state_path = Path(directory) / "state.json"
+            state_path.write_text(json.dumps({
+                "schemaVersion": 1,
+                "epoch": 1,
+                "points": cached_points,
+            }))
+            with patch(
+                "generate_vedolo_vote_power_history._fetch_global_point_results",
+                return_value=[],
+            ) as fetch:
+                points = fetch_global_points(snapshot, state_path)
+
+        self.assertEqual(list(fetch.call_args.args[0]), [])
+        self.assertEqual(points[-1], GlobalPoint(20, 2, 10, 1))
+
     def test_invalid_fresh_points_abort_before_cache_or_publication(self):
         from generate_vedolo_vote_power_history import write_vote_power_history
 
         snapshot = CanonicalSnapshot(123, 30, 0, 0, 1)
         invalid_points = [
-            encode_global_point(10, 1, 10, 2),
-            encode_global_point(9, 1, 11, 1),
+            encode_global_point(10, 1, 11, 1),
+            encode_global_point(9, 1, 10, 1),
         ]
 
         with tempfile.TemporaryDirectory() as directory:
@@ -350,7 +366,7 @@ class VeDoloVotePowerTests(unittest.TestCase):
                 "generate_vedolo_vote_power_history._fetch_global_point_results",
                 return_value=invalid_points,
             ):
-                with self.assertRaisesRegex(RuntimeError, "strictly increasing"):
+                with self.assertRaisesRegex(RuntimeError, "nondecreasing"):
                     write_vote_power_history(output_path, state_path)
 
             self.assertFalse(state_path.exists())
