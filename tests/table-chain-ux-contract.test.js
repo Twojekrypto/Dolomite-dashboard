@@ -12,7 +12,6 @@ const historyHtml = read('history/index.html');
 const historyCss = read('history/history.css');
 const historyJs = read('history/history.js');
 const assets = read('assets-preview.html');
-const footer = read('protocol-footer.css');
 
 function between(source, start, end) {
   const a = source.indexOf(start);
@@ -32,8 +31,7 @@ function assertBefore(source, first, second, message) {
 
 {
   const liveTable = between(rewards, '<!-- LIVE PROGRAMS -->', '<!-- ENDED PROGRAMS -->');
-  assert(footer.includes('body .card > .card-head,'), 'Shared table surface CSS should cover card headers');
-  assert(footer.includes('border-bottom: 0 !important;'), 'Shared table surface CSS should remove horizontal table separators');
+  assert(rewards.includes('.card-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1)'), 'Rewards table headers should use the DOLO Holders divider');
   assert(!liveTable.includes('data-sort="rank"'), 'Live Programs should not render the # ranking column');
   assertBefore(liveTable, '<th data-sort="chain"', '<th data-sort="name"', 'Live Programs should put Chain before Program');
   assert(liveTable.includes('id="rwRateSwitch"'), 'Live Programs should expose an APR/APY rate switch');

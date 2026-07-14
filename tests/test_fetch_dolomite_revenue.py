@@ -967,12 +967,13 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertLess(user_saved_index, cumulative_index)
         self.assertNotIn("Net Berachain revenue", html)
 
-    def test_revenue_panel_headers_are_separator_free(self):
+    def test_revenue_panel_headers_use_the_holders_table_divider(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
-        footer = (ROOT / "protocol-footer.css").read_text(encoding="utf-8")
 
-        self.assertIn("body .panel > .panel-head", footer)
-        self.assertIn("border-bottom: 0 !important;", footer)
+        panel_head_start = html.index(".panel-head{")
+        panel_head = html[panel_head_start:html.index("}", panel_head_start)]
+        self.assertIn("border-bottom:1px solid var(--line-1)", panel_head)
+        self.assertIn("padding:20px", panel_head)
         self.assertEqual(html.count('<div class="panel-head'), 5)
 
     def test_protocol_revenue_chain_range_uses_borrow_interest_brush_only(self):

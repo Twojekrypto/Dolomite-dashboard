@@ -31,7 +31,7 @@ class ProtocolFooterContractsTest(unittest.TestCase):
 
         for shell in shells:
             html = shell.read_text(encoding="utf-8")
-            self.assertIn("route-loader-20260714-table-surfaces", html, msg=str(shell.relative_to(ROOT)))
+            self.assertIn("route-loader-20260619-footer-links", html, msg=str(shell.relative_to(ROOT)))
             self.assertNotIn("route-loader-20260611", html, msg=str(shell.relative_to(ROOT)))
             self.assertNotIn("route-loader-20260619-footer-mobile", html, msg=str(shell.relative_to(ROOT)))
 
