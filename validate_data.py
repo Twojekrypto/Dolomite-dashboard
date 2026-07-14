@@ -13,6 +13,8 @@ import sys
 import os
 from datetime import datetime, timezone
 
+from vedolo_vote_power import VEDOLO_CONTRACT
+
 # ── Validation Rules ─────────────────────────────────────────────────────────
 # Each file has: required top-level keys, optional nested checks, and min-size thresholds.
 
@@ -79,6 +81,79 @@ def _safe_number(value):
     if isinstance(value, (int, float)):
         return float(value)
     return 0.0
+
+
+def _nonnegative_integer(value):
+    if not isinstance(value, str) or not value.isdigit():
+        return None
+    return int(value)
+
+
+def _decimal_to_wei(value):
+    if not isinstance(value, str) or not value or value.startswith("-"):
+        return None
+    whole, separator, fraction = value.partition(".")
+    if not whole.isdigit() or (separator and (not fraction or not fraction.isdigit())):
+        return None
+    if len(fraction) > 18:
+        return None
+    return int(whole) * 10**18 + int((fraction + "0" * 18)[:18] or "0")
+
+
+def _vedolo_vote_power_history_valid(data):
+    if not isinstance(data, dict) or (
+        data.get("schemaVersion") != 1
+        or data.get("metric") != "votePower"
+        or data.get("chain") != "berachain"
+        or str(data.get("contract", "")).lower() != VEDOLO_CONTRACT.lower()
+        or data.get("source") != "global-point-history"
+    ):
+        return False
+
+    target_block = data.get("targetBlock")
+    target_timestamp = data.get("targetTimestamp")
+    total_supply_wei = _nonnegative_integer(data.get("totalSupplyWei"))
+    locked_supply_wei = _nonnegative_integer(data.get("lockedSupplyWei"))
+    last_point_wei = _nonnegative_integer(data.get("lastPointWei"))
+    coverage = data.get("coverage")
+    points = data.get("points")
+    if (
+        not isinstance(target_block, int)
+        or target_block < 0
+        or not isinstance(target_timestamp, int)
+        or target_timestamp < 0
+        or total_supply_wei is None
+        or locked_supply_wei is None
+        or last_point_wei is None
+        or not isinstance(coverage, dict)
+        or not isinstance(points, list)
+        or not points
+    ):
+        return False
+
+    previous_timestamp = None
+    point_wei = None
+    for point in points:
+        if not isinstance(point, list) or len(point) != 2:
+            return False
+        timestamp, decimal_value = point
+        if (
+            not isinstance(timestamp, int)
+            or timestamp < 0
+            or (previous_timestamp is not None and timestamp <= previous_timestamp)
+        ):
+            return False
+        point_wei = _decimal_to_wei(decimal_value)
+        if point_wei is None:
+            return False
+        previous_timestamp = timestamp
+
+    return (
+        coverage.get("from") == points[0][0]
+        and coverage.get("through") == target_timestamp
+        and points[-1][0] == target_timestamp
+        and point_wei == last_point_wei == total_supply_wei
+    )
 
 
 def _odolo_circulating_reconciles(data):
@@ -797,6 +872,13 @@ RULES = {
             ("holders must have entries", lambda d: len(d.get("holders", [])) >= 10),
         ],
         "min_bytes": 100_000,
+    },
+    "vedolo-vote-power-history.json": {
+        "required_keys": ["schemaVersion", "metric", "chain", "contract", "source", "targetBlock", "targetTimestamp", "totalSupplyWei", "lockedSupplyWei", "lastPointWei", "coverage", "points"],
+        "checks": [
+            ("veDOLO vote power history must be canonical and exact", _vedolo_vote_power_history_valid),
+        ],
+        "min_bytes": 200,
     },
     "odolo_flows.json": {
         "required_keys": ["timestamp", "current_block", "deploy_block", "cutoff_blocks", "transfer_coverage", "periods"],

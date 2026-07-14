@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import validate_data
+
 from vedolo_vote_power import (
     CanonicalSnapshot,
     GlobalPoint,
@@ -22,6 +24,45 @@ def encode_global_point(bias, slope, timestamp, block):
 
 
 class VeDoloVotePowerTests(unittest.TestCase):
+    def test_history_validation_rejects_last_point_different_from_total_supply(self):
+        contract = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
+        self.assertFalse(validate_data._vedolo_vote_power_history_valid({
+            "schemaVersion": 1, "metric": "votePower", "chain": "berachain",
+            "contract": contract, "targetBlock": 1, "targetTimestamp": 2,
+            "totalSupplyWei": "9", "lastPointWei": "8", "coverage": {"from": 1, "through": 2},
+            "points": [[1, "0.000000000000000008"]],
+        }))
+
+    def test_history_validation_requires_canonical_history_contract(self):
+        payload = {
+            "schemaVersion": 1,
+            "metric": "votePower",
+            "chain": "berachain",
+            "contract": "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4",
+            "source": "global-point-history",
+            "targetBlock": 1,
+            "targetTimestamp": 2,
+            "totalSupplyWei": "8",
+            "lockedSupplyWei": "9",
+            "lastPointWei": "8",
+            "coverage": {"from": 1, "through": 2},
+            "points": [[1, "0.000000000000000007"], [2, "0.000000000000000008"]],
+        }
+        self.assertTrue(validate_data._vedolo_vote_power_history_valid(payload))
+
+        invalid_payloads = (
+            {**payload, "schemaVersion": 2},
+            {**payload, "chain": "ethereum"},
+            {**payload, "contract": "0x0000000000000000000000000000000000000000"},
+            {**payload, "coverage": {"from": 1, "through": 3}},
+            {**payload, "points": [[1, "0.000000000000000007"], [1, "0.000000000000000008"]]},
+            {**payload, "points": [[1, "0"], [2, "-0.000000000000000008"]]},
+            {**payload, "lastPointWei": "7"},
+        )
+        for invalid_payload in invalid_payloads:
+            with self.subTest(invalid_payload=invalid_payload):
+                self.assertFalse(validate_data._vedolo_vote_power_history_valid(invalid_payload))
+
     def test_applies_weekly_slope_change_without_float_math(self):
         point = GlobalPoint(bias=1000, slope=10, timestamp=0, block=1)
 

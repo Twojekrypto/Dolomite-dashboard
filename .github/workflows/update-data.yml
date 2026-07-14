@@ -37,6 +37,14 @@ jobs:
           restore-keys: |
             locked-cache-v6-
 
+      - name: Restore veDOLO vote power history state
+        uses: actions/cache@v5
+        with:
+          path: vedolo_vote_power_history_state.json
+          key: vedolo-vote-power-history-v1-${{ github.run_id }}
+          restore-keys: |
+            vedolo-vote-power-history-v1-
+
       - name: Run update script
         run: python update_data.py
         env:
@@ -55,13 +63,21 @@ jobs:
           VEDOLO_VOTE_FAILED_RETRY_LIMIT: '20'
           VEDOLO_VOTE_ZERO_RETRY_LIMIT: '20'
 
+      - name: Generate canonical veDOLO vote power history
+        run: python3 generate_vedolo_vote_power_history.py
+        env:
+          PYTHONUNBUFFERED: '1'
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+          ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+
       # TVL/DeFiLlama/Revenue are owned by update-tvl-data.yml (hourly)
 
       - name: Fetch oDOLO contract data
         run: python3 fetch_odolo_contract.py
 
       - name: Validate generated data
-        run: python3 validate_data.py vedolo_holders.json vedolo_stats.json vedolo_expiry.json dolo_price.json odolo_contract_data.json metrics_snapshot.json
+        run: python3 validate_data.py vedolo_holders.json vedolo_stats.json vedolo_expiry.json data/vedolo-vote-power-history.json dolo_price.json odolo_contract_data.json metrics_snapshot.json
 
       - name: Commit & push changes
         run: |
@@ -73,7 +89,7 @@ jobs:
           # update_data.py still regenerates it, so DISCARD that change first — otherwise
           # the unstaged file makes `git pull --rebase` below abort (dirty work tree).
           git checkout -- dolo_price.json 2>/dev/null || true
-          git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json vedolo_expiry.json odolo_contract_data.json metrics_snapshot.json
+          git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json vedolo_expiry.json data/vedolo-vote-power-history.json odolo_contract_data.json metrics_snapshot.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           # Retry push with rebase up to 3 times to handle concurrent pushes
