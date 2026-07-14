@@ -74,6 +74,38 @@ class VeDoloVotePowerTests(unittest.TestCase):
             "lastPointWei": "7",
         }))
 
+    def test_history_validation_rejects_missing_daily_vote_power_point(self):
+        payload = {
+            "schemaVersion": 1,
+            "metric": "votePower",
+            "chain": "berachain",
+            "contract": "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4",
+            "source": "global-point-history",
+            "targetBlock": 1,
+            "targetTimestamp": 259201,
+            "totalSupplyWei": "8",
+            "lockedSupplyWei": "9",
+            "lastPointWei": "8",
+            "coverage": {"from": 1, "through": 259201},
+            "points": [
+                [1, "0.000000000000000007"],
+                [86400, "0.000000000000000007"],
+                [172800, "0.000000000000000007"],
+                [259200, "0.000000000000000007"],
+                [259201, "0.000000000000000008"],
+            ],
+        }
+        self.assertTrue(validate_data._vedolo_vote_power_history_valid(payload))
+        self.assertFalse(validate_data._vedolo_vote_power_history_valid({
+            **payload,
+            "points": [
+                payload["points"][0],
+                payload["points"][1],
+                payload["points"][3],
+                payload["points"][4],
+            ],
+        }))
+
     def test_history_validation_requires_canonical_history_contract(self):
         payload = {
             "schemaVersion": 1,

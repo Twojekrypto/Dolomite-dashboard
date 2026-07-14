@@ -153,12 +153,19 @@ def _vedolo_vote_power_history_valid(data):
             return False
         previous_timestamp = timestamp
 
+    next_daily_timestamp = (points[0][0] // 86400 + 1) * 86400
+    for timestamp, _ in points[1:-1]:
+        if timestamp != next_daily_timestamp:
+            return False
+        next_daily_timestamp += 86400
+
     return (
         _is_exact_integer(coverage.get("from"))
         and _is_exact_integer(coverage.get("through"))
         and coverage.get("from") == points[0][0]
         and coverage.get("through") == target_timestamp
         and points[-1][0] == target_timestamp
+        and next_daily_timestamp >= target_timestamp
         and point_wei == last_point_wei == total_supply_wei
     )
 
