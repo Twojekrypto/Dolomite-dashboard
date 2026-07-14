@@ -112,20 +112,28 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
             self.html,
             re.S,
         ).group("body")
-        self.assertIn('<div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>', heading)
-        self.assertIn('class="locked-chart-mode"', heading)
-        self.assertIn('.locked-chart-heading .card-title,.locked-chart-mode,.locked-chart-heading .card-meta{width:100%}', self.html)
+        controls = re.search(
+            r'<div class="locked-chart-controls">(?P<body>.*)',
+            heading,
+            re.S,
+        ).group("body")
+        self.assertIn('<div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>', controls)
+        self.assertIn('class="locked-chart-mode"', controls)
+        self.assertIn('.locked-chart-controls{display:flex;flex-basis:100%;flex-direction:column;align-items:flex-start;gap:8px}', self.html)
+        self.assertIn('.locked-chart-heading .card-title,.locked-chart-controls{width:100%}', self.html)
 
-    def test_locked_chart_narrow_order_keeps_zoom_meta_between_title_and_metric_switch(self):
+    def test_locked_chart_controls_stack_below_title_with_zoom_meta_above_switch(self):
         heading = re.search(
             r'<div class="locked-chart-heading">(?P<body>.*?)</div>\n    <div class="locked-chart-wrap"',
             self.html,
             re.S,
         ).group("body")
         title_pos = heading.index('class="card-title"')
-        meta_pos = heading.index('class="card-meta"')
-        mode_pos = heading.index('class="locked-chart-mode"')
-        self.assertLess(title_pos, meta_pos)
+        controls_pos = heading.index('class="locked-chart-controls"')
+        controls = heading[controls_pos:]
+        meta_pos = controls.index('class="card-meta"')
+        mode_pos = controls.index('class="locked-chart-mode"')
+        self.assertLess(title_pos, controls_pos)
         self.assertLess(meta_pos, mode_pos)
         self.assertIn('@media (max-width:560px){', self.html)
         self.assertIn('.locked-chart-heading{align-items:flex-start;flex-direction:column}', self.html)

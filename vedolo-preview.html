@@ -87,7 +87,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .card-body{padding:20px 24px 24px}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);display:inline-block;flex-shrink:0}
 .locked-chart-card{overflow:visible}
-.locked-chart-heading{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
+.locked-chart-heading{display:flex;align-items:flex-start;justify-content:flex-start;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
+.locked-chart-controls{display:flex;flex-basis:100%;flex-direction:column;align-items:flex-start;gap:8px}
 .locked-chart-mode{display:inline-flex;align-items:center;gap:2px;min-height:36px;padding:3px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:8px}
 .locked-chart-mode button{min-height:28px;padding:0 10px;border-radius:6px;color:var(--fg-3);font-size:11px;font-weight:600;line-height:1;white-space:nowrap;transition:color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease)}
 .locked-chart-mode button[aria-pressed="true"]{color:var(--bg-0);background:var(--gold);box-shadow:0 0 0 1px var(--gold-line),0 2px 8px rgba(201,162,39,.16)}
@@ -761,7 +762,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 @media (max-width:560px){
   .holders-card .toolbar .tb-left{width:100%}
   .locked-chart-heading{align-items:flex-start;flex-direction:column}
-  .locked-chart-heading .card-title,.locked-chart-mode,.locked-chart-heading .card-meta{width:100%}
+  .locked-chart-heading .card-title,.locked-chart-controls{width:100%}
+  .locked-chart-controls .locked-chart-mode{width:100%}
   .locked-chart-mode button{flex:1}
   .locked-chart-svg{height:240px}
   .locked-chart-grid text,.locked-chart-x text{font-size:9px}
@@ -844,11 +846,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <h2 id="lockedChartTitle">Locked DOLO Over Time</h2>
         <span class="count-badge" id="lockedRangeBadge">All Time</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>
-      <div class="locked-chart-mode" id="lockedChartMode" role="group" aria-label="Chart metric">
-        <button type="button" data-locked-chart-mode="locked" aria-pressed="true">Locked DOLO</button>
-        <!-- Task 5 loading contract: fetchJson("data/vedolo-vote-power-history.json") -->
-        <span class="locked-chart-vote-help" tabindex="0" data-tip="Verified vote-power history is unavailable."><button type="button" data-locked-chart-mode="vote" aria-pressed="false" disabled>Vote Power</button></span>
+      <div class="locked-chart-controls">
+        <div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>
+        <div class="locked-chart-mode" id="lockedChartMode" role="group" aria-label="Chart metric">
+          <button type="button" data-locked-chart-mode="locked" aria-pressed="true">Locked DOLO</button>
+          <!-- Task 5 loading contract: fetchJson("data/vedolo-vote-power-history.json") -->
+          <span class="locked-chart-vote-help" tabindex="0" data-tip="Verified vote-power history is unavailable."><button type="button" data-locked-chart-mode="vote" aria-pressed="false" disabled>Vote Power</button></span>
+        </div>
       </div>
     </div>
     <div class="locked-chart-wrap" id="lockedChartWrap">
