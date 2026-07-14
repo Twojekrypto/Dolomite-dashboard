@@ -1187,7 +1187,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 const state = {
   stats:{}, holders:[], exits:[], locks:[], unlocks:[], transfers:[], expiry:null, price:null,
   lockEventsByToken:new Map(), transferEventsByToken:new Map(), exerciseEventsByToken:new Map(),
-  lockedHistory:[], lockedBrush:{from:0,to:0}, lockedBrushReady:false,
+  lockedHistory:[], votePowerHistory:[], lockedChartMode:"locked", lockedBrush:{from:0,to:0}, lockedBrushReady:false, lockedBrushListenersBound:false,
   holder:{q:"",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
   claimable:{q:"",sort:"dolo",asc:false,page:1,perPage:12},
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
@@ -1221,6 +1221,12 @@ function syncLockedChartVoteAvailability(){
     help.removeAttribute("data-tip");
     help.removeAttribute("tabindex");
   }
+}
+function setVotePowerAvailability(available){
+  const button = qs('#lockedChartMode button[data-locked-chart-mode="vote"]');
+  if(!button) return;
+  button.disabled = !available;
+  syncLockedChartVoteAvailability();
 }
 function initLockedChartVoteAvailability(){
   const button = qs('#lockedChartMode button[data-locked-chart-mode="vote"]');
@@ -1367,6 +1373,65 @@ function lockedChartWindowLabel(from, to, totalSpan){
   if(days >= 60) return `${Math.round(days / 30)}M window`;
   return `${days}D window`;
 }
+function votePowerDecimalToWei(value){
+  if(typeof value !== "string" || !/^(0|[1-9]\d*)\.\d{18}$/.test(value)) throw new Error("Invalid Vote Power decimal");
+  const [whole, fraction] = value.split(".");
+  return BigInt(whole + fraction);
+}
+function parseVotePowerHistory(payload){
+  if(!payload || typeof payload !== "object") throw new Error("Missing Vote Power history");
+  if(payload.schemaVersion !== 1 || payload.metric !== "votePower" || payload.chain !== "berachain") throw new Error("Invalid Vote Power schema");
+  if(String(payload.contract || "").toLowerCase() !== "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4" || payload.source !== "global-point-history") throw new Error("Invalid Vote Power contract");
+  if(!Number.isSafeInteger(payload.targetBlock) || payload.targetBlock <= 0 || !Number.isSafeInteger(payload.targetTimestamp) || payload.targetTimestamp <= 0) throw new Error("Invalid Vote Power target");
+  if(!payload.coverage || !Number.isSafeInteger(payload.coverage.from) || !Number.isSafeInteger(payload.coverage.through) || payload.coverage.from <= 0 || payload.coverage.from > payload.coverage.through || payload.coverage.through !== payload.targetTimestamp) throw new Error("Invalid Vote Power coverage");
+  if(typeof payload.totalSupplyWei !== "string" || !/^(0|[1-9]\d*)$/.test(payload.totalSupplyWei) || payload.lastPointWei !== payload.totalSupplyWei) throw new Error("Invalid Vote Power total");
+  const totalSupplyWei = BigInt(payload.totalSupplyWei);
+  if(!Array.isArray(payload.points) || payload.points.length < 2) throw new Error("Insufficient Vote Power history");
+  let previousTimestamp = 0;
+  const points = payload.points.map(point => {
+    if(!Array.isArray(point) || point.length !== 2) throw new Error("Invalid Vote Power point");
+    const [timestamp, decimal] = point;
+    if(!Number.isSafeInteger(timestamp) || timestamp <= previousTimestamp) throw new Error("Invalid Vote Power point");
+    const valueWei = votePowerDecimalToWei(decimal);
+    if(valueWei < 0n) throw new Error("Negative Vote Power point");
+    const value = Number(decimal);
+    if(!Number.isFinite(value) || value < 0) throw new Error("Non-finite Vote Power point");
+    previousTimestamp = timestamp;
+    return [timestamp, value];
+  });
+  if(points[0][0] !== payload.coverage.from || points.at(-1)[0] !== payload.targetTimestamp || votePowerDecimalToWei(payload.points.at(-1)[1]) !== totalSupplyWei) throw new Error("Vote Power coverage mismatch");
+  return points;
+}
+function activeLockedChartSeries(){
+  if(state.lockedChartMode === "vote" && state.votePowerHistory.length >= 2){
+    return {mode:"vote", title:"Vote Power Over Time", unit:"Vote Power", points:state.votePowerHistory};
+  }
+  return {mode:"locked", title:"Locked DOLO Over Time", unit:"DOLO", points:state.lockedHistory};
+}
+function clampLockedBrushToActiveSeries(){
+  const {points} = activeLockedChartSeries();
+  if(points.length < 2) return;
+  const minX = points[0][0];
+  const maxX = points.at(-1)[0];
+  state.lockedBrush.from = Math.min(maxX, Math.max(minX, state.lockedBrush.from));
+  state.lockedBrush.to = Math.min(maxX, Math.max(minX, state.lockedBrush.to));
+  if(state.lockedBrush.from > state.lockedBrush.to) state.lockedBrush = {from:minX,to:maxX};
+}
+function setLockedChartMode(mode){
+  if(mode === "vote" && state.votePowerHistory.length < 2) return;
+  state.lockedChartMode = mode === "vote" ? "vote" : "locked";
+  qs("#lockedChartTitle").textContent = activeLockedChartSeries().title;
+  qsa("[data-locked-chart-mode]").forEach(button => {
+    const active = button.dataset.lockedChartMode === state.lockedChartMode;
+    button.setAttribute("aria-pressed", String(active));
+    button.classList.toggle("active", active);
+  });
+  clampLockedBrushToActiveSeries();
+  renderLockedChart();
+}
+function lockedChartValueLabel(value){
+  return activeLockedChartSeries().unit === "DOLO" ? fmtDolo(value) : fmtCompact(value) + " Vote Power";
+}
 function buildLockedHistory(){
   const locks = state.locks || [];
   const unlocks = state.unlocks || [];
@@ -1424,7 +1489,7 @@ function buildLockedHistory(){
   state.lockedBrushReady = false;
 }
 function renderLockedChart(){
-  const all = state.lockedHistory || [];
+  const {points:all} = activeLockedChartSeries();
   const badge = qs("#lockedRangeBadge");
   if(all.length < 2){
     if(badge) badge.textContent = "No Data";
@@ -1435,6 +1500,7 @@ function renderLockedChart(){
     return;
   }
   if(!state.lockedBrushReady) initLockedBrush();
+  else renderLockedBrush();
   const brush = state.lockedBrush;
   let series = all.filter(p => p[0] >= brush.from && p[0] <= brush.to);
   if(series.length < 2){
@@ -1472,7 +1538,7 @@ function renderLockedChartFor(series){
       const v = maxY * i / 5;
       const y = yAt(v);
       grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y}" y2="${y}"/>`;
-      grid.innerHTML += `<text x="${P_L-10}" y="${y+3}" text-anchor="end">${fmtCompact(v)}</text>`;
+      grid.innerHTML += `<text x="${P_L-10}" y="${y+3}" text-anchor="end">${lockedChartValueLabel(v)}</text>`;
     }
   }
 
@@ -1526,7 +1592,7 @@ function attachLockedHover(series, xAt, yAt){
     const screenX = rect.left - wrapRect.left + (x / W) * rect.width;
     const screenY = rect.top - wrapRect.top + (y / H) * rect.height;
     tip.querySelector(".tt-date").textContent = lockedChartDate(nearest[0]);
-    tip.querySelector(".tt-val").textContent = fmtDolo(nearest[1]);
+    tip.querySelector(".tt-val").textContent = lockedChartValueLabel(nearest[1]);
     tip.style.opacity = 1;
     tip.style.left = "0px";
     tip.style.top = "0px";
@@ -1539,47 +1605,64 @@ function attachLockedHover(series, xAt, yAt){
   svg.onmouseleave = leave;
 }
 function initLockedBrush(){
-  const all = state.lockedHistory || [];
+  const {points:all} = activeLockedChartSeries();
+  if(all.length < 2) return;
+  const minX = all[0][0];
+  const maxX = all[all.length - 1][0];
+  if(!state.lockedBrushReady){
+    state.lockedBrush = {from:minX, to:maxX};
+    state.lockedBrushReady = true;
+  }else{
+    clampLockedBrushToActiveSeries();
+  }
+  renderLockedBrush();
+  bindLockedBrushInteractions();
+}
+function renderLockedBrush(){
+  const {points:all} = activeLockedChartSeries();
   if(all.length < 2) return;
   const {BW,BH} = LOCKED_CHART;
   const minX = all[0][0];
-  const maxX = all[all.length - 1][0];
+  const maxX = all.at(-1)[0];
   const xRange = maxX - minX || 1;
   const maxY = Math.max(1, ...all.map(p => p[1])) * 1.05;
-  state.lockedBrush = {from:minX, to:maxX};
-  state.lockedBrushReady = true;
-
   const xAt = t => (t - minX) / xRange * BW;
   const yAt = v => BH - (v / maxY) * BH;
   let line = "";
-  all.forEach((p,i) => {
-    line += `${i === 0 ? "M" : "L"}${xAt(p[0]).toFixed(1)} ${yAt(p[1]).toFixed(1)} `;
-  });
-  const area = `M${xAt(all[0][0]).toFixed(1)} ${BH} ${line.replace(/^M/,"L")} L${xAt(all[all.length - 1][0]).toFixed(1)} ${BH} Z`;
+  all.forEach((p,i) => { line += `${i === 0 ? "M" : "L"}${xAt(p[0]).toFixed(1)} ${yAt(p[1]).toFixed(1)} `; });
+  const area = `M${xAt(all[0][0]).toFixed(1)} ${BH} ${line.replace(/^M/,"L")} L${xAt(all.at(-1)[0]).toFixed(1)} ${BH} Z`;
   qs("#lockedBrushLine")?.setAttribute("d", line.trim());
   qs("#lockedBrushArea")?.setAttribute("d", area);
-
   const overlay = qs("#lockedBrushOverlay");
   const win = qs("#lockedBrushWindow");
   const dimL = qs("#lockedBrushDimL");
   const dimR = qs("#lockedBrushDimR");
+  const label = qs("#lockedBrushLabel");
+  if(!overlay || !win || !dimL || !dimR || !label) return;
+  const totalSpan = maxX - minX || 1;
+  const lPct = (state.lockedBrush.from - minX) / totalSpan * 100;
+  const rPct = (state.lockedBrush.to - minX) / totalSpan * 100;
+  win.style.left = lPct + "%";
+  win.style.width = (rPct - lPct) + "%";
+  dimL.style.width = lPct + "%";
+  dimR.style.width = (100 - rPct) + "%";
+  label.innerHTML = `<span class="v">${lockedChartDate(state.lockedBrush.from)}</span><span class="sep">&rarr;</span><span class="v">${lockedChartDate(state.lockedBrush.to)}</span>`;
+}
+function bindLockedBrushInteractions(){
+  if(state.lockedBrushListenersBound) return;
+
+  const overlay = qs("#lockedBrushOverlay");
+  const win = qs("#lockedBrushWindow");
   const handleL = qs("#lockedBrushHandleL");
   const handleR = qs("#lockedBrushHandleR");
-  const label = qs("#lockedBrushLabel");
   const brushSvg = qs("#lockedBrushSvg");
-  if(!overlay || !win || !dimL || !dimR || !handleL || !handleR || !label || !brushSvg) return;
-
-  function paintWindow(){
-    const totalSpan = maxX - minX || 1;
-    const lPct = (state.lockedBrush.from - minX) / totalSpan * 100;
-    const rPct = (state.lockedBrush.to - minX) / totalSpan * 100;
-    win.style.left = lPct + "%";
-    win.style.width = (rPct - lPct) + "%";
-    dimL.style.width = lPct + "%";
-    dimR.style.width = (100 - rPct) + "%";
-    label.innerHTML = `<span class="v">${lockedChartDate(state.lockedBrush.from)}</span><span class="sep">&rarr;</span><span class="v">${lockedChartDate(state.lockedBrush.to)}</span>`;
-  }
+  if(!overlay || !win || !handleL || !handleR || !brushSvg) return;
+  const bounds = () => {
+    const points = activeLockedChartSeries().points;
+    return {minX:points[0][0], maxX:points.at(-1)[0]};
+  };
   function pxToTime(px){
+    const {minX,maxX} = bounds();
     const w = overlay.clientWidth || 1;
     return Math.round(Math.max(0, Math.min(1, px / w)) * (maxX - minX) + minX);
   }
@@ -1594,6 +1677,7 @@ function initLockedBrush(){
   };
   function onMove(e){
     if(!drag) return;
+    const {minX,maxX} = bounds();
     const w = overlay.clientWidth || 1;
     const totalSpan = maxX - minX || 1;
     const dt = (e.clientX - drag.startX) / w * totalSpan;
@@ -1611,7 +1695,7 @@ function initLockedBrush(){
     }else if(drag.kind === "r"){
       state.lockedBrush.to = Math.max(drag.startFrom + minWindow, Math.min(maxX, drag.startTo + dt));
     }
-    paintWindow();
+    renderLockedBrush();
     renderLockedChart();
   }
   function onUp(){
@@ -1635,10 +1719,10 @@ function initLockedBrush(){
     if(to > maxX){ to = maxX; from = to - span; }
     state.lockedBrush.from = from;
     state.lockedBrush.to = to;
-    paintWindow();
+    renderLockedBrush();
     renderLockedChart();
   });
-  paintWindow();
+  state.lockedBrushListenersBound = true;
 }
 function exitDateCell(date, txHash, timestamp){
   const label = eventDateLabel(date, timestamp);
@@ -3029,6 +3113,11 @@ function bindUi(){
     state.durationMode = btn.dataset.mode;
     renderDuration();
   });
+  qs("#lockedChartMode").addEventListener("click", e => {
+    const button = e.target.closest("button[data-locked-chart-mode]");
+    if(!button || button.disabled) return;
+    setLockedChartMode(button.dataset.lockedChartMode);
+  });
   qsa("th.sortable").forEach(th => th.addEventListener("click", () => {
     const table = th.closest("table").id;
     const key = th.dataset.sort;
@@ -3104,6 +3193,7 @@ async function boot(){
     const flowsPromise = fetchJson("vedolo_flows.json").catch(() => null);
     const expiryPromise = fetchJson("vedolo_expiry.json").catch(() => null);
     const exercisesPromise = fetchJson("exercisers_by_address.json").catch(() => null);
+    const votePowerPromise = fetchJson("data/vedolo-vote-power-history.json").catch(() => null);
 
     const [stats, price] = await Promise.all([statsPromise, pricePromise]);
     state.stats = stats?.stats || {};
@@ -3111,7 +3201,7 @@ async function boot(){
     state.price = price;
     renderHero();
 
-    const [holders, early, flows, expiry, exercises] = await Promise.all([holdersPromise, earlyPromise, flowsPromise, expiryPromise, exercisesPromise]);
+    const [holders, early, flows, expiry, exercises, votePower] = await Promise.all([holdersPromise, earlyPromise, flowsPromise, expiryPromise, exercisesPromise, votePowerPromise]);
     if(!stats?.stats) state.stats = holders?.stats || {};
     state.holders = holders?.holders || [];
     state.holdersTimestamp = holders?.timestamp;
@@ -3123,6 +3213,13 @@ async function boot(){
     buildPositionRouteIndexes();
     buildExerciseRouteIndexes(exercises?.exercisers || []);
     state.expiry = expiry;
+    try{
+      state.votePowerHistory = parseVotePowerHistory(votePower);
+    }catch(err){
+      state.votePowerHistory = [];
+      console.warn("Vote Power history unavailable", err);
+    }
+    setVotePowerAvailability(state.votePowerHistory.length >= 2);
     buildLockedHistory();
     initLockedBrush();
     renderStatic();
