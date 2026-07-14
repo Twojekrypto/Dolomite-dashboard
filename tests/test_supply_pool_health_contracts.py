@@ -7,6 +7,7 @@ SCRIPT = ROOT / "supply" / "supply-draft.js"
 STYLES = ROOT / "supply" / "supply-draft.css"
 ROUTE = ROOT / "supply" / "index.html"
 SUPPLY_VIEW = ROOT / "liquidation-preview.html"
+FOOTER_STYLES = ROOT / "protocol-footer.css"
 
 
 class SupplyPoolHealthContractsTest(unittest.TestCase):
@@ -53,6 +54,12 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         self.assertNotIn("supply-health-chain", source)
         self.assertIn(".supply-health-updated::before", styles)
         self.assertIn("background: var(--supply-gold)", styles)
+
+    def test_pool_health_header_is_separator_free(self):
+        footer_styles = FOOTER_STYLES.read_text(encoding="utf-8")
+
+        self.assertIn("body.supply-draft-route .supply-health-header", footer_styles)
+        self.assertIn("border-bottom: 0 !important;", footer_styles)
 
     def test_pool_health_expanded_details_have_an_explicit_gold_left_rail(self):
         styles = STYLES.read_text(encoding="utf-8")
