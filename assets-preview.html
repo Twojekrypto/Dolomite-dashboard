@@ -578,6 +578,7 @@ body::before{
   vertical-align:middle;
   color:var(--fg-1);
   font-variant-numeric:tabular-nums;
+  position:relative;
 }
 .assets-table-wrap #tbl tbody td{overflow:hidden}
 .assets-table-wrap #tbl tbody td>*{max-width:100%}
@@ -588,6 +589,7 @@ body::before{
 .tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
 .tbl tbody td.details-cell{width:112px;text-align:center}
 .tbl tbody tr:hover td{background:var(--bg-3)}
+.tbl tbody tr.data:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
 .tbl tbody tr.expanded td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
 .tbl tbody tr.loading-row{cursor:default}
 .tbl tbody tr.loading-row:hover td{background:transparent}
