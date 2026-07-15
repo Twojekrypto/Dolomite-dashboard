@@ -31,6 +31,13 @@ STATE_PATH = Path("vedolo_vote_power_history_state.json")
 STATS_PATH = Path("vedolo_stats.json")
 HOLDERS_PATH = Path("vedolo_holders.json")
 CACHE_SCHEMA_VERSION = 1
+CONFIG_PATH = Path("config/vedolo_vote_power_history.json")
+DEFAULT_RPC_OPTIONS = {
+    "batchSize": 20,
+    "batchIntervalSeconds": 0.8,
+    "retriesPerEndpoint": 4,
+    "checkpointSize": 500,
+}
 ABI_WORD_ERROR = (
     "response must be exactly one ABI word: a string starting with 0x followed by "
     "64 hexadecimal characters"
@@ -51,6 +58,27 @@ def _decode_uint(result: str, description: str) -> int:
         return int(payload, 16)
     except ValueError as exc:
         raise RuntimeError(f"Pinned veDOLO {description} response was not hexadecimal") from exc
+
+
+def _history_rpc_options(config_path: Path = CONFIG_PATH) -> dict:
+    """Load bounded RPC pacing options for the long canonical history read."""
+    options = dict(DEFAULT_RPC_OPTIONS)
+    try:
+        with Path(config_path).open(encoding="utf-8") as file:
+            configured = json.load(file).get("rpc", {})
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return options
+    if not isinstance(configured, dict):
+        return options
+
+    for key in ("batchSize", "retriesPerEndpoint", "checkpointSize"):
+        value = configured.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            options[key] = value
+    delay = configured.get("batchIntervalSeconds")
+    if isinstance(delay, (int, float)) and not isinstance(delay, bool) and delay >= 0:
+        options["batchIntervalSeconds"] = float(delay)
+    return options
 
 
 def _require_abi_word(result: object) -> str:
@@ -115,10 +143,20 @@ def fetch_canonical_snapshot() -> CanonicalSnapshot:
     )
 
 
-def _read_cached_points(state_path: Path) -> Optional[Tuple[int, List[GlobalPoint]]]:
+def _read_cache_payload(state_path: Path) -> Optional[dict]:
     try:
         with state_path.open() as file:
             state = json.load(file)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return state if isinstance(state, dict) else None
+
+
+def _read_cached_points(state_path: Path) -> Optional[Tuple[int, List[GlobalPoint]]]:
+    state = _read_cache_payload(state_path)
+    if not state:
+        return None
+    try:
         epoch = state["epoch"]
         encoded_points = state["points"]
         if (
@@ -133,8 +171,26 @@ def _read_cached_points(state_path: Path) -> Optional[Tuple[int, List[GlobalPoin
         points = [decode_global_point(point) for point in encoded_points]
         _validate_global_points(points, epoch)
         return epoch, points
-    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+    except (KeyError, TypeError, ValueError):
         return None
+
+
+def _read_cached_slope_changes(state_path: Path) -> dict[int, int]:
+    state = _read_cache_payload(state_path)
+    raw_changes = state.get("slopeChanges", {}) if state else {}
+    if not isinstance(raw_changes, dict):
+        return {}
+
+    changes = {}
+    for raw_timestamp, raw_change in raw_changes.items():
+        try:
+            timestamp = int(raw_timestamp)
+            change = int(raw_change)
+        except (TypeError, ValueError):
+            continue
+        if timestamp >= 0:
+            changes[timestamp] = change
+    return changes
 
 
 def _validate_global_points(points: List[GlobalPoint], epoch: int) -> None:
@@ -166,6 +222,40 @@ def _atomic_write_json(path: Path, value: dict) -> None:
     finally:
         if temp_name and os.path.exists(temp_name):
             os.unlink(temp_name)
+
+
+def _write_cached_state(
+    state_path: Path,
+    epoch: int,
+    points: List[GlobalPoint],
+    slope_changes: dict[int, int],
+) -> None:
+    _atomic_write_json(
+        state_path,
+        {
+            "schemaVersion": CACHE_SCHEMA_VERSION,
+            "epoch": epoch,
+            "points": [
+                "0x"
+                + "".join(
+                    f"{value & ((1 << 256) - 1):064x}"
+                    for value in (point.bias, point.slope, point.timestamp, point.block)
+                )
+                for point in points
+            ],
+            "slopeChanges": {
+                str(timestamp): str(change)
+                for timestamp, change in sorted(slope_changes.items())
+            },
+        },
+    )
+
+
+def _persist_cached_slope_changes(state_path: Path, slope_changes: dict[int, int]) -> None:
+    cached_points = _read_cached_points(state_path)
+    if cached_points:
+        epoch, points = cached_points
+        _write_cached_state(state_path, epoch, points, slope_changes)
 
 
 def apply_canonical_vote_weight(stats: dict, snapshot: CanonicalSnapshot) -> dict:
@@ -213,9 +303,13 @@ def _fetch_global_point_results(indices: Iterable[int], block_tag: str) -> list[
         }
         for index in indices
     ]
+    options = _history_rpc_options()
     responses, missing_ids = rpc_batch_requests(
         get_endpoints("berachain"),
         payloads,
+        batch_size=options["batchSize"],
+        min_batch_interval_seconds=options["batchIntervalSeconds"],
+        retries_per_endpoint=options["retriesPerEndpoint"],
         describe="veDOLO global point history",
     )
     if missing_ids:
@@ -242,46 +336,35 @@ def fetch_global_points(
         points = []
         start_index = 0
 
+    cached_slope_changes = _read_cached_slope_changes(state_path)
+    options = _history_rpc_options()
     block_tag = hex(snapshot.block_number)
-    encoded_points = _fetch_global_point_results(
-        range(start_index, snapshot.epoch + 1), block_tag
-    )
-    points.extend(decode_global_point(result) for result in encoded_points)
+    for chunk_start in range(start_index, snapshot.epoch + 1, options["checkpointSize"]):
+        chunk_end = min(snapshot.epoch, chunk_start + options["checkpointSize"] - 1)
+        encoded_points = _fetch_global_point_results(
+            range(chunk_start, chunk_end + 1), block_tag
+        )
+        points.extend(decode_global_point(result) for result in encoded_points)
+        try:
+            _validate_global_points(points, chunk_end)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"Pinned veDOLO point history was not canonical: {exc}"
+            ) from exc
+        # Persist each canonical prefix: a rate-limited bootstrap resumes from the
+        # last verified epoch and never exposes this working state publicly.
+        _write_cached_state(state_path, chunk_end, points, cached_slope_changes)
     try:
         _validate_global_points(points, snapshot.epoch)
     except ValueError as exc:
         raise RuntimeError(f"Pinned veDOLO point history was not canonical: {exc}") from exc
-
-    _atomic_write_json(
-        state_path,
-        {
-            "schemaVersion": CACHE_SCHEMA_VERSION,
-            "epoch": snapshot.epoch,
-            "points": [
-                "0x"
-                + "".join(
-                    f"{value & ((1 << 256) - 1):064x}"
-                    for value in (point.bias, point.slope, point.timestamp, point.block)
-                )
-                for point in points
-            ],
-        },
-    )
     return points
 
 
-def fetch_slope_changes(
-    points: list[GlobalPoint], snapshot: CanonicalSnapshot
-) -> dict[int, int]:
-    if not points:
-        raise ValueError("global point history cannot be empty")
-    first_timestamp = min(point.timestamp for point in points)
-    first_week = ((first_timestamp // WEEK_SECONDS) + 1) * WEEK_SECONDS
-    timestamps = list(range(first_week, snapshot.timestamp + 1, WEEK_SECONDS))
+def _fetch_slope_change_results(timestamps: Iterable[int], block_tag: str) -> dict[int, str]:
+    timestamps = list(timestamps)
     if not timestamps:
         return {}
-
-    block_tag = hex(snapshot.block_number)
     payloads = [
         {
             "jsonrpc": "2.0",
@@ -297,22 +380,51 @@ def fetch_slope_changes(
         }
         for timestamp in timestamps
     ]
+    options = _history_rpc_options()
     responses, missing_ids = rpc_batch_requests(
         get_endpoints("berachain"),
         payloads,
+        batch_size=options["batchSize"],
+        min_batch_interval_seconds=options["batchIntervalSeconds"],
+        retries_per_endpoint=options["retriesPerEndpoint"],
         describe="veDOLO slope changes",
     )
     if missing_ids:
         raise RuntimeError("Pinned veDOLO slope-change batch was incomplete")
 
-    slope_changes = {}
+    results = {}
     for timestamp in timestamps:
         response = responses.get(f"slope:{timestamp}")
         result = response.get("result") if isinstance(response, dict) else None
         if not result or response.get("error"):
             raise RuntimeError("Pinned veDOLO slope-change read failed")
-        slope_changes[timestamp] = decode_signed_word(result)
-    return slope_changes
+        results[timestamp] = result
+    return results
+
+
+def fetch_slope_changes(
+    points: list[GlobalPoint], snapshot: CanonicalSnapshot, state_path: Optional[Path] = None
+) -> dict[int, int]:
+    if not points:
+        raise ValueError("global point history cannot be empty")
+    first_timestamp = min(point.timestamp for point in points)
+    first_week = ((first_timestamp // WEEK_SECONDS) + 1) * WEEK_SECONDS
+    timestamps = list(range(first_week, snapshot.timestamp + 1, WEEK_SECONDS))
+    if not timestamps:
+        return {}
+
+    state_path = Path(state_path or STATE_PATH)
+    slope_changes = _read_cached_slope_changes(state_path)
+    missing_timestamps = [timestamp for timestamp in timestamps if timestamp not in slope_changes]
+    options = _history_rpc_options()
+    block_tag = hex(snapshot.block_number)
+    for chunk_start in range(0, len(missing_timestamps), options["checkpointSize"]):
+        chunk = missing_timestamps[chunk_start:chunk_start + options["checkpointSize"]]
+        encoded_changes = _fetch_slope_change_results(chunk, block_tag)
+        for timestamp in chunk:
+            slope_changes[timestamp] = decode_signed_word(encoded_changes[timestamp])
+        _persist_cached_slope_changes(state_path, slope_changes)
+    return {timestamp: slope_changes[timestamp] for timestamp in timestamps}
 
 
 def write_vote_power_history(
@@ -325,7 +437,7 @@ def write_vote_power_history(
 ) -> dict:
     snapshot = fetch_canonical_snapshot()
     points = fetch_global_points(snapshot, state_path)
-    slope_changes = fetch_slope_changes(points, snapshot)
+    slope_changes = fetch_slope_changes(points, snapshot, state_path)
     payload = build_vote_power_payload(snapshot, points, slope_changes)
     _atomic_write_json(Path(output_path), payload)
     if sync_stats:

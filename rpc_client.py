@@ -122,6 +122,39 @@ def _endpoint_attempts(endpoints, retries_per_endpoint):
             yield endpoints[offset], round_no * n + offset
 
 
+def _retry_after_seconds(response, attempt, *, rate_limited=False):
+    """Return a bounded cooldown for rate-limited responses, if applicable."""
+    headers = getattr(response, "headers", {}) or {}
+    retry_after = headers.get("Retry-After") if hasattr(headers, "get") else None
+    try:
+        seconds = float(retry_after)
+    except (TypeError, ValueError):
+        status_code = getattr(response, "status_code", None)
+        if status_code != 429 and not rate_limited:
+            return None
+        seconds = BACKOFF_BASE_SECONDS * (2 ** min(attempt, 4))
+    if seconds < 0:
+        return None
+    return min(seconds, 60.0)
+
+
+def _is_rate_limited_error(entry):
+    if not isinstance(entry, dict):
+        return False
+    error = entry.get("error")
+    if not isinstance(error, dict):
+        return False
+    if error.get("code") == 429:
+        return True
+    message = str(error.get("message", "")).lower()
+    return (
+        "rate limit" in message
+        or "too many" in message
+        or "throttl" in message
+        or "capacity" in message
+    )
+
+
 def rpc_single_request(endpoints, payload, timeout=DEFAULT_TIMEOUT,
                        retries_per_endpoint=DEFAULT_RETRIES_PER_ENDPOINT,
                        quiet=False, describe="request"):
@@ -161,7 +194,8 @@ def rpc_single_request(endpoints, payload, timeout=DEFAULT_TIMEOUT,
 
 def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
                        retries_per_endpoint=DEFAULT_RETRIES_PER_ENDPOINT,
-                       batch_size=50, quiet=False, describe="batch"):
+                       batch_size=50, min_batch_interval_seconds=0,
+                       quiet=False, describe="batch"):
     """Run JSON-RPC batch payloads with endpoint fallback.
 
     Returns (responses_by_id, missing_ids). Error entries are returned to the
@@ -177,10 +211,24 @@ def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
     if not payloads:
         return responses_by_id, missing_ids
 
+    try:
+        min_batch_interval_seconds = max(0.0, float(min_batch_interval_seconds))
+    except (TypeError, ValueError):
+        raise ValueError("min_batch_interval_seconds must be a nonnegative number")
+
+    previous_batch_finished_at = None
+
     for start in range(0, len(payloads), max(1, int(batch_size or 1))):
+        if previous_batch_finished_at is not None and min_batch_interval_seconds:
+            remaining = min_batch_interval_seconds - (
+                time.monotonic() - previous_batch_finished_at
+            )
+            if remaining > 0:
+                time.sleep(remaining)
         chunk = payloads[start:start + max(1, int(batch_size or 1))]
         chunk_ids = [payload.get("id") for payload in chunk]
         chunk_responses = {}
+        fallback_responses = {}
         last_error = None
         n = len(endpoints)
 
@@ -193,15 +241,33 @@ def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
                     data = [data]
                 if not isinstance(data, list):
                     raise ValueError("JSON-RPC batch response was not a list")
-                by_id = {
+                matching_entries = {
                     item.get("id"): item
                     for item in data
                     if isinstance(item, dict) and item.get("id") in chunk_ids
                 }
-                if by_id:
-                    chunk_responses = by_id
-                    rpc_usage.record_methods(rpc_usage.methods_from_payload(chunk))
+                by_id = {
+                    item_id: item
+                    for item_id, item in matching_entries.items()
+                    if not item.get("error")
+                }
+                fallback_responses.update(by_id)
+                error_entries = [
+                    item for item in matching_entries.values() if item.get("error")
+                ]
+                if by_id and not error_entries:
+                    chunk_responses = {**fallback_responses, **by_id}
                     break
+                if error_entries:
+                    last_error = RpcError("JSON-RPC batch contained error entries")
+                    if any(_is_rate_limited_error(item) for item in error_entries):
+                        delay = _retry_after_seconds(resp, attempt, rate_limited=True)
+                        if delay is not None:
+                            time.sleep(delay)
+                    elif (attempt + 1) % n == 0:
+                        delay = BACKOFF_BASE_SECONDS * (2 ** ((attempt + 1) // n - 1))
+                        time.sleep(delay + random.uniform(0, 0.4))
+                    continue
                 raise ValueError("JSON-RPC batch response contained no matching ids")
             except Exception as exc:
                 last_error = exc
@@ -211,12 +277,20 @@ def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
                         f"(attempt {attempt + 1}): {type(exc).__name__}: {sanitize_error(exc)}",
                         flush=True,
                     )
-                if (attempt + 1) % n == 0:
+                delay = _retry_after_seconds(getattr(exc, "response", None), attempt)
+                if delay is not None:
+                    time.sleep(delay)
+                elif (attempt + 1) % n == 0:
                     delay = BACKOFF_BASE_SECONDS * (2 ** ((attempt + 1) // n - 1))
                     time.sleep(delay + random.uniform(0, 0.4))
 
+        if not chunk_responses:
+            chunk_responses = fallback_responses
         responses_by_id.update(chunk_responses)
         missing_ids.extend([item_id for item_id in chunk_ids if item_id not in chunk_responses])
+        previous_batch_finished_at = time.monotonic()
+        if chunk_responses:
+            rpc_usage.record_methods(rpc_usage.methods_from_payload(chunk))
         if not chunk_responses and last_error and not quiet:
             print(
                 f"⚠️ RPC {describe} batch chunk {start // max(1, int(batch_size or 1)) + 1} "

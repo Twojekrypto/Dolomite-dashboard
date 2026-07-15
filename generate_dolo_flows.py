@@ -210,6 +210,9 @@ WALLET_HISTORY_JSON = os.path.join(DATA_DIR, "dolo_holder_wallet_history.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_flows_state.json")
 RPC_BATCH_SIZE = int(os.environ.get("DOLO_FLOWS_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT", "2"))
+RPC_LOG_RETRIES_PER_ENDPOINT = int(
+    os.environ.get("DOLO_FLOWS_LOG_RETRIES_PER_ENDPOINT", str(RPC_RETRIES_PER_ENDPOINT))
+)
 
 MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
 # Cache ALL transfers from genesis — state file lives only in Actions cache (10 GB limit),
@@ -304,6 +307,22 @@ def replace_transfer_range(transfers, replacement, start_block, end_block):
     return authoritative
 
 
+def _rate_limit_retry_seconds(response, attempt):
+    """Honor an RPC Retry-After hint, with a bounded exponential fallback."""
+    headers = getattr(response, "headers", {}) or {}
+    retry_after = headers.get("Retry-After") if hasattr(headers, "get") else None
+    try:
+        seconds = float(retry_after)
+    except (TypeError, ValueError):
+        seconds = min(15.0, 1.0 * (2 ** min(attempt, 4)))
+    return max(1.0, min(seconds, 60.0))
+
+
+def _is_rate_limit_error(message):
+    normalized = str(message or "").lower()
+    return "too many" in normalized or "rate limit" in normalized or "rate-limit" in normalized
+
+
 def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_transfers_so_far=None):
     """Fetch ERC-20 Transfer event logs via eth_getLogs.
     Saves state progressively during long scans so timeout kills preserve progress."""
@@ -332,7 +351,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
         chunk_end = min(current + chunk_size - 1, end_block)
 
         success = False
-        for attempt in range(len(rpcs) * 2):
+        for attempt in range(len(rpcs) * max(2, RPC_LOG_RETRIES_PER_ENDPOINT)):
             rpc = rpcs[attempt % len(rpcs)]
             try:
                 resp = requests.post(rpc, json={
@@ -345,14 +364,34 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                     }], "id": 1
                 }, timeout=60, headers={"Content-Type": "application/json"})
 
+                if resp.status_code == 429:
+                    delay = _rate_limit_retry_seconds(resp, attempt)
+                    print(
+                        f"    ⚠️ {cfg['name']}: RPC rate-limited block "
+                        f"{current:,}-{chunk_end:,}; waiting {delay:.1f}s before retry"
+                    )
+                    time.sleep(delay)
+                    continue
+
+                resp.raise_for_status()
                 r = resp.json()
+                if not isinstance(r, dict):
+                    raise ValueError("RPC response was not a JSON object")
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
+                    if _is_rate_limit_error(err_msg):
+                        delay = _rate_limit_retry_seconds(resp, attempt)
+                        print(
+                            f"    ⚠️ {cfg['name']}: RPC rate-limited block "
+                            f"{current:,}-{chunk_end:,}; waiting {delay:.1f}s before retry"
+                        )
+                        time.sleep(delay)
+                        continue
                     if "range" in err_msg.lower() or "limit" in err_msg.lower():
                         chunk_size = max(chunk_size // 2, 1000)
                         chunk_end = min(current + chunk_size - 1, end_block)
                         continue
-                    time.sleep(0.5)
+                    time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
                     continue
 
                 logs = r.get("result", [])
@@ -371,8 +410,18 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                 chunk_size = max(chunk_size // 2, 1000)
                 chunk_end = min(current + chunk_size - 1, end_block)
                 time.sleep(1)
-            except Exception:
-                time.sleep(0.5)
+            except requests.exceptions.RequestException as exc:
+                print(
+                    f"    ⚠️ {cfg['name']}: RPC request failed for block "
+                    f"{current:,}-{chunk_end:,} ({type(exc).__name__}); retrying"
+                )
+                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+            except ValueError as exc:
+                print(
+                    f"    ⚠️ {cfg['name']}: RPC response was invalid for block "
+                    f"{current:,}-{chunk_end:,} ({type(exc).__name__}); retrying"
+                )
+                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
 
         if not success:
             if chunk_size > 1000:

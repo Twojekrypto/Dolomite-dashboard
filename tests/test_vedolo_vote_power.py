@@ -415,8 +415,37 @@ class VeDoloVotePowerTests(unittest.TestCase):
             ) as fetch:
                 points = fetch_global_points(snapshot, state_path)
 
-        self.assertEqual(list(fetch.call_args.args[0]), [])
+        fetch.assert_not_called()
         self.assertEqual(points[-1], GlobalPoint(20, 2, 10, 1))
+
+    def test_global_point_checkpoint_survives_a_later_rpc_failure(self):
+        from generate_vedolo_vote_power_history import fetch_global_points
+
+        snapshot = CanonicalSnapshot(123, 30, 0, 0, 2)
+        first_point = encode_global_point(10, 1, 10, 1)
+        options = {
+            "batchSize": 20,
+            "batchIntervalSeconds": 0.8,
+            "retriesPerEndpoint": 4,
+            "checkpointSize": 1,
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            state_path = Path(directory) / "state.json"
+            with patch(
+                "generate_vedolo_vote_power_history._history_rpc_options",
+                return_value=options,
+            ), patch(
+                "generate_vedolo_vote_power_history._fetch_global_point_results",
+                side_effect=[[first_point], RuntimeError("rate limited")],
+            ):
+                with self.assertRaisesRegex(RuntimeError, "rate limited"):
+                    fetch_global_points(snapshot, state_path)
+
+            saved = json.loads(state_path.read_text())
+
+        self.assertEqual(saved["epoch"], 0)
+        self.assertEqual(saved["points"], [first_point])
 
     def test_invalid_fresh_points_abort_before_cache_or_publication(self):
         from generate_vedolo_vote_power_history import write_vote_power_history
@@ -502,6 +531,35 @@ class VeDoloVotePowerTests(unittest.TestCase):
         ), patch("generate_vedolo_vote_power_history.get_endpoints", return_value=[]):
             with self.assertRaisesRegex(ValueError, "exactly one ABI word"):
                 fetch_slope_changes([GlobalPoint(0, 0, 0, 1)], snapshot)
+
+    def test_reuses_cached_mature_slope_changes_without_rpc(self):
+        from generate_vedolo_vote_power_history import fetch_slope_changes
+
+        snapshot = CanonicalSnapshot(123, 20, 0, 0, 0)
+        with tempfile.TemporaryDirectory() as directory:
+            state_path = Path(directory) / "state.json"
+            state_path.write_text(json.dumps({
+                "schemaVersion": 1,
+                "epoch": 0,
+                "points": [encode_global_point(0, 0, 0, 1)],
+                "slopeChanges": {"10": "-5", "20": "0"},
+            }))
+            with patch("generate_vedolo_vote_power_history.WEEK_SECONDS", 10), patch(
+                "generate_vedolo_vote_power_history.STATE_PATH", state_path
+            ), patch(
+                "generate_vedolo_vote_power_history.rpc_batch_requests",
+                return_value=(
+                    {
+                        "slope:10": {"result": "0x" + "f" * 64},
+                        "slope:20": {"result": "0x" + "0" * 64},
+                    },
+                    [],
+                ),
+            ) as fetch:
+                changes = fetch_slope_changes([GlobalPoint(0, 0, 0, 1)], snapshot)
+
+        fetch.assert_not_called()
+        self.assertEqual(changes, {10: -5, 20: 0})
 
 
 if __name__ == "__main__":

@@ -164,6 +164,21 @@ class TestRpcEndpoints(unittest.TestCase):
         self.assertLess(generator_position, validation_position)
         self.assertLess(validation_position, git_add_position)
 
+    def test_update_workflow_saves_vedolo_history_state_after_a_failed_generation(self):
+        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-data.yml").read_text()
+
+        restore_position = workflow.index("uses: actions/cache/restore@v5")
+        generator_position = workflow.index(
+            "run: python3 generate_vedolo_vote_power_history.py --sync-stats"
+        )
+        save_position = workflow.index("- name: Save veDOLO vote power history state")
+        save_block = workflow[save_position:save_position + 260]
+
+        self.assertLess(restore_position, generator_position)
+        self.assertLess(generator_position, save_position)
+        self.assertIn("if: always()", save_block)
+        self.assertIn("uses: actions/cache/save@v5", save_block)
+
 
 class TestCanonicalVoteWeight(unittest.TestCase):
     def test_canonical_snapshot_replaces_only_aggregate_vote_weight(self):

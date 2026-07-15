@@ -38,7 +38,7 @@ jobs:
             locked-cache-v6-
 
       - name: Restore veDOLO vote power history state
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: vedolo_vote_power_history_state.json
           key: vedolo-vote-power-history-v1-${{ github.run_id }}
@@ -70,6 +70,13 @@ jobs:
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+
+      - name: Save veDOLO vote power history state
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: vedolo_vote_power_history_state.json
+          key: vedolo-vote-power-history-v1-${{ github.run_id }}
 
       # TVL/DeFiLlama/Revenue are owned by update-tvl-data.yml (hourly)
 

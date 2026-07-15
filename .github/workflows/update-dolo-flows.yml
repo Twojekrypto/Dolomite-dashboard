@@ -103,6 +103,7 @@ jobs:
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
           DOLO_FLOWS_RPC_BATCH_SIZE: '50'
           DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT: '2'
+          DOLO_FLOWS_LOG_RETRIES_PER_ENDPOINT: '3'
           FRESH_WALLET_AUDIT_VERBOSE: ${{ github.event.inputs.fresh_wallet_audit_verbose || '0' }}
         run: python3 generate_dolo_flows.py
 
