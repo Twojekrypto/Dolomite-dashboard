@@ -90,12 +90,26 @@ function assertBefore(source, first, second, message) {
 {
   assertBefore(assets, '<th data-sort="chain"', '<th data-sort="name"', 'Dolomite Assets should add Chain before Asset');
   assert(assets.includes('function assetChainBadge(chainKey)'), 'Dolomite Assets should render the chain in its own badge helper');
-  assert(assets.includes('<td style="padding-left:32px">${assetChainBadge(r.chain)}</td>'), 'Dolomite Assets rows should start with the Chain column');
+  assert(assets.includes('<td style="padding-left:32px" data-column="chain">${assetChainBadge(r.chain)}</td>'), 'Dolomite Assets rows should start with the Chain column');
   assert(!assets.includes('<span class="tag chain"><img src="${chain.icon}"'), 'Dolomite Assets should not repeat chain inside the Asset cell');
   assert(assets.includes('<td colspan="6">'), 'Dolomite Assets detail row should span the added Chain column');
   assert(!assets.includes('<div class="apy-lines">Base ${fmtPct(borrow)}'), 'Dolomite Assets Borrow cells should show only the final borrowing rate, not a base/yield breakdown');
   assert(assets.includes('const ACTIVE_ASSET_CHAIN_KEYS = new Set(["ethereum", "berachain", "arbitrum", "mantle", "xlayer"])'), 'Dolomite Assets should define the five active chains explicitly');
   assert(assets.includes('if(!ACTIVE_ASSET_CHAIN_KEYS.has(r.chain)) return false;'), 'Dolomite Assets should keep archived chains out of cached or fallback table rows');
+  assert(assets.includes('.hero-card.supply .hc-value{color:var(--profit)}'), 'Assets Avg Supply APR should use the green supply color');
+  assert(assets.includes('.hero-card.borrow .hc-value{color:var(--down)}'), 'Assets Highest Borrow should use the red borrow color');
+  assert(!assets.includes('assets-layout-editor.js'), 'Live Assets should not load the local-only layout editor');
+  assert(assets.includes('<col data-column="chain" style="width:10.958796%">'), 'Live Assets should keep the approved Chain width');
+  assert(assets.includes('<col data-column="asset" style="width:46.277338%">'), 'Live Assets should keep the approved Asset width');
+  assert(assets.includes('<col data-column="price" style="width:10.088748%">'), 'Live Assets should keep the approved Price width');
+  assert(assets.includes('<col data-column="supply" style="width:12.202853%">'), 'Live Assets should keep the approved Supply width');
+  assert(assets.includes('<col data-column="borrow" style="width:9.587956%">'), 'Live Assets should keep the approved Borrow width');
+  assert(assets.includes('<col data-column="details" style="width:10.884311%">'), 'Live Assets should keep the approved Details width');
+  assert(assets.includes('.assets-table-wrap #tbl{table-layout:fixed}'), 'Live Assets should enforce the approved colgroup widths');
+  for(const key of ['chain', 'asset', 'price', 'supply', 'borrow', 'details']){
+    assert(assets.includes(`data-column="${key}"`), `Assets table should expose a stable ${key} column key`);
+  }
+  assert(assets.includes('<td colspan="6">'), 'Assets detail row should span every default table column');
 }
 
 {

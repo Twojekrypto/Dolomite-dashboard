@@ -3793,6 +3793,13 @@
             border-radius: 50%;
             display: block;
         }
+        .token-pill-icon.full-logo,
+        .token-pill-icon.full-logo img {
+            border-radius: 3px;
+        }
+        .token-pill-icon.full-logo img {
+            object-fit: contain;
+        }
 
         .token-pill .token-usd {
             margin-left: 2px;
@@ -12898,7 +12905,7 @@
             const tokenPills = entries.slice(0, 2).map(([symbol, usd]) => {
                 const shortSymbol = truncateTokenName(symbol);
                 const icon = getTokenIcon(shortSymbol) || SYMBOL_ICONS[symbol] || SYMBOL_ICONS[shortSymbol] || `https://icons.llamao.fi/icons/tokens/${String(symbol).toLowerCase()}`;
-                return `<span class="token-pill"><span class="token-pill-icon"><img src="${supplyEscapeHtml(icon)}" alt="${supplyEscapeHtml(shortSymbol)}" onerror="this.src='dolomite-logo.svg'"></span>${supplyEscapeHtml(shortSymbol)} <span class="token-usd">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</span></span>`;
+                return `<span class="token-pill"><span class="token-pill-icon ${tokenIconFrameClass(shortSymbol)}"><img src="${supplyEscapeHtml(icon)}" alt="${supplyEscapeHtml(shortSymbol)}" onerror="this.src='dolomite-logo.svg'"></span>${supplyEscapeHtml(shortSymbol)} <span class="token-usd">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</span></span>`;
             }).join('');
             const morePill = entries.length > 2
                 ? `<span class="token-pill muted">+${entries.length - 2}</span>`
@@ -14230,7 +14237,7 @@
             // Same display UX as Lending Positions Collateral: USD value on top, token pill (logo + amount) below.
             return `<div class="pos-merged liquidation-history-amount">
                 <span class="usd-value${tintClass}">${supplyEscapeHtml(formatUSDCompact(Number(usd || 0)))}</span>
-                <div class="token-pills"><span class="token-pill"><span class="token-pill-icon"><img src="${supplyEscapeHtml(icon)}" alt="${safeSymbol}" onerror="this.src='dolomite-logo.svg'"></span>${safeSymbol} <span class="token-usd">${supplyEscapeHtml(supplyFormatTokenCompact(amount))}</span></span></div>
+                <div class="token-pills"><span class="token-pill"><span class="token-pill-icon ${tokenIconFrameClass(shortSymbol)}"><img src="${supplyEscapeHtml(icon)}" alt="${safeSymbol}" onerror="this.src='dolomite-logo.svg'"></span>${safeSymbol} <span class="token-usd">${supplyEscapeHtml(supplyFormatTokenCompact(amount))}</span></span></div>
             </div>`;
         }
 
@@ -14477,6 +14484,35 @@
             'dPT-weETH-27JUN2024': DOLO_CDN + 'PT-weETH.24d74aa18d08440b7f662eba78dcc52c.svg',
             'dPT-wstETH-26JUN2025': DOLO_CDN + 'PT-wstETH.09d3f15856b64c9b4f64c8de1264db37.svg',
             'dPT-wstETH-27JUN2024': DOLO_CDN + 'PT-wstETH.09d3f15856b64c9b4f64c8de1264db37.svg',
+            'PT-GLP': DOLO_CDN + 'PT-GLP.10ed789425b588fe57650640de551bed.svg',
+            'PT-USDe': DOLO_CDN + 'PT-USDe.b5a8d24289b509fe4e6b4c702a790828.svg',
+            'PT-cmETH': DOLO_CDN + 'PT-cmETH.f49c697e967386e0fd082040501e92e0.svg',
+            'PT-ezETH': DOLO_CDN + 'PT-ezETH.d1ed194653ea88e9f3fe8c029064d654.svg',
+            'PT-mETH': DOLO_CDN + 'PT-mETH.793642f12d4c303ecf771107c77ecfbb.svg',
+            'PT-rETH': DOLO_CDN + 'PT-rETH.e2b8a22fc3817c3a51225d7ffb5e616b.svg',
+            'PT-rsETH': DOLO_CDN + 'PT-rsETH.857e86584fe78053a1044b78df689b4d.svg',
+            'PT-MNT': DOLO_CDN + 'PT-MNT.19aa4a53e3aa4337407a1502ae89fc31.svg',
+            'PT-weETH': DOLO_CDN + 'PT-weETH.24d74aa18d08440b7f662eba78dcc52c.svg',
+            'PT-wstETH': DOLO_CDN + 'PT-wstETH.09d3f15856b64c9b4f64c8de1264db37.svg',
+            // ─── GM / GLV Market Tokens ──────────────────────────
+            'gmARB-USD': DOLO_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
+            'gmBTC-USD': DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+            'gmETH-USD': DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+            'gmLINK-USD': DOLO_CDN + 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg',
+            'gmBTC': DOLO_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+            'gmETH': DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+            'gmUNI-USD': DOLO_CDN + 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg',
+            'gmAAVE-USD': DOLO_CDN + 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg',
+            'gmDOGE-USD': DOLO_CDN + 'gmDOGE.36090e2ebcd305890c779e005d41d331.svg',
+            'gmGMX-USD': DOLO_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+            'gmSOL-USD': DOLO_CDN + 'gmSOL.73d56a4a2dcf3d39fc5c946b8c65c631.svg',
+            'gmWstETH-USD': DOLO_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+            'gmGMX': DOLO_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+            'gmPENDLE-USD': DOLO_CDN + 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg',
+            'gmPEPE-USD': DOLO_CDN + 'gmPEPE.966f4beb1b823729066c29c52921b664.svg',
+            'gmWIF-USD': DOLO_CDN + 'gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg',
+            'GLV-BTC': DOLO_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
+            'GLV-ETH': DOLO_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
             // ─── Dolomite YTs & GLVs ──────────────────────────────
             'dYT-GLP-28MAR2024': DOLO_CDN + 'GLP.96b12aa556614dd5791f.png',
             'dGLV [WBTC-USDC]': DOLO_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
@@ -14487,9 +14523,17 @@
         // Smart icon lookup: tries exact match, then falls back to base token
         function getTokenIcon(symbol) {
             if (SYMBOL_ICONS[symbol]) return SYMBOL_ICONS[symbol];
+            const normalizedPt = String(symbol || '')
+                .replace(/^d?PT-/i, 'PT-')
+                .replace(/-\d{1,2}[A-Z]{3}\d{4}$/i, '');
+            if (/^PT-/i.test(normalizedPt) && SYMBOL_ICONS[normalizedPt]) return SYMBOL_ICONS[normalizedPt];
             // Try stripping "d" prefix for Dolomite wrappers (dPT-xxx, dGM, etc.)
             if (symbol.startsWith('d') && SYMBOL_ICONS[symbol.slice(1)]) return SYMBOL_ICONS[symbol.slice(1)];
             return null;
+        }
+
+        function tokenIconFrameClass(symbol) {
+            return /^(?:wstETH|ylstETH|(?:d?PT|d?YT)-|gm(?!x$)|dGM(?:$|[-\s])|d?GLV|(?:m|plv|dplv|dfs|magic|s)GLP)/i.test(String(symbol || '').trim()) ? 'full-logo' : '';
         }
 
         // Truncate long token names for display (e.g., dPT-cmETH-13FEB2025 → dPT-cmETH)
@@ -14536,7 +14580,7 @@
             const renderRow = t => {
                 const icon = getTokenIcon(t.symbol);
                 const iconHtml = icon
-                    ? `<span class="token-pill-icon"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${(t.symbol||'?').slice(0,2)}'"></span>`
+                    ? `<span class="token-pill-icon ${tokenIconFrameClass(t.symbol)}"><img src="${icon}" alt="${t.symbol}" onerror="this.parentElement.textContent='${(t.symbol||'?').slice(0,2)}'"></span>`
                     : '';
                 let badge = '';
                 if (PLVGLP_TOKENS.includes(t.symbol)) {
