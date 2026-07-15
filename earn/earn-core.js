@@ -2945,7 +2945,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const _gsF = _GS.has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (item.icon) {
-                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(item.symbol)}"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }
@@ -10766,13 +10766,17 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return sign + '$' + abs.toFixed(2);
         }
 
+        function earnTokenIconFrameClass(symbol) {
+            return /^(?:wstETH|ylstETH|(?:d?PT|d?YT)-|gm(?!x$)|dGM(?:$|[-\s])|d?GLV|(?:m|plv|dplv|dfs|magic|s)GLP)/i.test(String(symbol || '').trim()) ? ' full-logo' : '';
+        }
+
         function earn_renderTokenPills(tokens) {
             if (!tokens || tokens.length === 0) return '<span style="color:var(--text-muted)">—</span>';
             return tokens.map(t => {
                 const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
                 const safeSym = earn_escapeHtml(t.symbol || '?');   // subgraph/onchain symbol → innerHTML
                 const iconHtml = icon
-                    ? `<span class="earn-token-pill-icon"><img src="${icon}" alt="${safeSym}" onerror="this.parentElement.textContent='${String(t.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></span>`
+                    ? `<span class="earn-token-pill-icon${earnTokenIconFrameClass(t.symbol)}"><img src="${icon}" alt="${safeSym}" onerror="this.parentElement.textContent='${String(t.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></span>`
                     : '';
                 const sym = (t.symbol || '?');
                 const short = sym.length > 12 ? sym.slice(0, 10) + '…' : sym;
@@ -11602,7 +11606,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 let iconHtml;
                 if (item.icon) {
                     const _gsF = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(item.symbol)}"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }
@@ -12070,7 +12074,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 let iconHtml;
                 if (a.icon) {
                     const _gsF2 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(a.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                    iconHtml = `<div class="earn-token-icon"><img src="${a.icon}" alt="${a.symbol}"${_gsF2} onerror="this.parentElement.textContent='${String(a.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(a.symbol)}"><img src="${a.icon}" alt="${a.symbol}"${_gsF2} onerror="this.parentElement.textContent='${String(a.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${a.symbol.slice(0, 2)}</div>`;
                 }
@@ -12237,7 +12241,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     let iconHtml;
                     if (item.icon) {
                         const _gsF3 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                        iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF3} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                        iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(item.symbol)}"><img src="${item.icon}" alt="${item.symbol}"${_gsF3} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                     } else {
                         iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                     }
