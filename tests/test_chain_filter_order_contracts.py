@@ -4,6 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+ASSETS_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer"]
 CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "botanix", "polygonzkevm", "xlayer"]
 CHAIN_LABEL_ORDER = ["Ethereum", "Berachain", "Arbitrum", "Mantle", "Botanix", "Polygon zkEVM", "X Layer"]
 EARN_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer", "polygonzkevm", "botanix"]
@@ -19,7 +20,7 @@ class ChainFilterOrderContractsTest(unittest.TestCase):
             for key in re.findall(r'data-net="([^"]+)"', panel.group(1))
             if key != "all"
         ]
-        self.assertEqual(CHAIN_ORDER, keys)
+        self.assertEqual(ASSETS_CHAIN_ORDER, keys)
 
     def test_dashboard_assets_network_filter_order_matches_total_supply_rank(self):
         text = (ROOT / "dashboard-core.html").read_text(encoding="utf-8")
@@ -33,7 +34,7 @@ class ChainFilterOrderContractsTest(unittest.TestCase):
             for key in re.findall(r'data-chain="([^"]+)"', panel.group(1))
             if key != "all"
         ]
-        self.assertEqual(CHAIN_ORDER, keys)
+        self.assertEqual(ASSETS_CHAIN_ORDER, keys)
 
     def test_earn_chain_menu_keeps_archived_networks_last(self):
         text = (ROOT / "dashboard-core.js").read_text(encoding="utf-8")

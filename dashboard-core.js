@@ -5242,8 +5242,6 @@
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn', explorer: 'https://berascan.com/address/' },
             arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn', explorer: 'https://arbiscan.io/address/' },
             mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn', explorer: 'https://mantlescan.xyz/address/' },
-            botanix: { id: 3637, name: 'Botanix', short: 'BOT', icon: 'https://icons.llamao.fi/icons/chains/rsz_botanix.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-botanix/latest/gn', explorer: 'https://botanixscan.io/address/', tokenExplorer: 'https://botanixscan.io/token/' },
-            polygonzkevm: { id: 1101, name: 'Polygon zkEVM', short: 'zkEVM', icon: 'https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn', explorer: 'https://zkevm.polygonscan.com/address/', tokenExplorer: 'https://zkevm.polygonscan.com/token/' },
             xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn', explorer: 'https://www.okx.com/web3/explorer/xlayer/address/' },
         };
 
@@ -5382,7 +5380,7 @@
             if (assets_prepareDataPromise) return assets_prepareDataPromise;
 
             const results = [];
-            const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', botanix: 'botanix', mantle: 'mantle', polygonzkevm: 'polygon_zkevm', xlayer: 'xlayer' };
+            const LLAMA_CHAIN_MAP = { arbitrum: 'arbitrum', berachain: 'berachain', ethereum: 'ethereum', mantle: 'mantle', xlayer: 'xlayer' };
             assets_resetPrepareStatus();
             assets_prepareDataPromise = (async () => {
                 const subgraphPromise = assets_fetchMarketData()
@@ -5524,26 +5522,6 @@
 
                 assets_allData = results;
                 const subgraphReady = await subgraphPromise;
-
-                const missingBotanixPrices = results.some(r => r.chainKey === 'botanix' && !(r.price > 0));
-                if (missingBotanixPrices) {
-                    try {
-                        const officialTvl = await fetch('dolomite_tvl.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null);
-                        const botanixUsd = officialTvl?.chainTokensInUsd?.Botanix || {};
-                        results.forEach(item => {
-                            if (item.chainKey !== 'botanix' || item.price > 0) return;
-                            const mdKey = item.chainKey + ':' + (item.addr || '').toLowerCase();
-                            const md = assets_marketData[mdKey];
-                            const supplied = Number(md?.supplied) || 0;
-                            const tokenUsd = Number(botanixUsd[item.symbol]) || 0;
-                            if (supplied > 0 && tokenUsd > 0) {
-                                item.price = tokenUsd / supplied;
-                            }
-                        });
-                    } catch (e) {
-                        console.warn('Assets Botanix price fallback failed', e);
-                    }
-                }
 
                 assets_syncPrepareStatus({
                     stageIndex: 3,
@@ -5875,7 +5853,7 @@
                 if (globeEl) globeEl.style.display = '';
                 if (existingChainIcon) existingChainIcon.remove();
                 label.textContent = 'All Chains';
-                count.textContent = '6';
+                count.textContent = String(Object.keys(ASSETS_CHAINS).length);
                 count.style.display = '';
             } else {
                 // Show chain icon, hide globe
