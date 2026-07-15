@@ -103,10 +103,10 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
             ("chain", "11"),
             ("account", "12.037612"),
             ("health", "10.509403"),
-            ("emode", "13.560098"),
-            ("spacer", "21.956611"),
-            ("collateral", "14.970480"),
-            ("debt", "15.965796"),
+            ("emode", "10.469765"),
+            ("spacer", "34.714138"),
+            ("collateral", "10.967973"),
+            ("debt", "10.301109"),
         ):
             self.assertIn(
                 f'.pf-borrow-positions col[data-column="{column}"]{{width:{width}%}}',
@@ -116,6 +116,26 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('data-column="collateral"><div class="pf-money-cell">', borrow_render)
         self.assertIn('data-column="debt"><div class="pf-money-cell">', borrow_render)
         self.assertNotIn('#pf-borrows-section .pf-table tbody td:nth-child(5)', self.html)
+
+    def test_wallet_summary_tables_keep_saved_column_contracts(self):
+        expected = {
+            "pf-deposits-section": ("chain", "asset", "amount", "value"),
+            "pf-borrows-section": ("chain", "account", "health", "emode", "spacer", "collateral", "debt"),
+            "pf-exercises-section": ("date", "route", "spacer", "vedolo", "paired", "paid", "price", "lock"),
+        }
+        for section, keys in expected.items():
+            source = self.html.split(f'id="{section}"', 1)[1].split('</section>', 1)[0]
+            for key in keys:
+                self.assertIn(f'data-column="{key}"', source)
+        self.assertIn('<colgroup><col data-column="chain" style="width:11.245641%"><col data-column="asset" style="width:51.7084%"><col data-column="amount" style="width:25.694137%"><col data-column="value" style="width:11.351822%"></colgroup>', self.html)
+        self.assertIn('<colgroup><col data-column="date" style="width:12.147272%"><col data-column="route" style="width:13.847996%"><col data-column="spacer" style="width:27.020602%"><col data-column="vedolo" style="width:9.34471%"><col data-column="paired" style="width:11.286907%"><col data-column="paid" style="width:10.415274%"><col data-column="price" style="width:9.076469%"><col data-column="lock" style="width:6.86077%"></colgroup>', self.html)
+
+    def test_wallet_summary_alignment_uses_context_status_and_numeric_lanes(self):
+        self.assertIn('#pf-borrows-section .pf-table [data-column="chain"]{\n  text-align:left;', self.html)
+        self.assertIn('#pf-borrows-section .pf-table [data-column="account"],\n#pf-borrows-section .pf-table [data-column="health"],\n#pf-borrows-section .pf-table [data-column="emode"]{\n  text-align:center;', self.html)
+        self.assertIn('#pf-borrows-section .pf-table [data-column="collateral"],\n#pf-borrows-section .pf-table [data-column="debt"]{\n  text-align:right;', self.html)
+        self.assertIn('.pf-borrow-positions .pf-money-cell{\n  align-items:flex-end;', self.html)
+        self.assertIn('#pf-exercises-section .flow-route-head,#pf-exercises-section .pf-route-cell,#pf-exercises-section .pf-table [data-column="lock"]{text-align:center}', self.html)
 
     def test_open_borrows_expands_hidden_assets(self):
         self.assertIn("expandedBorrows: new Set()", self.html)
@@ -183,7 +203,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('class="token-ca-copy"', token_cell)
         self.assertIn('data-copy="${esc(row.addr)}"', token_cell)
         self.assertIn('class="tok-long"', token_cell)
-        self.assertIn('<td class="num">${fmtToken(r.amount)}</td>', deposits_render)
+        self.assertIn('<td data-column="amount" class="num">${fmtToken(r.amount)}</td>', deposits_render)
         self.assertNotIn("pf-amt-sym", deposits_render)
         self.assertNotIn("const symShort", deposits_render)
 
@@ -272,9 +292,8 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("buildExerciseFilters(state.exercises, state.exFilter, renderAll)", self.html)
         self.assertIn("const routeCounts = rows.reduce", self.html)
         self.assertIn('class="dd-opt-count"', self.html)
-        self.assertIn('<colgroup><col style="width:148px"><col style="width:160px"><col style="width:116px"><col style="width:118px"><col style="width:118px"><col style="width:96px"><col style="width:88px"></colgroup>', self.html)
-        self.assertIn("#pf-exercises-section .flow-route-head{text-align:left}", self.html)
-        self.assertIn("#pf-exercises-section .pf-route-cell{text-align:left}", self.html)
+        self.assertIn('<colgroup><col data-column="date" style="width:12.147272%"><col data-column="route" style="width:13.847996%"><col data-column="spacer" style="width:27.020602%"><col data-column="vedolo" style="width:9.34471%"><col data-column="paired" style="width:11.286907%"><col data-column="paid" style="width:10.415274%"><col data-column="price" style="width:9.076469%"><col data-column="lock" style="width:6.86077%"></colgroup>', self.html)
+        self.assertIn("#pf-exercises-section .flow-route-head,#pf-exercises-section .pf-route-cell,#pf-exercises-section .pf-table [data-column=\"lock\"]{text-align:center}", self.html)
         self.assertIn("#pf-exercises-section .pf-route-tag.cyan", self.html)
         self.assertIn("#pf-exercises-section .pf-route-tag.pair", self.html)
         self.assertIn("#pf-exercises-section .pf-route-tag.up", self.html)
@@ -289,7 +308,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('data-sort="price" data-table="ex">Price', self.html)
         self.assertIn('data-sort="lock" data-table="ex">Lock', self.html)
         self.assertNotIn('data-sort="paid" data-table="ex">Cost', self.html)
-        self.assertIn('<td class="num">${pairHtml}</td>\n        <td class="num">${paidHtml}</td>\n        <td class="num">${priceHtml}</td>\n        <td class="num">${lockHtml}</td>', self.html)
+        self.assertIn('<td data-column="paired" class="num">${pairHtml}</td>\n        <td data-column="paid" class="num">${paidHtml}</td>\n        <td data-column="price" class="num">${priceHtml}</td>\n        <td data-column="lock" class="num">${lockHtml}</td>', self.html)
         self.assertNotIn('<td class="num">${lockHtml}</td>\n        <td class="num">${paidHtml}</td>', self.html)
         self.assertIn('const paidHtml = r.isStableClaim ? `<span class="pf-ex-val pf-ex-usdc">${fmtUSD(r.paid)}</span>`', self.html)
         self.assertIn('const pairHtml = r.isPair ? `<span class="pf-ex-val pf-ex-pair">${fmtToken(r.pairedDolo)}</span>`', self.html)
