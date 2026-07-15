@@ -107,6 +107,7 @@ function assertBefore(source, first, second, message) {
   assert(assets.includes('<col data-column="details" style="width:10.884311%">'), 'Live Assets should keep the approved Details width');
   assert(assets.includes('.assets-table-wrap #tbl{table-layout:fixed}'), 'Live Assets should enforce the approved colgroup widths');
   assert(assets.includes('.tbl tbody tr.data:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}'), 'Assets hover should match DOLO Holders with a gold left-row indicator');
+  assert(assets.includes('.assets-table-wrap #tbl tbody td.details-cell .asset-toggle{margin:0 auto;max-width:68px}'), 'Assets Details toggle should stay compact inside its approved column');
   for(const key of ['chain', 'asset', 'price', 'supply', 'borrow', 'details']){
     assert(assets.includes(`data-column="${key}"`), `Assets table should expose a stable ${key} column key`);
   }
