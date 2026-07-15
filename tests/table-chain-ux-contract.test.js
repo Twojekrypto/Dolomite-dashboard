@@ -93,6 +93,9 @@ function assertBefore(source, first, second, message) {
   assert(assets.includes('<td style="padding-left:32px">${assetChainBadge(r.chain)}</td>'), 'Dolomite Assets rows should start with the Chain column');
   assert(!assets.includes('<span class="tag chain"><img src="${chain.icon}"'), 'Dolomite Assets should not repeat chain inside the Asset cell');
   assert(assets.includes('<td colspan="6">'), 'Dolomite Assets detail row should span the added Chain column');
+  assert(!assets.includes('<div class="apy-lines">Base ${fmtPct(borrow)}'), 'Dolomite Assets Borrow cells should show only the final borrowing rate, not a base/yield breakdown');
+  assert(assets.includes('const ACTIVE_ASSET_CHAIN_KEYS = new Set(["ethereum", "berachain", "arbitrum", "mantle", "xlayer"])'), 'Dolomite Assets should define the five active chains explicitly');
+  assert(assets.includes('if(!ACTIVE_ASSET_CHAIN_KEYS.has(r.chain)) return false;'), 'Dolomite Assets should keep archived chains out of cached or fallback table rows');
 }
 
 {

@@ -1195,7 +1195,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           <button class="dd-btn" data-dd="net">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
             <span class="lbl">All Chains</span>
-            <span class="count">7/7</span>
+            <span class="count">5/5</span>
             <span class="dd-clear" data-clear="net" role="button" aria-label="Clear chain filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -1209,8 +1209,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
               <div class="dd-opt" data-net="berachain"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Berachain</span></div>
               <div class="dd-opt" data-net="arbitrum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Arbitrum</span></div>
               <div class="dd-opt" data-net="mantle"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_mantle.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Mantle</span></div>
-              <div class="dd-opt" data-net="botanix"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_botanix.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Botanix</span></div>
-              <div class="dd-opt" data-net="polygonzkevm"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Polygon zkEVM</span></div>
               <div class="dd-opt" data-net="xlayer"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">X Layer</span></div>
             </div>
           </div>
@@ -1456,7 +1454,8 @@ const CHAIN_LABELS = {
   botanix:"Botanix", mantle:"Mantle",
   polygonzkevm:"Polygon zkEVM", xlayer:"X Layer"
 };
-let CHAIN_COUNT_TOTAL = 7;
+const ACTIVE_ASSET_CHAIN_KEYS = new Set(["ethereum", "berachain", "arbitrum", "mantle", "xlayer"]);
+let CHAIN_COUNT_TOTAL = ACTIVE_ASSET_CHAIN_KEYS.size;
 const ASSETS_CACHE_KEY = "dolomite-assets-live-rows-v3";
 const ASSETS_SNAPSHOT_URL = "assets_live.json";
 const ASSETS_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -2030,7 +2029,6 @@ function applyAssetRows(rows){
   document.body.classList.remove("assets-loading","assets-fallback");
   state.expanded.clear();
   state.calc.clear();
-  CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
   syncNetDropdown();
   render();
 }
@@ -2218,8 +2216,9 @@ function setMetric(el, value){
 }
 
 function updateHero(){
-  let data = ASSETS.map(r=>({...r,_supply:activeSupply(r)})).filter(r=>!r.dust);
-  if(data.length === 0) data = ASSETS.map(r=>({...r,_supply:activeSupply(r)}));
+  const activeAssets = ASSETS.filter(r=>ACTIVE_ASSET_CHAIN_KEYS.has(r.chain));
+  let data = activeAssets.map(r=>({...r,_supply:activeSupply(r)})).filter(r=>!r.dust);
+  if(data.length === 0) data = activeAssets.map(r=>({...r,_supply:activeSupply(r)}));
   if(data.length === 0) return;
   const topSupply = data.reduce((best,r)=>r._supply > best._supply ? r : best, data[0]);
   const topBorrow = data.reduce((best,r)=>r.borrow > best.borrow ? r : best, data[0]);
@@ -2227,7 +2226,7 @@ function updateHero(){
   const odoloRows = data.filter(r=>r.odolo > 0);
   const avgOdolo = odoloRows.length ? avg(odoloRows.map(r=>r.odolo)) : 0;
   const chains = new Set(data.map(r=>r.chain));
-  const allChains = new Set(ASSETS.map(r=>r.chain));
+  const allChains = new Set(activeAssets.map(r=>r.chain));
   const heroValue = document.querySelector(".hero-value .pct");
   setMetric(heroValue, rateForMode(topSupply._supply).toFixed(2));
   const heroLive = document.querySelector(".hero-live");
@@ -2251,14 +2250,13 @@ function updateHero(){
     cards[1].querySelector(".hc-sub").textContent = odoloRows.length ? `${odoloRows.length} boosted markets` : "no active boosts";
   }
   if(cards[2]){
-    setMetric(cards[2].querySelector(".hc-value"), String(ASSETS.length));
+    setMetric(cards[2].querySelector(".hc-value"), String(activeAssets.length));
     cards[2].querySelector(".hc-sub").textContent = `listed assets · ${allChains.size} chains`;
   }
   if(cards[3]){
     setMetric(cards[3].querySelector(".hc-value"), fmtRate(topBorrow.borrow));
     cards[3].querySelector(".hc-sub").textContent = `${topBorrow.sym} · ${chainMeta(topBorrow.chain).name}`;
   }
-  CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
   const netCount = document.querySelector("#dd-net .dd-btn .count");
   if(netCount && state.nets.size === 0) netCount.textContent = `${CHAIN_COUNT_TOTAL}/${CHAIN_COUNT_TOTAL}`;
   const protoSub = document.getElementById("proto-market-sub");
@@ -2312,6 +2310,7 @@ function render(){
   const tb = document.getElementById("tbody");
   const q = state.q.trim().toLowerCase();
   let rows = ASSETS.filter(r=>{
+    if(!ACTIVE_ASSET_CHAIN_KEYS.has(r.chain)) return false;
     if(isExpiredMarket(r.sym, r.name)) return false;
     if(state.cats.size>0 && !state.cats.has(r.cat)) return false;
     if(state.nets.size>0 && !state.nets.has(r.chain)) return false;
@@ -2413,7 +2412,6 @@ function render(){
         <td class="num">
           <div class="apy-cell">
             <div class="bw-val">${fmtPct(borrowEff)}</div>
-            ${r.borrowYield > 0 ? `<div class="apy-lines">Base ${fmtPct(borrow)} · ${esc(r.borrowYieldSources?.[0]?.label || "Asset yield")} ${fmtRate(r.borrowYield)}</div>` : ""}
           </div>
         </td>
         <td class="details-cell" style="padding-right:32px">${toggleHTML}</td>
@@ -2982,7 +2980,6 @@ async function initAssetsPreview(){
     document.body.classList.add("assets-fallback");
     state.expanded.clear();
     state.calc.clear();
-    CHAIN_COUNT_TOTAL = new Set(ASSETS.map(r=>r.chain)).size || CHAIN_COUNT_TOTAL;
     syncNetDropdown();
     render();
     setLiveStatus(false, ASSETS.length);
