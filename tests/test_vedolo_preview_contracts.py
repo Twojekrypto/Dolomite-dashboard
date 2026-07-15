@@ -106,37 +106,25 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('id="lockedChartTitle"', self.html)
         self.assertIn('aria-pressed="true"', self.html)
 
-    def test_locked_chart_preserves_zoom_meta_with_responsive_metric_control(self):
+    def test_locked_chart_places_zoom_meta_in_the_top_right(self):
         heading = re.search(
             r'<div class="locked-chart-heading">(?P<body>.*?)</div>\n    <div class="locked-chart-wrap"',
             self.html,
             re.S,
         ).group("body")
-        controls = re.search(
-            r'<div class="locked-chart-controls">(?P<body>.*)',
-            heading,
-            re.S,
-        ).group("body")
-        self.assertIn('<div class="card-meta"><span class="pulse"></span>drag window below to zoom</div>', controls)
-        self.assertIn('class="locked-chart-mode"', controls)
-        self.assertIn('.locked-chart-controls{display:flex;flex-basis:100%;flex-direction:column;align-items:flex-start;gap:8px}', self.html)
-        self.assertIn('.locked-chart-heading .card-title,.locked-chart-controls{width:100%}', self.html)
-
-    def test_locked_chart_controls_stack_below_title_with_zoom_meta_above_switch(self):
-        heading = re.search(
-            r'<div class="locked-chart-heading">(?P<body>.*?)</div>\n    <div class="locked-chart-wrap"',
-            self.html,
-            re.S,
-        ).group("body")
+        self.assertIn('class="card-meta locked-chart-meta"', heading)
         title_pos = heading.index('class="card-title"')
+        meta_pos = heading.index('class="card-meta locked-chart-meta"')
         controls_pos = heading.index('class="locked-chart-controls"')
-        controls = heading[controls_pos:]
-        meta_pos = controls.index('class="card-meta"')
-        mode_pos = controls.index('class="locked-chart-mode"')
-        self.assertLess(title_pos, controls_pos)
-        self.assertLess(meta_pos, mode_pos)
+        self.assertLess(title_pos, meta_pos)
+        self.assertLess(meta_pos, controls_pos)
+        self.assertIn('<div class="card-meta locked-chart-meta"><span class="pulse"></span>drag window below to zoom</div>', heading)
+        self.assertIn('.locked-chart-heading{display:flex;align-items:flex-start;justify-content:space-between;', self.html)
+        self.assertIn('.locked-chart-meta{margin-left:auto}', self.html)
+        self.assertIn('.locked-chart-controls{display:flex;flex-basis:100%;align-items:flex-start}', self.html)
         self.assertIn('@media (max-width:560px){', self.html)
         self.assertIn('.locked-chart-heading{align-items:flex-start;flex-direction:column}', self.html)
+        self.assertIn('.locked-chart-meta{margin-left:0}', self.html)
 
     def test_vote_power_availability_repeat_safe_setters_and_removals(self):
         self.assertIn('const LOCKED_CHART_VOTE_UNAVAILABLE_TIP = "Verified vote-power history is unavailable.";', self.html)
@@ -223,6 +211,9 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
 
     def test_vedolo_route_busts_preview_cache_for_stacked_chart_controls(self):
         self.assertIn('vedolo-chart-controls-stack-20260714', self.route)
+
+    def test_vedolo_route_busts_preview_cache_for_top_right_chart_meta(self):
+        self.assertIn('vedolo-chart-meta-right-20260715', self.route)
 
     def test_recent_early_exit_controls_use_red_interactions(self):
         self.assertIn('id="recent-early-exits-section"', self.html)

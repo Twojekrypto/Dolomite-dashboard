@@ -149,10 +149,40 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertNotIn("DOLO paid ·", self.html)
         self.assertNotIn("DOLO paired · in veDOLO", self.html)
 
+    def test_wallet_summary_uses_count_up_metrics_and_stacked_value_hierarchy(self):
+        self.assertIn('function setPortfolioMetric(el, value)', self.html)
+        self.assertIn('window.CountUpMetric', self.html)
+        self.assertIn('class="pf-sum-total-number" data-count-value="0"', self.html)
+        self.assertIn('class="pf-count-number" data-count-value="0"', self.html)
+        self.assertIn('.pf-sum-headline{display:flex;flex-direction:column;align-items:flex-start;gap:10px;', self.html)
+        self.assertIn('display:flex;align-items:baseline;gap:8px;', self.html)
+        self.assertNotIn('pf-sum-usd .lbl', self.html)
+
+    def test_portfolio_table_headers_show_data_freshness_without_totals(self):
+        for section_id in ("pf-deposits-section", "pf-borrows-section", "pf-exercises-section"):
+            section = self.html.split(f'id="{section_id}"', 1)[1].split('</section>', 1)[0]
+            self.assertIn('<span class="pf-meta-label">Data updated</span>', section)
+        for removed_id in ("pf-deposits-total", "pf-borrows-total", "pf-exercises-total"):
+            self.assertNotIn(removed_id, self.html)
+        self.assertNotIn("Total supplied", self.html)
+        self.assertNotIn("Total debt", self.html)
+        self.assertNotIn("Current veDOLO", self.html)
+        self.assertIn('#pf-deposits-section .pf-table thead th{background:var(--bg-1)}', self.html)
+
+    def test_portfolio_address_hero_omits_live_onchain_label(self):
+        hero = self.html.split('<!-- HERO + ADDRESS INPUT -->', 1)[1].split('</section>', 1)[0]
+        self.assertNotIn("Live onchain", hero)
+
+    def test_vedolo_activity_footer_only_reports_visible_range(self):
+        render = self.html.split("function renderExerciseTable()", 1)[1].split("function renderAll()", 1)[0]
+        self.assertIn('`${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length.toLocaleString("en-US")}`', render)
+        self.assertNotIn("totalPaid", render)
+        self.assertNotIn("totalPaired", render)
+
     def test_vedolo_odolo_exercises_exclude_pairing_noise(self):
         self.assertIn('id="pf-exercises-section"', self.html)
         self.assertIn("veDOLO Position Activity", self.html)
-        self.assertIn("Current veDOLO", self.html)
+        self.assertIn("Data updated", self.html)
         self.assertIn('class="pf-table pf-exercise-table"', self.html)
         self.assertIn("vedolo_flows.json", self.html)
         self.assertIn("buildExerciseRows(cardData.exer, vedoloFlows, addr, cardData.vedolo)", self.html)
@@ -267,7 +297,6 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("state.vedoloCurrent", self.html)
         self.assertIn('const activityLocked = rows.filter(r => r.route !== "transfer" && r.route !== "pair").reduce', self.html)
         self.assertIn("const lockedVe = currentVe || activityLocked;", self.html)
-        self.assertIn("currentVe || rows.filter", self.html)
         self.assertIn("Total locked", self.html)
         self.assertIn("oDOLO Exercises", self.html)
         self.assertIn("Avg price", self.html)
@@ -276,7 +305,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('<span class="accent-price">${fmtExercisePrice(avgClaimPrice)}</span>', self.html)
         self.assertIn("Vote power", self.html)
         self.assertIn("Current voting weight", self.html)
-        self.assertIn('totalPaired ? ` · ${fmtToken(totalPaired)} DOLO paired` : ""', self.html)
+        self.assertNotIn('totalPaired ? ` · ${fmtToken(totalPaired)} DOLO paired` : ""', self.html)
         self.assertNotIn('exerciseSummaryItem(\n        "Airdrops"', self.html)
         self.assertNotIn('exerciseSummaryItem(\n        "Direct"', self.html)
         self.assertNotIn('exerciseSummaryItem(\n        "Transfers"', self.html)
