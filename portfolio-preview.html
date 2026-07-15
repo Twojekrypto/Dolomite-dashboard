@@ -1054,19 +1054,19 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 .pf-summary .hero-token-logo img{width:30px;height:30px;object-fit:contain}
 /* big total — DOLO-tab hero price row */
-.pf-sum-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.pf-sum-headline{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding-bottom:26px;position:relative;z-index:1}
 .pf-sum-total-val{
-  font-family:var(--mono);font-size:clamp(44px,6vw,62px);font-weight:700;
-  letter-spacing:-2.5px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
+  display:flex;align-items:baseline;gap:8px;
+  font-family:var(--mono);font-size:52px;font-weight:700;
+  letter-spacing:0;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
 }
-.pf-sum-total-val .unit{font-size:.32em;font-weight:600;color:var(--fg-3);letter-spacing:0;margin-left:8px}
+.pf-sum-total-val .unit{font-size:16px;font-weight:600;color:var(--fg-3);letter-spacing:0;white-space:nowrap}
 .pf-sum-usd{
   display:inline-flex;align-items:center;gap:8px;
   padding:8px 14px;border-radius:10px;
-  font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.2px;
+  font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:0;
   color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line);
 }
-.pf-sum-usd .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
 /* stat strip — DOLO-tab hero-stats metrics, 5 columns */
 .pf-sum-grid{
   display:grid;grid-template-columns:repeat(5,1fr);gap:0;
@@ -1096,6 +1096,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 @media (max-width:560px){
   .pf-summary{padding:22px 18px}
+  .pf-sum-total-val{font-size:40px;flex-wrap:wrap}
   .pf-sum-grid{grid-template-columns:1fr;gap:0}
   .pf-sum-item{border-left:0;padding:14px 0 0;border-top:1px solid var(--line-1);margin-top:14px}
   .pf-sum-item:first-child{border-top:0;margin-top:0;padding-top:0}
@@ -1140,6 +1141,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 
 .pf-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .pf-table thead th{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--fg-3);font-weight:600;text-align:left;padding:12px 18px;background:var(--bg-2);position:sticky;top:0;z-index:2;border-bottom:1px solid var(--line-2);white-space:nowrap}
+#pf-deposits-section .pf-table thead th{background:var(--bg-1)}
 .pf-table thead th.num{text-align:right}
 .pf-table thead th[data-sort]{cursor:pointer;user-select:none;transition:color .2s var(--ease)}
 .pf-table thead th[data-sort]:hover{color:var(--gold)}
@@ -1812,9 +1814,6 @@ body:not(.pf-active) #pf-results{display:none}
         <div class="hero-token-title">Portfolio</div>
         <div class="hero-token-sub">Any wallet's <b>Dolomite</b> position — DOLO, veDOLO, deposits &amp; borrows across every chain</div>
       </div>
-      <div class="hero-meta">
-        <div class="hero-live"><span class="dot"></span>Live onchain</div>
-      </div>
     </div>
 
     <div class="pf-search-wrap">
@@ -1868,7 +1867,7 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>Deposited Assets</h2>
           <span class="count-badge" id="pf-deposits-count" style="display:none"></span>
         </div>
-        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Total supplied</span><span class="pf-meta-value" id="pf-deposits-total">—</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span></div>
       </div>
       <div class="pf-filters" id="pf-deposits-filters"></div>
       <div style="overflow-x:auto">
@@ -1891,7 +1890,7 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>Open Borrows</h2>
           <span class="count-badge" id="pf-borrows-count" style="display:none"></span>
         </div>
-        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Total debt</span><span class="pf-meta-value" id="pf-borrows-total">—</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span></div>
       </div>
       <div class="pf-filters" id="pf-borrows-filters"></div>
       <div style="overflow-x:auto">
@@ -1914,7 +1913,7 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>veDOLO Position Activity</h2>
           <span class="count-badge" id="pf-exercises-count" style="display:none"></span>
         </div>
-        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Current veDOLO</span><span class="pf-meta-value" id="pf-exercises-total">—</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span></div>
       </div>
       <div class="pf-exercise-summary" id="pf-exercises-summary" style="display:none"></div>
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
@@ -2942,9 +2941,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   };
 
   // ---------- DOLO wallet summary (main card) ----------
+  function setPortfolioMetric(el, value){
+    if (!el) return;
+    if (window.CountUpMetric) window.CountUpMetric.text(el, value);
+    else el.textContent = value;
+  }
   function sumItem(icon, label, valHtml, subHtml, goldVal){
     const img = icon ? `<img src="${icon}" alt="" onerror="this.style.display='none'">` : "";
-    return `<div class="pf-sum-item"><div class="lbl">${img}${label}</div><div class="val${goldVal?" gold":""}">${valHtml}</div><div class="sub">${subHtml}</div></div>`;
+    return `<div class="pf-sum-item"><div class="lbl">${img}${label}</div><div class="val${goldVal?" gold":""}"><span class="pf-count-number" data-count-value="0" data-count-target="${esc(String(valHtml))}">0</span></div><div class="sub">${subHtml}</div></div>`;
   }
   function renderSummary(d, odoloBal){
     const held = (d.dolo && d.dolo.balance) || 0;
@@ -2957,9 +2961,15 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const vOTok = d.vesting ? d.vesting.oToken : 0;
     const vPair = d.vesting ? d.vesting.pairDolo : 0;
     const total = held + ve + vOTok;
-    $("#pf-sum-total").innerHTML = `${fmtCompact(total)}<span class="unit">DOLO eq.</span>`;
+    const totalEl = $("#pf-sum-total");
+    totalEl.innerHTML = `<span class="pf-sum-total-number" data-count-value="0">0</span><span class="unit">DOLO eq.</span>`;
+    setPortfolioMetric(totalEl.querySelector(".pf-sum-total-number"), fmtCompact(total));
     const usdEl = $("#pf-sum-total-usd");
-    if (d.doloPrice){ usdEl.style.display = ""; usdEl.innerHTML = `≈ ${fmtUSD(total * d.doloPrice)}<span class="lbl">USD</span>`; }
+    if (d.doloPrice){
+      usdEl.style.display = "";
+      usdEl.innerHTML = `<span class="pf-sum-usd-value" data-count-value="0">0</span>`;
+      setPortfolioMetric(usdEl.querySelector(".pf-sum-usd-value"), `≈ ${fmtUSD(total * d.doloPrice)}`);
+    }
     else usdEl.style.display = "none";
     const usd = n => d.doloPrice ? `<span class="dim">≈ ${fmtUSD(n * d.doloPrice)}</span>` : "";
     const items = [];
@@ -2983,6 +2993,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     items.push(sumItem("odolo-logo-official.svg", "oDOLO held", odoloBal === null ? "—" : `${fmtCompact(odoloBal)}`,
       odoloBal === null ? `<span class="dim">RPC unavailable</span>` : `in wallet · Berachain`, true));
     $("#pf-sum-grid").innerHTML = items.join("");
+    document.querySelectorAll("#pf-sum-grid [data-count-target]").forEach(el => setPortfolioMetric(el, el.dataset.countTarget));
   }
 
   const DD_CHECK = `<span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>`;
@@ -3220,16 +3231,14 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     }));
   }
 
-  function renderTable(bodyId, countId, totalId, rows, f, sort, tableKey, neg){
+  function renderTable(bodyId, countId, rows, f, sort, tableKey, neg){
     const ids = tableKey === "dep"
       ? { foot: "#pf-deposits-foot", info: "#pf-deposits-info", pager: "#pf-deposits-pager" }
       : { foot: "#pf-borrows-foot", info: "#pf-borrows-info", pager: "#pf-borrows-pager" };
     const filtered = sortRows(applyFilter(rows, f), sort);
-    const total = filtered.reduce((s, r) => s + r.usd, 0);
     const countEl = $(countId);
     countEl.textContent = filtered.length ? `${filtered.length.toLocaleString("en-US")} asset${filtered.length!==1?"s":""}` : "";
     countEl.style.display = filtered.length ? "" : "none";
-    $(totalId).innerHTML = `<span class="${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(total)}</span>`;
     updateSortIndicators(tableKey, sort);
     const body = $(bodyId);
     if (!rows.length){ $(ids.foot).style.display = "none"; body.innerHTML = `<tr><td colspan="4"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${neg?"No open borrows on Dolomite.":"No deposited assets on Dolomite."}</div></td></tr>`; return; }
@@ -3270,10 +3279,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   function renderBorrowPositionsTable(){
     const ids = { foot: "#pf-borrows-foot", info: "#pf-borrows-info", pager: "#pf-borrows-pager" };
     const filtered = sortRows(applyFilter(state.borrows, state.borFilter), state.borSort);
-    const total = filtered.reduce((s, r) => s + r.debt, 0);
     $("#pf-borrows-count").textContent = filtered.length ? `${filtered.length.toLocaleString("en-US")} position${filtered.length!==1?"s":""}` : "";
     $("#pf-borrows-count").style.display = filtered.length ? "" : "none";
-    $("#pf-borrows-total").innerHTML = `<span class="pf-usd-neg">${fmtUSD(total)}</span>`;
     updateSortIndicators("bor", state.borSort);
     const body = $("#pf-borrows-body");
     if (!state.borrows.length){
@@ -3399,13 +3406,8 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
   function renderExerciseTable(){
     const rows = sortRows(applyExerciseFilter(state.exercises, state.exFilter), state.exSort);
-    const currentVe = Number(state.vedoloCurrent && state.vedoloCurrent.total_dolo) || 0;
-    const totalVe = currentVe || rows.filter(r => r.route !== "transfer" && r.route !== "pair").reduce((s, r) => s + r.vedolo, 0);
-    const totalPaid = rows.reduce((s, r) => s + (r.isStableClaim ? r.paid : 0), 0);
-    const totalPaired = rows.reduce((s, r) => s + (r.isPair ? r.pairedDolo : 0), 0);
     $("#pf-exercises-count").textContent = rows.length ? `${rows.length.toLocaleString("en-US")} event${rows.length!==1?"s":""}` : "";
     $("#pf-exercises-count").style.display = rows.length ? "" : "none";
-    $("#pf-exercises-total").innerHTML = rows.length ? `${fmtCompact(totalVe)}<span class="unit">veDOLO</span>` : "—";
     renderExerciseSummary(rows);
     updateSortIndicators("ex", state.exSort);
     const body = $("#pf-exercises-body");
@@ -3447,12 +3449,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
         `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="7" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
     }
     $("#pf-exercises-foot").style.display = "";
-    $("#pf-exercises-info").textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length.toLocaleString("en-US")}${totalPaid ? ` · ${fmtUSD(totalPaid)} paid` : ""}${totalPaired ? ` · ${fmtToken(totalPaired)} DOLO paired` : ""}`;
+    $("#pf-exercises-info").textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length.toLocaleString("en-US")}`;
     renderPager($("#pf-exercises-pager"), state.exPage + 1, totalPages, p => { state.exPage = p; renderAll(); });
   }
 
   function renderAll(){
-    renderTable("#pf-deposits-body","#pf-deposits-count","#pf-deposits-total", state.deposits, state.depFilter, state.depSort, "dep", false);
+    renderTable("#pf-deposits-body","#pf-deposits-count", state.deposits, state.depFilter, state.depSort, "dep", false);
     renderBorrowPositionsTable();
     renderExerciseTable();
   }
