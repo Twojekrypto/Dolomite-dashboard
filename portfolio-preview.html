@@ -1296,10 +1296,10 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-borrow-positions col[data-column="chain"]{width:11%}
 .pf-borrow-positions col[data-column="account"]{width:12.037612%}
 .pf-borrow-positions col[data-column="health"]{width:10.509403%}
-.pf-borrow-positions col[data-column="emode"]{width:13.560098%}
-.pf-borrow-positions col[data-column="spacer"]{width:21.956611%}
-.pf-borrow-positions col[data-column="collateral"]{width:14.970480%}
-.pf-borrow-positions col[data-column="debt"]{width:15.965796%}
+.pf-borrow-positions col[data-column="emode"]{width:10.469765%}
+.pf-borrow-positions col[data-column="spacer"]{width:34.714138%}
+.pf-borrow-positions col[data-column="collateral"]{width:10.967973%}
+.pf-borrow-positions col[data-column="debt"]{width:10.301109%}
 #pf-borrows-section .pf-table thead th{
   padding:10px 12px;
   font-size:9.5px;
@@ -1329,7 +1329,11 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-borrows-section .pf-table [data-column="account"],
 #pf-borrows-section .pf-table [data-column="health"],
 #pf-borrows-section .pf-table [data-column="emode"]{
+  text-align:center;
   overflow:visible;
+}
+#pf-borrows-section .pf-table [data-column="chain"]{
+  text-align:left;
 }
 #pf-borrows-section .pf-table [data-column="spacer"]{
   padding-left:0;
@@ -1337,12 +1341,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-borrows-section .pf-table [data-column="collateral"],
 #pf-borrows-section .pf-table [data-column="debt"]{
-  text-align:left;
+  text-align:right;
   white-space:normal;
   overflow:visible;
 }
 .pf-borrow-positions .pf-money-cell{
-  align-items:flex-start;
+  align-items:flex-end;
   gap:4px;
 }
 .pf-borrow-positions .pf-money-main{
@@ -1356,8 +1360,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   color:#f87171;
 }
 .pf-borrow-positions .pf-token-pills{
-  align-items:flex-start;
-  justify-content:flex-start;
+  align-items:flex-end;
+  justify-content:flex-end;
   flex-direction:column;
   flex-wrap:nowrap;
   gap:3px;
@@ -1608,8 +1612,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   white-space:nowrap;
 }
 #pf-exercises-section .pf-exercise-route-filter .dd-opt.active .dd-opt-count{color:var(--pf-ex-green)}
-#pf-exercises-section .flow-route-head{text-align:left}
-#pf-exercises-section .pf-route-cell{text-align:left}
+#pf-exercises-section .flow-route-head,#pf-exercises-section .pf-route-cell,#pf-exercises-section .pf-table [data-column="lock"]{text-align:center}
+#pf-exercises-section .pf-table [data-column="spacer"]{padding-left:0;padding-right:0}
 #pf-exercises-section .pf-route-tag{
   display:inline-flex;
   align-items:center;
@@ -1862,8 +1866,8 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="pf-filters" id="pf-deposits-filters"></div>
       <div style="overflow-x:auto">
         <table class="pf-table">
-          <colgroup><col style="width:16%"><col style="width:38%"><col style="width:23%"><col style="width:23%"></colgroup>
-          <thead><tr><th data-sort="chain" data-table="dep">Chain<span class="pf-sort"></span></th><th data-sort="sym" data-table="dep">Asset<span class="pf-sort"></span></th><th class="num" data-sort="amount" data-table="dep">Amount<span class="pf-sort"></span></th><th class="num sort-active" data-sort="usd" data-table="dep">Value<span class="pf-sort">▼</span></th></tr></thead>
+          <colgroup><col data-column="chain" style="width:11.245641%"><col data-column="asset" style="width:51.7084%"><col data-column="amount" style="width:25.694137%"><col data-column="value" style="width:11.351822%"></colgroup>
+          <thead><tr><th data-column="chain" data-sort="chain" data-table="dep">Chain<span class="pf-sort"></span></th><th data-column="asset" data-sort="sym" data-table="dep">Asset<span class="pf-sort"></span></th><th data-column="amount" class="num" data-sort="amount" data-table="dep">Amount<span class="pf-sort"></span></th><th data-column="value" class="num sort-active" data-sort="usd" data-table="dep">Value<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-deposits-body"></tbody>
         </table>
       </div>
@@ -1909,8 +1913,8 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
-          <colgroup><col style="width:148px"><col style="width:160px"><col style="width:116px"><col style="width:118px"><col style="width:118px"><col style="width:96px"><col style="width:88px"></colgroup>
-          <thead><tr><th class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th class="num" data-sort="pair" data-table="ex">DOLO Paired<span class="pf-sort"></span></th><th class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th><th class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th></tr></thead>
+          <colgroup><col data-column="date" style="width:12.147272%"><col data-column="route" style="width:13.847996%"><col data-column="spacer" style="width:27.020602%"><col data-column="vedolo" style="width:9.34471%"><col data-column="paired" style="width:11.286907%"><col data-column="paid" style="width:10.415274%"><col data-column="price" style="width:9.076469%"><col data-column="lock" style="width:6.86077%"></colgroup>
+          <thead><tr><th data-column="date" class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th data-column="route" class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th data-column="spacer" aria-hidden="true"></th><th data-column="vedolo" class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th data-column="paired" class="num" data-sort="pair" data-table="ex">DOLO Paired<span class="pf-sort"></span></th><th data-column="paid" class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th data-column="price" class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th><th data-column="lock" class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th></tr></thead>
           <tbody id="pf-exercises-body"></tbody>
         </table>
       </div>
@@ -3287,10 +3291,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
 
     body.innerHTML = pageRows.map(r => {
       return `<tr class="pf-row">
-      <td>${chainChip(r.chain)}</td>
-      <td>${tokenCell(r)}</td>
-      <td class="num">${fmtToken(r.amount)}</td>
-      <td class="usd ${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(r.usd)}</td>
+      <td data-column="chain">${chainChip(r.chain)}</td>
+      <td data-column="asset">${tokenCell(r)}</td>
+      <td data-column="amount" class="num">${fmtToken(r.amount)}</td>
+      <td data-column="value" class="usd ${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(r.usd)}</td>
     </tr>`;}).join("");
 
     // keep table height stable across pages (spacer rows on short last page)
@@ -3446,7 +3450,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     if (!rows.length){
       $("#pf-exercises-foot").style.display = "none";
       const emptyText = state.exercises.length ? "No activity rows match the selected route." : "No veDOLO position activity found for this wallet.";
-      body.innerHTML = `<tr><td colspan="7"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${emptyText}</div></td></tr>`;
+      body.innerHTML = `<tr><td colspan="8"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${emptyText}</div></td></tr>`;
       return;
     }
     const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
@@ -3466,19 +3470,20 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const dateTop = fmtIsoDate(r.date);
       const dateMeta = r.route === "pair" ? "paired oDOLO + DOLO" : (r.fallbackCurrent && r.route === "transfer" ? "position date · tx pending" : fmtExerciseDateMeta(r));
       return `<tr class="pf-row">
-        <td><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${dateTop}</strong>${txLink}</div><span>${esc(dateMeta)}</span></div></td>
-        <td class="pf-route-cell">${exerciseRouteTag(r.route, r)}</td>
-        <td class="num"><span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
-        <td class="num">${pairHtml}</td>
-        <td class="num">${paidHtml}</td>
-        <td class="num">${priceHtml}</td>
-        <td class="num">${lockHtml}</td>
+        <td data-column="date"><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${dateTop}</strong>${txLink}</div><span>${esc(dateMeta)}</span></div></td>
+        <td data-column="route" class="pf-route-cell">${exerciseRouteTag(r.route, r)}</td>
+        <td data-column="spacer" aria-hidden="true"></td>
+        <td data-column="vedolo" class="num"><span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
+        <td data-column="paired" class="num">${pairHtml}</td>
+        <td data-column="paid" class="num">${paidHtml}</td>
+        <td data-column="price" class="num">${priceHtml}</td>
+        <td data-column="lock" class="num">${lockHtml}</td>
       </tr>`;
     }).join("");
     if (totalPages > 1 && pageRows.length < PAGE_SIZE){
       const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 58;
       body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
-        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="7" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="8" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
     }
     $("#pf-exercises-foot").style.display = "";
     $("#pf-exercises-info").textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length.toLocaleString("en-US")}`;
@@ -3521,9 +3526,9 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
 
   function setLoadingTables(){
-    const skel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:60px"></span></td><td><span class="pf-skel" style="width:120px"></span></td><td class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
+    const skel = `<tr class="pf-skel-row"><td data-column="chain"><span class="pf-skel" style="width:60px"></span></td><td data-column="asset"><span class="pf-skel" style="width:120px"></span></td><td data-column="amount" class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td data-column="value" class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
     const borSkel = `<tr class="pf-skel-row"><td data-column="chain"><span class="pf-skel" style="width:58px"></span></td><td data-column="account"><span class="pf-skel" style="width:82px"></span></td><td data-column="health"><span class="pf-skel" style="width:50px"></span></td><td data-column="emode"><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td data-column="spacer" aria-hidden="true"></td><td data-column="collateral"><span class="pf-skel" style="width:104px"></span></td><td data-column="debt"><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
-    const exSkel = `<tr class="pf-skel-row"><td><span class="pf-skel" style="width:86px"></span></td><td><span class="pf-skel" style="width:150px"></span></td><td class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:78px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
+    const exSkel = `<tr class="pf-skel-row"><td data-column="date"><span class="pf-skel" style="width:86px"></span></td><td data-column="route"><span class="pf-skel" style="width:150px"></span></td><td data-column="spacer" aria-hidden="true"></td><td data-column="vedolo" class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td data-column="paired" class="num"><span class="pf-skel" style="width:78px;margin-left:auto"></span></td><td data-column="paid" class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td data-column="price" class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td data-column="lock" class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;
     $("#pf-deposits-foot").style.display = "none"; $("#pf-borrows-foot").style.display = "none"; $("#pf-exercises-foot").style.display = "none";
     $("#pf-deposits-count").style.display = "none"; $("#pf-borrows-count").style.display = "none"; $("#pf-exercises-count").style.display = "none";
