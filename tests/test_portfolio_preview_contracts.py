@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PORTFOLIO_HTML = ROOT / "portfolio-preview.html"
+PORTFOLIO_ROUTE = ROOT / "portfolio" / "index.html"
 SHARED_TOOLTIPS = ROOT / "shared-hover-tooltips.js"
 EXERCISERS_JSON = ROOT / "exercisers_by_address.json"
 GENERATE_EXERCISERS = ROOT / "generate_exercisers.py"
@@ -14,6 +15,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.html = PORTFOLIO_HTML.read_text(encoding="utf-8")
+        cls.route = PORTFOLIO_ROUTE.read_text(encoding="utf-8")
         cls.shared_tooltips = SHARED_TOOLTIPS.read_text(encoding="utf-8")
 
     def test_open_borrows_uses_risk_positions_ux(self):
@@ -149,25 +151,46 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertNotIn("DOLO paid ·", self.html)
         self.assertNotIn("DOLO paired · in veDOLO", self.html)
 
-    def test_wallet_summary_uses_count_up_metrics_and_stacked_value_hierarchy(self):
+    def test_wallet_summary_keeps_usd_next_to_dolo_with_safe_mobile_wrapping(self):
         self.assertIn('function setPortfolioMetric(el, value)', self.html)
         self.assertIn('window.CountUpMetric', self.html)
         self.assertIn('class="pf-sum-total-number" data-count-value="0"', self.html)
         self.assertIn('class="pf-count-number" data-count-value="0"', self.html)
-        self.assertIn('.pf-sum-headline{display:flex;flex-direction:column;align-items:flex-start;gap:10px;', self.html)
+        self.assertIn('.pf-sum-headline{display:flex;align-items:center;gap:14px;flex-wrap:wrap;', self.html)
+        self.assertIn('.pf-sum-headline{align-items:flex-start;gap:10px}', self.html)
         self.assertIn('display:flex;align-items:baseline;gap:8px;', self.html)
         self.assertNotIn('pf-sum-usd .lbl', self.html)
 
-    def test_portfolio_table_headers_show_data_freshness_without_totals(self):
-        for section_id in ("pf-deposits-section", "pf-borrows-section", "pf-exercises-section"):
+    def test_portfolio_table_headers_show_source_aware_relative_freshness(self):
+        headers = {
+            "pf-deposits-section": "pf-deposits-updated",
+            "pf-borrows-section": "pf-borrows-updated",
+            "pf-exercises-section": "pf-exercises-updated",
+        }
+        for section_id, label_id in headers.items():
             section = self.html.split(f'id="{section_id}"', 1)[1].split('</section>', 1)[0]
             self.assertIn('<span class="pf-meta-label">Data updated</span>', section)
+            self.assertIn(f'id="{label_id}"', section)
+        self.assertIn('function portfolioUpdatedAt(value)', self.html)
+        self.assertIn('function setPortfolioTableUpdated(id, value)', self.html)
+        self.assertIn('const el = $(`#${id}`);', self.html)
+        self.assertIn('el.textContent = `· ${portfolioUpdatedAt(value)}`;', self.html)
+        self.assertIn('updatedAt: manifest && (manifest.generatedAtISO || manifest.generatedAt),', self.html)
+        self.assertIn('const livePositionsUpdatedAt = Date.now();', self.html)
+        self.assertIn('const borrowsUpdatedAt = riskBorrows.length ? riskJson.updatedAt : livePositionsUpdatedAt;', self.html)
+        self.assertIn('const exercisesUpdatedAt = oldestPortfolioUpdatedAt(', self.html)
+        self.assertIn('setPortfolioTableUpdated("pf-deposits-updated", livePositionsUpdatedAt);', self.html)
+        self.assertIn('setPortfolioTableUpdated("pf-borrows-updated", borrowsUpdatedAt);', self.html)
+        self.assertIn('setPortfolioTableUpdated("pf-exercises-updated", exercisesUpdatedAt);', self.html)
         for removed_id in ("pf-deposits-total", "pf-borrows-total", "pf-exercises-total"):
             self.assertNotIn(removed_id, self.html)
         self.assertNotIn("Total supplied", self.html)
         self.assertNotIn("Total debt", self.html)
         self.assertNotIn("Current veDOLO", self.html)
         self.assertIn('#pf-deposits-section .pf-table thead th{background:var(--bg-1)}', self.html)
+
+    def test_portfolio_route_refreshes_inline_usd_and_freshness_labels(self):
+        self.assertIn('portfolio-summary-inline-usd-freshness-20260715', self.route)
 
     def test_portfolio_address_hero_omits_live_onchain_label(self):
         hero = self.html.split('<!-- HERO + ADDRESS INPUT -->', 1)[1].split('</section>', 1)[0]
