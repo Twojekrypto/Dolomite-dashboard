@@ -1519,7 +1519,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   letter-spacing:.08em;
   color:var(--fg-3);
 }
-#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value,
+#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{color:var(--gold-hi)}
 #pf-exercises-section .pf-exercise-summary-item.accent .pf-exercise-summary-value{color:var(--pf-ex-green)}
 #pf-exercises-section .pf-exercise-summary-value .accent-price{color:#9ab7c2}
 #pf-exercises-section .pf-exercise-summary-sub{
@@ -1532,7 +1532,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   overflow:hidden;
   text-overflow:ellipsis;
 }
-#pf-exercises-section .pf-exercise-summary-sub .accent-money{color:#9ab7c2;font-weight:800}
+#pf-exercises-section .pf-exercise-summary-sub .accent-money{color:var(--pf-ex-green);font-weight:800}
 #pf-exercises-section .pf-table thead th{
   background:rgba(9,9,11,.38);
   border-bottom-color:var(--line-2);
@@ -1665,9 +1665,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   font-weight:600;
   color:var(--fg-1);
 }
-#pf-exercises-section .pf-ex-ve{color:var(--pf-ex-green)}
-#pf-exercises-section .pf-ex-usdc{color:var(--gold-hi)}
-#pf-exercises-section .pf-ex-pair{color:#d8c17a}
+#pf-exercises-section .pf-ex-ve{color:var(--gold-hi)}
+#pf-exercises-section .pf-ex-usdc{color:var(--pf-ex-green)}
+#pf-exercises-section .pf-ex-pair{color:var(--fg-1)}
 #pf-exercises-section .pf-ex-price{color:#9ab7c2}
 #pf-exercises-section .pf-ex-muted{font-family:var(--mono);font-size:13px;color:var(--fg-4)}
 #pf-exercises-section .pf-ex-lock{
@@ -3412,10 +3412,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       ),
       exerciseSummaryItem(
         "oDOLO Exercises",
-        `${fmtCompact(claimVe)} <span class="unit">veDOLO</span>`,
+        `<span class="pf-ex-pair">${fmtCompact(claimVe)} <span class="unit">veDOLO</span></span>`,
         claimRows.length ? `${claimRows.length} exercises · <span class="accent-money">${fmtUSD(claimPaid)} USDC paid</span>` : "No oDOLO option exercises",
         false,
-        true,
+        false,
         claimRows.length,
         EXERCISE_SUMMARY_ICONS.exercises
       ),

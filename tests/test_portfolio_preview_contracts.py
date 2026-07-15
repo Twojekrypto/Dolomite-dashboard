@@ -137,6 +137,14 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('.pf-borrow-positions .pf-money-cell{\n  align-items:flex-end;', self.html)
         self.assertIn('#pf-exercises-section .flow-route-head,#pf-exercises-section .pf-route-cell,#pf-exercises-section .pf-table [data-column="lock"]{text-align:center}', self.html)
 
+    def test_vedolo_activity_uses_distinct_asset_colors(self):
+        self.assertIn('#pf-exercises-section .pf-ex-ve{color:var(--gold-hi)}', self.html)
+        self.assertIn('#pf-exercises-section .pf-ex-usdc{color:var(--pf-ex-green)}', self.html)
+        self.assertIn('#pf-exercises-section .pf-ex-pair{color:var(--fg-1)}', self.html)
+        self.assertIn('#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{color:var(--gold-hi)}', self.html)
+        self.assertIn('#pf-exercises-section .pf-exercise-summary-sub .accent-money{color:var(--pf-ex-green)', self.html)
+        self.assertIn('<span class="pf-ex-pair">${fmtCompact(claimVe)} <span class="unit">veDOLO</span></span>', self.html)
+
     def test_open_borrows_expands_hidden_assets(self):
         self.assertIn("expandedBorrows: new Set()", self.html)
         self.assertIn("function borrowRowKey(row)", self.html)
@@ -355,7 +363,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertNotIn("min-height:78px", self.html)
         self.assertIn("pf-exercise-summary-item.accent", self.html)
         self.assertIn("accent-money", self.html)
-        self.assertIn("#pf-exercises-section .pf-exercise-summary-sub .accent-money{color:#9ab7c2", self.html)
+        self.assertIn("#pf-exercises-section .pf-exercise-summary-sub .accent-money{color:var(--pf-ex-green)", self.html)
         self.assertIn("#pf-exercises-section .pf-exercise-summary-value .accent-price{color:#9ab7c2", self.html)
         self.assertIn("#pf-exercises-section .pf-exercise-route-filter .dd-btn", self.html)
         self.assertIn("#pf-exercises-section .pf-exercise-route-filter .dd-panel", self.html)
