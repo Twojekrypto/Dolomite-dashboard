@@ -1,6 +1,6 @@
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import generate_dolo_flows as flows
 
@@ -138,6 +138,42 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
             flows.require_complete_flow_history({"eth": [[100, 110]], "bera": []})
 
         flows.require_complete_flow_history({"eth": [], "bera": []})
+
+    def test_rate_limit_waits_before_retrying_the_same_log_range(self):
+        rate_limited = Mock(
+            status_code=429,
+            headers={"Retry-After": "3"},
+        )
+        rate_limited.json.return_value = {"error": {"message": "rate limit"}}
+        success = Mock(status_code=200, headers={})
+        success.json.return_value = {
+            "result": [{
+                "topics": [
+                    flows.TRANSFER_TOPIC,
+                    "0x" + "0" * 24 + SOURCE[2:],
+                    "0x" + "0" * 24 + COINBASE_10[2:],
+                ],
+                "data": hex(10**18),
+                "blockNumber": hex(100),
+            }]
+        }
+        chain = {
+            "eth": {
+                "name": "Ethereum",
+                "rpcs": ["https://rpc.example"],
+                "chunk_size": 1_000,
+                "deploy_block": 1,
+            }
+        }
+
+        with patch.object(flows, "CHAINS", chain), patch.object(
+            flows.requests, "post", side_effect=[rate_limited, success]
+        ), patch.object(flows.time, "sleep") as sleep:
+            transfers, failed, _ = flows.fetch_transfer_logs("eth", 100, 100)
+
+        self.assertEqual(failed, 0)
+        self.assertEqual(transfers, [(SOURCE, COINBASE_10, 10**18, 100)])
+        sleep.assert_any_call(3.0)
 
     def test_dashboard_net_flow_hover_reconciles_gross_directions(self):
         source = (Path(__file__).resolve().parents[1] / "dolo-preview.html").read_text()

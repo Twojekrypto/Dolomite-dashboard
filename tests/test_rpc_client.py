@@ -155,6 +155,58 @@ class TestRpcClient(unittest.TestCase):
         self.assertEqual(missing, [])
         record_methods.assert_called_once_with(["eth_call", "eth_getLogs"])
 
+    def test_generic_batch_retries_a_json_rpc_error_entry(self):
+        payloads = [
+            {"jsonrpc": "2.0", "method": "eth_call", "params": [], "id": "a"},
+        ]
+        rate_limited = _response([
+            {"jsonrpc": "2.0", "id": "a", "error": {"code": 429, "message": "rate limit"}},
+        ])
+        recovered = _response([
+            {"jsonrpc": "2.0", "id": "a", "result": "0x1"},
+        ])
+
+        with mock.patch.object(
+            rpc_client.requests, "post", side_effect=[rate_limited, recovered]
+        ) as post, mock.patch.object(rpc_client.time, "sleep") as sleep:
+            responses, missing = rpc_batch_requests(
+                ["https://a.example"],
+                payloads,
+                quiet=True,
+                retries_per_endpoint=2,
+            )
+
+        self.assertEqual(responses, {"a": {"jsonrpc": "2.0", "id": "a", "result": "0x1"}})
+        self.assertEqual(missing, [])
+        self.assertEqual(post.call_count, 2)
+        sleep.assert_any_call(rpc_client.BACKOFF_BASE_SECONDS)
+
+    def test_generic_batch_honors_retry_after_for_http_429(self):
+        payloads = [
+            {"jsonrpc": "2.0", "method": "eth_call", "params": [], "id": "a"},
+        ]
+        rate_limited = _response([])
+        http_error = rpc_client.requests.HTTPError("429")
+        http_error.response = mock.Mock(headers={"Retry-After": "3"}, status_code=429)
+        rate_limited.raise_for_status.side_effect = http_error
+        recovered = _response([
+            {"jsonrpc": "2.0", "id": "a", "result": "0x1"},
+        ])
+
+        with mock.patch.object(
+            rpc_client.requests, "post", side_effect=[rate_limited, recovered]
+        ), mock.patch.object(rpc_client.time, "sleep") as sleep:
+            responses, missing = rpc_batch_requests(
+                ["https://a.example"],
+                payloads,
+                quiet=True,
+                retries_per_endpoint=2,
+            )
+
+        self.assertEqual(responses["a"]["result"], "0x1")
+        self.assertEqual(missing, [])
+        sleep.assert_any_call(3.0)
+
     def test_generic_single_request_rotates_to_next_endpoint(self):
         ok = _response({"jsonrpc": "2.0", "id": 1, "result": "0x7"})
         with mock.patch.object(rpc_client.requests, "post", side_effect=[Exception("down"), ok]):
