@@ -141,7 +141,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('#pf-exercises-section .pf-ex-ve{color:var(--gold-hi)}', self.html)
         self.assertIn('#pf-exercises-section .pf-ex-usdc{color:var(--pf-ex-green)}', self.html)
         self.assertIn('#pf-exercises-section .pf-ex-pair{color:var(--fg-1)}', self.html)
-        self.assertIn('#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{color:var(--gold-hi)}', self.html)
+        self.assertIn('#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{color:var(--fg-1)}', self.html)
         self.assertIn('#pf-exercises-section .pf-exercise-summary-sub .accent-money{color:var(--pf-ex-green)', self.html)
         self.assertIn('<span class="pf-ex-pair">${fmtCompact(claimVe)} <span class="unit">veDOLO</span></span>', self.html)
 
