@@ -5676,7 +5676,7 @@
             const tkKey = topSupply.chainKey + ':' + (topSupply.addr || '').toLowerCase();
             const known = (typeof KNOWN_TOKENS !== 'undefined') ? KNOWN_TOKENS[tkKey] : null;
             const tokenIcon = known && known.icon
-                ? `<div class="assets-token-icon-wrap" style="width:36px;height:36px"><div class="assets-token-icon" style="width:36px;height:36px"><img src="${known.icon}" alt="${topSupply.symbol}" style="width:36px;height:36px;border-radius:50%"></div><img class="assets-chain-overlay" src="${topSupply.chainIcon}" alt="${topSupply.chainShort}" style="width:16px;height:16px"></div>`
+                ? `<div class="assets-token-icon-wrap" style="width:36px;height:36px"><div class="assets-token-icon${earnTokenIconFrameClass(topSupply.symbol)}" style="width:36px;height:36px"><img src="${known.icon}" alt="${topSupply.symbol}" style="width:36px;height:36px"></div><img class="assets-chain-overlay" src="${topSupply.chainIcon}" alt="${topSupply.chainShort}" style="width:16px;height:16px"></div>`
                 : `<div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff">${(topSupply.symbol || '?').slice(0, 2)}</div>`;
             document.getElementById('assets-hero-top-token').innerHTML = tokenIcon + `<span>${topSupply.symbol}</span>`;
 
@@ -5696,7 +5696,7 @@
             const bkKey = topBorrow.chainKey + ':' + (topBorrow.addr || '').toLowerCase();
             const bKnown = (typeof KNOWN_TOKENS !== 'undefined') ? KNOWN_TOKENS[bkKey] : null;
             const borrowIconHtml = bKnown && bKnown.icon
-                ? `<div class="assets-token-icon-wrap" style="width:20px;height:20px"><div class="assets-token-icon" style="width:20px;height:20px"><img src="${bKnown.icon}" alt="${topBorrow.symbol}" style="width:20px;height:20px;border-radius:50%"></div><img class="assets-chain-overlay" src="${topBorrow.chainIcon}" alt="${topBorrow.chainShort}" style="width:10px;height:10px"></div>`
+                ? `<div class="assets-token-icon-wrap" style="width:20px;height:20px"><div class="assets-token-icon${earnTokenIconFrameClass(topBorrow.symbol)}" style="width:20px;height:20px"><img src="${bKnown.icon}" alt="${topBorrow.symbol}" style="width:20px;height:20px"></div><img class="assets-chain-overlay" src="${topBorrow.chainIcon}" alt="${topBorrow.chainShort}" style="width:10px;height:10px"></div>`
                 : '';
             document.getElementById('assets-hero-borrow-token-icon').innerHTML = borrowIconHtml;
             document.getElementById('assets-hero-borrow-sub').textContent = topBorrow.symbol;
@@ -6259,11 +6259,12 @@
                 const known = (typeof KNOWN_TOKENS !== 'undefined') ? KNOWN_TOKENS[tkKey] : null;
                 const GRAYSCALE_SYMBOLS = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']);
                 const grayStyle = GRAYSCALE_SYMBOLS.has(d.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
+                const iconFrameClass = earnTokenIconFrameClass(d.symbol);
                 let iconHtml;
                 if (known && known.icon) {
-                    iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon"><img src="${known.icon}" alt="${d.symbol}"${grayStyle} onerror="this.parentElement.textContent='${String(d.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
+                    iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon${iconFrameClass}"><img src="${known.icon}" alt="${d.symbol}"${grayStyle} onerror="this.parentElement.textContent='${String(d.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
                 } else {
-                    iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon">${(d.symbol || '?').slice(0, 2)}</div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
+                    iconHtml = `<div class="assets-token-icon-wrap"><div class="assets-token-icon${iconFrameClass}">${(d.symbol || '?').slice(0, 2)}</div><img class="assets-chain-overlay" src="${d.chainIcon}" alt="${d.chainShort}"></div>`;
                 }
 
                 // Supply APR breakdown: lending interest + yield sources + oDOLO
@@ -9888,7 +9889,7 @@
                 const _gsF = _GS.has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
                 let iconHtml;
                 if (item.icon) {
-                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(item.symbol)}"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }
@@ -17709,13 +17710,17 @@
             return sign + '$' + abs.toFixed(2);
         }
 
+        function earnTokenIconFrameClass(symbol) {
+            return /^(?:wstETH|ylstETH|(?:d?PT|d?YT)-|gm(?!x$)|dGM(?:$|[-\s])|d?GLV|(?:m|plv|dplv|dfs|magic|s)GLP)/i.test(String(symbol || '').trim()) ? ' full-logo' : '';
+        }
+
         function earn_renderTokenPills(tokens) {
             if (!tokens || tokens.length === 0) return '<span style="color:var(--text-muted)">—</span>';
             return tokens.map(t => {
                 const icon = SYMBOL_ICONS[t.symbol] || SYMBOL_ICONS[(t.symbol || '').toUpperCase()];
                 const safeSym = earn_escapeHtml(t.symbol || '?');   // subgraph/onchain symbol → innerHTML
                 const iconHtml = icon
-                    ? `<span class="earn-token-pill-icon"><img src="${icon}" alt="${safeSym}" onerror="this.parentElement.textContent='${String(t.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></span>`
+                    ? `<span class="earn-token-pill-icon${earnTokenIconFrameClass(t.symbol)}"><img src="${icon}" alt="${safeSym}" onerror="this.parentElement.textContent='${String(t.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></span>`
                     : '';
                 const sym = (t.symbol || '?');
                 const short = sym.length > 12 ? sym.slice(0, 10) + '…' : sym;
@@ -18545,7 +18550,7 @@
                 let iconHtml;
                 if (item.icon) {
                     const _gsF = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                    iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(item.symbol)}"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }
@@ -19013,7 +19018,7 @@
                 let iconHtml;
                 if (a.icon) {
                     const _gsF2 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(a.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                    iconHtml = `<div class="earn-token-icon"><img src="${a.icon}" alt="${a.symbol}"${_gsF2} onerror="this.parentElement.textContent='${String(a.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(a.symbol)}"><img src="${a.icon}" alt="${a.symbol}"${_gsF2} onerror="this.parentElement.textContent='${String(a.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${a.symbol.slice(0, 2)}</div>`;
                 }
@@ -19180,7 +19185,7 @@
                     let iconHtml;
                     if (item.icon) {
                         const _gsF3 = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                        iconHtml = `<div class="earn-token-icon"><img src="${item.icon}" alt="${item.symbol}"${_gsF3} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                        iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(item.symbol)}"><img src="${item.icon}" alt="${item.symbol}"${_gsF3} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                     } else {
                         iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                     }

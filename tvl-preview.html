@@ -418,6 +418,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   color:var(--gold);font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:-.3px;
 }
 .leg-icon img{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.leg-icon.full-logo{border-radius:5px;background:transparent;border-color:transparent}
+.leg-icon.full-logo img{border-radius:0;object-fit:contain}
 .leg-icon img.grayscale{filter:grayscale(1) brightness(1.5)}
 .leg-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
 .leg-top{display:flex;align-items:center;justify-content:space-between;gap:8px;line-height:1.1}
@@ -1116,6 +1118,8 @@ const tokenIcon = (sym, row={}) => {
 };
 const GRAYSCALE_SYMBOLS = new Set(["CRV", "USD0", "USD0++", "deUSD", "sdeUSD", "MATIC", "POL", "stcUSD", "cUSD", "USDT", "cbBTC"]);
 const tokenIconClass = (sym) => GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? "grayscale" : "";
+const FULL_LOGO_SYMBOL_PATTERN = /^(?:wstETH|ylstETH|(?:d?PT|d?YT)-|gm(?!x$)|dGM(?:$|[-\s])|d?GLV|(?:m|plv|dplv|dfs|magic|s)GLP)/i;
+const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "").trim()) ? "full-logo" : "";
 
 function chainKey(name){
   return String(name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1784,6 +1788,7 @@ function renderTokens(){
     const initials = t.sym.replace(/[^A-Za-z0-9]/g,"").slice(0,3).toUpperCase();
     const iconUrl  = tokenIcon(t.sym, t);
     const iconClass = tokenIconClass(t.sym);
+    const iconFrameClass = tokenIconFrameClass(t.sym);
     const iconHtml = t.isOther
       ? initials
       : `<img class="${iconClass}" src="${iconUrl}" alt="${t.sym}" onerror="this.parentElement.textContent='${initials}'">`;
@@ -1795,7 +1800,7 @@ function renderTokens(){
     return `
       <div class="leg-row ${focused?"active":""} ${dimmed?"dim":""}" data-sym="${t.sym}" data-token-key="${t._key}" style="--leg-color:${t._color}">
         <div class="leg-rank">${String(i+1).padStart(2,"0")}</div>
-        <div class="leg-icon">${iconHtml}</div>
+        <div class="leg-icon ${iconFrameClass}">${iconHtml}</div>
         <div class="leg-info">
           <div class="leg-top">
             <div class="leg-name">${t.sym}</div>

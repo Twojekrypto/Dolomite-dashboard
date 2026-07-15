@@ -264,6 +264,7 @@ body::before{
   font-size:13px;font-weight:650;color:var(--fg-1);
 }
 .hero-token>img{width:20px;height:20px;border-radius:50%;object-fit:cover;background:var(--bg-3);border:1px solid var(--line-2)}
+.hero-token>img.full-logo{border-radius:4px;object-fit:contain;background:transparent;border-color:transparent}
 .hero-token-name{font-family:var(--mono);letter-spacing:.15px;line-height:1}
 .hero-token-sep{width:1px;height:16px;background:var(--line-2);margin:0 1px}
 .hero-chain-pill{
@@ -300,9 +301,9 @@ body::before{
 .hero-card .hc-label img{width:11px;height:11px;border-radius:50%;object-fit:contain;opacity:.82;flex-shrink:0}
 .hero-card .hc-value{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:-.6px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1}
 .hero-card .hc-value.accent{color:var(--gold)}
-.hero-card.supply .hc-value{color:var(--fg-1)}
+.hero-card.supply .hc-value{color:var(--profit)}
 .hero-card.odolo .hc-value{color:var(--gold)}
-.hero-card.borrow .hc-value{color:var(--fg-1)}
+.hero-card.borrow .hc-value{color:var(--down)}
 .hero-card .hc-sub{font-size:11px;color:var(--fg-3);margin-top:8px;font-family:var(--mono);font-variant-numeric:tabular-nums}
 
 /* =========================================================================
@@ -547,6 +548,7 @@ body::before{
   width:100%;border-collapse:separate;border-spacing:0;
   font-size:13px;
 }
+.assets-table-wrap #tbl{table-layout:fixed}
 .tbl thead th{
   position:sticky;top:0;z-index:2;
   font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;
@@ -577,6 +579,10 @@ body::before{
   color:var(--fg-1);
   font-variant-numeric:tabular-nums;
 }
+.assets-table-wrap #tbl tbody td{overflow:hidden}
+.assets-table-wrap #tbl tbody td>*{max-width:100%}
+.assets-table-wrap #tbl tbody td.details-cell{padding-left:4px;padding-right:4px!important}
+.assets-table-wrap #tbl thead th[data-column="details"]{padding-left:4px;padding-right:4px!important;text-align:center}
 .tbl tbody tr.data > td,
 .tbl tbody tr.loading-row > td{height:var(--asset-table-row-h)}
 .tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
@@ -601,6 +607,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .tok-ico{width:30px;height:30px;border-radius:50%;background:var(--bg-3);border:1px solid var(--line-2);overflow:hidden;flex-shrink:0;display:grid;place-items:center}
 .tok-ico img{width:100%;height:100%;object-fit:cover}
 .tok-ico img.grayscale{filter:grayscale(1) brightness(1.5)}
+.tok-ico.full-logo{border-radius:5px;background:transparent;border-color:transparent}
+.tok-ico.full-logo img{object-fit:contain;border-radius:0}
 .tok-meta{display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .tok-name{font-weight:600;color:var(--fg-1);display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap}
 .tok-name .tok-sym{font-family:var(--mono);font-size:13px;letter-spacing:.2px;flex-shrink:0}
@@ -635,13 +643,13 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .token-ca-copy.copied{color:var(--up);border-color:var(--up)}
 .token-ca-copy svg{width:11px;height:11px}
 .asset-toggle{
-  height:24px;min-width:78px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  height:24px;width:100%;max-width:78px;min-width:0;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;overflow:hidden;
   color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
   transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
 }
 .asset-toggle svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
-.asset-toggle span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
+.asset-toggle span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .asset-toggle:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
 .tbl tbody tr.expanded .asset-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .tbl tbody tr.expanded .asset-toggle svg{transform:rotate(180deg)}
@@ -660,7 +668,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .price-val{color:var(--fg-1);font-family:var(--mono)}
 
 /* APY / supply cell — vertical breakdown (original-style) */
-.apy-cell{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:130px;line-height:1.1}
+.apy-cell{display:flex;flex-direction:column;align-items:flex-end;gap:6px;min-width:0;line-height:1.1}
 .apy-val{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--profit);letter-spacing:-.3px;line-height:1}
 .apy-val.negative{color:var(--down)}
 .apy-lines{display:flex;flex-direction:column;gap:3px;align-items:flex-end}
@@ -1257,14 +1265,18 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
     <!-- TABLE -->
     <div class="tbl-wrap assets-table-wrap">
       <table class="tbl" id="tbl">
+        <colgroup>
+          <col data-column="chain" style="width:10.958796%"><col data-column="asset" style="width:46.277338%"><col data-column="price" style="width:10.088748%">
+          <col data-column="supply" style="width:12.202853%"><col data-column="borrow" style="width:9.587956%"><col data-column="details" style="width:10.884311%">
+        </colgroup>
         <thead>
           <tr>
-            <th data-sort="chain" style="padding-left:32px">Chain</th>
-            <th data-sort="name">Asset</th>
-            <th data-sort="price" class="num">Price</th>
-            <th data-sort="supply" class="num">Supply</th>
-            <th data-sort="borrow" class="num">Borrow</th>
-            <th class="action" style="padding-right:32px">Details</th>
+            <th data-sort="chain" data-column="chain" style="padding-left:32px">Chain</th>
+            <th data-sort="name" data-column="asset">Asset</th>
+            <th data-sort="price" data-column="price" class="num">Price</th>
+            <th data-sort="supply" data-column="supply" class="num">Supply</th>
+            <th data-sort="borrow" data-column="borrow" class="num">Borrow</th>
+            <th data-column="details" class="action" style="padding-right:32px">Details</th>
           </tr>
         </thead>
         <tbody id="tbody"><!-- filled by JS --></tbody>
@@ -1662,6 +1674,8 @@ const tokenIcon = (sym, row={}) => {
 const tokIcon = tokenIcon;
 const GRAYSCALE_SYMBOLS = new Set(['CRV','USD0','USD0++','deUSD','sdeUSD','MATIC','POL','stcUSD','cUSD','USDT','cbBTC']);
 const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? "grayscale" : "";
+const FULL_LOGO_SYMBOL_PATTERN = /^(?:wstETH|ylstETH|(?:d?PT|d?YT)-|gm(?!x$)|dGM(?:$|[-\s])|d?GLV|(?:m|plv|dplv|dfs|magic|s)GLP)/i;
+const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "").trim()) ? "full-logo" : "";
 const chainIcon = (chain)=>`https://icons.llamao.fi/icons/chains/rsz_${chain==="polygonzkevm"?"polygon%20zkevm":chain==="xlayer"?"x%20layer":chain}.jpg`;
 
 const fmtPrice = (v)=>{
@@ -2234,7 +2248,7 @@ function updateHero(){
   const heroToken = document.querySelector(".hero-token");
   if(heroToken){
     const topChain = chainMeta(topSupply.chain);
-    heroToken.innerHTML = `<img class="${tokenIconClass(topSupply.sym)}" src="${tokIcon(topSupply.sym, topSupply)}" onerror="this.style.display='none'" alt="${esc(topSupply.sym)}">
+    heroToken.innerHTML = `<img class="${tokenIconClass(topSupply.sym)} ${tokenIconFrameClass(topSupply.sym)}" src="${tokIcon(topSupply.sym, topSupply)}" onerror="this.style.display='none'" alt="${esc(topSupply.sym)}">
         <span class="hero-token-name">${topSupply.sym}</span>
         <span class="hero-token-sep" aria-hidden="true"></span>
         <span class="hero-chain-pill"><img src="${topChain.icon}" onerror="this.style.display='none'" alt="">${topChain.name}</span>`;
@@ -2283,8 +2297,8 @@ function renderLoading(){
   if(!tb) return;
   tb.innerHTML = Array.from({length:10}, (_, i)=>`
     <tr class="loading-row" aria-hidden="true">
-      <td style="padding-left:32px"><span class="skel skel-line meta" style="width:${i % 2 === 0 ? 104 : 88}px"></span></td>
-      <td>
+      <td data-column="chain" style="padding-left:32px"><span class="skel skel-line meta" style="width:${i % 2 === 0 ? 104 : 88}px"></span></td>
+      <td data-column="asset">
         <div class="loading-asset">
           <span class="skel skel-avatar"></span>
           <span class="skel-stack">
@@ -2293,10 +2307,10 @@ function renderLoading(){
           </span>
         </div>
       </td>
-      <td class="num"><span class="skel skel-num"></span></td>
-      <td class="num"><span class="skel skel-num wide"></span></td>
-      <td class="num"><span class="skel skel-num"></span></td>
-      <td class="details-cell" style="padding-right:32px"><span class="skel skel-num" style="width:68px"></span></td>
+      <td data-column="price" class="num"><span class="skel skel-num"></span></td>
+      <td data-column="supply" class="num"><span class="skel skel-num wide"></span></td>
+      <td data-column="borrow" class="num"><span class="skel skel-num"></span></td>
+      <td data-column="details" class="details-cell" style="padding-right:32px"><span class="skel skel-num" style="width:68px"></span></td>
     </tr>
   `).join("");
 }
@@ -2386,10 +2400,10 @@ function render(){
     const toggleHTML = `<button class="asset-toggle" type="button" aria-label="${expanded ? "Hide asset details" : "Show asset details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button>`;
     const row = `
       <tr class="data ${expanded?"expanded":""}" data-key="${keyId}">
-        <td style="padding-left:32px">${assetChainBadge(r.chain)}</td>
-        <td>
+        <td style="padding-left:32px" data-column="chain">${assetChainBadge(r.chain)}</td>
+        <td data-column="asset">
           <div class="asset-cell">
-            <div class="tok-ico">
+            <div class="tok-ico ${tokenIconFrameClass(r.sym)}">
               <img class="${tokenIconClass(r.sym)}" src="${tokIcon(r.sym, r)}" onerror="this.style.display='none'" alt="">
             </div>
             <div class="tok-meta">
@@ -2400,21 +2414,21 @@ function render(){
             </div>
           </div>
         </td>
-        <td class="num">
+        <td data-column="price" class="num">
           <span class="price-val">${fmtPrice(r.price)}</span>
         </td>
-        <td class="num">
+        <td data-column="supply" class="num">
           <div class="apy-cell">
             <div class="apy-val ${supply < 0 ? "negative" : ""}">${fmtPct(supply)}</div>
             <div class="apy-lines">${lineHTML}</div>
           </div>
         </td>
-        <td class="num">
+        <td data-column="borrow" class="num">
           <div class="apy-cell">
             <div class="bw-val">${fmtPct(borrowEff)}</div>
           </div>
         </td>
-        <td class="details-cell" style="padding-right:32px">${toggleHTML}</td>
+        <td data-column="details" class="details-cell" style="padding-right:32px">${toggleHTML}</td>
       </tr>
     `;
     const sim = expanded ? simulate(r, calc) : null;
