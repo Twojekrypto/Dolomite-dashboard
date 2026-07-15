@@ -1054,7 +1054,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 .pf-summary .hero-token-logo img{width:30px;height:30px;object-fit:contain}
 /* big total — DOLO-tab hero price row */
-.pf-sum-headline{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding-bottom:26px;position:relative;z-index:1}
+.pf-sum-headline{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .pf-sum-total-val{
   display:flex;align-items:baseline;gap:8px;
   font-family:var(--mono);font-size:52px;font-weight:700;
@@ -1096,6 +1096,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 @media (max-width:560px){
   .pf-summary{padding:22px 18px}
+  .pf-sum-headline{align-items:flex-start;gap:10px}
   .pf-sum-total-val{font-size:40px;flex-wrap:wrap}
   .pf-sum-grid{grid-template-columns:1fr;gap:0}
   .pf-sum-item{border-left:0;padding:14px 0 0;border-top:1px solid var(--line-1);margin-top:14px}
@@ -1867,7 +1868,7 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>Deposited Assets</h2>
           <span class="count-badge" id="pf-deposits-count" style="display:none"></span>
         </div>
-        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span><span class="pf-meta-age" id="pf-deposits-updated">· —</span></div>
       </div>
       <div class="pf-filters" id="pf-deposits-filters"></div>
       <div style="overflow-x:auto">
@@ -1890,7 +1891,7 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>Open Borrows</h2>
           <span class="count-badge" id="pf-borrows-count" style="display:none"></span>
         </div>
-        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span><span class="pf-meta-age" id="pf-borrows-updated">· —</span></div>
       </div>
       <div class="pf-filters" id="pf-borrows-filters"></div>
       <div style="overflow-x:auto">
@@ -1913,7 +1914,7 @@ body:not(.pf-active) #pf-results{display:none}
           <h2>veDOLO Position Activity</h2>
           <span class="count-badge" id="pf-exercises-count" style="display:none"></span>
         </div>
-        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span></div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span><span class="pf-meta-age" id="pf-exercises-updated">· —</span></div>
       </div>
       <div class="pf-exercise-summary" id="pf-exercises-summary" style="display:none"></div>
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
@@ -2345,6 +2346,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const shards = await Promise.all(chains.map(chain => loadJson(`${base}/${chain}/${prefix}.json`)));
     return {
       positions: shards.flatMap(shard => ((shard && shard.positions) || []).filter(position => normAddr(position.address) === address)),
+      updatedAt: manifest && (manifest.generatedAtISO || manifest.generatedAt),
     };
   }
   async function sgQuery(endpoint, query){
@@ -2996,6 +2998,35 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     document.querySelectorAll("#pf-sum-grid [data-count-target]").forEach(el => setPortfolioMetric(el, el.dataset.countTarget));
   }
 
+  function portfolioTimestampMs(value){
+    if (typeof value === "number" && Number.isFinite(value)) return value > 1e12 ? value : value * 1000;
+    const text = String(value == null ? "" : value).trim();
+    if (!text) return 0;
+    const numeric = Number(text);
+    if (Number.isFinite(numeric)) return numeric > 1e12 ? numeric : numeric * 1000;
+    const timestamp = /T/.test(text) && !/(?:Z|[+-]\d{2}:?\d{2})$/i.test(text) ? `${text}Z` : text;
+    const parsed = Date.parse(timestamp);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  function portfolioUpdatedAt(value){
+    const updatedAt = portfolioTimestampMs(value);
+    if (!updatedAt) return "—";
+    const minutes = Math.max(0, Math.floor((Date.now() - updatedAt) / 60000));
+    if (minutes < 1) return "now";
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 48) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }
+  function oldestPortfolioUpdatedAt(...values){
+    const timestamps = values.map(portfolioTimestampMs).filter(Boolean);
+    return timestamps.length ? Math.min(...timestamps) : 0;
+  }
+  function setPortfolioTableUpdated(id, value){
+    const el = $(`#${id}`);
+    if (el) el.textContent = `· ${portfolioUpdatedAt(value)}`;
+  }
+
   const DD_CHECK = `<span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span>`;
   const GLOBE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
   const TELEGRAM_ICON = `<svg viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8l-1.68 7.92c-.12.56-.44.7-.9.43l-2.5-1.84-1.2 1.16c-.14.14-.25.25-.5.25l.18-2.52 4.56-4.12c.2-.18-.04-.28-.3-.1L8.9 13.54l-2.42-.76c-.52-.16-.54-.52.12-.78l9.48-3.66c.44-.16.82.1.56.78z"/></svg>`;
@@ -3498,6 +3529,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     $("#pf-exercises-filters").style.display = "none"; $("#pf-exercises-filters").innerHTML = "";
     $("#pf-exercises-summary").style.display = "none"; $("#pf-exercises-summary").innerHTML = "";
     $("#pf-sum-total").textContent = "—"; $("#pf-sum-total-usd").style.display = "none";
+    ["pf-deposits-updated", "pf-borrows-updated", "pf-exercises-updated"].forEach(id => setPortfolioTableUpdated(id, 0));
     $("#pf-sum-grid").innerHTML = `<div class="pf-sum-item"><div class="lbl"><span class="pf-skel" style="width:80px;height:9px"></span></div><div class="pf-skel" style="width:90px;height:22px"></div><div class="sub"><span class="pf-skel" style="width:110px;height:9px;margin-top:4px"></span></div></div>`.repeat(5);
   }
 
@@ -3522,6 +3554,7 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       fetchDoloBalance(addr).catch(() => null),
       ...CHAINS.map(c => fetchChainPositions(c, addr).catch(() => ({ deposits: [], borrows: [] }))),
     ]);
+    const livePositionsUpdatedAt = Date.now();
 
     const staticDolo = findByAddress(doloHolders, addr);
     const staticVedoloRow = findByAddress(vedoloHolders, addr);
@@ -3549,6 +3582,15 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     state.borrows = riskBorrows.length ? riskBorrows : buildFallbackBorrowRows(chainResults, addr);
     state.vedoloCurrent = cardData.vedolo || null;
     state.exercises = buildExerciseRows(cardData.exer, vedoloFlows, addr, cardData.vedolo);
+    const borrowsUpdatedAt = riskBorrows.length ? riskJson.updatedAt : livePositionsUpdatedAt;
+    const exercisesUpdatedAt = oldestPortfolioUpdatedAt(
+      exercisers && exercisers.updated,
+      vedoloFlows && vedoloFlows.timestamp,
+      vedoloHolders && vedoloHolders.timestamp,
+    ) || livePositionsUpdatedAt;
+    setPortfolioTableUpdated("pf-deposits-updated", livePositionsUpdatedAt);
+    setPortfolioTableUpdated("pf-borrows-updated", borrowsUpdatedAt);
+    setPortfolioTableUpdated("pf-exercises-updated", exercisesUpdatedAt);
     state.depFilter = { chains: new Set(), q: "" }; state.borFilter = { chains: new Set(), q: "", hideDust: true }; state.exFilter = { routes: defaultExerciseRoutes() };
     state.depSort = { key: "usd", desc: true }; state.borSort = { key: "debt", desc: true }; state.exSort = { key: "date", desc: true };
     state.depPage = 0; state.borPage = 0; state.exPage = 0;
