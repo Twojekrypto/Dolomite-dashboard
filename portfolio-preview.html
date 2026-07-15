@@ -1054,7 +1054,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 .pf-summary .hero-token-logo img{width:30px;height:30px;object-fit:contain}
 /* big total — DOLO-tab hero price row */
-.pf-sum-headline{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.pf-sum-headline{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .pf-sum-total-val{
   display:flex;align-items:baseline;gap:8px;
   font-family:var(--mono);font-size:52px;font-weight:700;
@@ -1265,13 +1265,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-usd-neg{color:var(--down)}
 .pf-chain-chip{display:inline-flex;align-items:center;gap:7px;color:var(--fg-1);font-size:12.5px;font-weight:500;line-height:1.2;white-space:nowrap}
 .pf-chain-chip img{width:15px;height:15px;border-radius:50%;object-fit:contain;flex-shrink:0;background:var(--bg-3)}
-.pf-token{display:inline-flex;align-items:center;gap:12px;min-width:0}
-.pf-token-mark{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,rgba(201,162,39,.14),rgba(255,255,255,.04));border:1px solid var(--line-2);display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--gold);flex-shrink:0;overflow:hidden}
-.pf-token-mark img{width:100%;height:100%;object-fit:contain;padding:2px}
-.pf-token-mark img.grayscale{filter:grayscale(1) brightness(1.5)}
-.pf-token-name{font-weight:700;font-size:14px;letter-spacing:.2px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pf-token-sub{font-size:10px;color:var(--fg-3);font-family:var(--mono)}
-.pf-amt-sym{font-size:11px;color:var(--fg-3);font-weight:400;margin-left:3px}
 .pf-mini-chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:var(--fg-3);font-size:9px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}
 .pf-hf-badge{display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:28px;padding:0 10px;border-radius:7px;font-family:var(--mono);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;border:1px solid rgba(255,255,255,.075);background:rgba(255,255,255,.025);color:var(--fg-1)}
 .pf-hf-badge.danger{color:var(--down);background:rgba(255,91,91,.075);border-color:rgba(255,91,91,.22)}
@@ -1728,7 +1721,6 @@ body:not(.pf-active) #pf-results{display:none}
   #pf-exercises-section .pf-exercise-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
   #pf-exercises-section .pf-exercise-summary-item:nth-child(odd){border-left:0}
   #pf-exercises-section .pf-exercise-summary-item:nth-child(n+3){border-top:1px solid var(--line-1)}
-  .pf-token-name{max-width:128px}
   .pf-filters .pf-search-tbl{width:100%}
   #pf-borrows-section .pf-borrow-actions{width:100%;margin-left:0}
   .pf-tokensearch{margin-left:0}
@@ -1737,10 +1729,7 @@ body:not(.pf-active) #pf-results{display:none}
   #pf-exercises-section .pf-exercise-summary{grid-template-columns:1fr}
   #pf-exercises-section .pf-exercise-summary-item{border-left:0}
   #pf-exercises-section .pf-exercise-summary-item:nth-child(n+2){border-top:1px solid var(--line-1)}
-  .pf-token-name{max-width:78px}
-  .pf-token-mark{width:28px;height:28px}
   .pf-table tbody td,.pf-table thead th{padding-left:12px;padding-right:12px}
-  .pf-amt-sym{display:block;margin-left:0;margin-top:2px}
 }
 </style>
 <body>
@@ -2326,6 +2315,18 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     };
     return hash ? (hosts[chain] || "https://etherscan.io/tx/") + hash : "";
   };
+  function tokenExplorer(chainKey, address){
+    const hosts = {
+      berachain: "https://berascan.com/token/",
+      arbitrum: "https://arbiscan.io/token/",
+      ethereum: "https://etherscan.io/token/",
+      mantle: "https://mantlescan.xyz/token/",
+      polygonzkevm: "https://zkevm.polygonscan.com/token/",
+      xlayer: "https://www.okx.com/web3/explorer/xlayer/address/",
+      botanix: "https://botanixscan.io/token/",
+    };
+    return address ? (hosts[chainKey] || "https://etherscan.io/token/") + address : "";
+  }
   const TX_EXTERNAL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
   const COPY_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
   const CHECK_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
@@ -2381,13 +2382,13 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
       const par = parseFloat(tv.valuePar||"0"); if (!a || !par) return;
       const ix = idx[a] || { s:1, b:1 };
       const amt = par > 0 ? par * ix.s : par * ix.b;
-      if (!agg[a]) agg[a] = { sym: t.symbol||"?", addr: a, dec: Number(t.decimals||18), amount: 0, price: px[a]||0 };
+      if (!agg[a]) agg[a] = { sym: t.symbol||"?", name: t.name || t.symbol || "Unknown", addr: a, dec: Number(t.decimals||18), amount: 0, price: px[a]||0 };
       agg[a].amount += amt;
     }));
     const deposits = [], borrows = [];
     Object.values(agg).forEach(r => {
       if (Math.abs(r.amount) < 1e-9) return;
-      const row = { chain: chain.key, sym: r.sym, addr: r.addr, amount: Math.abs(r.amount), usd: Math.abs(r.amount) * r.price };
+      const row = { chain: chain.key, sym: r.sym, name: r.name, addr: r.addr, amount: Math.abs(r.amount), usd: Math.abs(r.amount) * r.price };
       if (r.amount > 0) deposits.push(row); else borrows.push(row);
     });
     return { deposits, borrows };
@@ -2495,11 +2496,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
   }
   function tokenCell(row){
     const sym = row.sym || "?";
-    const mono = sym.replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "?";
     const icon = tokenIcon(sym, { chain: row.chain, addr: row.addr });
-    const gs = tokenIconClass(sym) ? " grayscale" : "";
-    const img = `<img src="${icon}" alt="" class="${gs.trim()}" onerror="this.remove();this.parentElement.classList.add('mono');this.parentElement.textContent='${mono}'">`;
-    return `<div class="pf-token"><span class="pf-token-mark">${img}</span><span class="pf-token-name" title="${sym}">${sym}</span></div>`;
+    const name = String(row.name || sym);
+    const isWrappedMarket = /^(GM|GLV):\s*/i.test(name) || /^gm[A-Z0-9].*/.test(sym) || /^GLV-/i.test(sym);
+    const nameHtml = `<span class="tok-sym">${esc(sym)}</span>${isWrappedMarket ? "" : `<span class="tok-long">${esc(name)}</span>`}`;
+    const contractHtml = row.addr ? `<a class="token-ca addr-tooltip-wrap" href="${tokenExplorer(row.chain, row.addr)}" target="_blank" rel="noopener" data-full-addr="${esc(row.addr)}"><span class="token-ca-label">CA</span><span>${esc(shortAddr(row.addr))}</span></a><button class="token-ca-copy" type="button" data-copy="${esc(row.addr)}" aria-label="Copy ${esc(sym)} contract address">${COPY_ICON}</button>` : "";
+    return `<div class="asset-cell"><div class="tok-ico"><img class="${tokenIconClass(sym)}" src="${icon}" onerror="this.style.display='none'" alt=""></div><div class="tok-meta"><div class="tok-name">${nameHtml}</div><div class="tok-tags">${contractHtml}</div></div></div>`;
   }
   function tokenPills(tokens, chain, options = {}){
     const list = Array.isArray(tokens) ? tokens : [];
@@ -2982,12 +2984,12 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     items.push(sumItem("dolo-logo.svg", "DOLO held", `${fmtCompact(held)}`, split.length ? split.join(" · ") : usd(held) || "liquid in wallet"));
     // 2) veDOLO — DOLO locked
     items.push(sumItem("vedolo-logo.svg", "veDOLO locked", `${fmtCompact(ve)}`,
-      d.vedolo ? `${fmtCompact(d.vedolo.total_vote_weight)} vote power · ${d.vedolo.nft_count} lock${d.vedolo.nft_count!==1?"s":""}${d.vedolo.latest_lock_end?`<br><span class="dim">until ${fmtDate(d.vedolo.latest_lock_end)}</span>`:""}` : `<span class="dim">no veDOLO locks</span>`));
+      d.vedolo ? `${fmtCompact(d.vedolo.total_vote_weight)} vote power` : `<span class="dim">no veDOLO locks</span>`));
     // 3) exercised oDOLO options (historical, results live inside veDOLO)
     const exPrices = exClaimTxs.map(t=>Number(t.price)).filter(p=>p>0);
     const exAvg = exPrices.length ? exPrices.reduce((s,p)=>s+p,0)/exPrices.length : null;
     items.push(sumItem("odolo-logo-official.svg", "oDOLO exercised", `${fmtCompact(exVe)}`,
-      exCount ? `${exCount} option exercise${exCount!==1?"s":""}${exCostUsd?` · ${fmtUSD(exCostUsd)} option cost`:""}<br><span class="dim">${exAvg?`avg $${exAvg.toFixed(4)} · `:""}oDOLO converted into veDOLO</span>` : `<span class="dim">no oDOLO option exercises yet</span>`));
+      exCount ? `${fmtUSD(exCostUsd)} option cost<br><span class="dim">${exAvg ? `avg $${exAvg.toFixed(4)} · oDOLO` : "oDOLO"}</span>` : `<span class="dim">no oDOLO option exercises yet</span>`));
     // 4) paired oDOLO + DOLO, not exercised (active vesting)
     items.push(sumItem("odolo-logo-official.svg", "oDOLO paired · pending", `${fmtCompact(vOTok)}`,
       d.vesting ? `${fmtCompact(vPair)} DOLO paired · returned on claim · ${d.vesting.count} position${d.vesting.count!==1?"s":""}${d.vesting.soonest?`<br><span class="dim">unlock ${fmtDate(d.vesting.soonest)}</span>`:""}` : `<span class="dim">no active vesting</span>`, true));
@@ -3284,11 +3286,10 @@ const tokenIconClass = (sym)=>GRAYSCALE_SYMBOLS.has(String(sym || "").trim()) ? 
     const pageRows = filtered.slice(start, start + PAGE_SIZE);
 
     body.innerHTML = pageRows.map(r => {
-      const symShort = (r.sym || "").length > 12 ? r.sym.slice(0, 10) + "…" : r.sym;
       return `<tr class="pf-row">
       <td>${chainChip(r.chain)}</td>
       <td>${tokenCell(r)}</td>
-      <td class="num">${fmtToken(r.amount)} <span class="pf-amt-sym" title="${r.sym}">${symShort}</span></td>
+      <td class="num">${fmtToken(r.amount)}</td>
       <td class="usd ${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(r.usd)}</td>
     </tr>`;}).join("");
 

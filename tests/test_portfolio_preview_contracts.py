@@ -147,19 +147,45 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("const exVe = exClaimTxs.reduce", self.html)
         self.assertNotIn("const exVe = exTxs.reduce", self.html)
         self.assertIn("option cost", self.html)
-        self.assertIn("oDOLO converted into veDOLO", self.html)
+        self.assertNotIn("oDOLO converted into veDOLO", self.html)
         self.assertNotIn("DOLO paid ·", self.html)
         self.assertNotIn("DOLO paired · in veDOLO", self.html)
+
+    def test_wallet_summary_uses_compact_lock_and_exercise_details(self):
+        summary = self.html.split("function renderSummary(d, odoloBal)", 1)[1].split("function portfolioTimestampMs", 1)[0]
+        self.assertIn('`${fmtCompact(d.vedolo.total_vote_weight)} vote power`', summary)
+        self.assertNotIn("latest_lock_end", summary)
+        self.assertNotIn("${exCount} option exercise", summary)
+        self.assertIn("${fmtUSD(exCostUsd)} option cost", summary)
+        self.assertIn("avg $${exAvg.toFixed(4)} · oDOLO", summary)
+        self.assertNotIn("oDOLO converted into veDOLO", summary)
 
     def test_wallet_summary_keeps_usd_next_to_dolo_with_safe_mobile_wrapping(self):
         self.assertIn('function setPortfolioMetric(el, value)', self.html)
         self.assertIn('window.CountUpMetric', self.html)
         self.assertIn('class="pf-sum-total-number" data-count-value="0"', self.html)
         self.assertIn('class="pf-count-number" data-count-value="0"', self.html)
-        self.assertIn('.pf-sum-headline{display:flex;align-items:center;gap:14px;flex-wrap:wrap;', self.html)
+        self.assertIn('.pf-sum-headline{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;', self.html)
         self.assertIn('.pf-sum-headline{align-items:flex-start;gap:10px}', self.html)
         self.assertIn('display:flex;align-items:baseline;gap:8px;', self.html)
         self.assertNotIn('pf-sum-usd .lbl', self.html)
+
+    def test_deposited_assets_reuses_asset_identity_and_keeps_amount_numeric(self):
+        fetch_positions = self.html.split("async function fetchChainPositions(chain, addr)", 1)[1].split("// DOLO/oDOLO wallet balances", 1)[0]
+        token_cell = self.html.split("function tokenCell(row)", 1)[1].split("function tokenPills", 1)[0]
+        deposits_render = self.html.split("function renderTable(bodyId, countId, rows, f, sort, tableKey, neg)", 1)[1].split("function renderBorrowPositionsTable", 1)[0]
+        self.assertIn('name: t.name || t.symbol || "Unknown"', fetch_positions)
+        self.assertIn("name: r.name", fetch_positions)
+        self.assertIn("function tokenExplorer(chainKey, address)", self.html)
+        self.assertIn('tokenIcon(sym, { chain: row.chain, addr: row.addr })', token_cell)
+        self.assertIn('class="token-ca addr-tooltip-wrap"', token_cell)
+        self.assertIn('data-full-addr="${esc(row.addr)}"', token_cell)
+        self.assertIn('class="token-ca-copy"', token_cell)
+        self.assertIn('data-copy="${esc(row.addr)}"', token_cell)
+        self.assertIn('class="tok-long"', token_cell)
+        self.assertIn('<td class="num">${fmtToken(r.amount)}</td>', deposits_render)
+        self.assertNotIn("pf-amt-sym", deposits_render)
+        self.assertNotIn("const symShort", deposits_render)
 
     def test_portfolio_table_headers_show_source_aware_relative_freshness(self):
         headers = {
@@ -190,7 +216,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('#pf-deposits-section .pf-table thead th{background:var(--bg-1)}', self.html)
 
     def test_portfolio_route_refreshes_inline_usd_and_freshness_labels(self):
-        self.assertIn('portfolio-summary-inline-usd-freshness-20260715', self.route)
+        self.assertIn('wallet-summary-assets-ca-amount-20260715', self.route)
 
     def test_portfolio_address_hero_omits_live_onchain_label(self):
         hero = self.html.split('<!-- HERO + ADDRESS INPUT -->', 1)[1].split('</section>', 1)[0]
