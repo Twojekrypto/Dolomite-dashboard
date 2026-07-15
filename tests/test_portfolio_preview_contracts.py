@@ -92,6 +92,10 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("color:#34d399", self.html)
         self.assertIn("color:#f87171", self.html)
         self.assertIn("No non-dust borrow positions match the filter.", self.html)
+        self.assertIn(
+            '#pf-borrows-section .pf-table thead th{\n  padding:10px 12px;\n  font-size:9.5px;\n  letter-spacing:1.2px;\n  background:var(--bg-1);',
+            self.html,
+        )
         self.assertNotIn("portfolio-layout-editor", self.html)
         for key in ("chain", "account", "health", "emode", "spacer", "collateral", "debt"):
             self.assertIn(f'data-column="{key}"', self.html)
