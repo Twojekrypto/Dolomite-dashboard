@@ -1,10 +1,36 @@
 import unittest
 from datetime import datetime, timezone
+from unittest.mock import Mock, call, patch
 
 import fetch_dolomite_tvl
 
 
 class FetchDolomiteTvlTest(unittest.TestCase):
+    def test_token_api_retries_transient_server_errors(self):
+        transient_failure = Mock()
+        transient_failure.status_code = 500
+        transient_failure.raise_for_status.side_effect = fetch_dolomite_tvl.requests.HTTPError(
+            "temporary upstream failure",
+            response=transient_failure,
+        )
+        success = Mock()
+        success.raise_for_status.return_value = None
+        success.json.return_value = {"tokens": [{"symbol": "USDC"}]}
+
+        with patch.object(
+            fetch_dolomite_tvl.requests,
+            "get",
+            side_effect=[transient_failure, transient_failure, success],
+        ) as request_get, patch.object(fetch_dolomite_tvl, "time", create=True) as time_mock:
+            try:
+                result = fetch_dolomite_tvl.fetch_token_liquidity_payload("Berachain")
+            except fetch_dolomite_tvl.requests.HTTPError:
+                result = None
+
+        self.assertEqual([{"symbol": "USDC"}], result)
+        self.assertEqual(3, request_get.call_count)
+        self.assertEqual([call(2), call(4)], time_mock.sleep.call_args_list)
+
     def test_archived_chain_failures_do_not_block_active_tvl_snapshot(self):
         archived = {"Polygon zkEVM", "Botanix"}
         payloads = {
