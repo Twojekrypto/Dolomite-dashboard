@@ -1731,6 +1731,7 @@ const HOLDER_BALANCE_CHANGE_PERIODS = [
 const HOLDER_DEFAULT_WINDOW_DAYS = 30;
 const FRESH_HOLDER_MIN_BALANCE = 10_000;
 let holderDistributionActiveKey = "";
+let holderDistributionMetric = "balance";
 let holderWalletPanelKey = "";
 let holderBucketView = "whales";
 let VEDOLO_LOCKS = new Map();
@@ -2322,6 +2323,31 @@ function niceHolderChartMax(value){
   const step = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
   return step * exp;
 }
+function holderMetricValue(point, bucketIndex, baselinePoint){
+  const current = safeHolderNum(point?.buckets?.[bucketIndex]?.total);
+  if(holderDistributionMetric === "balance") return current;
+  const baseline = safeHolderNum(baselinePoint?.buckets?.[bucketIndex]?.total);
+  if(baseline <= 0) return null;
+  return (current / baseline - 1) * 100;
+}
+function holderMetricScale(values){
+  if(holderDistributionMetric === "balance"){
+    const max = niceHolderChartMax(Math.max(1, ...values.filter(Number.isFinite)) * 1.12);
+    return {min:0, max, zero:0, label:value => fmtNum(value)};
+  }
+  const maxAbs = Math.max(1, ...values.filter(Number.isFinite).map(value => Math.abs(value)));
+  const max = niceHolderChartMax(maxAbs * 1.12);
+  return {min:-max, max, zero:0, label:value => value.toFixed(value % 1 ? 1 : 0) + "%"};
+}
+function holderMetricPath(series, xAt, yAt){
+  let started = false;
+  return series.reduce((path, point) => {
+    if(!Number.isFinite(point.value)){ started = false; return path; }
+    const segment = (started ? "L" : "M") + xAt(point.ts).toFixed(2) + " " + yAt(point.value).toFixed(2);
+    started = true;
+    return path + segment;
+  }, "");
+}
 function holderBrushDomain(){
   const points = holderFullHistoryModel?.points || [];
   const minX = points[0]?.ts || 0;
@@ -2523,13 +2549,18 @@ function renderHolderDistributionChart(options = {}){
   if(holderWalletPanelKey){
     holderDistributionActiveKey = holderWalletPanelKey;
   }
-  const maxTotal = Math.max(1, ...model.points.flatMap(point => point.buckets.map(bucket => bucket.total)));
-  const yMax = niceHolderChartMax(maxTotal * 1.12);
+  const baselinePoint = model.points[0];
+  const seriesByBucket = bucketDefs.map((bucket, bucketIndex) => model.points.map(point => ({
+    ts:point.ts,
+    value:holderMetricValue(point, bucketIndex, baselinePoint),
+    total:safeHolderNum(point.buckets[bucketIndex]?.total),
+  })));
+  const metricScale = holderMetricScale(seriesByBucket.flatMap(series => series.map(point => point.value)));
   const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
   const chartW = W - P_L - P_R;
   const chartH = H - P_T - P_B;
-  const zeroY = P_T + chartH;
-  const yAt = value => P_T + (1 - Math.max(0, Math.min(1, value / yMax))) * chartH;
+  const yAt = value => P_T + (1 - Math.max(0, Math.min(1, (value - metricScale.min) / (metricScale.max - metricScale.min)))) * chartH;
+  const zeroY = yAt(metricScale.zero);
   const xMin = model.points[0]?.ts || 0;
   const xMax = model.points[model.points.length - 1]?.ts || (xMin + 1);
   const xRange = Math.max(1, xMax - xMin);
@@ -2540,23 +2571,23 @@ function renderHolderDistributionChart(options = {}){
   // during a brush drag, so on the "All" range it meant ~hundreds of thousands of reparses.
   let gridHtml = "";
   for(let i=0; i<=4; i++){
-    const value = yMax * i / 4;
+    const value = metricScale.min + (metricScale.max - metricScale.min) * i / 4;
     const y = yAt(value);
     gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
-    gridHtml += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${fmtNum(value)}</text>`;
+    gridHtml += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${metricScale.label(value)}</text>`;
   }
   gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
   grid.innerHTML = gridHtml;
 
   const spanDays = xRange / 86400;
-  if(model.points.length < 2){
+  if(holderDistributionMetric !== "balance" || model.points.length < 2){
     areaPath.setAttribute("d", "");
   } else {
     const focusKey = holderDistributionActiveKey || bucketDefs[0].key;
     const focusedBucketIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === focusKey));
-    const areaSeries = model.points.map(point => [point.ts, point.buckets[focusedBucketIndex]?.total || 0]);
-    const areaLine = areaSeries.map((point, i) => `${i ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
-    const area = `${areaLine} L${xAt(areaSeries[areaSeries.length - 1][0]).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(areaSeries[0][0]).toFixed(2)} ${zeroY.toFixed(2)} Z`;
+    const areaSeries = seriesByBucket[focusedBucketIndex];
+    const areaLine = holderMetricPath(areaSeries, xAt, yAt);
+    const area = `${areaLine} L${xAt(areaSeries[areaSeries.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(areaSeries[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`;
     areaPath.setAttribute("d", area);
   }
   const xTicks = 5;
@@ -2571,13 +2602,13 @@ function renderHolderDistributionChart(options = {}){
   let linesHtml = "";
   let dotsHtml = "";
   bucketDefs.forEach((bucket, bucketIndex) => {
-    const series = model.points.map(point => [point.ts, point.buckets[bucketIndex]?.total || 0]);
-    const path = series.map((point, i) => `${i ? "L" : "M"}${xAt(point[0]).toFixed(2)} ${yAt(point[1]).toFixed(2)}`).join(" ");
+    const series = seriesByBucket[bucketIndex];
+    const path = holderMetricPath(series, xAt, yAt);
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const muted = holderDistributionActiveKey && bucket.key !== holderDistributionActiveKey ? " is-muted" : "";
     linesHtml += `<path class="holder-chart-series-line${active}${muted}" data-key="${bucket.key}" d="${path}" stroke="${bucket.color}"/>`;
     series.forEach(point => {
-      dotsHtml += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point[0]).toFixed(2)}" cy="${yAt(point[1]).toFixed(2)}" fill="${bucket.color}"/>`;
+      if(Number.isFinite(point.value)) dotsHtml += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point.ts).toFixed(2)}" cy="${yAt(point.value).toFixed(2)}" fill="${bucket.color}"/>`;
     });
   });
   lines.innerHTML = linesHtml;
@@ -2669,9 +2700,9 @@ function renderHolderDistributionChart(options = {}){
     });
     const focusKey = holderDistributionActiveKey;
     const focusIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === focusKey));
-    const focusBucket = nearest.buckets[focusIndex] || nearest.buckets[0];
+    const focusValue = holderMetricValue(nearest, focusIndex, baselinePoint);
     const x = xAt(nearest.ts);
-    const y = yAt(focusBucket.total);
+    const y = Number.isFinite(focusValue) ? yAt(focusValue) : zeroY;
     const focusColor = bucketDefs[focusIndex]?.color || "#e4c15a";
     paintActive(holderDistributionActiveKey);
     hoverLine.setAttribute("x1", x);
@@ -2680,16 +2711,18 @@ function renderHolderDistributionChart(options = {}){
     hoverDot.setAttribute("cx", x);
     hoverDot.setAttribute("cy", y);
     hoverDot.setAttribute("fill", focusColor);
-    hoverDot.style.opacity = 1;
+    hoverDot.style.opacity = Number.isFinite(focusValue) ? 1 : 0;
     tip.innerHTML = `
       <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
       <div class="tt-val">${fmtNum(nearest.trackedTotal)} DOLO tracked</div>
       ${nearest.buckets.map((bucket, i) => {
-        const startTotal = firstPoint.buckets?.[i]?.total || 0;
+        const startTotal = safeHolderNum(baselinePoint?.buckets?.[i]?.total);
         const delta = bucket.total - startTotal;
         const deltaClass = delta >= 0 ? "up" : "down";
+        const relativeChange = holderMetricValue(nearest, i, baselinePoint);
+        const changeText = Number.isFinite(relativeChange) ? fmtSignedHolderPct(relativeChange) : "New / no baseline";
         return `
-          <div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${bucket.color};margin-right:6px"></i>${bucket.label}</span><b>${fmtNum(bucket.total)} DOLO <span class="tt-change ${deltaClass}">${holderBucketDeltaLabel(delta, startTotal)}</span></b></div>
+          <div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${bucket.color};margin-right:6px"></i>${bucket.label}</span><b>${holderDistributionMetric === "changePct" ? `<span class="tt-change ${deltaClass}">${changeText}</span> · ${fmtNum(bucket.total)} DOLO · ${fmtSignedHolder(delta)} DOLO` : `${fmtNum(bucket.total)} DOLO <span class="tt-change ${deltaClass}">${holderBucketDeltaLabel(delta, startTotal)}</span>`}</b></div>
         `;
       }).join("")}
     `;
@@ -5029,6 +5062,19 @@ document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
     holderDistributionActiveKey = "";
     document.querySelectorAll("[data-holder-bucket-view]").forEach(item => item.classList.toggle("active", item.dataset.holderBucketView === holderBucketView));
     renderHolderDistributionChart();
+  });
+});
+document.querySelectorAll("[data-holder-metric]").forEach(button => {
+  button.addEventListener("click", () => {
+    const next = button.dataset.holderMetric;
+    if(next !== "balance" && next !== "changePct") return;
+    holderDistributionMetric = next;
+    document.querySelectorAll("[data-holder-metric]").forEach(item => {
+      const active = item.dataset.holderMetric === next;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    renderHolderDistributionChart({skipBrush:true});
   });
 });
 

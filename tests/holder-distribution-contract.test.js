@@ -15,3 +15,11 @@ test("holder distribution explains scope and dynamic comparison period", () => {
   assert.match(preview, /holder-source-exclusion/);
   assert.match(preview, /holder-legend-change-head/);
 });
+
+test("holder distribution contains guarded relative-change helpers", () => {
+  assert.match(preview, /let holderDistributionMetric = "balance"/);
+  assert.match(preview, /function holderMetricValue\(/);
+  assert.match(preview, /if\(baseline <= 0\) return null/);
+  assert.match(preview, /function holderMetricScale\(/);
+  assert.match(preview, /function holderMetricPath\(/);
+});
