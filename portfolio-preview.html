@@ -1265,6 +1265,10 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-table td.usd{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600}
 .pf-usd-pos{color:var(--up)}
 .pf-usd-neg{color:var(--down)}
+#pf-deposits-section .pf-deposit-balance{white-space:nowrap}
+#pf-deposits-section .pf-deposit-amount{font-family:var(--mono);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--fg-1);line-height:1.25}
+#pf-deposits-section .pf-deposit-symbol{font-size:11px;font-weight:500;color:var(--fg-2)}
+#pf-deposits-section .pf-deposit-usd{color:var(--up);font-family:var(--mono);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.25;margin-top:2px}
 .pf-chain-chip{display:inline-flex;align-items:center;gap:7px;color:var(--fg-1);font-size:12.5px;font-weight:500;line-height:1.2;white-space:nowrap}
 .pf-chain-chip img{width:15px;height:15px;border-radius:50%;object-fit:contain;flex-shrink:0;background:var(--bg-3)}
 .pf-mini-chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 7px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);color:var(--fg-3);font-size:9px;text-transform:uppercase;letter-spacing:.7px;font-weight:700}
@@ -1869,8 +1873,8 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="pf-filters" id="pf-deposits-filters"></div>
       <div style="overflow-x:auto">
         <table class="pf-table">
-          <colgroup><col data-column="chain" style="width:11.245641%"><col data-column="asset" style="width:51.7084%"><col data-column="amount" style="width:25.694137%"><col data-column="value" style="width:11.351822%"></colgroup>
-          <thead><tr><th data-column="chain" data-sort="chain" data-table="dep">Chain<span class="pf-sort"></span></th><th data-column="asset" data-sort="sym" data-table="dep">Asset<span class="pf-sort"></span></th><th data-column="amount" class="num" data-sort="amount" data-table="dep">Amount<span class="pf-sort"></span></th><th data-column="value" class="num sort-active" data-sort="usd" data-table="dep">Value<span class="pf-sort">▼</span></th></tr></thead>
+          <colgroup><col data-column="chain" style="width:11.245641%"><col data-column="asset" style="width:51.7084%"><col data-column="amount" style="width:37.045959%"></colgroup>
+          <thead><tr><th data-column="chain" data-sort="chain" data-table="dep">Chain<span class="pf-sort"></span></th><th data-column="asset" data-sort="sym" data-table="dep">Asset<span class="pf-sort"></span></th><th data-column="amount" class="num sort-active" data-sort="usd" data-table="dep">Amount<span class="pf-sort">▼</span></th></tr></thead>
           <tbody id="pf-deposits-body"></tbody>
         </table>
       </div>
@@ -2243,10 +2247,31 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     if (a === 0) return "0";
     return n.toLocaleString("en-US", { maximumFractionDigits: 6 });
   };
+  const fmtDepositToken = n => {
+    n = Number(n);
+    if (!Number.isFinite(n)) return "—";
+    const a = Math.abs(n);
+    if (a >= 1e3) return fmtCompact(n, 2);
+    if (a >= 100) return n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    if (a >= 1) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    if (a >= 0.01) return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+    if (a === 0) return "0";
+    return n.toLocaleString("en-US", { maximumFractionDigits: 6 });
+  };
   const fmtUSD = n => {
     n = Number(n) || 0; const a = Math.abs(n);
     const s = a >= 1e6 ? "$" + fmtCompact(n, 2) : "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return s;
+  };
+  const fmtDepositUSD = n => {
+    n = Number(n);
+    if (!Number.isFinite(n)) return "—";
+    const a = Math.abs(n);
+    if (a >= 1e3) return "$" + fmtCompact(n, 2);
+    if (a >= 100) return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    if (a >= 1) return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    if (a === 0) return "$0";
+    return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 4 });
   };
   const fmtExercisePrice = n => {
     n = Number(n) || 0;
@@ -3273,7 +3298,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     }));
   }
 
-  function renderTable(bodyId, countId, rows, f, sort, tableKey, neg){
+  function renderTable(bodyId, countId, rows, f, sort, tableKey){
     const ids = tableKey === "dep"
       ? { foot: "#pf-deposits-foot", info: "#pf-deposits-info", pager: "#pf-deposits-pager" }
       : { foot: "#pf-borrows-foot", info: "#pf-borrows-info", pager: "#pf-borrows-pager" };
@@ -3283,8 +3308,8 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     countEl.style.display = filtered.length ? "" : "none";
     updateSortIndicators(tableKey, sort);
     const body = $(bodyId);
-    if (!rows.length){ $(ids.foot).style.display = "none"; body.innerHTML = `<tr><td colspan="4"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${neg?"No open borrows on Dolomite.":"No deposited assets on Dolomite."}</div></td></tr>`; return; }
-    if (!filtered.length){ $(ids.foot).style.display = "none"; body.innerHTML = `<tr><td colspan="4"><div class="pf-empty">No assets match the filter.</div></td></tr>`; return; }
+    if (!rows.length){ $(ids.foot).style.display = "none"; body.innerHTML = `<tr><td colspan="3"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>No deposited assets on Dolomite.</div></td></tr>`; return; }
+    if (!filtered.length){ $(ids.foot).style.display = "none"; body.innerHTML = `<tr><td colspan="3"><div class="pf-empty">No assets match the filter.</div></td></tr>`; return; }
 
     // pagination — max 10 rows per page
     const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -3298,15 +3323,17 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       return `<tr class="pf-row">
       <td data-column="chain">${chainChip(r.chain)}</td>
       <td data-column="asset">${tokenCell(r)}</td>
-      <td data-column="amount" class="num">${fmtToken(r.amount)}</td>
-      <td data-column="value" class="usd ${neg?"pf-usd-neg":"pf-usd-pos"}">${fmtUSD(r.usd)}</td>
+      <td data-column="amount" class="num pf-deposit-balance">
+        <div class="pf-deposit-amount">${fmtDepositToken(r.amount)} <span class="pf-deposit-symbol">${esc(r.sym)}</span></div>
+        <div class="pf-deposit-usd">${fmtDepositUSD(r.usd)}</div>
+      </td>
     </tr>`;}).join("");
 
     // keep table height stable across pages (spacer rows on short last page)
     if (totalPages > 1 && pageRows.length < PAGE_SIZE){
       const rowH = body.querySelector("tr.pf-row") ? body.querySelector("tr.pf-row").getBoundingClientRect().height : 56;
       body.innerHTML += Array.from({ length: PAGE_SIZE - pageRows.length }, () =>
-        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="4" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
+        `<tr class="pf-spacer-row" aria-hidden="true"><td colspan="3" style="height:${Math.round(rowH)}px"></td></tr>`).join("");
     }
 
     const foot = $(ids.foot);
@@ -3496,7 +3523,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   }
 
   function renderAll(){
-    renderTable("#pf-deposits-body","#pf-deposits-count", state.deposits, state.depFilter, state.depSort, "dep", false);
+    renderTable("#pf-deposits-body","#pf-deposits-count", state.deposits, state.depFilter, state.depSort, "dep");
     renderBorrowPositionsTable();
     renderExerciseTable();
   }
@@ -3531,7 +3558,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   }
 
   function setLoadingTables(){
-    const skel = `<tr class="pf-skel-row"><td data-column="chain"><span class="pf-skel" style="width:60px"></span></td><td data-column="asset"><span class="pf-skel" style="width:120px"></span></td><td data-column="amount" class="num"><span class="pf-skel" style="width:80px;margin-left:auto"></span></td><td data-column="value" class="num"><span class="pf-skel" style="width:70px;margin-left:auto"></span></td></tr>`.repeat(3);
+    const skel = `<tr class="pf-skel-row"><td data-column="chain"><span class="pf-skel" style="width:60px"></span></td><td data-column="asset"><span class="pf-skel" style="width:120px"></span></td><td data-column="amount" class="num"><span class="pf-skel" style="width:92px;margin-left:auto"></span><span class="pf-skel" style="width:54px;margin:5px 0 0 auto"></span></td></tr>`.repeat(3);
     const borSkel = `<tr class="pf-skel-row"><td data-column="chain"><span class="pf-skel" style="width:58px"></span></td><td data-column="account"><span class="pf-skel" style="width:82px"></span></td><td data-column="health"><span class="pf-skel" style="width:50px"></span></td><td data-column="emode"><span class="pf-skel" style="width:54px;margin:0 auto"></span></td><td data-column="spacer" aria-hidden="true"></td><td data-column="collateral"><span class="pf-skel" style="width:104px"></span></td><td data-column="debt"><span class="pf-skel" style="width:104px"></span></td></tr>`.repeat(3);
     const exSkel = `<tr class="pf-skel-row"><td data-column="date"><span class="pf-skel" style="width:86px"></span></td><td data-column="route"><span class="pf-skel" style="width:150px"></span></td><td data-column="spacer" aria-hidden="true"></td><td data-column="vedolo" class="num"><span class="pf-skel" style="width:72px;margin-left:auto"></span></td><td data-column="paired" class="num"><span class="pf-skel" style="width:78px;margin-left:auto"></span></td><td data-column="paid" class="num"><span class="pf-skel" style="width:46px;margin-left:auto"></span></td><td data-column="price" class="num"><span class="pf-skel" style="width:90px;margin-left:auto"></span></td><td data-column="lock" class="num"><span class="pf-skel" style="width:48px;margin-left:auto"></span></td></tr>`.repeat(3);
     $("#pf-deposits-body").innerHTML = skel; $("#pf-borrows-body").innerHTML = borSkel; $("#pf-exercises-body").innerHTML = exSkel;

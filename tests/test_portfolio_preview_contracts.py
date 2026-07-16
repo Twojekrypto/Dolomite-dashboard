@@ -123,7 +123,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
 
     def test_wallet_summary_tables_keep_saved_column_contracts(self):
         expected = {
-            "pf-deposits-section": ("chain", "asset", "amount", "value"),
+            "pf-deposits-section": ("chain", "asset", "amount"),
             "pf-borrows-section": ("chain", "account", "health", "emode", "spacer", "collateral", "debt"),
             "pf-exercises-section": ("date", "route", "spacer", "vedolo", "paired", "paid", "price", "lock"),
         }
@@ -131,7 +131,9 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
             source = self.html.split(f'id="{section}"', 1)[1].split('</section>', 1)[0]
             for key in keys:
                 self.assertIn(f'data-column="{key}"', source)
-        self.assertIn('<colgroup><col data-column="chain" style="width:11.245641%"><col data-column="asset" style="width:51.7084%"><col data-column="amount" style="width:25.694137%"><col data-column="value" style="width:11.351822%"></colgroup>', self.html)
+        deposits_section = self.html.split('id="pf-deposits-section"', 1)[1].split('</section>', 1)[0]
+        self.assertNotIn('data-column="value"', deposits_section)
+        self.assertIn('<colgroup><col data-column="chain" style="width:11.245641%"><col data-column="asset" style="width:51.7084%"><col data-column="amount" style="width:37.045959%"></colgroup>', self.html)
         self.assertIn('<colgroup><col data-column="date" style="width:12.147272%"><col data-column="route" style="width:13.847996%"><col data-column="spacer" style="width:27.020602%"><col data-column="vedolo" style="width:9.34471%"><col data-column="paired" style="width:11.286907%"><col data-column="paid" style="width:10.415274%"><col data-column="price" style="width:9.076469%"><col data-column="lock" style="width:6.86077%"></colgroup>', self.html)
 
     def test_wallet_summary_alignment_uses_context_status_and_numeric_lanes(self):
@@ -202,10 +204,10 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('display:flex;align-items:baseline;gap:8px;', self.html)
         self.assertNotIn('pf-sum-usd .lbl', self.html)
 
-    def test_deposited_assets_reuses_asset_identity_and_keeps_amount_numeric(self):
+    def test_deposited_assets_reuses_asset_identity_and_combines_compact_amount_value(self):
         fetch_positions = self.html.split("async function fetchChainPositions(chain, addr)", 1)[1].split("// DOLO/oDOLO wallet balances", 1)[0]
         token_cell = self.html.split("function tokenCell(row)", 1)[1].split("function tokenPills", 1)[0]
-        deposits_render = self.html.split("function renderTable(bodyId, countId, rows, f, sort, tableKey, neg)", 1)[1].split("function renderBorrowPositionsTable", 1)[0]
+        deposits_render = self.html.split("function renderTable(bodyId, countId, rows, f, sort, tableKey)", 1)[1].split("function renderBorrowPositionsTable", 1)[0]
         self.assertIn('name: t.name || t.symbol || "Unknown"', fetch_positions)
         self.assertIn("name: r.name", fetch_positions)
         self.assertIn("function tokenExplorer(chainKey, address)", self.html)
@@ -215,9 +217,14 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('class="token-ca-copy"', token_cell)
         self.assertIn('data-copy="${esc(row.addr)}"', token_cell)
         self.assertIn('class="tok-long"', token_cell)
-        self.assertIn('<td data-column="amount" class="num">${fmtToken(r.amount)}</td>', deposits_render)
-        self.assertNotIn("pf-amt-sym", deposits_render)
-        self.assertNotIn("const symShort", deposits_render)
+        self.assertIn('const fmtDepositToken = n => {', self.html)
+        self.assertIn('const fmtDepositUSD = n => {', self.html)
+        self.assertIn('<td data-column="amount" class="num pf-deposit-balance">', deposits_render)
+        self.assertIn('<div class="pf-deposit-amount">${fmtDepositToken(r.amount)} <span class="pf-deposit-symbol">${esc(r.sym)}</span></div>', deposits_render)
+        self.assertIn('<div class="pf-deposit-usd">${fmtDepositUSD(r.usd)}</div>', deposits_render)
+        self.assertNotIn('data-column="value"', deposits_render)
+        self.assertIn('colspan="3"', deposits_render)
+        self.assertIn('#pf-deposits-section .pf-deposit-usd{color:var(--up)', self.html)
 
     def test_portfolio_table_headers_show_source_aware_relative_freshness(self):
         headers = {
@@ -248,7 +255,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('#pf-deposits-section .pf-table thead th{background:var(--bg-1)}', self.html)
 
     def test_portfolio_route_refreshes_inline_usd_and_freshness_labels(self):
-        self.assertIn('wallet-summary-assets-ca-amount-20260715', self.route)
+        self.assertIn('deposit-balance-20260716', self.route)
 
     def test_portfolio_address_hero_omits_live_onchain_label(self):
         hero = self.html.split('<!-- HERO + ADDRESS INPUT -->', 1)[1].split('</section>', 1)[0]
