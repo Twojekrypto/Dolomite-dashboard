@@ -2273,6 +2273,11 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     if (a === 0) return "$0";
     return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 4 });
   };
+  const compactDepositSymbol = sym => {
+    const value = String(sym || "").trim();
+    const bracketIndex = value.indexOf(" [");
+    return bracketIndex > 0 ? value.slice(0, bracketIndex) : value;
+  };
   const fmtExercisePrice = n => {
     n = Number(n) || 0;
     if (!n) return "—";
@@ -3324,7 +3329,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       <td data-column="chain">${chainChip(r.chain)}</td>
       <td data-column="asset">${tokenCell(r)}</td>
       <td data-column="amount" class="num pf-deposit-balance">
-        <div class="pf-deposit-amount">${fmtDepositToken(r.amount)} <span class="pf-deposit-symbol">${esc(r.sym)}</span></div>
+        <div class="pf-deposit-amount">${fmtDepositToken(r.amount)} <span class="pf-deposit-symbol">${esc(compactDepositSymbol(r.sym))}</span></div>
         <div class="pf-deposit-usd">${fmtDepositUSD(r.usd)}</div>
       </td>
     </tr>`;}).join("");
