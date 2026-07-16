@@ -38,7 +38,12 @@ test("fresh wallet status shows exact retention rather than a threshold label", 
 });
 
 test("production preview keeps the saved static table layout without editor assets", () => {
-  assert.match(freshSection, /<col data-column="chain" style="width:11\.5%">/);
-  assert.match(freshSection, /<col data-column="address" style="width:24%">/);
+  assert.match(freshSection, /<col data-column="chain" style="width:9\.361%">/);
+  assert.match(freshSection, /<col data-column="address" style="width:14\.253%">/);
+  assert.match(freshSection, /<col data-column="created" style="width:9\.593%">/);
+  assert.match(freshSection, /<col data-column="signal" style="width:27\.793%">/);
+  assert.match(freshSection, /<col data-column="received" style="width:19\.26%">/);
+  assert.match(freshSection, /<col data-column="exposure" style="width:10\.117%">/);
+  assert.match(freshSection, /<col data-column="status" style="width:9\.623%">/);
   assert.doesNotMatch(preview, /fresh-wallets-layout-editor/);
 });
