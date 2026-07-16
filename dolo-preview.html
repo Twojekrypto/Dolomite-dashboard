@@ -495,8 +495,22 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .fresh-stat .value{margin-top:7px;font-family:var(--mono);font-size:16px;font-weight:800;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
 .fresh-stat.primary .value{color:var(--gold);font-size:17px}
 .fresh-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fresh-wallets-table{min-width:960px}
+.fresh-wallets-table{min-width:960px;table-layout:fixed}
 .fresh-wallets-table thead th[data-fresh-sort]{cursor:pointer}
+.fresh-wallets-table td{overflow:hidden}
+.fresh-wallets-table td > *,
+.fresh-wallets-table .addr-cell,
+.fresh-wallets-table .fresh-status,
+.fresh-wallets-table .fresh-created{min-width:0;max-width:100%}
+.fresh-wallets-table .addr-line,
+.fresh-wallets-table .fresh-status .main,
+.fresh-wallets-table .fresh-status .sub,
+.fresh-wallets-table .fresh-created .date,
+.fresh-wallets-table .fresh-created .sub,
+.fresh-wallets-table td.num{overflow:hidden;text-overflow:ellipsis}
+.fresh-wallets-table .addr-line{white-space:nowrap}
+.fresh-wallets-table .fresh-status .main,
+.fresh-wallets-table .fresh-status .sub{display:block}
 .fresh-created{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
 .fresh-created .date{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
 .fresh-created .sub{font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
@@ -510,12 +524,24 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .fresh-signal.received{color:var(--fg-2);border-color:var(--line-2);background:var(--bg-3)}
 .fresh-signal.received::before{box-shadow:0 0 8px rgba(255,255,255,.12)}
-.fresh-status{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
-.fresh-status .main{font-size:12px;font-weight:800;color:var(--fg-1);white-space:nowrap}
+.fresh-status{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.fresh-status-line{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%}
+.fresh-status-dot{width:6px;height:6px;border-radius:50%;flex:0 0 6px;background:var(--fg-3)}
+.fresh-status .main{font-size:11.5px;font-weight:800;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fresh-status .sub{font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
-.fresh-chain{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap}
-.fresh-chain .chain-icon{width:13px;height:13px;border-radius:50%;object-fit:cover;flex:0 0 13px;background:var(--bg-4);box-shadow:0 0 0 1px rgba(255,255,255,.08)}
-.fresh-chain .chain-icon.berachain{transform:scale(1.08)}
+.fresh-status .sub strong{font-weight:700;color:var(--fg-2)}
+.fresh-status.up .fresh-status-dot{background:var(--up);box-shadow:0 0 7px rgba(138,163,123,.34)}
+.fresh-status.up .sub strong{color:var(--up)}
+.fresh-status.gold .fresh-status-dot{background:var(--gold);box-shadow:0 0 7px rgba(201,162,39,.3)}
+.fresh-status.gold .sub strong{color:var(--gold)}
+.fresh-status.down .fresh-status-dot{background:var(--down);box-shadow:0 0 7px rgba(180,121,107,.3)}
+.fresh-status.down .sub strong{color:var(--down)}
+.fresh-chain-list{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
+.fresh-chain-chip{display:inline-flex;align-items:center;gap:7px;min-width:0;color:var(--fg-1);font-size:12.5px;font-weight:500;line-height:1.2;white-space:nowrap}
+.fresh-chain-chip .chain-icon{width:15px;height:15px;border-radius:50%;object-fit:contain;flex:0 0 15px;background:var(--bg-3)}
+.fresh-chain-chip .chain-icon.berachain{transform:scale(1.08)}
+.fresh-chain-chip .dot{width:8px;height:8px;flex:0 0 8px}
+.fresh-chain-chip.unknown{color:var(--fg-3);font-family:var(--mono);font-size:10px}
 .fresh-wallets-table tbody tr.fresh-spacer-row{pointer-events:none;cursor:default}
 .fresh-wallets-table tbody tr.fresh-spacer-row td{color:transparent}
 .fresh-wallets-table tbody tr.fresh-spacer-row td > *{visibility:hidden}
@@ -1355,15 +1381,24 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
     <div class="tbl-wrap">
       <table class="tbl fresh-wallets-table" id="fresh-wallets-table">
+        <colgroup>
+          <col data-column="chain" style="width:11.5%">
+          <col data-column="address" style="width:24%">
+          <col data-column="created" style="width:13%">
+          <col data-column="signal" style="width:12.5%">
+          <col data-column="received" style="width:13%">
+          <col data-column="exposure" style="width:14%">
+          <col data-column="status" style="width:12%">
+        </colgroup>
         <thead>
           <tr>
-            <th style="width:54px">#</th>
-            <th>Address</th>
-            <th class="sorted" data-fresh-sort="created" style="width:142px">Created</th>
-            <th style="width:132px">Signal</th>
-            <th class="num" data-fresh-sort="received" style="width:136px">Received</th>
-            <th class="num" data-fresh-sort="balance" style="width:136px">Exposure</th>
-            <th style="width:150px">Status</th>
+            <th data-column="chain">Chain</th>
+            <th data-column="address">Address</th>
+            <th class="sorted" data-column="created" data-fresh-sort="created">Created</th>
+            <th data-column="signal">Signal</th>
+            <th class="num" data-column="received" data-fresh-sort="received">Received</th>
+            <th class="num" data-column="exposure" data-fresh-sort="balance">Exposure</th>
+            <th data-column="status">Status</th>
           </tr>
         </thead>
         <tbody id="fresh-wallets-body"><tr class="loading-row"><td colspan="7">Loading fresh wallets...</td></tr></tbody>
@@ -4384,13 +4419,37 @@ function freshWalletSignal(row){
   return {label:"New Wallet", cls:""};
 }
 function freshWalletStatus(row){
-  const retention = Number.isFinite(Number(row.retention)) ? Number(row.retention) : row.received > 0 ? row.balance / row.received : 0;
-  if(row.balance <= 1) return {main:"Exited", sub:"kept 0%"};
-  if(row.lockedBalance > 0 && retention >= 0.95) return {main:"Holding + Locked", sub:"kept 95%+"};
-  if(row.lockedBalance > 0) return {main:"Partly Locked", sub:`kept ${fmtPct(Math.max(0, Math.min(1, retention)) * 100)}`};
-  if(retention >= 0.95) return {main:"Still Holding", sub:"kept 95%+"};
-  if(retention >= 0.5) return {main:"Mostly Holding", sub:`kept ${fmtPct(Math.min(1, retention) * 100)}`};
-  return {main:"Reduced", sub:`kept ${fmtPct(Math.max(0, retention) * 100)}`};
+  const received = Math.max(0, Number(row.received) || 0);
+  const balance = Math.max(0, Number(row.balance) || 0);
+  const locked = Math.max(0, Number(row.lockedBalance) || 0);
+  const reportedRetention = Number(row.retention);
+  const retention = Number.isFinite(reportedRetention) && reportedRetention >= 0
+    ? reportedRetention
+    : received > 0 ? balance / received : 0;
+  const value = fmtPct(Math.max(0, retention) * 100);
+  const lockedSuffix = locked > 0 ? " + locked" : "";
+  if(balance <= 1) return {main:"Exited", value:"0%", detail:"retained", tone:"down"};
+  if(retention >= 1.005) return {main:`Increased${lockedSuffix}`, value, detail:"vs received", tone:"up"};
+  if(retention >= 0.995) return {main:`Fully retained${lockedSuffix}`, value:"100%", detail:"retained", tone:"up"};
+  if(retention >= 0.95) return {main:`Holding${lockedSuffix}`, value, detail:"retained", tone:"up"};
+  if(retention >= 0.5) return {main:`Mostly retained${lockedSuffix}`, value, detail:"retained", tone:"gold"};
+  return {main:`Reduced${lockedSuffix}`, value, detail:"retained", tone:"down"};
+}
+function freshChainCell(row){
+  const chains = Array.isArray(row?.chains) && row.chains.length ? row.chains : [{key:"unknown", label:"Unknown"}];
+  return `<div class="fresh-chain-list">${chains.map(chain => {
+    const icon = chain.key === "ethereum"
+      ? "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg"
+      : chain.key === "berachain"
+        ? "https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"
+        : "";
+    const iconHtml = icon
+      ? `<img class="chain-icon ${escHtml(chain.key)}" src="${icon}" alt="">`
+      : chain.key === "unknown"
+        ? ""
+        : `<span class="dot dot-${escHtml(chain.key)}"></span>`;
+    return `<span class="fresh-chain-chip ${chain.key === "unknown" ? "unknown" : ""}">${iconHtml}${escHtml(chain.label || "Unknown")}</span>`;
+  }).join("")}</div>`;
 }
 function freshExposureHtml(row){
   const exposure = safeHolderNum(row.balance);
@@ -4578,7 +4637,6 @@ function renderFreshWallets(){
   const tbody = document.getElementById("fresh-wallets-body");
   if(!tbody) return;
   const rowHtml = pageRows.map((row, i) => {
-    const rank = start + i + 1;
     const typeHtml = `<span class="type-tag type-${row.type}" data-tooltip="${TYPE_TIPS[row.type] || row.type}">${TYPE_LABELS[row.type] || row.type.toUpperCase()}</span>`;
     const safeHtml = safeBadgeHtml(row);
     const addrAttr = escHtml(row.addr);
@@ -4591,19 +4649,10 @@ function renderFreshWallets(){
       ? `<span class="addr-name">${escHtml(row.label)}</span>`
       : `<span class="addr-name addr-generic">${TYPE_GENERIC[row.type] || "Wallet"}</span>`;
     const status = freshWalletStatus(row);
-    const chainHtml = row.chains.map(chain => {
-      const icon = chain.key === "ethereum"
-        ? "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg"
-        : chain.key === "berachain"
-          ? "https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"
-          : "";
-      const iconHtml = icon ? `<img class="chain-icon ${chain.key}" src="${icon}" alt="">` : `<span class="dot dot-${chain.key}"></span>`;
-      return `<span class="fresh-chain">${iconHtml}${chain.label}</span>`;
-    }).join(" ");
     return `
       <tr data-addr="${addrAttr}">
-        <td class="rank">${rank}</td>
-        <td>
+        <td data-column="chain">${freshChainCell(row)}</td>
+        <td data-column="address">
           <div class="addr-cell">
             <div class="addr-line top">${nameCell}${typeHtml}${safeHtml}</div>
             <div class="addr-line bot">
@@ -4612,11 +4661,11 @@ function renderFreshWallets(){
             </div>
           </div>
         </td>
-        <td>${freshCreatedHtml(row)}</td>
-        <td><span class="fresh-signal ${row.signal.cls}">${escHtml(row.signal.label)}</span></td>
-        <td class="num"><span class="flows-net up">+${fmtNum(row.received)}</span></td>
-        <td class="num">${freshExposureHtml(row)}</td>
-        <td><div class="fresh-status"><span class="main">${status.main}</span><span class="sub">${status.sub} · ${chainHtml}</span></div></td>
+        <td data-column="created">${freshCreatedHtml(row)}</td>
+        <td data-column="signal"><span class="fresh-signal ${row.signal.cls}">${escHtml(row.signal.label)}</span></td>
+        <td class="num" data-column="received"><span class="flows-net up">+${fmtNum(row.received)}</span></td>
+        <td class="num" data-column="exposure">${freshExposureHtml(row)}</td>
+        <td data-column="status"><div class="fresh-status ${status.tone}"><span class="fresh-status-line"><span class="fresh-status-dot"></span><span class="main">${status.main}</span></span><span class="sub"><strong>${status.value}</strong> ${status.detail}</span></div></td>
       </tr>
     `;
   }).join("");
@@ -4627,13 +4676,13 @@ function renderFreshWallets(){
     ` : "";
   const spacerRowsHtml = total === 0 ? "" : Array.from({length: Math.max(0, state.freshPageSize - pageRows.length)}, () => `
       <tr class="fresh-spacer-row" aria-hidden="true" tabindex="-1">
-        <td class="rank">&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td class="num">&nbsp;</td>
-        <td class="num">&nbsp;</td>
-        <td>&nbsp;</td>
+        <td data-column="chain">&nbsp;</td>
+        <td data-column="address">&nbsp;</td>
+        <td data-column="created">&nbsp;</td>
+        <td data-column="signal">&nbsp;</td>
+        <td class="num" data-column="received">&nbsp;</td>
+        <td class="num" data-column="exposure">&nbsp;</td>
+        <td data-column="status">&nbsp;</td>
       </tr>
     `).join("");
   tbody.innerHTML = rowHtml + spacerRowsHtml + emptyHtml;
