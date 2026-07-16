@@ -31,3 +31,10 @@ test("holder distribution exposes a guarded change tooltip and updates the legen
   assert.match(preview, /holderDistributionMetric === "changePct" \? `<span class="tt-change \$\{deltaClass\}">\$\{changeText\}<\/span> · \$\{fmtNum\(bucket\.total\)\} DOLO · \$\{fmtSignedHolder\(delta\)\} DOLO`/);
   assert.match(preview, /legendChangeHead\.textContent = `Change · \$\{holderRangeLabel\}`/);
 });
+
+test("holder distribution supports pinned series from chart and legend", () => {
+  assert.match(preview, /function toggleHolderDistributionPin\(key\)/);
+  assert.match(preview, /role="button" tabindex="0"/);
+  assert.match(preview, /aria-pressed=/);
+  assert.match(preview, /addEventListener\("keydown"/);
+});
