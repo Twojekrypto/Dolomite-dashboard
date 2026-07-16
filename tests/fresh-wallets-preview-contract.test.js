@@ -41,9 +41,9 @@ test("production preview keeps the saved static table layout without editor asse
   assert.match(freshSection, /<col data-column="chain" style="width:9\.361%">/);
   assert.match(freshSection, /<col data-column="address" style="width:14\.253%">/);
   assert.match(freshSection, /<col data-column="created" style="width:9\.593%">/);
-  assert.match(freshSection, /<col data-column="signal" style="width:27\.793%">/);
+  assert.match(freshSection, /<col data-column="signal" style="width:24\.916%">/);
   assert.match(freshSection, /<col data-column="received" style="width:19\.26%">/);
   assert.match(freshSection, /<col data-column="exposure" style="width:10\.117%">/);
-  assert.match(freshSection, /<col data-column="status" style="width:9\.623%">/);
+  assert.match(freshSection, /<col data-column="status" style="width:12\.5%">/);
   assert.doesNotMatch(preview, /fresh-wallets-layout-editor/);
 });
