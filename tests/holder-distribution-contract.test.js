@@ -16,10 +16,18 @@ test("holder distribution explains scope and dynamic comparison period", () => {
   assert.match(preview, /holder-legend-change-head/);
 });
 
-test("holder distribution contains guarded relative-change helpers", () => {
+test("holder distribution guards relative change and renders a symmetric percent view", () => {
   assert.match(preview, /let holderDistributionMetric = "balance"/);
   assert.match(preview, /function holderMetricValue\(/);
   assert.match(preview, /if\(baseline <= 0\) return null/);
   assert.match(preview, /function holderMetricScale\(/);
-  assert.match(preview, /function holderMetricPath\(/);
+  assert.match(preview, /return \{min:-max, max, zero:0, label:value => value\.toFixed/);
+  assert.match(preview, /const zeroY = yAt\(metricScale\.zero\)/);
+  assert.match(preview, /if\(holderDistributionMetric !== "balance" \|\| model\.points\.length < 2\)\{\s*areaPath\.setAttribute\("d", ""\);/);
+});
+
+test("holder distribution exposes a guarded change tooltip and updates the legend range", () => {
+  assert.match(preview, /New \/ no baseline/);
+  assert.match(preview, /holderDistributionMetric === "changePct" \? `<span class="tt-change \$\{deltaClass\}">\$\{changeText\}<\/span> · \$\{fmtNum\(bucket\.total\)\} DOLO · \$\{fmtSignedHolder\(delta\)\} DOLO`/);
+  assert.match(preview, /legendChangeHead\.textContent = `Change · \$\{holderRangeLabel\}`/);
 });

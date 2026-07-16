@@ -67,3 +67,55 @@ Results:
 
 - The known Node module-type warning appears during the contract test and is not a test failure.
 - Browser-level smoke testing was not run because Playwright is unavailable in this workspace; the requested contract test, inline parser, and whitespace check were run successfully.
+
+## Review Remediation
+
+### Findings addressed
+
+- The renderer now explicitly assigns `Change · ${holderRangeLabel}` to
+  `#holder-legend-change-head` after rebuilding the legend. This runs for every chart
+  render, including brush-driven renders, and therefore reflects the active brush range.
+- The source-contract test now protects the concrete Change % behavior: the non-positive
+  baseline guard, symmetric `min:-max`/`max` scale with zero, zero-line positioning,
+  Change % area suppression, `New / no baseline`, relative/current/absolute tooltip
+  order, and the dynamic legend-head assignment.
+
+### Remediation TDD
+
+#### RED
+
+Command:
+
+```bash
+node --test tests/holder-distribution-contract.test.js
+```
+
+Result: expected failure in `holder distribution exposes a guarded change tooltip and
+updates the legend range`. The new test could not find the explicit
+`legendChangeHead.textContent = `Change · ${holderRangeLabel}`` assignment. The other
+three tests passed.
+
+#### GREEN
+
+Commands:
+
+```bash
+node --test tests/holder-distribution-contract.test.js
+node -e 'const fs=require("fs"); const html=fs.readFileSync("dolo-preview.html", "utf8"); [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].forEach(m=>new Function(m[1])); console.log("Parsed inline scripts.");'
+git diff --check
+```
+
+Results:
+
+- Contract tests: 4 passed, 0 failed.
+- Inline script parser: `Parsed inline scripts.`
+- `git diff --check`: clean.
+
+### Remediation Self-Review
+
+- The new assignment runs after `legend.innerHTML`, so it always targets the freshly
+  rendered heading and has no effect on the Balance data, brush state, or pinned series.
+- The test assertions target the source branches and output order rather than helper
+  names alone, protecting the review findings without expanding into Task 3.
+- Only `dolo-preview.html`, the focused contract test, and this existing report were
+  changed; pre-existing `AGENTS.md` and `skills/` changes remain untouched.

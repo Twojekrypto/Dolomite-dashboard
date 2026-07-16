@@ -2666,6 +2666,8 @@ function renderHolderDistributionChart(options = {}){
       </div>
     `;
   }).join("");
+  const legendChangeHead = document.getElementById("holder-legend-change-head");
+  if(legendChangeHead) legendChangeHead.textContent = `Change · ${holderRangeLabel}`;
 
   const hoverLine = document.getElementById("holderChartHoverLine");
   const hoverDot = document.getElementById("holderChartHoverDot");
