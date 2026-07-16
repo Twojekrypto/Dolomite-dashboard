@@ -100,14 +100,14 @@ function assertBefore(source, first, second, message) {
   assert(assets.includes('.hero-card.borrow .hc-value{color:var(--down)}'), 'Assets Highest Borrow should use the red borrow color');
   assert(!assets.includes('assets-layout-editor.js'), 'Live Assets should not load the local-only layout editor');
   assert(assets.includes('<col data-column="chain" style="width:10.958796%">'), 'Live Assets should keep the approved Chain width');
-  assert(assets.includes('<col data-column="asset" style="width:46.277338%">'), 'Live Assets should keep the approved Asset width');
+  assert(assets.includes('<col data-column="asset" style="width:44.661649%">'), 'Live Assets should balance Asset width with the readable Details control');
   assert(assets.includes('<col data-column="price" style="width:10.088748%">'), 'Live Assets should keep the approved Price width');
   assert(assets.includes('<col data-column="supply" style="width:12.202853%">'), 'Live Assets should keep the approved Supply width');
   assert(assets.includes('<col data-column="borrow" style="width:9.587956%">'), 'Live Assets should keep the approved Borrow width');
-  assert(assets.includes('<col data-column="details" style="width:10.884311%">'), 'Live Assets should keep the approved Details width');
+  assert(assets.includes('<col data-column="details" style="width:12.500000%">'), 'Live Assets should keep enough room for the full Details control');
   assert(assets.includes('.assets-table-wrap #tbl{table-layout:fixed}'), 'Live Assets should enforce the approved colgroup widths');
   assert(assets.includes('.tbl tbody tr.data:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}'), 'Assets hover should match DOLO Holders with a gold left-row indicator');
-  assert(assets.includes('.assets-table-wrap #tbl tbody td.details-cell .asset-toggle{margin:0 auto;max-width:68px}'), 'Assets Details toggle should stay compact inside its approved column');
+  assert(assets.includes('.assets-table-wrap #tbl tbody td.details-cell .asset-toggle{margin:0 auto;max-width:72px}'), 'Assets Details toggle should stay compact while preserving its full label');
   for(const key of ['chain', 'asset', 'price', 'supply', 'borrow', 'details']){
     assert(assets.includes(`data-column="${key}"`), `Assets table should expose a stable ${key} column key`);
   }
