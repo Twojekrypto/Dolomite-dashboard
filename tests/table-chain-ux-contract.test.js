@@ -12,6 +12,7 @@ const historyHtml = read('history/index.html');
 const historyCss = read('history/history.css');
 const historyJs = read('history/history.js');
 const assets = read('assets-preview.html');
+const assetsRoute = read('assets/index.html');
 
 function between(source, start, end) {
   const a = source.indexOf(start);
@@ -108,6 +109,9 @@ function assertBefore(source, first, second, message) {
   assert(assets.includes('.assets-table-wrap #tbl{table-layout:fixed}'), 'Live Assets should enforce the approved colgroup widths');
   assert(assets.includes('.tbl tbody tr.data:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}'), 'Assets hover should match DOLO Holders with a gold left-row indicator');
   assert(assets.includes('.assets-table-wrap #tbl tbody td.details-cell .asset-toggle{margin:0 auto;max-width:72px}'), 'Assets Details toggle should stay compact while preserving its full label');
+  assert(assets.includes('gap:3px;flex-shrink:0;overflow:hidden;'), 'Assets Details toggle should reserve enough inner width for its label');
+  assert(assets.includes('.asset-toggle span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'), 'Assets Details label should fit beside the chevron without truncation');
+  assert(assetsRoute.includes('details-label-fit-20260716'), 'Assets route should cache-bust the corrected Details control');
   for(const key of ['chain', 'asset', 'price', 'supply', 'borrow', 'details']){
     assert(assets.includes(`data-column="${key}"`), `Assets table should expose a stable ${key} column key`);
   }
