@@ -219,8 +219,9 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('class="tok-long"', token_cell)
         self.assertIn('const fmtDepositToken = n => {', self.html)
         self.assertIn('const fmtDepositUSD = n => {', self.html)
+        self.assertIn('const compactDepositSymbol = sym => {', self.html)
         self.assertIn('<td data-column="amount" class="num pf-deposit-balance">', deposits_render)
-        self.assertIn('<div class="pf-deposit-amount">${fmtDepositToken(r.amount)} <span class="pf-deposit-symbol">${esc(r.sym)}</span></div>', deposits_render)
+        self.assertIn('<div class="pf-deposit-amount">${fmtDepositToken(r.amount)} <span class="pf-deposit-symbol">${esc(compactDepositSymbol(r.sym))}</span></div>', deposits_render)
         self.assertIn('<div class="pf-deposit-usd">${fmtDepositUSD(r.usd)}</div>', deposits_render)
         self.assertNotIn('data-column="value"', deposits_render)
         self.assertIn('colspan="3"', deposits_render)
@@ -255,7 +256,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('#pf-deposits-section .pf-table thead th{background:var(--bg-1)}', self.html)
 
     def test_portfolio_route_refreshes_inline_usd_and_freshness_labels(self):
-        self.assertIn('deposit-balance-20260716', self.route)
+        self.assertIn('compact-deposit-symbol-20260716', self.route)
 
     def test_portfolio_address_hero_omits_live_onchain_label(self):
         hero = self.html.split('<!-- HERO + ADDRESS INPUT -->', 1)[1].split('</section>', 1)[0]
