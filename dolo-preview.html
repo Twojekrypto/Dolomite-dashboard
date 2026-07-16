@@ -286,8 +286,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-area{fill:url(#holderChartAreaGrad);opacity:.58;pointer-events:none}
 .holder-chart-series-line{
   fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
-  filter:drop-shadow(0 0 7px rgba(201,162,39,.16));transition:opacity .15s var(--ease),stroke-width .15s var(--ease)
+  cursor:pointer;filter:drop-shadow(0 0 7px rgba(201,162,39,.16));transition:opacity .15s var(--ease),stroke-width .15s var(--ease)
 }
+.holder-chart-series-line:focus{outline:none}
+.holder-chart-series-line:focus-visible{stroke-width:3.2;filter:drop-shadow(0 0 9px rgba(201,162,39,.45))}
 .holder-chart-series-line.is-muted{opacity:.28}
 .holder-chart-series-line.is-active{stroke-width:2.9;opacity:1}
 .holder-chart-series-dot{stroke:var(--bg-0);stroke-width:2;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
@@ -318,6 +320,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-legend-head-metrics span:not(:first-child){text-align:right}
 .holder-legend-head-action{width:84px}
 .holder-chart-legend-item{min-width:0;border-top:1px solid var(--line-1)}
+.holder-chart-legend-item[role="button"]{cursor:pointer}
+.holder-chart-legend-item[aria-pressed="true"] .holder-legend-row{background:var(--gold-wash)}
+.holder-chart-legend-item:focus{outline:none}
+.holder-chart-legend-item:focus-visible{outline:1px solid var(--gold);outline-offset:-1px}
 .holder-chart-legend-item:first-child{border-top:0}
 .holder-legend-row{display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) auto;gap:16px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
 .holder-chart-legend-item:hover .holder-legend-row,.holder-chart-legend-item.is-active .holder-legend-row{background:var(--gold-wash)}
@@ -2549,6 +2555,11 @@ function renderHolderDistributionChart(options = {}){
   if(holderWalletPanelKey){
     holderDistributionActiveKey = holderWalletPanelKey;
   }
+  function toggleHolderDistributionPin(key){
+    if(!bucketDefs.some(bucket => bucket.key === key)) return;
+    holderDistributionActiveKey = holderDistributionActiveKey === key ? "" : key;
+    renderHolderDistributionChart({skipBrush:true});
+  }
   const baselinePoint = model.points[0];
   const seriesByBucket = bucketDefs.map((bucket, bucketIndex) => model.points.map(point => ({
     ts:point.ts,
@@ -2606,13 +2617,21 @@ function renderHolderDistributionChart(options = {}){
     const path = holderMetricPath(series, xAt, yAt);
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const muted = holderDistributionActiveKey && bucket.key !== holderDistributionActiveKey ? " is-muted" : "";
-    linesHtml += `<path class="holder-chart-series-line${active}${muted}" data-key="${bucket.key}" d="${path}" stroke="${bucket.color}"/>`;
+    linesHtml += `<path class="holder-chart-series-line${active}${muted}" data-key="${bucket.key}" role="button" tabindex="0" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series" d="${path}" stroke="${bucket.color}"/>`;
     series.forEach(point => {
       if(Number.isFinite(point.value)) dotsHtml += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point.ts).toFixed(2)}" cy="${yAt(point.value).toFixed(2)}" fill="${bucket.color}"/>`;
     });
   });
   lines.innerHTML = linesHtml;
   dots.innerHTML = dotsHtml;
+  lines.querySelectorAll(".holder-chart-series-line").forEach(line => {
+    line.addEventListener("click", () => toggleHolderDistributionPin(line.dataset.key));
+    line.addEventListener("keydown", event => {
+      if(event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      toggleHolderDistributionPin(line.dataset.key);
+    });
+  });
 
   const countEl = document.getElementById("holder-chart-count");
   const {minX, maxX} = holderBrushDomain();
@@ -2646,7 +2665,7 @@ function renderHolderDistributionChart(options = {}){
     const open = holderWalletPanelKey === bucket.key;
     const panelId = `holder-wallet-panel-${bucket.key}`;
     return `
-      <div class="holder-chart-legend-item${active}" data-key="${bucket.key}" style="--series-color:${bucket.color}">
+      <div class="holder-chart-legend-item${active}" data-key="${bucket.key}" role="button" tabindex="0" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series" style="--series-color:${bucket.color}">
         <div class="holder-legend-row">
           <div class="holder-legend-main">
             <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
@@ -2745,13 +2764,22 @@ function renderHolderDistributionChart(options = {}){
   legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
     item.addEventListener("mouseenter", () => paintActive(item.dataset.key));
     item.addEventListener("mouseleave", () => paintActive(holderDistributionActiveKey));
+    item.addEventListener("click", event => {
+      if(event.target.closest(".holder-details-btn")) return;
+      toggleHolderDistributionPin(item.dataset.key);
+    });
+    item.addEventListener("keydown", event => {
+      if(event.target.closest(".holder-details-btn") || (event.key !== "Enter" && event.key !== " ")) return;
+      event.preventDefault();
+      toggleHolderDistributionPin(item.dataset.key);
+    });
   });
   legend.querySelectorAll(".holder-details-btn").forEach(btn => btn.addEventListener("click", event => {
     event.stopPropagation();
     const key = btn.dataset.detailsKey;
     if(holderWalletPanelKey === key){
       holderWalletPanelKey = "";
-      holderDistributionActiveKey = "";
+      if(holderDistributionActiveKey === key) holderDistributionActiveKey = "";
     } else {
       holderWalletPanelKey = key;
       holderDistributionActiveKey = key;
@@ -5061,7 +5089,6 @@ document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
     const next = btn.dataset.holderBucketView;
     if(!HOLDER_BUCKET_GROUPS[next] || next === holderBucketView) return;
     holderBucketView = next;
-    holderDistributionActiveKey = "";
     document.querySelectorAll("[data-holder-bucket-view]").forEach(item => item.classList.toggle("active", item.dataset.holderBucketView === holderBucketView));
     renderHolderDistributionChart();
   });
