@@ -5,6 +5,7 @@ Fetch current TVL and Total Supply metrics from Dolomite's official liquidity fi
 
 import json
 import os
+import time
 import requests
 from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone
@@ -12,6 +13,8 @@ from datetime import datetime, timezone
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_tvl.json")
 STALE_CHAIN_SECONDS = 6 * 60 * 60
+TOKEN_API_RETRY_DELAYS = (2, 4, 8)
+RETRYABLE_TOKEN_API_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 
 ASSETS_CHAINS = {
     "Berachain": "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn",
@@ -95,30 +98,47 @@ def clean_price_map_from_api_prices(prices):
     return clean_prices
 
 
+def fetch_token_api_json(url):
+    attempts = len(TOKEN_API_RETRY_DELAYS) + 1
+    for attempt in range(attempts):
+        try:
+            resp = requests.get(url, timeout=20)
+            resp.raise_for_status()
+            payload = resp.json()
+            if not isinstance(payload, dict):
+                raise ValueError("Dolomite token API response is not a JSON object")
+            return payload
+        except requests.RequestException as exc:
+            response = getattr(exc, "response", None)
+            status_code = getattr(response, "status_code", None)
+            retryable = status_code is None or status_code in RETRYABLE_TOKEN_API_STATUS_CODES
+            if not retryable or attempt == len(TOKEN_API_RETRY_DELAYS):
+                raise
+            delay = TOKEN_API_RETRY_DELAYS[attempt]
+            print(
+                f"⚠️ Dolomite token API returned {status_code or 'a network error'}; "
+                f"retrying in {delay}s ({attempt + 1}/{attempts})"
+            )
+            time.sleep(delay)
+
+    raise RuntimeError("Dolomite token API retry loop exited unexpectedly")
+
+
 def fetch_clean_symbol_map(chain_name):
     chain_id = DOLOMITE_TOKEN_API_CHAINS[chain_name]
-    url = f"https://api.dolomite.io/tokens/{chain_id}"
-    resp = requests.get(url, timeout=20)
-    resp.raise_for_status()
-    payload = resp.json()
+    payload = fetch_token_api_json(f"https://api.dolomite.io/tokens/{chain_id}")
     return clean_symbol_map_from_api_tokens(payload.get("tokens", []))
 
 
 def fetch_token_liquidity_payload(chain_name):
     chain_id = DOLOMITE_TOKEN_API_CHAINS[chain_name]
-    url = f"https://api.dolomite.io/tokens/{chain_id}"
-    resp = requests.get(url, timeout=20)
-    resp.raise_for_status()
-    payload = resp.json()
+    payload = fetch_token_api_json(f"https://api.dolomite.io/tokens/{chain_id}")
     return payload.get("tokens", [])
 
 
 def fetch_price_map(chain_name):
     chain_id = DOLOMITE_TOKEN_API_CHAINS[chain_name]
-    url = f"https://api.dolomite.io/tokens/{chain_id}/prices"
-    resp = requests.get(url, timeout=20)
-    resp.raise_for_status()
-    payload = resp.json()
+    payload = fetch_token_api_json(f"https://api.dolomite.io/tokens/{chain_id}/prices")
     return clean_price_map_from_api_prices(payload.get("prices", {}))
 
 
