@@ -245,6 +245,16 @@ test("holder Details replaces rank with Fresh-style Chain and a wallet search", 
   assert.doesNotMatch(bucketPanel, /current\/prior wallets/);
 });
 
+test("empty chain cells use a neutral accessible state", () => {
+  const chainRenderer = preview.slice(
+    preview.indexOf("function freshChainCell(row)"),
+    preview.indexOf("function freshExposureHtml")
+  );
+
+  assert.match(chainRenderer, /aria-label="No current chain balance">—<\/span>/);
+  assert.doesNotMatch(chainRenderer, /escHtml\(chain\.label \|\| "Unknown"\)/);
+});
+
 test("Bucket wallet Details supports sorting by Chain, DOLO, and Change", () => {
   const walletPanel = preview.slice(
     preview.indexOf("function walletDrilldownPanelHtml"),
