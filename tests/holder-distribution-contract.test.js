@@ -32,9 +32,30 @@ test("holder distribution exposes a guarded change tooltip and updates the legen
   assert.match(preview, /legendChangeHead\.textContent = `Change · \$\{holderRangeLabel\}`/);
 });
 
-test("holder distribution supports pinned series from chart and legend", () => {
-  assert.match(preview, /function toggleHolderDistributionPin\(key\)/);
-  assert.match(preview, /role="button" tabindex="0"/);
-  assert.match(preview, /aria-pressed=/);
-  assert.match(preview, /addEventListener\("keydown"/);
+test("holder distribution uses separate semantic pin and Details controls", () => {
+  const holderRenderer = preview.slice(
+    preview.indexOf("function renderHolderDistributionChart(options = {})"),
+    preview.indexOf("function allocationPointFromSource")
+  );
+  const holderLegendMarkup = holderRenderer.slice(
+    holderRenderer.indexOf("const legendHeader ="),
+    holderRenderer.indexOf("const legendChangeHead =")
+  );
+  const holderLegendHoverHandlers = holderRenderer.slice(
+    holderRenderer.indexOf('legend.querySelectorAll(".holder-chart-legend-item")'),
+    holderRenderer.indexOf('legend.querySelectorAll(".holder-legend-pin")')
+  );
+
+  assert.match(holderRenderer, /function toggleHolderDistributionPin\(key\)/);
+  assert.match(holderLegendMarkup, /<button class="holder-legend-pin" type="button" data-pin-key="\$\{bucket\.key\}" aria-pressed="\$\{bucket\.key === holderDistributionActiveKey\}"/);
+  assert.match(holderLegendMarkup, /<\/button>\s*<button class="holder-details-btn"/);
+  assert.doesNotMatch(holderLegendMarkup, /holder-chart-legend-item\$\{active\}[^>]*role="button"/);
+  assert.doesNotMatch(holderLegendMarkup, /holder-chart-legend-item\$\{active\}[^>]*tabindex="0"/);
+
+  assert.match(holderRenderer, /lines\.querySelectorAll\("\.holder-chart-series-line"\)[\s\S]*toggleHolderDistributionPin\(line\.dataset\.key\)/);
+  assert.match(holderRenderer, /legend\.querySelectorAll\("\.holder-legend-pin"\)[\s\S]*toggleHolderDistributionPin\(pin\.dataset\.pinKey\)/);
+  assert.doesNotMatch(holderLegendHoverHandlers, /addEventListener\("click"/);
+  assert.match(holderRenderer, /holder-details-btn"\)\.forEach\(btn => btn\.addEventListener\("click", event => \{\s*event\.stopPropagation\(\);/);
+  assert.match(holderRenderer, /if\(holderDistributionActiveKey === key\) holderDistributionActiveKey = "";/);
+  assert.match(holderRenderer, /if\(holderDistributionActiveKey && !bucketDefs\.some\(bucket => bucket\.key === holderDistributionActiveKey\)\)\{\s*holderDistributionActiveKey = "";/);
 });
