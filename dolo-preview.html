@@ -166,16 +166,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .holder-chart-toggle,
 .holder-bucket-mode button,
-.holder-metric-mode button,
-.holder-audience-mode button{
+.holder-metric-mode button{
   position:relative;display:inline-flex;align-items:center;justify-content:center;height:28px;
   font-family:var(--mono);font-size:10px;color:var(--fg-3);font-weight:800;letter-spacing:.36px;cursor:pointer;
   transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),transform .16s var(--ease)
 }
 .holder-chart-toggle:hover,
 .holder-bucket-mode button:hover,
-.holder-metric-mode button:hover,
-.holder-audience-mode button:hover{color:var(--fg-1)}
+.holder-metric-mode button:hover{color:var(--fg-1)}
 .holder-chart-toggle input{position:absolute;opacity:0;pointer-events:none}
 .holder-bucket-mode{
   display:inline-grid;grid-template-columns:repeat(2,minmax(112px,1fr));height:34px;gap:0;padding:3px;
@@ -210,22 +208,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
 }
 .holder-metric-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
-.holder-audience-mode{
-  display:inline-grid;grid-template-columns:minmax(132px,1fr) minmax(178px,1.35fr);height:34px;gap:0;padding:3px;
-  border:1px solid rgba(255,255,255,.075);border-radius:999px;
-  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
-}
-.holder-audience-mode button{
-  min-width:0;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--fg-3);white-space:nowrap
-}
-.holder-audience-mode button.active,
-.holder-audience-mode button:hover,
-.holder-audience-mode button:focus-visible{
-  background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
-  box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
-}
-.holder-audience-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
 .holder-chart-toggle.is-active{
   border-color:rgba(201,162,39,.24);background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.16),0 7px 16px rgba(0,0,0,.12),0 0 18px rgba(201,162,39,.035)
@@ -973,8 +955,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
   .holder-chart-controls{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
-  .holder-bucket-mode,.holder-metric-mode,.holder-audience-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .holder-bucket-mode button,.holder-metric-mode button,.holder-audience-mode button{width:100%;min-width:0}
+  .holder-bucket-mode,.holder-metric-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .holder-bucket-mode button,.holder-metric-mode button{width:100%;min-width:0}
   .holder-chart-toggle{width:100%;justify-content:center;min-width:0}
   .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
   .holder-chart-source::before{margin-right:0}
@@ -1470,10 +1452,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <button type="button" class="active" data-holder-bucket-view="whales">Top holders</button>
             <button type="button" data-holder-bucket-view="smaller">Smaller holders</button>
           </div>
-          <div class="holder-audience-mode" id="holder-audience-mode" aria-label="Holder audience">
-            <button type="button" class="active" data-holder-audience="market" aria-pressed="true">Market wallets</button>
-            <button type="button" data-holder-audience="potential" aria-pressed="false">Potential CEX/MM &amp; bots</button>
-          </div>
           <div class="holder-metric-mode" id="holder-metric-mode" aria-label="Holder chart metric">
             <button type="button" class="active" data-holder-metric="balance" aria-pressed="true">Balance</button>
             <button type="button" data-holder-metric="changePct" aria-pressed="false">Change %</button>
@@ -1765,7 +1743,7 @@ let holderDistributionActiveKey = "";
 let holderDistributionMetric = "balance";
 let holderWalletPanelKey = "";
 let holderBucketView = "whales";
-let holderAudience = "market";
+const holderAudience = "market";
 let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
 let DOLO_BALANCE_CHANGES = {};
@@ -1983,11 +1961,7 @@ function holderCexFlow(period = "7d"){
   return {inflow, outflow, net, inflowWallets, outflowWallets};
 }
 function holderScopeHtml(){
-  if(holderAudience === "potential"){
-    const tip = "Potential CEX/MM and bots are shown separately from the market-wallet chart. These addresses are behaviorally flagged, not promoted to confirmed CEX labels without independent evidence.";
-    return `<span class="holder-source-scope">Potential CEX/MM &amp; bots</span><span class="holder-source-exclusion">separate risk view</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
-  }
-  const tip = "Chart lines show market wallets and exclude confirmed CEX wallets, protocol/contract/LP addresses, Team/Investor allocation wallets, and potential CEX/MM or bot wallets. Potential CEX/MM and bots are shown separately, so a behavioral signal is not treated as a confirmed CEX. Core Team and Investor allocations are shown in the separate allocations chart below.";
+  const tip = "Chart lines show market wallets and exclude confirmed CEX wallets, protocol/contract/LP addresses, Team/Investor allocation wallets, and potential CEX/MM or bot wallets. Core Team and Investor allocations are shown in the separate allocations chart below.";
   return `<span class="holder-source-scope">Market wallets</span><span class="holder-source-exclusion">CEX, potential &amp; allocations excluded</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
 }
 function holderCexStatHtml(){
@@ -4076,7 +4050,7 @@ function holderWalletInlinePanelHtml(bucket, model = null){
         meta:veDoloUnavailable
           ? `Loading veDOLO wallet-level data · current view ${holderPanelDateText(point)}${veDoloText}`
           : baselinePoint
-          ? `${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · ${holderAudience === "potential" ? "Potential CEX/MM & bots only" : "CEX/protocol/allocation/potential excluded"}`
+          ? `${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation/potential excluded`
           : `Wallet-level details are not available for this selected range · current view ${holderPanelDateText(point)}${veDoloText}`,
         rows,
         emptyText:veDoloUnavailable
@@ -5134,20 +5108,6 @@ if(state.holdersIncludeVeDolo){
   if(typeof requestIdleCallback === "function") requestIdleCallback(kickVeDolo, {timeout: 2000});
   else setTimeout(kickVeDolo, 600);
 }
-document.querySelectorAll("[data-holder-audience]").forEach(button => {
-  button.addEventListener("click", () => {
-    const next = button.dataset.holderAudience;
-    if(next !== "market" && next !== "potential" || next === holderAudience) return;
-    holderAudience = next;
-    holderWalletPanelKey = "";
-    document.querySelectorAll("[data-holder-audience]").forEach(item => {
-      const active = item.dataset.holderAudience === holderAudience;
-      item.classList.toggle("active", active);
-      item.setAttribute("aria-pressed", String(active));
-    });
-    renderHolderDistributionChart();
-  });
-});
 document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
   btn.addEventListener("click", () => {
     const next = btn.dataset.holderBucketView;
