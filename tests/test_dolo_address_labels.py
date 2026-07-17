@@ -125,7 +125,7 @@ class DoloAddressLabelsTest(unittest.TestCase):
         dolo_html = (ROOT / "dolo-preview.html").read_text()
         odolo_html = (ROOT / "odolo-preview.html").read_text()
         self.assertIn('id="flows-meta">Flow data</span>', dolo_html)
-        self.assertIn('id="flows-meta">Flow data</span>', odolo_html)
+        self.assertIn('id="flows-meta"><span class="pulse"></span>Loading data update…</div>', odolo_html)
         self.assertIn('id="fresh-wallets-meta">First on-chain tx + 10K+ exposure</span>', dolo_html)
         self.assertIn('<div class="sub">10K+ exposure</div>', dolo_html)
         self.assertNotIn('id="flows-meta">Period:', dolo_html)
@@ -133,6 +133,7 @@ class DoloAddressLabelsTest(unittest.TestCase):
         self.assertNotIn('Period: " + (meta ? meta.short', dolo_html)
         self.assertNotIn('Period: " + (meta ? meta.short', odolo_html)
         self.assertNotIn('`${meta.short} · first on-chain tx', dolo_html)
+        self.assertIn('setCardMeta("flows-meta", flowUpdated)', odolo_html)
 
     def test_potential_custody_labels_are_not_confirmed_cex(self):
         potential_rows = [info for info in self.labels.values() if "Potential" in info["label"] or info["type"] == "watch"]
