@@ -375,3 +375,23 @@ test("holder distribution exposes the visible change percentage to assistive tec
   assert.match(holderRenderer, /Change \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
   assert.match(holderRenderer, /series by change\. \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
 });
+
+test("holder mini-chart handles keep a wide resize cursor hitbox", () => {
+  const brushCss = preview.slice(
+    preview.indexOf(".holder-brush-wrap{"),
+    preview.indexOf(".holder-brush-label{")
+  );
+
+  assert.match(brushCss, /\.holder-brush-handle\{[^}]*width:24px;[^}]*cursor:ew-resize;[^}]*z-index:2;/);
+  assert.match(brushCss, /\.holder-brush-handle\.l\{left:-12px;/);
+  assert.match(brushCss, /\.holder-brush-handle\.r\{right:-12px;/);
+  assert.match(preview, /id="holderBrushHandleL"/);
+  assert.match(preview, /id="cexSupplyBrushHandleL"/);
+});
+
+test("holder distribution centers the Details header with the button column", () => {
+  assert.match(
+    preview,
+    /\.holder-distribution-legend \.holder-legend-head > \.holder-legend-head-action\[data-column="details"\]\{display:grid;place-items:center;text-align:center}/,
+  );
+});
