@@ -16,18 +16,16 @@ test("holder distribution explains scope and dynamic comparison period", () => {
   assert.match(preview, /holder-legend-change-head/);
 });
 
-test("holder distribution explains the separate market and potential audiences", () => {
+test("holder distribution excludes potential CEX/MM and bots from the chart", () => {
   const scopeRenderer = preview.slice(preview.indexOf("function holderScopeHtml"), preview.indexOf("function holderCexStatHtml"));
-  assert.match(scopeRenderer, /holderAudience === "potential"/);
-  assert.match(scopeRenderer, /Potential CEX\/MM &amp; bots/);
-  assert.match(scopeRenderer, /Potential CEX\/MM and bots are shown separately/);
+  assert.match(scopeRenderer, /CEX, potential &amp; allocations excluded/);
+  assert.match(scopeRenderer, /potential CEX\/MM or bot wallets/);
 });
 
-test("holder distribution uses one audience filter for chart history and Details", () => {
-  assert.match(preview, /id="holder-audience-mode"/);
-  assert.match(preview, /data-holder-audience="market"/);
-  assert.match(preview, /data-holder-audience="potential"/);
-  assert.match(preview, /let holderAudience = "market"/);
+test("holder distribution fixes the visible chart audience to market wallets", () => {
+  assert.doesNotMatch(preview, /holder-audience-mode/);
+  assert.doesNotMatch(preview, /data-holder-audience/);
+  assert.match(preview, /const holderAudience = "market"/);
   assert.match(preview, /function holderBelongsToAudience\(type, audience = holderAudience\)/);
   assert.match(preview, /root\?\.\[audience\]\?\.\[holderBucketView\]/);
   assert.match(preview, /source\?\.\[balanceKey\]\?\.\[holderAudience\]\?\.\[holderBucketView\]/);
