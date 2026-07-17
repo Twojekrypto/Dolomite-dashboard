@@ -163,6 +163,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-distribution-head{display:block;padding:0;border-bottom:0}
 .holder-distribution-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px 18px;border-bottom:1px solid var(--line-1)}
 .holder-distribution-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px 0;flex-wrap:wrap}
+.holder-distribution-toolbar > .holder-chart-toggle{margin-left:auto}
 .holder-chart-meta{margin-left:auto;min-width:0}
 .holder-chart-meta .holder-source-scope{color:var(--fg-3);font-weight:500}
 .holder-chart-meta .holder-source-exclusion{color:var(--fg-3)}
@@ -364,14 +365,17 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .holder-distribution-legend .holder-legend-metric.delta.up .holder-legend-number{color:var(--up)}
 .holder-distribution-legend .holder-legend-metric.delta.down .holder-legend-number{color:#c98578}
+.holder-distribution-legend .holder-legend-percent{display:block;font-size:10px;line-height:1;color:var(--fg-4);font-weight:500;white-space:nowrap}
+.holder-distribution-legend .holder-legend-metric.delta.up .holder-legend-percent{color:var(--up)}
+.holder-distribution-legend .holder-legend-metric.delta.down .holder-legend-percent{color:#c98578}
 .holder-details-btn{
   height:24px;width:100%;max-width:72px;min-width:0;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:3px;flex-shrink:0;overflow:hidden;
   color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;white-space:nowrap;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
   transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
 }
-.holder-distribution-legend .holder-legend-details{display:flex;align-items:center;justify-content:center;padding:0 12px;cursor:default}
-.holder-distribution-legend .holder-legend-details .holder-details-btn{margin:0;max-width:72px}
+.holder-distribution-legend .holder-legend-details{display:grid;place-items:center;padding:0 12px;cursor:default}
+.holder-distribution-legend .holder-legend-details .holder-details-btn{margin:0;max-width:72px;justify-self:center;}
 .holder-details-btn span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .holder-details-btn svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
 .holder-details-btn:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
@@ -933,6 +937,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-chart-wrap{padding:18px 16px 14px}
   .holder-chart-svg{height:280px}
   .holder-legend-head{display:none}
+  .holder-distribution-legend .holder-legend-head{display:none}
   .holder-legend-row{grid-template-columns:1fr;gap:11px;padding:13px 14px}
   .holder-legend-pin{grid-column:1;grid-template-columns:1fr;gap:11px;width:100%}
   .holder-legend-summary{width:100%;height:auto;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding-top:3px}
@@ -1449,6 +1454,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <h2>DOLO Holder Distribution Over Time</h2>
           <span class="count-badge" id="holder-chart-count">All</span>
         </div>
+        <div class="card-meta holder-chart-meta" id="holder-chart-meta" aria-label="Holder chart data scope"></div>
       </div>
       <div class="holder-distribution-toolbar">
         <div class="holder-chart-controls">
@@ -1460,20 +1466,19 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <button type="button" class="active" data-holder-metric="balance" aria-pressed="true">Balance</button>
             <button type="button" data-holder-metric="changePct" aria-pressed="false">Change %</button>
           </div>
-          <label class="holder-chart-toggle" for="holder-include-vedolo">
-            <input id="holder-include-vedolo" type="checkbox">
-            <span class="holder-chart-toggle-check" aria-hidden="true">
-              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="2 6.3 4.8 9 10 3"></polyline>
-              </svg>
-            </span>
-            <span class="holder-chart-toggle-icon-shell" aria-hidden="true">
-              <img class="holder-chart-toggle-icon" src="vedolo-logo.svg" alt="" onerror="this.closest('.holder-chart-toggle-icon-shell')?.remove()">
-            </span>
-            <span class="holder-chart-toggle-text">veDOLO</span>
-          </label>
         </div>
-        <div class="card-meta holder-chart-meta" id="holder-chart-meta" aria-label="Holder chart data scope"></div>
+        <label class="holder-chart-toggle" for="holder-include-vedolo">
+          <input id="holder-include-vedolo" type="checkbox">
+          <span class="holder-chart-toggle-check" aria-hidden="true">
+            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="2 6.3 4.8 9 10 3"></polyline>
+            </svg>
+          </span>
+          <span class="holder-chart-toggle-icon-shell" aria-hidden="true">
+            <img class="holder-chart-toggle-icon" src="vedolo-logo.svg" alt="" onerror="this.closest('.holder-chart-toggle-icon-shell')?.remove()">
+          </span>
+          <span class="holder-chart-toggle-text">veDOLO</span>
+        </label>
       </div>
     </div>
     <div class="holder-chart-wrap" id="holderChartWrap">
@@ -2690,18 +2695,19 @@ function renderHolderDistributionChart(options = {}){
     const firstTotal = firstPoint.buckets?.[i]?.total || 0;
     const delta = bucket.total - firstTotal;
     const deltaClass = delta >= 0 ? "up" : "down";
+    const deltaPct = firstTotal > 0 ? `(${fmtSignedHolderPct(delta / firstTotal * 100)})` : "New";
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const open = holderWalletPanelKey === bucket.key;
     const panelId = `holder-wallet-panel-${bucket.key}`;
     return `
       <div class="holder-chart-legend-item${active}" data-key="${bucket.key}" style="--series-color:${bucket.color}">
         <div class="holder-legend-row">
-          <button class="holder-legend-cell holder-legend-pin holder-legend-main" type="button" data-column="group" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series. Balance ${fmtNum(bucket.total)} DOLO. Wallets ${bucket.wallets.toLocaleString()}. Change ${fmtSignedHolder(delta)} DOLO.">
+          <button class="holder-legend-cell holder-legend-pin holder-legend-main" type="button" data-column="group" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series. Balance ${fmtNum(bucket.total)} DOLO. Wallets ${bucket.wallets.toLocaleString()}. Change ${fmtSignedHolder(delta)} DOLO ${deltaPct}.">
             <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
           </button>
           <button class="holder-legend-cell holder-legend-pin holder-legend-metric primary" type="button" data-column="balance" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by balance"><span class="holder-legend-label">Balance</span><strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong></button>
           <button class="holder-legend-cell holder-legend-pin holder-legend-metric" type="button" data-column="wallets" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by wallet count"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></button>
-          <button class="holder-legend-cell holder-legend-pin holder-legend-metric delta ${deltaClass}" type="button" data-column="change" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by change"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></button>
+          <button class="holder-legend-cell holder-legend-pin holder-legend-metric delta ${deltaClass}" type="button" data-column="change" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by change. ${fmtSignedHolder(delta)} DOLO ${deltaPct}."><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong><span class="holder-legend-percent">${deltaPct}</span></button>
           <div class="holder-legend-cell holder-legend-details" data-column="details"><button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button></div>
         </div>
         ${open ? holderWalletInlinePanelHtml(bucket, {...model, rangeBaselinePoint}) : ""}

@@ -217,8 +217,8 @@ test("holder distribution removes vertical dividers and centers the Details cont
   assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-metric\{[^}]*border-left:0;/);
   assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-metric\.primary::before\{display:none}/);
   assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-head > \[data-column="details"\]\{text-align:center}/);
-  assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-details\{[^}]*justify-content:center;[^}]*padding:0 12px;/);
-  assert.match(legendCss, /holder-legend-details \.holder-details-btn\{margin:0;max-width:72px}/);
+  assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-details\{[^}]*display:grid;[^}]*place-items:center;[^}]*padding:0 12px;/);
+  assert.match(legendCss, /holder-legend-details \.holder-details-btn\{margin:0;max-width:72px;justify-self:center;}/);
   assert.doesNotMatch(legendCss, /\.holder-distribution-legend \.holder-legend-details \.holder-details-btn svg\{display:none}/);
 });
 
@@ -283,7 +283,7 @@ test("holder distribution keeps mobile tooltips bounded and hides empty chart pa
 
   assert.match(preview, /\.holder-chart-tip\{[\s\S]*box-sizing:border-box;[\s\S]*max-width:calc\(100% - 16px\);[\s\S]*white-space:normal/);
   assert.match(holderRenderer, /const maxTipLeft = Math\.max\(8, wrap\.clientWidth - tipW - 8\);/);
-  assert.match(holderRenderer, /aria-label="Pin \$\{bucket\.label\} DOLO series\. Balance \$\{fmtNum\(bucket\.total\)\} DOLO\. Wallets \$\{bucket\.wallets\.toLocaleString\(\)\}\. Change \$\{fmtSignedHolder\(delta\)\} DOLO\."/);
+  assert.match(holderRenderer, /aria-label="Pin \$\{bucket\.label\} DOLO series\. Balance \$\{fmtNum\(bucket\.total\)\} DOLO\. Wallets \$\{bucket\.wallets\.toLocaleString\(\)\}\. Change \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
   assert.match(holderRenderer, /const interactionAttrs = path \? ` role="button" tabindex="0"/);
   assert.match(holderRenderer, /: ` aria-hidden="true" pointer-events="none"`/);
   assert.match(holderRenderer, /lines\.querySelectorAll\("\.holder-chart-series-line\[role='button'\]"\)/);
@@ -323,4 +323,55 @@ test("holder and CEX charts use the card-meta status treatment and clipped CEX f
   );
   assert.match(holderRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span>\$\{holderScopeHtml\(\)\}`;/);
   assert.match(cexRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span><span>\$\{fullModel\.sourceLabel/);
+});
+
+test("holder distribution places scope above the divider and veDOLO at the toolbar edge", () => {
+  const holderCard = preview.slice(
+    preview.indexOf('<section class="card holder-chart-card" id="holder-distribution-card">'),
+    preview.indexOf('<div class="holder-chart-wrap" id="holderChartWrap">')
+  );
+
+  assert.match(
+    holderCard,
+    /<div class="holder-distribution-title-row">[\s\S]*id="holder-chart-meta"[\s\S]*<\/div>\s*<div class="holder-distribution-toolbar">/,
+  );
+  assert.match(
+    holderCard,
+    /<div class="holder-chart-controls">[\s\S]*?<\/div>\s*<label class="holder-chart-toggle" for="holder-include-vedolo">/,
+  );
+  assert.match(preview, /\.holder-distribution-toolbar > \.holder-chart-toggle\{margin-left:auto}/);
+});
+
+test("holder distribution centers Details and presents change amount above its percentage", () => {
+  const legendCss = preview.slice(
+    preview.indexOf(".holder-distribution-legend{--holder-layout-columns"),
+    preview.indexOf(".holder-wallet-panel{")
+  );
+  const holderRenderer = preview.slice(
+    preview.indexOf("function renderHolderDistributionChart(options = {})"),
+    preview.indexOf("function allocationPointFromSource")
+  );
+
+  assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-details\{[^}]*display:grid;[^}]*place-items:center;/);
+  assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-details \.holder-details-btn\{[^}]*justify-self:center;/);
+  assert.match(holderRenderer, /const deltaPct = firstTotal > 0 \? `\(\$\{fmtSignedHolderPct\(delta \/ firstTotal \* 100\)\}\)` : "New";/);
+  assert.match(holderRenderer, /<strong class="holder-legend-number">\$\{fmtSignedHolder\(delta\)\}<\/strong><span class="holder-legend-percent">\$\{deltaPct\}<\/span>/);
+  assert.match(preview, /\.holder-distribution-legend \.holder-legend-percent\{[^}]*font-size:10px;[^}]*line-height:1;/);
+});
+
+test("holder distribution hides its desktop header on mobile", () => {
+  assert.match(
+    preview,
+    /@media \(max-width:640px\)\{[\s\S]*?\.holder-distribution-legend \.holder-legend-head\{display:none}/,
+  );
+});
+
+test("holder distribution exposes the visible change percentage to assistive technology", () => {
+  const holderRenderer = preview.slice(
+    preview.indexOf("function renderHolderDistributionChart(options = {})"),
+    preview.indexOf("function allocationPointFromSource")
+  );
+
+  assert.match(holderRenderer, /Change \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
+  assert.match(holderRenderer, /series by change\. \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
 });
