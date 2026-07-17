@@ -944,6 +944,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="exit-table-title">
         <div class="exit-title-row"><h3>Recent Early Exits</h3><span class="count-badge" id="exits-count">--</span></div>
       </div>
+      <div class="card-meta"><span class="pulse"></span><span id="recent-exits-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar">
       <div class="tb-left">
@@ -1015,7 +1016,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   <section class="card holders-card">
     <div class="card-head">
       <div class="card-title"><h2>veDOLO Holders</h2><span class="count-badge" id="holders-count">--</span></div>
-      <div class="card-meta"><span class="dot-live"></span>full holder table</div>
+      <div class="card-meta"><span class="pulse"></span><span id="holders-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar">
       <div class="tb-left">
@@ -1042,7 +1043,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   <section class="card flow-card">
     <div class="card-head">
       <div class="card-title"><h2>veDOLO Flow</h2><span class="count-badge" id="flows-count">--</span></div>
-      <div class="card-meta"><span class="dot-live"></span>locks and unlocks</div>
+      <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar">
       <div class="tb-left">
@@ -1105,7 +1106,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   <section class="card claimable-card">
     <div class="card-head">
       <div class="card-title"><h2>Expired veDOLO Ready to Claim</h2><span class="count-badge" id="claimable-count">--</span></div>
-      <div class="card-meta"><span class="dot-live"></span>expired NFTs with 0 vote weight; Ready to claim</div>
+      <div class="card-meta"><span class="pulse"></span><span id="claimable-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar">
       <div class="tb-left">
@@ -1134,7 +1135,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   <section class="card chart-card duration-card">
     <div class="card-head">
       <div class="card-title"><h2>Lock Duration Distribution</h2><span class="count-badge" id="duration-count">--</span></div>
-      <div class="card-meta">based on lock events</div>
+      <div class="card-meta"><span class="pulse"></span><span id="duration-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar">
       <div class="tb-left"><div class="seg" id="duration-mode"><button class="active" data-mode="dolo">DOLO</button><button data-mode="count">Count</button></div></div>
@@ -1192,6 +1193,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 <script>
 const state = {
   stats:{}, holders:[], exits:[], locks:[], unlocks:[], transfers:[], expiry:null, price:null,
+  statsTimestamp:null, holdersTimestamp:null, flowsTimestamp:null,
   lockEventsByToken:new Map(), transferEventsByToken:new Map(), exerciseEventsByToken:new Map(),
   lockedHistory:[], votePowerHistory:[], lockedChartMode:"locked", lockedBrush:{from:0,to:0}, lockedBrushReady:false, lockedBrushListenersBound:false,
   holder:{q:"",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
@@ -1305,6 +1307,16 @@ const ago = iso => {
   if(hrs < 48) return `${hrs}h ago`;
   return dateLabel(iso);
 };
+function dataUpdatedLabel(timestamp){
+  return timestamp ? `Data updated · ${ago(timestamp)}` : "Data update unavailable";
+}
+function syncVedoloTableMetadata(){
+  setText("recent-exits-meta", dataUpdatedLabel(state.earlyStats?.last_updated));
+  setText("holders-meta", dataUpdatedLabel(state.holdersTimestamp));
+  setText("flows-meta", dataUpdatedLabel(state.flowsTimestamp));
+  setText("claimable-meta", dataUpdatedLabel(state.holdersTimestamp));
+  setText("duration-meta", dataUpdatedLabel(state.flowsTimestamp));
+}
 const periodCutoff = p => p === "all" ? 0 : Math.floor(Date.now()/1000) - Number(p)*86400;
 const copySvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 const extSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
@@ -2750,6 +2762,7 @@ function renderStatic(){
   renderRevenue();
   renderExpiry();
   renderDuration();
+  syncVedoloTableMetadata();
   setText("flows-count", `${fmtInt(state.locks.length)} locks / ${fmtInt(state.unlocks.length)} unlocks`);
 }
 function renderProtocolInfo(){
@@ -3225,6 +3238,7 @@ async function boot(){
     state.holdersTimestamp = holders?.timestamp;
     state.earlyStats = early?.stats || {};
     state.exits = early?.recent_exits || [];
+    state.flowsTimestamp = flows?.timestamp;
     state.locks = (flows?.locks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.unlocks = (flows?.unlocks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.transfers = (flows?.transfers || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
