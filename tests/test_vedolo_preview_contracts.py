@@ -46,7 +46,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("end <= nowSec", self.html)
         self.assertIn("function renderExpiredClaimable()", self.html)
         self.assertIn("renderExpiredClaimable();", self.html)
-        self.assertIn("Ready to claim", self.html)
+        self.assertIn('id="claimable-meta"', self.html)
 
     def test_expired_claimable_table_reuses_holder_wallet_ux_contracts(self):
         self.assertIn("#claimable-table{table-layout:fixed;min-width:1040px}", self.html)
@@ -222,6 +222,31 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('#recent-early-exits-section #dd-exit-period .dd-btn.open', self.html)
         self.assertIn('#recent-early-exits-section #dd-exit-period .dd-opt.active .dd-opt-check', self.html)
         self.assertIn('vedolo-exit-red-controls-20260711', self.route)
+
+    def test_vedolo_tables_show_source_specific_data_update_metadata(self):
+        for meta_id in (
+            "recent-exits-meta",
+            "holders-meta",
+            "flows-meta",
+            "claimable-meta",
+            "duration-meta",
+        ):
+            self.assertIn(f'id="{meta_id}"', self.html)
+
+        metadata_sync = re.search(
+            r'function syncVedoloTableMetadata\(\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        ).group("body")
+        self.assertIn("state.earlyStats?.last_updated", metadata_sync)
+        self.assertIn("state.holdersTimestamp", metadata_sync)
+        self.assertIn("state.flowsTimestamp", metadata_sync)
+        self.assertIn('setText("recent-exits-meta",', metadata_sync)
+        self.assertIn('setText("holders-meta",', metadata_sync)
+        self.assertIn('setText("flows-meta",', metadata_sync)
+        self.assertIn('setText("claimable-meta",', metadata_sync)
+        self.assertIn('setText("duration-meta",', metadata_sync)
+        self.assertIn("vedolo-table-update-metadata-20260717", self.route)
 
 
 if __name__ == "__main__":
