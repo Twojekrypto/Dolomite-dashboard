@@ -52,10 +52,34 @@ test("holder distribution uses separate semantic pin and Details controls", () =
   assert.doesNotMatch(holderLegendMarkup, /holder-chart-legend-item\$\{active\}[^>]*role="button"/);
   assert.doesNotMatch(holderLegendMarkup, /holder-chart-legend-item\$\{active\}[^>]*tabindex="0"/);
 
-  assert.match(holderRenderer, /lines\.querySelectorAll\("\.holder-chart-series-line"\)[\s\S]*toggleHolderDistributionPin\(line\.dataset\.key\)/);
+  assert.match(holderRenderer, /lines\.querySelectorAll\("\.holder-chart-series-line\[role='button'\]"\)[\s\S]*toggleHolderDistributionPin\(line\.dataset\.key\)/);
   assert.match(holderRenderer, /legend\.querySelectorAll\("\.holder-legend-pin"\)[\s\S]*toggleHolderDistributionPin\(pin\.dataset\.pinKey\)/);
   assert.doesNotMatch(holderLegendHoverHandlers, /addEventListener\("click"/);
   assert.match(holderRenderer, /holder-details-btn"\)\.forEach\(btn => btn\.addEventListener\("click", event => \{\s*event\.stopPropagation\(\);/);
   assert.match(holderRenderer, /if\(holderDistributionActiveKey === key\) holderDistributionActiveKey = "";/);
   assert.match(holderRenderer, /if\(holderDistributionActiveKey && !bucketDefs\.some\(bucket => bucket\.key === holderDistributionActiveKey\)\)\{\s*holderDistributionActiveKey = "";/);
+});
+
+test("holder distribution keeps an open Details panel independent from its active pin", () => {
+  const holderRenderer = preview.slice(
+    preview.indexOf("function renderHolderDistributionChart(options = {})"),
+    preview.indexOf("function allocationPointFromSource")
+  );
+
+  assert.doesNotMatch(holderRenderer, /if\(holderWalletPanelKey\)\{\s*holderDistributionActiveKey = holderWalletPanelKey;\s*\}/);
+  assert.match(holderRenderer, /else \{\s*holderWalletPanelKey = key;\s*holderDistributionActiveKey = key;\s*\}/);
+});
+
+test("holder distribution keeps mobile tooltips bounded and hides empty chart paths from keyboard users", () => {
+  const holderRenderer = preview.slice(
+    preview.indexOf("function renderHolderDistributionChart(options = {})"),
+    preview.indexOf("function allocationPointFromSource")
+  );
+
+  assert.match(preview, /\.holder-chart-tip\{[\s\S]*box-sizing:border-box;[\s\S]*max-width:calc\(100% - 16px\);[\s\S]*white-space:normal/);
+  assert.match(holderRenderer, /const maxTipLeft = Math\.max\(8, wrap\.clientWidth - tipW - 8\);/);
+  assert.match(holderRenderer, /aria-label="Pin \$\{bucket\.label\} DOLO series\. Balance \$\{fmtNum\(bucket\.total\)\} DOLO\. Wallets \$\{bucket\.wallets\.toLocaleString\(\)\}\. Change \$\{fmtSignedHolder\(delta\)\} DOLO\."/);
+  assert.match(holderRenderer, /const interactionAttrs = path \? ` role="button" tabindex="0"/);
+  assert.match(holderRenderer, /: ` aria-hidden="true" pointer-events="none"`/);
+  assert.match(holderRenderer, /lines\.querySelectorAll\("\.holder-chart-series-line\[role='button'\]"\)/);
 });
