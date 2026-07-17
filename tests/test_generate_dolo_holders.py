@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import tempfile
@@ -11,6 +12,7 @@ import generate_dolo_holders as holders
 
 ALICE = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 BOB = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+CHARLIE = "0xcccccccccccccccccccccccccccccccccccccccc"
 
 
 def uint256_hex(value):
@@ -176,6 +178,58 @@ class GenerateDoloHoldersRpcBatchTests(unittest.TestCase):
         self.assertTrue(out[0]["is_contract"])
         self.assertEqual(out[0]["contract_wallet_type"], "safe")
         self.assertNotIn("is_contract", out[1])
+
+    def test_detect_contracts_checks_every_holder_in_chart_range(self):
+        rows = [
+            {"address": ALICE, "balance": 1_000},
+            {"address": BOB, "balance": 999.99},
+            {"address": CHARLIE, "balance": 5_000},
+        ]
+        code_batch_sizes = []
+
+        def fake_batch(_rpcs, payloads, **_kwargs):
+            code_batch_sizes.append(len(payloads))
+            return {
+                payload["id"]: {"jsonrpc": "2.0", "id": payload["id"], "result": "0x"}
+                for payload in payloads
+            }, []
+
+        with patch.object(holders, "rpc_batch_requests", side_effect=fake_batch), \
+             patch.object(holders, "rpc_single_request") as single:
+            holders.detect_contracts(rows, max_check=None, min_balance=1_000)
+
+        self.assertEqual(code_batch_sizes, [2, 2])
+        single.assert_not_called()
+
+    def test_holder_chart_contract_coverage_checkpoints_until_complete(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = os.path.join(tmp_dir, "dolo_holders.json")
+            with open(output_path, "w") as f:
+                json.dump({
+                    "timestamp": "2026-07-17T00:00:00",
+                    "stats": {},
+                    "holders": [
+                        {"address": ALICE, "balance": 1_000},
+                        {"address": BOB, "balance": 2_000},
+                        {"address": CHARLIE, "balance": 3_000},
+                    ],
+                }, f)
+
+            with patch.object(holders, "OUTPUT_JSON", output_path), \
+                 patch.object(holders, "HOLDER_CHART_CONTRACT_VERIFY_BATCH_SIZE", 2), \
+                 patch.object(holders, "detect_contracts", side_effect=lambda rows, **_kwargs: rows) as detect:
+                holders.verify_holder_chart_contracts_only()
+                with open(output_path) as f:
+                    partial = json.load(f)
+                holders.verify_holder_chart_contracts_only()
+                with open(output_path) as f:
+                    complete = json.load(f)
+
+        self.assertEqual([len(call.args[0]) for call in detect.call_args_list], [2, 1])
+        self.assertEqual(partial["holder_chart_contract_coverage"]["status"], "in_progress")
+        self.assertEqual(partial["holder_chart_contract_coverage"]["verifiedWallets"], 2)
+        self.assertEqual(complete["holder_chart_contract_coverage"]["status"], "complete")
+        self.assertEqual(complete["holder_chart_contract_coverage"]["verifiedWallets"], 3)
 
 
 if __name__ == "__main__":

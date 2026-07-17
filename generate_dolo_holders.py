@@ -62,6 +62,10 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_holders.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_holders_state.json")
 FLOW_RECONCILE_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
 MIN_BALANCE = 100.0  # 100 DOLO
+HOLDER_DISTRIBUTION_MIN_BALANCE = 1_000.0  # lowest bucket shown in the holder chart
+HOLDER_CHART_CONTRACT_VERIFY_BATCH_SIZE = int(
+    os.environ.get("DOLO_HOLDERS_CONTRACT_VERIFY_BATCH_SIZE", "250")
+)
 RPC_BATCH_SIZE = int(os.environ.get("DOLO_HOLDERS_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_HOLDERS_RPC_RETRIES_PER_ENDPOINT", "2"))
 ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
@@ -586,16 +590,25 @@ def verify_top_balances(holders, eth_balances, bera_balances, forced_addrs, max_
     return holders, eth_balances, bera_balances
 
 
-def detect_contracts(holders, max_check=200):
-    """Detect which top holders are contracts (not EOAs)."""
-    print(f"\n🔍 Detecting contracts in top {max_check} holders...")
+def detect_contracts(holders, max_check=200, min_balance=None):
+    """Detect contracts and Safes for the requested holder coverage."""
+    eligible = holders
+    if min_balance is not None:
+        eligible = [
+            holder for holder in holders
+            if float(holder.get("balance") or 0) >= float(min_balance)
+        ]
+    to_check = eligible if max_check is None else eligible[:max_check]
+    scope = f"{len(to_check):,} holders"
+    if min_balance is not None:
+        scope += f" at or above {float(min_balance):,.0f} DOLO"
+    print(f"\n🔍 Detecting contracts across {scope}...")
 
     RPC_URLS = [
         ("eth", CHAINS["eth"]["rpcs"]),
         ("bera", CHAINS["bera"]["rpcs"]),
     ]
 
-    to_check = holders[:max_check]
     contract_addrs = set()
     contract_wallet_types = {}
 
@@ -702,12 +715,68 @@ def detect_contracts(holders, max_check=200):
         if key in contract_wallet_types:
             h["contract_wallet_type"] = contract_wallet_types[key]
 
-    print(f"  ✅ Found {len(contract_addrs)} contracts in top {max_check}")
+    print(f"  ✅ Found {len(contract_addrs)} contracts across {scope}")
     return holders
 
 
 # ===== MAIN =====
+def verify_holder_chart_contracts_only():
+    """Extend contract/Safe coverage without re-scanning token transfer logs."""
+    if not os.path.exists(OUTPUT_JSON):
+        raise RuntimeError(f"Missing holder output: {OUTPUT_JSON}")
+    with open(OUTPUT_JSON) as f:
+        output = json.load(f)
+    holders = output.get("holders")
+    if not isinstance(holders, list):
+        raise RuntimeError("Holder output does not contain a holders list")
+
+    eligible = [
+        holder for holder in holders
+        if float(holder.get("balance") or 0) >= HOLDER_DISTRIBUTION_MIN_BALANCE
+    ]
+    previous_coverage = output.get("holder_chart_contract_coverage") or {}
+    can_resume = (
+        previous_coverage.get("status") == "in_progress"
+        and float(previous_coverage.get("minimumBalance") or 0) == HOLDER_DISTRIBUTION_MIN_BALANCE
+        and previous_coverage.get("sourceTimestamp") == output.get("timestamp")
+    )
+    start = int(previous_coverage.get("nextOffset") or 0) if can_resume else 0
+    start = max(0, min(start, len(eligible)))
+    end = min(len(eligible), start + max(1, HOLDER_CHART_CONTRACT_VERIFY_BATCH_SIZE))
+    batch = eligible[start:end]
+    if batch:
+        print(
+            f"🔍 Checking holder-chart contracts {start + 1:,}-{end:,} of {len(eligible):,}...",
+            flush=True,
+        )
+        detect_contracts(batch, max_check=None)
+
+    output["holders"] = holders
+    stats = output.setdefault("stats", {})
+    output["holder_chart_contract_coverage"] = {
+        "minimumBalance": HOLDER_DISTRIBUTION_MIN_BALANCE,
+        "sourceTimestamp": output.get("timestamp"),
+        "verifiedAt": datetime.utcnow().isoformat() + "Z",
+        "verifiedWallets": end,
+        "totalWallets": len(eligible),
+        "nextOffset": end,
+        "status": "complete" if end == len(eligible) else "in_progress",
+    }
+    if end == len(eligible):
+        stats["contracts_detected"] = sum(1 for holder in holders if holder.get("is_contract"))
+    with open(OUTPUT_JSON, "w") as f:
+        json.dump(output, f, separators=(",", ":"))
+    print(
+        f"✅ Contract/Safe coverage: {end:,}/{len(eligible):,} holders at or above "
+        f"{HOLDER_DISTRIBUTION_MIN_BALANCE:,.0f} DOLO "
+        f"({output['holder_chart_contract_coverage']['status']})"
+    )
+
+
 def main():
+    if "--verify-holder-chart-contracts-only" in sys.argv[1:]:
+        verify_holder_chart_contracts_only()
+        return
     print("=" * 60)
     print("🔄 DOLO Token Holders — Generator (RPC eth_getLogs)")
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
@@ -804,7 +873,11 @@ def main():
     )
 
     # Detect contracts
-    holders = detect_contracts(holders, max_check=200)
+    holders = detect_contracts(
+        holders,
+        max_check=None,
+        min_balance=HOLDER_DISTRIBUTION_MIN_BALANCE,
+    )
 
     # Checksum addresses
     try:

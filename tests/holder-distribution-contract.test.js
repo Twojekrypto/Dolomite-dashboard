@@ -16,6 +16,24 @@ test("holder distribution explains scope and dynamic comparison period", () => {
   assert.match(preview, /holder-legend-change-head/);
 });
 
+test("holder distribution explains the separate market and potential audiences", () => {
+  const scopeRenderer = preview.slice(preview.indexOf("function holderScopeHtml"), preview.indexOf("function holderCexStatHtml"));
+  assert.match(scopeRenderer, /holderAudience === "potential"/);
+  assert.match(scopeRenderer, /Potential CEX\/MM &amp; bots/);
+  assert.match(scopeRenderer, /Potential CEX\/MM and bots are shown separately/);
+});
+
+test("holder distribution uses one audience filter for chart history and Details", () => {
+  assert.match(preview, /id="holder-audience-mode"/);
+  assert.match(preview, /data-holder-audience="market"/);
+  assert.match(preview, /data-holder-audience="potential"/);
+  assert.match(preview, /let holderAudience = "market"/);
+  assert.match(preview, /function holderBelongsToAudience\(type, audience = holderAudience\)/);
+  assert.match(preview, /root\?\.\[audience\]\?\.\[holderBucketView\]/);
+  assert.match(preview, /source\?\.\[balanceKey\]\?\.\[holderAudience\]\?\.\[holderBucketView\]/);
+  assert.match(preview, /if\(!holderBelongsToAudience\(type\)\) return false;/);
+});
+
 test("holder distribution guards relative change and renders a symmetric percent view", () => {
   assert.match(preview, /let holderDistributionMetric = "balance"/);
   assert.match(preview, /function holderMetricValue\(/);
@@ -68,6 +86,17 @@ test("holder distribution keeps an open Details panel independent from its activ
 
   assert.doesNotMatch(holderRenderer, /if\(holderWalletPanelKey\)\{\s*holderDistributionActiveKey = holderWalletPanelKey;\s*\}/);
   assert.match(holderRenderer, /else \{\s*holderWalletPanelKey = key;\s*holderDistributionActiveKey = key;\s*\}/);
+});
+
+test("holder distribution Details controls match the compact Assets pattern", () => {
+  assert.match(preview, /\.holder-legend-head-action\{width:72px;text-align:center\}/);
+  assert.match(preview, /\.holder-details-btn\{\s*height:24px;width:100%;max-width:72px;min-width:0;padding:0 6px;[^}]*gap:3px;[^}]*overflow:hidden;/);
+  assert.match(preview, /\.holder-details-btn span\{font-size:9px;font-weight:700;letter-spacing:\.5px;[^}]*overflow:hidden;text-overflow:ellipsis;white-space:nowrap}/);
+
+  const distributionRenderer = preview.slice(preview.indexOf("function renderHolderDistributionChart"), preview.indexOf("function renderAllocationChart"));
+  const allocationRenderer = preview.slice(preview.indexOf("function renderAllocationChart"), preview.indexOf("function renderCexSupplyChart"));
+  assert.match(distributionRenderer, /<span class="holder-legend-head-action">Details<\/span>/);
+  assert.match(allocationRenderer, /<span class="holder-legend-head-action">Details<\/span>/);
 });
 
 test("holder distribution keeps mobile tooltips bounded and hides empty chart paths from keyboard users", () => {

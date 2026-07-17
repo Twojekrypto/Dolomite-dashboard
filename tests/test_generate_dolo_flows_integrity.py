@@ -185,6 +185,35 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertIn("In ${fmtNum(grossIn)}", source)
         self.assertIn("Out ${fmtNum(grossOut)}", source)
 
+    def test_holder_audiences_separate_verified_market_from_potential_and_bots(self):
+        market = "0x1111111111111111111111111111111111111111"
+        watch = "0x2222222222222222222222222222222222222222"
+        bot = "0x3333333333333333333333333333333333333333"
+        cex = "0x4444444444444444444444444444444444444444"
+        holder_rows = {address: {} for address in (market, watch, bot, cex)}
+        labels = {
+            watch: {"type": "watch"},
+            bot: {"type": "bot"},
+            cex: {"type": "cex"},
+        }
+        balances = {market: 120_000, watch: 220_000, bot: 320_000, cex: 420_000}
+        buckets = [{"key": "all", "min": 0, "max": float("inf")}]
+
+        verified = flows.build_bucket_model(
+            balances, {}, holder_rows, labels, buckets, audience="market"
+        )
+        potential = flows.build_bucket_model(
+            balances, {}, holder_rows, labels, buckets, audience="potential"
+        )
+
+        self.assertEqual(verified["trackedWallets"], 1)
+        self.assertEqual(verified["trackedTotal"], 120_000)
+        self.assertEqual(verified["excludedPotentialWallets"], 2)
+        self.assertEqual(verified["excludedPotentialTotal"], 540_000)
+        self.assertEqual(potential["trackedWallets"], 2)
+        self.assertEqual(potential["trackedTotal"], 540_000)
+        self.assertEqual(potential["excludedCexWallets"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

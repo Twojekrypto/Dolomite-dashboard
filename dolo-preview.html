@@ -166,14 +166,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .holder-chart-toggle,
 .holder-bucket-mode button,
-.holder-metric-mode button{
+.holder-metric-mode button,
+.holder-audience-mode button{
   position:relative;display:inline-flex;align-items:center;justify-content:center;height:28px;
   font-family:var(--mono);font-size:10px;color:var(--fg-3);font-weight:800;letter-spacing:.36px;cursor:pointer;
   transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),transform .16s var(--ease)
 }
 .holder-chart-toggle:hover,
 .holder-bucket-mode button:hover,
-.holder-metric-mode button:hover{color:var(--fg-1)}
+.holder-metric-mode button:hover,
+.holder-audience-mode button:hover{color:var(--fg-1)}
 .holder-chart-toggle input{position:absolute;opacity:0;pointer-events:none}
 .holder-bucket-mode{
   display:inline-grid;grid-template-columns:repeat(2,minmax(112px,1fr));height:34px;gap:0;padding:3px;
@@ -208,6 +210,22 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
 }
 .holder-metric-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
+.holder-audience-mode{
+  display:inline-grid;grid-template-columns:minmax(132px,1fr) minmax(178px,1.35fr);height:34px;gap:0;padding:3px;
+  border:1px solid rgba(255,255,255,.075);border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
+}
+.holder-audience-mode button{
+  min-width:0;padding:0 12px;border:0;border-radius:999px;background:transparent;color:var(--fg-3);white-space:nowrap
+}
+.holder-audience-mode button.active,
+.holder-audience-mode button:hover,
+.holder-audience-mode button:focus-visible{
+  background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
+  box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
+}
+.holder-audience-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
 .holder-chart-toggle.is-active{
   border-color:rgba(201,162,39,.24);background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.16),0 7px 16px rgba(0,0,0,.12),0 0 18px rgba(201,162,39,.035)
@@ -310,7 +328,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-tip .tt-change.down{color:var(--down)}
 .holder-chart-legend{display:flex;flex-direction:column;border-top:1px solid var(--line-1);background:rgba(255,255,255,.012)}
 .holder-legend-head{
-  display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) auto;gap:16px;align-items:center;
+  display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) 72px;gap:16px;align-items:center;
   padding:10px 18px 9px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.008);
   font-family:var(--mono);font-size:9.25px;font-weight:800;letter-spacing:.82px;text-transform:uppercase;color:var(--fg-3)
 }
@@ -318,10 +336,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-legend-head-metrics span{padding:0 12px;border-left:1px solid var(--line-1);white-space:nowrap}
 .holder-legend-head-metrics span:first-child{padding-left:18px;border-left:1px solid rgba(201,162,39,.12)}
 .holder-legend-head-metrics span:not(:first-child){text-align:right}
-.holder-legend-head-action{width:84px}
+.holder-legend-head-action{width:72px;text-align:center}
 .holder-chart-legend-item{min-width:0;border-top:1px solid var(--line-1)}
 .holder-chart-legend-item:first-child{border-top:0}
-.holder-legend-row{display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) auto;gap:16px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
+.holder-legend-row{display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) 72px;gap:16px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
 .holder-legend-pin{
   grid-column:1 / span 2;display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.58fr);gap:16px;align-items:center;
   min-width:0;padding:0;border:0;border-radius:4px;color:inherit;text-align:left;cursor:pointer
@@ -374,12 +392,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-legend-metric.delta.up .holder-legend-number{color:var(--up)}
 .holder-legend-metric.delta.down .holder-legend-number{color:#c98578}
 .holder-details-btn{
-  height:28px;min-width:82px;padding:0 10px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;
+  height:24px;width:100%;max-width:72px;min-width:0;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:3px;flex-shrink:0;overflow:hidden;
   color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;white-space:nowrap;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
   transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
 }
-.holder-details-btn span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
+.holder-details-btn span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .holder-details-btn svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
 .holder-details-btn:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
 .holder-details-btn[aria-expanded="true"]{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
@@ -955,8 +973,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
   .holder-chart-controls{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
-  .holder-bucket-mode,.holder-metric-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .holder-bucket-mode button,.holder-metric-mode button{width:100%;min-width:0}
+  .holder-bucket-mode,.holder-metric-mode,.holder-audience-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .holder-bucket-mode button,.holder-metric-mode button,.holder-audience-mode button{width:100%;min-width:0}
   .holder-chart-toggle{width:100%;justify-content:center;min-width:0}
   .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
   .holder-chart-source::before{margin-right:0}
@@ -1452,6 +1470,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <button type="button" class="active" data-holder-bucket-view="whales">Top holders</button>
             <button type="button" data-holder-bucket-view="smaller">Smaller holders</button>
           </div>
+          <div class="holder-audience-mode" id="holder-audience-mode" aria-label="Holder audience">
+            <button type="button" class="active" data-holder-audience="market" aria-pressed="true">Market wallets</button>
+            <button type="button" data-holder-audience="potential" aria-pressed="false">Potential CEX/MM &amp; bots</button>
+          </div>
           <div class="holder-metric-mode" id="holder-metric-mode" aria-label="Holder chart metric">
             <button type="button" class="active" data-holder-metric="balance" aria-pressed="true">Balance</button>
             <button type="button" data-holder-metric="changePct" aria-pressed="false">Change %</button>
@@ -1743,6 +1765,7 @@ let holderDistributionActiveKey = "";
 let holderDistributionMetric = "balance";
 let holderWalletPanelKey = "";
 let holderBucketView = "whales";
+let holderAudience = "market";
 let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
 let DOLO_BALANCE_CHANGES = {};
@@ -1804,6 +1827,10 @@ function activeHolderBuckets(){
 }
 function holderBucketFloorLabel(view = holderBucketView){
   return view === "smaller" ? "1K-100K" : ">=100K";
+}
+function holderBelongsToAudience(type, audience = holderAudience){
+  if(audience === "potential") return type === "watch" || type === "mm" || type === "bot";
+  return type !== "cex" && type !== "ca" && type !== "team" && type !== "investor" && type !== "watch" && type !== "mm" && type !== "bot";
 }
 function sharedAddressInfo(addr){
   const labels = window.DOLO_ADDR_LABELS || window.DOLO_ADDRESS_LABELS || {};
@@ -1956,8 +1983,12 @@ function holderCexFlow(period = "7d"){
   return {inflow, outflow, net, inflowWallets, outflowWallets};
 }
 function holderScopeHtml(){
-  const tip = "Chart lines show market wallets and exclude CEX wallets, protocol/contract/LP addresses and Team/Investor allocation wallets. Core Team and Investor allocations are shown in the separate allocations chart below.";
-  return `<span class="holder-source-scope">Market wallets</span><span class="holder-source-exclusion">CEX &amp; allocations excluded</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
+  if(holderAudience === "potential"){
+    const tip = "Potential CEX/MM and bots are shown separately from the market-wallet chart. These addresses are behaviorally flagged, not promoted to confirmed CEX labels without independent evidence.";
+    return `<span class="holder-source-scope">Potential CEX/MM &amp; bots</span><span class="holder-source-exclusion">separate risk view</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
+  }
+  const tip = "Chart lines show market wallets and exclude confirmed CEX wallets, protocol/contract/LP addresses, Team/Investor allocation wallets, and potential CEX/MM or bot wallets. Potential CEX/MM and bots are shown separately, so a behavioral signal is not treated as a confirmed CEX. Core Team and Investor allocations are shown in the separate allocations chart below.";
+  return `<span class="holder-source-scope">Market wallets</span><span class="holder-source-exclusion">CEX, potential &amp; allocations excluded</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
 }
 function holderCexStatHtml(){
   const periods = [
@@ -2074,6 +2105,7 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
   const model = {
     includeVeDolo,
     includeAllocations,
+    audience:holderAudience,
     bucketView: holderBucketView,
     bucketFloorLabel: holderBucketFloorLabel(),
     buckets,
@@ -2083,6 +2115,8 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
     trackedLocked:0,
     excludedCexWallets:0,
     excludedCexTotal:0,
+    excludedPotentialWallets:0,
+    excludedPotentialTotal:0,
     excludedInsiderWallets:0,
     excludedInsiderTotal:0,
     allocationWallets:0,
@@ -2121,11 +2155,17 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
         model.investorTotal += total;
       }
     }
-    if(isAllocation && !includeAllocations){
+    if(isAllocation && (holderAudience === "potential" || !includeAllocations)){
       model.excludedInsiderWallets += 1;
       model.excludedInsiderTotal += total;
       return;
     }
+    if(holderAudience === "market" && (holder.type === "watch" || holder.type === "mm" || holder.type === "bot")){
+      model.excludedPotentialWallets += 1;
+      model.excludedPotentialTotal += total;
+      return;
+    }
+    if(!holderBelongsToAudience(holder.type) && !isAllocation) return;
     const bucket = buckets.find(item => total >= item.min && total < item.max);
     if(!bucket) return;
     bucket.wallets += 1;
@@ -2158,11 +2198,12 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
 function getHolderDistribution(includeVeDolo = state.includeVeDolo){
   return getHolderDistributionAtPoint({key:"now", label:"Now", days:0}, holderHistoryBaseTs(), includeVeDolo, false);
 }
-function holderPrecomputedSource(point, sourceKey){
+function holderPrecomputedSource(point, sourceKey, audience = holderAudience){
   const root = point?.[sourceKey];
   if(!root) return null;
-  if(root.market?.[holderBucketView]) return root.market[holderBucketView];
-  return root[holderBucketView] || null;
+  const source = root?.[audience]?.[holderBucketView];
+  if(source) return source;
+  return audience === "market" ? (root[holderBucketView] || null) : null;
 }
 function holderHistoryPointList(baseTs){
   const dynamicPoints = (DOLO_HOLDER_HISTORY_POINTS || [])
@@ -2211,6 +2252,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       ts,
       includeVeDolo,
       includeAllocations:false,
+      audience:holderAudience,
       bucketView:holderBucketView,
       bucketFloorLabel:holderBucketFloorLabel(),
       buckets,
@@ -2220,6 +2262,8 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       trackedLocked:safeHolderNum(source.trackedLocked),
       excludedCexWallets:safeHolderNum(source.excludedCexWallets),
       excludedCexTotal:safeHolderNum(source.excludedCexTotal),
+      excludedPotentialWallets:safeHolderNum(source.excludedPotentialWallets),
+      excludedPotentialTotal:safeHolderNum(source.excludedPotentialTotal),
       excludedInsiderWallets:safeHolderNum(source.excludedInsiderWallets),
       excludedInsiderTotal:safeHolderNum(source.excludedInsiderTotal),
       allocationWallets:safeHolderNum(source.allocationWallets),
@@ -2255,6 +2299,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
   return {
     includeVeDolo,
     includeAllocations:false,
+    audience:holderAudience,
     bucketView:holderBucketView,
     bucketFloorLabel:holderBucketFloorLabel(),
     points,
@@ -2266,6 +2311,8 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
     trackedLocked:current.trackedLocked,
     excludedCexWallets:current.excludedCexWallets,
     excludedCexTotal:current.excludedCexTotal,
+    excludedPotentialWallets:current.excludedPotentialWallets,
+    excludedPotentialTotal:current.excludedPotentialTotal,
     excludedInsiderWallets:current.excludedInsiderWallets,
     excludedInsiderTotal:current.excludedInsiderTotal,
     allocationWallets:current.allocationWallets,
@@ -2291,6 +2338,7 @@ function getHolderHistory(includeVeDolo = state.includeVeDolo){
   return {
     includeVeDolo,
     includeAllocations: false,
+    audience: holderAudience,
     bucketView: holderBucketView,
     bucketFloorLabel: holderBucketFloorLabel(),
     points,
@@ -2302,6 +2350,8 @@ function getHolderHistory(includeVeDolo = state.includeVeDolo){
     trackedLocked: current.trackedLocked,
     excludedCexWallets: current.excludedCexWallets,
     excludedCexTotal: current.excludedCexTotal,
+    excludedPotentialWallets: current.excludedPotentialWallets,
+    excludedPotentialTotal: current.excludedPotentialTotal,
     excludedInsiderWallets: current.excludedInsiderWallets,
     excludedInsiderTotal: current.excludedInsiderTotal,
     allocationWallets: current.allocationWallets,
@@ -2650,7 +2700,7 @@ function renderHolderDistributionChart(options = {}){
       <div class="holder-legend-head-metrics">
         <span>Balance</span><span>Wallets</span><span id="holder-legend-change-head">Change · ${holderRangeLabel}</span>
       </div>
-      <span class="holder-legend-head-action"></span>
+      <span class="holder-legend-head-action">Details</span>
     </div>
   `;
   const rawFirstPoint = model.points[0] || model.current;
@@ -2661,7 +2711,8 @@ function renderHolderDistributionChart(options = {}){
     const firstTotal = firstPoint.buckets?.[i]?.total || 0;
     const delta = bucket.total - firstTotal;
     const deltaClass = delta >= 0 ? "up" : "down";
-    const scopeText = model.includeVeDolo ? "Market holders · veDOLO included" : "Market holders";
+    const audienceLabel = model.audience === "potential" ? "Potential CEX/MM & bots" : "Market holders";
+    const scopeText = model.includeVeDolo ? `${audienceLabel} · veDOLO included` : audienceLabel;
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const open = holderWalletPanelKey === bucket.key;
     const panelId = `holder-wallet-panel-${bucket.key}`;
@@ -2805,7 +2856,7 @@ function allocationPointFromSource(point, source){
 }
 function buildAllocationSeries(){
   const dailyPoints = (DOLO_HOLDER_BUCKET_HISTORY || [])
-    .map(point => allocationPointFromSource(point, point?.liquid?.whales || point?.liquid?.smaller || {}))
+    .map(point => allocationPointFromSource(point, point?.liquid?.market?.whales || point?.liquid?.market?.smaller || point?.liquid?.whales || point?.liquid?.smaller || {}))
     .filter(point => point.ts > 0 && (point.total > 0 || point.team > 0 || point.investors > 0))
     .sort((a,b) => a.ts - b.ts);
   const nowModel = getHolderDistribution(false);
@@ -3139,7 +3190,7 @@ function renderAllocationChart(options = {}){
       <div class="holder-legend-head-metrics">
         <span>Balance</span><span>Wallets</span><span>Change</span>
       </div>
-      <span class="holder-legend-head-action"></span>
+      <span class="holder-legend-head-action">Details</span>
     </div>
   `;
   legend.innerHTML = legendHeader + ALLOCATION_CHART_SERIES.map(series => {
@@ -3685,7 +3736,8 @@ function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
   const source = DOLO_HOLDER_WALLET_HISTORY?.[key];
   if(!source) return null;
   const balanceKey = includeVeDolo ? "with_vedolo" : "liquid";
-  const viewRows = source?.[balanceKey]?.[holderBucketView];
+  const audienceRows = source?.[balanceKey]?.[holderAudience]?.[holderBucketView];
+  const viewRows = audienceRows || (holderAudience === "market" ? source?.[balanceKey]?.[holderBucketView] : null);
   if(!Array.isArray(viewRows)) return null;
   return viewRows.map(item => {
     const addr = item.address || item.addr || "";
@@ -3905,7 +3957,7 @@ function holderBucketWalletRows(bucket, point = null, baselinePoint = null){
   const includeVeDolo = !!state.includeVeDolo;
   const matchesRow = holder => {
     const type = holderDistributionType(holder.addr, holder);
-    if(type === "cex" || type === "ca" || type === "team" || type === "investor") return false;
+    if(!holderBelongsToAudience(type)) return false;
     return holder.panelTotal >= bucket.min && holder.panelTotal < bucket.max;
   };
   return holderWalletUnionRows({
@@ -4024,7 +4076,7 @@ function holderWalletInlinePanelHtml(bucket, model = null){
         meta:veDoloUnavailable
           ? `Loading veDOLO wallet-level data · current view ${holderPanelDateText(point)}${veDoloText}`
           : baselinePoint
-          ? `${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation excluded`
+          ? `${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · ${holderAudience === "potential" ? "Potential CEX/MM & bots only" : "CEX/protocol/allocation/potential excluded"}`
           : `Wallet-level details are not available for this selected range · current view ${holderPanelDateText(point)}${veDoloText}`,
         rows,
         emptyText:veDoloUnavailable
@@ -5082,6 +5134,20 @@ if(state.holdersIncludeVeDolo){
   if(typeof requestIdleCallback === "function") requestIdleCallback(kickVeDolo, {timeout: 2000});
   else setTimeout(kickVeDolo, 600);
 }
+document.querySelectorAll("[data-holder-audience]").forEach(button => {
+  button.addEventListener("click", () => {
+    const next = button.dataset.holderAudience;
+    if(next !== "market" && next !== "potential" || next === holderAudience) return;
+    holderAudience = next;
+    holderWalletPanelKey = "";
+    document.querySelectorAll("[data-holder-audience]").forEach(item => {
+      const active = item.dataset.holderAudience === holderAudience;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    renderHolderDistributionChart();
+  });
+});
 document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
   btn.addEventListener("click", () => {
     const next = btn.dataset.holderBucketView;
