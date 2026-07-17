@@ -237,6 +237,34 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 }
 #flow-source{grid-auto-columns:minmax(92px,1fr)}
 #duration-mode{grid-auto-columns:minmax(82px,1fr)}
+.locked-chart-mode.vedolo-pill-segment,
+.seg.vedolo-pill-segment{
+  display:inline-grid;grid-auto-flow:column;grid-auto-columns:minmax(112px,1fr);align-items:center;gap:0;height:34px;min-height:34px;
+  max-width:100%;padding:3px;border:1px solid rgba(255,255,255,.075);border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
+}
+#flow-source.vedolo-pill-segment{--vedolo-segment-count:3;grid-auto-columns:minmax(104px,1fr)}
+.vedolo-pill-segment button{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:0;padding:0 14px;
+  border:0;border-radius:999px;background:transparent;font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.36px;
+  color:var(--fg-3);white-space:nowrap;cursor:pointer;
+  transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),transform .16s var(--ease)
+}
+.vedolo-pill-segment .locked-chart-vote-help{display:flex;min-width:0}
+.vedolo-pill-segment .locked-chart-vote-help button{width:100%}
+.vedolo-pill-segment button.active,
+.vedolo-pill-segment button[aria-pressed="true"],
+.vedolo-pill-segment button:hover,
+.vedolo-pill-segment button:focus-visible,
+.locked-chart-mode.vedolo-pill-segment button:not(:disabled):hover{
+  background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
+  box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
+}
+.vedolo-pill-segment button.active::after{display:none}
+.locked-chart-mode.vedolo-pill-segment button[aria-pressed="true"]:hover{color:var(--fg-1);background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072))}
+.vedolo-pill-segment button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
+.vedolo-pill-segment button:disabled{color:var(--fg-4);cursor:not-allowed}
 .tbl-wrap{max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:760px}
 .tbl th{position:sticky;top:0;z-index:2;background:var(--bg-1);padding:12px 14px;border-bottom:1px solid var(--line-2);font-size:10px;text-transform:uppercase;letter-spacing:1.35px;color:var(--fg-3);font-weight:700;text-align:left;white-space:nowrap;user-select:none}
@@ -766,7 +794,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .locked-chart-heading .card-title,.locked-chart-meta,.locked-chart-controls{width:100%}
   .locked-chart-meta{margin-left:0}
   .locked-chart-controls .locked-chart-mode{width:100%}
-  .locked-chart-mode button{flex:1}
+  .locked-chart-mode.vedolo-pill-segment{grid-template-columns:repeat(var(--vedolo-segment-count,2),minmax(0,1fr));grid-auto-columns:auto}
+  .vedolo-pill-segment button,.vedolo-pill-segment .locked-chart-vote-help{width:100%;min-width:0}
   .locked-chart-svg{height:240px}
   .locked-chart-grid text,.locked-chart-x text{font-size:9px}
   .expiry-chart{display:block;overflow-x:auto;padding-bottom:2px}
@@ -850,7 +879,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       </div>
       <div class="card-meta locked-chart-meta"><span class="pulse"></span>drag window below to zoom</div>
       <div class="locked-chart-controls">
-        <div class="locked-chart-mode" id="lockedChartMode" role="group" aria-label="Chart metric">
+        <div class="locked-chart-mode vedolo-pill-segment" id="lockedChartMode" role="group" aria-label="Chart metric">
           <button type="button" data-locked-chart-mode="locked" aria-pressed="true">Locked DOLO</button>
           <!-- Task 5 loading contract: fetchJson("data/vedolo-vote-power-history.json") -->
           <span class="locked-chart-vote-help" tabindex="0" data-tip="Verified vote-power history is unavailable."><button type="button" data-locked-chart-mode="vote" aria-pressed="false" disabled>Vote Power</button></span>
@@ -1048,7 +1077,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     <div class="toolbar">
       <div class="tb-left">
         <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-flows" type="text" placeholder="Search address or tx hash…" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
-        <div class="seg" id="flow-source"><button class="active" data-source="all">All</button><button data-source="odolo">via oDOLO</button><button data-source="direct">Direct</button></div>
+        <div class="seg vedolo-pill-segment" id="flow-source"><button class="active" data-source="all">All</button><button data-source="odolo">via oDOLO</button><button data-source="direct">Direct</button></div>
       </div>
       <div class="tb-right">
         <div class="dd" id="dd-flow-period">
@@ -1138,7 +1167,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="card-meta"><span class="pulse"></span><span id="duration-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar">
-      <div class="tb-left"><div class="seg" id="duration-mode"><button class="active" data-mode="dolo">DOLO</button><button data-mode="count">Count</button></div></div>
+      <div class="tb-left"><div class="seg vedolo-pill-segment" id="duration-mode"><button class="active" data-mode="dolo">DOLO</button><button data-mode="count">Count</button></div></div>
     </div>
     <div class="card-body">
       <div class="duration-shell" id="duration-chart">
