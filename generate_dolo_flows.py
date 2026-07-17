@@ -66,6 +66,8 @@ HOLDER_BUCKET_GROUPS = {
     ],
 }
 HOLDER_WALLET_HISTORY_VIEWS = {"whales"}
+HOLDER_MARKET_EXCLUDED_TYPES = {"cex", "ca", "team", "investor"}
+HOLDER_POTENTIAL_TYPES = {"watch", "mm", "bot"}
 
 # Known contract addresses to exclude (DEX routers, LP pools, bots, etc.)
 EXCLUDED_ADDRS = {
@@ -1073,20 +1075,46 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
             "liquid": {},
             "with_vedolo": {},
         }
-        for view, bucket_defs in HOLDER_BUCKET_GROUPS.items():
-            row["liquid"][view] = build_bucket_model(
-                liquid_balances, {}, holder_rows, address_labels, bucket_defs
-            )
-            row["with_vedolo"][view] = build_bucket_model(
-                liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs
-            )
-            if view in HOLDER_WALLET_HISTORY_VIEWS:
-                wallet_row["liquid"][view] = build_bucket_wallet_history_rows(
-                    liquid_by_chain, {}, holder_rows, address_labels, bucket_defs
+        for audience in ("market", "potential"):
+            row["liquid"][audience] = {}
+            row["with_vedolo"][audience] = {}
+            if HOLDER_WALLET_HISTORY_VIEWS:
+                wallet_row["liquid"][audience] = {}
+                wallet_row["with_vedolo"][audience] = {}
+            for view, bucket_defs in HOLDER_BUCKET_GROUPS.items():
+                row["liquid"][audience][view] = build_bucket_model(
+                    liquid_balances,
+                    {},
+                    holder_rows,
+                    address_labels,
+                    bucket_defs,
+                    audience=audience,
                 )
-                wallet_row["with_vedolo"][view] = build_bucket_wallet_history_rows(
-                    liquid_by_chain, locked_balances, holder_rows, address_labels, bucket_defs
+                row["with_vedolo"][audience][view] = build_bucket_model(
+                    liquid_balances,
+                    locked_balances,
+                    holder_rows,
+                    address_labels,
+                    bucket_defs,
+                    audience=audience,
                 )
+                if view in HOLDER_WALLET_HISTORY_VIEWS:
+                    wallet_row["liquid"][audience][view] = build_bucket_wallet_history_rows(
+                        liquid_by_chain,
+                        {},
+                        holder_rows,
+                        address_labels,
+                        bucket_defs,
+                        audience=audience,
+                    )
+                    wallet_row["with_vedolo"][audience][view] = build_bucket_wallet_history_rows(
+                        liquid_by_chain,
+                        locked_balances,
+                        holder_rows,
+                        address_labels,
+                        bucket_defs,
+                        audience=audience,
+                    )
         history.append(row)
         wallet_history[point["key"]] = wallet_row
 
@@ -1304,6 +1332,8 @@ def holder_distribution_type(addr, holder_rows, labels):
         return "multisig"
     if holder.get("is_contract"):
         return "ca"
+    if label_type in {"bot", "liquidator"}:
+        return "bot"
     return label_type or "eoa"
 
 
@@ -2049,7 +2079,7 @@ def detect_cex_deposit_candidates(all_transfers, vesting_labels=None,
     ]
 
 
-def empty_bucket_model(bucket_defs):
+def empty_bucket_model(bucket_defs, audience):
     buckets = [
         {
             "wallets": 0,
@@ -2068,6 +2098,7 @@ def empty_bucket_model(bucket_defs):
         for _ in bucket_defs
     ]
     return {
+        "audience": audience,
         "buckets": buckets,
         "trackedWallets": 0,
         "trackedTotal": 0,
@@ -2075,6 +2106,8 @@ def empty_bucket_model(bucket_defs):
         "trackedLocked": 0,
         "excludedCexWallets": 0,
         "excludedCexTotal": 0,
+        "excludedPotentialWallets": 0,
+        "excludedPotentialTotal": 0,
         "excludedInsiderWallets": 0,
         "excludedInsiderTotal": 0,
         "allocationWallets": 0,
@@ -2088,8 +2121,24 @@ def empty_bucket_model(bucket_defs):
     }
 
 
-def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_labels, bucket_defs, include_allocations=False):
-    model = empty_bucket_model(bucket_defs)
+def holder_belongs_to_audience(holder_type, audience):
+    if audience == "potential":
+        return holder_type in HOLDER_POTENTIAL_TYPES
+    if audience == "market":
+        return holder_type not in HOLDER_MARKET_EXCLUDED_TYPES and holder_type not in HOLDER_POTENTIAL_TYPES
+    raise ValueError(f"Unsupported holder audience: {audience}")
+
+
+def build_bucket_model(
+    liquid_balances,
+    locked_balances,
+    holder_rows,
+    address_labels,
+    bucket_defs,
+    include_allocations=False,
+    audience="market",
+):
+    model = empty_bucket_model(bucket_defs, audience)
     addresses = set(liquid_balances.keys()) | set(locked_balances.keys())
     for addr in addresses:
         liquid = max(0, float(liquid_balances.get(addr) or 0))
@@ -2114,9 +2163,15 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_la
             elif holder_type == "investor":
                 model["investorWallets"] += 1
                 model["investorTotal"] += total
-        if is_allocation and not include_allocations:
+        if is_allocation and (audience == "potential" or not include_allocations):
             model["excludedInsiderWallets"] += 1
             model["excludedInsiderTotal"] += total
+            continue
+        if holder_type in HOLDER_POTENTIAL_TYPES and audience == "market":
+            model["excludedPotentialWallets"] += 1
+            model["excludedPotentialTotal"] += total
+            continue
+        if not holder_belongs_to_audience(holder_type, audience):
             continue
         bucket_index = next((idx for idx, bucket in enumerate(bucket_defs) if total >= bucket["min"] and total < bucket["max"]), None)
         if bucket_index is None:
@@ -2149,6 +2204,7 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_la
             bucket[key] = round(bucket[key], 2)
     for key in [
         "trackedTotal", "trackedLiquid", "trackedLocked", "excludedCexTotal",
+        "excludedPotentialTotal",
         "excludedInsiderTotal", "allocationTotal", "allocationLiquid",
         "allocationLocked", "teamTotal", "investorTotal",
     ]:
@@ -2156,7 +2212,14 @@ def build_bucket_model(liquid_balances, locked_balances, holder_rows, address_la
     return model
 
 
-def build_bucket_wallet_history_rows(liquid_by_chain, locked_balances, holder_rows, address_labels, bucket_defs):
+def build_bucket_wallet_history_rows(
+    liquid_by_chain,
+    locked_balances,
+    holder_rows,
+    address_labels,
+    bucket_defs,
+    audience="market",
+):
     rows = []
     addresses = set(locked_balances.keys())
     for chain_balances in liquid_by_chain.values():
@@ -2170,7 +2233,7 @@ def build_bucket_wallet_history_rows(liquid_by_chain, locked_balances, holder_ro
         if total <= 0.0001:
             continue
         holder_type = holder_distribution_type(addr, holder_rows, address_labels)
-        if holder_type in {"cex", "ca", "team", "investor"}:
+        if not holder_belongs_to_audience(holder_type, audience):
             continue
         if not any(total >= bucket["min"] and total < bucket["max"] for bucket in bucket_defs):
             continue
@@ -2252,7 +2315,86 @@ def get_dolo_price():
     return 0
 
 
+def rebuild_holder_history_from_cached_transfers():
+    """Rebuild holder snapshots from the committed flow output and local transfer cache."""
+    if not os.path.exists(OUTPUT_JSON):
+        raise RuntimeError(f"Missing flow output: {OUTPUT_JSON}")
+    state = load_state()
+    if not state:
+        raise RuntimeError(f"Missing transfer cache: {STATE_FILE}")
+
+    with open(OUTPUT_JSON) as f:
+        output = json.load(f)
+    raw_timestamp = str(output.get("timestamp") or "")
+    try:
+        parsed_timestamp = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid flow output timestamp: {raw_timestamp!r}") from exc
+    if parsed_timestamp.tzinfo is None:
+        parsed_timestamp = parsed_timestamp.replace(tzinfo=timezone.utc)
+    base_ts = int(parsed_timestamp.timestamp())
+
+    all_transfers = {}
+    current_blocks = {}
+    for chain_key in CHAINS:
+        transfer_key = f"{chain_key}_transfers"
+        block_key = f"{chain_key}_last_block"
+        transfers = state.get(transfer_key)
+        block = int(state.get(block_key) or 0)
+        if not isinstance(transfers, list) or not block:
+            raise RuntimeError(f"Incomplete cached transfer history for {CHAINS[chain_key]['name']}")
+        all_transfers[chain_key] = transfers
+        current_blocks[chain_key] = block
+
+    print("📈 Rebuilding holder audience history from cached transfers...")
+    print(
+        "   " + " | ".join(
+            f"{CHAINS[key]['name']}: {len(rows):,} transfers"
+            for key, rows in all_transfers.items()
+        )
+    )
+    points = build_holder_history_schedule(base_ts)
+    vesting_investors = extract_vesting_investors(all_transfers)
+    holder_bucket_history, holder_wallet_history = calculate_holder_bucket_history(
+        all_transfers,
+        points,
+        current_blocks,
+        base_ts,
+        vesting_investors,
+    )
+
+    output["holder_history_points"] = [
+        {"key": point["key"], "timestamp": point["timestamp"]}
+        for point in points
+    ]
+    output["holder_bucket_history"] = holder_bucket_history
+    output["holder_history_schema"] = "audience-v2"
+    with open(OUTPUT_JSON, "w") as f:
+        json.dump(output, f, separators=(",", ":"))
+    with open(WALLET_HISTORY_JSON, "w") as f:
+        json.dump(
+            {
+                "timestamp": raw_timestamp,
+                "holder_wallet_history": holder_wallet_history,
+            },
+            f,
+            separators=(",", ":"),
+        )
+
+    latest = holder_bucket_history[-1] if holder_bucket_history else {}
+    market = latest.get("liquid", {}).get("market", {}).get("whales", {})
+    potential = latest.get("liquid", {}).get("potential", {}).get("whales", {})
+    print(
+        "  ✅ Rebuilt "
+        f"{len(holder_bucket_history):,} snapshots | market {market.get('trackedWallets', 0):,} wallets | "
+        f"potential {potential.get('trackedWallets', 0):,} wallets"
+    )
+
+
 def main():
+    if "--rebuild-holder-history-only" in sys.argv[1:]:
+        rebuild_holder_history_from_cached_transfers()
+        return
     print("=" * 60)
     print("🔄 DOLO Token Flows — Top Accumulators & Sellers")
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
