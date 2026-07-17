@@ -175,39 +175,25 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-bucket-mode button:hover,
 .holder-metric-mode button:hover{color:var(--fg-1)}
 .holder-chart-toggle input{position:absolute;opacity:0;pointer-events:none}
-.holder-bucket-mode{
+.holder-bucket-mode,.holder-metric-mode{
   display:inline-grid;grid-template-columns:repeat(2,minmax(112px,1fr));height:34px;gap:0;padding:3px;
   border:1px solid rgba(255,255,255,.075);border-radius:999px;
   background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
 }
-.holder-bucket-mode button{
+.holder-bucket-mode button,.holder-metric-mode button{
   min-width:112px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--fg-3)
 }
-.holder-bucket-mode button.active{
-  background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
-  box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
-}
-.holder-bucket-mode button.active::before{
-  content:"";width:5px;height:5px;border-radius:50%;margin-right:7px;background:var(--gold);
-  box-shadow:0 0 9px rgba(201,162,39,.32)
-}
-.holder-metric-mode{
-  display:inline-grid;grid-template-columns:repeat(2,minmax(112px,1fr));height:34px;gap:0;padding:3px;
-  border:1px solid rgba(255,255,255,.075);border-radius:999px;
-  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
-}
-.holder-metric-mode button{
-  min-width:112px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--fg-3)
-}
+.holder-bucket-mode button.active,
+.holder-bucket-mode button:hover,
+.holder-bucket-mode button:focus-visible,
 .holder-metric-mode button.active,
 .holder-metric-mode button:hover,
 .holder-metric-mode button:focus-visible{
   background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
 }
-.holder-metric-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
+.holder-bucket-mode button:focus-visible,.holder-metric-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
 .holder-chart-toggle.is-active{
   border-color:rgba(201,162,39,.24);background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.16),0 7px 16px rgba(0,0,0,.12),0 0 18px rgba(201,162,39,.035)
@@ -308,59 +294,57 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-tip .tt-change{margin-left:7px;font-weight:700}
 .holder-chart-tip .tt-change.up{color:var(--up)}
 .holder-chart-tip .tt-change.down{color:var(--down)}
-.holder-chart-legend{display:flex;flex-direction:column;border-top:1px solid var(--line-1);background:rgba(255,255,255,.012)}
-.holder-legend-head{
-  display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) 72px;gap:16px;align-items:center;
-  padding:10px 18px 9px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.008);
-  font-family:var(--mono);font-size:9.25px;font-weight:800;letter-spacing:.82px;text-transform:uppercase;color:var(--fg-3)
+.holder-chart-legend{display:flex;flex-direction:column;border-top:1px solid var(--line-1);background:var(--bg-2)}
+.holder-chart-card > .holder-chart-legend:last-child{border-radius:0 0 var(--r-xl) var(--r-xl);overflow:hidden}
+.holder-distribution-legend{--holder-layout-columns:50.630228% 14.756621% 10.347846% 13.807863% 10.457442%}
+.holder-distribution-legend .holder-legend-head,.holder-distribution-legend .holder-legend-row{
+  display:grid;grid-template-columns:var(--holder-layout-columns);gap:0;align-items:center
 }
-.holder-legend-head-metrics{display:grid;grid-template-columns:minmax(160px,1fr) repeat(2,minmax(82px,.48fr));align-items:center}
-.holder-legend-head-metrics span{padding:0 12px;border-left:1px solid var(--line-1);white-space:nowrap}
-.holder-legend-head-metrics span:first-child{padding-left:18px;border-left:1px solid rgba(201,162,39,.12)}
-.holder-legend-head-metrics span:not(:first-child){text-align:right}
-.holder-legend-head-action{width:72px;text-align:center}
+.holder-distribution-legend [data-column]{min-width:0;order:var(--holder-layout-order,0)}
+.holder-distribution-legend .holder-legend-head{
+  padding:12px 18px;border-bottom:1px solid var(--line-2);background:var(--bg-1);
+  font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg-3)
+}
+.holder-distribution-legend .holder-legend-head > [data-column]{padding:0 12px;border-left:0;white-space:nowrap}
+.holder-distribution-legend .holder-legend-head > [data-column="group"]{padding-left:0}
+.holder-distribution-legend .holder-legend-head > [data-column]:not([data-column="group"]){text-align:right}
+.holder-distribution-legend .holder-legend-head > [data-column="details"]{text-align:center}
+.holder-legend-head-action{text-align:center}
 .holder-chart-legend-item{min-width:0;border-top:1px solid var(--line-1)}
 .holder-chart-legend-item:first-child{border-top:0}
-.holder-legend-row{display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) 72px;gap:16px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
-.holder-legend-pin{
-  grid-column:1 / span 2;display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.58fr);gap:16px;align-items:center;
-  min-width:0;padding:0;border:0;border-radius:4px;color:inherit;text-align:left;cursor:pointer
+.holder-distribution-legend .holder-legend-row{padding:0 18px;transition:background .15s var(--ease)}
+.holder-distribution-legend .holder-legend-cell{
+  min-width:0;min-height:64px;padding:14px 12px;border:0;color:inherit;text-align:left;cursor:pointer
 }
-.holder-legend-pin:focus{outline:none}
-.holder-legend-pin:focus-visible{outline:1px solid var(--gold);outline-offset:4px;box-shadow:0 0 0 3px rgba(201,162,39,.08)}
+.holder-distribution-legend .holder-legend-main{padding-left:0}
+.holder-distribution-legend .holder-legend-cell:focus{outline:none}
+.holder-distribution-legend .holder-legend-cell:focus-visible{outline:1px solid var(--gold);outline-offset:-3px;box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .holder-chart-legend-item:hover .holder-legend-row,.holder-chart-legend-item.is-active .holder-legend-row{background:var(--gold-wash)}
 .holder-chart-legend-item.is-breakdown .holder-legend-row{background:rgba(255,255,255,.006)}
 .holder-chart-legend-item.is-breakdown:hover .holder-legend-row,.holder-chart-legend-item.is-breakdown.is-active .holder-legend-row{background:var(--gold-wash)}
-.holder-legend-main{min-width:0}
 .holder-chart-legend-item.is-breakdown .holder-legend-main{position:relative;padding-left:18px}
 .holder-chart-legend-item.is-breakdown .holder-legend-main::before{content:"";position:absolute;left:4px;top:7px;bottom:7px;width:1px;background:rgba(201,162,39,.24);border-radius:999px}
 .holder-chart-legend-item .top{display:flex;align-items:center;gap:8px;min-width:0}
 .holder-chart-legend-item .dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px rgba(201,162,39,.36);flex:0 0 7px}
 .holder-chart-legend-item .bucket{font-size:12px;font-weight:700;color:var(--fg-1);white-space:nowrap}
+.holder-distribution-legend .holder-chart-legend-item .bucket{font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:-.1px}
 .holder-chart-legend-item.is-breakdown .bucket{color:var(--fg-2)}
 .holder-chart-legend-item .sub{
   margin-top:5px;margin-left:15px;display:inline-flex;align-items:center;max-width:calc(100% - 15px);height:16px;padding:0 7px;
   font-family:var(--mono);font-size:9px;line-height:1;color:var(--fg-3);letter-spacing:.16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   border:1px solid rgba(255,255,255,.04);border-radius:999px;background:rgba(255,255,255,.012)
 }
-.holder-legend-summary{
-  min-width:0;height:36px;display:grid;grid-template-columns:minmax(160px,1fr) repeat(2,minmax(82px,.48fr));
-  align-items:center;overflow:hidden;background:transparent
-}
-.holder-legend-metric{
+.holder-distribution-legend .holder-legend-metric{
   min-width:0;height:28px;display:flex;flex-direction:column;justify-content:center;gap:3px;
-  padding:0 12px;border-left:1px solid var(--line-1);font-family:var(--mono);font-variant-numeric:tabular-nums
+  padding:0 12px;border-left:0;font-family:var(--mono);font-variant-numeric:tabular-nums
 }
-.holder-legend-metric:first-child{border-left:0}
-.holder-legend-metric.primary{position:relative;padding-left:18px;border-left:1px solid rgba(255,255,255,.045)}
-.holder-legend-metric.primary::before{
-  content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;border-radius:999px;background:var(--series-color,var(--gold));
-  opacity:.48;box-shadow:none
-}
-.holder-legend-metric:not(.primary){align-items:flex-end;text-align:right}
+.holder-distribution-legend .holder-legend-metric{min-height:64px;height:auto;border-left:0}
+.holder-distribution-legend .holder-legend-metric.primary{position:relative;align-items:flex-end;text-align:right;padding-left:18px;border-left:0}
+.holder-distribution-legend .holder-legend-metric.primary::before{display:none}
+.holder-distribution-legend .holder-legend-metric:not(.primary){align-items:flex-end;text-align:right}
 .holder-legend-label{display:none}
-.holder-legend-number{display:block;font-size:12px;font-weight:750;color:var(--fg-1);line-height:1.05;white-space:nowrap}
-.holder-legend-metric.primary .holder-legend-number{font-size:17px;color:var(--fg-1);font-weight:750;letter-spacing:.1px}
+.holder-legend-number{display:block;font-size:13px;font-weight:500;color:var(--fg-1);line-height:1.05;white-space:nowrap}
+.holder-distribution-legend .holder-legend-metric.primary .holder-legend-number{font-size:13px;color:var(--fg-1);font-weight:600;letter-spacing:0}
 .holder-legend-token-value{display:inline-flex;align-items:center;gap:7px;transition:color .15s var(--ease),text-shadow .15s var(--ease)}
 .holder-legend-token-icon{
   width:15px;height:15px;border-radius:50%;object-fit:contain;flex:0 0 15px;background:var(--bg-3);
@@ -371,61 +355,66 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-legend-item:hover .holder-legend-token-icon,.holder-chart-legend-item.is-active .holder-legend-token-icon{
   filter:brightness(1.08) saturate(1.04);opacity:1;box-shadow:0 0 0 1px rgba(255,255,255,.16),0 0 12px rgba(201,162,39,.14)
 }
-.holder-legend-metric.delta.up .holder-legend-number{color:var(--up)}
-.holder-legend-metric.delta.down .holder-legend-number{color:#c98578}
+.holder-distribution-legend .holder-legend-metric.delta.up .holder-legend-number{color:var(--up)}
+.holder-distribution-legend .holder-legend-metric.delta.down .holder-legend-number{color:#c98578}
 .holder-details-btn{
   height:24px;width:100%;max-width:72px;min-width:0;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:3px;flex-shrink:0;overflow:hidden;
   color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;white-space:nowrap;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);
   transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);
 }
+.holder-distribution-legend .holder-legend-details{display:flex;align-items:center;justify-content:center;padding:0 12px;cursor:default}
+.holder-distribution-legend .holder-legend-details .holder-details-btn{margin:0;max-width:72px}
 .holder-details-btn span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .holder-details-btn svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
 .holder-details-btn:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
 .holder-details-btn[aria-expanded="true"]{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .holder-details-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
-.holder-wallet-panel{display:none;border-top:0;background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px);padding:0 14px 18px}
+.holder-wallet-panel{display:none;border-top:0;background:transparent;padding:0 14px 18px}
 .holder-wallet-panel.is-open{display:block}
-.holder-wallet-panel-inline{background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px)}
+.holder-wallet-panel-inline{background:transparent}
 .holder-wallet-detail-shell{
-  margin:0;border:1px solid rgba(201,162,39,.2);border-top:1px solid rgba(201,162,39,.48);border-radius:0 0 var(--r-lg) var(--r-lg);
-  background:linear-gradient(180deg,rgba(18,18,20,.985),rgba(12,12,14,.985));
+  margin:0;border:1px solid rgba(201,162,39,.22);border-radius:0 0 var(--r-lg) var(--r-lg);
+  background:var(--bg-2);
   overflow:hidden;position:relative;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 0 0 1px rgba(201,162,39,.055),0 18px 44px rgba(0,0,0,.22);
+  box-shadow:var(--sh-card);
 }
-.holder-wallet-detail-shell::before{
-  content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
-  background:linear-gradient(180deg,var(--gold),rgba(201,162,39,.18));
-  box-shadow:0 0 18px rgba(201,162,39,.28);pointer-events:none;
-}
-.holder-wallet-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px 22px 12px}
+.holder-wallet-detail-shell::before{display:none}
+.holder-wallet-panel-head{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"identity tools" "search tools";align-items:center;column-gap:14px;row-gap:9px;padding:18px 22px 12px}
+.holder-wallet-panel-identity{grid-area:identity;min-width:0}
+.holder-wallet-panel-search-row{grid-area:search;min-width:0}
+.holder-wallet-panel-tools{grid-area:tools;display:flex;align-items:center;justify-content:flex-end;min-width:0}
+.holder-details-search{width:min(270px,100%);height:34px}
+.holder-details-search input{min-width:0}
 .holder-wallet-panel-eyebrow{font-size:9.5px;letter-spacing:1.45px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
 .holder-wallet-panel-title{font-size:15px;font-weight:700;color:var(--fg-1);letter-spacing:0;line-height:1.25}
 .holder-wallet-panel-meta{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3)}
 .holder-wallet-table-wrap{
-  max-height:330px;overflow:auto;position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;
-  background:rgba(0,0,0,.16);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 1px 0 rgba(255,255,255,.025);
+  max-height:330px;overflow:auto;position:relative;margin:0 12px 14px 14px;border:1px solid var(--line-2);border-radius:8px;
+  background:var(--bg-2);box-shadow:none;
   scrollbar-color:rgba(201,162,39,.34) rgba(255,255,255,.055);
   scrollbar-width:thin;
 }
-.holder-wallet-table{width:100%;min-width:830px;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed}
-.holder-wallet-table .holder-col-rank{width:44px}
-.holder-wallet-table .holder-col-dolo{width:126px}
-.holder-wallet-table .holder-col-change{width:154px}
-.holder-wallet-table .holder-col-chain{width:160px}
+.holder-wallet-table{width:100%;min-width:760px;border-collapse:separate;border-spacing:0;font-size:13px;table-layout:fixed}
+.holder-wallet-table col[data-column="chain"]{width:13.1423%}
+.holder-wallet-table col[data-column="address"]{width:57.0044%}
+.holder-wallet-table col[data-column="dolo"]{width:17.2978%}
+.holder-wallet-table col[data-column="change"]{width:12.5555%}
 .holder-wallet-table th{
-  position:sticky;top:0;z-index:4;padding:10px 12px;background:#101012;border-bottom:1px solid var(--line-2);
-  color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;text-align:left;white-space:nowrap;
-  box-shadow:0 10px 18px rgba(0,0,0,.18);
+  position:sticky;top:0;z-index:2;padding:12px 18px;background:var(--bg-1);border:0;border-bottom:1px solid var(--line-2);
+  color:var(--fg-3);font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;text-align:left;white-space:nowrap;
+  box-shadow:none;
 }
-.holder-wallet-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,.055);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap;position:relative;background:transparent}
-.holder-wallet-table tbody tr{cursor:pointer;transition:background .15s var(--ease)}
-.holder-wallet-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.014)}
-.holder-wallet-table tbody tr:hover td{background:rgba(255,255,255,.026);color:var(--fg-1)}
+.holder-wallet-table th .holder-wallet-sort{display:inline-flex;align-items:center;gap:6px;min-width:0;padding:0;color:inherit;font:inherit;letter-spacing:inherit;line-height:inherit;text-transform:inherit;cursor:pointer;transition:color .15s var(--ease)}
+.holder-wallet-table th.num .holder-wallet-sort{width:100%;justify-content:flex-end}
+.holder-wallet-table th .holder-wallet-sort:hover{color:var(--fg-1)}
+.holder-wallet-table th .holder-wallet-sort .sort{width:10px;color:var(--fg-4);font-size:9px;line-height:1;text-align:center}
+.holder-wallet-table th[aria-sort="ascending"] .holder-wallet-sort .sort,.holder-wallet-table th[aria-sort="descending"] .holder-wallet-sort .sort{color:var(--gold)}
+.holder-wallet-table td{padding:12px 18px;border:0;border-left:0;border-right:0;border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;color:var(--fg-1);vertical-align:middle;white-space:nowrap;position:relative;background:transparent}
+.holder-wallet-table tbody tr{cursor:pointer;transition:background .12s var(--ease)}
+.holder-wallet-table tbody tr:hover td{background:var(--bg-3);color:var(--fg-1)}
 .holder-wallet-table tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;display:block}
 .holder-wallet-table tbody tr:last-child td{border-bottom:0}
-.holder-wallet-table .rank{font-family:var(--mono);font-size:12px;color:var(--fg-4);font-weight:600;text-align:right}
 .holder-wallet-table .num{text-align:right;font-family:var(--mono)}
 .holder-wallet-change{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-family:var(--mono)}
 .holder-wallet-change .main{font-weight:700;color:var(--fg-2)}
@@ -434,19 +423,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-wallet-change.down .main,.holder-wallet-change.down .pct{color:var(--down)}
 .holder-wallet-change.flat .main{color:var(--fg-3)}
 .holder-wallet-change.new .main{color:var(--gold)}
-.holder-wallet-table .chain-cell{font-size:10px;color:var(--fg-3);white-space:nowrap;text-align:right}
+.holder-wallet-table .chain-cell{font-size:10px;color:var(--fg-3);white-space:nowrap;text-align:left}
 .holder-dolo-amount{display:flex;align-items:center;justify-content:flex-end;gap:7px}
 .holder-dolo-icon{width:15px;height:15px;border-radius:50%;object-fit:cover;flex:0 0 15px;background:var(--bg-3);box-shadow:0 0 0 1px rgba(201,162,39,.18)}
-.holder-chain-list{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
-.holder-chain-chip{
-  display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 7px;border:1px solid var(--line-2);border-radius:6px;
-  background:var(--bg-3);color:var(--fg-2);font-size:10px;font-weight:600;line-height:1;letter-spacing:.1px
-}
-.holder-chain-icon{width:13px;height:13px;border-radius:50%;flex:0 0 13px;background-color:var(--bg-2);background-position:center;background-size:cover;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
-.holder-chain-icon.ethereum{background-image:url("https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg")}
-.holder-chain-icon.berachain{background-image:url("https://icons.llamao.fi/icons/chains/rsz_berachain.jpg");background-size:126%}
 .holder-wallet-sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-4)}
 .holder-wallet-empty{margin:0 12px 14px 14px;padding:18px;color:var(--fg-3);font-size:12px;border:1px dashed rgba(201,162,39,.16);border-radius:8px;background:rgba(0,0,0,.16)}
+.holder-wallet-search-empty td{padding:18px!important;color:var(--fg-3);font-size:12px;text-align:center!important}
 .holder-brush-wrap{position:relative;padding:4px 24px 18px;user-select:none}
 .holder-brush-svg{
   width:100%;height:56px;display:block;border-radius:8px;border:1px solid var(--line-2);
@@ -908,7 +890,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .fresh-stat{border-left:0;border-top:1px solid var(--line-1);padding:13px 16px}
   .fresh-stat:first-child{border-top:0}
   .holder-wallet-panel{padding:0 10px 14px}
-  .holder-wallet-panel-head{padding:15px 16px}
+  .holder-wallet-panel-head{grid-template-columns:minmax(0,1fr);grid-template-areas:"identity" "search" "tools";gap:10px;padding:15px 16px}
+  .holder-wallet-panel-tools{justify-content:flex-start}
   .holder-wallet-table-wrap{max-height:420px;margin:0 10px 14px 12px;padding:12px 0}
   .holder-wallet-table{min-width:0}
   .holder-wallet-table thead{display:none}
@@ -952,6 +935,17 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-legend-label{display:block;font-size:8px}
   .holder-legend-metric:not(.primary){align-items:flex-start;text-align:left}
   .holder-details-btn{justify-self:start}
+  .holder-distribution-legend .holder-legend-row{grid-template-columns:1fr;gap:0;padding:0 14px}
+  .holder-distribution-legend [data-column]{order:initial!important;grid-column:auto}
+  .holder-distribution-legend .holder-legend-cell{min-height:0;padding:10px 0;border-left:0;border-top:1px solid var(--line-1)}
+  .holder-distribution-legend .holder-legend-main{padding:13px 0 10px;border-top:0}
+  .holder-distribution-legend .holder-legend-metric{min-height:0;height:40px;padding:0;border-left:0}
+  .holder-distribution-legend .holder-legend-metric.primary{margin:0;padding-left:16px}
+  .holder-distribution-legend .holder-legend-metric.primary .holder-legend-number{font-size:16px}
+  .holder-distribution-legend .holder-legend-label{display:block;font-size:8px}
+  .holder-distribution-legend .holder-legend-metric:not(.primary){align-items:flex-start;text-align:left}
+  .holder-distribution-legend .holder-legend-details{justify-content:flex-start}
+  .holder-distribution-legend .holder-details-btn{margin:10px 0 13px}
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
   .holder-chart-controls{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
@@ -1449,8 +1443,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         </div>
         <div class="holder-chart-controls">
           <div class="holder-bucket-mode" id="holder-bucket-mode" aria-label="Holder bucket range">
-            <button type="button" class="active" data-holder-bucket-view="whales">Top holders</button>
-            <button type="button" data-holder-bucket-view="smaller">Smaller holders</button>
+            <button type="button" class="active" data-holder-bucket-view="whales" aria-pressed="true">Top holders</button>
+            <button type="button" data-holder-bucket-view="smaller" aria-pressed="false">Smaller holders</button>
           </div>
           <div class="holder-metric-mode" id="holder-metric-mode" aria-label="Holder chart metric">
             <button type="button" class="active" data-holder-metric="balance" aria-pressed="true">Balance</button>
@@ -1515,7 +1509,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
       <div class="holder-brush-label" id="holderBrushLabel"></div>
     </div>
-    <div class="holder-chart-legend" id="holderChartLegend"></div>
+    <div class="holder-chart-legend holder-distribution-legend" id="holderChartLegend"></div>
   </section>
 
   <section class="card holder-chart-card cex-supply-card" id="cex-supply-card">
@@ -1742,6 +1736,7 @@ const FRESH_HOLDER_MIN_BALANCE = 10_000;
 let holderDistributionActiveKey = "";
 let holderDistributionMetric = "balance";
 let holderWalletPanelKey = "";
+const holderDetailsSearch = new Map();
 let holderBucketView = "whales";
 const holderAudience = "market";
 let VEDOLO_LOCKS = new Map();
@@ -1962,7 +1957,7 @@ function holderCexFlow(period = "7d"){
 }
 function holderScopeHtml(){
   const tip = "Chart lines show market wallets and exclude confirmed CEX wallets, protocol/contract/LP addresses, Team/Investor allocation wallets, and potential CEX/MM or bot wallets. Core Team and Investor allocations are shown in the separate allocations chart below.";
-  return `<span class="holder-source-scope">Market wallets</span><span class="holder-source-exclusion">CEX, potential &amp; allocations excluded</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
+  return `<span class="holder-source-scope">Market wallets</span><span class="holder-source-exclusion">CEX &amp; allocations excluded</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
 }
 function holderCexStatHtml(){
   const periods = [
@@ -2670,11 +2665,11 @@ function renderHolderDistributionChart(options = {}){
   }
   const legendHeader = `
     <div class="holder-legend-head" aria-hidden="true">
-      <span class="holder-legend-head-main">Group</span>
-      <div class="holder-legend-head-metrics">
-        <span>Balance</span><span>Wallets</span><span id="holder-legend-change-head">Change · ${holderRangeLabel}</span>
-      </div>
-      <span class="holder-legend-head-action">Details</span>
+      <span class="holder-legend-head-main" data-column="group">Group</span>
+      <span data-column="balance">Balance</span>
+      <span data-column="wallets">Wallets</span>
+      <span data-column="change">Change</span>
+      <span class="holder-legend-head-action" data-column="details">Details</span>
     </div>
   `;
   const rawFirstPoint = model.points[0] || model.current;
@@ -2685,37 +2680,24 @@ function renderHolderDistributionChart(options = {}){
     const firstTotal = firstPoint.buckets?.[i]?.total || 0;
     const delta = bucket.total - firstTotal;
     const deltaClass = delta >= 0 ? "up" : "down";
-    const audienceLabel = model.audience === "potential" ? "Potential CEX/MM & bots" : "Market holders";
-    const scopeText = model.includeVeDolo ? `${audienceLabel} · veDOLO included` : audienceLabel;
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const open = holderWalletPanelKey === bucket.key;
     const panelId = `holder-wallet-panel-${bucket.key}`;
     return `
       <div class="holder-chart-legend-item${active}" data-key="${bucket.key}" style="--series-color:${bucket.color}">
         <div class="holder-legend-row">
-          <button class="holder-legend-pin" type="button" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series. Balance ${fmtNum(bucket.total)} DOLO. Wallets ${bucket.wallets.toLocaleString()}. Change ${fmtSignedHolder(delta)} DOLO.">
-            <div class="holder-legend-main">
-              <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
-              <div class="sub">${scopeText}</div>
-            </div>
-            <div class="holder-legend-summary" aria-label="${bucket.label} DOLO summary">
-              <div class="holder-legend-metric primary">
-                <span class="holder-legend-label">Balance</span>
-                <strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong>
-              </div>
-              <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></div>
-              <div class="holder-legend-metric delta ${deltaClass}"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></div>
-            </div>
+          <button class="holder-legend-cell holder-legend-pin holder-legend-main" type="button" data-column="group" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series. Balance ${fmtNum(bucket.total)} DOLO. Wallets ${bucket.wallets.toLocaleString()}. Change ${fmtSignedHolder(delta)} DOLO.">
+            <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
           </button>
-          <button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
+          <button class="holder-legend-cell holder-legend-pin holder-legend-metric primary" type="button" data-column="balance" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by balance"><span class="holder-legend-label">Balance</span><strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong></button>
+          <button class="holder-legend-cell holder-legend-pin holder-legend-metric" type="button" data-column="wallets" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by wallet count"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></button>
+          <button class="holder-legend-cell holder-legend-pin holder-legend-metric delta ${deltaClass}" type="button" data-column="change" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by change"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></button>
+          <div class="holder-legend-cell holder-legend-details" data-column="details"><button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button></div>
         </div>
         ${open ? holderWalletInlinePanelHtml(bucket, {...model, rangeBaselinePoint}) : ""}
       </div>
     `;
   }).join("");
-  const legendChangeHead = document.getElementById("holder-legend-change-head");
-  if(legendChangeHead) legendChangeHead.textContent = `Change · ${holderRangeLabel}`;
-
   const hoverLine = document.getElementById("holderChartHoverLine");
   const hoverDot = document.getElementById("holderChartHoverDot");
   const tip = document.getElementById("holderChartTip");
@@ -2801,6 +2783,7 @@ function renderHolderDistributionChart(options = {}){
     event.stopPropagation();
     const key = btn.dataset.detailsKey;
     if(holderWalletPanelKey === key){
+      holderDetailsSearch.delete(`holder:${key}`);
       holderWalletPanelKey = "";
       if(holderDistributionActiveKey === key) holderDistributionActiveKey = "";
     } else {
@@ -2813,6 +2796,7 @@ function renderHolderDistributionChart(options = {}){
     renderHolderDistributionChart({skipBrush:true});
   }));
   bindHolderWalletPanel(legend);
+  window.DoloHolderLayoutEditor?.reapply?.();
 }
 
 function allocationPointFromSource(point, source){
@@ -3285,6 +3269,7 @@ function renderAllocationChart(options = {}){
     renderAllocationChart({skipBrush:true});
   }));
   bindHolderWalletPanel(legend);
+  window.DoloHolderLayoutEditor?.reapply?.();
 }
 
 function holderCexCurrentSupply(){
@@ -3695,14 +3680,19 @@ function escHtml(value){
     "'":"&#39;",
   }[char]));
 }
-function holderWalletChainHtml(row){
+function holderWalletChainKeys(row){
   const chains = [];
-  if(safeHolderNum(row.balEth) > 0) chains.push({key:"ethereum", label:"Ethereum"});
-  if(safeHolderNum(row.balBera) > 0 || safeHolderNum(row.locked) > 0) chains.push({key:"berachain", label:"Berachain"});
-  if(!chains.length) return "—";
-  return `<div class="holder-chain-list">${chains.map(chain => `
-    <span class="holder-chain-chip"><span class="holder-chain-icon ${chain.key}" aria-hidden="true"></span>${escHtml(chain.label)}</span>
-  `).join("")}</div>`;
+  if(safeHolderNum(row.balEth) > 0) chains.push("ethereum");
+  if(safeHolderNum(row.balBera) > 0 || safeHolderNum(row.locked) > 0) chains.push("berachain");
+  return chains;
+}
+function holderWalletChainHtml(row){
+  const labels = {ethereum:"Ethereum", berachain:"Berachain"};
+  const chains = holderWalletChainKeys(row).map(key => ({key, label:labels[key]}));
+  return freshChainCell({chains});
+}
+function holderWalletChainSortValue(row){
+  return holderWalletChainKeys(row).join("+") || "unknown";
 }
 function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
   const key = point?.key || "";
@@ -3805,19 +3795,19 @@ function holderWalletRangeChange(row, baselineRow){
   const epsilon = 0.000001;
   if(baseline <= epsilon){
     if(current <= epsilon){
-      return {tone:"flat", main:"0 DOLO", pct:"0%", delta, pctValue:0};
+      return {tone:"flat", main:"0", pct:"0%", delta, pctValue:0};
     }
-    return {tone:"new", main:`+${fmtNum(current)} DOLO`, pct:"New", delta, pctValue:null};
+    return {tone:"new", main:`+${fmtNum(current)}`, pct:"New", delta, pctValue:null};
   }
   if(current > epsilon && (baseline <= 1 || baseline / current < 0.001)){
-    return {tone:"new", main:`+${fmtNum(delta)} DOLO`, pct:"New", delta, pctValue:null};
+    return {tone:"new", main:`+${fmtNum(delta)}`, pct:"New", delta, pctValue:null};
   }
   if(Math.abs(delta) <= epsilon){
-    return {tone:"flat", main:"0 DOLO", pct:"0%", delta, pctValue:0};
+    return {tone:"flat", main:"0", pct:"0%", delta, pctValue:0};
   }
   const pct = delta / baseline * 100;
   const tone = delta > 0 ? "up" : "down";
-  return {tone, main:`${fmtSignedHolder(delta)} DOLO`, pct:fmtSignedHolderPct(pct), delta, pctValue:pct};
+  return {tone, main:fmtSignedHolder(delta), pct:fmtSignedHolderPct(pct), delta, pctValue:pct};
 }
 function zeroHolderRowFrom(row){
   return {
@@ -3966,6 +3956,72 @@ function allocationWalletRows(key, point = null, baselinePoint = null){
   }).map(row => ({...row, locked:0}));
 }
 function bindHolderWalletPanel(panel){
+  const search = panel.querySelector("[data-holder-details-search]");
+  const clearSearch = panel.querySelector("[data-holder-details-clear]");
+  if(search){
+    const applySearch = () => {
+      const query = search.value.trim().toLowerCase();
+      const rows = [...panel.querySelectorAll("tbody tr[data-wallet-search]")];
+      let visible = 0;
+      rows.forEach(row => {
+        const matches = !query || row.dataset.walletSearch.includes(query);
+        row.hidden = !matches;
+        if(matches) visible += 1;
+      });
+      const empty = panel.querySelector("[data-holder-details-search-empty]");
+      if(empty) empty.hidden = !query || visible > 0;
+      search.closest(".search")?.classList.toggle("has-value", !!search.value);
+      holderDetailsSearch.set(search.dataset.holderDetailsSearch, search.value);
+      window.DoloHolderLayoutEditor?.reapply?.();
+    };
+    search.addEventListener("input", applySearch);
+    clearSearch?.addEventListener("click", event => {
+      event.preventDefault();
+      search.value = "";
+      applySearch();
+      search.focus();
+    });
+    applySearch();
+  }
+  const table = panel.querySelector("[data-holder-details-table]");
+  if(table){
+    const body = table.tBodies[0];
+    const sortWalletRows = sortKey => {
+      if(!body) return;
+      const currentKey = table.dataset.walletSortKey || "";
+      const currentDirection = table.dataset.walletSortDirection || "";
+      const initialSortDirection = sortKey === "chain" ? "asc" : "desc";
+      const direction = currentKey === sortKey
+        ? (currentDirection === "asc" ? "desc" : "asc")
+        : initialSortDirection;
+      const rows = [...body.querySelectorAll("tr[data-wallet-search]")];
+      rows.sort((left, right) => {
+        const leftValue = left.dataset[`walletSort${sortKey[0].toUpperCase()}${sortKey.slice(1)}`] || "";
+        const rightValue = right.dataset[`walletSort${sortKey[0].toUpperCase()}${sortKey.slice(1)}`] || "";
+        const comparison = sortKey === "chain"
+          ? leftValue.localeCompare(rightValue)
+          : safeHolderNum(leftValue) - safeHolderNum(rightValue);
+        if(comparison) return direction === "asc" ? comparison : -comparison;
+        return (left.dataset.walletSearch || "").localeCompare(right.dataset.walletSearch || "");
+      });
+      table.dataset.walletSortKey = sortKey;
+      table.dataset.walletSortDirection = direction;
+      table.querySelectorAll("[data-holder-wallet-sort]").forEach(button => {
+        const active = button.dataset.holderWalletSort === sortKey;
+        const header = button.closest("th");
+        const indicator = button.querySelector(".sort");
+        if(header) header.setAttribute("aria-sort", active ? (direction === "asc" ? "ascending" : "descending") : "none");
+        if(indicator) indicator.textContent = active ? (direction === "asc" ? "▲" : "▼") : "";
+        button.setAttribute("aria-label", `Sort by ${button.dataset.holderWalletSort}${active ? `, ${direction === "asc" ? "ascending" : "descending"}` : ""}`);
+      });
+      const empty = body.querySelector("[data-holder-details-search-empty]");
+      if(empty) body.append(...rows, empty);
+      else body.append(...rows);
+    };
+    table.querySelectorAll("[data-holder-wallet-sort]").forEach(button => {
+      button.addEventListener("click", () => sortWalletRows(button.dataset.holderWalletSort));
+    });
+  }
   panel.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async event => {
     event.stopPropagation();
     try { await navigator.clipboard.writeText(btn.dataset.copy); } catch(_) {}
@@ -3978,41 +4034,47 @@ function bindHolderWalletPanel(panel){
     window.open(`https://debank.com/profile/${row.dataset.addr}`, "_blank", "noopener");
   }));
 }
-function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta, rows, emptyText}){
+function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta = "", rows, emptyText, searchKey = "", searchQuery = ""}){
   return `
     <div class="holder-wallet-detail-shell">
       <div class="holder-wallet-panel-head">
-        <div>
+        <div class="holder-wallet-panel-identity">
           <div class="holder-wallet-panel-eyebrow">${escHtml(eyebrow)}</div>
           <div class="holder-wallet-panel-title">${escHtml(title)}</div>
-          <div class="holder-wallet-panel-meta">${escHtml(meta)}</div>
+          ${meta ? `<div class="holder-wallet-panel-meta">${escHtml(meta)}</div>` : ""}
         </div>
+        <div class="holder-wallet-panel-search-row">
+          <label class="search holder-details-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input data-holder-details-search="${escHtml(searchKey)}" type="text" placeholder="Search wallet..." value="${escHtml(searchQuery)}" spellcheck="false" autocomplete="off">
+            <button class="search-clear" data-holder-details-clear type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+          </label>
+        </div>
+        <div class="holder-wallet-panel-tools"></div>
       </div>
       ${rows.length ? `
         <div class="holder-wallet-table-wrap">
-          <table class="holder-wallet-table">
+          <table class="holder-wallet-table" data-holder-details-table>
             <colgroup>
-              <col class="holder-col-rank">
-              <col>
-              <col class="holder-col-dolo">
-              <col class="holder-col-change">
-              <col class="holder-col-chain">
+              <col data-column="chain">
+              <col data-column="address">
+              <col data-column="dolo">
+              <col data-column="change">
             </colgroup>
             <thead>
               <tr>
-                <th>#</th>
-                <th>Address</th>
-                <th class="num">DOLO</th>
-                <th class="num">Change</th>
-                <th class="chain-cell">Chain</th>
+                <th data-column="chain" aria-sort="none"><button class="holder-wallet-sort" type="button" data-holder-wallet-sort="chain"><span>Chain</span><span class="sort" aria-hidden="true"></span></button></th>
+                <th data-column="address">Address</th>
+                <th class="num" data-column="dolo" aria-sort="none"><button class="holder-wallet-sort" type="button" data-holder-wallet-sort="dolo"><span>DOLO</span><span class="sort" aria-hidden="true"></span></button></th>
+                <th class="num" data-column="change" aria-sort="none"><button class="holder-wallet-sort" type="button" data-holder-wallet-sort="change"><span>Change</span><span class="sort" aria-hidden="true"></span></button></th>
               </tr>
             </thead>
             <tbody>
-              ${rows.map((row, index) => `
-                <tr data-addr="${escHtml(row.addr)}" data-panel-total="${escHtml(row.panelTotal)}">
-                  <td class="rank" data-label="#">${index + 1}</td>
-                  <td data-label="Address">${holderWalletAddressCell(row)}</td>
-                  <td class="num" data-label="DOLO">
+              ${rows.map(row => `
+                <tr data-addr="${escHtml(row.addr)}" data-panel-total="${escHtml(row.panelTotal)}" data-wallet-sort-chain="${escHtml(holderWalletChainSortValue(row))}" data-wallet-sort-dolo="${safeHolderNum(row.panelTotal)}" data-wallet-sort-change="${safeHolderNum(row.rangeChange?.delta)}" data-wallet-search="${escHtml(`${row.addr || ""} ${row.label || ""}`.toLowerCase())}">
+                  <td class="chain-cell" data-column="chain" data-label="Chain">${holderWalletChainHtml(row)}</td>
+                  <td data-column="address" data-label="Address">${holderWalletAddressCell(row)}</td>
+                  <td class="num" data-column="dolo" data-label="DOLO">
                     <div class="holder-dolo-amount">
                       <span class="bal-val total">${fmtNum(row.panelTotal)}</span>
                       <img class="holder-dolo-icon" src="dolo-logo.svg" alt="DOLO" onerror="this.style.display='none'">
@@ -4020,10 +4082,10 @@ function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta, rows, empty
                     ${row.locked > 0 ? `<div class="holder-wallet-sub">${fmtNum(row.locked)} veDOLO</div>` : ""}
                     ${row.rangeNote ? `<div class="holder-wallet-sub">${escHtml(row.rangeNote)}</div>` : ""}
                   </td>
-                  <td class="num" data-label="Change">${holderWalletChangeCell(row)}</td>
-                  <td class="chain-cell" data-label="Chain">${holderWalletChainHtml(row)}</td>
+                  <td class="num" data-column="change" data-label="Change">${holderWalletChangeCell(row)}</td>
                 </tr>
               `).join("")}
+              <tr class="holder-wallet-search-empty" data-holder-details-search-empty hidden><td colspan="4">No matching wallets.</td></tr>
             </tbody>
           </table>
         </div>
@@ -4041,23 +4103,19 @@ function holderWalletInlinePanelHtml(bucket, model = null){
   const baselinePoint = holderWalletBaselinePointForRange(rawBaselinePoint, !!state.includeVeDolo) || model?.rangeBaselinePoint || null;
   const veDoloUnavailable = state.includeVeDolo && !VEDOLO_LOCKS.size;
   const rows = baselinePoint && !veDoloUnavailable ? holderBucketWalletRows(bucket, point, baselinePoint) : [];
-  const veDoloText = state.includeVeDolo ? " · DOLO + veDOLO" : " · DOLO balance";
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="holder-wallet-panel-${escHtml(bucket.key)}" aria-live="polite">
       ${walletDrilldownPanelHtml({
         eyebrow:"Bucket wallets",
         title:`${bucket.label} DOLO wallets`,
-        meta:veDoloUnavailable
-          ? `Loading veDOLO wallet-level data · current view ${holderPanelDateText(point)}${veDoloText}`
-          : baselinePoint
-          ? `${rows.length.toLocaleString()} current/prior wallets · ${holderPanelDateText(point)}${veDoloText} · change from ${holderPanelDateText(baselinePoint)} · CEX/protocol/allocation/potential excluded`
-          : `Wallet-level details are not available for this selected range · current view ${holderPanelDateText(point)}${veDoloText}`,
         rows,
         emptyText:veDoloUnavailable
           ? "veDOLO wallet-level data is still loading. The panel will refresh automatically."
           : baselinePoint
           ? "No wallets in this bucket for the selected point."
           : "This range is missing wallet-level history data. Re-run the DOLO flow refresh to rebuild exact holder details.",
+        searchKey:`holder:${bucket.key}`,
+        searchQuery:holderDetailsSearch.get(`holder:${bucket.key}`) || "",
       })}
     </div>
   `;
@@ -4084,6 +4142,8 @@ function allocationWalletInlinePanelHtml(series, model = null){
         emptyText:baselinePoint
           ? "No wallets in this allocation group for the selected point."
           : "This custom range does not have address-level history. Use 1D, 7D, 30D, 90D, 180D or All to open exact wallet changes.",
+        searchKey:`allocation:${series.key}`,
+        searchQuery:holderDetailsSearch.get(`allocation:${series.key}`) || "",
       })}
     </div>
   `;
@@ -5113,7 +5173,11 @@ document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
     const next = btn.dataset.holderBucketView;
     if(!HOLDER_BUCKET_GROUPS[next] || next === holderBucketView) return;
     holderBucketView = next;
-    document.querySelectorAll("[data-holder-bucket-view]").forEach(item => item.classList.toggle("active", item.dataset.holderBucketView === holderBucketView));
+    document.querySelectorAll("[data-holder-bucket-view]").forEach(item => {
+      const active = item.dataset.holderBucketView === holderBucketView;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
     renderHolderDistributionChart();
   });
 });
@@ -5633,6 +5697,17 @@ renderCexSupplyChart();
   }
   boot();
 })();
+</script>
+<script>
+if(new URLSearchParams(location.search).get("layoutEditor") === "1"){
+  const editorCss = document.createElement("link");
+  editorCss.rel = "stylesheet";
+  editorCss.href = "dolo-holder-layout-editor.css?v=20260717-layout-lab-4";
+  document.head.append(editorCss);
+  const editorScript = document.createElement("script");
+  editorScript.src = "dolo-holder-layout-editor.js?v=20260717-layout-lab-4";
+  document.body.append(editorScript);
+}
 </script>
 </body>
 </html>
