@@ -106,6 +106,18 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('id="lockedChartTitle"', self.html)
         self.assertIn('aria-pressed="true"', self.html)
 
+    def test_vedolo_segmented_controls_use_holder_distribution_pill_ux(self):
+        self.assertIn('class="locked-chart-mode vedolo-pill-segment"', self.html)
+        self.assertIn('class="seg vedolo-pill-segment" id="flow-source"', self.html)
+        self.assertIn('class="seg vedolo-pill-segment" id="duration-mode"', self.html)
+        self.assertIn('.vedolo-pill-segment{', self.html)
+        self.assertIn('border-radius:999px', self.html)
+        self.assertIn('height:34px;min-height:34px', self.html)
+        self.assertIn('.vedolo-pill-segment button.active,', self.html)
+        self.assertIn('.vedolo-pill-segment button.active::after{display:none}', self.html)
+        self.assertIn('#flow-source.vedolo-pill-segment{--vedolo-segment-count:3;', self.html)
+        self.assertIn("vedolo-pill-controls-20260717", self.route)
+
     def test_locked_chart_places_zoom_meta_in_the_top_right(self):
         heading = re.search(
             r'<div class="locked-chart-heading">(?P<body>.*?)</div>\n    <div class="locked-chart-wrap"',
