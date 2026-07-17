@@ -1369,7 +1369,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <h2>oDOLO Claimer Breakdown</h2>
         <span class="count-badge" id="cb-count">2,357 claimers</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>Claims, exercise flow, and current wallet oDOLO balance</div>
+      <div class="card-meta" id="claimer-breakdown-meta"><span class="pulse"></span>Loading data update…</div>
     </div>
 
     <div class="toolbar">
@@ -1433,7 +1433,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <h2>Latest oDOLO Exercises</h2>
         <span class="count-badge" id="latest-ex-count">Loading</span>
       </div>
-      <div class="card-meta" id="latest-ex-meta"><span class="pulse"></span>Newest recorded exercises</div>
+      <div class="card-meta" id="latest-ex-meta"><span class="pulse"></span>Loading data update…</div>
     </div>
 
     <div class="toolbar">
@@ -1495,7 +1495,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <h2>Latest oDOLO Pair</h2>
         <span class="count-badge" id="latest-pair-count">Loading</span>
       </div>
-      <div class="card-meta" id="latest-pair-meta"><span class="pulse"></span>Newest recorded DOLO pair transactions</div>
+      <div class="card-meta" id="latest-pair-meta"><span class="pulse"></span>Loading data update…</div>
     </div>
 
     <div class="toolbar">
@@ -1555,7 +1555,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <h2>Top oDOLO Exercisers</h2>
         <span class="count-badge" id="ex-count">673 addresses</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>Ranked by USDC.e paid for veDOLO</div>
+      <div class="card-meta" id="top-exercisers-meta"><span class="pulse"></span>Loading data update…</div>
     </div>
 
     <div class="toolbar">
@@ -1643,7 +1643,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <h2>oDOLO Flows</h2>
         <span class="count-badge">Top accumulators &amp; outflows</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Flow data</span></div>
+      <div class="card-meta" id="flows-meta"><span class="pulse"></span>Loading data update…</div>
     </div>
 
     <div class="toolbar">
@@ -2076,6 +2076,21 @@ function fmtUpdated(ts){
   const d = new Date(ts.endsWith("Z") ? ts : ts + "Z");
   if(Number.isNaN(+d)) return "Live · static snapshot";
   return "Live · updated " + d.toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+}
+function fmtDataUpdated(timestamp){
+  if(!timestamp) return "Data update unavailable";
+  const normalized = String(timestamp).endsWith("Z") ? String(timestamp) : `${timestamp}Z`;
+  const updated = new Date(normalized);
+  if(Number.isNaN(+updated)) return "Data update unavailable";
+  const minutes = Math.max(0, Math.floor((Date.now() - +updated) / 60000));
+  if(minutes < 1) return "Data updated · just now";
+  if(minutes < 60) return `Data updated · ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if(hours < 24) return `Data updated · ${hours}h ago`;
+  return "Data updated · " + updated.toLocaleString(undefined, { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+}
+function setCardMeta(id, timestamp){
+  setHtml(id, `<span class="pulse"></span>${fmtDataUpdated(timestamp)}`);
 }
 function sum(arr, pick){
   return (arr || []).reduce((s, item) => s + (Number(pick(item)) || 0), 0);
@@ -2992,7 +3007,7 @@ function renderLatestExercises(){
   const showEnd = Math.min(start + state.latestPageSize, total);
 
   if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString()} · ${periodLabel}` : "Loading";
-  if(metaEl) metaEl.innerHTML = `<span class="pulse"></span>${LIVE.exercisers ? "Newest recorded exercises" : "Loading latest exercises"}`;
+  if(metaEl) setCardMeta("latest-ex-meta", LIVE.exercisers?.updated);
   if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString()}` : "Loading";
 
   if(!LIVE.exercisers){
@@ -3159,7 +3174,7 @@ function renderLatestPairs(){
   const showEnd = Math.min(start + state.pairPageSize, total);
 
   if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString()} · ${periodLabel}` : "Loading";
-  if(metaEl) metaEl.innerHTML = `<span class="pulse"></span>${LIVE.exercisers ? "Newest recorded DOLO pair transactions" : "Loading latest oDOLO pair transactions"}`;
+  if(metaEl) setCardMeta("latest-pair-meta", LIVE.exercisers?.updated);
   if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString()}` : "Loading";
 
   if(!LIVE.exercisers){
@@ -4014,8 +4029,6 @@ function syncLiveFlowsForPeriod(){
     return {addr:item.address, label:meta.label, type:meta.type, chg:-(Number(item.gross_outflow ?? item.net_flow) || 0), balance:Number(item.balance) || 0};
   });
   applyRows(FLOWS, [...acc, ...out]);
-  const metaEl = document.getElementById("flows-meta");
-  if(metaEl) metaEl.textContent = "Flow data";
 }
 
 function syncLiveDiscountCurve(){
@@ -4042,6 +4055,16 @@ function syncLiveDiscountCurve(){
   }
 }
 
+function syncOdoloTableMetadata(){
+  const flowUpdated = LIVE.flows?.timestamp;
+  const exerciseUpdated = LIVE.exercisers?.updated;
+  setCardMeta("claimer-breakdown-meta", flowUpdated);
+  setCardMeta("latest-ex-meta", exerciseUpdated);
+  setCardMeta("latest-pair-meta", exerciseUpdated);
+  setCardMeta("top-exercisers-meta", exerciseUpdated);
+  setCardMeta("flows-meta", flowUpdated);
+}
+
 function renderAll(){
   syncLiveDistribution();
   syncLiveBehavior();
@@ -4054,6 +4077,7 @@ function renderAll(){
   renderLatestPairs();
   renderExercisers();
   renderFlows();
+  syncOdoloTableMetadata();
 }
 
 async function initOdoloPage(){

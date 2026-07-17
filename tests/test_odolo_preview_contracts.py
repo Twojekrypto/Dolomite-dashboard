@@ -86,6 +86,31 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('#latest-exercises-section #dd-latest-period .dd-opt.active .dd-opt-check', self.html)
         self.assertIn('odolo-exercise-green-controls-20260711', self.route)
 
+    def test_odolo_tables_show_source_specific_data_update_metadata(self):
+        for meta_id in (
+            "claimer-breakdown-meta",
+            "latest-ex-meta",
+            "latest-pair-meta",
+            "top-exercisers-meta",
+            "flows-meta",
+        ):
+            self.assertIn(f'id="{meta_id}"', self.html)
+
+        self.assertIn("function fmtDataUpdated(timestamp)", self.html)
+        metadata_sync = re.search(
+            r'function syncOdoloTableMetadata\(\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        ).group("body")
+        self.assertIn("LIVE.flows?.timestamp", metadata_sync)
+        self.assertIn("LIVE.exercisers?.updated", metadata_sync)
+        self.assertIn('setCardMeta("claimer-breakdown-meta", flowUpdated)', metadata_sync)
+        self.assertIn('setCardMeta("latest-ex-meta", exerciseUpdated)', metadata_sync)
+        self.assertIn('setCardMeta("latest-pair-meta", exerciseUpdated)', metadata_sync)
+        self.assertIn('setCardMeta("top-exercisers-meta", exerciseUpdated)', metadata_sync)
+        self.assertIn('setCardMeta("flows-meta", flowUpdated)', metadata_sync)
+        self.assertIn("odolo-table-update-metadata-20260717", self.route)
+
 
 if __name__ == "__main__":
     unittest.main()
