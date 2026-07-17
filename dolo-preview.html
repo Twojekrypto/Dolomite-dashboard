@@ -158,7 +158,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .cex-supply-card{margin-top:18px}
 .cex-supply-card .holder-chart-area{fill:url(#cexSupplyAreaGrad);opacity:.56}
 .cex-supply-card .holder-chart-series-line{filter:drop-shadow(0 0 7px rgba(180,121,107,.18))}
-.cex-supply-card .holder-flow-stats{background:linear-gradient(90deg,rgba(180,121,107,.055),rgba(255,255,255,.012))}
+.cex-supply-card .holder-flow-stats{border-radius:0 0 var(--r-xl) var(--r-xl);overflow:hidden;background:linear-gradient(90deg,rgba(180,121,107,.055),rgba(255,255,255,.012))}
+.cex-supply-card .holder-flow-stat{border-bottom:0}
+.holder-distribution-head{display:block;padding:0;border-bottom:0}
+.holder-distribution-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px 18px;border-bottom:1px solid var(--line-1)}
+.holder-distribution-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px 0;flex-wrap:wrap}
+.holder-chart-meta{margin-left:auto;min-width:0}
+.holder-chart-meta .holder-source-scope{color:var(--fg-3);font-weight:500}
+.holder-chart-meta .holder-source-exclusion{color:var(--fg-3)}
 .holder-title-block{display:flex;flex-direction:column;gap:12px;min-width:0}
 .holder-chart-controls{
   display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;min-width:0;
@@ -954,6 +961,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-chart-toggle{width:100%;justify-content:center;min-width:0}
   .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
   .holder-chart-source::before{margin-right:0}
+  .holder-distribution-toolbar .holder-chart-meta{width:100%;margin-left:0;justify-content:center;flex-wrap:wrap}
   .holder-flow-stat.primary .value,.holder-flow-stat .value{font-size:15px}
   .tbl-foot,.flow-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
   .tbl-foot-info{grid-column:1;text-align:center}
@@ -1435,12 +1443,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
   <!-- HOLDER DISTRIBUTION CHART -->
   <section class="card holder-chart-card" id="holder-distribution-card">
-    <div class="card-head">
-      <div class="holder-title-block">
+    <div class="card-head holder-distribution-head">
+      <div class="holder-distribution-title-row">
         <div class="card-title">
           <h2>DOLO Holder Distribution Over Time</h2>
           <span class="count-badge" id="holder-chart-count">All</span>
         </div>
+      </div>
+      <div class="holder-distribution-toolbar">
         <div class="holder-chart-controls">
           <div class="holder-bucket-mode" id="holder-bucket-mode" aria-label="Holder bucket range">
             <button type="button" class="active" data-holder-bucket-view="whales" aria-pressed="true">Top holders</button>
@@ -1463,8 +1473,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <span class="holder-chart-toggle-text">veDOLO</span>
           </label>
         </div>
+        <div class="card-meta holder-chart-meta" id="holder-chart-meta" aria-label="Holder chart data scope"></div>
       </div>
-      <div class="holder-chart-source" id="holder-chart-meta" aria-label="Holder chart data scope"></div>
     </div>
     <div class="holder-chart-wrap" id="holderChartWrap">
       <svg class="holder-chart-svg" id="holderChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="DOLO holder distribution over time chart">
@@ -1520,7 +1530,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <span class="count-badge" id="cex-supply-count">All</span>
         </div>
       </div>
-      <div class="holder-chart-source" id="cex-supply-meta" aria-label="CEX supply data scope"></div>
+      <div class="card-meta holder-chart-meta" id="cex-supply-meta" aria-label="CEX supply data scope"></div>
     </div>
     <div class="holder-chart-wrap" id="cexSupplyWrap">
       <svg class="holder-chart-svg" id="cexSupplySvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="CEX DOLO supply over time chart">
@@ -2661,7 +2671,7 @@ function renderHolderDistributionChart(options = {}){
   }
   const metaEl = document.getElementById("holder-chart-meta");
   if(metaEl){
-    metaEl.innerHTML = holderScopeHtml();
+    metaEl.innerHTML = `<span class="pulse"></span>${holderScopeHtml()}`;
   }
   const legendHeader = `
     <div class="holder-legend-head" aria-hidden="true">
@@ -2723,25 +2733,32 @@ function renderHolderDistributionChart(options = {}){
     if(model.points.length < 2) return;
     const rect = svg.getBoundingClientRect();
     const px = (event.clientX - rect.left) / rect.width * W;
+    const py = (event.clientY - rect.top) / rect.height * H;
     if(px < P_L || px > W - P_R){ leave(); return; }
     let nearest = model.points[0], best = Infinity;
     model.points.forEach(point => {
       const dist = Math.abs(xAt(point.ts) - px);
       if(dist < best){ best = dist; nearest = point; }
     });
-    const focusKey = holderDistributionActiveKey;
-    const focusIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === focusKey));
+    const defaultFocusIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === holderDistributionActiveKey));
+    const hoveredSeries = seriesByBucket.reduce((closest, series, index) => {
+      const point = series.find(candidate => candidate.ts === nearest.ts);
+      if(!Number.isFinite(point?.value)) return closest;
+      const distance = Math.abs(yAt(point.value) - py);
+      return !closest || distance < closest.distance ? {index, distance} : closest;
+    }, null);
+    const focusIndex = hoveredSeries?.index ?? defaultFocusIndex;
+    const focusBucket = bucketDefs[focusIndex] || bucketDefs[defaultFocusIndex] || bucketDefs[0];
     const focusValue = holderMetricValue(nearest, focusIndex, baselinePoint);
     const x = xAt(nearest.ts);
     const y = Number.isFinite(focusValue) ? yAt(focusValue) : zeroY;
-    const focusColor = bucketDefs[focusIndex]?.color || "#e4c15a";
-    paintActive(holderDistributionActiveKey);
+    paintActive(focusBucket.key);
     hoverLine.setAttribute("x1", x);
     hoverLine.setAttribute("x2", x);
     hoverLine.style.opacity = 1;
     hoverDot.setAttribute("cx", x);
     hoverDot.setAttribute("cy", y);
-    hoverDot.setAttribute("fill", focusColor);
+    hoverDot.setAttribute("fill", focusBucket.color);
     hoverDot.style.opacity = Number.isFinite(focusValue) ? 1 : 0;
     tip.innerHTML = `
       <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
@@ -3608,7 +3625,7 @@ function renderCexSupplyChart(options = {}){
   }
   const metaEl = document.getElementById("cex-supply-meta");
   if(metaEl){
-    metaEl.innerHTML = `<span class="holder-source-scope">${fullModel.sourceLabel || `${fullModel.points.length} points`}</span>`;
+    metaEl.innerHTML = `<span class="pulse"></span><span>${fullModel.sourceLabel || `${fullModel.points.length} points`}</span>`;
   }
   const statsEl = document.getElementById("cexSupplyStats");
   if(statsEl){

@@ -288,3 +288,39 @@ test("holder distribution keeps mobile tooltips bounded and hides empty chart pa
   assert.match(holderRenderer, /: ` aria-hidden="true" pointer-events="none"`/);
   assert.match(holderRenderer, /lines\.querySelectorAll\("\.holder-chart-series-line\[role='button'\]"\)/);
 });
+
+test("holder hover marks the line nearest to the pointer", () => {
+  const holderRenderer = preview.slice(
+    preview.indexOf("function renderHolderDistributionChart(options = {})"),
+    preview.indexOf("function allocationPointFromSource")
+  );
+
+  assert.match(holderRenderer, /const py = \(event\.clientY - rect\.top\) \/ rect\.height \* H;/);
+  assert.match(holderRenderer, /const hoveredSeries = seriesByBucket\.reduce\(/);
+  assert.match(holderRenderer, /const focusIndex = hoveredSeries\?\.index \?\? defaultFocusIndex;/);
+  assert.match(holderRenderer, /paintActive\(focusBucket\.key\);/);
+  assert.match(holderRenderer, /hoverDot\.setAttribute\("fill", focusBucket\.color\);/);
+});
+
+test("holder and CEX charts use the card-meta status treatment and clipped CEX footer", () => {
+  assert.match(preview, /<div class="card-head holder-distribution-head">/);
+  assert.match(preview, /<div class="holder-distribution-title-row">/);
+  assert.match(preview, /<div class="holder-distribution-toolbar">/);
+  assert.match(preview, /<div class="card-meta holder-chart-meta" id="holder-chart-meta"/);
+  assert.match(preview, /<div class="card-meta holder-chart-meta" id="cex-supply-meta"/);
+  assert.match(preview, /\.holder-distribution-head\{[^}]*display:block;[^}]*border-bottom:0/);
+  assert.match(preview, /\.holder-distribution-title-row\{[^}]*border-bottom:1px solid var\(--line-1\)/);
+  assert.match(preview, /\.cex-supply-card \.holder-flow-stats\{[^}]*border-radius:0 0 var\(--r-xl\) var\(--r-xl\);[^}]*overflow:hidden/);
+  assert.match(preview, /\.cex-supply-card \.holder-flow-stat\{border-bottom:0\}/);
+
+  const holderRenderer = preview.slice(
+    preview.indexOf("function renderHolderDistributionChart(options = {})"),
+    preview.indexOf("function allocationPointFromSource")
+  );
+  const cexRenderer = preview.slice(
+    preview.indexOf("function renderCexSupplyChart(options = {})"),
+    preview.indexOf("const COPY_ICO")
+  );
+  assert.match(holderRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span>\$\{holderScopeHtml\(\)\}`;/);
+  assert.match(cexRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span><span>\$\{fullModel\.sourceLabel/);
+});
