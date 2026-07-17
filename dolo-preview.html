@@ -320,12 +320,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-legend-head-metrics span:not(:first-child){text-align:right}
 .holder-legend-head-action{width:84px}
 .holder-chart-legend-item{min-width:0;border-top:1px solid var(--line-1)}
-.holder-chart-legend-item[role="button"]{cursor:pointer}
-.holder-chart-legend-item[aria-pressed="true"] .holder-legend-row{background:var(--gold-wash)}
-.holder-chart-legend-item:focus{outline:none}
-.holder-chart-legend-item:focus-visible{outline:1px solid var(--gold);outline-offset:-1px}
 .holder-chart-legend-item:first-child{border-top:0}
 .holder-legend-row{display:grid;grid-template-columns:minmax(170px,.82fr) minmax(390px,1.58fr) auto;gap:16px;align-items:center;padding:14px 18px;transition:background .15s var(--ease)}
+.holder-legend-pin{
+  grid-column:1 / span 2;display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.58fr);gap:16px;align-items:center;
+  min-width:0;padding:0;border:0;border-radius:4px;color:inherit;text-align:left;cursor:pointer
+}
+.holder-legend-pin:focus{outline:none}
+.holder-legend-pin:focus-visible{outline:1px solid var(--gold);outline-offset:4px;box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 .holder-chart-legend-item:hover .holder-legend-row,.holder-chart-legend-item.is-active .holder-legend-row{background:var(--gold-wash)}
 .holder-chart-legend-item.is-breakdown .holder-legend-row{background:rgba(255,255,255,.006)}
 .holder-chart-legend-item.is-breakdown:hover .holder-legend-row,.holder-chart-legend-item.is-breakdown.is-active .holder-legend-row{background:var(--gold-wash)}
@@ -942,6 +944,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-chart-svg{height:280px}
   .holder-legend-head{display:none}
   .holder-legend-row{grid-template-columns:1fr;gap:11px;padding:13px 14px}
+  .holder-legend-pin{grid-column:1;grid-template-columns:1fr;gap:11px;width:100%}
   .holder-legend-summary{width:100%;height:auto;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;padding-top:3px}
   .holder-legend-metric.primary{grid-column:1/-1;margin-bottom:8px;padding-left:16px}
   .holder-legend-metric{height:34px;padding:0 10px}
@@ -2665,20 +2668,22 @@ function renderHolderDistributionChart(options = {}){
     const open = holderWalletPanelKey === bucket.key;
     const panelId = `holder-wallet-panel-${bucket.key}`;
     return `
-      <div class="holder-chart-legend-item${active}" data-key="${bucket.key}" role="button" tabindex="0" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series" style="--series-color:${bucket.color}">
+      <div class="holder-chart-legend-item${active}" data-key="${bucket.key}" style="--series-color:${bucket.color}">
         <div class="holder-legend-row">
-          <div class="holder-legend-main">
-            <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
-            <div class="sub">${scopeText}</div>
-          </div>
-          <div class="holder-legend-summary" aria-label="${bucket.label} DOLO summary">
-            <div class="holder-legend-metric primary">
-              <span class="holder-legend-label">Balance</span>
-              <strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong>
+          <button class="holder-legend-pin" type="button" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series">
+            <div class="holder-legend-main">
+              <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
+              <div class="sub">${scopeText}</div>
             </div>
-            <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></div>
-            <div class="holder-legend-metric delta ${deltaClass}"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></div>
-          </div>
+            <div class="holder-legend-summary" aria-label="${bucket.label} DOLO summary">
+              <div class="holder-legend-metric primary">
+                <span class="holder-legend-label">Balance</span>
+                <strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong>
+              </div>
+              <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></div>
+              <div class="holder-legend-metric delta ${deltaClass}"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></div>
+            </div>
+          </button>
           <button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
         </div>
         ${open ? holderWalletInlinePanelHtml(bucket, {...model, rangeBaselinePoint}) : ""}
@@ -2764,15 +2769,9 @@ function renderHolderDistributionChart(options = {}){
   legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
     item.addEventListener("mouseenter", () => paintActive(item.dataset.key));
     item.addEventListener("mouseleave", () => paintActive(holderDistributionActiveKey));
-    item.addEventListener("click", event => {
-      if(event.target.closest(".holder-details-btn")) return;
-      toggleHolderDistributionPin(item.dataset.key);
-    });
-    item.addEventListener("keydown", event => {
-      if(event.target.closest(".holder-details-btn") || (event.key !== "Enter" && event.key !== " ")) return;
-      event.preventDefault();
-      toggleHolderDistributionPin(item.dataset.key);
-    });
+  });
+  legend.querySelectorAll(".holder-legend-pin").forEach(pin => {
+    pin.addEventListener("click", () => toggleHolderDistributionPin(pin.dataset.pinKey));
   });
   legend.querySelectorAll(".holder-details-btn").forEach(btn => btn.addEventListener("click", event => {
     event.stopPropagation();
