@@ -311,4 +311,3 @@ gh run list --repo Twojekrypto/Dolomite-dashboard --branch master --limit 6
 \`\`\`
 
 Expected: lokalny \`master\` jest wypchnięty bez utraty automatycznych danych, workflow \`Deploy GitHub Pages\` dla aktualnego SHA kończy się \`success\`, a na \`https://twojekrypto.github.io/Dolomite-dashboard/dolo/?v=<current-sha>\` działają kontrolki, ścieżki oraz przypinanie.
-
