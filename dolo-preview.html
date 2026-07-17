@@ -551,7 +551,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .fresh-chain-chip .chain-icon{width:15px;height:15px;border-radius:50%;object-fit:contain;flex:0 0 15px;background:var(--bg-3)}
 .fresh-chain-chip .chain-icon.berachain{transform:scale(1.08)}
 .fresh-chain-chip .dot{width:8px;height:8px;flex:0 0 8px}
-.fresh-chain-chip.unknown{color:var(--fg-3);font-family:var(--mono);font-size:10px}
+.fresh-chain-chip.unknown{width:15px;justify-content:center;color:var(--fg-3);font-family:var(--sans);font-size:14px;font-weight:600}
 .fresh-wallets-table tbody tr.fresh-spacer-row{pointer-events:none;cursor:default}
 .fresh-wallets-table tbody tr.fresh-spacer-row td{color:transparent}
 .fresh-wallets-table tbody tr.fresh-spacer-row td > *{visibility:hidden}
@@ -4610,6 +4610,9 @@ function freshWalletStatus(row){
 function freshChainCell(row){
   const chains = Array.isArray(row?.chains) && row.chains.length ? row.chains : [{key:"unknown", label:"Unknown"}];
   return `<div class="fresh-chain-list">${chains.map(chain => {
+    if(chain.key === "unknown") {
+      return '<span class="fresh-chain-chip unknown" aria-label="No current chain balance">—</span>';
+    }
     const icon = chain.key === "ethereum"
       ? "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg"
       : chain.key === "berachain"
@@ -4617,10 +4620,8 @@ function freshChainCell(row){
         : "";
     const iconHtml = icon
       ? `<img class="chain-icon ${escHtml(chain.key)}" src="${icon}" alt="">`
-      : chain.key === "unknown"
-        ? ""
-        : `<span class="dot dot-${escHtml(chain.key)}"></span>`;
-    return `<span class="fresh-chain-chip ${chain.key === "unknown" ? "unknown" : ""}">${iconHtml}${escHtml(chain.label || "Unknown")}</span>`;
+      : `<span class="dot dot-${escHtml(chain.key)}"></span>`;
+    return `<span class="fresh-chain-chip">${iconHtml}${escHtml(chain.label || chain.key)}</span>`;
   }).join("")}</div>`;
 }
 function freshExposureHtml(row){
