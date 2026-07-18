@@ -217,6 +217,50 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
 
         self.assertEqual(selected, [missing])
 
+    def test_coverage_backfill_refreshes_active_stale_wallet_before_cold_missing_wallet(self):
+        active_stale = "0x1111111111111111111111111111111111111111"
+        cold_missing = "0x2222222222222222222222222222222222222222"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            history_dir = Path(tmp) / "earn-subaccount-history"
+            chain_dir = history_dir / "arbitrum"
+            chain_dir.mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"arbitrum":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{active_stale}.json").write_text(
+                '{"lastScannedBlock":99}',
+                encoding="utf-8",
+            )
+
+            with (
+                patch(
+                    "select_earn_canonical_hot_addresses._load_known_addresses",
+                    return_value=[active_stale, cold_missing],
+                ),
+                patch(
+                    "select_earn_canonical_hot_addresses._active_snapshot_wallets",
+                    return_value={active_stale},
+                    create=True,
+                ),
+                patch("select_earn_canonical_hot_addresses._score_snapshot_wallets", return_value=None),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, metadata = build_selection(
+                    "arbitrum",
+                    limit=1,
+                    priority_files=[],
+                    include_priority_even_if_unknown=True,
+                    history_dir=history_dir,
+                    coverage_backfill=True,
+                )
+
+        self.assertEqual([active_stale], selected)
+        self.assertEqual(1, metadata["activeSnapshotAddressCount"])
+        self.assertEqual(1, metadata["activeStaleHistoryAddressCount"])
+        self.assertEqual(1, metadata["coldMissingHistoryAddressCount"])
+
 
 if __name__ == "__main__":
     unittest.main()

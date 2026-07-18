@@ -23,7 +23,9 @@ DEFAULT_OUTPUT = ROOT / "data" / "earn-freshness" / "status.json"
 
 REFRESH_AFTER_MINUTES = 30
 VERIFIED_AFTER_HOURS = 2
-STALE_AFTER_HOURS = 3
+STALE_AFTER_HOURS = 6
+SLA_WARNING_AFTER_HOURS = 2
+SLA_CRITICAL_AFTER_HOURS = 6
 ARCHIVED_CHAINS = {"botanix", "polygonzkevm"}
 
 CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
@@ -146,6 +148,43 @@ def _refresh_mode(status: str, refresh_recommended: bool) -> str:
     if status in {"verified", "ahead"}:
         return "background"
     return "catchup"
+
+
+def _sla_status_for_component(component: Dict[str, Any]) -> str:
+    status = str(component.get("status") or "unknown")
+    if status == "unsupported":
+        return "not_applicable"
+    if status == "missing":
+        return "critical"
+    lag_minutes = component.get("estimatedLagMinutes")
+    if lag_minutes is None:
+        return "unknown" if status == "unknown" else "ok"
+    lag_minutes = float(lag_minutes)
+    if lag_minutes >= SLA_CRITICAL_AFTER_HOURS * 60:
+        return "critical"
+    if lag_minutes >= SLA_WARNING_AFTER_HOURS * 60:
+        return "warning"
+    return "ok"
+
+
+def _apply_sla(component: Dict[str, Any]) -> Dict[str, Any]:
+    sla_status = _sla_status_for_component(component)
+    component["slaStatus"] = sla_status
+    if sla_status in {"warning", "critical"}:
+        component["refreshRecommended"] = True
+        component["refreshMode"] = "catchup"
+    return component
+
+
+def _chain_sla_status(*components: Dict[str, Any]) -> str:
+    statuses = {str(component.get("slaStatus") or "unknown") for component in components}
+    if "critical" in statuses:
+        return "critical"
+    if "warning" in statuses:
+        return "warning"
+    if "unknown" in statuses:
+        return "unknown"
+    return "ok"
 
 
 def _component_status(
@@ -516,6 +555,11 @@ def _weak_point(
 
 
 def _refresh_job_priority(component: Dict[str, Any], component_name: str) -> int:
+    sla_status = str(component.get("slaStatus") or "")
+    if sla_status == "critical":
+        return -20 if component_name == "canonical" else -15
+    if sla_status == "warning":
+        return -10 if component_name == "canonical" else -5
     mode = str(component.get("refreshMode") or "none")
     if mode == "background":
         return 50 if component_name == "canonical" else 55
@@ -582,6 +626,7 @@ def build_status(
             supported=canonical_supported,
             now=now,
         )
+        canonical = _apply_sla(canonical)
         if canonical_supported:
             coverage = _canonical_coverage_status(
                 data_dir=data_dir,
@@ -606,6 +651,7 @@ def build_status(
             supported=netflow_supported,
             now=now,
         )
+        netflow = _apply_sla(netflow)
 
         if canonical.get("refreshRecommended") and canonical_supported:
             workflow = str(policy["canonicalWorkflow"])
@@ -652,6 +698,7 @@ def build_status(
             refresh_reasons.append(reason)
 
         chain_refresh_mode = _chain_refresh_mode(canonical, netflow)
+        chain_sla_status = _chain_sla_status(canonical, netflow)
         chain_statuses = [canonical["status"], netflow["status"]]
         if support_mode == "snapshot-first":
             chain_status = "limited"
@@ -671,6 +718,7 @@ def build_status(
             "status": chain_status,
             "supportMode": support_mode,
             "refreshMode": chain_refresh_mode,
+            "slaStatus": chain_sla_status,
             "blockTimeSeconds": policy["blockTimeSeconds"],
             "canonical": canonical,
             "netflow": netflow,
@@ -686,6 +734,7 @@ def build_status(
                 "status": chain_status,
                 "supportMode": support_mode,
                 "refreshMode": chain_refresh_mode,
+                "slaStatus": chain_sla_status,
                 "canonicalLagMinutes": canonical.get("estimatedLagMinutes"),
                 "netflowLagMinutes": netflow.get("estimatedLagMinutes"),
                 "lastRefreshAt": _latest_timestamp(canonical.get("updatedAt"), netflow.get("updatedAt")),
@@ -713,6 +762,8 @@ def build_status(
         overall = "verified"
 
     refresh_modes = {payload["refreshMode"] for payload in chains.values()}
+    sla_warning_chains = sorted(chain for chain, payload in chains.items() if payload.get("slaStatus") == "warning")
+    sla_critical_chains = sorted(chain for chain, payload in chains.items() if payload.get("slaStatus") == "critical")
 
     return {
         "version": 1,
@@ -722,12 +773,17 @@ def build_status(
             "refreshAfterMinutes": REFRESH_AFTER_MINUTES,
             "verifiedAfterHours": VERIFIED_AFTER_HOURS,
             "staleAfterHours": STALE_AFTER_HOURS,
+            "slaWarningAfterHours": SLA_WARNING_AFTER_HOURS,
+            "slaCriticalAfterHours": SLA_CRITICAL_AFTER_HOURS,
         },
         "summary": {
             "status": overall,
             "refreshRecommended": bool(refresh_workflows),
             "backgroundRefreshRecommended": "background" in refresh_modes,
             "catchupRefreshRecommended": "catchup" in refresh_modes,
+            "slaStatus": "critical" if sla_critical_chains else ("warning" if sla_warning_chains else "ok"),
+            "slaWarningChains": sla_warning_chains,
+            "slaCriticalChains": sla_critical_chains,
             "refreshWorkflows": sorted(refresh_workflows),
             "refreshJobs": sorted(
                 refresh_jobs_by_workflow.values(),
@@ -754,6 +810,9 @@ def write_actions_output(status: Dict[str, Any], path: Path) -> None:
         "refreshJobs": status.get("summary", {}).get("refreshJobs") or [],
         "refreshReasons": status.get("summary", {}).get("refreshReasons") or [],
         "chainReport": status.get("chainReport") or [],
+        "slaStatus": status.get("summary", {}).get("slaStatus") or "unknown",
+        "slaWarningChains": status.get("summary", {}).get("slaWarningChains") or [],
+        "slaCriticalChains": status.get("summary", {}).get("slaCriticalChains") or [],
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

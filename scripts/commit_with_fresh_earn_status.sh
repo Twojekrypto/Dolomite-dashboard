@@ -52,6 +52,29 @@ if [ "$ledger_manifest_staged" = "true" ] && [ -z "$ledger_chains" ]; then
   ledger_sync_all=true
 fi
 
+resolved_chains="$(
+  git diff --cached --name-only |
+    sed -n 's#^data/earn-resolved-interest-ledger/\([^/][^/]*\)/.*#\1#p' |
+    tr '[:upper:]' '[:lower:]' |
+    sort -u
+)"
+resolved_manifest_staged=false
+if git diff --cached --name-only -- data/earn-resolved-interest-ledger/manifest.json | grep -q .; then
+  resolved_manifest_staged=true
+fi
+if [ "$resolved_manifest_staged" = "true" ] && [ -n "${CHAIN:-}" ]; then
+  resolved_chains="$(
+    printf "%s\n%s\n" "$resolved_chains" "$CHAIN" |
+      sed '/^$/d' |
+      tr '[:upper:]' '[:lower:]' |
+      sort -u
+  )"
+fi
+resolved_sync_all=false
+if [ "$resolved_manifest_staged" = "true" ] && [ -z "$resolved_chains" ]; then
+  resolved_sync_all=true
+fi
+
 git commit -m "$commit_message"
 
 # Any tracked files left modified-but-unstaged by generation steps would make
@@ -77,6 +100,18 @@ for i in $(seq 1 "$attempts"); do
       fi
       "${sync_args[@]}"
       git add -f data/earn-verified-ledger/manifest.json
+    fi
+    if [ -n "$resolved_chains" ] || [ "$resolved_sync_all" = "true" ]; then
+      resolved_sync_args=(python3 scripts/sync_earn_resolved_manifest.py)
+      if [ "$resolved_sync_all" = "true" ]; then
+        resolved_sync_args+=(--all-chains)
+      else
+        for chain in $resolved_chains; do
+          resolved_sync_args+=(--chain "$chain")
+        done
+      fi
+      "${resolved_sync_args[@]}"
+      git add -f data/earn-resolved-interest-ledger/manifest.json
     fi
     refresh_args=(python3 update_earn_freshness_status.py --output "$status_output")
     if [ -n "$actions_output" ]; then

@@ -53,6 +53,13 @@ jobs:
           snapshot_chains = set((payload.get("snapshots") or {}).keys())
           missing_payload = chains - snapshot_chains
           assert not missing_payload, f"Snapshot payload missing chains for {today}: {sorted(missing_payload)}"
+          metadata_chains = set((payload.get("chainMetadata") or {}).keys())
+          missing_metadata = chains - metadata_chains
+          assert not missing_metadata, f"Snapshot metadata missing chains for {today}: {sorted(missing_metadata)}"
+          for chain in chains:
+              metadata = payload["chainMetadata"][chain]
+              assert int(metadata.get("blockNumber") or 0) > 0, f"Missing pinned block for {chain}"
+              assert metadata.get("interestIndexes"), f"Missing interest indexes for {chain}"
           print(f"Validated earn snapshots for {today}: {sorted(snapshot_chains)}")
           PY
 
@@ -64,6 +71,18 @@ jobs:
             --chain berachain \
             --chain mantle \
             --chain xlayer
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Refresh existing strict resolved interest ledgers
+        run: |
+          python3 build_earn_resolved_interest_ledger.py \
+            --chain ethereum \
+            --chain arbitrum \
+            --chain berachain \
+            --chain mantle \
+            --chain xlayer \
+            --existing-addresses
         env:
           PYTHONUNBUFFERED: '1'
 
@@ -110,6 +129,7 @@ jobs:
           git add data/earn-snapshots/
           git add data/earn-historical-prices/
           git add data/earn-quality/representative-audit.json
+          git add -f data/earn-resolved-interest-ledger/
           git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum/
           git add -f data/earn-verified-ledger/arbitrum/ data/earn-verified-ledger/berachain/
           git add -f data/earn-verified-ledger/mantle/ data/earn-verified-ledger/xlayer/

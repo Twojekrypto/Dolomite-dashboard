@@ -67,7 +67,7 @@ class EModeUxContractsTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(version, (ROOT / path).read_text(encoding="utf-8"))
         self.assertIn('dashboard-core.css?v=core-split-20260718-earn-fast-path', self.earn_html)
-        self.assertIn('dashboard-core.js?v=core-split-20260718-earn-fast-path', self.earn_html)
+        self.assertIn('dashboard-core.js?v=core-split-20260718-ledger-primary-sla', self.earn_html)
 
     def test_both_earn_render_paths_share_full_emode_badge(self):
         badge_css = between(

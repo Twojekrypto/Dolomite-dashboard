@@ -22,7 +22,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
     def test_policy_targets_two_hour_verified_window(self):
         self.assertEqual(30, REFRESH_AFTER_MINUTES)
         self.assertEqual(2, VERIFIED_AFTER_HOURS)
-        self.assertEqual(3, STALE_AFTER_HOURS)
+        self.assertEqual(6, STALE_AFTER_HOURS)
         self.assertEqual(600, CHAIN_POLICIES["ethereum"]["verifiedBlockLag"])
         self.assertEqual(28_800, CHAIN_POLICIES["arbitrum"]["verifiedBlockLag"])
         self.assertEqual(3_600, CHAIN_POLICIES["berachain"]["verifiedBlockLag"])
@@ -181,19 +181,21 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(arbitrum["canonical"]["status"], "verified")
         self.assertEqual(arbitrum["canonical"]["estimatedLagMinutes"], 120.0)
         self.assertTrue(arbitrum["canonical"]["refreshRecommended"])
-        self.assertEqual(arbitrum["canonical"]["refreshMode"], "background")
+        self.assertEqual(arbitrum["canonical"]["refreshMode"], "catchup")
+        self.assertEqual(arbitrum["canonical"]["slaStatus"], "warning")
+        self.assertEqual(arbitrum["slaStatus"], "warning")
         self.assertEqual(arbitrum["status"], "verified")
-        self.assertEqual(arbitrum["refreshMode"], "background")
-        self.assertTrue(status["summary"]["backgroundRefreshRecommended"])
-        self.assertFalse(status["summary"]["catchupRefreshRecommended"])
+        self.assertEqual(arbitrum["refreshMode"], "catchup")
+        self.assertTrue(status["summary"]["catchupRefreshRecommended"])
+        self.assertIn("arbitrum", status["summary"]["slaWarningChains"])
         self.assertIn("update-earn-arbitrum-canonical-history.yml", status["summary"]["refreshWorkflows"])
         self.assertIn(NETFLOW_WORKFLOW, status["summary"]["refreshWorkflows"])
         self._assert_refresh_job(
             status["summary"]["refreshJobs"],
             workflow="update-earn-arbitrum-canonical-history.yml",
-            inputs={},
-            mode="background",
-            priority=50,
+            inputs={"hot_limit": "0", "checkpoint_steps": "24"},
+            mode="catchup",
+            priority=-10,
         )
         self._assert_refresh_job(
             status["summary"]["refreshJobs"],
@@ -205,7 +207,36 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertEqual(report["arbitrum"]["supportMode"], "canonical-ledger")
         self.assertEqual(report["arbitrum"]["canonicalLagMinutes"], 120.0)
-        self.assertEqual(report["arbitrum"]["weakPoint"], "canonical background refresh due")
+        self.assertEqual(report["arbitrum"]["slaStatus"], "warning")
+
+    def test_six_hour_lag_is_critical_and_gets_highest_repair_priority(self):
+        now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(root, "earn-subaccount-history/manifest.json", {
+                "chains": {"arbitrum": {"lastBlock": 1_000_000, "updatedAt": "2026-05-08T06:00:00Z"}}
+            })
+            self._write_json(root, "earn-netflow/arbitrum.json", {
+                "chain": "arbitrum", "lastBlock": 1_086_400, "updatedAt": "2026-05-08T11:59:00Z"
+            })
+            self._write_json(root, "earn-snapshots/manifest.json", {"dates": [], "chains": {}})
+
+            status = build_status(
+                data_dir=root,
+                live_blocks={chain: (1_086_400 if chain == "arbitrum" else None) for chain in CHAIN_POLICIES},
+                now=now,
+            )
+
+        self.assertEqual("critical", status["chains"]["arbitrum"]["canonical"]["slaStatus"])
+        self.assertEqual("critical", status["chains"]["arbitrum"]["slaStatus"])
+        self.assertIn("arbitrum", status["summary"]["slaCriticalChains"])
+        self._assert_refresh_job(
+            status["summary"]["refreshJobs"],
+            workflow="update-earn-arbitrum-canonical-history.yml",
+            inputs={"hot_limit": "0", "checkpoint_steps": "24"},
+            mode="catchup",
+            priority=-20,
+        )
 
     def test_missing_supported_canonical_history_triggers_refresh(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
@@ -313,7 +344,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             workflow="update-earn-secondary-canonical-history.yml",
             inputs={"chain": "xlayer"},
             mode="catchup",
-            priority=0,
+            priority=-20,
         )
         self.assertNotIn(
             {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "all"}},
@@ -476,7 +507,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             workflow="update-earn-arbitrum-canonical-history.yml",
             inputs={"hot_limit": "0", "checkpoint_steps": "24"},
             mode="catchup",
-            priority=0,
+            priority=-20,
         )
 
     def test_ethereum_stale_canonical_dispatch_uses_long_catchup_checkpoint(self):
@@ -519,7 +550,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             workflow="update-earn-ethereum-canonical-history.yml",
             inputs={"hot_limit": "120", "checkpoint_steps": "1200"},
             mode="catchup",
-            priority=0,
+            priority=-20,
         )
 
     def test_advisory_global_canonical_backlog_does_not_downgrade_fresh_chain(self):
@@ -736,7 +767,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
 
         priorities = [int(job["priority"]) for job in status["summary"]["refreshJobs"]]
         self.assertEqual(sorted(priorities), priorities)
-        self.assertEqual(0, priorities[0])
+        self.assertEqual(-20, priorities[0])
         self.assertGreater(priorities[-1], priorities[0])
 
     def test_actions_output_contains_refresh_plan(self):

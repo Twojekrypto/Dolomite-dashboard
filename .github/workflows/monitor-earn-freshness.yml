@@ -234,3 +234,10 @@ jobs:
             echo "$job_key" >> /tmp/earn-refresh-dispatched.tsv
             dispatched_count=$((dispatched_count + 1))
           done < /tmp/earn-refresh-jobs.tsv
+
+      - name: Enforce EARN freshness SLA
+        if: always()
+        run: |
+          python3 scripts/check_earn_sla.py \
+            data/earn-freshness/status.json \
+            --summary "$GITHUB_STEP_SUMMARY"

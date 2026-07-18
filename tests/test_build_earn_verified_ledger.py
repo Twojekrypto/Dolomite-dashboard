@@ -60,12 +60,13 @@ class BuildEarnVerifiedLedgerTest(unittest.TestCase):
             address=address,
             latest_date="2026-07-18",
             canonical_history={"lastScannedBlock": 12345},
+            snapshot_comparison_block=12345,
         )
 
         self.assertEqual(validated["comparisonBlock"], 12345)
         self.assertEqual(validated["markets"]["1"]["earnYield"], "123")
 
-    def test_rejects_stale_or_inferred_resolved_interest_ledger(self):
+    def test_accepts_resolved_interest_ledger_when_canonical_head_is_later(self):
         address = "0x1111111111111111111111111111111111111111"
         base = {
             "chain": "arbitrum",
@@ -75,7 +76,75 @@ class BuildEarnVerifiedLedgerTest(unittest.TestCase):
             "strictStatus": "verified",
             "strictMethod": "interest-ledger",
             "canonicalHistoryCoverageStatus": "fresh",
-            "markets": {"1": {"earnYield": "1", "strictStatus": "verified", "strictMethod": "interest-ledger"}},
+            "markets": {"1": {
+                "earnYield": "1",
+                "settledYield": "1",
+                "settledSupplyYield": "1",
+                "settledBorrowYield": "0",
+                "openBorrowYield": "0",
+                "openSupplyYield": "0",
+                "openCollateralYield": "0",
+                "currentBorrowPar": "0",
+                "currentSupplyPar": "0",
+                "currentCollateralSupplyPar": "0",
+                "strictStatus": "verified",
+                "strictMethod": "interest-ledger",
+            }},
+            "replayVerificationData": {"1": {
+                "status": "verified",
+                "counted": True,
+                "canVerify": True,
+                "rawVerified": True,
+                "snapshotIncomplete": False,
+            }},
+        }
+
+        validated = _validate_resolved_interest_ledger(
+            base,
+            chain="arbitrum",
+            address=address,
+            latest_date="2026-07-18",
+            canonical_history={"lastScannedBlock": 12345},
+            snapshot_comparison_block=12344,
+        )
+        self.assertEqual(12344, validated["comparisonBlock"])
+
+    def test_rejects_resolved_interest_ledger_from_different_snapshot_block(self):
+        address = "0x1111111111111111111111111111111111111111"
+        market = {
+            "earnYield": "1", "settledYield": "1", "settledSupplyYield": "1",
+            "settledBorrowYield": "0", "openBorrowYield": "0", "openSupplyYield": "0",
+            "openCollateralYield": "0", "currentBorrowPar": "0", "currentSupplyPar": "0",
+            "currentCollateralSupplyPar": "0", "strictStatus": "verified", "strictMethod": "interest-ledger",
+        }
+        artifact = {
+            "chain": "arbitrum", "address": address, "snapshotDate": "2026-07-18",
+            "comparisonBlock": 12344, "strictStatus": "verified", "strictMethod": "interest-ledger",
+            "canonicalHistoryCoverageStatus": "fresh", "markets": {"1": market},
+            "replayVerificationData": {"1": {"status": "verified", "counted": True, "canVerify": True, "rawVerified": True, "snapshotIncomplete": False}},
+        }
+
+        self.assertIsNone(_validate_resolved_interest_ledger(
+            artifact,
+            chain="arbitrum",
+            address=address,
+            latest_date="2026-07-18",
+            canonical_history={"lastScannedBlock": 12345},
+            snapshot_comparison_block=12345,
+        ))
+
+    def test_rejects_future_or_inferred_resolved_interest_ledger(self):
+        address = "0x1111111111111111111111111111111111111111"
+        base = {
+            "chain": "arbitrum",
+            "address": address,
+            "snapshotDate": "2026-07-18",
+            "comparisonBlock": 12346,
+            "strictStatus": "verified",
+            "strictMethod": "interest-ledger",
+            "canonicalHistoryCoverageStatus": "fresh",
+            "markets": {"1": {"earnYield": "1", "settledYield": "1", "settledSupplyYield": "1", "settledBorrowYield": "0", "openBorrowYield": "0", "openSupplyYield": "0", "openCollateralYield": "0", "currentBorrowPar": "0", "currentSupplyPar": "0", "currentCollateralSupplyPar": "0", "strictStatus": "verified", "strictMethod": "interest-ledger"}},
+            "replayVerificationData": {"1": {"status": "verified", "counted": True, "canVerify": True, "rawVerified": True, "snapshotIncomplete": False}},
         }
 
         self.assertIsNone(_validate_resolved_interest_ledger(

@@ -2,11 +2,11 @@ name: Backfill EARN Canonical Coverage
 
 on:
   schedule:
-    - cron: '11 */6 * * *'
+    - cron: '11 */2 * * *'
   workflow_dispatch:
     inputs:
       chain:
-        description: 'Chain to backfill; all runs the active queue serially.'
+        description: 'Chain to backfill; all runs active per-chain queues in parallel.'
         required: false
         type: choice
         default: all
@@ -16,10 +16,6 @@ on:
           - arbitrum
           - berachain
 
-concurrency:
-  group: earn-canonical-coverage-backfill
-  cancel-in-progress: false
-
 permissions:
   actions: write
   contents: write
@@ -28,20 +24,26 @@ jobs:
   backfill:
     runs-on: ubuntu-latest
     timeout-minutes: 105
+    concurrency:
+      group: ${{ matrix.concurrency_group }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
-      max-parallel: 1
+      max-parallel: 3
       matrix:
         include:
           - chain: mantle
+            concurrency_group: earn-secondary-canonical-history-mantle
             limit: 200
             scan_workers: 8
             materialize_workers: 8
           - chain: arbitrum
+            concurrency_group: earn-arbitrum-canonical-history
             limit: 120
             scan_workers: 12
             materialize_workers: 12
           - chain: berachain
+            concurrency_group: earn-berachain-canonical-history
             limit: 120
             scan_workers: 8
             materialize_workers: 8
@@ -189,6 +191,9 @@ jobs:
         if: steps.coverage.outputs.complete == 'true'
         run: |
           set -euo pipefail
+          python3 build_earn_resolved_interest_ledger.py \
+            --chain "$CHAIN" \
+            --address-file "${{ steps.select.outputs.selection_path }}"
           python3 build_earn_verified_ledger.py \
             --chain "$CHAIN" \
             --address-file "${{ steps.select.outputs.selection_path }}"
@@ -216,10 +221,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f data/earn-subaccount-history/manifest.json data/earn-verified-ledger/manifest.json
+          git add -f data/earn-resolved-interest-ledger/manifest.json
           while IFS= read -r address; do
             [ -n "$address" ] || continue
             git add -f "data/earn-subaccount-history/${CHAIN}/${address}.json"
             git add -f "data/earn-verified-ledger/${CHAIN}/${address}.json"
+            resolved_path="data/earn-resolved-interest-ledger/${CHAIN}/${address}.json"
+            if [ -f "$resolved_path" ] || git ls-files --error-unmatch "$resolved_path" >/dev/null 2>&1; then
+              git add -f -- "$resolved_path"
+            fi
           done < "${{ steps.select.outputs.selection_path }}"
           git add -f data/earn-verified-ledger-shards
           bash scripts/commit_with_fresh_earn_status.sh "Backfill ${CHAIN} canonical EARN coverage - $(date -u '+%Y-%m-%d %H:%M UTC')"
