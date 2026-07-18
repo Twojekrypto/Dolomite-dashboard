@@ -55,11 +55,10 @@ CHAINS = {
             "https://1rpc.io/eth",
         ],
         "start_block": 22_790_000,
-        # 1rpc's public Ethereum endpoint rejects eth_getLogs ranges above 50
-        # blocks. That is a single-endpoint quirk, now enforced per-endpoint via
-        # ENDPOINT_BLOCK_CAPS (rpc_call skips 1rpc for wider getLogs) so capable
-        # archive-capable endpoints scan full BLOCK_CHUNK ranges
-        # instead of the whole chain being throttled to 50 blocks per request.
+        # dRPC rejects ranges of 10,000+ blocks. Canonical history backfills use
+        # this provider-safe ceiling and can adapt down to free-tier fallbacks.
+        "canonical_max_block_chunk": 9_999,
+        "min_block_chunk": 10,
     },
     "berachain": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
@@ -203,7 +202,9 @@ def _rpc_max_attempts(method, rpcs):
 
 
 def _rpc_timeout_seconds(method):
-    return 15 if method == "eth_getLogs" else 30
+    if method == "eth_getLogs":
+        return max(1, int(os.environ.get("EARN_RPC_GETLOGS_TIMEOUT_SECONDS") or 15))
+    return 30
 
 
 def _endpoint_block_cap(url):

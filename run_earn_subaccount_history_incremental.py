@@ -701,6 +701,7 @@ def _ensure_new_address_running(plan: dict, chain: str, *, history_dir: Path) ->
             skipped.append({"progressKey": key, "reason": "already_running", "pid": existing.get("pid")})
             continue
         log_path = _cycle_log_dir(plan) / f"new-address-{key}.log"
+        checkpoint_path = _cycle_progress_dir(plan) / f"new-address-{key}-history.json"
         argv = [
             "python3",
             "build_earn_subaccount_history.py",
@@ -712,6 +713,8 @@ def _ensure_new_address_running(plan: dict, chain: str, *, history_dir: Path) ->
             str(plan["targetBlock"]),
             "--output-dir",
             str(history_dir),
+            "--checkpoint-file",
+            str(checkpoint_path),
         ]
         pid = _start_task(argv, cwd=ROOT, log_path=log_path)
         runs[key] = _task_run_payload(key, pid, argv, log_path)

@@ -135,6 +135,66 @@ class TestBuildOwnership(unittest.TestCase):
         self.assertTrue(any("latest NFT transfer block decreased" in issue for issue in issues))
 
 
+class TestNftTransferPagination(unittest.TestCase):
+    def test_fetches_every_explorer_page_before_advancing_block_window(self):
+        calls = []
+        responses = [
+            [
+                {**tx(1, ZERO, ALICE, 1), "hash": "0x01"},
+                {**tx(2, ZERO, ALICE, 2), "hash": "0x02"},
+            ],
+            [
+                {**tx(3, ZERO, ALICE, 3), "hash": "0x03"},
+                {**tx(4, ZERO, ALICE, 4), "hash": "0x04"},
+            ],
+            [
+                {**tx(4, ZERO, ALICE, 4), "hash": "0x04"},
+                {**tx(5, ZERO, ALICE, 5), "hash": "0x05"},
+            ],
+            [
+                {**tx(6, ZERO, ALICE, 6), "hash": "0x06"},
+            ],
+        ]
+
+        class Response:
+            def __init__(self, result):
+                self.result = result
+
+            def json(self):
+                return {"status": "1", "result": self.result}
+
+        def fake_get(_url, *, params, timeout):
+            calls.append((params["startblock"], params["page"], params["offset"], timeout))
+            return Response(responses.pop(0))
+
+        with (
+            patch.object(update_data, "API_KEY", "test-key"),
+            patch.object(update_data, "NFT_TRANSFER_PAGE_SIZE", 2),
+            patch.object(update_data, "NFT_TRANSFER_MAX_PAGES", 2),
+            patch.object(update_data.requests, "get", side_effect=fake_get),
+            patch.object(update_data.time, "sleep"),
+        ):
+            transfers = update_data.fetch_all_nft_transfers()
+
+        self.assertEqual([row["tokenID"] for row in transfers], ["1", "2", "3", "4", "5", "6"])
+        self.assertEqual(calls, [
+            (0, 1, 2, 30),
+            (0, 2, 2, 30),
+            (4, 1, 2, 30),
+            (4, 2, 2, 30),
+        ])
+
+    def test_preserved_incomplete_snapshot_fails_workflow(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = os.path.join(directory, "vedolo_holders.json")
+            Path(output).write_text("{}", encoding="utf-8")
+            with patch.object(update_data, "OUTPUT_JSON", output):
+                with self.assertRaises(SystemExit) as raised:
+                    update_data.preserve_existing_vedolo_snapshot("partial explorer result")
+
+        self.assertEqual(raised.exception.code, 1)
+
+
 class TestRpcEndpoints(unittest.TestCase):
     def test_shared_endpoint_source(self):
         # update_data must use the shared endpoint list (berachain publics

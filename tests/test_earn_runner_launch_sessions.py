@@ -80,6 +80,38 @@ class EarnRunnerLaunchSessionTest(unittest.TestCase):
                             proc.kill()
                             proc.wait(timeout=5)
 
+    def test_new_address_worker_uses_resumable_history_checkpoint(self):
+        with TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            address_file = root / "new-addresses.txt"
+            address_file.write_text(
+                "0x2222222222222222222222222222222222222222\n",
+                encoding="utf-8",
+            )
+            plan = {
+                "cycleId": "ethereum-f1-t100",
+                "cycleRoot": str(root / "cycle"),
+                "targetBlock": 100,
+                "newAddressTasks": [{
+                    "progressKey": "n1of1",
+                    "addressFile": str(address_file),
+                }],
+            }
+
+            with patch.object(incremental_runner, "_start_task", return_value=1234) as start_task:
+                incremental_runner._ensure_new_address_running(
+                    plan,
+                    "ethereum",
+                    history_dir=root / "history",
+                )
+
+            argv = start_task.call_args.args[0]
+            checkpoint_index = argv.index("--checkpoint-file")
+            self.assertEqual(
+                Path(argv[checkpoint_index + 1]).name,
+                "new-address-n1of1-history.json",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
