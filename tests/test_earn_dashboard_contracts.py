@@ -95,6 +95,12 @@ class EarnDashboardContractsTest(unittest.TestCase):
             self.assertIn('history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"', workflow)
             self.assertIn('git add -f "$history_path"', workflow)
             self.assertIn('done < "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"', workflow)
+            isolate_cache = 'git stash push --keep-index --include-untracked --message "${CHAIN}-canonical-runtime"'
+            sync_manifest = 'python3 scripts/sync_earn_subaccount_manifest.py --chain "$CHAIN"'
+            self.assertIn(isolate_cache, workflow)
+            self.assertIn(sync_manifest, workflow)
+            self.assertLess(workflow.find(isolate_cache), workflow.find(sync_manifest))
+            self.assertLess(workflow.find(isolate_cache), workflow.find("scripts/commit_with_fresh_earn_status.sh"))
 
     def test_verified_ledger_fetch_falls_back_to_address_prefix_shard(self):
         self.assertIn("VERIFIED_LEDGER_SHARD_BASE", self.source)
