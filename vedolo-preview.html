@@ -626,14 +626,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .flow-route-cell .flow-source-tag{justify-content:center;max-width:100%}
 .chart-card{min-height:340px}
 .expiry-card .card-body{padding-top:18px}
-.expiry-focus{display:block;margin:0 0 18px;padding:14px 16px;border:1px solid var(--line-1);border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,.036),rgba(255,255,255,.014));box-shadow:inset 0 1px 0 rgba(255,255,255,.035)}
-.expiry-focus-main{min-width:0}
-.expiry-focus-kicker{font-size:9.5px;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;color:var(--fg-4);margin-bottom:7px}
-.expiry-focus .v{font-family:var(--mono);font-size:22px;line-height:1;font-weight:700;color:var(--fg-1);letter-spacing:0;font-variant-numeric:tabular-nums}
-.expiry-focus .l{font-size:11.5px;color:var(--fg-3);line-height:1.35;margin-top:7px}
+.expiry-chart-shell{position:relative}
+.expiry-summary{position:absolute;top:8px;right:12px;z-index:2;display:flex;align-items:baseline;justify-content:flex-end;gap:8px;max-width:calc(100% - 88px);pointer-events:none;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.expiry-summary-kicker{font-size:9.5px;text-transform:uppercase;letter-spacing:0;font-weight:700;color:var(--fg-4)}
+.expiry-summary strong{font-size:17px;line-height:1;font-weight:700;letter-spacing:0;color:var(--fg-1)}
+.expiry-summary-label{font-size:10.5px;letter-spacing:0;color:var(--fg-3)}
 .expiry-chart{position:relative;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:stretch}
 .expiry-axis{height:285px;display:flex;flex-direction:column;justify-content:space-between;padding:17px 0 25px;text-align:right;font-family:var(--mono);font-size:10px;line-height:1;color:var(--fg-4);font-variant-numeric:tabular-nums}
-.expiry-card .expiry-bars{height:285px;gap:16px;padding:18px 12px 24px}
+.expiry-card .expiry-bars{height:285px;gap:16px;padding:58px 12px 24px}
 .expiry-card .expiry-bar{width:min(54px,62%)}
 .expiry-bars{height:250px;display:flex;align-items:end;gap:12px;padding:20px 4px 2px;border-left:1px solid var(--line-1);border-bottom:1px solid var(--line-1);position:relative;background:linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 50%,rgba(255,255,255,.026) calc(50% + 1px),transparent calc(50% + 2px) 100%)}
 .expiry-bar-wrap{flex:1;min-width:46px;height:100%;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:8px}
@@ -808,9 +808,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .duration-card #duration-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-columns:auto;overflow:visible}
   .locked-chart-svg{height:240px}
   .locked-chart-grid text,.locked-chart-x text{font-size:9px}
+  .expiry-summary{position:static;max-width:none;min-height:28px;padding:0 0 12px;justify-content:flex-end;flex-wrap:wrap;white-space:normal}
   .expiry-chart{display:block;overflow-x:auto;padding-bottom:2px}
   .expiry-axis{display:none}
-  .expiry-card .expiry-bars{min-width:520px}
+  .expiry-card .expiry-bars{min-width:520px;padding-top:18px}
   .expiry-bar-wrap{min-width:42px}
   .duration-row{grid-template-columns:64px minmax(0,1fr) 86px}
 }
@@ -1031,6 +1032,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   <section class="card chart-card expiry-card">
     <div class="card-head">
       <div class="card-title"><h2>Lock Expiry Timeline</h2><span class="count-badge" id="expiry-count">forward curve</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="expiry-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar expiry-toolbar">
       <div class="tb-left">
@@ -1038,16 +1040,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       </div>
     </div>
     <div class="card-body">
-      <div class="expiry-focus" id="expiry-focus">
-        <div class="expiry-focus-main">
-          <div class="expiry-focus-kicker" id="expiry-focus-title">All expiry buckets</div>
-          <div class="v" id="expiry-focus-value">--</div>
-          <div class="l" id="expiry-focus-label">Total DOLO scheduled across the visible expiry curve</div>
+      <div class="expiry-chart-shell">
+        <div class="expiry-summary" aria-live="polite">
+          <span class="expiry-summary-kicker">Total scheduled</span>
+          <strong id="expiry-summary-value">--</strong>
+          <span class="expiry-summary-label" id="expiry-summary-label">-- buckets</span>
         </div>
-      </div>
-      <div class="expiry-chart" id="expiry-chart">
-        <div class="expiry-axis" aria-hidden="true"><span id="expiry-axis-max">--</span><span id="expiry-axis-mid">--</span><span>0</span></div>
-        <div class="expiry-bars" id="expiry-bars"></div>
+        <div class="expiry-chart" id="expiry-chart">
+          <div class="expiry-axis" aria-hidden="true"><span id="expiry-axis-max">--</span><span id="expiry-axis-mid">--</span><span>0</span></div>
+          <div class="expiry-bars" id="expiry-bars"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -1354,6 +1356,7 @@ function syncVedoloTableMetadata(){
   setText("flows-meta", dataUpdatedLabel(state.flowsTimestamp));
   setText("claimable-meta", dataUpdatedLabel(state.holdersTimestamp));
   setText("duration-meta", dataUpdatedLabel(state.flowsTimestamp));
+  setText("expiry-meta", dataUpdatedLabel(state.expiry?.timestamp));
 }
 const periodCutoff = p => p === "all" ? 0 : Math.floor(Date.now()/1000) - Number(p)*86400;
 const copySvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
@@ -2343,16 +2346,10 @@ function renderExpiry(){
   const buckets = expiryView.buckets;
   const total = expiryView.total;
   const max = Math.max(1, ...buckets.map(b => num(b.dolo)));
-  const peakBucket = buckets.reduce((best,b) => num(b.dolo) > num(best?.dolo) ? b : best, buckets[0] || null);
   const bars = qs("#expiry-bars");
-  const chart = qs("#expiry-chart");
-  const focusTitle = qs("#expiry-focus-title");
-  const focusValue = qs("#expiry-focus-value");
-  const focusLabel = qs("#expiry-focus-label");
   const axisMax = qs("#expiry-axis-max");
   const axisMid = qs("#expiry-axis-mid");
   const countBadge = qs("#expiry-count");
-  const walletLabel = expiryView.walletCount === 1 ? shortAddr(expiryView.firstAddress) : `${fmtInt(expiryView.walletCount)} wallets`;
   if(countBadge) countBadge.textContent = expiryView.filtered ? `${fmtInt(expiryView.positionCount)} positions` : "forward curve";
   const segments = buckets.map((b,idx) => {
     const dolo = num(b.dolo);
@@ -2368,11 +2365,10 @@ function renderExpiry(){
       height: Math.max(2,peakShare)
     };
   });
+  setText("expiry-summary-value", fmtDolo(total));
+  setText("expiry-summary-label", `${fmtInt(segments.length)} ${segments.length === 1 ? "expiry bucket" : "expiry buckets"}`);
   if(!segments.length){
     bars.innerHTML = `<div class="loading-row">${expiryView.filtered ? "No wallet expiry data." : "No expiry data."}</div>`;
-    if(focusTitle) focusTitle.textContent = expiryView.filtered ? "No wallet matches" : "No expiry data";
-    if(focusValue) focusValue.textContent = "--";
-    if(focusLabel) focusLabel.textContent = expiryView.filtered ? "Try a full wallet address or clear the search." : "No expiry buckets";
     if(axisMax) axisMax.textContent = "--";
     if(axisMid) axisMid.textContent = "--";
     return;
@@ -2388,7 +2384,7 @@ function renderExpiry(){
   const buttons = [...bars.querySelectorAll(".expiry-bar")];
   let pinned = -1;
 
-  function setExpiryFocus(idx, target){
+  function setExpiryFocus(idx){
     const active = idx >= 0 ? segments[idx] : null;
     bars.classList.toggle("has-active", !!active);
     wraps.forEach((wrap,i) => {
@@ -2396,27 +2392,18 @@ function renderExpiry(){
       wrap.classList.toggle("dim", idx >= 0 && i !== idx);
     });
     buttons.forEach((btn,i) => btn.setAttribute("aria-pressed", String(i === pinned)));
-    if(active){
-      if(focusTitle) focusTitle.textContent = `${active.label} expiry`;
-      if(focusValue) focusValue.textContent = fmtDolo(active.dolo);
-      if(focusLabel) focusLabel.textContent = expiryView.filtered ? `${walletLabel} - selected bucket` : "Selected expiry bucket";
-      return;
-    }
-    if(focusTitle) focusTitle.textContent = expiryView.filtered ? "Wallet expiry buckets" : "All expiry buckets";
-    if(focusValue) focusValue.textContent = fmtDolo(total);
-    if(focusLabel) focusLabel.textContent = expiryView.filtered ? `${walletLabel} - ${fmtInt(expiryView.positionCount)} positions` : `${fmtInt(segments.length)} expiry buckets; largest bucket is ${peakBucket ? peakBucket.label : "--"}`;
   }
 
   buttons.forEach(btn => {
     const idx = Number(btn.dataset.expiryIdx);
-    btn.addEventListener("mouseenter", () => setExpiryFocus(idx, btn));
-    btn.addEventListener("mousemove", () => setExpiryFocus(idx, btn));
-    btn.addEventListener("focus", () => setExpiryFocus(idx, btn));
-    btn.addEventListener("mouseleave", () => setExpiryFocus(pinned, buttons[pinned]));
-    btn.addEventListener("blur", () => setExpiryFocus(pinned, buttons[pinned]));
+    btn.addEventListener("mouseenter", () => setExpiryFocus(idx));
+    btn.addEventListener("mousemove", () => setExpiryFocus(idx));
+    btn.addEventListener("focus", () => setExpiryFocus(idx));
+    btn.addEventListener("mouseleave", () => setExpiryFocus(pinned));
+    btn.addEventListener("blur", () => setExpiryFocus(pinned));
     btn.addEventListener("click", () => {
       pinned = pinned === idx ? -1 : idx;
-      setExpiryFocus(pinned, buttons[pinned]);
+      setExpiryFocus(pinned);
     });
   });
   setExpiryFocus(-1);
@@ -2865,7 +2852,7 @@ function emitQaReport(){
     const nftShareCard = qs("#nft-stack")?.closest(".card") || null;
     const expiryCard = qs(".expiry-card");
     const expiryBars = qs("#expiry-bars");
-    const expiryFocus = qs("#expiry-focus");
+    const expirySummary = qs(".expiry-summary");
     const expiryFirstBar = qs("#expiry-bars .expiry-bar");
     const expirySearchBox = qs(".expiry-card #q-expiry")?.closest(".search");
     const holderSearchBox = qs(".holders-card #q-holders")?.closest(".search");
@@ -2957,11 +2944,11 @@ function emitQaReport(){
       expiryBarsWidth: expiryBars ? Math.round(expiryBars.getBoundingClientRect().width) : 0,
       expiryBarsHeight: expiryBars ? Math.round(expiryBars.getBoundingClientRect().height) : 0,
       expiryCardIsFullWidth: !!(expiryCard && hero && expiryCard.getBoundingClientRect().width >= hero.getBoundingClientRect().width - 2),
-      expiryFocusExists: !!expiryFocus,
-      expiryFocusText: expiryFocus ? expiryFocus.textContent.trim().replace(/\s+/g," ") : "",
+      expirySummaryExists: !!expirySummary,
+      expirySummaryText: expirySummary ? expirySummary.textContent.trim().replace(/\s+/g," ") : "",
+      expirySummaryPosition: expirySummary ? getComputedStyle(expirySummary).position : "",
       expiryAxisLabels: qsa(".expiry-axis span").map(el => el.textContent.trim()),
       expiryLegendText: qs(".expiry-legend") ? qs(".expiry-legend").textContent.trim().replace(/\s+/g," ") : "",
-      expiryFocusStatCount: qsa(".expiry-focus-stat").length,
       expirySearchHasClear: !!qs(".expiry-card #q-expiry + .search-clear"),
       expirySearchWidth: expirySearchBox ? Math.round(expirySearchBox.getBoundingClientRect().width) : 0,
       expirySearchMatchesHolderWidth: !!(expirySearchBox && holderSearchBox && Math.round(expirySearchBox.getBoundingClientRect().width) === Math.round(holderSearchBox.getBoundingClientRect().width)),

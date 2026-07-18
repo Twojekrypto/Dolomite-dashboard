@@ -31,6 +31,24 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("expirySearchHasClear", self.html)
         self.assertIn("expirySearchMatchesHolderWidth", self.html)
 
+    def test_lock_expiry_uses_static_chart_summary_and_source_update_time(self):
+        section = re.search(
+            r'<section class="card chart-card expiry-card">(?P<body>.*?)</section>',
+            self.html,
+            re.S,
+        ).group("body")
+        self.assertIn('id="expiry-meta"', section)
+        self.assertIn('id="expiry-summary-value"', section)
+        self.assertIn('id="expiry-summary-label"', section)
+        self.assertNotIn('id="expiry-focus"', section)
+        self.assertIn('setText("expiry-meta", dataUpdatedLabel(state.expiry?.timestamp));', self.html)
+        self.assertIn('setText("expiry-summary-value", fmtDolo(total));', self.html)
+        self.assertIn('setText("expiry-summary-label",', self.html)
+        self.assertNotIn('focusValue.textContent', self.html)
+        self.assertIn('.expiry-summary{position:absolute;top:8px;right:12px;', self.html)
+        self.assertIn('.expiry-summary{position:static;', self.html)
+        self.assertIn('vedolo-expiry-summary-overlay-20260718', self.route)
+
     def test_vedolo_route_busts_preview_cache_for_expiry_search(self):
         self.assertIn("expiry-search-20260610", self.route)
 
