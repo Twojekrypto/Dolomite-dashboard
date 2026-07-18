@@ -230,10 +230,28 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
     def test_recent_early_exit_controls_use_red_interactions(self):
         self.assertIn('id="recent-early-exits-section"', self.html)
         self.assertIn('--recent-exit-accent:var(--down)', self.html)
+        self.assertIn('class="card-meta early-exits-meta"><span class="pulse pulse-down"', self.html)
+        self.assertIn('.pulse-down{background:var(--down);box-shadow:0 0 8px var(--down)}', self.html)
         self.assertIn('#recent-early-exits-section .search:focus-within', self.html)
         self.assertIn('#recent-early-exits-section #dd-exit-period .dd-btn.open', self.html)
         self.assertIn('#recent-early-exits-section #dd-exit-period .dd-opt.active .dd-opt-check', self.html)
         self.assertIn('vedolo-exit-red-controls-20260711', self.route)
+
+    def test_lock_duration_update_chip_precedes_metric_switcher(self):
+        duration_section = re.search(
+            r'<section class="card chart-card duration-card">(?P<body>.*?)</section>',
+            self.html,
+            re.S,
+        ).group("body")
+        self.assertIn('class="duration-toolbar-update"', duration_section)
+        self.assertIn('id="duration-meta"', duration_section)
+        self.assertIn('class="seg vedolo-pill-segment" id="duration-mode"', duration_section)
+        self.assertLess(
+            duration_section.index('class="duration-toolbar-update"'),
+            duration_section.index('id="duration-mode"'),
+        )
+        self.assertIn('.duration-toolbar-update{', self.html)
+        self.assertIn('vedolo-duration-update-chip-20260718', self.route)
 
     def test_vedolo_tables_show_source_specific_data_update_metadata(self):
         for meta_id in (

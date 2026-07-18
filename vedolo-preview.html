@@ -86,6 +86,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
 .card-body{padding:20px 24px 24px}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold);display:inline-block;flex-shrink:0}
+.pulse-down{background:var(--down);box-shadow:0 0 8px var(--down)}
 .locked-chart-card{overflow:visible}
 .locked-chart-heading{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px 18px;border-bottom:1px solid var(--line-1);gap:12px;flex-wrap:wrap}
 .locked-chart-meta{margin-left:auto}
@@ -133,6 +134,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:transparent;border-bottom:1px solid var(--line-1);flex-wrap:wrap}
 .tb-left,.tb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .tb-right{margin-left:auto}
+.duration-toolbar-update{
+  display:inline-flex;align-items:center;gap:7px;min-height:30px;padding:0 10px;border:1px solid rgba(201,162,39,.16);border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(201,162,39,.035));box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+  color:var(--fg-3);font-family:var(--mono);font-size:10px;letter-spacing:.2px;white-space:nowrap
+}
+.duration-toolbar-update .pulse{width:5px;height:5px;box-shadow:0 0 7px rgba(201,162,39,.58)}
 .search{position:relative;display:flex;align-items:center;width:300px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;height:36px;padding:0 14px 0 36px;transition:border-color .2s var(--ease),box-shadow .2s var(--ease)}
 .search:focus-within{border-color:var(--gold-line);box-shadow:0 0 0 3px rgba(201,162,39,.06)}
 .search svg{position:absolute;left:12px;width:14px;height:14px;color:var(--fg-3)}
@@ -796,6 +803,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .locked-chart-controls .locked-chart-mode{width:100%}
   .locked-chart-mode.vedolo-pill-segment{grid-template-columns:repeat(var(--vedolo-segment-count,2),minmax(0,1fr));grid-auto-columns:auto}
   .vedolo-pill-segment button,.vedolo-pill-segment .locked-chart-vote-help{width:100%;min-width:0}
+  .duration-card .tb-left{align-items:stretch}
+  .duration-toolbar-update{width:100%;justify-content:center}
+  .duration-card #duration-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-columns:auto;overflow:visible}
   .locked-chart-svg{height:240px}
   .locked-chart-grid text,.locked-chart-x text{font-size:9px}
   .expiry-chart{display:block;overflow-x:auto;padding-bottom:2px}
@@ -973,7 +983,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="exit-table-title">
         <div class="exit-title-row"><h3>Recent Early Exits</h3><span class="count-badge" id="exits-count">--</span></div>
       </div>
-      <div class="card-meta"><span class="pulse"></span><span id="recent-exits-meta">Loading data update...</span></div>
+      <div class="card-meta early-exits-meta"><span class="pulse pulse-down"></span><span id="recent-exits-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar">
       <div class="tb-left">
@@ -1164,10 +1174,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   <section class="card chart-card duration-card">
     <div class="card-head">
       <div class="card-title"><h2>Lock Duration Distribution</h2><span class="count-badge" id="duration-count">--</span></div>
-      <div class="card-meta"><span class="pulse"></span><span id="duration-meta">Loading data update...</span></div>
     </div>
     <div class="toolbar">
-      <div class="tb-left"><div class="seg vedolo-pill-segment" id="duration-mode"><button class="active" data-mode="dolo">DOLO</button><button data-mode="count">Count</button></div></div>
+      <div class="tb-left"><div class="duration-toolbar-update"><span class="pulse"></span><span id="duration-meta">Loading data update...</span></div><div class="seg vedolo-pill-segment" id="duration-mode"><button class="active" data-mode="dolo">DOLO</button><button data-mode="count">Count</button></div></div>
     </div>
     <div class="card-body">
       <div class="duration-shell" id="duration-chart">
