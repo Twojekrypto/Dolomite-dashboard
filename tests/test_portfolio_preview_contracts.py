@@ -199,7 +199,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('window.CountUpMetric', self.html)
         self.assertIn('class="pf-sum-total-number" data-count-value="0"', self.html)
         self.assertIn('class="pf-count-number" data-count-value="0"', self.html)
-        self.assertIn('.pf-sum-headline{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;', self.html)
+        self.assertIn('.pf-sum-headline{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;', self.html)
         self.assertIn('.pf-sum-headline{align-items:flex-start;gap:10px}', self.html)
         self.assertIn('display:flex;align-items:baseline;gap:8px;', self.html)
         self.assertIn('pf-sum-usd .lbl', self.html)

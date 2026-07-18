@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -6,6 +7,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class HeroMetricChipContractsTest(unittest.TestCase):
+    @staticmethod
+    def css_rule(source, selector):
+        match = re.search(re.escape(selector.rstrip("{")) + r"\s*\{([^}]*)\}", source)
+        if not match:
+            return ""
+        return re.sub(r"\s+", "", match.group(1))
+
     def test_primary_dashboard_cards_share_the_gold_value_chip_contract(self):
         pages = {
             "dolo-preview.html": 'class="hero-chg hero-value-chip up"',
@@ -30,6 +38,42 @@ class HeroMetricChipContractsTest(unittest.TestCase):
         ):
             with self.subTest(page=filename):
                 self.assertIn(selector, (ROOT / filename).read_text(encoding="utf-8"))
+
+    def test_primary_dashboard_cards_share_odolo_hero_value_typography(self):
+        expected_value_type = "font-family:var(--mono);font-size:clamp(44px,6vw,62px);font-weight:700;letter-spacing:-2.5px"
+        for filename, selector in (
+            ("dolo-preview.html", ".hero-price{"),
+            ("odolo-preview.html", ".hero-price{"),
+            ("tvl-preview.html", ".hero-value{"),
+            ("rewards-preview.html", ".hero-price{"),
+            ("revenue-preview.html", ".hero-value{"),
+            ("portfolio-preview.html", ".pf-sum-total-val{"),
+        ):
+            with self.subTest(page=filename):
+                source = (ROOT / filename).read_text(encoding="utf-8")
+                self.assertIn(expected_value_type, self.css_rule(source, selector))
+
+    def test_primary_dashboard_cards_share_odolo_value_chip_typography(self):
+        expected_chip_type = "font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:.2px"
+        expected_label_type = "font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.75;margin-left:2px"
+        selectors = {
+            "dolo-preview.html": ".hero-chg{",
+            "odolo-preview.html": ".hero-chg{",
+            "tvl-preview.html": ".hero-chg{",
+            "rewards-preview.html": ".hero-chg{",
+            "revenue-preview.html": ".hero-chg{",
+            "portfolio-preview.html": ".pf-sum-usd{",
+        }
+        for filename, selector in selectors.items():
+            with self.subTest(page=filename):
+                source = (ROOT / filename).read_text(encoding="utf-8")
+                self.assertIn(expected_chip_type, self.css_rule(source, selector))
+                label_selector = ".pf-sum-usd .lbl{" if filename == "portfolio-preview.html" else ".hero-chg .lbl{"
+                self.assertIn(expected_label_type, self.css_rule(source, label_selector))
+
+    def test_portfolio_unit_matches_the_odolo_main_value_scale(self):
+        source = (ROOT / "portfolio-preview.html").read_text(encoding="utf-8")
+        self.assertIn(".pf-sum-total-val .unit{font-size:.42em;font-weight:500;color:var(--fg-3);letter-spacing:-.5px;margin-left:8px", source)
 
     def test_rewards_and_revenue_use_the_shared_count_up_metric(self):
         for filename, setter in (
@@ -65,7 +109,7 @@ class HeroMetricChipContractsTest(unittest.TestCase):
             "revenue/index.html",
         ):
             with self.subTest(route=filename):
-                self.assertIn("hero-value-chip-20260718", (ROOT / filename).read_text(encoding="utf-8"))
+                self.assertIn("hero-value-chip-20260718-typography", (ROOT / filename).read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
