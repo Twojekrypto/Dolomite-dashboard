@@ -738,7 +738,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("totalRevenueWindowUSD", html)
         self.assertIn("n(row.revenueUSD) + n(row.odoloUsdcUSD)", html)
         self.assertIn('id="revenueAllTime"', html)
-        self.assertIn('setText("revenueAllTime", usd(totalRevenueWindowUSD(0)));', html)
+        self.assertIn('setMetricText("revenueAllTime", usd(totalRevenueWindowUSD(0)));', html)
         self.assertNotIn("30D Total Revenue", html)
         self.assertNotIn('id="revenue30d"', html)
         self.assertNotIn('setText("revenue30d"', html)
@@ -747,7 +747,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers"', route_html)
+        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
