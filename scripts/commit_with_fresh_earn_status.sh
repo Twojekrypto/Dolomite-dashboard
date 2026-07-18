@@ -75,6 +75,22 @@ if [ "$resolved_manifest_staged" = "true" ] && [ -z "$resolved_chains" ]; then
   resolved_sync_all=true
 fi
 
+rebase_address_dir="$(mktemp -d "${TMPDIR:-/tmp}/earn-rebase-addresses.XXXXXX")"
+trap 'rm -rf "$rebase_address_dir"' EXIT
+while IFS= read -r ledger_path; do
+  case "$ledger_path" in
+    data/earn-verified-ledger/*/0x*.json)
+      chain="$(printf '%s' "$ledger_path" | cut -d/ -f3 | tr '[:upper:]' '[:lower:]')"
+      address="$(basename "$ledger_path" .json | tr '[:upper:]' '[:lower:]')"
+      printf '%s\n' "$address" >> "$rebase_address_dir/${chain}.txt"
+      ;;
+  esac
+done < <(git diff --cached --name-only)
+for address_file in "$rebase_address_dir"/*.txt; do
+  [ -f "$address_file" ] || continue
+  sort -u -o "$address_file" "$address_file"
+done
+
 git commit -m "$commit_message"
 
 # Any tracked files left modified-but-unstaged by generation steps would make
@@ -88,7 +104,37 @@ fi
 
 pushed=false
 for i in $(seq 1 "$attempts"); do
+  snapshot_manifest_before_pull="$(git rev-parse HEAD:data/earn-snapshots/manifest.json 2>/dev/null || true)"
   if git pull --rebase -X theirs "$git_remote" "$git_branch"; then
+    snapshot_manifest_after_pull="$(git rev-parse HEAD:data/earn-snapshots/manifest.json 2>/dev/null || true)"
+    if [ -n "$snapshot_manifest_before_pull" ] && [ "$snapshot_manifest_before_pull" != "$snapshot_manifest_after_pull" ]; then
+      echo "Snapshot manifest changed during rebase; rebuilding affected EARN ledgers."
+      for address_file in "$rebase_address_dir"/*.txt; do
+        [ -s "$address_file" ] || continue
+        chain="$(basename "$address_file" .txt)"
+        python3 build_earn_resolved_interest_ledger.py --chain "$chain" --address-file "$address_file"
+        python3 build_earn_verified_ledger.py --chain "$chain" --address-file "$address_file"
+        python3 build_earn_verified_ledger_shards.py --chain "$chain" --address-file "$address_file"
+        while IFS= read -r address; do
+          [ -n "$address" ] || continue
+          ledger_path="data/earn-verified-ledger/${chain}/${address}.json"
+          resolved_path="data/earn-resolved-interest-ledger/${chain}/${address}.json"
+          if [ -f "$ledger_path" ] || git ls-files --error-unmatch "$ledger_path" >/dev/null 2>&1; then
+            git add -f -- "$ledger_path"
+          fi
+          if [ -f "$resolved_path" ] || git ls-files --error-unmatch "$resolved_path" >/dev/null 2>&1; then
+            git add -f -- "$resolved_path"
+          fi
+        done < "$address_file"
+      done
+      [ -f data/earn-verified-ledger/manifest.json ] && git add -f data/earn-verified-ledger/manifest.json
+      [ -d data/earn-verified-ledger-shards ] && git add -f data/earn-verified-ledger-shards
+      [ -f data/earn-resolved-interest-ledger/manifest.json ] && git add -f data/earn-resolved-interest-ledger/manifest.json
+      if [ -f build_earn_representative_audit.py ]; then
+        python3 build_earn_representative_audit.py --check
+        [ -f data/earn-quality/representative-audit.json ] && git add data/earn-quality/representative-audit.json
+      fi
+    fi
     if [ -n "$ledger_chains" ] || [ "$ledger_sync_all" = "true" ]; then
       sync_args=(python3 scripts/sync_earn_verified_manifest.py --base-ref "$git_remote/$git_branch")
       if [ "$ledger_sync_all" = "true" ]; then
