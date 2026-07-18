@@ -1147,6 +1147,15 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/ethereum", workflow)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json data/earn-verified-ledger/ethereum", workflow)
 
+    def test_ethereum_canonical_workflow_tolerates_an_empty_resolved_ledger_directory(self):
+        workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("git add -f data/earn-resolved-interest-ledger/manifest.json", workflow)
+        self.assertIn('if [ -d data/earn-resolved-interest-ledger/ethereum ]; then', workflow)
+        self.assertNotIn(
+            "git add -f data/earn-resolved-interest-ledger/manifest.json data/earn-resolved-interest-ledger/ethereum",
+            workflow,
+        )
+
     def test_snapshot_workflow_skips_archived_verified_ledger_caches(self):
         workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Build active-chain verified ledger caches", workflow)
