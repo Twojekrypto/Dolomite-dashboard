@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
 <script defer src="shared-hover-tooltips.js?v=20260507u"></script>
+<script src="count-up.js?v=20260427-countup"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <style>
 /* ==========================================================================
@@ -77,10 +78,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .hero-meta{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
 .hero-live{display:inline-flex;align-items:center;gap:6px;color:var(--fg-3);font-family:var(--mono);font-size:11px;white-space:nowrap}
 .hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
-.hero-price-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.hero-price-row{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .hero-price{font-family:var(--mono);font-size:56px;font-weight:700;color:var(--fg-1);font-variant-numeric:tabular-nums;letter-spacing:0;line-height:1}
 .hero-chg{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;
   font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:0;color:var(--up);background:rgba(138,163,123,.10);border:1px solid rgba(138,163,123,.25)}
+.hero-chg.hero-value-chip{color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line)}
 .hero-chg svg{width:13px;height:13px}
 .hero-chg .lbl{font-size:10px;letter-spacing:0;text-transform:uppercase;opacity:.7;margin-left:2px}
 .hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding-top:22px;border-top:1px solid var(--line-1);position:relative;z-index:1}
@@ -262,9 +264,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
     <div class="hero-price-row">
       <div class="hero-price" id="rwDailyUsd">—</div>
-      <div class="hero-chg">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-        live<span class="lbl">daily rewards</span>
+      <div class="hero-chg hero-value-chip">
+        <span>Live</span><span class="lbl">daily rewards</span>
       </div>
     </div>
     <div class="hero-stats">
@@ -408,6 +409,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     if (abs >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
     if (abs >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
     return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  }
+
+  function setMetricText(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (window.CountUpMetric) window.CountUpMetric.text(el, value);
+    else el.textContent = value;
   }
 
   function fmtTokenAmount(value) {
@@ -655,13 +663,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     const chains = new Set(live.map(program => program.chain));
     const aprPrograms = live.filter(program => Number.isFinite(Number(program.apr)) && Number(program.tvlUsd) >= 10000);
     const best = aprPrograms.sort((a, b) => Number(b.apr) - Number(a.apr))[0];
-    document.getElementById('rwLiveCount').textContent = live.length || '—';
+    setMetricText('rwLiveCount', live.length || '—');
     document.getElementById('rwProviderCount').textContent = providers.size ? `${providers.size} providers (${Array.from(providers).join(', ')})` : 'across all providers';
-    document.getElementById('rwDailyUsd').textContent = fmtUsd(daily);
-    document.getElementById('rwRewardContext').textContent = fmtUsd(daily);
-    document.getElementById('rwTopApr').textContent = best ? fmtSupplyRate(best.apr) : '—';
+    setMetricText('rwDailyUsd', fmtUsd(daily));
+    setMetricText('rwRewardContext', fmtUsd(daily));
+    setMetricText('rwTopApr', best ? fmtSupplyRate(best.apr) : '—');
     document.getElementById('rwTopAprSub').textContent = best ? `${best.marketTokens?.[0] || ''} · ${CHAIN_LABELS[best.chain] || best.chain}` : 'best live program';
-    document.getElementById('rwChainCount').textContent = chains.size || '—';
+    setMetricText('rwChainCount', chains.size || '—');
     const asof = document.getElementById('rwAsOf');
     if (asof && generatedAt) {
       try {

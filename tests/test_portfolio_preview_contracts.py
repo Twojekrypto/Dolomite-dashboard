@@ -199,10 +199,11 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('window.CountUpMetric', self.html)
         self.assertIn('class="pf-sum-total-number" data-count-value="0"', self.html)
         self.assertIn('class="pf-count-number" data-count-value="0"', self.html)
-        self.assertIn('.pf-sum-headline{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;', self.html)
+        self.assertIn('.pf-sum-headline{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;', self.html)
         self.assertIn('.pf-sum-headline{align-items:flex-start;gap:10px}', self.html)
         self.assertIn('display:flex;align-items:baseline;gap:8px;', self.html)
-        self.assertNotIn('pf-sum-usd .lbl', self.html)
+        self.assertIn('pf-sum-usd .lbl', self.html)
+        self.assertIn('<span class="lbl">wallet value</span>', self.html)
 
     def test_deposited_assets_reuses_asset_identity_and_combines_compact_amount_value(self):
         fetch_positions = self.html.split("async function fetchChainPositions(chain, addr)", 1)[1].split("// DOLO/oDOLO wallet balances", 1)[0]
