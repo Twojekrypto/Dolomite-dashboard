@@ -34,22 +34,30 @@ CHAINS = {
 RETIRED_CHAINS = {"botanix", "polygonzkevm"}
 DEFAULT_CHAINS = [chain for chain in CHAINS if chain not in RETIRED_CHAINS]
 
+SNAPSHOT_BLOCK_QUERY = """
+query SnapshotBlock {
+  _meta { block { number } }
+}
+"""
+
 INTEREST_INDEXES_QUERY = """
-query InterestIndexes {
-  interestIndexes(first: 1000) {
+query InterestIndexes($block: Int!) {
+  interestIndexes(first: 1000, block: { number: $block }) {
     id
     supplyIndex
+    borrowIndex
   }
 }
 """
 
 MARGIN_ACCOUNTS_QUERY = """
-query MarginAccounts($first: Int!, $lastId: ID!) {
+query MarginAccounts($first: Int!, $lastId: ID!, $block: Int!) {
   marginAccounts(
     first: $first
     orderBy: id
     orderDirection: asc
     where: { id_gt: $lastId }
+    block: { number: $block }
   ) {
     id
     effectiveUser { id }
@@ -105,6 +113,12 @@ def _decimal_to_int(value, decimals):
     return -result if negative else result
 
 
+def _par_to_wei_round_half_up(par, index):
+    product = int(par) * int(index)
+    quotient, remainder = divmod(product, INDEX_SCALE)
+    return quotient + (1 if remainder * 2 >= INDEX_SCALE else 0)
+
+
 def _graphql_query(endpoint, query, variables=None, timeout=60, retries=3):
     payload = json.dumps({
         "query": query,
@@ -138,20 +152,33 @@ def _graphql_query(endpoint, query, variables=None, timeout=60, retries=3):
     raise RuntimeError(f"GraphQL request failed for {endpoint}: {last_error}")
 
 
-def _fetch_interest_indexes(endpoint):
-    data = _graphql_query(endpoint, INTEREST_INDEXES_QUERY)
+def _fetch_snapshot_block(endpoint):
+    data = _graphql_query(endpoint, SNAPSHOT_BLOCK_QUERY)
+    block_number = int((((data.get("_meta") or {}).get("block") or {}).get("number") or 0))
+    if block_number <= 0:
+        raise RuntimeError(f"Subgraph did not return a valid snapshot block for {endpoint}")
+    return block_number
+
+
+def _fetch_interest_indexes(endpoint, block_number):
+    data = _graphql_query(endpoint, INTEREST_INDEXES_QUERY, {"block": int(block_number)})
     out = {}
     for item in data.get("interestIndexes") or []:
         token_addr = str(item.get("id") or "").lower()
         if not token_addr:
             continue
-        out[token_addr] = _decimal_to_int(item.get("supplyIndex") or "1", 18)
+        out[token_addr] = {
+            "supplyIndex": _decimal_to_int(item.get("supplyIndex") or "1", 18),
+            "borrowIndex": _decimal_to_int(item.get("borrowIndex") or "1", 18),
+        }
     return out
 
 
 def _aggregate_chain_snapshot(chain, endpoint, page_size):
-    indexes = _fetch_interest_indexes(endpoint)
+    block_number = _fetch_snapshot_block(endpoint)
+    indexes = _fetch_interest_indexes(endpoint, block_number)
     snapshots = {}
+    market_indexes = {}
     total_accounts = 0
     page = 0
     last_id = ""
@@ -160,6 +187,7 @@ def _aggregate_chain_snapshot(chain, endpoint, page_size):
         data = _graphql_query(endpoint, MARGIN_ACCOUNTS_QUERY, {
             "first": int(page_size),
             "lastId": last_id,
+            "block": block_number,
         })
         accounts = data.get("marginAccounts") or []
         if not accounts:
@@ -184,7 +212,7 @@ def _aggregate_chain_snapshot(chain, endpoint, page_size):
                 token_addr = str(token.get("id") or "").strip().lower()
                 market_id = str(token.get("marketId") or "").strip()
                 symbol = str(token.get("symbol") or "UNK")
-                decimals = int(token.get("decimals") or 18)
+                decimals = int(token.get("decimals") if token.get("decimals") is not None else 18)
                 if not token_addr or not market_id:
                     continue
 
@@ -192,8 +220,19 @@ def _aggregate_chain_snapshot(chain, endpoint, page_size):
                 if par <= 0:
                     continue
 
-                supply_index = indexes.get(token_addr, INDEX_SCALE)
-                wei = (par * supply_index) // INDEX_SCALE
+                strict_index_meta = indexes.get(token_addr)
+                index_meta = strict_index_meta or {
+                    "supplyIndex": INDEX_SCALE,
+                    "borrowIndex": INDEX_SCALE,
+                }
+                supply_index = int(index_meta["supplyIndex"])
+                wei = _par_to_wei_round_half_up(par, supply_index)
+                if strict_index_meta:
+                    market_indexes[market_id] = {
+                        "token": token_addr,
+                        "supplyIndex": str(supply_index),
+                        "borrowIndex": str(int(index_meta["borrowIndex"])),
+                    }
 
                 market_entry = markets.get(market_id)
                 if market_entry is None:
@@ -214,14 +253,21 @@ def _aggregate_chain_snapshot(chain, endpoint, page_size):
 
     populated = {addr: data for addr, data in snapshots.items() if data.get("markets")}
     print(f"[{chain}] aggregated {len(populated)} addresses with supply positions")
-    return populated
+    return {
+        "snapshots": populated,
+        "metadata": {
+            "blockNumber": block_number,
+            "interestIndexes": market_indexes,
+        },
+    }
 
 
-def _merge_snapshot_payload(existing_payload, date_str, timestamp, chain_snapshots):
+def _merge_snapshot_payload(existing_payload, date_str, timestamp, chain_snapshots, chain_metadata):
     merged = {
         "date": date_str,
         "timestamp": timestamp,
         "snapshots": {},
+        "chainMetadata": {},
     }
 
     existing_snapshots = {}
@@ -234,6 +280,13 @@ def _merge_snapshot_payload(existing_payload, date_str, timestamp, chain_snapsho
         if chain not in chain_snapshots
     }
     merged["snapshots"].update(chain_snapshots)
+    existing_metadata = existing_payload.get("chainMetadata") or {} if isinstance(existing_payload, dict) else {}
+    merged["chainMetadata"] = {
+        str(chain): value
+        for chain, value in existing_metadata.items()
+        if chain not in chain_metadata
+    }
+    merged["chainMetadata"].update(chain_metadata)
     return merged
 
 
@@ -276,14 +329,17 @@ def main():
     chains = args.chain or (list(CHAINS.keys()) if args.include_retired else list(DEFAULT_CHAINS))
 
     chain_snapshots = {}
+    chain_metadata = {}
     for chain in chains:
         endpoint = CHAINS[chain]
         print(f"[{chain}] scanning {endpoint}")
-        chain_snapshots[chain] = _aggregate_chain_snapshot(chain, endpoint, max(1, args.page_size))
+        aggregate = _aggregate_chain_snapshot(chain, endpoint, max(1, args.page_size))
+        chain_snapshots[chain] = aggregate["snapshots"]
+        chain_metadata[chain] = aggregate["metadata"]
 
     snapshot_path = SNAPSHOT_DIR / f"{date_str}.json"
     existing_payload = _read_json(snapshot_path) if snapshot_path.exists() else None
-    payload = _merge_snapshot_payload(existing_payload, date_str, timestamp, chain_snapshots)
+    payload = _merge_snapshot_payload(existing_payload, date_str, timestamp, chain_snapshots, chain_metadata)
     _write_json(snapshot_path, payload)
     _update_manifest(SNAPSHOT_DIR / "manifest.json", date_str, chain_snapshots.keys())
 

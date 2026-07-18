@@ -82,7 +82,15 @@ def _is_integer_text(value):
     return True
 
 
-def _validate_resolved_interest_ledger(payload, *, chain, address, latest_date, canonical_history):
+def _validate_resolved_interest_ledger(
+    payload,
+    *,
+    chain,
+    address,
+    latest_date,
+    canonical_history,
+    snapshot_comparison_block=None,
+):
     """Return a trusted static replay artifact or None.
 
     The public ledger may only carry an exact replay result pinned to the same
@@ -106,7 +114,9 @@ def _validate_resolved_interest_ledger(payload, *, chain, address, latest_date, 
 
     comparison_block = _parse_int(payload.get("comparisonBlock"), 0)
     canonical_block = _parse_int((canonical_history or {}).get("lastScannedBlock"), 0)
-    if comparison_block <= 0 or comparison_block != canonical_block:
+    if comparison_block <= 0 or canonical_block < comparison_block:
+        return None
+    if snapshot_comparison_block is not None and comparison_block != _parse_int(snapshot_comparison_block, 0):
         return None
 
     markets = payload.get("markets")
@@ -173,12 +183,20 @@ def _load_resolved_interest_ledger(chain, address, latest_date, canonical_histor
         payload = _read_json(path)
     except (OSError, json.JSONDecodeError):
         return None
+    snapshot_payload = _read_json(SNAPSHOT_DIR / f"{latest_date}.json")
+    snapshot_comparison_block = _parse_int(
+        ((((snapshot_payload.get("chainMetadata") or {}).get(str(chain).lower()) or {}).get("blockNumber"))),
+        0,
+    )
+    if snapshot_comparison_block <= 0:
+        return None
     return _validate_resolved_interest_ledger(
         payload,
         chain=chain,
         address=address,
         latest_date=latest_date,
         canonical_history=canonical_history,
+        snapshot_comparison_block=snapshot_comparison_block,
     )
 
 

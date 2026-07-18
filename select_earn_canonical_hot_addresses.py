@@ -85,6 +85,17 @@ def _score_snapshot_wallets(chain: str, scores: Dict[str, int]) -> None:
         _add_score(scores, address, 2_000_000 + multi_market_bonus + (market_count * 100_000) + abs_par_weight)
 
 
+def _active_snapshot_wallets(chain: str) -> set[str]:
+    snapshots = _latest_snapshot_payload(chain)
+    return {
+        str(raw_address).lower()
+        for raw_address, row in snapshots.items()
+        if isinstance(row, dict)
+        and isinstance(row.get("markets"), dict)
+        and row.get("markets")
+    }
+
+
 def _score_netflow_wallets(chain: str, scores: Dict[str, int]) -> None:
     payload = _read_json(NETFLOW_DIR / f"{chain}.json", {})
     netflows = (payload.get("netflows") or {}) if isinstance(payload, dict) else {}
@@ -176,6 +187,7 @@ def build_selection(
     scores: Dict[str, int] = {}
     _score_snapshot_wallets(chain, scores)
     _score_netflow_wallets(chain, scores)
+    active_snapshot = _active_snapshot_wallets(chain) & known
 
     priority = _unique_preserve_order(
         address
@@ -215,13 +227,28 @@ def build_selection(
         missing_history,
         key=lambda address: (-scores.get(address, 0), address),
     )
-    selected = _unique_preserve_order([
-        *priority,
-        *missing_history,
-        *stale_history,
-        *ranked_addresses,
-        *(sorted(existing_history) if existing_history_only else []),
-    ])
+    active_missing_history = [address for address in missing_history if address in active_snapshot]
+    cold_missing_history = [address for address in missing_history if address not in active_snapshot]
+    active_stale_history = [address for address in stale_history if address in active_snapshot]
+    cold_stale_history = [address for address in stale_history if address not in active_snapshot]
+    if coverage_backfill:
+        selection_order = [
+            *priority,
+            *active_missing_history,
+            *active_stale_history,
+            *cold_missing_history,
+            *cold_stale_history,
+            *ranked_addresses,
+        ]
+    else:
+        selection_order = [
+            *priority,
+            *missing_history,
+            *stale_history,
+            *ranked_addresses,
+            *(sorted(existing_history) if existing_history_only else []),
+        ]
+    selected = _unique_preserve_order(selection_order)
     if existing_history_only:
         selected = [address for address in selected if address in existing_history]
     if limit > 0:
@@ -237,8 +264,17 @@ def build_selection(
         "scoredAddressCount": len(scores),
         "priorityAddressCount": len(priority),
         "preferStaleHistory": bool(prefer_stale_history),
-        "selectionPolicy": "missing-then-oldest-watermark" if prefer_stale_history else "score-ranked",
+        "selectionPolicy": (
+            "active-first-then-cold-watermark"
+            if coverage_backfill
+            else ("missing-then-oldest-watermark" if prefer_stale_history else "score-ranked")
+        ),
         "coverageTargetBlock": coverage_target or None,
+        "activeSnapshotAddressCount": len(active_snapshot),
+        "activeMissingHistoryAddressCount": len(active_missing_history),
+        "activeStaleHistoryAddressCount": len(active_stale_history),
+        "coldMissingHistoryAddressCount": len(cold_missing_history),
+        "coldStaleHistoryAddressCount": len(cold_stale_history),
         "staleHistoryAddressCount": len(stale_history),
         "missingHistoryAddressCount": len(missing_history),
         "selectedAddressCount": len(selected),

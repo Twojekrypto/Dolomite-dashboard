@@ -10025,18 +10025,31 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
 
                 // Start exact upstream reads early so later verification stages can reuse the
                 // same in-flight request instead of waiting to begin after balances render.
+                const manifestPromise = earn_loadManifest();
+                const currentAccountsPromise = earn_fetchCurrentAccountsFromSubgraph(addr);
+                const canonicalHistoryPromise = earn_fetchSubaccountHistoryForAddress(chainId, addr);
+                const verifiedLedgerPromise = manifestPromise
+                    .catch(() => null)
+                    .then(() => earn_fetchVerifiedLedgerForAddress(chainId, addr));
+                const marketRatesPromise = earn_fetchMarketRates(chainId);
                 Promise.allSettled([
-                    earn_loadManifest(),
-                    earn_fetchCurrentAccountsFromSubgraph(addr),
-                    earn_fetchSubaccountHistoryForAddress(chainId, addr),
-                    earn_fetchVerifiedLedgerForAddress(chainId, addr),
-                    earn_fetchMarketRates(chainId),
+                    manifestPromise,
+                    currentAccountsPromise,
+                    canonicalHistoryPromise,
+                    verifiedLedgerPromise,
+                    marketRatesPromise,
                 ]);
 
-                const replayBlockTagPromise = Promise.all([
+                const publishedResolvedLedgerPromise = verifiedLedgerPromise.then(verifiedLedger => {
+                    if (!isCurrentLookup()) return null;
+                    earn_applyPublishedResolvedInterestLedger(verifiedLedger);
+                    return verifiedLedger;
+                });
+
+                const replayBlockTagPromise = publishedResolvedLedgerPromise.then(() => Promise.all([
                     earn_rpcRequest('eth_blockNumber', [], 3),
-                    earn_fetchSubaccountHistoryForAddress(chainId, addr).catch(() => null),
-                ]).then(([headBlockTag, canonicalHistory]) => {
+                    canonicalHistoryPromise.catch(() => null),
+                ])).then(([headBlockTag, canonicalHistory]) => {
                     let preferredBlockTag = headBlockTag;
                     const headBlock = earn_parseBlockNumberLike(headBlockTag);
                     const historyBlock = earn_parseBlockNumberLike(canonicalHistory && canonicalHistory.lastScannedBlock);
@@ -10109,8 +10122,8 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
 
                 let balances;
                 try {
-                    const replayBlockTag = await replayBlockTagPromise;
-                    balances = await earn_fetchActiveSupplyBalances(addr, { blockTag: replayBlockTag });
+                    await publishedResolvedLedgerPromise;
+                    balances = await earn_fetchActiveSupplyBalances(addr, { blockTag: 'latest' });
                     if (!isCurrentLookup()) return;
                     earn_markLookupProfile(lookupProfile, 'balances');
                     earn_setLookupProfileExtra(lookupProfile, 'active balances', balances.length);

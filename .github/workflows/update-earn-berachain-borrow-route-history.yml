@@ -182,6 +182,9 @@ jobs:
             echo "No borrow-route wallets to publish"
             exit 0
           fi
+          python3 build_earn_resolved_interest_ledger.py \
+            --chain "$CHAIN" \
+            --address-file "/tmp/earn-${CHAIN}-borrow-route-addresses.txt"
           python3 build_earn_verified_ledger.py \
             --chain "$CHAIN" \
             --address-file "/tmp/earn-${CHAIN}-borrow-route-addresses.txt"
@@ -212,13 +215,18 @@ jobs:
             exit 0
           fi
           git add -f data/earn-subaccount-history/manifest.json
+          git add -f data/earn-resolved-interest-ledger/manifest.json
           git add -f data/earn-verified-ledger/manifest.json
           while IFS= read -r address; do
             [ -n "$address" ] || continue
             history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"
             ledger_path="data/earn-verified-ledger/${CHAIN}/${address}.json"
+            resolved_path="data/earn-resolved-interest-ledger/${CHAIN}/${address}.json"
             [ -f "$history_path" ] && git add -f "$history_path"
             [ -f "$ledger_path" ] && git add -f "$ledger_path"
+            if [ -f "$resolved_path" ] || git ls-files --error-unmatch "$resolved_path" >/dev/null 2>&1; then
+              git add -f -- "$resolved_path"
+            fi
           done < "/tmp/earn-${CHAIN}-borrow-route-addresses.txt"
           if git diff --staged --quiet; then
             echo "No borrow-route history changes to commit"

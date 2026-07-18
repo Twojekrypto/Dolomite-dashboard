@@ -59,7 +59,7 @@ def render_earn_assets(html_path: Path = SOURCE_HTML, js_path: Path = SOURCE_JS)
     <div class="toast" id="copy-toast">Address copied!</div>
     <script src="earn/earn-cache-policy.js?v=earn-cache-policy-20260718"></script>
     <script src="earn/earn-rpc-policy.js?v=earn-rpc-policy-20260718"></script>
-    <script src="earn/earn-core.js?v=earn-core-20260718-fast-path"></script>
+    <script src="earn/earn-core.js?v=earn-core-20260718-ledger-primary-sla"></script>
 </body>
 </html>
 '''

@@ -213,6 +213,21 @@ if (!earn_canUseVerifiedLedgerMarketEntry(entry)) {
             self.source,
         )
 
+    def test_published_resolved_ledger_precedes_background_replay_and_latest_balance_read(self):
+        static_promise = self.source.index("const publishedResolvedLedgerPromise")
+        replay_block = self.source.index("const replayBlockTagPromise", static_promise)
+        static_apply = self.source.index("earn_applyPublishedResolvedInterestLedger(verifiedLedger)", static_promise)
+        balance_read = self.source.index("earn_fetchActiveSupplyBalances(addr, { blockTag: 'latest' })", replay_block)
+        first_render = self.source.index("earn_renderResults(enriched", balance_read)
+        self.assertLess(static_promise, static_apply)
+        self.assertLess(static_apply, replay_block)
+        self.assertLess(balance_read, first_render)
+        self.assertNotIn(
+            "const replayBlockTag = await replayBlockTagPromise;\n"
+            "                    balances = await earn_fetchActiveSupplyBalances",
+            self.source,
+        )
+
     def test_resolved_interest_fast_path_rejects_omitted_counted_market(self):
         script = """
 const fs = require('fs');
@@ -363,9 +378,34 @@ for (const [input, decimals, expected] of cases) {
         workflow = EARN_COVERAGE_BACKFILL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("--coverage-backfill", workflow)
         self.assertIn("run_earn_data_correctness_pipeline.py", workflow)
-        self.assertIn("max-parallel: 1", workflow)
+        self.assertIn("cron: '11 */2 * * *'", workflow)
+        self.assertIn("max-parallel: 3", workflow)
+        self.assertIn("group: ${{ matrix.concurrency_group }}", workflow)
+        self.assertIn("earn-arbitrum-canonical-history", workflow)
+        self.assertIn("earn-berachain-canonical-history", workflow)
+        self.assertIn("earn-secondary-canonical-history-mantle", workflow)
         self.assertNotIn("--existing-history-only", workflow)
         self.assertIn("build_earn_verified_ledger_shards.py", workflow)
+        self.assertLess(
+            workflow.index("build_earn_resolved_interest_ledger.py"),
+            workflow.index("build_earn_verified_ledger.py"),
+        )
+        self.assertIn("data/earn-resolved-interest-ledger", workflow)
+
+    def test_snapshot_workflow_refreshes_existing_resolved_ledgers_before_public_ledgers(self):
+        workflow = (ROOT / ".github/workflows/update-earn-snapshots.yml").read_text(encoding="utf-8")
+        self.assertIn("build_earn_resolved_interest_ledger.py", workflow)
+        self.assertIn("--existing-addresses", workflow)
+        self.assertLess(
+            workflow.index("build_earn_resolved_interest_ledger.py"),
+            workflow.index("build_earn_verified_ledger.py"),
+        )
+        self.assertIn("git add -f data/earn-resolved-interest-ledger/", workflow)
+
+    def test_earn_commit_helper_resynchronizes_resolved_manifest_after_rebase(self):
+        helper = (ROOT / "scripts/commit_with_fresh_earn_status.sh").read_text(encoding="utf-8")
+        self.assertIn("scripts/sync_earn_resolved_manifest.py", helper)
+        self.assertIn("data/earn-resolved-interest-ledger/manifest.json", helper)
 
     def test_truncated_subgraph_replay_is_never_strictly_verified(self):
         self.assertIn("const replayTruncated = [", self.source)
@@ -1305,7 +1345,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertEqual(2, len(selected))
         self.assertEqual(3, metadata["missingHistoryAddressCount"])
 
-    def test_hot_wallet_selector_prioritizes_oldest_watermark_before_score(self):
+    def test_hot_wallet_selector_prioritizes_active_wallet_before_oldest_cold_watermark(self):
         import select_earn_canonical_hot_addresses as selector
 
         chain = "berachain"
@@ -1358,12 +1398,13 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
                             priority_files=[],
                             include_priority_even_if_unknown=False,
                             history_dir=history_dir,
-                            prefer_stale_history=True,
+                            coverage_backfill=True,
                         )
 
-        self.assertEqual([cold_stale], selected)
+        self.assertEqual([active_stale], selected)
         self.assertEqual(2, metadata["staleHistoryAddressCount"])
-        self.assertEqual("missing-then-oldest-watermark", metadata["selectionPolicy"])
+        self.assertEqual(1, metadata["activeStaleHistoryAddressCount"])
+        self.assertEqual("active-first-then-cold-watermark", metadata["selectionPolicy"])
 
     def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
         workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")
@@ -1444,6 +1485,8 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("earn-refresh-dispatched.tsv", workflow)
         self.assertIn("Skipping duplicate refresh request", workflow)
         self.assertIn('-f "chain=$chain"', workflow)
+        self.assertIn("scripts/check_earn_sla.py", workflow)
+        self.assertIn("$GITHUB_STEP_SUMMARY", workflow)
         planner = EARN_WATCHDOG_DISPATCH_PLANNER.read_text(encoding="utf-8")
         self.assertIn("refreshJobs", planner)
         self.assertIn("priority", planner)
