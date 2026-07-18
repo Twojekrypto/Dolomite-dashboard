@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import inspect
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,6 +8,45 @@ from select_earn_canonical_hot_addresses import build_selection
 
 
 class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
+    def test_coverage_backfill_adds_missing_wallet_after_public_baseline(self):
+        if "coverage_backfill" not in inspect.signature(build_selection).parameters:
+            self.fail("build_selection must expose coverage_backfill mode")
+
+        existing = "0x1111111111111111111111111111111111111111"
+        missing = "0x2222222222222222222222222222222222222222"
+        with tempfile.TemporaryDirectory() as tmp:
+            history_dir = Path(tmp) / "earn-subaccount-history"
+            chain_dir = history_dir / "mantle"
+            chain_dir.mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"mantle":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{existing}.json").write_text('{"lastScannedBlock":100}', encoding="utf-8")
+
+            def score_snapshot(_chain, scores):
+                scores[existing] = 100
+                scores[missing] = 10
+
+            with (
+                patch("select_earn_canonical_hot_addresses._load_known_addresses", return_value=[existing, missing]),
+                patch("select_earn_canonical_hot_addresses._score_snapshot_wallets", side_effect=score_snapshot),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, metadata = build_selection(
+                    "mantle",
+                    limit=1,
+                    priority_files=[],
+                    include_priority_even_if_unknown=True,
+                    history_dir=history_dir,
+                    existing_history_only=True,
+                    coverage_backfill=True,
+                )
+
+        self.assertEqual(selected, [missing])
+        self.assertTrue(metadata["coverageBackfill"])
+        self.assertFalse(metadata["existingHistoryOnly"])
+
     def test_existing_history_only_keeps_steady_refresh_on_public_baseline(self):
         existing = "0x1111111111111111111111111111111111111111"
         new_hot = "0x2222222222222222222222222222222222222222"
