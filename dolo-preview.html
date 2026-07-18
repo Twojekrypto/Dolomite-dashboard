@@ -102,7 +102,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
 
 /* Price row */
-.hero-price-row{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.hero-price-row{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .hero-price{
   font-family:var(--mono);font-size:clamp(44px,6vw,62px);font-weight:700;
   letter-spacing:-2.5px;color:var(--fg-1);font-variant-numeric:tabular-nums;line-height:1;
@@ -114,6 +114,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .hero-chg.up{color:var(--up);background:rgba(138,163,123,.10);border:1px solid rgba(138,163,123,.25)}
 .hero-chg.down{color:var(--down);background:rgba(180,121,107,.10);border:1px solid rgba(180,121,107,.25)}
+.hero-chg.hero-value-chip{color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line)}
 .hero-chg svg{width:13px;height:13px}
 .hero-chg .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
 
@@ -1039,9 +1040,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <!-- Price + change pill -->
     <div class="hero-price-row">
       <div class="hero-price" data-count-value="0">$0.00000</div>
-      <div class="hero-chg up">
+      <div class="hero-chg hero-value-chip up">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-        +0.000%<span class="lbl">24h</span>
+        +0.000%<span class="lbl">24h change</span>
       </div>
     </div>
 
@@ -5443,7 +5444,7 @@ renderCexSupplyChart();
     if(chgEl){
       chgEl.classList.toggle("up", change >= 0);
       chgEl.classList.toggle("down", change < 0);
-      chgEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="' + (change >= 0 ? "18 15 12 9 6 15" : "6 9 12 15 18 9") + '"/></svg><span data-count-up></span><span class="lbl">24h</span>';
+      chgEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="' + (change >= 0 ? "18 15 12 9 6 15" : "6 9 12 15 18 9") + '"/></svg><span data-count-up></span><span class="lbl">24h change</span>';
       const changePart = chgEl.querySelector("[data-count-up]");
       changePart.dataset.countValue = "0";
       changePart.textContent = (change >= 0 ? "+" : "") + "0.000%";

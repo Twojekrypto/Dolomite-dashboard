@@ -1056,7 +1056,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 .pf-summary .hero-token-logo img{width:30px;height:30px;object-fit:contain}
 /* big total — DOLO-tab hero price row */
-.pf-sum-headline{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.pf-sum-headline{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .pf-sum-total-val{
   display:flex;align-items:baseline;gap:8px;
   font-family:var(--mono);font-size:52px;font-weight:700;
@@ -1069,6 +1069,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:0;
   color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line);
 }
+.pf-sum-usd .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
 /* stat strip — DOLO-tab hero-stats metrics, 5 columns */
 .pf-sum-grid{
   display:grid;grid-template-columns:repeat(5,1fr);gap:0;
@@ -3010,7 +3011,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const usdEl = $("#pf-sum-total-usd");
     if (d.doloPrice){
       usdEl.style.display = "";
-      usdEl.innerHTML = `<span class="pf-sum-usd-value" data-count-value="0">0</span>`;
+      usdEl.innerHTML = `<span class="pf-sum-usd-value" data-count-value="0">0</span><span class="lbl">wallet value</span>`;
       setPortfolioMetric(usdEl.querySelector(".pf-sum-usd-value"), `≈ ${fmtUSD(total * d.doloPrice)}`);
     }
     else usdEl.style.display = "none";

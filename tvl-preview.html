@@ -94,7 +94,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .hero-live{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:inline-flex;align-items:center;gap:6px}
 .hero-live .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
 
-.hero-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.hero-headline{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .hero-value{
   font-family:var(--mono);font-size:clamp(44px,6vw,62px);
   font-weight:700;letter-spacing:-2.5px;color:var(--fg-1);
@@ -107,6 +107,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .hero-chg.up{color:var(--up);background:var(--up-wash);border:1px solid rgba(117,184,123,.25)}
 .hero-chg.down{color:var(--down);background:var(--down-wash);border:1px solid rgba(180,121,107,.25)}
+.hero-chg.hero-value-chip{color:var(--gold);background:var(--gold-wash);border:1px solid var(--gold-line)}
 .hero-chg svg{width:13px;height:13px}
 .hero-chg .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
 
@@ -639,10 +640,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
     <div class="hero-headline">
       <div class="hero-value" id="heroSupply" data-count-value="0">$0.000</div>
-      <div class="hero-chg up" id="heroChg">
+      <div class="hero-chg hero-value-chip up" id="heroChg">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg>
         <span>+0.000%</span>
-        <span class="lbl">7d</span>
+        <span class="lbl">7d change</span>
       </div>
     </div>
 
@@ -1449,11 +1450,11 @@ function applyTvlSnapshot(snapshot){
   const heroChg = document.getElementById("heroChg");
   if (heroChg && Number.isFinite(change7d)) {
     const isUp = change7d >= 0;
-    heroChg.className = `hero-chg ${isUp ? "up" : "down"}`;
+    heroChg.className = `hero-chg hero-value-chip ${isUp ? "up" : "down"}`;
     heroChg.innerHTML = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${isUp ? "6 14 12 8 18 14" : "6 10 12 16 18 10"}"/></svg>
       <span data-count-up></span>
-      <span class="lbl">7d</span>`;
+      <span class="lbl">7d change</span>`;
     const changePart = heroChg.querySelector("[data-count-up]");
     changePart.dataset.countValue = "0";
     changePart.textContent = `${isUp ? "+" : ""}0.000%`;

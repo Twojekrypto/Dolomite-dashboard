@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
 <script defer src="shared-hover-tooltips.js?v=20260507u"></script>
+<script src="count-up.js?v=20260427-countup"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <style>
 :root{
@@ -224,7 +225,7 @@ h1{
 .hero-live.audit-pass .dot{background:#10b981;box-shadow:0 0 8px rgba(16,185,129,.55)}
 .hero-live.audit-stale{color:#f0b35a}
 .hero-live.audit-stale .dot{background:#f59e0b;box-shadow:0 0 8px rgba(245,158,11,.65)}
-.hero-headline{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
+.hero-headline{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;padding-bottom:26px;position:relative;z-index:1}
 .hero-value{
   font-family:var(--mono);font-size:clamp(44px,6vw,62px);
   font-weight:700;letter-spacing:-2.5px;color:var(--fg-1);
@@ -238,6 +239,7 @@ h1{
 }
 .hero-chg.up{color:var(--up);background:var(--up-wash);border-color:rgba(117,184,123,.25)}
 .hero-chg.down{color:var(--down);background:var(--down-wash);border-color:rgba(180,121,107,.25)}
+.hero-chg.hero-value-chip{color:var(--gold);background:var(--gold-wash);border-color:var(--gold-line)}
 .hero-chg svg{width:13px;height:13px}
 .hero-chg.down svg{transform:rotate(180deg)}
 .hero-chg .lbl{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;opacity:.7;margin-left:2px}
@@ -995,10 +997,10 @@ h1{
 
     <div class="hero-headline">
       <div class="hero-value skeleton" id="dailyRevenue">$0</div>
-      <div class="hero-chg" id="dailyChange">
+      <div class="hero-chg hero-value-chip" id="dailyChange">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg>
         <span>24h</span>
-        <span class="lbl">daily</span>
+        <span class="lbl">24h change</span>
       </div>
     </div>
 
@@ -1498,6 +1500,13 @@ h1{
     const el = qs(id);
     if (!el) return;
     el.textContent = value;
+    el.classList.remove("skeleton");
+  }
+  function setMetricText(id, value){
+    const el = qs(id);
+    if (!el) return;
+    if (window.CountUpMetric) window.CountUpMetric.text(el, value);
+    else el.textContent = value;
     el.classList.remove("skeleton");
   }
   function esc(value){
@@ -2637,15 +2646,21 @@ h1{
     const dailyRevenue = n(totals.dailyRevenueUSD);
     const previousRevenue = n(totals.previousDailyRevenueUSD);
     const change = previousRevenue > 0 ? (dailyRevenue - previousRevenue) / previousRevenue : 0;
-    setText("dailyRevenue", usdFull(dailyRevenue));
-    setText("dailyFees", usdFull(totals.dailyFeesUSD));
-    setText("protocolCut", pct(totals.dailyProtocolCut));
-    setText("revenue7d", usd(totalRevenueWindowUSD(7)));
-    setText("revenueAllTime", usd(totalRevenueWindowUSD(0)));
+    setMetricText("dailyRevenue", usdFull(dailyRevenue));
+    setMetricText("dailyFees", usdFull(totals.dailyFeesUSD));
+    setMetricText("protocolCut", pct(totals.dailyProtocolCut));
+    setMetricText("revenue7d", usd(totalRevenueWindowUSD(7)));
+    setMetricText("revenueAllTime", usd(totalRevenueWindowUSD(0)));
     const changeEl = qs("dailyChange");
     if (changeEl) {
-      changeEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg><span>' + (change >= 0 ? "+" : "") + (change * 100).toFixed(1) + '%</span><span class="lbl">24h</span>';
-      changeEl.className = "hero-chg " + (change >= 0 ? "up" : "down");
+      changeEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 14 12 8 18 14"/></svg><span data-count-value="0">' + (change >= 0 ? "+" : "") + '0.0%</span><span class="lbl">24h change</span>';
+      changeEl.className = "hero-chg hero-value-chip";
+      const changeValue = changeEl.querySelector("[data-count-value]");
+      if (changeValue) {
+        const target = (change >= 0 ? "+" : "") + (change * 100).toFixed(1) + "%";
+        if (window.CountUpMetric) window.CountUpMetric.text(changeValue, target);
+        else changeValue.textContent = target;
+      }
     }
     const cut = Math.max(0, Math.min(100, n(totals.dailyProtocolCut) * 100));
     const dailyFeesBar = qs("dailyFeesBar");
