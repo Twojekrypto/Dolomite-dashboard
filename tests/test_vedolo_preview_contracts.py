@@ -31,23 +31,31 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("expirySearchHasClear", self.html)
         self.assertIn("expirySearchMatchesHolderWidth", self.html)
 
-    def test_lock_expiry_uses_static_chart_summary_and_source_update_time(self):
+    def test_lock_expiry_removes_summary_and_keeps_source_update_time(self):
         section = re.search(
             r'<section class="card chart-card expiry-card">(?P<body>.*?)</section>',
             self.html,
             re.S,
         ).group("body")
         self.assertIn('id="expiry-meta"', section)
-        self.assertIn('id="expiry-summary-value"', section)
-        self.assertIn('id="expiry-summary-label"', section)
+        self.assertNotIn('class="expiry-summary"', section)
+        self.assertNotIn('id="expiry-summary-value"', section)
+        self.assertNotIn('id="expiry-summary-label"', section)
         self.assertNotIn('id="expiry-focus"', section)
         self.assertIn('setText("expiry-meta", dataUpdatedLabel(state.expiry?.timestamp));', self.html)
-        self.assertIn('setText("expiry-summary-value", fmtDolo(total));', self.html)
-        self.assertIn('setText("expiry-summary-label",', self.html)
-        self.assertNotIn('focusValue.textContent', self.html)
-        self.assertIn('.expiry-summary{position:absolute;top:8px;right:12px;', self.html)
-        self.assertIn('.expiry-summary{position:static;', self.html)
-        self.assertIn('vedolo-expiry-summary-overlay-20260718', self.route)
+        self.assertNotIn('setText("expiry-summary-value",', self.html)
+        self.assertNotIn('setText("expiry-summary-label",', self.html)
+        self.assertNotIn('.expiry-summary{', self.html)
+        self.assertIn('vedolo-chart-summary-cleanup-20260718', self.route)
+
+    def test_main_hero_is_not_rendered_again_by_render_static(self):
+        render_static = re.search(
+            r'function renderStatic\(\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        ).group("body")
+        self.assertNotIn("renderHero();", render_static)
+        self.assertIn('if(!stats?.stats && holders?.stats){ state.stats = holders.stats; renderHero(); }', self.html)
 
     def test_vedolo_route_busts_preview_cache_for_expiry_search(self):
         self.assertIn("expiry-search-20260610", self.route)
@@ -255,21 +263,25 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('#recent-early-exits-section #dd-exit-period .dd-opt.active .dd-opt-check', self.html)
         self.assertIn('vedolo-exit-red-controls-20260711', self.route)
 
-    def test_lock_duration_update_chip_precedes_metric_switcher(self):
+    def test_lock_duration_uses_header_update_metadata_without_summary(self):
         duration_section = re.search(
             r'<section class="card chart-card duration-card">(?P<body>.*?)</section>',
             self.html,
             re.S,
         ).group("body")
-        self.assertIn('class="duration-toolbar-update"', duration_section)
+        card_head = re.search(
+            r'<div class="card-head">(?P<body>.*?)</div>\n    <div class="toolbar">',
+            duration_section,
+            re.S,
+        ).group("body")
+        self.assertIn('class="card-meta"', card_head)
         self.assertIn('id="duration-meta"', duration_section)
         self.assertIn('class="seg vedolo-pill-segment" id="duration-mode"', duration_section)
-        self.assertLess(
-            duration_section.index('class="duration-toolbar-update"'),
-            duration_section.index('id="duration-mode"'),
-        )
-        self.assertIn('.duration-toolbar-update{', self.html)
-        self.assertIn('vedolo-duration-update-chip-20260718', self.route)
+        self.assertNotIn('class="duration-toolbar-update"', duration_section)
+        self.assertNotIn('id="duration-focus"', duration_section)
+        self.assertNotIn("All Durations", self.html)
+        self.assertNotIn('.duration-focus{', self.html)
+        self.assertIn('vedolo-chart-summary-cleanup-20260718', self.route)
 
     def test_vedolo_tables_show_source_specific_data_update_metadata(self):
         for meta_id in (
