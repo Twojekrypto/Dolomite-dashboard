@@ -71,14 +71,30 @@ class EarnDashboardContractsTest(unittest.TestCase):
             self.source,
         )
 
-    def test_arbitrum_and_berachain_workflows_admit_missing_canonical_histories(self):
-        for filename in [
-            "update-earn-arbitrum-canonical-history.yml",
-            "update-earn-berachain-canonical-history.yml",
-        ]:
+    def test_arbitrum_and_berachain_head_workflows_do_not_block_on_missing_histories(self):
+        workflows = {
+            "update-earn-arbitrum-canonical-history.yml": (
+                "Select Arbitrum canonical head wallets",
+                "Restore Arbitrum canonical runtime cache",
+            ),
+            "update-earn-berachain-canonical-history.yml": (
+                "Select Berachain hot wallets",
+                "Restore Berachain canonical runtime cache",
+            ),
+            "update-earn-secondary-canonical-history.yml": (
+                "Select hot wallets",
+                "Restore canonical runtime cache",
+            ),
+        }
+        for filename, (selection_step, restore_step) in workflows.items():
             workflow = (ROOT / ".github" / "workflows" / filename).read_text(encoding="utf-8")
-            self.assertNotIn("--existing-history-only", workflow)
+            self.assertIn("--existing-history-only", workflow)
+            self.assertIn("STEADY_HOT_LIMIT", workflow)
             self.assertIn("--max-new-backfill-workers", workflow)
+            self.assertLess(workflow.find(selection_step), workflow.find(restore_step))
+            self.assertIn('history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"', workflow)
+            self.assertIn('git add -f "$history_path"', workflow)
+            self.assertIn('done < "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"', workflow)
 
     def test_verified_ledger_fetch_falls_back_to_address_prefix_shard(self):
         self.assertIn("VERIFIED_LEDGER_SHARD_BASE", self.source)
@@ -941,14 +957,14 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         workflow = ARBITRUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '18,48 * * * *'", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
-        self.assertIn("default: '120'", workflow)
-        self.assertIn("HOT_LIMIT: ${{ github.event.inputs.hot_limit || '120' }}", workflow)
+        self.assertIn("default: '0'", workflow)
+        self.assertIn("STEADY_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '0' }}", workflow)
         self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '24' }}", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_ZEN", workflow)
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_KAT", workflow)
         self.assertIn("secrets.ALCHEMY_ARBITRUM_RPC_DAN", workflow)
-        self.assertNotIn("--existing-history-only", workflow)
+        self.assertIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '28800'", workflow)
         self.assertIn('--max-steps "$CHECKPOINT_STEPS"', workflow)
@@ -962,15 +978,15 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         workflow = BERACHAIN_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '7,37 * * * *'", workflow)
         self.assertIn("timeout-minutes: 90", workflow)
-        self.assertIn("default: '180'", workflow)
-        self.assertIn("BOOTSTRAP_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '180' }}", workflow)
-        self.assertIn("STEADY_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '180' }}", workflow)
+        self.assertIn("default: '0'", workflow)
+        self.assertIn("BOOTSTRAP_HOT_LIMIT: '180'", workflow)
+        self.assertIn("STEADY_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '0' }}", workflow)
         self.assertIn("default: '150'", workflow)
         self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '150' }}", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '20'", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
         self.assertIn("has_public_baseline", workflow)
-        self.assertNotIn("--existing-history-only", workflow)
+        self.assertIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '3600'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)
@@ -1033,8 +1049,9 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("matrix: ${{ fromJson(needs.plan-secondary-canonical.outputs.matrix) }}", workflow)
         self.assertIn("group: earn-secondary-canonical-history-${{ matrix.chain }}", workflow)
         self.assertIn('"xlayer": {', workflow)
-        self.assertIn('"hot_limit": positive_int(hot_limit_override, 160)', workflow)
-        self.assertIn('"hot_limit": positive_int(hot_limit_override, 300)', workflow)
+        self.assertIn('"bootstrap_hot_limit": 160', workflow)
+        self.assertIn('"bootstrap_hot_limit": 300', workflow)
+        self.assertIn('"steady_hot_limit": nonnegative_int(hot_limit_override, 0)', workflow)
         self.assertIn('"checkpoint_steps": positive_int(checkpoint_steps_override, 30)', workflow)
         self.assertIn('"max_resume_target_lag_blocks": 3600', workflow)
         self.assertIn('"max_resume_target_lag_blocks": 7200', workflow)
@@ -1043,7 +1060,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '10000'", workflow)
         self.assertIn("MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS: '300'", workflow)
         self.assertIn("COMMAND_TIMEOUT_SECONDS: '180'", workflow)
-        self.assertNotIn("--existing-history-only", workflow)
+        self.assertIn("--existing-history-only", workflow)
         self.assertIn("--prefer-stale-history", workflow)
         self.assertIn("XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}", workflow)
         self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
@@ -1190,6 +1207,8 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
 
     def test_berachain_borrow_route_workflow_checks_rpc_redundancy(self):
         workflow = BERACHAIN_BORROW_ROUTE_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("cron: '17 */6 * * *'", workflow)
+        self.assertIn("group: earn-berachain-canonical-history", workflow)
         self.assertIn("timeout-minutes: 75", workflow)
         self.assertIn("BORROW_ROUTE_HOT_LIMIT: '250'", workflow)
         self.assertIn("BORROW_ROUTE_CHECKPOINT_STEPS: '90'", workflow)

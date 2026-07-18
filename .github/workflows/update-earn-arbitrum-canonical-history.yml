@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       hot_limit:
-        description: 'Maximum Arbitrum wallets to refresh in this checkpoint.'
+        description: 'Maximum published Arbitrum wallets to refresh; 0 refreshes all published histories.'
         required: false
-        default: '120'
+        default: '0'
       checkpoint_steps:
         description: 'Polling steps before checkpointing this run.'
         required: false
@@ -29,7 +29,8 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: arbitrum
-      HOT_LIMIT: ${{ github.event.inputs.hot_limit || '120' }}
+      BOOTSTRAP_HOT_LIMIT: '120'
+      STEADY_HOT_LIMIT: ${{ github.event.inputs.hot_limit || '0' }}
       CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '24' }}
       CHECKPOINT_SLEEP_SECONDS: '20'
       COMMAND_TIMEOUT_SECONDS: '180'
@@ -56,6 +57,44 @@ jobs:
       - name: Install Python dependencies
         run: python3 -m pip install --upgrade pip && pip install -r requirements.txt
 
+      - name: Select Arbitrum canonical head wallets
+        run: |
+          set -euo pipefail
+          read -r has_public_baseline hot_limit <<< "$(python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          try:
+              manifest = json.loads(Path("data/earn-subaccount-history/manifest.json").read_text())
+          except Exception:
+              manifest = {}
+          chain = (manifest.get("chains") or {}).get("arbitrum") or {}
+          try:
+              has_public_baseline = int(chain.get("lastBlock") or 0) > 0
+          except Exception:
+              has_public_baseline = False
+          hot_limit = os.environ["STEADY_HOT_LIMIT"] if has_public_baseline else os.environ["BOOTSTRAP_HOT_LIMIT"]
+          print("true" if has_public_baseline else "false", hot_limit)
+          PY
+          )"
+          selector_args=(
+            python3 select_earn_canonical_hot_addresses.py
+            --chain "$CHAIN"
+            --limit "$hot_limit"
+            --priority-address-file config/earn_canonical_priority_addresses.txt
+            --priority-address-file config/earn_arbitrum_canonical_hot_addresses.txt
+            --include-priority-even-if-unknown
+            --prefer-stale-history
+            --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
+            --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+          )
+          if [ "$has_public_baseline" = "true" ]; then
+            selector_args+=(--existing-history-only)
+          fi
+          "${selector_args[@]}"
+          cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+
       - name: Restore Arbitrum canonical runtime cache
         uses: actions/cache@v5
         with:
@@ -68,20 +107,6 @@ jobs:
           key: earn-canonical-runtime-arbitrum-${{ github.run_id }}
           restore-keys: |
             earn-canonical-runtime-arbitrum-
-
-      - name: Select Arbitrum coverage catch-up wallets
-        run: |
-          set -euo pipefail
-          python3 select_earn_canonical_hot_addresses.py \
-            --chain "$CHAIN" \
-            --limit "$HOT_LIMIT" \
-            --priority-address-file config/earn_canonical_priority_addresses.txt \
-            --priority-address-file config/earn_arbitrum_canonical_hot_addresses.txt \
-            --include-priority-even-if-unknown \
-            --prefer-stale-history \
-            --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
-            --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
-          cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
       - name: Refresh Arbitrum canonical history
         id: refresh
@@ -165,10 +190,14 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f data/earn-subaccount-history/manifest.json data/earn-subaccount-history/arbitrum
+          git add -f data/earn-subaccount-history/manifest.json
           git add -f data/earn-verified-ledger/manifest.json
-          if [ -d "data/earn-verified-ledger/${CHAIN}" ]; then
-            git add -f "data/earn-verified-ledger/${CHAIN}"
-          fi
+          while IFS= read -r address; do
+            [ -n "$address" ] || continue
+            history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"
+            ledger_path="data/earn-verified-ledger/${CHAIN}/${address}.json"
+            [ -f "$history_path" ] && git add -f "$history_path"
+            [ -f "$ledger_path" ] && git add -f "$ledger_path"
+          done < "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
           git add -f data/earn-verified-ledger-shards
           bash scripts/commit_with_fresh_earn_status.sh "Refresh Arbitrum canonical EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"

@@ -216,6 +216,7 @@ def build_selection(
         *missing_history,
         *stale_history,
         *ranked_addresses,
+        *(sorted(existing_history) if existing_history_only else []),
     ])
     if existing_history_only:
         selected = [address for address in selected if address in existing_history]

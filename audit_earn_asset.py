@@ -617,12 +617,14 @@ function buildAuditSource(address, chain) {
     };
 
     return (async () => {
-      if (typeof switchView !== 'function') {
-        return { ok: false, address, error: 'switchView unavailable', href: location.href, title: document.title };
+      if (!document.getElementById('view-earn') ||
+          typeof earnChainSelect !== 'function' ||
+          typeof earn_lookup !== 'function') {
+        return { ok: false, address, error: 'EARN runtime unavailable', href: location.href, title: document.title };
       }
       globalThis.__EARN_SNAPSHOT_FETCH_TIMEOUT_OVERRIDE__ = ${SNAPSHOT_FETCH_TIMEOUT_MS};
       resetState();
-      switchView('earn');
+      if (typeof switchView === 'function') switchView('earn');
       earnChainSelect(chain);
       document.getElementById('earn-address').value = address;
 
@@ -710,7 +712,9 @@ async function initPage(cdp, url) {
       const ready = await evaluate(cdp, `
         return (
           document.readyState === 'complete' &&
-          typeof switchView === 'function' &&
+          typeof earnChainSelect === 'function' &&
+          typeof earn_lookup === 'function' &&
+          !!document.getElementById('view-earn') &&
           !!document.getElementById('earn-address')
         );
       `);

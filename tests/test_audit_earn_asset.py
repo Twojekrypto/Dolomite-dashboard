@@ -18,6 +18,12 @@ class AuditEarnAssetTest(unittest.TestCase):
         self.assertIn("buildAuditSource(address, CHAIN)", js)
         self.assertIn("earnChainSelect(chain)", js)
 
+    def test_live_audit_supports_dedicated_earn_route_without_switch_view(self):
+        js = build_live_audit_js()
+        self.assertNotIn("error: 'switchView unavailable'", js)
+        self.assertIn("if (typeof switchView === 'function') switchView('earn');", js)
+        self.assertIn("document.getElementById('view-earn')", js)
+
     def test_normalize_live_row_category_canonicalizes_legacy_aliases(self):
         self.assertEqual(normalize_live_row_category({"category": "verified_other"}), "verified_nonstandard")
         self.assertEqual(normalize_live_row_category({"category": "borrow_only"}), "non_active_borrow_route")
