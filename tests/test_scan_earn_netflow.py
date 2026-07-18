@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import BytesIO, StringIO
@@ -108,12 +109,19 @@ class ScanEarnNetflowTest(unittest.TestCase):
             timeouts.append(timeout)
             raise TimeoutError("slow getLogs")
 
-        with patch.object(scan_earn_netflow, "urlopen", side_effect=_fake):
+        with (
+            patch.dict(os.environ, {"EARN_RPC_GETLOGS_TIMEOUT_SECONDS": ""}, clear=False),
+            patch.object(scan_earn_netflow, "urlopen", side_effect=_fake),
+        ):
             with self.assertRaisesRegex(Exception, "All RPCs failed after 3 attempts"):
                 scan_earn_netflow.get_logs(rpcs, [0], "0xC", [scan_earn_netflow.ALL_EVENTS], 100, 124)
 
         self.assertEqual(seen, rpcs)
         self.assertEqual(timeouts, [15, 15, 15])
+
+    def test_getlogs_timeout_can_be_raised_for_slow_archive_queries(self):
+        with patch.dict(os.environ, {"EARN_RPC_GETLOGS_TIMEOUT_SECONDS": "30"}, clear=False):
+            self.assertEqual(scan_earn_netflow._rpc_timeout_seconds("eth_getLogs"), 30)
 
     def test_rpc_call_includes_http_error_body_in_recent_errors(self):
         def _fake(req, timeout=None):
