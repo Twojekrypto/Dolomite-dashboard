@@ -22,6 +22,7 @@ class HeroMetricChipContractsTest(unittest.TestCase):
             "portfolio-preview.html": 'class="pf-sum-usd" id="pf-sum-total-usd"',
             "rewards-preview.html": 'class="hero-chg hero-value-chip"',
             "revenue-preview.html": 'class="hero-chg hero-value-chip" id="dailyChange"',
+            "vedolo-preview.html": 'class="hero-chip"',
         }
         for filename, marker in pages.items():
             with self.subTest(page=filename):
@@ -35,6 +36,7 @@ class HeroMetricChipContractsTest(unittest.TestCase):
             ("portfolio-preview.html", ".pf-sum-headline{display:flex;align-items:flex-end;"),
             ("rewards-preview.html", ".hero-price-row{display:flex;align-items:flex-end;"),
             ("revenue-preview.html", ".hero-headline{display:flex;align-items:flex-end;"),
+            ("vedolo-preview.html", ".hero-headline{display:flex;align-items:flex-end;"),
         ):
             with self.subTest(page=filename):
                 self.assertIn(selector, (ROOT / filename).read_text(encoding="utf-8"))
@@ -48,6 +50,7 @@ class HeroMetricChipContractsTest(unittest.TestCase):
             ("rewards-preview.html", ".hero-price{"),
             ("revenue-preview.html", ".hero-value{"),
             ("portfolio-preview.html", ".pf-sum-total-val{"),
+            ("vedolo-preview.html", ".hero-value{"),
         ):
             with self.subTest(page=filename):
                 source = (ROOT / filename).read_text(encoding="utf-8")
@@ -63,17 +66,43 @@ class HeroMetricChipContractsTest(unittest.TestCase):
             "rewards-preview.html": ".hero-chg{",
             "revenue-preview.html": ".hero-chg{",
             "portfolio-preview.html": ".pf-sum-usd{",
+            "vedolo-preview.html": ".hero-chip{",
         }
         for filename, selector in selectors.items():
             with self.subTest(page=filename):
                 source = (ROOT / filename).read_text(encoding="utf-8")
                 self.assertIn(expected_chip_type, self.css_rule(source, selector))
-                label_selector = ".pf-sum-usd .lbl{" if filename == "portfolio-preview.html" else ".hero-chg .lbl{"
+                label_selector = {
+                    "portfolio-preview.html": ".pf-sum-usd .lbl{",
+                    "vedolo-preview.html": ".hero-chip .lbl{",
+                }.get(filename, ".hero-chg .lbl{")
                 self.assertIn(expected_label_type, self.css_rule(source, label_selector))
+
+    def test_primary_dashboard_value_chips_share_odolo_gold_treatment(self):
+        selectors = {
+            "dolo-preview.html": ".hero-chg.hero-value-chip{",
+            "odolo-preview.html": ".hero-chg.gold{",
+            "tvl-preview.html": ".hero-chg.hero-value-chip{",
+            "portfolio-preview.html": ".pf-sum-usd{",
+            "rewards-preview.html": ".hero-chg.hero-value-chip{",
+            "revenue-preview.html": ".hero-chg.hero-value-chip{",
+            "vedolo-preview.html": ".hero-chip{",
+        }
+        for filename, selector in selectors.items():
+            with self.subTest(page=filename):
+                source = (ROOT / filename).read_text(encoding="utf-8")
+                rule = self.css_rule(source, selector)
+                self.assertIn("color:var(--gold-hi)", rule)
+                self.assertIn("background:var(--gold-wash)", rule)
+                self.assertIn("var(--gold-line)", rule)
 
     def test_portfolio_unit_matches_the_odolo_main_value_scale(self):
         source = (ROOT / "portfolio-preview.html").read_text(encoding="utf-8")
         self.assertIn(".pf-sum-total-val .unit{font-size:.42em;font-weight:500;color:var(--fg-3);letter-spacing:-.5px;margin-left:8px", source)
+
+    def test_vedolo_unit_matches_the_odolo_main_value_scale(self):
+        source = (ROOT / "vedolo-preview.html").read_text(encoding="utf-8")
+        self.assertIn(".hero-value .hero-unit{font-size:.42em;font-weight:500;color:var(--fg-3);letter-spacing:-.5px;margin-left:8px", source)
 
     def test_rewards_and_revenue_use_the_shared_count_up_metric(self):
         for filename, setter in (
@@ -107,6 +136,7 @@ class HeroMetricChipContractsTest(unittest.TestCase):
             "portfolio/index.html",
             "rewards/index.html",
             "revenue/index.html",
+            "vedolo/index.html",
         ):
             with self.subTest(route=filename):
                 self.assertIn("hero-value-chip-20260718-typography", (ROOT / filename).read_text(encoding="utf-8"))
