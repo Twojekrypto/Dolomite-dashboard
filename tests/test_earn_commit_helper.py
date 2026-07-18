@@ -74,12 +74,17 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
         )
         (work / "data" / "earn-verified-ledger").mkdir(parents=True)
         (work / "data" / "earn-freshness").mkdir(parents=True)
+        (work / "data" / "earn-snapshots").mkdir(parents=True)
         (work / "data" / "earn-verified-ledger" / "manifest.json").write_text(
             '{"version":2,"generatedAt":"initial","chains":{}}\n',
             encoding="utf-8",
         )
         (work / "data" / "earn-freshness" / "status.json").write_text(
             '{"status":"initial"}\n',
+            encoding="utf-8",
+        )
+        (work / "data" / "earn-snapshots" / "manifest.json").write_text(
+            '{"dates":["2026-05-10"]}\n',
             encoding="utf-8",
         )
         _run(["git", "add", "."], cwd=work)
@@ -171,6 +176,70 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
                 cwd=work,
             ).stdout.strip()
             self.assertEqual("status only", latest_subject)
+
+    def test_snapshot_change_during_rebase_rebuilds_staged_ledger_addresses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, work = self._prepare_repo(Path(tmp))
+            address = "0x" + "a" * 40
+            ledger_dir = work / "data" / "earn-verified-ledger" / "mantle"
+
+            for script_name in (
+                "build_earn_resolved_interest_ledger.py",
+                "build_earn_verified_ledger.py",
+                "build_earn_verified_ledger_shards.py",
+            ):
+                (work / script_name).write_text(
+                    textwrap.dedent(
+                        f"""\
+                        import sys
+                        from pathlib import Path
+                        args = sys.argv[1:]
+                        addresses = ""
+                        if "--address-file" in args:
+                            addresses = Path(args[args.index("--address-file") + 1]).read_text(encoding="utf-8").strip()
+                        with Path("rebuild-calls.txt").open("a", encoding="utf-8") as handle:
+                            handle.write("{script_name} " + " ".join(args) + " addresses=" + addresses + "\\n")
+                        """
+                    ),
+                    encoding="utf-8",
+                )
+            (work / "build_earn_representative_audit.py").write_text(
+                'from pathlib import Path\nPath("audit-ran.txt").write_text("yes", encoding="utf-8")\n',
+                encoding="utf-8",
+            )
+            _run(["git", "add", "build_earn_resolved_interest_ledger.py", "build_earn_verified_ledger.py", "build_earn_verified_ledger_shards.py", "build_earn_representative_audit.py"], cwd=work)
+            _run(["git", "commit", "-m", "test builders"], cwd=work)
+            _run(["git", "push", "origin", "master"], cwd=work)
+            ledger_dir.mkdir()
+            (ledger_dir / f"{address}.json").write_text('{"snapshotDate":"2026-05-10"}\n', encoding="utf-8")
+            _run(["git", "add", "-f", str(ledger_dir / f"{address}.json")], cwd=work)
+
+            peer = Path(tmp) / "peer"
+            _run(["git", "clone", str(remote), str(peer)], cwd=Path(tmp))
+            _run(["git", "config", "user.name", "Remote Bot"], cwd=peer)
+            _run(["git", "config", "user.email", "remote@example.invalid"], cwd=peer)
+            manifest = peer / "data" / "earn-snapshots" / "manifest.json"
+            manifest.write_text('{"dates":["2026-05-11"]}\n', encoding="utf-8")
+            _run(["git", "add", "data/earn-snapshots/manifest.json"], cwd=peer)
+            _run(["git", "commit", "-m", "new snapshot"], cwd=peer)
+            _run(["git", "push", "origin", "master"], cwd=peer)
+
+            env = {
+                **dict(os.environ),
+                "CHAIN": "mantle",
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
+            }
+            _run(["bash", "scripts/commit_with_fresh_earn_status.sh", "ledger update"], cwd=work, env=env)
+
+            calls = (work / "rebuild-calls.txt").read_text(encoding="utf-8")
+            self.assertIn("build_earn_resolved_interest_ledger.py --chain mantle --address-file", calls)
+            self.assertIn("build_earn_verified_ledger.py --chain mantle --address-file", calls)
+            self.assertIn("build_earn_verified_ledger_shards.py --chain mantle --address-file", calls)
+            self.assertIn(f"addresses={address}", calls)
+            self.assertEqual("yes", (work / "audit-ran.txt").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
