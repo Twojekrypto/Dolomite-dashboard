@@ -2,11 +2,11 @@ name: Refresh Berachain Borrow-Route EARN History
 
 on:
   schedule:
-    - cron: '17 */2 * * *'  # Full known-wallet scan, publishes only wallets that need borrow-route verification
+    - cron: '17 */6 * * *'  # Coverage lane; serialized with head refresh to avoid RPC contention
   workflow_dispatch:
 
 concurrency:
-  group: earn-berachain-borrow-route-history
+  group: earn-berachain-canonical-history
   cancel-in-progress: false
 
 permissions:

@@ -8,6 +8,7 @@ from run_earn_canonical_history_refresh import (
     _has_complete_baseline,
     _incomplete_cycle_exceeds_scan_task_span,
     _incomplete_cycle_requires_scan_task_upgrade,
+    _incremental_plan_selection_changed,
     _target_lag_exceeds_resume_budget,
     _status_payload,
     _write_status_output,
@@ -122,6 +123,38 @@ class RunEarnCanonicalHistoryRefreshTest(unittest.TestCase):
 
             self.assertTrue(_has_complete_baseline(history_dir, "arbitrum", [selected]))
             self.assertFalse(_has_complete_baseline(history_dir, "arbitrum", [selected, stale]))
+
+    def test_incomplete_incremental_plan_is_rebuilt_when_head_selection_changes(self):
+        old_address = "0x1111111111111111111111111111111111111111"
+        head_address = "0x2222222222222222222222222222222222222222"
+        with TemporaryDirectory() as tmpdir:
+            history_dir = Path(tmpdir) / "history"
+            plan_dir = history_dir / ".incremental-plans" / "arbitrum-f1-t2"
+            plan_dir.mkdir(parents=True)
+            tracked_path = plan_dir / "tracked-addresses.txt"
+            tracked_path.write_text(f"{old_address}\n", encoding="utf-8")
+            plan_path = plan_dir / "incremental-plan.json"
+            plan_path.write_text(
+                json.dumps({"trackedAddressFile": str(tracked_path)}),
+                encoding="utf-8",
+            )
+            state_path = history_dir / ".incremental-plans" / "arbitrum-runner-state.json"
+            state_path.write_text(json.dumps({"planPath": str(plan_path)}), encoding="utf-8")
+
+            self.assertTrue(
+                _incremental_plan_selection_changed(
+                    history_dir,
+                    "arbitrum",
+                    [head_address],
+                )
+            )
+            self.assertFalse(
+                _incremental_plan_selection_changed(
+                    history_dir,
+                    "arbitrum",
+                    [old_address],
+                )
+            )
 
     def test_incomplete_status_payload_summarizes_progress_without_marking_complete(self):
         incomplete = RefreshIncomplete(

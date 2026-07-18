@@ -361,3 +361,9 @@
 
 **Reguła na przyszłość:** Incrementalny publisher shardów nie może pozwolić, aby ledger starego schematu zastąpił opublikowany wpis z tej samej daty. Brak `historicalYieldValuationStatus` oznacza legacy source; przy zgodnym snapshot date zachowaj cały bogatszy market, nie tylko pola P&L. Starszy snapshot nigdy nie zastępuje nowszego.
 **Reguła na przyszłość:** Reprezentatywny audyt wdrożeniowy musi porównywać `snapshotDate`, `lastDate`, `lastPar`, `lastWei` i `isLatestSnapshot` z najnowszym snapshotem każdego aktywnego chaina. Sam poprawny schemat, symbol i parsowalny yield nie wykrywają stale sald. Workflow snapshotów musi przed audytem przebudować roboczo ledgery i shardy wszystkich aktywnych chainów.
+
+### EARN canonical head refresh
+
+**Reguła na przyszłość:** Częsty canonical head refresh ma aktualizować wszystkie już opublikowane historie jednym delta scanem, ale nie może blokować się na pełnym backfillu nowych adresów. Wybieraj publiczną kohortę przed restore cache, używaj `existing-history-only`, a historyczne coverage rozszerzaj w osobnej, serializowanej kolejce.
+**Reguła na przyszłość:** Po restore cache commituj tylko manifest i historie z deterministycznego selection file. `git add` całego katalogu chaina może opublikować niedokończone artefakty robocze spoza audytowanej kohorty.
+**Reguła na przyszłość:** Live audit dedykowanej trasy `/earn/` nie może wymagać globalnego `switchView`. Gotowość strony sprawdzaj po `view-earn`, `earnChainSelect` i `earn_lookup`; `switchView('earn')` wywołuj tylko na pełnym dashboardzie, jeśli funkcja istnieje.

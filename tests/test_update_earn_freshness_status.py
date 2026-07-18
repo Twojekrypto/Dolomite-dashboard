@@ -474,7 +474,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self._assert_refresh_job(
             status["summary"]["refreshJobs"],
             workflow="update-earn-arbitrum-canonical-history.yml",
-            inputs={"hot_limit": "120", "checkpoint_steps": "24"},
+            inputs={"hot_limit": "0", "checkpoint_steps": "24"},
             mode="catchup",
             priority=0,
         )

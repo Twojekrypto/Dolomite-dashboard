@@ -57,6 +57,13 @@ jobs:
                   return fallback
               return parsed if parsed > 0 else fallback
 
+          def nonnegative_int(value, fallback):
+              try:
+                  parsed = int(str(value).strip())
+              except Exception:
+                  return fallback
+              return parsed if parsed >= 0 else fallback
+
           hot_limit_override = os.environ.get("HOT_LIMIT_OVERRIDE") or ""
           checkpoint_steps_override = os.environ.get("CHECKPOINT_STEPS_OVERRIDE") or ""
 
@@ -64,7 +71,8 @@ jobs:
               "mantle": {
                   "chain": "mantle",
                   "label": "Mantle",
-                  "hot_limit": positive_int(hot_limit_override, 160),
+                  "bootstrap_hot_limit": 160,
+                  "steady_hot_limit": nonnegative_int(hot_limit_override, 0),
                   "scan_workers": 6,
                   "materialize_workers": 6,
                   "incremental_scan_workers": 6,
@@ -75,7 +83,8 @@ jobs:
               "xlayer": {
                   "chain": "xlayer",
                   "label": "X Layer",
-                  "hot_limit": positive_int(hot_limit_override, 300),
+                  "bootstrap_hot_limit": 300,
+                  "steady_hot_limit": nonnegative_int(hot_limit_override, 0),
                   "scan_workers": 5,
                   "materialize_workers": 5,
                   "incremental_scan_workers": 5,
@@ -124,7 +133,8 @@ jobs:
       PYTHONUNBUFFERED: '1'
       CHAIN: ${{ matrix.chain }}
       CHAIN_LABEL: ${{ matrix.label }}
-      HOT_LIMIT: ${{ matrix.hot_limit }}
+      BOOTSTRAP_HOT_LIMIT: ${{ matrix.bootstrap_hot_limit }}
+      STEADY_HOT_LIMIT: ${{ matrix.steady_hot_limit }}
       SCAN_WORKERS: ${{ matrix.scan_workers }}
       MATERIALIZE_WORKERS: ${{ matrix.materialize_workers }}
       INCREMENTAL_SCAN_WORKERS: ${{ matrix.incremental_scan_workers }}
@@ -190,6 +200,43 @@ jobs:
             echo "::warning title=${CHAIN} RPC redundancy::Only ${configured} dedicated ${CHAIN} RPC secret(s) are configured. Add a second provider secret for better failover."
           fi
 
+      - name: Select hot wallets
+        run: |
+          set -euo pipefail
+          read -r has_public_baseline hot_limit <<< "$(python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          try:
+              manifest = json.loads(Path("data/earn-subaccount-history/manifest.json").read_text())
+          except Exception:
+              manifest = {}
+          chain = (manifest.get("chains") or {}).get(os.environ["CHAIN"]) or {}
+          try:
+              has_public_baseline = int(chain.get("lastBlock") or 0) > 0
+          except Exception:
+              has_public_baseline = False
+          hot_limit = os.environ["STEADY_HOT_LIMIT"] if has_public_baseline else os.environ["BOOTSTRAP_HOT_LIMIT"]
+          print("true" if has_public_baseline else "false", hot_limit)
+          PY
+          )"
+          selector_args=(
+            python3 select_earn_canonical_hot_addresses.py
+            --chain "$CHAIN"
+            --limit "$hot_limit"
+            --priority-address-file config/earn_canonical_priority_addresses.txt
+            --include-priority-even-if-unknown
+            --prefer-stale-history
+            --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
+            --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+          )
+          if [ "$has_public_baseline" = "true" ]; then
+            selector_args+=(--existing-history-only)
+          fi
+          "${selector_args[@]}"
+          cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
+
       - name: Restore canonical runtime cache
         uses: actions/cache@v5
         with:
@@ -202,19 +249,6 @@ jobs:
           key: earn-canonical-runtime-${{ matrix.chain }}-${{ github.run_id }}
           restore-keys: |
             earn-canonical-runtime-${{ matrix.chain }}-
-
-      - name: Select hot wallets
-        run: |
-          set -euo pipefail
-          python3 select_earn_canonical_hot_addresses.py \
-            --chain "$CHAIN" \
-            --limit "$HOT_LIMIT" \
-            --priority-address-file config/earn_canonical_priority_addresses.txt \
-            --include-priority-even-if-unknown \
-            --prefer-stale-history \
-            --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
-            --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
-          cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
 
       - name: Refresh canonical history
         id: refresh
@@ -303,12 +337,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f data/earn-subaccount-history/manifest.json
-          if [ -d "data/earn-subaccount-history/${CHAIN}" ]; then
-            git add -f "data/earn-subaccount-history/${CHAIN}"
-          fi
           git add -f data/earn-verified-ledger/manifest.json
-          if [ -d "data/earn-verified-ledger/${CHAIN}" ]; then
-            git add -f "data/earn-verified-ledger/${CHAIN}"
-          fi
+          while IFS= read -r address; do
+            [ -n "$address" ] || continue
+            history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"
+            ledger_path="data/earn-verified-ledger/${CHAIN}/${address}.json"
+            [ -f "$history_path" ] && git add -f "$history_path"
+            [ -f "$ledger_path" ] && git add -f "$ledger_path"
+          done < "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
           git add -f data/earn-verified-ledger-shards
           bash scripts/commit_with_fresh_earn_status.sh "Refresh ${CHAIN_LABEL} canonical EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"

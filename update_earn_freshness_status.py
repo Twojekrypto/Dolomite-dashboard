@@ -79,9 +79,9 @@ NETFLOW_WORKFLOW = "update-earn-netflow.yml"
 
 CANONICAL_CATCHUP_INPUTS: Dict[str, Dict[str, str]] = {
     "ethereum": {"hot_limit": "120", "checkpoint_steps": "1200"},
-    "arbitrum": {"hot_limit": "120", "checkpoint_steps": "24"},
-    "berachain": {"hot_limit": "180", "checkpoint_steps": "150"},
-    "mantle": {"hot_limit": "160", "checkpoint_steps": "30"},
+    "arbitrum": {"hot_limit": "0", "checkpoint_steps": "24"},
+    "berachain": {"hot_limit": "0", "checkpoint_steps": "150"},
+    "mantle": {"hot_limit": "0", "checkpoint_steps": "30"},
 }
 
 

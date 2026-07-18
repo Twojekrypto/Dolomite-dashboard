@@ -482,7 +482,33 @@ def _bootstrap_baseline(args: argparse.Namespace, selected_addresses: List[str])
     )
 
 
-def _incremental_prior_cycle_complete(args: argparse.Namespace) -> bool:
+def _incremental_plan_selection_changed(
+    history_dir: Path,
+    chain: str,
+    selected_addresses: List[str],
+) -> bool:
+    state = _read_json(history_dir / ".incremental-plans" / f"{chain}-runner-state.json", {})
+    if not isinstance(state, dict) or not state.get("planPath"):
+        return False
+    plan_path = Path(str(state["planPath"]))
+    if not plan_path.is_absolute():
+        plan_path = ROOT / plan_path
+    plan = _read_json(plan_path, {})
+    if not isinstance(plan, dict) or not plan.get("trackedAddressFile"):
+        return False
+    tracked_path = Path(str(plan["trackedAddressFile"]))
+    if not tracked_path.is_absolute():
+        tracked_path = plan_path.parent / tracked_path
+    prior_addresses = _read_address_file(tracked_path)
+    if not prior_addresses:
+        return False
+    return set(prior_addresses) != {address.lower() for address in selected_addresses}
+
+
+def _incremental_prior_cycle_complete(
+    args: argparse.Namespace,
+    selected_addresses: List[str],
+) -> bool:
     """Probe the current incremental cycle status without mutating it.
 
     Returns True when there is no resumable work (no cycle, or the prior
@@ -496,6 +522,13 @@ def _incremental_prior_cycle_complete(args: argparse.Namespace) -> bool:
     single CI window (Arbitrum/Mantle) could then never converge — observed
     in production as canonical lag growing for weeks despite 30-minute crons.
     """
+    if _incremental_plan_selection_changed(args.history_dir, args.chain, selected_addresses):
+        print(
+            f"Selection changed for {args.chain}; starting a fresh incremental plan",
+            flush=True,
+        )
+        return True
+
     argv = [
         "python3",
         "run_earn_subaccount_history_incremental.py",
@@ -627,7 +660,7 @@ def _incomplete_cycle_requires_scan_task_upgrade(
 def _incremental_refresh(args: argparse.Namespace, selected_addresses: List[str]) -> dict:
     complete = False
     payload: Optional[dict] = None
-    start_fresh_plan = _incremental_prior_cycle_complete(args)
+    start_fresh_plan = _incremental_prior_cycle_complete(args, selected_addresses)
     if not start_fresh_plan:
         print(f"♻️ {args.chain}: resuming incomplete incremental cycle (no plan rebuild)", flush=True)
     for step in range(max(1, int(args.max_steps))):

@@ -40,6 +40,38 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
         self.assertEqual(metadata["existingHistoryAddressCount"], 1)
         self.assertEqual(metadata["selectedAddressCount"], 1)
 
+    def test_unbounded_existing_history_selection_includes_unscored_wallets(self):
+        scored = "0x1111111111111111111111111111111111111111"
+        cold = "0x2222222222222222222222222222222222222222"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            history_dir = Path(tmp) / "earn-subaccount-history"
+            chain_dir = history_dir / "arbitrum"
+            chain_dir.mkdir(parents=True)
+            for address in (scored, cold):
+                (chain_dir / f"{address}.json").write_text("{}", encoding="utf-8")
+
+            def score_snapshot(_chain, scores):
+                scores[scored] = 10
+
+            with (
+                patch("select_earn_canonical_hot_addresses._load_known_addresses", return_value=[scored, cold]),
+                patch("select_earn_canonical_hot_addresses._score_snapshot_wallets", side_effect=score_snapshot),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, metadata = build_selection(
+                    "arbitrum",
+                    limit=0,
+                    priority_files=[],
+                    include_priority_even_if_unknown=True,
+                    history_dir=history_dir,
+                    existing_history_only=True,
+                )
+
+        self.assertEqual(selected, [scored, cold])
+        self.assertEqual(metadata["existingHistoryAddressCount"], 2)
+        self.assertEqual(metadata["selectedAddressCount"], 2)
+
     def test_prefer_stale_history_prioritizes_scored_stale_wallets(self):
         fresh = "0x1111111111111111111111111111111111111111"
         stale = "0x2222222222222222222222222222222222222222"
