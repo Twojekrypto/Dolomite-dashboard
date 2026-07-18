@@ -8,7 +8,7 @@ on:
       hot_limit:
         description: 'Maximum Ethereum wallets to refresh in this checkpoint.'
         required: false
-        default: '240'
+        default: '120'
       checkpoint_steps:
         description: 'Polling steps before checkpointing this run.'
         required: false
@@ -29,15 +29,16 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: ethereum
-      HOT_LIMIT: ${{ github.event.inputs.hot_limit || '240' }}
+      HOT_LIMIT: ${{ github.event.inputs.hot_limit || '120' }}
       CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1200' }}
       CHECKPOINT_SLEEP_SECONDS: '2'
-      COMMAND_TIMEOUT_SECONDS: '180'
+      COMMAND_TIMEOUT_SECONDS: '600'
+      EARN_RPC_GETLOGS_TIMEOUT_SECONDS: '30'
       # Never publish a completed checkpoint whose locked target is already
       # outside the dashboard's two-hour Ethereum freshness window.
       MAX_RESUME_TARGET_LAG_BLOCKS: '600'
-      # The scanner halves unsafe RPC ranges itself; avoid 10-block task
-      # process overhead across a large canonical catch-up window.
+      # Full backfills use a provider-safe range and automatically reduce it
+      # if an RPC tightens its eth_getLogs limit.
       MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'
       MAX_INCREMENTAL_SCAN_WORKER_RUNTIME_SECONDS: '300'
       ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}

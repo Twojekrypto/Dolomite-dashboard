@@ -891,9 +891,9 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '12,42 * * * *'", workflow)
         self.assertIn("timeout-minutes: 90", workflow)
-        self.assertIn("default: '240'", workflow)
+        self.assertIn("default: '120'", workflow)
         self.assertIn("default: '1200'", workflow)
-        self.assertIn("HOT_LIMIT: ${{ github.event.inputs.hot_limit || '240' }}", workflow)
+        self.assertIn("HOT_LIMIT: ${{ github.event.inputs.hot_limit || '120' }}", workflow)
         self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1200' }}", workflow)
         for env_name in (
             "ALCHEMY_ETHEREUM_RPC_KAT",
@@ -907,6 +907,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)
+        self.assertIn("EARN_RPC_GETLOGS_TIMEOUT_SECONDS: '30'", workflow)
         self.assertIn("--max-incremental-scan-workers 12", workflow)
         self.assertIn("--max-incremental-apply-workers 12", workflow)
         self.assertIn('--max-resume-target-lag-blocks "$MAX_RESUME_TARGET_LAG_BLOCKS"', workflow)
@@ -1382,7 +1383,8 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("adaptive_chunk_size = min(max_chunk_size, max(1, int(chunk_size)), max(1, range_span))", event_scanner)
         self.assertIn("adaptive_chunk_size = min(max_chunk_size, adaptive_chunk_size * 2)", event_scanner)
         self.assertIn('CHAINS[args.chain].get("max_block_chunk")', event_scanner)
-        self.assertIn('default_block_chunk = int(config.get("max_block_chunk") or DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK)', history_builder)
+        self.assertIn('config.get("canonical_max_block_chunk")', history_builder)
+        self.assertIn("--checkpoint-file", history_builder)
 
     def test_lending_toolbar_filters_always_open_downward(self):
         source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")

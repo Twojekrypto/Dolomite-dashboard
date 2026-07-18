@@ -78,6 +78,8 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_holders.json")
 OUTPUT_CSV = os.path.join(DATA_DIR, "vedolo_holders.csv")
 
 API_KEY = os.environ.get("BERASCAN_API_KEY", "")
+NFT_TRANSFER_PAGE_SIZE = 1_000
+NFT_TRANSFER_MAX_PAGES = 10
 
 
 class IncompleteNftTransferFetch(RuntimeError):
@@ -89,7 +91,8 @@ def preserve_existing_vedolo_snapshot(reason):
     print(f"\n⚠️  {reason}", flush=True)
     if os.path.exists(OUTPUT_JSON):
         print(f"   Preserving existing {os.path.basename(OUTPUT_JSON)}; no partial holder data will be written.", flush=True)
-        sys.exit(0)
+        print("   Failing this update so stale veDOLO data cannot be reported as a successful refresh.", flush=True)
+        sys.exit(1)
     print(f"   No existing {os.path.basename(OUTPUT_JSON)} to preserve.", flush=True)
     sys.exit(1)
 
@@ -162,6 +165,7 @@ def fetch_all_nft_transfers():
     all_txs = []
     seen_hashes = set()  # Deduplicate txs spanning block boundaries
     start_block = 0
+    page = 1
 
     while True:
         params = {
@@ -171,8 +175,8 @@ def fetch_all_nft_transfers():
             "contractaddress": VEDOLO_CONTRACT,
             "startblock": start_block,
             "endblock": 99999999,
-            "page": 1,
-            "offset": 10000,
+            "page": page,
+            "offset": NFT_TRANSFER_PAGE_SIZE,
             "sort": "asc",
             "apikey": API_KEY,
         }
@@ -194,22 +198,37 @@ def fetch_all_nft_transfers():
                             all_txs.append(tx)
                             new_count += 1
 
-                    print(f"  Block {start_block}+: {len(results)} txs, {new_count} new (total: {len(all_txs)})", flush=True)
+                    print(
+                        f"  Block {start_block}+ page {page}: {len(results)} txs, "
+                        f"{new_count} new (total: {len(all_txs)})",
+                        flush=True,
+                    )
 
-                    if len(results) < 10000:
+                    if len(results) < NFT_TRANSFER_PAGE_SIZE:
                         # Got all remaining transfers
                         print(f"  ✅ Fetched all {len(all_txs)} NFT transfers")
                         return all_txs
 
-                    # Move startblock to the last block in results
-                    last_block = int(results[-1].get("blockNumber", start_block))
-                    if last_block == start_block:
-                        # Edge case: >10k txs in same block. Skip to next block.
-                        start_block = last_block + 1
+                    if page < NFT_TRANSFER_MAX_PAGES:
+                        page += 1
                     else:
+                        # Etherscan caps page*offset at 10,000. Resume from the
+                        # last block and deduplicate the repeated boundary rows.
+                        last_block = int(results[-1].get("blockNumber", start_block))
+                        if last_block <= start_block:
+                            raise IncompleteNftTransferFetch(
+                                "Explorer pagination made no block progress after "
+                                f"{len(all_txs):,} veDOLO NFT transfer rows at block {start_block:,}"
+                            )
                         start_block = last_block
+                        page = 1
 
                     time.sleep(0.25)  # Rate limit
+                    if check_timeout("Phase1-pagination"):
+                        raise IncompleteNftTransferFetch(
+                            f"Timed out while fetching veDOLO NFT transfers after {len(all_txs):,} rows "
+                            f"(current start block {start_block:,}, page {page})"
+                        )
                     break
 
                 elif "rate" in str(data.get("result", "")).lower() or "max rate" in str(data.get("message", "")).lower():
@@ -235,6 +254,8 @@ def fetch_all_nft_transfers():
                         )
                     sys.exit(1)
 
+            except IncompleteNftTransferFetch:
+                raise
             except Exception as e:
                 print(f"  Error: {e}, retry {retry+1}/3")
                 time.sleep(2 * (retry + 1))

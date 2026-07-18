@@ -37,6 +37,7 @@ from scan_earn_netflow import (
     LEGACY_LOG_TRANSFER,
     LOG_DEPOSIT,
     LOG_WITHDRAW,
+    MIN_BLOCK_CHUNK,
     SECOND_OWNER_EVENTS,
     _addr_topic,
     _dedupe_logs,
@@ -385,6 +386,7 @@ def build_history_for_addresses_in_block_range(
     addresses: Sequence[str],
     from_block: Optional[int] = None,
     to_block: Optional[int] = None,
+    checkpoint_path: Optional[Path] = None,
 ) -> Dict[str, dict]:
     config = CHAINS[chain]
     contract = config["margin"]
@@ -398,6 +400,7 @@ def build_history_for_addresses_in_block_range(
     source_snapshot_date = _get_latest_snapshot_date(chain)
     source_netflow_last_block = _get_netflow_last_block(chain)
 
+    normalized_addresses = sorted({str(address).lower() for address in addresses})
     histories = {
         address.lower(): _empty_history(
             chain,
@@ -408,17 +411,67 @@ def build_history_for_addresses_in_block_range(
             source_snapshot_date=source_snapshot_date,
             source_netflow_last_block=source_netflow_last_block,
         )
-        for address in addresses
+        for address in normalized_addresses
     }
 
     current = start_block
     total_logs = 0
-    default_block_chunk = int(config.get("max_block_chunk") or DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK)
-    block_chunk = max(1, int(os.environ.get("EARN_SUBACCOUNT_HISTORY_BLOCK_CHUNK") or default_block_chunk))
+    checkpoint_path = Path(checkpoint_path) if checkpoint_path else None
+    checkpoint = _read_json(checkpoint_path, {}) if checkpoint_path else {}
+    if (
+        isinstance(checkpoint, dict)
+        and checkpoint.get("version") == 1
+        and checkpoint.get("chain") == chain
+        and str(checkpoint.get("marginContract") or "").lower() == contract.lower()
+        and checkpoint.get("addresses") == normalized_addresses
+        and checkpoint.get("fromBlock") == start_block
+        and checkpoint.get("targetBlock") == end_block
+        and isinstance(checkpoint.get("histories"), dict)
+        and set(checkpoint["histories"].keys()) == set(normalized_addresses)
+    ):
+        try:
+            checkpoint_next_block = int(checkpoint.get("nextBlock"))
+            if start_block <= checkpoint_next_block <= end_block + 1:
+                current = checkpoint_next_block
+                total_logs = int(checkpoint.get("totalLogs") or 0)
+                histories = checkpoint["histories"]
+                print(
+                    f"[{chain}] resuming canonical backfill at block {current:,} "
+                    f"from {checkpoint_path}",
+                    flush=True,
+                )
+        except (TypeError, ValueError):
+            pass
+    default_block_chunk = int(
+        config.get("canonical_max_block_chunk")
+        or config.get("max_block_chunk")
+        or DEFAULT_ADDRESS_SCAN_BLOCK_CHUNK
+    )
+    requested_block_chunk = max(
+        1,
+        int(os.environ.get("EARN_SUBACCOUNT_HISTORY_BLOCK_CHUNK") or default_block_chunk),
+    )
+    block_chunk = min(default_block_chunk, requested_block_chunk)
+    min_block_chunk = max(
+        1,
+        min(block_chunk, int(config.get("min_block_chunk") or MIN_BLOCK_CHUNK)),
+    )
 
     while current <= end_block:
         chunk_end = min(current + block_chunk - 1, end_block)
-        logs = _fetch_logs_for_addresses(rpcs, rpc_idx, contract, addresses, current, chunk_end)
+        try:
+            logs = _fetch_logs_for_addresses(rpcs, rpc_idx, contract, addresses, current, chunk_end)
+        except Exception as exc:
+            if block_chunk <= min_block_chunk:
+                raise
+            reduced_block_chunk = max(min_block_chunk, block_chunk // 2)
+            print(
+                f"[{chain}] RPC rejected blocks {current:,}-{chunk_end:,}; "
+                f"reducing scan chunk {block_chunk:,} -> {reduced_block_chunk:,}: {exc}",
+                flush=True,
+            )
+            block_chunk = reduced_block_chunk
+            continue
         total_logs += len(logs)
 
         for log in logs:
@@ -436,6 +489,19 @@ def build_history_for_addresses_in_block_range(
         if logs or processed % 500_000 < block_chunk:
             print(f"[{chain}] [{pct:5.1f}%] block {chunk_end:,} logs={len(logs)} total_logs={total_logs}")
         current = chunk_end + 1
+        if checkpoint_path:
+            _write_json(checkpoint_path, {
+                "version": 1,
+                "chain": chain,
+                "marginContract": contract.lower(),
+                "addresses": normalized_addresses,
+                "fromBlock": start_block,
+                "targetBlock": end_block,
+                "nextBlock": current,
+                "totalLogs": total_logs,
+                "updatedAt": _utc_now_iso(),
+                "histories": histories,
+            })
 
     return {address: _finalize_history(history) for address, history in histories.items()}
 
@@ -520,6 +586,11 @@ def main() -> int:
     parser.add_argument("--from-block", type=int, default=None, help="Optional starting block for targeted backfill/testing")
     parser.add_argument("--to-block", type=int, default=None, help="Optional ending block for targeted backfill/testing")
     parser.add_argument(
+        "--checkpoint-file",
+        default=None,
+        help="Optional resumable block checkpoint for long canonical backfills",
+    )
+    parser.add_argument(
         "--output-dir",
         default=str(DEFAULT_OUTPUT_DIR),
         help="Directory for per-address subaccount history files",
@@ -528,6 +599,10 @@ def main() -> int:
 
     selected_chains = args.chain or ["arbitrum"]
     output_dir = Path(args.output_dir)
+    checkpoint_path = Path(args.checkpoint_file) if args.checkpoint_file else None
+
+    if checkpoint_path and len(selected_chains) != 1:
+        raise SystemExit("--checkpoint-file requires exactly one --chain")
 
     if not args.address and not args.address_file and not args.all_known_addresses:
         raise SystemExit("Pass --address ... or --all-known-addresses")
@@ -550,6 +625,7 @@ def main() -> int:
             addresses,
             from_block=args.from_block,
             to_block=args.to_block,
+            checkpoint_path=checkpoint_path,
         )
         latest_block = next(iter(histories.values()))["lastScannedBlock"] if histories else 0
         _write_histories(
@@ -560,6 +636,8 @@ def main() -> int:
             start_block=args.from_block,
             selection_address_count=len(addresses),
         )
+        if checkpoint_path and checkpoint_path.exists():
+            checkpoint_path.unlink()
         print(f"[{chain}] wrote {len(histories)} history file(s) to {output_dir / chain}")
 
     return 0

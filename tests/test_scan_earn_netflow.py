@@ -36,13 +36,14 @@ class ScanEarnNetflowTest(unittest.TestCase):
         self.assertEqual(_reduced_chunk_size(49_999), 24_999)
         self.assertEqual(_reduced_chunk_size(100), MIN_BLOCK_CHUNK)
 
-    def test_ethereum_scans_full_chunk_with_per_endpoint_1rpc_cap(self):
-        # Ethereum no longer throttles the whole chain to 1rpc's 50-block limit;
-        # it defaults to the full BLOCK_CHUNK, and 1rpc is capped per-endpoint.
-        self.assertNotIn("max_block_chunk", scan_earn_netflow.CHAINS["ethereum"])
-        effective = int(scan_earn_netflow.CHAINS["ethereum"].get("max_block_chunk")
+    def test_ethereum_uses_archive_provider_safe_chunk_with_per_endpoint_1rpc_cap(self):
+        # dRPC rejects ranges of 10,000+ blocks. Keep canonical backfills below
+        # that limit while retaining 1rpc's stricter per-endpoint cap.
+        effective = int(scan_earn_netflow.CHAINS["ethereum"].get("canonical_max_block_chunk")
                         or scan_earn_netflow.BLOCK_CHUNK)
-        self.assertEqual(effective, scan_earn_netflow.BLOCK_CHUNK)
+        self.assertEqual(effective, 9_999)
+        self.assertEqual(scan_earn_netflow.CHAINS["ethereum"]["min_block_chunk"], 10)
+        self.assertNotIn("max_block_chunk", scan_earn_netflow.CHAINS["ethereum"])
         # Only the Ethereum 1rpc path is capped; keyed providers are not, and the
         # cap must NOT leak to 1rpc on other chains (that regressed berachain EARN).
         self.assertEqual(scan_earn_netflow._endpoint_block_cap("https://1rpc.io/eth"), 50)
