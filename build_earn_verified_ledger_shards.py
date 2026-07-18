@@ -56,10 +56,14 @@ def _compact_ledger(payload: dict) -> dict:
         compact_market = dict(HISTORICAL_PNL_DEFAULTS)
         compact_market.update({key: market[key] for key in MARKET_KEYS if key in market})
         markets[str(market_id)] = compact_market
-    return {
+    compact = {
         "snapshotDate": str(payload.get("snapshotDate") or ""),
         "markets": markets,
     }
+    resolved_interest_ledger = payload.get("resolvedInterestLedger")
+    if isinstance(resolved_interest_ledger, dict):
+        compact["resolvedInterestLedger"] = resolved_interest_ledger
+    return compact
 
 
 def _merge_published_ledger(existing, candidate: dict, source_payload: dict) -> dict:
@@ -88,7 +92,10 @@ def _encode_compact_ledger(ledger: dict) -> list:
         market_id: [market.get(key) for key in MARKET_KEYS]
         for market_id, market in (ledger.get("markets") or {}).items()
     }
-    return [str(ledger.get("snapshotDate") or ""), markets]
+    encoded = [str(ledger.get("snapshotDate") or ""), markets]
+    if isinstance(ledger.get("resolvedInterestLedger"), dict):
+        encoded.append(ledger["resolvedInterestLedger"])
+    return encoded
 
 
 def decode_compact_ledger(shard: dict, entry) -> dict:
@@ -106,7 +113,10 @@ def decode_compact_ledger(shard: dict, entry) -> dict:
             for index, key in enumerate(fields)
             if index < len(values) and values[index] is not None
         }
-    return {"snapshotDate": str(entry[0] or ""), "markets": markets}
+    decoded = {"snapshotDate": str(entry[0] or ""), "markets": markets}
+    if len(entry) >= 3 and isinstance(entry[2], dict):
+        decoded["resolvedInterestLedger"] = entry[2]
+    return decoded
 
 
 def build_chain_shards(source_dir: Path, output_dir: Path, chain: str, *, prefix_length: int = PREFIX_LENGTH, updated_addresses=None) -> dict:

@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parent
 SNAPSHOT_DIR = ROOT / "data" / "earn-snapshots"
 NETFLOW_DIR = ROOT / "data" / "earn-netflow"
 HISTORY_DIR = ROOT / "data" / "earn-subaccount-history"
+RESOLVED_INTEREST_DIR = ROOT / "data" / "earn-resolved-interest-ledger"
 OUTPUT_DIR = ROOT / "data" / "earn-verified-ledger"
 HISTORICAL_PRICE_DIR = ROOT / "data" / "earn-historical-prices"
 
@@ -69,6 +70,116 @@ def _parse_int(value, default=0):
         return int(str(value))
     except Exception:
         return default
+
+
+def _is_integer_text(value):
+    if isinstance(value, bool):
+        return False
+    try:
+        int(str(value))
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _validate_resolved_interest_ledger(payload, *, chain, address, latest_date, canonical_history):
+    """Return a trusted static replay artifact or None.
+
+    The public ledger may only carry an exact replay result pinned to the same
+    canonical block and snapshot used by this build. Snapshot/netflow inference
+    is deliberately rejected here.
+    """
+    if not isinstance(payload, dict):
+        return None
+    if str(payload.get("chain") or "").strip().lower() != str(chain).strip().lower():
+        return None
+    if str(payload.get("address") or "").strip().lower() != str(address).strip().lower():
+        return None
+    if str(payload.get("snapshotDate") or "") != str(latest_date or ""):
+        return None
+    if str(payload.get("strictStatus") or "").strip().lower() != "verified":
+        return None
+    if str(payload.get("strictMethod") or "").strip().lower() not in {"interest-ledger", "interest-ledger-override"}:
+        return None
+    if str(payload.get("canonicalHistoryCoverageStatus") or "").strip().lower() != "fresh":
+        return None
+
+    comparison_block = _parse_int(payload.get("comparisonBlock"), 0)
+    canonical_block = _parse_int((canonical_history or {}).get("lastScannedBlock"), 0)
+    if comparison_block <= 0 or comparison_block != canonical_block:
+        return None
+
+    markets = payload.get("markets")
+    if not isinstance(markets, dict) or not markets:
+        return None
+    required_integer_fields = (
+        "earnYield", "settledYield", "settledSupplyYield", "settledBorrowYield",
+        "openBorrowYield", "openSupplyYield", "openCollateralYield",
+        "currentBorrowPar", "currentSupplyPar", "currentCollateralSupplyPar",
+    )
+    for market_id, market in markets.items():
+        if not str(market_id).isdigit() or not isinstance(market, dict):
+            return None
+        if str(market.get("strictStatus") or "").strip().lower() != "verified":
+            return None
+        if str(market.get("strictMethod") or "").strip().lower() not in {"interest-ledger", "interest-ledger-override"}:
+            return None
+        for field in required_integer_fields:
+            if field not in market or not _is_integer_text(market.get(field)):
+                return None
+
+    verification = payload.get("replayVerificationData") or {}
+    if not isinstance(verification, dict) or not verification:
+        return None
+    counted_market_ids = set()
+    for market_id, entry in verification.items():
+        if not isinstance(entry, dict):
+            return None
+        if entry.get("counted") is not True:
+            continue
+        counted_market_ids.add(str(market_id))
+        if str(entry.get("status") or "").strip().lower() != "verified":
+            return None
+        if entry.get("canVerify") is not True or entry.get("rawVerified") is not True:
+            return None
+        if entry.get("snapshotIncomplete") is not False:
+            return None
+    if counted_market_ids != {str(market_id) for market_id in markets}:
+        return None
+    for market_id in markets:
+        entry = verification.get(str(market_id))
+        if not isinstance(entry, dict):
+            return None
+        if str(entry.get("status") or "").strip().lower() != "verified":
+            return None
+        if entry.get("counted") is not True or entry.get("canVerify") is not True or entry.get("rawVerified") is not True:
+            return None
+        if entry.get("snapshotIncomplete") is not False:
+            return None
+
+    # A JSON round-trip both detaches the object and guarantees the public
+    # payload contains only JSON-safe values.
+    try:
+        return json.loads(json.dumps(payload, separators=(",", ":"), ensure_ascii=True))
+    except (TypeError, ValueError):
+        return None
+
+
+def _load_resolved_interest_ledger(chain, address, latest_date, canonical_history):
+    path = RESOLVED_INTEREST_DIR / str(chain).lower() / f"{str(address).lower()}.json"
+    if not path.is_file():
+        return None
+    try:
+        payload = _read_json(path)
+    except (OSError, json.JSONDecodeError):
+        return None
+    return _validate_resolved_interest_ledger(
+        payload,
+        chain=chain,
+        address=address,
+        latest_date=latest_date,
+        canonical_history=canonical_history,
+    )
 
 
 def _to_date(date_str):
@@ -674,7 +785,7 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
 
         markets_out[mid] = payload
 
-    return {
+    ledger = {
         "version": 2,
         "chain": chain,
         "address": address,
@@ -690,6 +801,15 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
         },
         "markets": markets_out,
     }
+    resolved_interest_ledger = _load_resolved_interest_ledger(
+        chain,
+        address,
+        latest_date,
+        history_payload,
+    )
+    if resolved_interest_ledger:
+        ledger["resolvedInterestLedger"] = resolved_interest_ledger
+    return ledger
 
 
 def _load_netflow_for_chain(chain):

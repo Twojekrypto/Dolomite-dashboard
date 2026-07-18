@@ -371,3 +371,12 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
 **Reguła na przyszłość:** Częsty canonical head refresh ma aktualizować wszystkie już opublikowane historie jednym delta scanem, ale nie może blokować się na pełnym backfillu nowych adresów. Wybieraj publiczną kohortę przed restore cache, używaj `existing-history-only`, a historyczne coverage rozszerzaj w osobnej, serializowanej kolejce.
 **Reguła na przyszłość:** Po restore cache commituj tylko manifest i historie z deterministycznego selection file. `git add` całego katalogu chaina może opublikować niedokończone artefakty robocze spoza audytowanej kohorty.
 **Reguła na przyszłość:** Live audit dedykowanej trasy `/earn/` nie może wymagać globalnego `switchView`. Gotowość strony sprawdzaj po `view-earn`, `earnChainSelect` i `earn_lookup`; `switchView('earn')` wywołuj tylko na pełnym dashboardzie, jeśli funkcja istnieje.
+
+### EARN verified fast path
+
+**Reguła na przyszłość:** Status EARN musi osobno pokazywać wiek danych live i postęp historycznego canonical coverage. Niepełny backfill nie oznacza starego salda; `syncing` rezerwuj dla rzeczywiście starego heada.
+**Reguła na przyszłość:** HTTP 401/403 wyłącza tylko dany endpoint do końca lookupu, a deterministyczny błąd requestu nie może przechodzić przez kolejne RPC. Retry i rotacja są właściwe dla 429, timeoutów, błędów transportu i 5xx.
+**Reguła na przyszłość:** Chwilowa awaria RPC nie może zastąpić ostatniego wyniku `verified` wartością `pending`. Cache zachowuje zaufany market przez krótki okres i pokazuje, że trwa ponowna weryfikacja.
+**Reguła na przyszłość:** `resolvedInterestLedger` można publikować tylko dla tego samego snapshotu i dokładnie tego canonical comparison block, z kompletnym `replayVerificationData`. Snapshot/netflow inference nigdy nie może zostać przepisane na `interest-ledger verified`.
+**Reguła na przyszłość:** Reward summaries są warstwą dodatkową. Uruchamiaj je po pierwszym renderze pozycji i nie trzymaj nimi końcowej blokady danych EARN.
+**Reguła na przyszłość:** Live current indexes muszą nadpisywać starsze indeksy subgrafu podczas odświeżania replayu; subgraf jest wyłącznie fallbackiem dla brakujących pól. Konwersję `Par -> Wei` licz tak jak kontrakt Dolomite przez `getPartialRoundHalfUp`, bo zwykłe dzielenie całkowite tworzy fałszywe strict mismatch nawet przy identycznym saldzie on-chain.

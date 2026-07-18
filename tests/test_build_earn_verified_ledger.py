@@ -7,11 +7,138 @@ from build_earn_verified_ledger import (
     _calculate_historical_yield_pnl,
     _derive_strict_verification,
     _select_best_baseline,
+    _validate_resolved_interest_ledger,
     _write_or_remove_ledger,
 )
 
 
 class BuildEarnVerifiedLedgerTest(unittest.TestCase):
+    def test_accepts_verified_resolved_interest_ledger_at_canonical_block(self):
+        address = "0x1111111111111111111111111111111111111111"
+        artifact = {
+            "version": 1,
+            "chain": "arbitrum",
+            "address": address,
+            "snapshotDate": "2026-07-18",
+            "comparisonBlock": 12345,
+            "generatedAt": "2026-07-18T12:00:00Z",
+            "strictStatus": "verified",
+            "strictMethod": "interest-ledger",
+            "canonicalHistoryCoverageStatus": "fresh",
+            "markets": {
+                "1": {
+                    "earnYield": "123",
+                    "settledYield": "23",
+                    "settledSupplyYield": "23",
+                    "settledBorrowYield": "0",
+                    "openBorrowYield": "0",
+                    "openSupplyYield": "100",
+                    "openCollateralYield": "0",
+                    "currentBorrowPar": "0",
+                    "currentSupplyPar": "1000",
+                    "currentCollateralSupplyPar": "0",
+                    "hadSupply": True,
+                    "hadBorrow": False,
+                    "strictStatus": "verified",
+                    "strictMethod": "interest-ledger",
+                }
+            },
+            "replayVerificationData": {
+                "1": {
+                    "status": "verified",
+                    "counted": True,
+                    "canVerify": True,
+                    "rawVerified": True,
+                    "snapshotIncomplete": False,
+                }
+            },
+        }
+
+        validated = _validate_resolved_interest_ledger(
+            artifact,
+            chain="arbitrum",
+            address=address,
+            latest_date="2026-07-18",
+            canonical_history={"lastScannedBlock": 12345},
+        )
+
+        self.assertEqual(validated["comparisonBlock"], 12345)
+        self.assertEqual(validated["markets"]["1"]["earnYield"], "123")
+
+    def test_rejects_stale_or_inferred_resolved_interest_ledger(self):
+        address = "0x1111111111111111111111111111111111111111"
+        base = {
+            "chain": "arbitrum",
+            "address": address,
+            "snapshotDate": "2026-07-18",
+            "comparisonBlock": 12344,
+            "strictStatus": "verified",
+            "strictMethod": "interest-ledger",
+            "canonicalHistoryCoverageStatus": "fresh",
+            "markets": {"1": {"earnYield": "1", "strictStatus": "verified", "strictMethod": "interest-ledger"}},
+        }
+
+        self.assertIsNone(_validate_resolved_interest_ledger(
+            base,
+            chain="arbitrum",
+            address=address,
+            latest_date="2026-07-18",
+            canonical_history={"lastScannedBlock": 12345},
+        ))
+        inferred = json.loads(json.dumps(base))
+        inferred["comparisonBlock"] = 12345
+        inferred["markets"]["1"]["strictStatus"] = "inferred"
+        self.assertIsNone(_validate_resolved_interest_ledger(
+            inferred,
+            chain="arbitrum",
+            address=address,
+            latest_date="2026-07-18",
+            canonical_history={"lastScannedBlock": 12345},
+        ))
+
+    def test_rejects_resolved_interest_ledger_with_omitted_counted_market(self):
+        address = "0x1111111111111111111111111111111111111111"
+        market = {
+            "earnYield": "123",
+            "settledYield": "23",
+            "settledSupplyYield": "23",
+            "settledBorrowYield": "0",
+            "openBorrowYield": "0",
+            "openSupplyYield": "100",
+            "openCollateralYield": "0",
+            "currentBorrowPar": "0",
+            "currentSupplyPar": "1000",
+            "currentCollateralSupplyPar": "0",
+            "strictStatus": "verified",
+            "strictMethod": "interest-ledger",
+        }
+        verification = {
+            "status": "verified",
+            "counted": True,
+            "canVerify": True,
+            "rawVerified": True,
+            "snapshotIncomplete": False,
+        }
+        artifact = {
+            "chain": "arbitrum",
+            "address": address,
+            "snapshotDate": "2026-07-18",
+            "comparisonBlock": 12345,
+            "strictStatus": "verified",
+            "strictMethod": "interest-ledger",
+            "canonicalHistoryCoverageStatus": "fresh",
+            "markets": {"1": market},
+            "replayVerificationData": {"1": verification, "2": verification},
+        }
+
+        self.assertIsNone(_validate_resolved_interest_ledger(
+            artifact,
+            chain="arbitrum",
+            address=address,
+            latest_date="2026-07-18",
+            canonical_history={"lastScannedBlock": 12345},
+        ))
+
     def test_historical_pnl_prices_only_constant_positive_principal_intervals(self):
         result = _calculate_historical_yield_pnl(
             [

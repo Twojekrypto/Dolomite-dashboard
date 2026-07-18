@@ -167,7 +167,11 @@ def build_selection(
     history_dir: Path = HISTORY_DIR,
     existing_history_only: bool = False,
     prefer_stale_history: bool = False,
+    coverage_backfill: bool = False,
 ) -> Tuple[List[str], dict]:
+    if coverage_backfill:
+        existing_history_only = False
+        prefer_stale_history = True
     known = set(_load_known_addresses(chain))
     scores: Dict[str, int] = {}
     _score_snapshot_wallets(chain, scores)
@@ -227,6 +231,7 @@ def build_selection(
         "chain": chain,
         "limit": limit,
         "existingHistoryOnly": bool(existing_history_only),
+        "coverageBackfill": bool(coverage_backfill),
         "existingHistoryAddressCount": len(existing_history),
         "knownAddressCount": len(known),
         "scoredAddressCount": len(scores),
@@ -250,6 +255,7 @@ def main() -> int:
     parser.add_argument("--history-dir", type=Path, default=HISTORY_DIR)
     parser.add_argument("--existing-history-only", action="store_true")
     parser.add_argument("--prefer-stale-history", action="store_true")
+    parser.add_argument("--coverage-backfill", action="store_true")
     parser.add_argument("--output", required=True)
     parser.add_argument("--metadata-output", default=None)
     args = parser.parse_args()
@@ -262,6 +268,7 @@ def main() -> int:
         history_dir=args.history_dir,
         existing_history_only=bool(args.existing_history_only),
         prefer_stale_history=bool(args.prefer_stale_history),
+        coverage_backfill=bool(args.coverage_backfill),
     )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

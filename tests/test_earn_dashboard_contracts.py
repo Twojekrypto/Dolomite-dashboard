@@ -23,11 +23,13 @@ SECONDARY_CANONICAL_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-sec
 BERACHAIN_NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-netflow.yml"
 BERACHAIN_BORROW_ROUTE_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-borrow-route-history.yml"
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
+EARN_COVERAGE_BACKFILL_WORKFLOW = ROOT / ".github" / "workflows" / "backfill-earn-canonical-coverage.yml"
 EARN_WATCHDOG_DISPATCH_PLANNER = ROOT / "scripts" / "plan_earn_watchdog_dispatch.py"
 EARN_SNAPSHOTS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-snapshots.yml"
 EARN_MERKL_REWARDS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-merkl-rewards.yml"
 EARN_FRESHNESS_SCRIPT = ROOT / "update_earn_freshness_status.py"
 EARN_COMMIT_HELPER = ROOT / "scripts" / "commit_with_fresh_earn_status.sh"
+EARN_RPC_POLICY = ROOT / "earn" / "earn-rpc-policy.js"
 GLOBAL_PRIORITY_ADDRESSES = ROOT / "config" / "earn_canonical_priority_addresses.txt"
 BERACHAIN_PRIORITY_ADDRESSES = ROOT / "config" / "earn_berachain_canonical_hot_addresses.txt"
 EARN_COVERAGE_REPORT = ROOT / "report_earn_subaccount_history_coverage.py"
@@ -191,6 +193,87 @@ if (!earn_canUseVerifiedLedgerMarketEntry(entry)) {
         self.assertIn("strictLedgerMarkets++;", self.source)
         self.assertIn("'Total Yield Earned · Historical evidence'", self.source)
 
+    def test_verified_resolved_interest_ledger_is_validated_and_hydrated_as_fast_path(self):
+        self.assertIn(
+            "resolvedInterestLedger: shardEntry[2]",
+            self.source,
+        )
+        self.assertIn("function earn_validatePublishedResolvedInterestLedger", self.source)
+        self.assertIn("function earn_applyPublishedResolvedInterestLedger", self.source)
+        self.assertIn(
+            "earn_applyPublishedResolvedInterestLedger(verifiedLedger)",
+            self.source,
+        )
+        self.assertIn(
+            "if (earn_replayVerificationReady || earn_replayStatus === 'ready') return false;",
+            self.source,
+        )
+        self.assertIn(
+            "String(market.strictStatus || '').toLowerCase() !== 'verified'",
+            self.source,
+        )
+
+    def test_resolved_interest_fast_path_rejects_omitted_counted_market(self):
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+for (const name of [
+  'earn_parseBlockNumberLike',
+  'earn_validatePublishedResolvedInterestLedger',
+]) {
+  const start = source.indexOf(`function ${name}(`);
+  const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+  if (start < 0 || end < 0) throw new Error(`missing ${name}`);
+  eval(source.slice(start, end));
+}
+const verified = {
+  status: 'verified', counted: true, canVerify: true,
+  rawVerified: true, snapshotIncomplete: false,
+};
+const market = {
+  earnYield: '1', settledYield: '0', settledSupplyYield: '0', settledBorrowYield: '0',
+  openBorrowYield: '0', openSupplyYield: '1', openCollateralYield: '0',
+  currentBorrowPar: '0', currentSupplyPar: '1', currentCollateralSupplyPar: '0',
+  strictStatus: 'verified', strictMethod: 'interest-ledger',
+};
+const ledger = {
+  snapshotDate: '2026-07-18',
+  resolvedInterestLedger: {
+    snapshotDate: '2026-07-18', comparisonBlock: 12345,
+    strictStatus: 'verified', strictMethod: 'interest-ledger',
+    canonicalHistoryCoverageStatus: 'fresh',
+    markets: { '1': market },
+    replayVerificationData: { '1': verified, '2': verified },
+  },
+};
+if (earn_validatePublishedResolvedInterestLedger(ledger) !== null) {
+  throw new Error('incomplete resolved ledger was accepted');
+}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+
+    def test_reward_summaries_start_after_first_positions_render(self):
+        self.assertIn("function earn_startDeferredSummaryFetches", self.source)
+        self.assertNotIn("const summaryPrefetchTasks = [", self.source)
+        first_render = self.source.index(
+            "earn_renderResults(enriched, { skipSummary: false, softRefresh: !!cachedLookup });"
+        )
+        deferred_start = self.source.index(
+            "earn_startDeferredSummaryFetches(addr, chainId, lookupRunId);",
+            first_render,
+        )
+        self.assertGreater(deferred_start, first_render)
+        final_batch_start = self.source.index("// Batch background data", deferred_start)
+        final_batch_end = self.source.index("]).then(() => {", final_batch_start)
+        self.assertNotIn("summaryPrefetchPromise", self.source[final_batch_start:final_batch_end])
+
     def test_live_balance_adjusted_replay_is_diagnostic_not_trusted_for_total_yield(self):
         self.assertIn("function earn_isTrustedReplayYieldMethod(method)", self.source)
         self.assertIn("method === 'interest-ledger-live-balance-adjusted'", self.source)
@@ -243,8 +326,46 @@ for (const [input, decimals, expected] of cases) {
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_yield_calculation_release_invalidates_prior_lookup_cache(self):
-        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 14;", self.source)
+        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 15;", self.source)
         self.assertIn("parsed.version !== EARN_LOOKUP_CACHE_VERSION", self.source)
+
+    def test_earn_rpc_policy_is_loaded_before_dashboard_runtime(self):
+        html = DASHBOARD_CORE.read_text(encoding="utf-8")
+        policy_pos = html.index('src="earn/earn-rpc-policy.js')
+        runtime_pos = html.index('src="dashboard-core.js')
+        self.assertLess(policy_pos, runtime_pos)
+        builder = (ROOT / "build_earn_bundle.py").read_text(encoding="utf-8")
+        self.assertIn('<script src="earn/earn-rpc-policy.js', builder)
+
+    def test_earn_rpc_requests_use_lookup_scoped_endpoint_health(self):
+        self.assertTrue(EARN_RPC_POLICY.exists())
+        self.assertIn("EarnRpcPolicy.create", self.source)
+        self.assertIn("earn_rpcPolicy.recordFailure", self.source)
+        self.assertIn("earn_rpcPolicy.recordSuccess", self.source)
+        self.assertIn("earn_resetRpcPolicy();", self.source)
+
+    def test_lookup_cache_preserves_trusted_markets_during_rpc_degradation(self):
+        html = DASHBOARD_CORE.read_text(encoding="utf-8")
+        cache_policy_pos = html.index('src="earn/earn-cache-policy.js')
+        runtime_pos = html.index('src="dashboard-core.js')
+        self.assertLess(cache_policy_pos, runtime_pos)
+        self.assertIn("EarnCachePolicy.mergeTrustedLookupSnapshot", self.source)
+        self.assertIn("preservedTrustedMarketIds", self.source)
+
+    def test_earn_freshness_separates_live_recency_from_historical_coverage(self):
+        self.assertIn("Live data", self.source)
+        self.assertIn("Historical verification", self.source)
+        self.assertIn("earn-freshness-separator", self.source)
+        self.assertNotIn("recencyFresh ? 'Fresh chain data' : 'Chain data syncing'", self.source)
+
+    def test_canonical_coverage_has_a_separate_growing_backfill_workflow(self):
+        self.assertTrue(EARN_COVERAGE_BACKFILL_WORKFLOW.exists())
+        workflow = EARN_COVERAGE_BACKFILL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("--coverage-backfill", workflow)
+        self.assertIn("run_earn_data_correctness_pipeline.py", workflow)
+        self.assertIn("max-parallel: 1", workflow)
+        self.assertNotIn("--existing-history-only", workflow)
+        self.assertIn("build_earn_verified_ledger_shards.py", workflow)
 
     def test_truncated_subgraph_replay_is_never_strictly_verified(self):
         self.assertIn("const replayTruncated = [", self.source)
@@ -336,6 +457,50 @@ if (actual !== 'coverage_incomplete') {{
 
     def test_reconciled_replay_state_cannot_be_strict_verified(self):
         self._assert_strict_status_for_incomplete_replay("replayStateAdjusted")
+
+    def test_live_index_refresh_overrides_stale_subgraph_indexes(self):
+        refresh_start = self.source.index("async function earn_refreshReplayWithLiveCurrentIndexes(")
+        refresh_end = self.source.index("\n        function ", refresh_start + 1)
+        self.assertGreater(refresh_start, -1)
+        self.assertGreater(refresh_end, refresh_start)
+        refresh_source = self.source[refresh_start:refresh_end]
+        self.assertIn(
+            "earn_mergeReplayCurrentIndexMap(\n"
+            "                    liveCurrentIndexMap,\n"
+            "                    replay.currentIndexMap || {}\n"
+            "                )",
+            refresh_source,
+        )
+
+    def test_replay_par_to_wei_matches_protocol_half_up_rounding(self):
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+const start = source.indexOf('function earn_parToWeiRoundHalfUp(');
+const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+if (start < 0 || end < 0) throw new Error('earn_parToWeiRoundHalfUp not found');
+eval(source.slice(start, end));
+const scale = 10n ** 18n;
+if (earn_parToWeiRoundHalfUp(1n, scale + scale / 2n) !== 2n) {
+  throw new Error('half-up boundary was truncated');
+}
+if (earn_parToWeiRoundHalfUp(1n, scale + scale / 2n - 1n) !== 1n) {
+  throw new Error('value below half-up boundary rounded too early');
+}
+const par = 1517885155478936933n;
+const index = 1350894139995677699n;
+if (earn_parToWeiRoundHalfUp(par, index) !== 2050502161722924040n) {
+  throw new Error('protocol fixture did not reproduce getAccountWei');
+}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def _assert_non_exact_replay_is_mismatch(self, overrides):
         script = f"""
@@ -644,11 +809,13 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         self.assertIn("chainStatus.netflow?.refreshMode", self.source)
         self.assertIn("freshnessModes.includes('background')", self.source)
         self.assertIn("earn_formatCanonicalCoverageLabel", self.source)
-        self.assertIn("canonical coverage syncing", self.source)
-        self.assertIn("Fresh chain data", self.source)
+        self.assertIn("Live data", self.source)
+        self.assertIn("Historical verification", self.source)
+        self.assertIn("earn_formatFreshnessAge", self.source)
+        self.assertNotIn("canonical coverage syncing", self.source)
         self.assertIn("chainStatus?.canonical?.coverageCatchup === true", self.source)
         self.assertIn("chainStatus?.canonical?.coverageBacklog === true", self.source)
-        self.assertIn("canonical backfill", self.source)
+        self.assertIn("backfill pending", self.source)
         self.assertIn("coverage?.backfilledWalletCount", self.source)
         self.assertIn("coverage?.headFreshWalletCount ?? coverage?.freshWalletCount", self.source)
         self.assertIn(

@@ -7,6 +7,34 @@ from build_earn_verified_ledger_shards import build_chain_shards, decode_compact
 
 
 class EarnLedgerShardsTest(unittest.TestCase):
+    def test_preserves_verified_resolved_interest_ledger_in_compact_shard(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source" / "arbitrum"
+            output = root / "public"
+            source.mkdir(parents=True)
+            address = "0xab11111111111111111111111111111111111111"
+            resolved = {
+                "snapshotDate": "2026-07-18",
+                "comparisonBlock": 12345,
+                "generatedAt": "2026-07-18T12:00:00Z",
+                "strictStatus": "verified",
+                "strictMethod": "interest-ledger",
+                "canonicalHistoryCoverageStatus": "fresh",
+                "markets": {"1": {"earnYield": "123", "strictStatus": "verified", "strictMethod": "interest-ledger"}},
+            }
+            (source / f"{address}.json").write_text(json.dumps({
+                "snapshotDate": "2026-07-18",
+                "markets": {"1": {"symbol": "USDC", "decimals": 6, "cumulativeYield": "123"}},
+                "resolvedInterestLedger": resolved,
+            }), encoding="utf-8")
+
+            build_chain_shards(source.parent, output, "arbitrum")
+
+            shard = json.loads((output / "arbitrum" / "ab.json").read_text(encoding="utf-8"))
+            ledger = decode_compact_ledger(shard, shard["ledgers"][address])
+            self.assertEqual(ledger["resolvedInterestLedger"], resolved)
+
     def test_legacy_markets_get_explicit_unavailable_historical_pnl(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -207,6 +207,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         let earn_replayVerificationReady = false;
         let earn_lookupLoading = false;
         let earn_lookupUsingCachedSnapshot = false;
+        let earn_preservedTrustedMarketIds = new Set();
         let earn_activeLookupRunId = 0;
         // Address of the lookup currently shown in the UI. Reward fetchers
         // compare against it before writing their globals, so a slow response
@@ -220,11 +221,13 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         let earn_replayStatus = 'idle'; // idle | loading | ready | error
         let earn_merklFetchStatus = 'idle'; // idle | loading | success | error
         let earn_merklFetchError = '';
-        // Strict replay eligibility changed in v14. Do not revive v13 entries that
-        // could have treated adjusted Wei drift as strictly verified.
-        const EARN_LOOKUP_CACHE_VERSION = 14;
+        // v15 preserves a previously trusted interest-ledger result while a live
+        // refresh is temporarily degraded by an unavailable browser RPC.
+        const EARN_LOOKUP_CACHE_VERSION = 15;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
+        let earn_rpcPolicy = null;
+        let earn_rpcPolicyChainId = '';
         const earn_rewardRequestCache = {
             odoloClaimed: {},
             merkl: {},
@@ -247,6 +250,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
 
         function earn_startLookupRun() {
             earn_activeLookupRunId += 1;
+            earn_resetRpcPolicy();
             return earn_activeLookupRunId;
         }
 
@@ -777,7 +781,24 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return EARN_CHAINS[sel ? sel.value : 'ethereum'];
         }
 
+        function earn_resetRpcPolicy() {
+            const chainId = String(document.getElementById('earn-chain')?.value || 'ethereum');
+            const chain = EARN_CHAINS[chainId] || EARN_CHAINS.ethereum;
+            earn_rpcPolicyChainId = chainId;
+            earn_rpcPolicy = typeof EarnRpcPolicy !== 'undefined'
+                ? EarnRpcPolicy.create(chain.rpcs)
+                : null;
+        }
+
+        function earn_getRpcPolicy() {
+            const chainId = String(document.getElementById('earn-chain')?.value || 'ethereum');
+            if (!earn_rpcPolicy || earn_rpcPolicyChainId !== chainId) earn_resetRpcPolicy();
+            return earn_rpcPolicy;
+        }
+
         function earn_nextRpc() {
+            const policy = earn_getRpcPolicy();
+            if (policy) return policy.next();
             const chain = earn_getChain();
             return chain.rpcs[chain.rpcIdx++ % chain.rpcs.length];
         }
@@ -1120,6 +1141,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         async function earn_rpcRequest(method, params, retries = 3) {
             for (let attempt = 0; attempt < retries; attempt++) {
                 const rpcUrl = earn_nextRpc();
+                if (!rpcUrl) throw new Error('No healthy RPC endpoint is available for this lookup');
                 const ctrl = new AbortController();
                 const timer = setTimeout(() => ctrl.abort(), 8000);
                 try {
@@ -1135,12 +1157,23 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         })
                     });
                     clearTimeout(timer);
-                    if (!resp.ok) throw new Error(`RPC HTTP ${resp.status}`);
+                    if (!resp.ok) {
+                        const httpError = new Error(`RPC HTTP ${resp.status}`);
+                        httpError.httpStatus = resp.status;
+                        throw httpError;
+                    }
                     const json = await resp.json();
-                    if (json.error) throw new Error(json.error.message);
+                    if (json.error) {
+                        const rpcError = new Error(json.error.message);
+                        rpcError.rpcCode = json.error.code;
+                        throw rpcError;
+                    }
+                    earn_rpcPolicy.recordSuccess(rpcUrl);
                     return json.result;
                 } catch (e) {
                     clearTimeout(timer);
+                    const failure = earn_rpcPolicy.recordFailure(rpcUrl, e);
+                    if (failure && !failure.retryable) throw e;
                     if (attempt === retries - 1) throw e;
                     const delayMs = earn_getRpcRetryDelayMs(e, attempt);
                     if (delayMs > 0) {
@@ -1248,6 +1281,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             }));
             for (let attempt = 0; attempt < retries; attempt++) {
                 const rpcUrl = earn_nextRpc();
+                if (!rpcUrl) return calls.map(() => null);
                 const ctrl = new AbortController();
                 const timer = setTimeout(() => ctrl.abort(), 8000);
                 try {
@@ -1258,7 +1292,11 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         body: JSON.stringify(batch)
                     });
                     clearTimeout(timer);
-                    if (!resp.ok) throw new Error(`RPC HTTP ${resp.status}`);
+                    if (!resp.ok) {
+                        const httpError = new Error(`RPC HTTP ${resp.status}`);
+                        httpError.httpStatus = resp.status;
+                        throw httpError;
+                    }
                     const results = await resp.json();
                     // Results may come in any order, sort by id
                     if (Array.isArray(results)) {
@@ -1280,17 +1318,24 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         if (missingCount > 0 || errorCount > 0) {
                             throw new Error(`RPC batch incomplete (missing=${missingCount}, errors=${errorCount})`);
                         }
+                        earn_rpcPolicy.recordSuccess(rpcUrl);
                         return batch.map(b => map[b.id] || null);
                     }
                     // Some RPCs don't support batch, fall back to individual calls
                     console.warn('RPC batch not supported, falling back to individual calls');
-                    const settledNoBatch = await Promise.allSettled(calls.map(c => earn_rpcCall(c.to, c.data, 3, c.blockTag || 'latest')));
+                    earn_rpcPolicy.recordSuccess(rpcUrl);
+                    const settledNoBatch = await Promise.allSettled(calls.map(c => earn_rpcCall(c.to, c.data, 1, c.blockTag || 'latest')));
                     return settledNoBatch.map(s => s.status === 'fulfilled' ? s.value : null);
                 } catch (e) {
                     clearTimeout(timer);
+                    const failure = earn_rpcPolicy.recordFailure(rpcUrl, e);
+                    const batchCanFallback = /batch (?:incomplete|returned empty)/i.test(String(e && e.message || e));
+                    if (failure && !failure.retryable && !batchCanFallback) {
+                        return calls.map(() => null);
+                    }
                     if (attempt === retries - 1) {
-                        // Fallback to individual calls
-                        const settled = await Promise.allSettled(calls.map(c => earn_rpcCall(c.to, c.data, 3, c.blockTag || 'latest')));
+                        if (!batchCanFallback) return calls.map(() => null);
+                        const settled = await Promise.allSettled(calls.map(c => earn_rpcCall(c.to, c.data, 1, c.blockTag || 'latest')));
                         return settled.map(s => s.status === 'fulfilled' ? s.value : null);
                     }
                     const delayMs = earn_getRpcRetryDelayMs(e, attempt);
@@ -3855,6 +3900,11 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return relativeTolerance > minTolerance ? relativeTolerance : minTolerance;
         }
 
+        function earn_parToWeiRoundHalfUp(par, index) {
+            const scale = 10n ** 18n;
+            return ((BigInt(par || 0) * BigInt(index || 0)) + (scale / 2n)) / scale;
+        }
+
         function earn_normalizeMarketId(value) {
             if (value === undefined || value === null) return '';
             const normalized = String(value);
@@ -4226,7 +4276,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     if (supplyIndex === null) {
                         stateEntry.canVerify = false;
                     } else {
-                        const expectedWei = (state.par * supplyIndex) / (10n ** 18n);
+                        const expectedWei = earn_parToWeiRoundHalfUp(state.par, supplyIndex);
                         if (isCollateralSupply) stateEntry.expectedCollateralSupplyWei += expectedWei;
                         else stateEntry.expectedSupplyWei += expectedWei;
                     }
@@ -4243,7 +4293,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     if (borrowIndex === null) {
                         stateEntry.canVerify = false;
                     } else {
-                        stateEntry.expectedBorrowWei += (borrowPar * borrowIndex) / (10n ** 18n);
+                        stateEntry.expectedBorrowWei += earn_parToWeiRoundHalfUp(borrowPar, borrowIndex);
                     }
                 } else {
                     entry.earnYield += state.settledSupplyYield;
@@ -4350,8 +4400,8 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     };
                 });
                 const mergedCurrentIndexMap = earn_mergeReplayCurrentIndexMap(
-                    replay.currentIndexMap || {},
-                    liveCurrentIndexMap
+                    liveCurrentIndexMap,
+                    replay.currentIndexMap || {}
                 );
 
                 const advanced = earn_advanceReplayAccountStateDataToCurrentIndexes(
@@ -6282,6 +6332,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         let earn_verifiedLedgerCache = {}; // { "chain:address" : payload|null }
         let earn_verifiedLedgerRequestCache = {}; // { "chain:address" : Promise<payload|null> }
         let earn_verifiedLedgerShardRequestCache = {}; // { "chain:prefix" : Promise<shard|null> }
+        let earn_publishedResolvedInterestLedger = null; // last strict static replay fast path for the active lookup
         let earn_subaccountHistoryCache = {}; // { "chain:address" : payload|null }
         let earn_subaccountHistoryRequestCache = {}; // { "chain:address" : Promise<payload|null> }
         let earn_marketRatesRequestCache = {}; // { chainId : Promise<rates> }
@@ -6300,6 +6351,13 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             if (!Number.isFinite(value) || value <= 0) return '';
             if (value < 90) return `${Math.round(value)}m lag`;
             return `${(value / 60).toFixed(value >= 600 ? 0 : 1)}h lag`;
+        }
+
+        function earn_formatFreshnessAge(minutes) {
+            const value = Number(minutes || 0);
+            if (!Number.isFinite(value) || value < 1) return 'now';
+            if (value < 90) return `${Math.round(value)}m ago`;
+            return `${(value / 60).toFixed(value >= 600 ? 0 : 1)}h ago`;
         }
 
         function earn_formatCanonicalCoverageLabel(coverage, useBackfill = false) {
@@ -6332,6 +6390,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             const canonicalLag = Number(chainStatus?.canonical?.estimatedLagMinutes || 0);
             const netflowLag = Number(chainStatus?.netflow?.estimatedLagMinutes || 0);
             const lagLabel = earn_formatFreshnessLag(Math.max(canonicalLag, netflowLag));
+            const ageLabel = earn_formatFreshnessAge(Math.max(canonicalLag, netflowLag));
             const recencyStatus = String(chainStatus?.canonical?.recencyStatus || chainStatus?.canonical?.status || '').toLowerCase();
             const blockLag = Number(chainStatus?.canonical?.blockLag);
             const verifiedBlockLag = Number(chainStatus?.canonical?.verifiedBlockLag);
@@ -6339,16 +6398,16 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 || (Number.isFinite(blockLag) && Number.isFinite(verifiedBlockLag) && verifiedBlockLag > 0 && blockLag <= verifiedBlockLag);
             if (canonicalCoverageCatchup || canonicalCoverageBacklog) {
                 const coverageLabel = earn_formatCanonicalCoverageLabel(canonicalCoverage, canonicalCoverageBacklog);
-                const parts = [
-                    recencyFresh ? 'Fresh chain data' : 'Chain data syncing',
-                    canonicalCoverageCatchup
-                        ? (coverageLabel ? `canonical coverage syncing · ${coverageLabel}` : 'canonical coverage syncing')
-                        : (coverageLabel ? `canonical backfill · ${coverageLabel}` : 'canonical backfill'),
-                ];
-                if (!recencyFresh && lagLabel) parts.push(lagLabel);
-                pill.textContent = parts.join(' · ');
+                const liveCopy = recencyFresh
+                    ? `Live data · ${ageLabel}`
+                    : `Live data syncing${lagLabel ? ` · ${lagLabel}` : ''}`;
+                const historyCopy = coverageLabel
+                    ? `Historical verification · ${coverageLabel}`
+                    : (canonicalCoverageCatchup ? 'Historical verification · syncing' : 'Historical verification · backfill pending');
+                pill.innerHTML = `<span class="earn-freshness-live">${liveCopy}</span><span class="earn-freshness-separator" aria-hidden="true"></span><span class="earn-freshness-history">${historyCopy}</span>`;
                 pill.classList.add('visible');
                 pill.setAttribute('aria-hidden', 'false');
+                pill.setAttribute('aria-label', `${liveCopy}. ${historyCopy}`);
                 return;
             }
             if (!isVerifiedBackground) {
@@ -6357,9 +6416,9 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 pill.textContent = '';
                 return;
             }
-            pill.textContent = lagLabel
-                ? `Fresh data · refreshing in background · ${lagLabel}`
-                : 'Fresh data · refreshing in background';
+            pill.textContent = recencyFresh
+                ? `Live data · ${ageLabel}`
+                : `Live data syncing${lagLabel ? ` · ${lagLabel}` : ''}`;
             pill.classList.add('visible');
             pill.setAttribute('aria-hidden', 'false');
         }
@@ -7082,7 +7141,13 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                             }
                         });
                     });
-                    data = { snapshotDate: String(shardEntry[0] || shard.snapshotDate || ''), markets };
+                    data = {
+                        snapshotDate: String(shardEntry[0] || shard.snapshotDate || ''),
+                        markets,
+                        resolvedInterestLedger: shardEntry[2] && typeof shardEntry[2] === 'object'
+                            ? shardEntry[2]
+                            : undefined,
+                    };
                 } else if (shardEntry && typeof shardEntry === 'object') {
                     data = shardEntry;
                 }
@@ -7162,6 +7227,82 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return !status;
         }
 
+        function earn_validatePublishedResolvedInterestLedger(ledger) {
+            const resolved = ledger && ledger.resolvedInterestLedger;
+            if (!resolved || typeof resolved !== 'object') return null;
+            if (String(resolved.snapshotDate || '') !== String(ledger.snapshotDate || '')) return null;
+            if (String(resolved.strictStatus || '').toLowerCase() !== 'verified') return null;
+            const method = String(resolved.strictMethod || '').toLowerCase();
+            if (method !== 'interest-ledger' && method !== 'interest-ledger-override') return null;
+            if (String(resolved.canonicalHistoryCoverageStatus || '').toLowerCase() !== 'fresh') return null;
+            const comparisonBlock = earn_parseBlockNumberLike(resolved.comparisonBlock);
+            if (comparisonBlock === null || comparisonBlock <= 0n) return null;
+            const markets = resolved.markets;
+            const verification = resolved.replayVerificationData;
+            if (!markets || typeof markets !== 'object' || Object.keys(markets).length === 0) return null;
+            if (!verification || typeof verification !== 'object') return null;
+            const requiredIntegerFields = [
+                'earnYield', 'settledYield', 'settledSupplyYield', 'settledBorrowYield',
+                'openBorrowYield', 'openSupplyYield', 'openCollateralYield',
+                'currentBorrowPar', 'currentSupplyPar', 'currentCollateralSupplyPar',
+            ];
+            for (const [marketId, market] of Object.entries(markets)) {
+                if (!/^\d+$/.test(String(marketId)) || !market || typeof market !== 'object') return null;
+                if (String(market.strictStatus || '').toLowerCase() !== 'verified') return null;
+                const marketMethod = String(market.strictMethod || '').toLowerCase();
+                if (marketMethod !== 'interest-ledger' && marketMethod !== 'interest-ledger-override') return null;
+                if (requiredIntegerFields.some(field => !/^-?\d+$/.test(String(market[field] ?? '')))) return null;
+                const check = verification[String(marketId)];
+                if (!check || typeof check !== 'object') return null;
+                if (
+                    String(check.status || '').toLowerCase() !== 'verified'
+                    || check.counted !== true
+                    || check.canVerify !== true
+                    || check.rawVerified !== true
+                    || check.snapshotIncomplete !== false
+                ) return null;
+            }
+            const countedMarketIds = Object.entries(verification)
+                .filter(([, check]) => check && typeof check === 'object' && check.counted === true)
+                .map(([marketId]) => String(marketId))
+                .sort();
+            const publishedMarketIds = Object.keys(markets).map(String).sort();
+            if (
+                countedMarketIds.length !== publishedMarketIds.length
+                || countedMarketIds.some((marketId, index) => marketId !== publishedMarketIds[index])
+            ) return null;
+            return resolved;
+        }
+
+        function earn_applyPublishedResolvedInterestLedger(verifiedLedger) {
+            if (earn_replayVerificationReady || earn_replayStatus === 'ready') return false;
+            const resolved = earn_validatePublishedResolvedInterestLedger(verifiedLedger);
+            if (!resolved) return false;
+            const comparisonBlock = earn_parseBlockNumberLike(resolved.comparisonBlock);
+            if (comparisonBlock === null) return false;
+
+            earn_publishedResolvedInterestLedger = verifiedLedger;
+            earn_interestYieldData = resolved.markets || {};
+            earn_replayVerificationData = resolved.replayVerificationData || {};
+            earn_replayVerificationSummary = Object.values(earn_replayVerificationData).reduce((summary, entry) => {
+                summary.total += 1;
+                if (String(entry.status || '').toLowerCase() === 'verified') summary.verified += 1;
+                else if (String(entry.status || '').toLowerCase() === 'mismatch') summary.mismatch += 1;
+                else summary.unverified += 1;
+                return summary;
+            }, { total: 0, verified: 0, mismatch: 0, unverified: 0 });
+            earn_replayVerificationReady = earn_replayVerificationSummary.total > 0
+                && earn_replayVerificationSummary.verified === earn_replayVerificationSummary.total;
+            earn_replayAccountStateData = resolved.accountStateData || {};
+            earn_replayCurrentIndexMap = resolved.currentIndexMap || {};
+            earn_replayStateData = resolved.replayStateData || {};
+            earn_openBorrowAccounts = new Set((resolved.openBorrowAccounts || []).map(value => String(value)));
+            earn_replayBorrowAccountsOverride = new Set((resolved.borrowAccountsOverride || resolved.openBorrowAccounts || []).map(value => String(value)));
+            earn_setCanonicalSubaccountHistoryState(comparisonBlock, true);
+            earn_refreshResolvedTotalYieldData();
+            return true;
+        }
+
         // Get historical market data for a specific address from a snapshot
         function earn_getHistoricalMarkets(snapshot, chainId, address) {
             if (!snapshot || !snapshot.snapshots) return null;
@@ -7216,6 +7357,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
 
             // Preferred source: precomputed verified ledger for this exact address+chain.
             const verifiedLedger = await earn_fetchVerifiedLedgerForAddress(chainId, addr);
+            earn_applyPublishedResolvedInterestLedger(verifiedLedger);
             let loadedLedgerMarkets = 0;
             let strictLedgerMarkets = 0;
             let deferredLedgerMarkets = 0;
@@ -9546,12 +9688,17 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 && results.classList.contains('is-refreshing')
                 && !results.classList.contains('loading-gate');
             const warmRefreshing = !!earn_lookupUsingCachedSnapshot && !!earn_lookupLoading && !earn_isLookupLoadingGateActive();
-            const shouldShow = softRefreshing || warmRefreshing;
+            const preservedTrustedResult = earn_preservedTrustedMarketIds.size > 0;
+            const shouldShow = softRefreshing || warmRefreshing || preservedTrustedResult;
             badge.classList.toggle('visible', shouldShow);
             badge.classList.toggle('is-soft', softRefreshing);
             badge.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
             badge.innerHTML = shouldShow
-                ? `<span class="earn-live-refresh-dot"></span><span>${softRefreshing ? 'Fresh data · refreshing in background' : 'Refreshing live...'}</span>`
+                ? `<span class="earn-live-refresh-dot"></span><span>${
+                    preservedTrustedResult && !softRefreshing && !warmRefreshing
+                        ? 'Last verified yield · live check incomplete'
+                        : (softRefreshing ? 'Refreshing verification...' : 'Refreshing live...')
+                }</span>`
                 : '';
         }
 
@@ -9619,13 +9766,17 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return value;
         }
 
+        function earn_cloneLookupSnapshot(snapshot) {
+            return snapshot ? earn_decodeCacheValue(earn_encodeCacheValue(snapshot)) : null;
+        }
+
         function earn_loadLookupCache(chainId, address) {
             const cacheKey = earn_getLookupCacheKey(chainId, address);
             if (!cacheKey) return null;
             const now = Date.now();
             const inMemory = earn_lookupResultCache[cacheKey];
             if (inMemory && inMemory.savedAt && (now - inMemory.savedAt) <= EARN_LOOKUP_CACHE_TTL_MS) {
-                return inMemory;
+                return earn_cloneLookupSnapshot(inMemory);
             }
             try {
                 const raw = sessionStorage.getItem(`earn-lookup:${cacheKey}`);
@@ -9634,7 +9785,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 if (!parsed || parsed.version !== EARN_LOOKUP_CACHE_VERSION) return null;
                 if (!parsed.savedAt || (now - parsed.savedAt) > EARN_LOOKUP_CACHE_TTL_MS) return null;
                 earn_lookupResultCache[cacheKey] = parsed;
-                return parsed;
+                return earn_cloneLookupSnapshot(parsed);
             } catch (e) {
                 console.warn('Lookup cache read failed:', e.message || e);
                 return null;
@@ -9644,7 +9795,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         function earn_saveLookupCache(chainId, address) {
             const cacheKey = earn_getLookupCacheKey(chainId, address);
             if (!cacheKey || !earn_cachedAssets || earn_cachedAssets.length === 0) return;
-            const snapshot = {
+            const candidate = {
                 version: EARN_LOOKUP_CACHE_VERSION,
                 savedAt: Date.now(),
                 chainId: String(chainId || '').trim().toLowerCase(),
@@ -9671,6 +9822,22 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 hiddenCollateralSupplyMarkets: Array.from(earn_hiddenCollateralSupplyMarkets || []),
                 lendingPositions: earn_lendingPositions || [],
             };
+            const previous = earn_lookupResultCache[cacheKey] || null;
+            const snapshot = typeof EarnCachePolicy !== 'undefined'
+                ? EarnCachePolicy.mergeTrustedLookupSnapshot(previous, candidate, {
+                    maxTrustedAgeMs: EARN_LOOKUP_CACHE_TTL_MS,
+                })
+                : candidate;
+            earn_preservedTrustedMarketIds = new Set(snapshot.preservedTrustedMarketIds || []);
+            if (earn_preservedTrustedMarketIds.size > 0) {
+                earn_totalYieldData = snapshot.totalYieldData || earn_totalYieldData;
+                earn_resolvedTotalYieldData = snapshot.resolvedTotalYieldData || earn_resolvedTotalYieldData;
+                earn_interestYieldData = snapshot.interestYieldData || earn_interestYieldData;
+                earn_replayVerificationData = snapshot.replayVerificationData || earn_replayVerificationData;
+                earn_replayVerificationSummary = snapshot.replayVerificationSummary || earn_replayVerificationSummary;
+                earn_replayVerificationReady = !!snapshot.replayVerificationReady;
+                earn_refreshResolvedTotalYieldData();
+            }
             earn_lookupResultCache[cacheKey] = snapshot;
             try {
                 sessionStorage.setItem(`earn-lookup:${cacheKey}`, JSON.stringify(earn_encodeCacheValue(snapshot)));
@@ -9702,6 +9869,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             earn_replayVerificationData = snapshot.replayVerificationData || {};
             earn_replayVerificationSummary = snapshot.replayVerificationSummary || { total: 0, verified: 0, mismatch: 0, unverified: 0 };
             earn_replayVerificationReady = !!snapshot.replayVerificationReady;
+            earn_preservedTrustedMarketIds = new Set(snapshot.preservedTrustedMarketIds || []);
             earn_replayUsedSubgraphFallback = !!snapshot.replayUsedSubgraphFallback;
             earn_subgraphTokens = snapshot.subgraphTokens || {};
             earn_marketRates = snapshot.marketRates || {};
@@ -9730,6 +9898,26 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return true;
         }
 
+        function earn_startDeferredSummaryFetches(addr, chainId, runId) {
+            const tasks = [
+                earn_fetchOdoloClaimed(addr).catch(() => 0),
+                earn_fetchMerklRewards(addr, chainId).catch(() => ({})),
+            ];
+            if (chainId === 'berachain') tasks.push(earn_fetchIBGTRewards(addr).catch(() => null));
+            if (chainId === 'arbitrum') tasks.push(earn_fetchDGMXRewards(addr).catch(() => null));
+            return Promise.allSettled(tasks).then(() => {
+                if (!earn_isLookupRunCurrent(runId)) return false;
+                const table = document.querySelector('.earn-asset-table');
+                if (table) table.classList.add('no-animate');
+                if (earn_cachedAssets && earn_cachedAssets.length > 0) {
+                    earn_renderResults(earn_cachedAssets, { skipSummary: false, softRefresh: true });
+                    const activeAddr = document.getElementById('earn-address').value.trim();
+                    earn_saveLookupCache(chainId, activeAddr);
+                }
+                return true;
+            });
+        }
+
         async function earn_lookup() {
             // Reset animation suppression for fresh search
             const tbl = document.querySelector('.earn-asset-table');
@@ -9751,6 +9939,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             const isCurrentLookup = () => earn_isLookupRunCurrent(lookupRunId);
             const cachedLookup = earn_loadLookupCache(chainId, addr);
             const lookupProfile = earn_createLookupProfiler(chainId, addr, !!cachedLookup);
+            earn_preservedTrustedMarketIds = new Set();
             earn_hideAll();
             btn.classList.add('loading');
             btn.disabled = true;
@@ -9772,6 +9961,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             earn_hiddenCollateralSupplyMarkets = new Set();
             earn_subgraphAccountSnapshot = null;
             earn_interestYieldData = null;
+            earn_publishedResolvedInterestLedger = null;
             earn_replayStateData = {};
             earn_replayBlockTag = null;
             earn_resetCanonicalSubaccountHistoryState();
@@ -9843,14 +10033,6 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     earn_fetchMarketRates(chainId),
                 ]);
 
-                const summaryPrefetchTasks = [
-                    earn_fetchOdoloClaimed(addr).catch(() => 0),
-                    earn_fetchMerklRewards(addr, chainId).catch(() => ({})),
-                ];
-                if (chainId === 'berachain') summaryPrefetchTasks.push(earn_fetchIBGTRewards(addr).catch(() => null));
-                if (chainId === 'arbitrum') summaryPrefetchTasks.push(earn_fetchDGMXRewards(addr).catch(() => null));
-                const summaryPrefetchPromise = Promise.allSettled(summaryPrefetchTasks);
-
                 const replayBlockTagPromise = Promise.all([
                     earn_rpcRequest('eth_blockNumber', [], 3),
                     earn_fetchSubaccountHistoryForAddress(chainId, addr).catch(() => null),
@@ -9915,6 +10097,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         earn_replayVerificationSummary = { total: 0, verified: 0, mismatch: 0, unverified: 0 };
                         earn_replayVerificationReady = false;
                         earn_replayStatus = 'error';
+                        earn_applyPublishedResolvedInterestLedger(earn_publishedResolvedInterestLedger);
                         earn_updateLookupLoadingUi(lookupRunId, {
                             stageIndex: 2,
                             progress: 0.56,
@@ -9986,6 +10169,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         earn_setResultsRefreshing(false);
                         earn_markLookupProfile(lookupProfile, 'firstRenderReady');
                         earn_renderResults(enriched, { skipSummary: false, softRefresh: !!cachedLookup });
+                        earn_startDeferredSummaryFetches(addr, chainId, lookupRunId);
                         earn_logLookupProfile(lookupProfile, 'firstRenderReady');
 
                         // Also fetch lending positions
@@ -10318,7 +10502,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                                 stageIndex: 2,
                                 progress: 0.76,
                                 detail: (earn_replayStatus === 'ready' || earn_replayStatus === 'error')
-                                    ? 'Verified yield is ready. Loading history, rewards and lending analytics before reveal.'
+                                    ? 'Verified yield is ready. Loading history and lending analytics before reveal.'
                                     : 'Historical yield is loaded. Waiting for replay reconciliation before revealing the final verified result.',
                             });
                         }
@@ -10386,6 +10570,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 earn_setResultsRefreshing(true);
                 earn_markLookupProfile(lookupProfile, 'firstRenderReady');
                 earn_renderResults(enriched, { skipSummary: false, softRefresh: !!cachedLookup });
+                earn_startDeferredSummaryFetches(addr, chainId, lookupRunId);
                 earn_logLookupProfile(lookupProfile, 'firstRenderReady');
 
                 const lendingPromise = earn_fetchAndRenderLendingPositions({ runId: lookupRunId, addr, chainId })
@@ -10424,7 +10609,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                             earn_updateLookupLoadingUi(lookupRunId, {
                                 stageIndex: 3,
                                 progress: 0.88,
-                                detail: 'History snapshots are loaded. Wrapping up rewards and lending sections now.',
+                                detail: 'History snapshots are loaded. Wrapping up lending analytics now.',
                             });
                         }
                         return !!result;
@@ -10440,7 +10625,6 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     pricesRefreshPromise,
                     apyPromise,
                     totalYieldPromise,
-                    summaryPrefetchPromise,
                     replayPromise.then(ok => {
                         if (!isCurrentLookup()) return null;
                         if (!ok) return null;
