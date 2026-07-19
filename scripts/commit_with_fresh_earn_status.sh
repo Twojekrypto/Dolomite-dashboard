@@ -75,6 +75,25 @@ if [ "$resolved_manifest_staged" = "true" ] && [ -z "$resolved_chains" ]; then
   resolved_sync_all=true
 fi
 
+canonical_chains="$(
+  git diff --cached --name-only |
+    sed -n 's#^data/earn-subaccount-history/\([^/][^/]*\)/0x[0-9a-fA-F]*\.json$#\1#p' |
+    tr '[:upper:]' '[:lower:]' |
+    sort -u
+)"
+canonical_manifest_staged=false
+if git diff --cached --name-only -- data/earn-subaccount-history/manifest.json | grep -q .; then
+  canonical_manifest_staged=true
+fi
+if [ "$canonical_manifest_staged" = "true" ] && [ -n "${CHAIN:-}" ]; then
+  canonical_chains="$(
+    printf "%s\n%s\n" "$canonical_chains" "$CHAIN" |
+      sed '/^$/d' |
+      tr '[:upper:]' '[:lower:]' |
+      sort -u
+  )"
+fi
+
 rebase_address_dir="$(mktemp -d "${TMPDIR:-/tmp}/earn-rebase-addresses.XXXXXX")"
 trap 'rm -rf "$rebase_address_dir"' EXIT
 while IFS= read -r ledger_path; do
@@ -158,6 +177,14 @@ for i in $(seq 1 "$attempts"); do
       fi
       "${resolved_sync_args[@]}"
       git add -f data/earn-resolved-interest-ledger/manifest.json
+    fi
+    if [ -n "$canonical_chains" ]; then
+      canonical_sync_args=(python3 scripts/sync_earn_subaccount_manifest.py --base-ref "$git_remote/$git_branch")
+      for chain in $canonical_chains; do
+        canonical_sync_args+=(--chain "$chain")
+      done
+      "${canonical_sync_args[@]}"
+      git add -f data/earn-subaccount-history/manifest.json
     fi
     refresh_args=(python3 update_earn_freshness_status.py --output "$status_output")
     if [ -n "$actions_output" ]; then
