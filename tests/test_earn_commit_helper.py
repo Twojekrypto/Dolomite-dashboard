@@ -36,6 +36,10 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
 
         (work / "scripts").mkdir()
         shutil.copy2(HELPER, work / "scripts" / "commit_with_fresh_earn_status.sh")
+        shutil.copy2(
+            ROOT / "scripts" / "sync_earn_subaccount_manifest.py",
+            work / "scripts" / "sync_earn_subaccount_manifest.py",
+        )
         (work / "scripts" / "sync_earn_verified_manifest.py").write_text(
             textwrap.dedent(
                 """\
@@ -73,6 +77,8 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             encoding="utf-8",
         )
         (work / "data" / "earn-verified-ledger").mkdir(parents=True)
+        (work / "data" / "earn-subaccount-history" / "ethereum").mkdir(parents=True)
+        (work / "data" / "earn-subaccount-history" / "xlayer").mkdir(parents=True)
         (work / "data" / "earn-freshness").mkdir(parents=True)
         (work / "data" / "earn-snapshots").mkdir(parents=True)
         (work / "data" / "earn-verified-ledger" / "manifest.json").write_text(
@@ -87,11 +93,64 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             '{"dates":["2026-05-10"]}\n',
             encoding="utf-8",
         )
+        (work / "data" / "earn-subaccount-history" / "manifest.json").write_text(
+            json.dumps(
+                {
+                    "chains": {
+                        "ethereum": {"lastBlock": 100, "updatedAt": "2026-05-10T10:00:00Z"},
+                        "xlayer": {"lastBlock": 200, "updatedAt": "2026-05-10T10:00:00Z"},
+                    }
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         _run(["git", "add", "."], cwd=work)
         _run(["git", "commit", "-m", "initial"], cwd=work)
         _run(["git", "remote", "add", "origin", str(remote)], cwd=work)
         _run(["git", "push", "origin", "master"], cwd=work)
         return remote, work
+
+    def test_rebase_keeps_new_remote_canonical_entry_for_other_chain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, work = self._prepare_repo(Path(tmp))
+            manifest = work / "data" / "earn-subaccount-history" / "manifest.json"
+            local_payload = json.loads(manifest.read_text(encoding="utf-8"))
+            local_payload["chains"]["ethereum"] = {
+                "lastBlock": 150,
+                "updatedAt": "2026-05-10T11:00:00Z",
+            }
+            manifest.write_text(json.dumps(local_payload) + "\n", encoding="utf-8")
+            _run(["git", "add", "data/earn-subaccount-history/manifest.json"], cwd=work)
+
+            peer = Path(tmp) / "peer"
+            _run(["git", "clone", str(remote), str(peer)], cwd=Path(tmp))
+            _run(["git", "config", "user.name", "Remote Bot"], cwd=peer)
+            _run(["git", "config", "user.email", "remote@example.invalid"], cwd=peer)
+            remote_manifest = peer / "data" / "earn-subaccount-history" / "manifest.json"
+            remote_payload = json.loads(remote_manifest.read_text(encoding="utf-8"))
+            remote_payload["chains"]["xlayer"] = {
+                "lastBlock": 250,
+                "updatedAt": "2026-05-10T11:05:00Z",
+            }
+            remote_manifest.write_text(json.dumps(remote_payload) + "\n", encoding="utf-8")
+            _run(["git", "add", "data/earn-subaccount-history/manifest.json"], cwd=peer)
+            _run(["git", "commit", "-m", "refresh xlayer"], cwd=peer)
+            _run(["git", "push", "origin", "master"], cwd=peer)
+
+            env = {
+                **dict(os.environ),
+                "CHAIN": "ethereum",
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
+            }
+            _run(["bash", "scripts/commit_with_fresh_earn_status.sh", "refresh ethereum"], cwd=work, env=env)
+
+            merged = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertEqual(150, merged["chains"]["ethereum"]["lastBlock"])
+            self.assertEqual(250, merged["chains"]["xlayer"]["lastBlock"])
 
     def test_manifest_only_change_uses_chain_env_for_manifest_sync(self):
         with tempfile.TemporaryDirectory() as tmp:
