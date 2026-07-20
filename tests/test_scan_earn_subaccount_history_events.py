@@ -2,10 +2,24 @@ import unittest
 from unittest.mock import patch
 
 import scan_earn_subaccount_history_events as scanner
-from scan_earn_subaccount_history_events import _initial_rpc_index, _should_fallback_to_single_topics
+from scan_earn_subaccount_history_events import (
+    _canonical_max_block_chunk,
+    _initial_rpc_index,
+    _should_fallback_to_single_topics,
+)
 
 
 class ScanEarnSubaccountHistoryEventsTest(unittest.TestCase):
+    def test_berachain_canonical_scan_uses_provider_safe_chunk_limit(self):
+        config = scanner.CHAINS["berachain"]
+
+        self.assertEqual(9_999, config["canonical_max_block_chunk"])
+        self.assertEqual(9_999, _canonical_max_block_chunk(config))
+
+    def test_canonical_chunk_limit_falls_back_to_chain_and_global_limits(self):
+        self.assertEqual(1_800, _canonical_max_block_chunk({"max_block_chunk": 1_800}))
+        self.assertEqual(scanner.BLOCK_CHUNK, _canonical_max_block_chunk({}))
+
     def test_initial_rpc_index_spreads_progress_keys_across_endpoints(self):
         rpcs = ["rpc-a", "rpc-b", "rpc-c", "rpc-d"]
 

@@ -69,6 +69,17 @@ def _initial_rpc_index(
     return (base_index + max(0, int(rpc_start_offset))) % len(rpcs)
 
 
+def _canonical_max_block_chunk(config: dict) -> int:
+    return max(
+        1,
+        int(
+            config.get("canonical_max_block_chunk")
+            or config.get("max_block_chunk")
+            or BLOCK_CHUNK
+        ),
+    )
+
+
 def _should_fallback_to_single_topics(exc: Exception) -> bool:
     message = str(exc).lower()
     if "bad request" in message or "http error 400" in message:
@@ -345,7 +356,7 @@ def scan_chain_to_event_shards(
     total_decoded_entry_count = 0
     total_selected_event_count = 0
     shard_count = 0
-    max_chunk_size = int(config.get("max_block_chunk") or BLOCK_CHUNK)
+    max_chunk_size = _canonical_max_block_chunk(config)
     range_span = resolved_to_block - resolved_from_block + 1
     adaptive_chunk_size = min(max_chunk_size, max(1, int(chunk_size)), max(1, range_span))
 
@@ -534,7 +545,7 @@ def main() -> int:
         output_dir=Path(args.output_dir),
         from_block=args.from_block,
         to_block=args.to_block,
-        chunk_size=max(1_000, int(args.chunk_size or (CHAINS[args.chain].get("max_block_chunk") or BLOCK_CHUNK))),
+        chunk_size=max(1_000, int(args.chunk_size or _canonical_max_block_chunk(CHAINS[args.chain]))),
         no_resume=bool(args.no_resume),
         progress_key=args.progress_key,
         rpc_start_offset=args.rpc_start_offset,

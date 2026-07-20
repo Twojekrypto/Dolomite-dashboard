@@ -222,6 +222,24 @@ if [ "$pushed" != "true" ]; then
   exit 1
 fi
 
+if [ "${EARN_DISPATCH_FRESHNESS_AFTER_PUSH:-false}" = "true" ]; then
+  dispatch_token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+  allow_remediation="${EARN_FRESHNESS_ALLOW_REMEDIATION_AFTER_PUSH:-true}"
+  if [ "$allow_remediation" != "true" ] && [ "$allow_remediation" != "false" ]; then
+    echo "Invalid EARN_FRESHNESS_ALLOW_REMEDIATION_AFTER_PUSH=$allow_remediation; expected true or false."
+    exit 1
+  fi
+  if [ -z "$dispatch_token" ] || ! command -v gh >/dev/null 2>&1; then
+    echo "Cannot dispatch EARN freshness monitor; gh CLI or GitHub token is unavailable."
+    exit 1
+  fi
+  export GH_TOKEN="$dispatch_token"
+  echo "Dispatching EARN freshness monitor for $git_branch after producer push."
+  gh workflow run monitor-earn-freshness.yml \
+    --ref "$git_branch" \
+    -f "allow_remediation=$allow_remediation"
+fi
+
 if [ "${EARN_DISPATCH_PAGES_AFTER_PUSH:-true}" = "true" ]; then
   deploy_token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
   if [ -n "$deploy_token" ] && command -v gh >/dev/null 2>&1; then

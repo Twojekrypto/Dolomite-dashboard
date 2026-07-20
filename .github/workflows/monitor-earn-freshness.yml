@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+    inputs:
+      allow_remediation:
+        description: 'Dispatch stale producer workflows before publishing status.'
+        required: false
+        type: boolean
+        default: true
 
 concurrency:
   group: earn-freshness-watchdog
@@ -20,7 +26,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       GH_TOKEN: ${{ github.token }}
-      EARN_DISPATCH_PAGES_AFTER_PUSH: ${{ github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]' && 'true' || 'false' }}
+      EARN_DISPATCH_PAGES_AFTER_PUSH: 'false'
       # 4 chains can be simultaneously stale (arbitrum/mantle/xlayer + ethereum
       # coverage catchup) — budget must cover all of them plus headroom.
       EARN_WATCHDOG_MAX_DISPATCHES: '6'
@@ -94,6 +100,7 @@ jobs:
             bash scripts/commit_with_fresh_earn_status.sh "Update EARN freshness status - $(date -u '+%Y-%m-%d %H:%M UTC')"
 
       - name: Trigger stale EARN refresh workflows
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.allow_remediation }}
         run: |
           set -euo pipefail
           python3 scripts/plan_earn_watchdog_dispatch.py \
@@ -241,3 +248,7 @@ jobs:
           python3 scripts/check_earn_sla.py \
             data/earn-freshness/status.json \
             --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Deploy verified EARN snapshot
+        if: ${{ success() }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref master
