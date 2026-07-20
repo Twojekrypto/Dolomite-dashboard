@@ -73,6 +73,9 @@ CHAINS = {
             "https://1rpc.io/berachain",
         ],
         "start_block": 7_000_000,
+        # Large multi-topic getLogs ranges repeatedly time out on Berachain.
+        # Canonical event scans favor predictable progress over optimistic spans.
+        "canonical_max_block_chunk": 9_999,
     },
     "mantle": {
         "margin": "0xe6ef4f0b2455bab92ce7cc78e35324ab58917de8",

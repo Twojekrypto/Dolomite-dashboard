@@ -209,6 +209,51 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             gh_args = capture.read_text(encoding="utf-8").splitlines()
             self.assertEqual(gh_args, ["workflow", "run", "pages.yml", "--ref", "master"])
 
+    def test_successful_producer_push_dispatches_freshness_monitor_without_direct_pages(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _remote, work = self._prepare_repo(Path(tmp))
+            status = work / "data" / "earn-freshness" / "status.json"
+            status.write_text('{"status":"changed"}\n', encoding="utf-8")
+            _run(["git", "add", "data/earn-freshness/status.json"], cwd=work)
+
+            fake_bin = work / "fake-bin"
+            fake_bin.mkdir()
+            capture = work / "gh-args.txt"
+            fake_gh = fake_bin / "gh"
+            fake_gh.write_text(
+                "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\" > \"$GH_CAPTURE\"\n",
+                encoding="utf-8",
+            )
+            fake_gh.chmod(0o755)
+
+            env = {
+                **dict(os.environ),
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_FRESHNESS_AFTER_PUSH": "true",
+                "EARN_FRESHNESS_ALLOW_REMEDIATION_AFTER_PUSH": "false",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
+                "GH_TOKEN": "test-token",
+                "GH_CAPTURE": str(capture),
+                "PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}",
+            }
+            _run(["bash", "scripts/commit_with_fresh_earn_status.sh", "producer update"], cwd=work, env=env)
+
+            gh_args = capture.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(
+                gh_args,
+                [
+                    "workflow",
+                    "run",
+                    "monitor-earn-freshness.yml",
+                    "--ref",
+                    "master",
+                    "-f",
+                    "allow_remediation=false",
+                ],
+            )
+
     def test_no_data_change_still_publishes_freshness_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             _remote, work = self._prepare_repo(Path(tmp))

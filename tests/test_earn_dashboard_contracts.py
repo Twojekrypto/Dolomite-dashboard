@@ -931,15 +931,32 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         self.assertIn("for i in $(seq 1 12)", workflow)
         self.assertIn("Failed to push after 12 attempts.", workflow)
 
-    def test_pages_workflow_keeps_earn_deploys_out_of_workflow_run(self):
+    def test_earn_producers_finalize_through_freshness_monitor_before_pages(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("push:", workflow)
         self.assertIn("- master", workflow)
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertNotIn("- Update EARN Snapshots", workflow)
-        self.assertNotIn("- Update Earn snapshots", workflow)
-        self.assertNotIn("- Update Earn freshness and quality status", workflow)
-        self.assertNotIn("- Update oDOLO Contract Data", workflow)
+        monitor = EARN_FRESHNESS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("allow_remediation:", monitor)
+        self.assertIn("Deploy verified EARN snapshot", monitor)
+        self.assertIn("gh workflow run pages.yml", monitor)
+
+        for workflow_path in (
+            EARN_SNAPSHOTS_WORKFLOW,
+            ETHEREUM_CANONICAL_WORKFLOW,
+            ARBITRUM_CANONICAL_WORKFLOW,
+            BERACHAIN_CANONICAL_WORKFLOW,
+            SECONDARY_CANONICAL_WORKFLOW,
+            BERACHAIN_NETFLOW_WORKFLOW,
+            BERACHAIN_BORROW_ROUTE_WORKFLOW,
+            NETFLOW_WORKFLOW,
+            EARN_MERKL_REWARDS_WORKFLOW,
+            EARN_COVERAGE_BACKFILL_WORKFLOW,
+        ):
+            producer = workflow_path.read_text(encoding="utf-8")
+            self.assertIn("EARN_DISPATCH_FRESHNESS_AFTER_PUSH", producer, workflow_path.name)
+            self.assertIn("EARN_FRESHNESS_ALLOW_REMEDIATION_AFTER_PUSH", producer, workflow_path.name)
+            self.assertIn("EARN_DISPATCH_PAGES_AFTER_PUSH: 'false'", producer, workflow_path.name)
 
     def test_pages_deployment_checks_generated_bundle_and_representative_markets(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
@@ -966,8 +983,10 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         )
         self.assertIn("data/earn-historical-prices", workflow)
 
-    def test_earn_commit_helper_dispatches_pages_after_action_token_push(self):
+    def test_earn_commit_helper_dispatches_monitor_after_producer_push(self):
         helper = EARN_COMMIT_HELPER.read_text(encoding="utf-8")
+        self.assertIn("EARN_DISPATCH_FRESHNESS_AFTER_PUSH", helper)
+        self.assertIn("gh workflow run monitor-earn-freshness.yml", helper)
         self.assertIn("EARN_DISPATCH_PAGES_AFTER_PUSH", helper)
         self.assertIn("gh workflow run pages.yml --ref \"$git_branch\"", helper)
         self.assertIn("Skipping GitHub Pages deploy dispatch", helper)
@@ -981,12 +1000,17 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
             BERACHAIN_BORROW_ROUTE_WORKFLOW,
             NETFLOW_WORKFLOW,
             EARN_MERKL_REWARDS_WORKFLOW,
-            EARN_FRESHNESS_WORKFLOW,
+            EARN_COVERAGE_BACKFILL_WORKFLOW,
         ):
             workflow = workflow_path.read_text(encoding="utf-8")
             self.assertIn("actions: write", workflow, workflow_path.name)
             self.assertIn("GH_TOKEN: ${{ github.token }}", workflow, workflow_path.name)
-            self.assertIn("github.actor == 'github-actions[bot]'", workflow, workflow_path.name)
+            self.assertIn("EARN_DISPATCH_FRESHNESS_AFTER_PUSH", workflow, workflow_path.name)
+
+        monitor = EARN_FRESHNESS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("actions: write", monitor)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", monitor)
+        self.assertIn("EARN_DISPATCH_PAGES_AFTER_PUSH: 'false'", monitor)
 
     def test_earn_workflows_use_shallow_checkout(self):
         for workflow_path in (
@@ -1224,6 +1248,24 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("Build Berachain verified ledger cache", workflow)
         self.assertIn("build_earn_verified_ledger.py", workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
+
+    def test_coverage_backfill_keeps_active_cohort_and_publishes_completed_histories(self):
+        workflow = EARN_COVERAGE_BACKFILL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("actions/cache/restore@v5", workflow)
+        self.assertIn("active-selection.txt", workflow)
+        self.assertIn("scripts/select_earn_publishable_histories.py", workflow)
+        self.assertIn("scan_complete", workflow)
+        self.assertIn("publishable-addresses.txt", workflow)
+        self.assertIn("steps.publishable.outputs.count", workflow)
+        self.assertIn("actions/cache/save@v5", workflow)
+        self.assertLess(
+            workflow.index("Restore canonical coverage checkpoint"),
+            workflow.index("Select next canonical coverage cohort"),
+        )
+        self.assertLess(
+            workflow.index("Commit publishable canonical coverage"),
+            workflow.index("Save canonical coverage checkpoint"),
+        )
 
     def test_berachain_canonical_priority_file_pins_valid_hot_wallets(self):
         addresses = [
@@ -1623,10 +1665,11 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
     def test_subaccount_scanners_respect_chain_specific_rpc_block_chunks(self):
         event_scanner = SUBACCOUNT_EVENT_SCANNER.read_text(encoding="utf-8")
         history_builder = SUBACCOUNT_HISTORY_BUILDER.read_text(encoding="utf-8")
-        self.assertIn('max_chunk_size = int(config.get("max_block_chunk") or BLOCK_CHUNK)', event_scanner)
+        self.assertIn("def _canonical_max_block_chunk", event_scanner)
+        self.assertIn("max_chunk_size = _canonical_max_block_chunk(config)", event_scanner)
         self.assertIn("adaptive_chunk_size = min(max_chunk_size, max(1, int(chunk_size)), max(1, range_span))", event_scanner)
         self.assertIn("adaptive_chunk_size = min(max_chunk_size, adaptive_chunk_size * 2)", event_scanner)
-        self.assertIn('CHAINS[args.chain].get("max_block_chunk")', event_scanner)
+        self.assertIn("_canonical_max_block_chunk(CHAINS[args.chain])", event_scanner)
         self.assertIn('config.get("canonical_max_block_chunk")', history_builder)
         self.assertIn("--checkpoint-file", history_builder)
 

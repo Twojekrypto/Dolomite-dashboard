@@ -32,6 +32,24 @@ class RunEarnDataCorrectnessPipelineTest(unittest.TestCase):
         self.assertNotIn("--start-index", argv)
         self.assertNotIn("--end-index", argv)
 
+    def test_materialize_full_cohort_address_file_uses_worker_slice(self):
+        argv = _materialize_task_argv(
+            {
+                "chain": "berachain",
+                "progressKey": "m2of8",
+                "eventsDir": "/tmp/events",
+                "outputDir": "/tmp/history",
+                "addressFile": "/tmp/full-cohort.txt",
+                "applyAddressSlice": True,
+                "startIndex": 15,
+                "endIndex": 30,
+            }
+        )
+
+        self.assertIn("--address-file", argv)
+        self.assertEqual("15", argv[argv.index("--start-index") + 1])
+        self.assertEqual("30", argv[argv.index("--end-index") + 1])
+
 
 if __name__ == "__main__":
     unittest.main()

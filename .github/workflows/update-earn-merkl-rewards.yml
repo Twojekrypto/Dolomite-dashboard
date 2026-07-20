@@ -76,7 +76,9 @@ jobs:
       - name: Commit and push refreshed MERKL rewards
         env:
           GH_TOKEN: ${{ github.token }}
-          EARN_DISPATCH_PAGES_AFTER_PUSH: ${{ github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]' && 'true' || 'false' }}
+          EARN_DISPATCH_PAGES_AFTER_PUSH: 'false'
+          EARN_DISPATCH_FRESHNESS_AFTER_PUSH: 'true'
+          EARN_FRESHNESS_ALLOW_REMEDIATION_AFTER_PUSH: ${{ github.event_name == 'workflow_dispatch' && github.actor == 'github-actions[bot]' && 'false' || 'true' }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"

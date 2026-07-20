@@ -413,6 +413,7 @@ def _build_one_pass_materialize_tasks(
         tasks.append({
             "startIndex": int(start_index),
             "endIndex": int(end_index),
+            "applyAddressSlice": bool(selection_address_file),
             "progressKey": progress_key,
             "eventsDir": str(events_dir),
             "outputDir": str(history_output_dir),

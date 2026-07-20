@@ -17,6 +17,20 @@ class PagesWorkflowContractTests(unittest.TestCase):
         self.assertIn("Update TVL Data", workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
 
+    def test_earn_pages_deploy_is_dispatched_only_after_freshness_sla(self):
+        pages = PAGES_WORKFLOW.read_text(encoding="utf-8")
+        monitor = (ROOT / ".github/workflows/monitor-earn-freshness.yml").read_text(encoding="utf-8")
+
+        self.assertIn("allow_remediation:", monitor)
+        self.assertIn("Enforce EARN freshness SLA", monitor)
+        self.assertIn("Deploy verified EARN snapshot", monitor)
+        self.assertIn("gh workflow run pages.yml", monitor)
+        self.assertLess(
+            monitor.index("Enforce EARN freshness SLA"),
+            monitor.index("Deploy verified EARN snapshot"),
+        )
+        self.assertNotIn("- Monitor EARN Freshness", pages)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -386,9 +386,10 @@ def _materialize_task_argv(task: dict) -> List[str]:
         argv.extend([
             "--all-known-addresses",
         ])
-    if not address_file and task.get("startIndex") is not None:
+    apply_address_slice = not address_file or bool(task.get("applyAddressSlice"))
+    if apply_address_slice and task.get("startIndex") is not None:
         argv.extend(["--start-index", str(task["startIndex"])])
-    if not address_file and task.get("endIndex") is not None:
+    if apply_address_slice and task.get("endIndex") is not None:
         argv.extend(["--end-index", str(task["endIndex"])])
     return argv
 
