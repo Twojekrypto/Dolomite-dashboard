@@ -40,6 +40,10 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             ROOT / "scripts" / "sync_earn_subaccount_manifest.py",
             work / "scripts" / "sync_earn_subaccount_manifest.py",
         )
+        shutil.copy2(
+            ROOT / "scripts" / "sync_earn_resolved_manifest.py",
+            work / "scripts" / "sync_earn_resolved_manifest.py",
+        )
         (work / "scripts" / "sync_earn_verified_manifest.py").write_text(
             textwrap.dedent(
                 """\
@@ -77,12 +81,17 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             encoding="utf-8",
         )
         (work / "data" / "earn-verified-ledger").mkdir(parents=True)
+        (work / "data" / "earn-resolved-interest-ledger").mkdir(parents=True)
         (work / "data" / "earn-subaccount-history" / "ethereum").mkdir(parents=True)
         (work / "data" / "earn-subaccount-history" / "xlayer").mkdir(parents=True)
         (work / "data" / "earn-freshness").mkdir(parents=True)
         (work / "data" / "earn-snapshots").mkdir(parents=True)
         (work / "data" / "earn-verified-ledger" / "manifest.json").write_text(
             '{"version":2,"generatedAt":"initial","chains":{}}\n',
+            encoding="utf-8",
+        )
+        (work / "data" / "earn-resolved-interest-ledger" / "manifest.json").write_text(
+            '{"version":1,"generatedAt":"initial","chains":{}}\n',
             encoding="utf-8",
         )
         (work / "data" / "earn-freshness" / "status.json").write_text(
@@ -344,6 +353,48 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             self.assertIn("build_earn_verified_ledger_shards.py --chain mantle --address-file", calls)
             self.assertIn(f"addresses={address}", calls)
             self.assertEqual("yes", (work / "audit-ran.txt").read_text(encoding="utf-8"))
+
+    def test_rebase_preserves_fresh_local_ledger_deletion_after_remote_modification(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, work = self._prepare_repo(Path(tmp))
+            address = "0x" + "d" * 40
+            ledger = work / "data" / "earn-resolved-interest-ledger" / "mantle" / f"{address}.json"
+            ledger.parent.mkdir()
+            ledger.write_text('{"snapshotDate":"2026-05-10","source":"initial"}\n', encoding="utf-8")
+            _run(["git", "add", "-f", str(ledger)], cwd=work)
+            _run(["git", "commit", "-m", "seed resolved ledger"], cwd=work)
+            _run(["git", "push", "origin", "master"], cwd=work)
+
+            _run(["git", "rm", str(ledger)], cwd=work)
+
+            peer = Path(tmp) / "peer"
+            _run(["git", "clone", str(remote), str(peer)], cwd=Path(tmp))
+            _run(["git", "config", "user.name", "Remote Bot"], cwd=peer)
+            _run(["git", "config", "user.email", "remote@example.invalid"], cwd=peer)
+            peer_ledger = peer / "data" / "earn-resolved-interest-ledger" / "mantle" / f"{address}.json"
+            peer_ledger.write_text(
+                '{"snapshotDate":"2026-05-10","source":"parallel-workflow"}\n',
+                encoding="utf-8",
+            )
+            _run(["git", "add", "-f", str(peer_ledger)], cwd=peer)
+            _run(["git", "commit", "-m", "parallel ledger refresh"], cwd=peer)
+            _run(["git", "push", "origin", "master"], cwd=peer)
+
+            env = {
+                **dict(os.environ),
+                "CHAIN": "mantle",
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
+            }
+            _run(["bash", "scripts/commit_with_fresh_earn_status.sh", "fresh snapshot"], cwd=work, env=env)
+
+            verification = Path(tmp) / "verification"
+            _run(["git", "clone", str(remote), str(verification)], cwd=Path(tmp))
+            self.assertFalse(
+                (verification / "data" / "earn-resolved-interest-ledger" / "mantle" / f"{address}.json").exists()
+            )
 
 
 if __name__ == "__main__":

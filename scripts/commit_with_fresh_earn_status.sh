@@ -11,6 +11,45 @@ max_retry_sleep_seconds="${EARN_PUSH_MAX_RETRY_SLEEP_SECONDS:-30}"
 git_remote="${EARN_GIT_REMOTE:-origin}"
 git_branch="${EARN_GIT_BRANCH:-master}"
 
+resolve_rebase_modify_delete_conflicts() {
+  local path
+  local ours_exists
+  local theirs_exists
+  local resolved_count=0
+
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    ours_exists=false
+    theirs_exists=false
+    if git cat-file -e ":2:$path" 2>/dev/null; then
+      ours_exists=true
+    fi
+    if git cat-file -e ":3:$path" 2>/dev/null; then
+      theirs_exists=true
+    fi
+
+    # During rebase, stage 3 is the fresh producer commit being replayed.
+    if [ "$ours_exists" = "true" ] && [ "$theirs_exists" = "false" ]; then
+      git rm -f -q -- "$path"
+      resolved_count=$((resolved_count + 1))
+    elif [ "$ours_exists" = "false" ] && [ "$theirs_exists" = "true" ]; then
+      git checkout --theirs -- "$path"
+      git add -- "$path"
+      resolved_count=$((resolved_count + 1))
+    fi
+  done < <(git diff --name-only --diff-filter=U)
+
+  if ! git diff --quiet --diff-filter=U; then
+    return 1
+  fi
+  if [ "$resolved_count" -eq 0 ]; then
+    return 1
+  fi
+
+  echo "Resolved $resolved_count modify/delete conflicts using the fresh producer result."
+  GIT_EDITOR=true git rebase --continue
+}
+
 if git diff --staged --quiet; then
   freshness_script="update_earn_freshness_status.py"
   refresh_args=(python3 "$freshness_script" --output "$status_output")
@@ -124,7 +163,13 @@ fi
 pushed=false
 for i in $(seq 1 "$attempts"); do
   snapshot_manifest_before_pull="$(git rev-parse HEAD:data/earn-snapshots/manifest.json 2>/dev/null || true)"
+  pull_succeeded=false
   if git pull --rebase -X theirs "$git_remote" "$git_branch"; then
+    pull_succeeded=true
+  elif { [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; } && resolve_rebase_modify_delete_conflicts; then
+    pull_succeeded=true
+  fi
+  if [ "$pull_succeeded" = "true" ]; then
     snapshot_manifest_after_pull="$(git rev-parse HEAD:data/earn-snapshots/manifest.json 2>/dev/null || true)"
     if [ -n "$snapshot_manifest_before_pull" ] && [ "$snapshot_manifest_before_pull" != "$snapshot_manifest_after_pull" ]; then
       echo "Snapshot manifest changed during rebase; rebuilding affected EARN ledgers."
