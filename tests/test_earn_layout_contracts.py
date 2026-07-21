@@ -73,6 +73,15 @@ class EarnLayoutContractsTest(unittest.TestCase):
         self.assertIn('earn_formatAmountOneDecimal(item.yieldWei, item.decimals)', self.js)
         self.assertIn('.earn-merged-tokens {\n            display: flex;\n            flex-direction: column;', self.css)
 
+    def test_supply_token_and_borrow_pnl_use_centered_alignment(self):
+        self.assertIn('<div class="earn-token-header">', self.html)
+        self.assertIn('#earn-supply-section .earn-token-header {', self.css)
+        self.assertIn('.earn-lending-table tbody td[data-column="pnl"] .earn-net-inline,', self.css)
+        self.assertIn(
+            'body.earn-draft-route .earn-lending-table tbody td[data-column="pnl"] .earn-net-inline,',
+            self.draft_css,
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
