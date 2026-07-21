@@ -4958,6 +4958,42 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return `<span class="earn-debug-badge ${meta.cls}" data-tip="${earn_escapeHtml(meta.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(meta.label)}</span>`;
         }
 
+        function earn_getCompactQualityLabel(label) {
+            const value = String(label || '');
+            if (value.includes('Netflow')) return 'Netflow';
+            if (value.includes('Snapshot')) return 'Snapshot';
+            if (value.includes('Inferred')) return 'Inferred';
+            if (value.includes('Cycle')) return 'Cycle';
+            if (value.includes('Acct0')) return 'Acct0';
+            if (value.includes('History replay')) return 'Replay';
+            return 'Fallback';
+        }
+
+        function earn_renderSupplyQualityCell(marketId, symbol, decimals, yieldCalc) {
+            const markers = [];
+            if (earn_replayVerificationReady) {
+                const verification = earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals);
+                if (verification && verification.counted) {
+                    markers.push({
+                        cls: verification.status,
+                        label: verification.label,
+                        title: verification.title,
+                    });
+                }
+            }
+            if (yieldCalc && yieldCalc.hasData && !earn_isReplayYieldMethod(yieldCalc.method)) {
+                const source = earn_getYieldMethodMeta(yieldCalc.method);
+                const label = earn_getCompactQualityLabel(source.label);
+                if (!markers.some(marker => marker.cls === source.cls && marker.label === label)) {
+                    markers.push({ cls: source.cls, label, title: source.title });
+                }
+            }
+            if (!markers.length) return '<span class="earn-quality-empty">—</span>';
+            return `<div class="earn-quality-cell">${markers.map(marker =>
+                `<span class="earn-quality-marker ${marker.cls}" data-tip="${earn_escapeHtml(marker.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(marker.label)}</span>`
+            ).join('')}</div>`;
+        }
+
         function earn_renderDetailsButton(toggleExpression) {
             const chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
             return `<button type="button" class="earn-row-details-button" onclick="event.stopPropagation();${toggleExpression}" aria-label="Toggle details"><span class="earn-details-label-show">Details</span><span class="earn-details-label-hide">Hide</span>${chevron}</button>`;
@@ -5261,7 +5297,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 : 'Strict replay verification was not available for this detail row.';
             const rewardsCardHtml = opts.includeRewards === false ? '' : earn_buildSupplyRewardsCard(position);
             const detailId = `${opts.idPrefix || 'earn'}-detail-${idx}`;
-            const colSpan = Number(opts.colSpan || 6);
+            const colSpan = Number(opts.colSpan || 7);
             const isOpenBorrowRouteYield = !!opts.openBorrowRouteYield;
             const yieldPanelLabel = isOpenBorrowRouteYield ? 'Borrow Route Yield' : 'Yield Performance';
             const yieldHeroLabel = isOpenBorrowRouteYield ? 'Open Borrow Collateral Yield' : 'Total Net Yield';
@@ -12265,7 +12301,6 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             supplyAssets.forEach((a, idx) => {
                 let yieldCellHtml;
                 const yieldCalc = getVerifiedYieldCalc(a);
-                const verifyBadge = earn_renderVerificationBadge(a.marketId, a.symbol, a.decimals, yieldCalc);
 
                 if (earn_isTrustedInterestLedgerYieldCalc(yieldCalc)) {
                     const yieldUsdStr = Math.abs(yieldCalc.yieldUsd) >= 0.01
@@ -12315,31 +12350,33 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     // Build breakdown lines
                     let bLines = [];
                     if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
-                        bLines.push({ label: 'Lending Interest', rate: rateData.lendingApr, cls: 'lending-part' });
+                        bLines.push({ label: 'Interest', rate: rateData.lendingApr, cls: 'lending-part', tip: 'Interest earned from borrowers on Dolomite.' });
                     }
                     if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
                         rateData.yieldSources.forEach(ys => {
                             const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                            let displayLabel = earn_cleanSupplyAprLabel(ys.label);
+                            let displayLabel = 'Yield';
+                            let tip = `External yield from ${earn_cleanSupplyAprLabel(ys.label) || 'the underlying protocol'}.`;
                             const rewardSymbol = String(ys.rewardSymbol || '').trim();
-                            if (isGm) displayLabel = 'GM Performance';
-                            if (rewardSymbol) {
-                                const upperLabel = displayLabel.toUpperCase();
-                                const upperReward = rewardSymbol.toUpperCase();
-                                displayLabel = upperLabel.includes(upperReward) ? displayLabel : `${rewardSymbol} Rewards`;
+                            if (isGm) {
+                                displayLabel = 'GM';
+                                tip = 'Annualized return from the GM token price change.';
                             }
-                            bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part' });
+                            if (rewardSymbol) {
+                                tip = `Annualized ${rewardSymbol} reward incentives.`;
+                            }
+                            bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part', tip });
                         });
                     }
                     if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
-                        bLines.push({ label: 'oDOLO Rewards', rate: rateData.rewards, cls: 'odolo-part' });
+                        bLines.push({ label: 'oDOLO', rate: rateData.rewards, cls: 'odolo-part', tip: 'oDOLO incentive rewards distributed to suppliers.' });
                     }
                     let bHtml = '';
                     if (bLines.length > 0) {
                         bHtml = '<div class="assets-apy-breakdown earn-supply-apr-breakdown">' +
                             bLines.map(l => {
                                 const displayRate = earn_showApy ? aprToApy(l.rate) : l.rate;
-                                return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
+                                return `<span class="${l.cls}" data-tip="${earn_escapeHtml(l.tip || l.label)}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
                             }).join('') +
                             '</div>';
                     }
@@ -12348,8 +12385,6 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     earnAprCellHtml = `<span style="color:var(--text-muted)">—</span>`;
                 }
 
-                const sourceBadge = earn_renderYieldSourceBadge(yieldCalc);
-
                 html += `<tr class="earn-data-row" id="earn-row-${idx}" data-earn-layout-row onclick="earn_toggleDetail(${idx})" style="animation-delay:${delay}s">
                     <td data-column="token">
                         <div class="earn-token-cell">
@@ -12357,14 +12392,11 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                                 ${iconHtml}
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol}</div>
-                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                        ${verifyBadge}
-                                        ${sourceBadge}
-                                    </div>
                                 </div>
                             </div>
                         </div>
                     </td>
+                    <td data-column="quality">${earn_renderSupplyQualityCell(a.marketId, a.symbol, a.decimals, yieldCalc)}</td>
                     <td data-column="price" class="earn-market-price-cell">
                         <span class="earn-market-price">${earn_formatMarketPrice(marketPrice)}</span>
                     </td>
@@ -12402,7 +12434,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             }
 
             if (supplyAssets.length > 0) {
-                html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="6"></td></tr>';
+                html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="7"></td></tr>';
             }
 
             if (supplyTableShell) {

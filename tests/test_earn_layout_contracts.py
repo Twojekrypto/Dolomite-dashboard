@@ -11,9 +11,10 @@ class EarnLayoutContractsTest(unittest.TestCase):
         cls.html = (ROOT / 'earn/earn-core.html').read_text(encoding='utf-8')
         cls.js = (ROOT / 'earn/earn-core.js').read_text(encoding='utf-8')
         cls.css = (ROOT / 'dashboard-core.css').read_text(encoding='utf-8')
+        cls.draft_css = (ROOT / 'earn/earn-draft.css').read_text(encoding='utf-8')
 
     def test_supply_schema_places_price_before_supply(self):
-        expected = ['token', 'price', 'supply', 'balance', 'yield', 'details']
+        expected = ['token', 'quality', 'price', 'supply', 'balance', 'yield', 'details']
         start = self.html.index('<table class="earn-asset-table" data-earn-layout-table="supply">')
         end = self.html.index('</table>', start)
         fragment = self.html[start:end]
@@ -38,6 +39,18 @@ class EarnLayoutContractsTest(unittest.TestCase):
         self.assertIn('[data-column="price"]', self.css)
         self.assertIn('[data-column="supply"]', self.css)
         self.assertIn('[data-column="yield"]', self.css)
+        self.assertIn('body.earn-draft-route #earn-supply-section .earn-asset-table thead th[data-column="price"]', self.css)
+        self.assertIn('colgroup col[data-column="price"]', self.draft_css)
+        self.assertIn('.earn-supply-rate-cell .assets-apy-breakdown', self.draft_css)
+        self.assertNotIn('.earn-asset-table:not(.earn-past-table) thead th:nth-child(2)', self.draft_css)
+
+    def test_supply_quality_column_and_compact_rate_labels(self):
+        self.assertIn('data-column="quality"', self.html)
+        self.assertLess(self.html.index('data-column="token"'), self.html.index('data-column="quality"'))
+        self.assertIn('function earn_renderSupplyQualityCell(', self.js)
+        self.assertIn("label: 'Interest'", self.js)
+        self.assertIn("label: 'oDOLO'", self.js)
+        self.assertIn('.earn-quality-marker', self.css)
 
 
 if __name__ == '__main__':

@@ -10997,12 +10997,13 @@
             border-spacing: 0;
             table-layout: fixed;
         }
-        .earn-asset-table colgroup col[data-column="token"] { width: 32%; }
-        .earn-asset-table colgroup col[data-column="price"] { width: 10%; }
-        .earn-asset-table colgroup col[data-column="supply"] { width: 20%; }
+        .earn-asset-table colgroup col[data-column="token"] { width: 28%; }
+        .earn-asset-table colgroup col[data-column="quality"] { width: 11%; }
+        .earn-asset-table colgroup col[data-column="price"] { width: 9%; }
+        .earn-asset-table colgroup col[data-column="supply"] { width: 17%; }
         .earn-asset-table colgroup col[data-column="balance"] { width: 16%; }
-        .earn-asset-table colgroup col[data-column="yield"] { width: 14%; }
-        .earn-asset-table colgroup col[data-column="details"] { width: 8%; }
+        .earn-asset-table colgroup col[data-column="yield"] { width: 12%; }
+        .earn-asset-table colgroup col[data-column="details"] { width: 7%; }
 
         .earn-asset-table thead th {
             background: rgba(52, 211, 153, 0.03);
@@ -11124,6 +11125,17 @@
             text-align: right;
         }
 
+        body.earn-draft-route #earn-supply-section .earn-asset-table thead th[data-column="price"],
+        body.earn-draft-route #earn-supply-section .earn-asset-table thead th[data-column="supply"],
+        body.earn-draft-route #earn-supply-section .earn-asset-table thead th[data-column="balance"],
+        body.earn-draft-route #earn-supply-section .earn-asset-table thead th[data-column="yield"],
+        body.earn-draft-route #earn-supply-section .earn-asset-table tbody td[data-column="price"],
+        body.earn-draft-route #earn-supply-section .earn-asset-table tbody td[data-column="supply"],
+        body.earn-draft-route #earn-supply-section .earn-asset-table tbody td[data-column="balance"],
+        body.earn-draft-route #earn-supply-section .earn-asset-table tbody td[data-column="yield"] {
+            text-align: right;
+        }
+
         .earn-asset-table thead th[data-column="yield"] {
             padding-right: 20px;
         }
@@ -11169,6 +11181,51 @@
 
         .earn-asset-table tbody td[data-column="token"] {
             padding-left: 14px;
+        }
+
+        .earn-quality-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .earn-quality-marker {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            width: fit-content;
+            color: rgba(203, 213, 225, 0.84);
+            font-size: 10px;
+            font-weight: 600;
+            line-height: 1.15;
+            white-space: nowrap;
+            cursor: help;
+        }
+
+        .earn-quality-marker .earn-status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            flex: 0 0 auto;
+        }
+
+        .earn-quality-marker.verified { color: #6ee7b7; }
+        .earn-quality-marker.mismatch { color: #fca5a5; }
+        .earn-quality-marker.coverage_incomplete { color: #fcd34d; }
+        .earn-quality-marker.fallback { color: #fdba74; }
+        .earn-quality-marker.inferred,
+        .earn-quality-marker.snapshot,
+        .earn-quality-marker.replay { color: #93c5fd; }
+        .earn-quality-marker.pending,
+        .earn-quality-marker.checking,
+        .earn-quality-marker.unverified { color: #cbd5e1; }
+
+        .earn-quality-empty {
+            color: rgba(148, 163, 184, 0.46);
+            font-size: 13px;
         }
 
         .earn-asset-table tbody td[data-column="price"],
@@ -11983,11 +12040,12 @@
         .earn-asset-table.no-yield thead [data-column="yield"],
         .earn-asset-table.no-yield tbody [data-column="yield"],
         .earn-asset-table.no-yield tfoot [data-column="yield"] { display: none; }
-        .earn-asset-table.no-yield colgroup col[data-column="token"] { width: 35% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="token"] { width: 31% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="quality"] { width: 12% !important; }
         .earn-asset-table.no-yield colgroup col[data-column="price"] { width: 10% !important; }
-        .earn-asset-table.no-yield colgroup col[data-column="supply"] { width: 22% !important; }
-        .earn-asset-table.no-yield colgroup col[data-column="balance"] { width: 23% !important; }
-        .earn-asset-table.no-yield colgroup col[data-column="details"] { width: 10% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="supply"] { width: 18% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="balance"] { width: 21% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="details"] { width: 8% !important; }
 
         @keyframes earnRowSlideIn {
             from {

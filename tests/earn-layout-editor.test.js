@@ -8,7 +8,7 @@ const source = fs.readFileSync('earn/earn-layout-editor.js', 'utf8');
 const total = layout => layout.order.reduce((sum, key) => sum + layout.widths[key], 0);
 
 test('supply and borrow defaults contain all required keys and total 100%', () => {
-  assert.deepEqual(editor.createDefaultLayout('supply').order, ['token', 'price', 'supply', 'balance', 'yield', 'details']);
+  assert.deepEqual(editor.createDefaultLayout('supply').order, ['token', 'quality', 'price', 'supply', 'balance', 'yield', 'details']);
   assert.deepEqual(editor.createDefaultLayout('borrow').order, ['health', 'collateral', 'debt', 'pnl', 'details']);
   for (const name of ['supply', 'borrow']) {
     assert.equal(Number(total(editor.createDefaultLayout(name)).toFixed(6)), 100);
@@ -25,7 +25,7 @@ test('editor is restricted to an explicit loopback query', () => {
 test('reorder and one spacer preserve the complete supply schema', () => {
   const base = editor.createDefaultLayout('supply');
   const moved = editor.reorderLayout('supply', base, 'details', 'price', false);
-  assert.deepEqual(moved.order, ['token', 'details', 'price', 'supply', 'balance', 'yield']);
+  assert.deepEqual(moved.order, ['token', 'quality', 'details', 'price', 'supply', 'balance', 'yield']);
   const added = editor.addSpacer('supply', moved);
   assert.equal(added.order.filter(key => key === 'spacer').length, 1);
   assert.deepEqual(editor.addSpacer('supply', added), added);
@@ -61,6 +61,22 @@ test('saved state requires both valid table layouts', () => {
   });
   assert.ok(valid);
   assert.equal(editor.normalizeSavedLayouts({ version: 1, supply: valid.supply }), null);
+});
+
+test('legacy supply layout gains Quality without changing saved widths or order', () => {
+  const legacy = {
+    version: 1,
+    supply: {
+      version: 1,
+      order: ['balance', 'token', 'details', 'spacer', 'price', 'supply', 'yield'],
+      widths: { token: 32, price: 10, supply: 20, balance: 16, yield: 14, details: 4, spacer: 4 },
+    },
+    borrow: editor.createDefaultLayout('borrow'),
+  };
+  const migrated = editor.normalizeSavedLayouts(legacy);
+  assert.deepEqual(migrated.supply.order, ['balance', 'token', 'quality', 'details', 'spacer', 'price', 'supply', 'yield']);
+  assert.equal(migrated.supply.widths.price, 10);
+  assert.equal(migrated.supply.widths.quality, 11);
 });
 
 test('core loads the editor only behind loopback and query checks', () => {

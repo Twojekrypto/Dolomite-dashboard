@@ -316,6 +316,7 @@
                         <table class="earn-asset-table" data-earn-layout-table="supply">
                             <colgroup>
                                 <col data-column="token">
+                                <col data-column="quality">
                                 <col data-column="price">
                                 <col data-column="supply">
                                 <col data-column="balance">
@@ -330,6 +331,7 @@
                                             <span>Token</span>
                                         </div>
                                     </th>
+                                    <th data-column="quality">Quality</th>
                                     <th data-column="price" data-sort="price" onclick="earn_sortAssets('price')">
                                         Price <span class="earn-sort-arrow">▼</span>
                                     </th>
@@ -503,5 +505,20 @@
     <script src="earn/earn-cache-policy.js?v=earn-cache-policy-20260718"></script>
     <script src="earn/earn-rpc-policy.js?v=earn-rpc-policy-20260718"></script>
     <script src="earn/earn-core.js?v=earn-core-20260718-ledger-primary-sla"></script>
+    <script>
+    (() => {
+        const isLocalhost = window.location.hostname === 'localhost';
+        const loopback = isLocalhost || window.location.hostname === '127.0.0.1' || window.location.hostname === '::1';
+        if (!loopback) return;
+        if (new URLSearchParams(window.location.search).get('layoutEditor') !== '1') return;
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+    css.href = 'earn/earn-layout-editor.css?v=20260721-2';
+        document.head.append(css);
+        const script = document.createElement('script');
+        script.src = 'earn/earn-layout-editor.js?v=20260721-1';
+        document.body.append(script);
+    })();
+    </script>
 </body>
 </html>
