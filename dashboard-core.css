@@ -9470,9 +9470,10 @@
             table-layout: fixed;
             margin-top: 0;
         }
-        .earn-past-table colgroup col:nth-child(1) { width: 62%; }
-        .earn-past-table colgroup col:nth-child(2) { width: 26%; }
-        .earn-past-table colgroup col:nth-child(3) { width: 12%; }
+        .earn-past-table colgroup col[data-column="token"] { width: 43%; }
+        .earn-past-table colgroup col[data-column="quality"] { width: 22%; }
+        .earn-past-table colgroup col[data-column="yield"] { width: 25%; }
+        .earn-past-table colgroup col[data-column="details"] { width: 10%; }
         .earn-past-table th {
             font-size: 10px;
             text-transform: uppercase;
@@ -9492,18 +9493,22 @@
             background-position: 0 0, 20px 100%;
             background-repeat: no-repeat;
         }
-        .earn-past-table th:first-child {
+        .earn-past-table th[data-column="token"] {
             padding-left: 14px !important;
             text-align: left !important;
         }
-        .earn-past-table th:nth-child(2) {
+        .earn-past-table th[data-column="quality"] {
+            text-align: left;
+        }
+        .earn-past-table th[data-column="yield"] {
             text-align: right;
             padding-right: 20px;
         }
         .earn-past-table th.earn-details-th {
             cursor: default;
             text-align: center;
-            padding-right: 18px;
+            padding-left: 6px;
+            padding-right: 6px;
         }
         .earn-past-table td {
             font-size: 13px;
@@ -9512,16 +9517,20 @@
             font-variant-numeric: tabular-nums;
             vertical-align: middle;
         }
-        .earn-past-table td:first-child {
+        .earn-past-table td[data-column="token"] {
             padding-left: 14px;
         }
-        .earn-past-table td:nth-child(2) {
+        .earn-past-table td[data-column="quality"] {
+            text-align: left;
+        }
+        .earn-past-table td[data-column="yield"] {
             text-align: right;
             padding-right: 20px;
         }
         .earn-past-table td.earn-details-cell {
             text-align: center;
-            padding-right: 18px;
+            padding-left: 6px;
+            padding-right: 6px;
         }
         .earn-past-table tbody tr.earn-data-row:nth-child(even) td {
             background: rgba(255, 255, 255, 0.012);
@@ -11305,6 +11314,8 @@
         .earn-quality-marker.inferred,
         .earn-quality-marker.snapshot,
         .earn-quality-marker.replay { color: #93c5fd; }
+        .earn-quality-marker.routed { color: #93c5fd; }
+        .earn-quality-marker.withdrawn { color: #d89a8c; }
         .earn-quality-marker.pending,
         .earn-quality-marker.checking,
         .earn-quality-marker.unverified { color: #cbd5e1; }

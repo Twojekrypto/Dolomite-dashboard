@@ -58,6 +58,29 @@ class EarnLayoutContractsTest(unittest.TestCase):
         self.assertIn('tbody td[data-column="supply"],', self.draft_css)
         self.assertIn('.earn-quality-marker', self.css)
 
+    def test_past_assets_move_quality_markers_out_of_token(self):
+        expected = ['token', 'quality', 'yield', 'details']
+        start = self.html.index('<table class="earn-asset-table earn-past-table">')
+        end = self.html.index('</table>', start)
+        past_table = self.html[start:end]
+        positions = [past_table.index(f'data-column="{key}"') for key in expected]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn('Quality', past_table)
+
+        past_renderer_start = self.js.index('function earn_renderWithdrawnAssets()')
+        past_renderer_end = self.js.index('function earn_togglePastPositions()', past_renderer_start)
+        past_renderer = self.js[past_renderer_start:past_renderer_end]
+        self.assertIn('const qualityCellHtml = earn_renderSupplyQualityCell(', past_renderer)
+        self.assertIn('<td data-column="quality">${qualityCellHtml}</td>', past_renderer)
+        self.assertIn('colSpan: 4', past_renderer)
+        self.assertNotIn('earn_renderVerificationBadge(', past_renderer)
+        self.assertNotIn('earn_renderYieldSourceBadge(', past_renderer)
+
+        self.assertIn('.earn-past-table colgroup col[data-column="quality"]', self.draft_css)
+        self.assertIn('.earn-past-table thead th[data-column="quality"]', self.draft_css)
+        self.assertIn('.earn-past-table tbody td[data-column="details"]', self.draft_css)
+        self.assertIn('padding-left: 6px !important;', self.draft_css)
+
     def test_earn_sort_controls_match_the_assets_table_pattern(self):
         for table in ('earn-asset-table', 'earn-lending-table', 'earn-past-table'):
             self.assertIn(f'.{table} thead th[data-sort] .earn-sort-arrow', self.css)
