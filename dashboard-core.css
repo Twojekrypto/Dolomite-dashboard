@@ -7774,9 +7774,14 @@
             padding-right: 24px;
         }
 
-        .earn-lending-table thead th:nth-child(4),
-        .earn-lending-table tbody td:nth-child(4) {
+        .earn-lending-table thead th[data-column="pnl"],
+        .earn-lending-table tbody td[data-column="pnl"] {
             text-align: right;
+        }
+
+        .earn-lending-table thead th[data-column="emode"],
+        .earn-lending-table tbody td[data-column="emode"] {
+            text-align: center;
         }
 
         .earn-lending-table thead th.earn-details-th,
@@ -8359,8 +8364,9 @@
         }
         .earn-merged-tokens {
             display: flex;
-            flex-wrap: wrap;
-            gap: 2px 6px;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 3px;
         }
         .earn-merged-token {
             display: inline-flex;
@@ -8419,6 +8425,14 @@
             filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.4));
             border-color: rgba(251, 146, 60, 0.34);
         }
+        .earn-emode-cell .earn-hf-emode-inline {
+            margin-left: 0;
+        }
+        .earn-emode-empty {
+            color: rgba(148, 163, 184, 0.72);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+        }
         .earn-emode-icon {
             display: inline-grid;
             place-items: center;
@@ -8458,17 +8472,31 @@
                 border: 1px solid rgba(248, 113, 113, 0.08);
             }
             /* HF cell: full width */
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(1) {
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="health"] {
                 grid-column: 1 / -1;
                 padding: 0 0 6px 0;
                 border-bottom: 1px solid rgba(255,255,255,0.04);
             }
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="emode"] {
+                grid-column: 1 / -1;
+                padding: 0 0 4px;
+            }
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="emode"]::before {
+                content: 'E-Mode';
+                display: block;
+                font-size: 9px;
+                text-transform: uppercase;
+                letter-spacing: 0.6px;
+                color: rgba(251, 146, 60, 0.5);
+                font-weight: 600;
+                margin-bottom: 3px;
+            }
             /* Collateral / Debt side by side */
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(2),
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(3) {
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="collateral"],
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="debt"] {
                 padding: 4px 0;
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(2)::before {
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="collateral"]::before {
                 content: 'Collateral';
                 display: block;
                 font-size: 9px;
@@ -8478,7 +8506,7 @@
                 font-weight: 600;
                 margin-bottom: 3px;
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(3)::before {
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="debt"]::before {
                 content: 'Debt';
                 display: block;
                 font-size: 9px;
@@ -8489,12 +8517,12 @@
                 margin-bottom: 3px;
             }
             /* Net P&L: full width */
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(4) {
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="pnl"] {
                 grid-column: 1 / -1;
                 padding: 6px 0 0;
                 border-top: 1px solid rgba(255,255,255,0.04);
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(4)::before {
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="pnl"]::before {
                 content: 'Net P&L';
                 display: block;
                 font-size: 9px;
@@ -8504,13 +8532,13 @@
                 font-weight: 600;
                 margin-bottom: 3px;
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(5) {
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="details"] {
                 grid-column: 1 / -1;
                 justify-self: flex-end;
                 padding: 2px 0 0;
                 border-top: none;
             }
-            .earn-lending-table tbody tr.earn-lend-row td:nth-child(5)::before {
+            .earn-lending-table tbody tr.earn-lend-row td[data-column="details"]::before {
                 content: none;
             }
             /* Detail panel — single column */

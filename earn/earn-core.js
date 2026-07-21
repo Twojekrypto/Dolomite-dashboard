@@ -3150,6 +3150,17 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return isNeg ? '-' + result : result;
         }
 
+        function earn_formatAmountOneDecimal(value, decimals) {
+            const amount = typeof value === 'bigint' ? value : BigInt(value || 0);
+            const negative = amount < 0n;
+            const abs = negative ? -amount : amount;
+            const scale = earn_getPow10(decimals);
+            const tenths = (abs * 10n + (scale / 2n)) / scale;
+            const whole = tenths / 10n;
+            const fraction = tenths % 10n;
+            return `${negative ? '-' : ''}${whole.toLocaleString('en-US')}.${fraction.toString()}`;
+        }
+
         const EARN_USD_SCALE_DECIMALS = 8;
         const EARN_USD_SCALE = 10n ** BigInt(EARN_USD_SCALE_DECIMALS);
         const earn_pow10Cache = { 0: 1n, [EARN_USD_SCALE_DECIMALS]: EARN_USD_SCALE };
@@ -10981,6 +10992,10 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 : '';
         }
 
+        function earn_emodeCell(active) {
+            return earn_emodeBadge(active) || '<span class="earn-emode-empty">—</span>';
+        }
+
         function earn_formatUSD(n) {
             if (n === null || n === undefined) return '—';
             const value = Number(n);
@@ -10991,6 +11006,18 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             if (abs >= 999_500) return sign + '$' + (abs / 1_000_000).toFixed(2) + 'M';
             if (abs >= 1_000) return sign + '$' + (abs / 1_000).toFixed(2) + 'K';
             return sign + '$' + abs.toFixed(abs >= 1 ? 2 : 4);
+        }
+
+        function earn_formatUSDOneDecimal(n) {
+            if (n === null || n === undefined) return '—';
+            const value = Number(n);
+            if (!Number.isFinite(value)) return '—';
+            const sign = value < 0 ? '-' : '';
+            const abs = Math.abs(value);
+            if (abs >= 999_500_000) return sign + '$' + (abs / 1_000_000_000).toFixed(1) + 'B';
+            if (abs >= 999_500) return sign + '$' + (abs / 1_000_000).toFixed(1) + 'M';
+            if (abs >= 1_000) return sign + '$' + (abs / 1_000).toFixed(1) + 'K';
+            return sign + '$' + abs.toFixed(1);
         }
 
         function earn_formatUSDExact(n) {
@@ -11517,8 +11544,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                         : '—';
 
-                    // E-Mode inline with HF
-                    const emodeBadge = earn_emodeBadge(p.eMode);
+                    const emodeCell = earn_emodeCell(p.eMode);
 
                     const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
 
@@ -11585,17 +11611,18 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     const pnlValue = p.netAccrued !== undefined ? p.netAccrued : null;
                     const pnlClass = pnlValue !== null ? (pnlValue >= 0 ? 'positive' : 'negative') : 'neutral';
                     const pnlDisplay = pnlValue !== null && Math.abs(pnlValue) > 0.01
-                        ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}`
+                        ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSDOneDecimal(Math.abs(pnlValue))}`
                         : '—';
                     const annualDisplay = Math.abs(netAnnual) > 0.01
-                        ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</div>`
+                        ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSDOneDecimal(Math.abs(netAnnual))}/yr</div>`
                         : '';
 
                     const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" data-earn-layout-row onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
                         <td data-column="health">
-                            <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}
+                            <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}
                             ${ratioBar}
                         </td>
+                        <td data-column="emode" class="earn-emode-cell">${emodeCell}</td>
                         <td data-column="collateral"><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
                         <td data-column="debt"><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
                         <td data-column="pnl"><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
@@ -11603,7 +11630,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     </tr>`;
 
                     const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}" data-earn-layout-detail>
-                        <td colspan="5">
+                        <td colspan="6">
                             <div class="earn-lend-detail-inner">
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title earn">Collateral Yield</div>
@@ -11876,10 +11903,10 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const yieldPositive = item.yieldWei >= 0n;
                 const yieldSign = yieldPositive && item.yieldWei > 0n ? '+' : '';
                 const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
-                const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
+                const yieldFmt = earn_formatAmountOneDecimal(item.yieldWei, item.decimals);
                 const yieldUsdSign = item.yieldUsd > 0 ? '+' : (item.yieldUsd < 0 ? '-' : '');
                 const yieldUsdStr = Math.abs(item.yieldUsd) >= 0.01
-                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}${earn_formatUSDOneDecimal(Math.abs(item.yieldUsd))}</div>`
                     : '';
                 const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals, yieldCalc);
                 const sourceBadge = earn_renderYieldSourceBadge(yieldCalc, { openBorrowRouteYield: !!item.isCollateralized });
@@ -12049,6 +12076,11 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     const diff = (a.collateralUSD || 0) - (b.collateralUSD || 0);
                     return earn_lendSortDesc ? -diff : diff;
                 });
+            } else if (key === 'emode') {
+                earn_lendingPositions.sort((a, b) => {
+                    const diff = Number(!!a.eMode) - Number(!!b.eMode);
+                    return earn_lendSortDesc ? -diff : diff;
+                });
             } else if (key === 'debt') {
                 earn_lendingPositions.sort((a, b) => {
                     const diff = (a.debtUSD || 0) - (b.debtUSD || 0);
@@ -12080,7 +12112,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                     : '—';
 
-                const emodeBadge = earn_emodeBadge(p.eMode);
+                const emodeCell = earn_emodeCell(p.eMode);
 
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
 
@@ -12138,17 +12170,18 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const pnlValue = p.netAccrued !== undefined ? p.netAccrued : null;
                 const pnlClass = pnlValue !== null ? (pnlValue >= 0 ? 'positive' : 'negative') : 'neutral';
                 const pnlDisplay = pnlValue !== null && Math.abs(pnlValue) > 0.01
-                    ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}`
+                    ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSDOneDecimal(Math.abs(pnlValue))}`
                     : '—';
                 const annualDisplay = Math.abs(netAnnual) > 0.01
-                    ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</div>`
+                    ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSDOneDecimal(Math.abs(netAnnual))}/yr</div>`
                     : '';
 
                 const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" data-earn-layout-row onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
                     <td data-column="health">
-                        <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}
+                        <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}
                         ${ratioBar}
                     </td>
+                    <td data-column="emode" class="earn-emode-cell">${emodeCell}</td>
                     <td data-column="collateral"><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
                     <td data-column="debt"><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
                     <td data-column="pnl"><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
@@ -12156,7 +12189,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 </tr>`;
 
                 const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}" data-earn-layout-detail>
-                    <td colspan="5">
+                    <td colspan="6">
                         <div class="earn-lend-detail-inner">
                             <div class="earn-lend-section">
                                 <div class="earn-lend-section-title earn">Collateral Yield</div>
@@ -12303,10 +12336,11 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const yieldCalc = getVerifiedYieldCalc(a);
 
                 if (earn_isTrustedInterestLedgerYieldCalc(yieldCalc)) {
+                    const yieldFmt = earn_formatAmountOneDecimal(yieldCalc.absYield, a.decimals);
                     const yieldUsdStr = Math.abs(yieldCalc.yieldUsd) >= 0.01
-                        ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldCalc.yieldSign}$${Math.abs(yieldCalc.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                        ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldCalc.yieldSign}${earn_formatUSDOneDecimal(Math.abs(yieldCalc.yieldUsd))}</div>`
                         : '';
-                    yieldCellHtml = `<span class="earn-amount ${yieldCalc.yieldColor}">${yieldCalc.yieldSign + yieldCalc.yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
+                    yieldCellHtml = `<span class="earn-amount ${yieldCalc.yieldColor}">${yieldCalc.yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
                 } else {
                     const yieldPlaceholder = earn_totalYieldStatus === 'loading'
                         ? 'Loading...'

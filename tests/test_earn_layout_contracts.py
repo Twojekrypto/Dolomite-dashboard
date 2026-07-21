@@ -58,6 +58,21 @@ class EarnLayoutContractsTest(unittest.TestCase):
         self.assertIn("arrow.textContent = isActive ? (ascending ? '\\u25b2' : '\\u25bc') : ''", self.js)
         self.assertIn('data-sort="token" aria-sort="none" onclick="earn_sortPastPositions(\'token\')"', self.html)
 
+    def test_borrow_emode_column_and_compact_table_amounts(self):
+        borrow_start = self.html.index('<table class="earn-data-table earn-lending-table"')
+        borrow_end = self.html.index('</table>', borrow_start)
+        borrow = self.html[borrow_start:borrow_end]
+        expected = ['health', 'emode', 'collateral', 'debt', 'pnl', 'details']
+        positions = [borrow.index(f'data-column="{key}"') for key in expected]
+        self.assertEqual(positions, sorted(positions))
+        self.assertIn('data-sort="lend-emode"', borrow)
+        self.assertIn('<td data-column="emode" class="earn-emode-cell">', self.js)
+        self.assertIn('function earn_formatAmountOneDecimal(', self.js)
+        self.assertIn('function earn_formatUSDOneDecimal(', self.js)
+        self.assertIn('earn_formatAmountOneDecimal(yieldCalc.absYield, a.decimals)', self.js)
+        self.assertIn('earn_formatAmountOneDecimal(item.yieldWei, item.decimals)', self.js)
+        self.assertIn('.earn-merged-tokens {\n            display: flex;\n            flex-direction: column;', self.css)
+
 
 if __name__ == '__main__':
     unittest.main()

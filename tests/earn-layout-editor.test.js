@@ -9,7 +9,7 @@ const total = layout => layout.order.reduce((sum, key) => sum + layout.widths[ke
 
 test('supply and borrow defaults contain all required keys and total 100%', () => {
   assert.deepEqual(editor.createDefaultLayout('supply').order, ['token', 'quality', 'price', 'supply', 'balance', 'yield', 'details']);
-  assert.deepEqual(editor.createDefaultLayout('borrow').order, ['health', 'collateral', 'debt', 'pnl', 'details']);
+  assert.deepEqual(editor.createDefaultLayout('borrow').order, ['health', 'emode', 'collateral', 'debt', 'pnl', 'details']);
   for (const name of ['supply', 'borrow']) {
     assert.equal(Number(total(editor.createDefaultLayout(name)).toFixed(6)), 100);
   }
@@ -77,6 +77,22 @@ test('legacy supply layout gains Quality without changing saved widths or order'
   assert.deepEqual(migrated.supply.order, ['balance', 'token', 'quality', 'details', 'spacer', 'price', 'supply', 'yield']);
   assert.equal(migrated.supply.widths.price, 10);
   assert.equal(migrated.supply.widths.quality, 11);
+});
+
+test('legacy borrow layout gains E-Mode without changing saved widths or order', () => {
+  const legacy = {
+    version: 1,
+    supply: editor.createDefaultLayout('supply'),
+    borrow: {
+      version: 1,
+      order: ['debt', 'health', 'details', 'spacer', 'collateral', 'pnl'],
+      widths: { health: 18, collateral: 25, debt: 24, pnl: 17, details: 12, spacer: 4 },
+    },
+  };
+  const migrated = editor.normalizeSavedLayouts(legacy);
+  assert.deepEqual(migrated.borrow.order, ['debt', 'health', 'emode', 'details', 'spacer', 'collateral', 'pnl']);
+  assert.equal(migrated.borrow.widths.collateral, 25);
+  assert.equal(migrated.borrow.widths.emode, 11);
 });
 
 test('core loads the editor only behind loopback and query checks', () => {

@@ -8,7 +8,7 @@
     <link rel="shortcut icon" href="favicon.ico" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260721-sort-controls">
+    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260721-emode-column">
     <link rel="dns-prefetch" href="//api.dolomite.io">
     <link rel="dns-prefetch" href="//coins.llama.fi">
     <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
@@ -376,17 +376,22 @@
                     <div class="earn-table-scroll earn-section-table-shell earn-collapsible-body open" id="earn-lending-body" style="overflow-x:auto">
                         <table class="earn-data-table earn-lending-table" data-earn-layout-table="borrow">
                             <colgroup>
-                                <col data-column="health" style="width:20%">
-                                <col data-column="collateral" style="width:25%">
-                                <col data-column="debt" style="width:25%">
-                                <col data-column="pnl" style="width:18%">
-                                <col data-column="details" style="width:12%">
+                                <col data-column="health" style="width:17%">
+                                <col data-column="emode" style="width:11%">
+                                <col data-column="collateral" style="width:23%">
+                                <col data-column="debt" style="width:23%">
+                                <col data-column="pnl" style="width:16%">
+                                <col data-column="details" style="width:10%">
                             </colgroup>
                             <thead>
                                 <tr>
                                     <th data-column="health" data-sort="lend-hf" aria-sort="ascending" onclick="earn_sortLendPositions('hf')"
                                         style="cursor:pointer;user-select:none">
                                         Health Factor <span class="earn-sort-arrow">▲</span>
+                                    </th>
+                                    <th data-column="emode" data-sort="lend-emode" aria-sort="none" onclick="earn_sortLendPositions('emode')"
+                                        style="cursor:pointer;user-select:none;text-align:center">
+                                        E-Mode <span class="earn-sort-arrow"></span>
                                     </th>
                                     <th data-column="collateral" data-sort="lend-collateral" aria-sort="none" onclick="earn_sortLendPositions('collateral')"
                                         style="cursor:pointer;user-select:none">
@@ -504,7 +509,7 @@
     <div class="toast" id="copy-toast">Address copied!</div>
     <script src="earn/earn-cache-policy.js?v=earn-cache-policy-20260718"></script>
     <script src="earn/earn-rpc-policy.js?v=earn-rpc-policy-20260718"></script>
-    <script src="earn/earn-core.js?v=earn-core-20260718-ledger-primary-sla"></script>
+    <script src="earn/earn-core.js?v=earn-core-20260721-emode-column"></script>
     <script>
     (() => {
         const isLocalhost = window.location.hostname === 'localhost';
@@ -516,7 +521,7 @@
     css.href = 'earn/earn-layout-editor.css?v=20260721-3';
         document.head.append(css);
         const script = document.createElement('script');
-    script.src = 'earn/earn-layout-editor.js?v=20260721-2';
+    script.src = 'earn/earn-layout-editor.js?v=20260721-3';
         document.body.append(script);
     })();
     </script>
