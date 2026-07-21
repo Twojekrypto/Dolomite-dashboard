@@ -12384,17 +12384,21 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     // Build breakdown lines
                     let bLines = [];
                     if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
-                        bLines.push({ label: 'Interest', rate: rateData.lendingApr, cls: 'lending-part', tip: 'Interest earned from borrowers on Dolomite.' });
+                        bLines.push({ label: 'Lending Interest', rate: rateData.lendingApr, cls: 'lending-part', tip: 'Interest earned from borrowers on Dolomite.' });
                     }
                     if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
                         rateData.yieldSources.forEach(ys => {
                             const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                            let displayLabel = 'Yield';
-                            let tip = `External yield from ${earn_cleanSupplyAprLabel(ys.label) || 'the underlying protocol'}.`;
+                            let displayLabel = earn_cleanSupplyAprLabel(ys.label) || 'External Yield';
+                            let tip = 'External yield from the underlying protocol.';
                             const rewardSymbol = String(ys.rewardSymbol || '').trim();
                             if (isGm) {
-                                displayLabel = 'GM';
-                                tip = 'Annualized return from the GM token price change.';
+                                displayLabel = 'GM Performance';
+                                tip = 'Annualized return from the GM token price change over the past 30 days.';
+                            } else if (displayLabel.includes('Staking')) {
+                                tip = 'Yield from native ETH staking (validator rewards).';
+                            } else if (displayLabel.includes('Sky') || displayLabel.includes('Savings Rate')) {
+                                tip = 'Yield from Sky (formerly Maker) Savings Rate.';
                             }
                             if (rewardSymbol) {
                                 tip = `Annualized ${rewardSymbol} reward incentives.`;
@@ -12403,14 +12407,14 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         });
                     }
                     if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
-                        bLines.push({ label: 'oDOLO', rate: rateData.rewards, cls: 'odolo-part', tip: 'oDOLO incentive rewards distributed to suppliers.' });
+                        bLines.push({ label: 'oDOLO Rewards', rate: rateData.rewards, cls: 'odolo-part', tip: 'oDOLO incentive rewards distributed to suppliers.' });
                     }
                     let bHtml = '';
                     if (bLines.length > 0) {
                         bHtml = '<div class="assets-apy-breakdown earn-supply-apr-breakdown">' +
                             bLines.map(l => {
                                 const displayRate = earn_showApy ? aprToApy(l.rate) : l.rate;
-                                return `<span class="${l.cls}" data-tip="${earn_escapeHtml(l.tip || l.label)}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
+                                return `<span class="${l.cls} breakdown-item" data-tip="${earn_escapeHtml(l.tip || l.label)}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
                             }).join('') +
                             '</div>';
                     }

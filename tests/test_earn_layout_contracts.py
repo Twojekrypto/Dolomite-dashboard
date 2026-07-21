@@ -44,12 +44,16 @@ class EarnLayoutContractsTest(unittest.TestCase):
         self.assertIn('.earn-supply-rate-cell .assets-apy-breakdown', self.draft_css)
         self.assertNotIn('.earn-asset-table:not(.earn-past-table) thead th:nth-child(2)', self.draft_css)
 
-    def test_supply_quality_column_and_compact_rate_labels(self):
+    def test_supply_quality_column_and_assets_rate_labels(self):
         self.assertIn('data-column="quality"', self.html)
         self.assertLess(self.html.index('data-column="token"'), self.html.index('data-column="quality"'))
         self.assertIn('function earn_renderSupplyQualityCell(', self.js)
-        self.assertIn("label: 'Interest'", self.js)
-        self.assertIn("label: 'oDOLO'", self.js)
+        self.assertIn("label: 'Lending Interest'", self.js)
+        self.assertIn("displayLabel = 'GM Performance'", self.js)
+        self.assertIn("label: 'oDOLO Rewards'", self.js)
+        self.assertIn('breakdown-item', self.js)
+        self.assertIn('.earn-supply-rate-cell {\n            text-align: left;', self.css)
+        self.assertIn('td[data-column="supply"] {\n  text-align: left !important;', self.draft_css)
         self.assertIn('.earn-quality-marker', self.css)
 
     def test_earn_sort_controls_match_the_assets_table_pattern(self):
