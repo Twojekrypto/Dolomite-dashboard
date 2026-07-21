@@ -8,6 +8,7 @@
   const VERSION = 1;
   const SPACER = "spacer";
   const SPACER_WIDTH = 4;
+  const RESIZE_SAFETY_FLOOR = 0.1;
   const LEGACY_SUPPLY_KEYS = ["token", "price", "supply", "balance", "yield", "details"];
   const STORAGE_KEY = "dolomite:earn-layout-editor:v1";
   const EXPORT_NAME = "earn-layout-draft.json";
@@ -15,12 +16,10 @@
     supply: {
       keys:["token", "quality", "price", "supply", "balance", "yield", "details"],
       widths:{token:28, quality:11, price:9, supply:17, balance:16, yield:12, details:7},
-      minimums:{token:170, quality:96, price:78, supply:130, balance:132, yield:130, details:80, spacer:16},
     },
     borrow: {
       keys:["health", "collateral", "debt", "pnl", "details"],
       widths:{health:20, collateral:25, debt:25, pnl:18, details:12},
-      minimums:{health:112, collateral:150, debt:150, pnl:128, details:80, spacer:16},
     },
   };
 
@@ -72,9 +71,9 @@
     if(!schema || !current || !current.order.includes(key) || !(tableWidth > 0)) return current || clone(layout);
     const delta = Number(deltaPx) / tableWidth * 100;
     if(!Number.isFinite(delta)) return current;
-    const minimum = column => Math.ceil(((schema.minimums[column] || 16) / tableWidth * 100) * 1e6) / 1e6;
     const widths = {...current.widths};
-    widths[key] = round(Math.max(minimum(key), widths[key] + delta));
+    // Columns may shrink freely; the small non-zero floor only keeps the saved layout valid.
+    widths[key] = round(Math.max(RESIZE_SAFETY_FLOOR, widths[key] + delta));
     return {...current, widths};
   }
 

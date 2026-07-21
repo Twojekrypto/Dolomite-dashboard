@@ -8,7 +8,7 @@
     <link rel="shortcut icon" href="favicon.ico" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260713">
+    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260721-sort-controls">
     <link rel="dns-prefetch" href="//api.dolomite.io">
     <link rel="dns-prefetch" href="//coins.llama.fi">
     <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
@@ -325,24 +325,24 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th data-column="token">
+                                    <th data-column="token" data-sort="token" aria-sort="none" onclick="earn_sortAssets('token')">
                                         <div style="display:flex;align-items:center;gap:12px">
                                             <div style="width:34px;flex-shrink:0"></div>
-                                            <span>Token</span>
+                                            <span>Token <span class="earn-sort-arrow"></span></span>
                                         </div>
                                     </th>
                                     <th data-column="quality">Quality</th>
-                                    <th data-column="price" data-sort="price" onclick="earn_sortAssets('price')">
-                                        Price <span class="earn-sort-arrow">▼</span>
+                                    <th data-column="price" data-sort="price" aria-sort="none" onclick="earn_sortAssets('price')">
+                                        Price <span class="earn-sort-arrow"></span>
                                     </th>
-                                    <th data-column="supply" data-sort="apr" onclick="earn_sortAssets('apr')">
-                                        Supply <span class="earn-sort-arrow">▼</span>
+                                    <th data-column="supply" data-sort="apr" aria-sort="none" onclick="earn_sortAssets('apr')">
+                                        Supply <span class="earn-sort-arrow"></span>
                                     </th>
-                                    <th data-column="balance" data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
+                                    <th data-column="balance" data-sort="balance" class="sort-active" aria-sort="descending" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
-                                    <th data-column="yield" data-sort="yield" onclick="earn_sortAssets('yield')">
+                                    <th data-column="yield" data-sort="yield" aria-sort="none" onclick="earn_sortAssets('yield')">
                                         <span>Total Yield Earned</span>
-                                        <span class="earn-sort-arrow">▼</span>
+                                        <span class="earn-sort-arrow"></span>
                                     </th>
                                     <th data-column="details" class="earn-details-th">Details</th>
                                 </tr>
@@ -384,21 +384,21 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th data-column="health" data-sort="lend-hf" onclick="earn_sortLendPositions('hf')"
+                                    <th data-column="health" data-sort="lend-hf" aria-sort="ascending" onclick="earn_sortLendPositions('hf')"
                                         style="cursor:pointer;user-select:none">
                                         Health Factor <span class="earn-sort-arrow">▲</span>
                                     </th>
-                                    <th data-column="collateral" data-sort="lend-collateral" onclick="earn_sortLendPositions('collateral')"
+                                    <th data-column="collateral" data-sort="lend-collateral" aria-sort="none" onclick="earn_sortLendPositions('collateral')"
                                         style="cursor:pointer;user-select:none">
-                                        Collateral <span class="earn-sort-arrow">▼</span>
+                                        Collateral <span class="earn-sort-arrow"></span>
                                     </th>
-                                    <th data-column="debt" data-sort="lend-debt" onclick="earn_sortLendPositions('debt')"
+                                    <th data-column="debt" data-sort="lend-debt" aria-sort="none" onclick="earn_sortLendPositions('debt')"
                                         style="cursor:pointer;user-select:none">
-                                        Debt <span class="earn-sort-arrow">▼</span>
+                                        Debt <span class="earn-sort-arrow"></span>
                                     </th>
-                                    <th data-column="pnl" data-sort="lend-pnl" onclick="earn_sortLendPositions('pnl')"
+                                    <th data-column="pnl" data-sort="lend-pnl" aria-sort="none" onclick="earn_sortLendPositions('pnl')"
                                         style="cursor:pointer;user-select:none;text-align:right">
-                                        Net P&amp;L <span class="earn-sort-arrow">▼</span>
+                                        Net P&amp;L <span class="earn-sort-arrow"></span>
                                     </th>
                                     <th data-column="details" class="earn-details-th">Details</th>
                                 </tr>
@@ -431,13 +431,13 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>
+                                    <th data-sort="token" aria-sort="none" onclick="earn_sortPastPositions('token')">
                                         <div style="display:flex;align-items:center;gap:12px">
                                             <div style="width:34px;flex-shrink:0"></div>
-                                            <span>Token</span>
+                                            <span>Token <span class="earn-sort-arrow"></span></span>
                                         </div>
                                     </th>
-                                    <th data-sort="yield" class="sort-active" onclick="earn_sortPastPositions('yield')"
+                                    <th data-sort="yield" class="sort-active" aria-sort="descending" onclick="earn_sortPastPositions('yield')"
                                         style="text-align:right">
                                         Total Yield Earned <span class="earn-sort-arrow">▼</span>
                                     </th>
@@ -513,10 +513,10 @@
         if (new URLSearchParams(window.location.search).get('layoutEditor') !== '1') return;
         const css = document.createElement('link');
         css.rel = 'stylesheet';
-    css.href = 'earn/earn-layout-editor.css?v=20260721-2';
+    css.href = 'earn/earn-layout-editor.css?v=20260721-3';
         document.head.append(css);
         const script = document.createElement('script');
-        script.src = 'earn/earn-layout-editor.js?v=20260721-1';
+    script.src = 'earn/earn-layout-editor.js?v=20260721-2';
         document.body.append(script);
     })();
     </script>

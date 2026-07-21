@@ -33,14 +33,14 @@ test('reorder and one spacer preserve the complete supply schema', () => {
   assert.equal(Number(total(editor.removeSpacer('supply', added)).toFixed(6)), 100);
 });
 
-test('resize preserves technical minimums without changing other column constraints', () => {
+test('resize can shrink a column to the non-zero safety floor without changing other columns', () => {
   const base = editor.createDefaultLayout('borrow');
-  const widened = editor.resizeLayout('borrow', base, 'details', 500, 1100);
-  assert.ok(widened.widths.details > base.widths.details);
-  for (const key of widened.order) {
-    assert.ok(widened.widths[key] >= editor.SCHEMAS.borrow.minimums[key] / 11);
+  const shrunk = editor.resizeLayout('borrow', base, 'details', -10_000, 1100);
+  assert.equal(shrunk.widths.details, 0.1);
+  for (const key of base.order.filter(key => key !== 'details')) {
+    assert.equal(shrunk.widths[key], base.widths[key]);
   }
-  assert.ok(total(widened) > 100);
+  assert.ok(total(shrunk) < 100);
 });
 
 test('resizing grows only the dragged column and exposes horizontal table width', () => {
