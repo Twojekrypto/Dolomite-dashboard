@@ -16,8 +16,13 @@ resolve_rebase_modify_delete_conflicts() {
   local ours_exists
   local theirs_exists
   local resolved_count=0
+  local delete_paths="$rebase_address_dir/rebase-delete-paths.nul"
+  local keep_paths="$rebase_address_dir/rebase-keep-paths.nul"
 
-  while IFS= read -r path; do
+  : > "$delete_paths"
+  : > "$keep_paths"
+
+  while IFS= read -r -d '' path; do
     [ -n "$path" ] || continue
     ours_exists=false
     theirs_exists=false
@@ -30,14 +35,21 @@ resolve_rebase_modify_delete_conflicts() {
 
     # During rebase, stage 3 is the fresh producer commit being replayed.
     if [ "$ours_exists" = "true" ] && [ "$theirs_exists" = "false" ]; then
-      git rm -f -q -- "$path"
+      printf '%s\0' "$path" >> "$delete_paths"
       resolved_count=$((resolved_count + 1))
     elif [ "$ours_exists" = "false" ] && [ "$theirs_exists" = "true" ]; then
-      git checkout --theirs -- "$path"
-      git add -- "$path"
+      printf '%s\0' "$path" >> "$keep_paths"
       resolved_count=$((resolved_count + 1))
     fi
-  done < <(git diff --name-only --diff-filter=U)
+  done < <(git diff --name-only --diff-filter=U -z)
+
+  if [ -s "$delete_paths" ]; then
+    git rm -f -q --pathspec-from-file="$delete_paths" --pathspec-file-nul
+  fi
+  if [ -s "$keep_paths" ]; then
+    git checkout --theirs --pathspec-from-file="$keep_paths" --pathspec-file-nul
+    git add --pathspec-from-file="$keep_paths" --pathspec-file-nul
+  fi
 
   if ! git diff --quiet --diff-filter=U; then
     return 1
