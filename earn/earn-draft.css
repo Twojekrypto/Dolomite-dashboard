@@ -1265,19 +1265,16 @@ body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row > td[data-colum
 }
 
 body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="price"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="supply"],
 body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="balance"],
 body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="yield"],
 body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="price"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="supply"],
 body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="balance"],
 body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="yield"],
 body.earn-draft-route .earn-past-table thead th:nth-child(2),
 body.earn-draft-route .earn-past-table tbody td:nth-child(2) {
   text-align: right !important;
-}
-
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="supply"],
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="supply"] {
-  text-align: left !important;
 }
 
 body.earn-draft-route .earn-lending-table thead th[data-column="pnl"],
@@ -1572,7 +1569,7 @@ body.earn-draft-route .assets-apy-breakdown {
 }
 
 body.earn-draft-route .earn-supply-rate-cell .assets-apy-breakdown {
-  align-items: flex-start !important;
+  align-items: flex-end !important;
 }
 
 body.earn-draft-route .earn-token-pill,
@@ -1621,6 +1618,101 @@ body.earn-draft-route .earn-supply-apr-breakdown span {
   background: transparent !important;
   box-shadow: none !important;
   cursor: default !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-cell {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+  line-height: 1.1 !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-rate-cell {
+  font-family: var(--earn-mono) !important;
+  font-weight: 500 !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-value {
+  color: var(--earn-up) !important;
+  font-family: var(--earn-mono) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.3px !important;
+  line-height: 1 !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-value.negative {
+  color: var(--earn-down) !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-lines {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: 3px !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  color: var(--earn-fg-1) !important;
+  font-family: var(--earn-mono) !important;
+  font-size: 10.5px !important;
+  font-weight: 500 !important;
+  letter-spacing: .1px !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-dash {
+  color: var(--earn-fg-3) !important;
+  font-weight: 400 !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-number {
+  font-weight: 600 !important;
+  font-variant-numeric: tabular-nums !important;
+  min-width: 52px !important;
+  text-align: right !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.lending .earn-supply-apr-source,
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.lending .earn-supply-apr-number {
+  color: var(--earn-fg-1) !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.lending .earn-supply-apr-dash {
+  color: var(--earn-fg-3) !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.odolo .earn-supply-apr-source,
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.odolo .earn-supply-apr-number {
+  color: var(--earn-gold) !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.odolo .earn-supply-apr-dash {
+  color: var(--earn-gold-line) !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.yield .earn-supply-apr-source,
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.yield .earn-supply-apr-number {
+  color: var(--earn-blue) !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.yield .earn-supply-apr-dash {
+  color: rgba(143, 183, 200, .5) !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.negative .earn-supply-apr-source,
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.negative .earn-supply-apr-number {
+  color: var(--earn-down) !important;
+}
+
+body.earn-draft-route #earn-supply-section .earn-supply-apr-line.negative .earn-supply-apr-dash {
+  color: rgba(180, 121, 107, .5) !important;
 }
 
 body.earn-draft-route .earn-supply-apr-breakdown .lending-part {

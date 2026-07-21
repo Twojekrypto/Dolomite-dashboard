@@ -11315,6 +11315,7 @@
         }
 
         .earn-asset-table tbody td[data-column="price"],
+        .earn-asset-table tbody td[data-column="supply"],
         .earn-asset-table tbody td[data-column="balance"],
         .earn-asset-table tbody td[data-column="yield"] {
             text-align: right;
@@ -11333,16 +11334,111 @@
         }
 
         .earn-supply-rate-cell {
-            text-align: left;
+            text-align: right;
+        }
+
+        #earn-supply-section .earn-supply-rate-cell {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
         }
 
         .earn-supply-rate-cell > div:first-child {
             display: flex;
-            justify-content: flex-start;
+            justify-content: flex-end;
         }
 
         .earn-supply-rate-cell .assets-apy-breakdown {
-            align-items: flex-start;
+            align-items: flex-end;
+        }
+
+        #earn-supply-section .earn-supply-apr-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            min-width: 0;
+            line-height: 1.1;
+        }
+
+        #earn-supply-section .earn-supply-apr-value {
+            color: var(--earn-up, #75b87b);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            line-height: 1;
+        }
+
+        #earn-supply-section .earn-supply-apr-value.negative {
+            color: var(--earn-down, #b4796b);
+        }
+
+        #earn-supply-section .earn-supply-apr-lines {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+        }
+
+        #earn-supply-section .earn-supply-apr-line {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--earn-fg-1, #f4f3ef);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10.5px;
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        #earn-supply-section .earn-supply-apr-dash {
+            color: var(--earn-fg-3, #6b6a66);
+            font-weight: 400;
+        }
+
+        #earn-supply-section .earn-supply-apr-number {
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            min-width: 52px;
+            text-align: right;
+        }
+
+        #earn-supply-section .earn-supply-apr-line.lending .earn-supply-apr-source,
+        #earn-supply-section .earn-supply-apr-line.lending .earn-supply-apr-number {
+            color: var(--earn-fg-1, #f4f3ef);
+        }
+
+        #earn-supply-section .earn-supply-apr-line.lending .earn-supply-apr-dash {
+            color: var(--earn-fg-3, #6b6a66);
+        }
+
+        #earn-supply-section .earn-supply-apr-line.odolo .earn-supply-apr-source,
+        #earn-supply-section .earn-supply-apr-line.odolo .earn-supply-apr-number {
+            color: var(--earn-gold, #c9a227);
+        }
+
+        #earn-supply-section .earn-supply-apr-line.odolo .earn-supply-apr-dash {
+            color: var(--earn-gold-line, rgba(201, 162, 39, 0.3));
+        }
+
+        #earn-supply-section .earn-supply-apr-line.yield .earn-supply-apr-source,
+        #earn-supply-section .earn-supply-apr-line.yield .earn-supply-apr-number {
+            color: var(--earn-blue, #8fb7c8);
+        }
+
+        #earn-supply-section .earn-supply-apr-line.yield .earn-supply-apr-dash {
+            color: rgba(143, 183, 200, 0.5);
+        }
+
+        #earn-supply-section .earn-supply-apr-line.negative .earn-supply-apr-source,
+        #earn-supply-section .earn-supply-apr-line.negative .earn-supply-apr-number {
+            color: var(--earn-down, #b4796b);
+        }
+
+        #earn-supply-section .earn-supply-apr-line.negative .earn-supply-apr-dash {
+            color: rgba(180, 121, 107, 0.5);
         }
 
         .earn-asset-table tbody td.earn-details-cell {
