@@ -12381,44 +12381,22 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     const aprClass = adjApr > 0 ? 'assets-apy-green' : (adjApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
                     const displayApr = earn_showApy ? aprToApy(adjApr) : adjApr;
                     const aprStyle = displayApr > 0 ? 'font-size:15px;font-weight:700' : '';
-                    // Build breakdown lines
-                    let bLines = [];
+                    // Match the compact Supply breakdown used by Dolomite Assets.
+                    const supplyParts = [];
                     if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
-                        bLines.push({ label: 'Lending Interest', rate: rateData.lendingApr, cls: 'lending-part', tip: 'Interest earned from borrowers on Dolomite.' });
-                    }
-                    if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
-                        rateData.yieldSources.forEach(ys => {
-                            const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                            let displayLabel = earn_cleanSupplyAprLabel(ys.label) || 'External Yield';
-                            let tip = 'External yield from the underlying protocol.';
-                            const rewardSymbol = String(ys.rewardSymbol || '').trim();
-                            if (isGm) {
-                                displayLabel = 'GM Performance';
-                                tip = 'Annualized return from the GM token price change over the past 30 days.';
-                            } else if (displayLabel.includes('Staking')) {
-                                tip = 'Yield from native ETH staking (validator rewards).';
-                            } else if (displayLabel.includes('Sky') || displayLabel.includes('Savings Rate')) {
-                                tip = 'Yield from Sky (formerly Maker) Savings Rate.';
-                            }
-                            if (rewardSymbol) {
-                                tip = `Annualized ${rewardSymbol} reward incentives.`;
-                            }
-                            bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part', tip });
-                        });
+                        supplyParts.push({ key: 'lending', label: 'Lending', rate: rateData.lendingApr });
                     }
                     if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
-                        bLines.push({ label: 'oDOLO Rewards', rate: rateData.rewards, cls: 'odolo-part', tip: 'oDOLO incentive rewards distributed to suppliers.' });
+                        supplyParts.push({ key: 'odolo', label: 'oDOLO', rate: rateData.rewards });
                     }
-                    let bHtml = '';
-                    if (bLines.length > 0) {
-                        bHtml = '<div class="assets-apy-breakdown earn-supply-apr-breakdown">' +
-                            bLines.map(l => {
-                                const displayRate = earn_showApy ? aprToApy(l.rate) : l.rate;
-                                return `<span class="${l.cls} breakdown-item" data-tip="${earn_escapeHtml(l.tip || l.label)}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
-                            }).join('') +
-                            '</div>';
+                    if ((rateData.extYieldApr || 0) > 0.01 && !earn_excludeYield) {
+                        supplyParts.push({ key: 'yield', label: 'Yield', rate: rateData.extYieldApr });
                     }
-                    earnAprCellHtml = `<div><span class="${aprClass}" style="${aprStyle}">${displayApr.toFixed(2)}%</span></div>${bHtml}`;
+                    const supplyLinesHtml = supplyParts.map(part => {
+                        const partRate = earn_showApy ? aprToApy(part.rate) : part.rate;
+                        return `<div class="earn-supply-apr-line ${part.key}${partRate < 0 ? ' negative' : ''}"><span class="earn-supply-apr-dash">—</span><span class="earn-supply-apr-source">${part.label}</span><span class="earn-supply-apr-number">${partRate.toFixed(2)}%</span></div>`;
+                    }).join('');
+                    earnAprCellHtml = `<div class="earn-supply-apr-cell"><div class="earn-supply-apr-value${displayApr < 0 ? ' negative' : ''}">${displayApr.toFixed(2)}%</div><div class="earn-supply-apr-lines">${supplyLinesHtml}</div></div>`;
                 } else {
                     earnAprCellHtml = `<span style="color:var(--text-muted)">—</span>`;
                 }
