@@ -16,6 +16,7 @@
 - Używać istniejącego `data-tip` i Earn `#unified-tooltip`; nie dodawać natywnych `title` ani tooltipów w komórkach supporting USD.
 - Po zmianie tabeli używać wyłącznie stabilnych `data-column`, a nie selektorów `nth-child` dla Supply/Borrow.
 - `Quality` ma prezentować krótki stan z kolorową kropką; pełne wyjaśnienie istnieje wyłącznie po najechaniu.
+- Zapisany wcześniej układ Supply bez `Quality` musi migrować bez utraty kolejności lub szerokości istniejących kolumn.
 
 ---
 
@@ -114,6 +115,23 @@ def test_supply_quality_column_and_compact_rate_labels(self):
     self.assertIn('.earn-quality-marker', self.css)
 ```
 
+W `tests/earn-layout-editor.test.js` dodać również migrację poprzedniego zapisu:
+
+```js
+test('legacy supply layout gains Quality without changing saved widths', () => {
+  const legacy = editor.createDefaultSavedLayouts();
+  legacy.supply = {
+    version: 1,
+    order: ['token', 'price', 'supply', 'balance', 'yield', 'details'],
+    widths: { token: 32, price: 10, supply: 20, balance: 16, yield: 14, details: 8 },
+  };
+  const migrated = editor.normalizeSavedLayouts(legacy);
+  assert.deepEqual(migrated.supply.order, ['token', 'quality', 'price', 'supply', 'balance', 'yield', 'details']);
+  assert.equal(migrated.supply.widths.price, 10);
+  assert.equal(migrated.supply.widths.quality, 11);
+});
+```
+
 - [ ] **Step 2: Uruchomić test RED**
 
 Run: `python3 -m unittest tests/test_earn_layout_contracts.py -v`
@@ -156,7 +174,7 @@ W Supply row dodać komórkę `data-column="quality"` i usunąć `${verifyBadge}
 
 W budowie APR użyć etykiet `Interest`, `Yield`, `GM`, `oDOLO`; każdą linię wyposażyć w obecny opis źródła przez `data-tip`.
 
-W `earn-layout-editor.js` uzupełnić schemat Supply o `quality`, z domyślnymi szerokościami: `token:28`, `quality:11`, `price:9`, `supply:17`, `balance:16`, `yield:12`, `details:7` i minimum `quality:96`.
+W `earn-layout-editor.js` uzupełnić schemat Supply o `quality`, z domyślnymi szerokościami: `token:28`, `quality:11`, `price:9`, `supply:17`, `balance:16`, `yield:12`, `details:7` i minimum `quality:96`. Przed normalizacją pełnego zapisu dodać migrację legacy Supply: po `token` wstawia `quality`, zachowuje wszystkie istniejące szerokości i ustawia `quality:11`.
 
 - [ ] **Step 4: Uzupełnić CSS o spójny, nieobciążający wygląd**
 

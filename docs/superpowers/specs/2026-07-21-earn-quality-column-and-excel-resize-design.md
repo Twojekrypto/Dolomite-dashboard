@@ -33,6 +33,9 @@ czyściej prezentować źródła APR i stany wiarygodności danych.
   Balance | Total Yield Earned | Details`.
 - Zapis edytora pozostaje lokalny. Walidator układu dopuszcza sumę szerokości
   większą niż 100%, aby możliwe było przewijanie po poszerzeniu kolumny.
+- Istniejący lokalny układ Supply bez `Quality` jest automatycznie migrowany:
+  wszystkie zapisane szerokości i kolejność pozostają bez zmian, a nowa kolumna
+  `Quality` jest wstawiana po `Token` ze stałą początkową szerokością 11%.
 
 ## Sprawdzenie
 
