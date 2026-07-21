@@ -16,8 +16,8 @@ czyściej prezentować źródła APR i stany wiarygodności danych.
 - Gdy suma szerokości przekroczy kontener, tabela ma własne przewijanie w osi X.
 - `Supply Assets` otrzymuje kolumnę `Quality` zaraz po `Token`.
 - `Quality` zawiera krótką etykietę i kolorową kropkę: `Verified`, `Mismatch`,
-  `Fallback`, `Pending`, `Inferred` albo `Checking`. Pełne znaczenie obecnych
-  danych jakościowych pozostaje w istniejącym tooltipie `data-tip`.
+  `Netflow`, `Snapshot`, `Pending`, `Inferred` albo `Checking`. Pełne znaczenie
+  obecnych danych jakościowych pozostaje w istniejącym tooltipie `data-tip`.
 - Dotychczasowe badge'e jakości pod nazwą assetu znikają z wiersza podstawowego,
   dzięki czemu nazwa tokena nie jest obciążona technicznymi komunikatami.
 - W kolumnie `Supply` etykiety rozbicia APR są skrócone do `Interest`, `Yield`,
