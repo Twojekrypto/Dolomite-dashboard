@@ -313,32 +313,36 @@
                         </button>
                     </div>
                     <div class="table-scroll earn-section-table-shell earn-collapsible-body open" id="earn-supply-body">
-                        <table class="earn-asset-table">
+                        <table class="earn-asset-table" data-earn-layout-table="supply">
                             <colgroup>
-                                <col>
-                                <col>
-                                <col>
-                                <col>
-                                <col>
+                                <col data-column="token">
+                                <col data-column="price">
+                                <col data-column="supply">
+                                <col data-column="balance">
+                                <col data-column="yield">
+                                <col data-column="details">
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>
+                                    <th data-column="token">
                                         <div style="display:flex;align-items:center;gap:12px">
                                             <div style="width:34px;flex-shrink:0"></div>
                                             <span>Token</span>
                                         </div>
                                     </th>
-                                    <th data-sort="apr" onclick="earn_sortAssets('apr')">
-                                        Supply APR <span class="earn-sort-arrow">▼</span>
+                                    <th data-column="price" data-sort="price" onclick="earn_sortAssets('price')">
+                                        Price <span class="earn-sort-arrow">▼</span>
                                     </th>
-                                    <th data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
+                                    <th data-column="supply" data-sort="apr" onclick="earn_sortAssets('apr')">
+                                        Supply <span class="earn-sort-arrow">▼</span>
+                                    </th>
+                                    <th data-column="balance" data-sort="balance" class="sort-active" onclick="earn_sortAssets('balance')">
                                         Current Balance <span class="earn-sort-arrow">▼</span></th>
-                                    <th data-sort="yield" onclick="earn_sortAssets('yield')">
+                                    <th data-column="yield" data-sort="yield" onclick="earn_sortAssets('yield')">
                                         <span>Total Yield Earned</span>
                                         <span class="earn-sort-arrow">▼</span>
                                     </th>
-                                    <th class="earn-details-th">Details</th>
+                                    <th data-column="details" class="earn-details-th">Details</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-table-body"></tbody>
@@ -368,33 +372,33 @@
                         </button>
                     </div>
                     <div class="earn-table-scroll earn-section-table-shell earn-collapsible-body open" id="earn-lending-body" style="overflow-x:auto">
-                        <table class="earn-data-table earn-lending-table">
+                        <table class="earn-data-table earn-lending-table" data-earn-layout-table="borrow">
                             <colgroup>
-                                <col style="width:20%">
-                                <col style="width:25%">
-                                <col style="width:25%">
-                                <col style="width:18%">
-                                <col style="width:12%">
+                                <col data-column="health" style="width:20%">
+                                <col data-column="collateral" style="width:25%">
+                                <col data-column="debt" style="width:25%">
+                                <col data-column="pnl" style="width:18%">
+                                <col data-column="details" style="width:12%">
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th data-sort="lend-hf" onclick="earn_sortLendPositions('hf')"
+                                    <th data-column="health" data-sort="lend-hf" onclick="earn_sortLendPositions('hf')"
                                         style="cursor:pointer;user-select:none">
                                         Health Factor <span class="earn-sort-arrow">▲</span>
                                     </th>
-                                    <th data-sort="lend-collateral" onclick="earn_sortLendPositions('collateral')"
+                                    <th data-column="collateral" data-sort="lend-collateral" onclick="earn_sortLendPositions('collateral')"
                                         style="cursor:pointer;user-select:none">
                                         Collateral <span class="earn-sort-arrow">▼</span>
                                     </th>
-                                    <th data-sort="lend-debt" onclick="earn_sortLendPositions('debt')"
+                                    <th data-column="debt" data-sort="lend-debt" onclick="earn_sortLendPositions('debt')"
                                         style="cursor:pointer;user-select:none">
                                         Debt <span class="earn-sort-arrow">▼</span>
                                     </th>
-                                    <th data-sort="lend-pnl" onclick="earn_sortLendPositions('pnl')"
+                                    <th data-column="pnl" data-sort="lend-pnl" onclick="earn_sortLendPositions('pnl')"
                                         style="cursor:pointer;user-select:none;text-align:right">
                                         Net P&amp;L <span class="earn-sort-arrow">▼</span>
                                     </th>
-                                    <th class="earn-details-th">Details</th>
+                                    <th data-column="details" class="earn-details-th">Details</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-lending-tbody"></tbody>

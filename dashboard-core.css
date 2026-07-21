@@ -10997,11 +10997,12 @@
             border-spacing: 0;
             table-layout: fixed;
         }
-        .earn-asset-table colgroup col:nth-child(1) { width: 36%; }
-        .earn-asset-table colgroup col:nth-child(2) { width: 21%; }
-        .earn-asset-table colgroup col:nth-child(3) { width: 16%; }
-        .earn-asset-table colgroup col:nth-child(4) { width: 15%; }
-        .earn-asset-table colgroup col:nth-child(5) { width: 12%; }
+        .earn-asset-table colgroup col[data-column="token"] { width: 32%; }
+        .earn-asset-table colgroup col[data-column="price"] { width: 10%; }
+        .earn-asset-table colgroup col[data-column="supply"] { width: 20%; }
+        .earn-asset-table colgroup col[data-column="balance"] { width: 16%; }
+        .earn-asset-table colgroup col[data-column="yield"] { width: 14%; }
+        .earn-asset-table colgroup col[data-column="details"] { width: 8%; }
 
         .earn-asset-table thead th {
             background: rgba(52, 211, 153, 0.03);
@@ -11075,7 +11076,7 @@
             z-index: 0;
         }
 
-        .earn-asset-table thead th:first-child {
+        .earn-asset-table thead th[data-column="token"] {
             border-radius: 0;
             letter-spacing: 0.8px;
             padding-left: 14px !important;
@@ -11116,12 +11117,14 @@
             transform: none;
         }
 
-        .earn-asset-table thead th:nth-child(3),
-        .earn-asset-table thead th:nth-child(4) {
+        .earn-asset-table thead th[data-column="price"],
+        .earn-asset-table thead th[data-column="supply"],
+        .earn-asset-table thead th[data-column="balance"],
+        .earn-asset-table thead th[data-column="yield"] {
             text-align: right;
         }
 
-        .earn-asset-table thead th:nth-child(4) {
+        .earn-asset-table thead th[data-column="yield"] {
             padding-right: 20px;
         }
 
@@ -11164,17 +11167,40 @@
             transition: background 0.25s ease, box-shadow 0.25s ease;
         }
 
-        .earn-asset-table tbody td:first-child {
+        .earn-asset-table tbody td[data-column="token"] {
             padding-left: 14px;
         }
 
-        .earn-asset-table tbody td:nth-child(3),
-        .earn-asset-table tbody td:nth-child(4) {
+        .earn-asset-table tbody td[data-column="price"],
+        .earn-asset-table tbody td[data-column="supply"],
+        .earn-asset-table tbody td[data-column="balance"],
+        .earn-asset-table tbody td[data-column="yield"] {
             text-align: right;
         }
 
-        .earn-asset-table tbody td:nth-child(4) {
+        .earn-asset-table tbody td[data-column="yield"] {
             padding-right: 20px;
+        }
+
+        .earn-market-price {
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .earn-supply-rate-cell {
+            text-align: right;
+        }
+
+        .earn-supply-rate-cell > div:first-child {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .earn-supply-rate-cell .assets-apy-breakdown {
+            align-items: flex-end;
         }
 
         .earn-asset-table tbody td.earn-details-cell {
@@ -11953,14 +11979,15 @@
         }
 
         /* Hide yield column when address has no yield data */
-        .earn-asset-table.no-yield colgroup col:nth-child(4) { width: 0 !important; }
-        .earn-asset-table.no-yield thead th:nth-child(4),
-        .earn-asset-table.no-yield tbody td:nth-child(4),
-        .earn-asset-table.no-yield tfoot td:nth-child(4) { display: none; }
-        .earn-asset-table.no-yield colgroup col:nth-child(1) { width: 36% !important; }
-        .earn-asset-table.no-yield colgroup col:nth-child(2) { width: 27% !important; }
-        .earn-asset-table.no-yield colgroup col:nth-child(3) { width: 25% !important; }
-        .earn-asset-table.no-yield colgroup col:nth-child(5) { width: 12% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="yield"] { width: 0 !important; }
+        .earn-asset-table.no-yield thead [data-column="yield"],
+        .earn-asset-table.no-yield tbody [data-column="yield"],
+        .earn-asset-table.no-yield tfoot [data-column="yield"] { display: none; }
+        .earn-asset-table.no-yield colgroup col[data-column="token"] { width: 35% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="price"] { width: 10% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="supply"] { width: 22% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="balance"] { width: 23% !important; }
+        .earn-asset-table.no-yield colgroup col[data-column="details"] { width: 10% !important; }
 
         @keyframes earnRowSlideIn {
             from {
@@ -12265,17 +12292,21 @@
 
         .earn-details-cell {
             white-space: nowrap;
+            text-align: center;
         }
 
         .earn-row-details-button {
             height: 24px;
-            min-width: 78px;
-            padding: 0 8px;
+            width: 100%;
+            max-width: 72px;
+            min-width: 0;
+            margin: 0 auto;
+            padding: 0 6px;
             border-radius: 999px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 5px;
+            gap: 3px;
             flex-shrink: 0;
             color: #fbbf24;
             background: rgba(251, 191, 36, 0.08);
@@ -12397,8 +12428,8 @@
             margin-bottom: 8px;
         }
 
-        .earn-asset-table .assets-apy-breakdown {
-            align-items: flex-start;
+        .earn-asset-table .earn-supply-rate-cell .assets-apy-breakdown {
+            align-items: flex-end;
         }
 
         .assets-apy-breakdown span {
@@ -12723,13 +12754,14 @@
             padding-right: 28px;
         }
 
-        .earn-asset-table tfoot td:nth-child(2),
-        .earn-asset-table tfoot td:nth-child(3),
-        .earn-asset-table tfoot td:nth-child(4) {
+        .earn-asset-table tfoot td[data-column="price"],
+        .earn-asset-table tfoot td[data-column="supply"],
+        .earn-asset-table tfoot td[data-column="balance"],
+        .earn-asset-table tfoot td[data-column="yield"] {
             text-align: right;
         }
 
-        .earn-asset-table tfoot td:nth-child(5) {
+        .earn-asset-table tfoot td[data-column="details"] {
             text-align: center;
         }
 

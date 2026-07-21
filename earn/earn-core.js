@@ -3188,6 +3188,14 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[symbol] || 0;
         }
 
+        function earn_formatMarketPrice(price) {
+            const value = Number(price || 0);
+            if (!Number.isFinite(value) || value <= 0) return '—';
+            if (value >= 1000) return '$' + value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            if (value >= 1) return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+        }
+
         function earn_getUsdValueScaled(amountWei, decimals, price) {
             const amount = typeof amountWei === 'bigint' ? amountWei : BigInt(amountWei || '0');
             if (!amount || !price) return 0n;
@@ -5253,7 +5261,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 : 'Strict replay verification was not available for this detail row.';
             const rewardsCardHtml = opts.includeRewards === false ? '' : earn_buildSupplyRewardsCard(position);
             const detailId = `${opts.idPrefix || 'earn'}-detail-${idx}`;
-            const colSpan = Number(opts.colSpan || 5);
+            const colSpan = Number(opts.colSpan || 6);
             const isOpenBorrowRouteYield = !!opts.openBorrowRouteYield;
             const yieldPanelLabel = isOpenBorrowRouteYield ? 'Borrow Route Yield' : 'Yield Performance';
             const yieldHeroLabel = isOpenBorrowRouteYield ? 'Open Borrow Collateral Yield' : 'Total Net Yield';
@@ -5302,7 +5310,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
 
             const breakdownHtml = earn_buildBreakdown(marketId, decimals, symbol);
 
-            return `<tr class="earn-detail-row" id="${detailId}">
+            return `<tr class="earn-detail-row" id="${detailId}" data-earn-layout-detail>
                 <td colspan="${colSpan}">
                     <div class="earn-detail-stack">
                         <div class="earn-detail-panels">
@@ -6232,6 +6240,12 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             if (key === 'balance') {
                 earn_cachedAssets.sort((a, b) => {
                     const diff = a.usdValue - b.usdValue;
+                    return earn_sortDesc ? -diff : diff;
+                });
+            } else if (key === 'price') {
+                const cid = document.getElementById('earn-chain').value;
+                earn_cachedAssets.sort((a, b) => {
+                    const diff = earn_getUsdPrice(a.symbol, a.tokenAddr, cid) - earn_getUsdPrice(b.symbol, b.tokenAddr, cid);
                     return earn_sortDesc ? -diff : diff;
                 });
             } else if (key === 'yield') {
@@ -11535,18 +11549,18 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</div>`
                         : '';
 
-                    const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                        <td>
+                    const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" data-earn-layout-row onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
+                        <td data-column="health">
                             <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}
                             ${ratioBar}
                         </td>
-                        <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
-                        <td><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
-                        <td><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
-                        <td class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
+                        <td data-column="collateral"><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
+                        <td data-column="debt"><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
+                        <td data-column="pnl"><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
+                        <td data-column="details" class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
                     </tr>`;
 
-                    const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
+                    const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}" data-earn-layout-detail>
                         <td colspan="5">
                             <div class="earn-lend-detail-inner">
                                 <div class="earn-lend-section">
@@ -12094,18 +12108,18 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</div>`
                     : '';
 
-                const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                    <td>
+                const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" data-earn-layout-row onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
+                    <td data-column="health">
                         <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}
                         ${ratioBar}
                     </td>
-                    <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
-                    <td><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
-                    <td><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
-                    <td class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
+                    <td data-column="collateral"><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
+                    <td data-column="debt"><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
+                    <td data-column="pnl"><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
+                    <td data-column="details" class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
                 </tr>`;
 
-                const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
+                const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}" data-earn-layout-detail>
                     <td colspan="5">
                         <div class="earn-lend-detail-inner">
                             <div class="earn-lend-section">
@@ -12266,6 +12280,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 }
 
                 const weiFmt = earn_formatAmount(a.wei, a.decimals, a.symbol);
+                const marketPrice = earn_getUsdPrice(a.symbol, a.tokenAddr, document.getElementById('earn-chain').value);
 
                 // Icon
                 let iconHtml;
@@ -12335,8 +12350,8 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
 
                 const sourceBadge = earn_renderYieldSourceBadge(yieldCalc);
 
-                html += `<tr class="earn-data-row" id="earn-row-${idx}" onclick="earn_toggleDetail(${idx})" style="animation-delay:${delay}s">
-                    <td>
+                html += `<tr class="earn-data-row" id="earn-row-${idx}" data-earn-layout-row onclick="earn_toggleDetail(${idx})" style="animation-delay:${delay}s">
+                    <td data-column="token">
                         <div class="earn-token-cell">
                             <div class="earn-token-left">
                                 ${iconHtml}
@@ -12350,17 +12365,20 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td data-column="price" class="earn-market-price-cell">
+                        <span class="earn-market-price">${earn_formatMarketPrice(marketPrice)}</span>
+                    </td>
+                    <td data-column="supply" class="earn-supply-rate-cell">
                         ${earnAprCellHtml}
                     </td>
-                    <td>
+                    <td data-column="balance">
                         <span class="earn-amount earn-amount-primary">${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span>
                         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ ${earn_formatUSD(a.usdValue)}</div>
                     </td>
-                    <td>
+                    <td data-column="yield">
                         ${yieldCellHtml}
                     </td>
-                    <td class="earn-details-cell">
+                    <td data-column="details" class="earn-details-cell">
                         ${earn_renderDetailsButton(`earn_toggleDetail(${idx})`)}
                     </td>
                 </tr>`;
@@ -12384,7 +12402,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             }
 
             if (supplyAssets.length > 0) {
-                html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="5"></td></tr>';
+                html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="6"></td></tr>';
             }
 
             if (supplyTableShell) {
