@@ -8,7 +8,7 @@
     <link rel="shortcut icon" href="favicon.ico" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260721-supply-assets-exact">
+    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260721-past-quality">
     <link rel="dns-prefetch" href="//api.dolomite.io">
     <link rel="dns-prefetch" href="//coins.llama.fi">
     <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
@@ -429,23 +429,25 @@
                     <div class="earn-past-body earn-section-table-shell" id="earn-past-body">
                         <table class="earn-asset-table earn-past-table">
                             <colgroup>
-                                <col>
-                                <col>
-                                <col>
+                                <col data-column="token">
+                                <col data-column="quality">
+                                <col data-column="yield">
+                                <col data-column="details">
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th data-sort="token" aria-sort="none" onclick="earn_sortPastPositions('token')">
+                                    <th data-column="token" data-sort="token" aria-sort="none" onclick="earn_sortPastPositions('token')">
                                         <div style="display:flex;align-items:center;gap:12px">
                                             <div style="width:34px;flex-shrink:0"></div>
                                             <span>Token <span class="earn-sort-arrow"></span></span>
                                         </div>
                                     </th>
-                                    <th data-sort="yield" class="sort-active" aria-sort="descending" onclick="earn_sortPastPositions('yield')"
+                                    <th data-column="quality">Quality</th>
+                                    <th data-column="yield" data-sort="yield" class="sort-active" aria-sort="descending" onclick="earn_sortPastPositions('yield')"
                                         style="text-align:right">
                                         Total Yield <span class="earn-sort-arrow">▼</span>
                                     </th>
-                                    <th class="earn-details-th">Details</th>
+                                    <th data-column="details" class="earn-details-th">Details</th>
                                 </tr>
                             </thead>
                             <tbody id="earn-past-tbody"></tbody>
@@ -508,7 +510,7 @@
     <div class="toast" id="copy-toast">Address copied!</div>
     <script src="earn/earn-cache-policy.js?v=earn-cache-policy-20260718"></script>
     <script src="earn/earn-rpc-policy.js?v=earn-rpc-policy-20260718"></script>
-    <script src="earn/earn-core.js?v=earn-core-20260721-supply-render"></script>
+    <script src="earn/earn-core.js?v=earn-core-20260721-past-quality"></script>
     <script>
     (() => {
         const isLocalhost = window.location.hostname === 'localhost';

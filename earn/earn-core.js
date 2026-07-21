@@ -4980,8 +4980,12 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             return 'Fallback';
         }
 
-        function earn_renderSupplyQualityCell(marketId, symbol, decimals, yieldCalc) {
+        function earn_renderSupplyQualityCell(marketId, symbol, decimals, yieldCalc, opts) {
+            opts = opts || {};
             const markers = [];
+            if (opts.positionStatus) {
+                markers.push(opts.positionStatus);
+            }
             if (earn_replayVerificationReady) {
                 const verification = earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals);
                 if (verification && verification.counted) {
@@ -11908,8 +11912,25 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const yieldUsdStr = Math.abs(item.yieldUsd) >= 0.01
                     ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}${earn_formatUSDOneDecimal(Math.abs(item.yieldUsd))}</div>`
                     : '';
-                const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals, yieldCalc);
-                const sourceBadge = earn_renderYieldSourceBadge(yieldCalc, { openBorrowRouteYield: !!item.isCollateralized });
+                const qualityCellHtml = earn_renderSupplyQualityCell(
+                    item.marketId,
+                    item.symbol,
+                    item.decimals,
+                    yieldCalc,
+                    {
+                        positionStatus: item.isCollateralized
+                            ? {
+                                cls: 'routed',
+                                label: 'Routed',
+                                title: 'Asset is routed into an open borrow subaccount as collateral, so it is not a withdrawn supply asset.',
+                            }
+                            : {
+                                cls: 'withdrawn',
+                                label: 'Exited',
+                                title: 'This supply position is no longer active.',
+                            },
+                    }
+                );
                 const rowId = `earn-past-row-${i}`;
                 const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
                 const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
@@ -11934,28 +11955,24 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const delay = i * 0.05;
 
                 return `<tr class="earn-data-row earn-row-inactive" id="${rowId}" onclick="earn_togglePastDetail(${i})" style="animation-delay:${delay}s">
-                    <td>
+                    <td data-column="token">
                         <div class="earn-token-cell">
                             <div class="earn-token-left">
                                 ${iconHtml}
                                 <div class="earn-token-info">
-                                        <div class="earn-token-name">${item.symbol}</div>
-                                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
-                                        <span class="earn-hist-badge earn-position-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'In Borrow Route' : 'Exited Position'}</span>
-                                        ${verifyBadge}
-                                        ${sourceBadge}
-                                    </div>
+                                    <div class="earn-token-name">${item.symbol}</div>
                                 </div>
                             </div>
                         </div>
                     </td>
-                    <td style="text-align:right">
+                    <td data-column="quality">${qualityCellHtml}</td>
+                    <td data-column="yield">
                         ${yieldCellHtml}
                     </td>
-                    <td class="earn-details-cell">
+                    <td data-column="details" class="earn-details-cell">
                         ${earn_renderDetailsButton(`earn_togglePastDetail(${i})`)}
                     </td>
-                </tr>${earn_buildSupplyDetailRow(i, detailPosition, yieldCalc, explorerUrl, { idPrefix: 'earn-past', colSpan: 3, includeRewards: false, openBorrowRouteYield: !!item.isCollateralized })}`;
+                </tr>${earn_buildSupplyDetailRow(i, detailPosition, yieldCalc, explorerUrl, { idPrefix: 'earn-past', colSpan: 4, includeRewards: false, openBorrowRouteYield: !!item.isCollateralized })}`;
             }).join('');
         }
 
