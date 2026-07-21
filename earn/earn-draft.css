@@ -1100,17 +1100,27 @@ body.earn-draft-route .earn-lending-table {
   font-size: 13px !important;
 }
 
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col:nth-child(1) { width: 36% !important; }
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col:nth-child(2) { width: 22% !important; }
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col:nth-child(3) { width: 18% !important; }
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col:nth-child(4) { width: 14% !important; }
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col:nth-child(5) { width: 10% !important; }
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col[data-column="token"] { width: 28% !important; }
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col[data-column="quality"] { width: 11% !important; }
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col[data-column="price"] { width: 9% !important; }
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col[data-column="supply"] { width: 17% !important; }
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col[data-column="balance"] { width: 16% !important; }
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col[data-column="yield"] { width: 12% !important; }
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) colgroup col[data-column="details"] { width: 7% !important; }
 
-body.earn-draft-route .earn-lending-table colgroup col:nth-child(1) { width: 20% !important; }
-body.earn-draft-route .earn-lending-table colgroup col:nth-child(2) { width: 25% !important; }
-body.earn-draft-route .earn-lending-table colgroup col:nth-child(3) { width: 25% !important; }
-body.earn-draft-route .earn-lending-table colgroup col:nth-child(4) { width: 20% !important; }
-body.earn-draft-route .earn-lending-table colgroup col:nth-child(5) { width: 10% !important; }
+body.earn-draft-route .earn-lending-table colgroup col[data-column="health"] { width: 20% !important; }
+body.earn-draft-route .earn-lending-table colgroup col[data-column="collateral"] { width: 25% !important; }
+body.earn-draft-route .earn-lending-table colgroup col[data-column="debt"] { width: 25% !important; }
+body.earn-draft-route .earn-lending-table colgroup col[data-column="pnl"] { width: 18% !important; }
+body.earn-draft-route .earn-lending-table colgroup col[data-column="details"] { width: 12% !important; }
+
+body.earn-draft-route .earn-asset-table.no-yield colgroup col[data-column="yield"] { width: 0 !important; }
+body.earn-draft-route .earn-asset-table.no-yield colgroup col[data-column="token"] { width: 31% !important; }
+body.earn-draft-route .earn-asset-table.no-yield colgroup col[data-column="quality"] { width: 12% !important; }
+body.earn-draft-route .earn-asset-table.no-yield colgroup col[data-column="price"] { width: 10% !important; }
+body.earn-draft-route .earn-asset-table.no-yield colgroup col[data-column="supply"] { width: 18% !important; }
+body.earn-draft-route .earn-asset-table.no-yield colgroup col[data-column="balance"] { width: 21% !important; }
+body.earn-draft-route .earn-asset-table.no-yield colgroup col[data-column="details"] { width: 8% !important; }
 
 body.earn-draft-route .earn-past-table colgroup col:nth-child(1) { width: 62% !important; }
 body.earn-draft-route .earn-past-table colgroup col:nth-child(2) { width: 28% !important; }
@@ -1230,34 +1240,33 @@ body.earn-draft-route .earn-lending-table tbody td {
   text-align: left !important;
 }
 
-body.earn-draft-route .earn-asset-table thead th:nth-child(1),
-body.earn-draft-route .earn-asset-table tbody td:nth-child(1) {
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="token"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="token"] {
   text-align: left !important;
 }
 
-body.earn-draft-route .earn-asset-table thead th:nth-child(1),
-body.earn-draft-route .earn-lending-table thead th:nth-child(1),
-body.earn-draft-route .earn-asset-table tbody tr.earn-data-row > td:nth-child(1),
-body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row > td:nth-child(1) {
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="token"],
+body.earn-draft-route .earn-lending-table thead th[data-column="health"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody tr.earn-data-row > td[data-column="token"],
+body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row > td[data-column="health"] {
   padding-left: 32px !important;
 }
 
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th:nth-child(2),
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td:nth-child(2) {
-  text-align: left !important;
-}
-
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th:nth-child(3),
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th:nth-child(4),
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td:nth-child(3),
-body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td:nth-child(4),
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="price"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="supply"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="balance"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) thead th[data-column="yield"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="price"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="supply"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="balance"],
+body.earn-draft-route .earn-asset-table:not(.earn-past-table) tbody td[data-column="yield"],
 body.earn-draft-route .earn-past-table thead th:nth-child(2),
 body.earn-draft-route .earn-past-table tbody td:nth-child(2) {
   text-align: right !important;
 }
 
-body.earn-draft-route .earn-lending-table thead th:nth-child(4),
-body.earn-draft-route .earn-lending-table tbody td:nth-child(4) {
+body.earn-draft-route .earn-lending-table thead th[data-column="pnl"],
+body.earn-draft-route .earn-lending-table tbody td[data-column="pnl"] {
   text-align: right !important;
 }
 
@@ -1272,13 +1281,16 @@ body.earn-draft-route .earn-lending-table tbody td.earn-details-cell {
 
 body.earn-draft-route .earn-row-details-button {
   height: 24px !important;
-  min-width: 78px !important;
-  padding: 0 8px !important;
+  width: 100% !important;
+  max-width: 72px !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  padding: 0 6px !important;
   border-radius: 999px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 5px !important;
+  gap: 3px !important;
   color: var(--earn-gold-hi) !important;
   background: var(--earn-gold-wash) !important;
   border: 1px solid var(--earn-gold-line) !important;
@@ -1528,6 +1540,10 @@ body.earn-draft-route .assets-apy-breakdown {
   align-items: flex-start !important;
   gap: 3px !important;
   margin-top: 4px !important;
+}
+
+body.earn-draft-route .earn-supply-rate-cell .assets-apy-breakdown {
+  align-items: flex-end !important;
 }
 
 body.earn-draft-route .earn-token-pill,
@@ -2384,20 +2400,20 @@ body.earn-draft-route .earn-dolo-proto-explore svg {
     padding-left: 0 !important;
   }
 
-  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td:nth-child(1) {
+  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td[data-column="health"] {
     padding: 0 0 6px !important;
   }
 
-  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td:nth-child(2),
-  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td:nth-child(3) {
+  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td[data-column="collateral"],
+  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td[data-column="debt"] {
     padding: 4px 0 !important;
   }
 
-  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td:nth-child(4) {
+  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td[data-column="pnl"] {
     padding: 6px 0 0 !important;
   }
 
-  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td:nth-child(5) {
+  body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row td[data-column="details"] {
     padding: 2px 0 0 !important;
   }
 }
