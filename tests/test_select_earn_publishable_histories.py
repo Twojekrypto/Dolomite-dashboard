@@ -1,9 +1,15 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.select_earn_publishable_histories import select_publishable_histories
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts" / "select_earn_publishable_histories.py"
 
 
 class SelectEarnPublishableHistoriesTest(unittest.TestCase):
@@ -79,6 +85,20 @@ class SelectEarnPublishableHistoriesTest(unittest.TestCase):
             self.assertEqual([valid], selected)
             self.assertEqual("wrong_address", rejected[mismatch])
             self.assertEqual("invalid_address", rejected["not-an-address"])
+
+    def test_cli_loads_repo_modules_when_started_outside_repo_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--help"],
+                cwd=tmp,
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("Select canonical wallet histories", result.stdout)
 
 
 if __name__ == "__main__":
