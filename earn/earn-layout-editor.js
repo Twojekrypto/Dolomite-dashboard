@@ -10,6 +10,7 @@
   const SPACER_WIDTH = 4;
   const RESIZE_SAFETY_FLOOR = 0.1;
   const LEGACY_SUPPLY_KEYS = ["token", "price", "supply", "balance", "yield", "details"];
+  const LEGACY_BORROW_KEYS = ["health", "collateral", "debt", "pnl", "details"];
   const STORAGE_KEY = "dolomite:earn-layout-editor:v1";
   const EXPORT_NAME = "earn-layout-draft.json";
   const SCHEMAS = {
@@ -18,8 +19,8 @@
       widths:{token:28, quality:11, price:9, supply:17, balance:16, yield:12, details:7},
     },
     borrow: {
-      keys:["health", "collateral", "debt", "pnl", "details"],
-      widths:{health:20, collateral:25, debt:25, pnl:18, details:12},
+      keys:["health", "emode", "collateral", "debt", "pnl", "details"],
+      widths:{health:17, emode:11, collateral:23, debt:23, pnl:16, details:10},
     },
   };
 
@@ -125,10 +126,19 @@
     return {...value, order, widths:{...value.widths, quality:11}};
   }
 
+  function migrateBorrowLayout(value){
+    if(!value || value.version !== VERSION || !Array.isArray(value.order) || !value.widths) return value;
+    const legacyKeys = value.order.filter(key => key !== SPACER);
+    if(legacyKeys.length !== LEGACY_BORROW_KEYS.length || LEGACY_BORROW_KEYS.some(key => !legacyKeys.includes(key))) return value;
+    const order = value.order.slice();
+    order.splice(order.indexOf("health") + 1, 0, "emode");
+    return {...value, order, widths:{...value.widths, emode:11}};
+  }
+
   function normalizeSavedLayouts(value){
     if(!value || value.version !== VERSION) return null;
     const supply = normalizeLayout("supply", migrateSupplyLayout(value.supply));
-    const borrow = normalizeLayout("borrow", value.borrow);
+    const borrow = normalizeLayout("borrow", migrateBorrowLayout(value.borrow));
     if(!supply || !borrow) return null;
     return {version:VERSION, supply, borrow};
   }
