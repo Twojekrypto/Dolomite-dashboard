@@ -11169,6 +11169,46 @@
             color: #34d399;
         }
 
+        /* Shared EARN sorting controls mirror the compact Dolomite Assets headers. */
+        .earn-asset-table thead th[data-sort],
+        .earn-lending-table thead th[data-sort],
+        .earn-past-table thead th[data-sort] {
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s, background 0.2s;
+        }
+
+        .earn-asset-table thead th[data-sort]:hover,
+        .earn-lending-table thead th[data-sort]:hover,
+        .earn-past-table thead th[data-sort]:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .earn-asset-table thead th[data-sort] .earn-sort-arrow,
+        .earn-lending-table thead th[data-sort] .earn-sort-arrow,
+        .earn-past-table thead th[data-sort] .earn-sort-arrow {
+            display: inline-block;
+            min-width: 9px;
+            margin-left: 6px;
+            color: rgba(255, 255, 255, 0.25);
+            font-size: 9px;
+            line-height: 1;
+            vertical-align: 1px;
+        }
+
+        .earn-asset-table thead th[data-sort].sort-active,
+        .earn-lending-table thead th[data-sort].sort-active,
+        .earn-past-table thead th[data-sort].sort-active {
+            color: #c9a227;
+        }
+
+        .earn-asset-table thead th[data-sort].sort-active .earn-sort-arrow,
+        .earn-lending-table thead th[data-sort].sort-active .earn-sort-arrow,
+        .earn-past-table thead th[data-sort].sort-active .earn-sort-arrow {
+            color: #c9a227;
+            text-shadow: 0 0 6px rgba(201, 162, 39, 0.35);
+        }
+
 
 
         .earn-asset-table tbody td {

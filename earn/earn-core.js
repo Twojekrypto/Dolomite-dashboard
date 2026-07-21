@@ -6255,6 +6255,17 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
         }
 
+        function earn_updateSortHeaders(selector, activeKey, descending) {
+            const ascending = !descending;
+            document.querySelectorAll(selector).forEach(th => {
+                const isActive = th.dataset.sort === activeKey;
+                th.classList.toggle('sort-active', isActive);
+                th.setAttribute('aria-sort', isActive ? (ascending ? 'ascending' : 'descending') : 'none');
+                const arrow = th.querySelector('.earn-sort-arrow');
+                if (arrow) arrow.textContent = isActive ? (ascending ? '\u25b2' : '\u25bc') : '';
+            });
+        }
+
         // Sort assets and re-render
         function earn_sortAssets(key) {
             if (!earn_cachedAssets || earn_cachedAssets.length === 0) return;
@@ -6262,18 +6273,18 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 earn_sortDesc = !earn_sortDesc; // toggle direction
             } else {
                 earn_sortKey = key;
-                earn_sortDesc = true; // default descending for new column
+                earn_sortDesc = key !== 'token'; // text starts A-Z; numeric columns start high-low
             }
 
-            // Update header UI
-            document.querySelectorAll('.earn-asset-table thead th[data-sort]').forEach(th => {
-                th.classList.toggle('sort-active', th.dataset.sort === earn_sortKey);
-                const arrow = th.querySelector('.earn-sort-arrow');
-                if (arrow) arrow.textContent = (th.dataset.sort === earn_sortKey && !earn_sortDesc) ? '\u25b2' : '\u25bc';
-            });
+            earn_updateSortHeaders('#earn-supply-section .earn-asset-table thead th[data-sort]', earn_sortKey, earn_sortDesc);
 
             // Sort
-            if (key === 'balance') {
+            if (key === 'token') {
+                earn_cachedAssets.sort((a, b) => {
+                    const diff = String(a.symbol || '').localeCompare(String(b.symbol || ''), undefined, { sensitivity: 'base' });
+                    return earn_sortDesc ? -diff : diff;
+                });
+            } else if (key === 'balance') {
                 earn_cachedAssets.sort((a, b) => {
                     const diff = a.usdValue - b.usdValue;
                     return earn_sortDesc ? -diff : diff;
@@ -10862,15 +10873,10 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 earn_pastSortDesc = !earn_pastSortDesc;
             } else {
                 earn_pastSortKey = key;
-                earn_pastSortDesc = true;
+                earn_pastSortDesc = key !== 'token';
             }
 
-            document.querySelectorAll('.earn-past-table thead th[data-sort]').forEach(th => {
-                const isActive = th.dataset.sort === earn_pastSortKey;
-                th.classList.toggle('sort-active', isActive);
-                const arrow = th.querySelector('.earn-sort-arrow');
-                if (arrow) arrow.textContent = (isActive && !earn_pastSortDesc) ? '\u25b2' : '\u25bc';
-            });
+            earn_updateSortHeaders('.earn-past-table thead th[data-sort]', earn_pastSortKey, earn_pastSortDesc);
 
             const table = document.querySelector('.earn-past-table');
             if (table) table.classList.add('no-animate');
@@ -11833,6 +11839,11 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     const diff = earn_compareBigInt(aYield, bYield);
                     return earn_pastSortDesc ? -diff : diff;
                 });
+            } else if (earn_pastSortKey === 'token') {
+                inactiveItems.sort((a, b) => {
+                    const diff = String(a.symbol || '').localeCompare(String(b.symbol || ''), undefined, { sensitivity: 'base' });
+                    return earn_pastSortDesc ? -diff : diff;
+                });
             }
 
             countEl.textContent = inactiveItems.length;
@@ -11840,12 +11851,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             earn_openPastDetailIdx = null;
             const explorerBase = earn_getChain().explorer || 'https://etherscan.io';
 
-            document.querySelectorAll('.earn-past-table thead th[data-sort]').forEach(th => {
-                const isActive = th.dataset.sort === earn_pastSortKey;
-                th.classList.toggle('sort-active', isActive);
-                const arrow = th.querySelector('.earn-sort-arrow');
-                if (arrow) arrow.textContent = (isActive && !earn_pastSortDesc) ? '\u25b2' : '\u25bc';
-            });
+            earn_updateSortHeaders('.earn-past-table thead th[data-sort]', earn_pastSortKey, earn_pastSortDesc);
 
             // Render rows in exact Earn-row UX
             tbody.innerHTML = inactiveItems.map((item, i) => {
@@ -12029,13 +12035,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 earn_lendSortDesc = (key !== 'hf'); // HF defaults ascending, others descending
             }
 
-            // Update header UI (mirrors earn_sortAssets)
-            document.querySelectorAll('.earn-lending-table thead th[data-sort]').forEach(th => {
-                const isActive = th.dataset.sort === 'lend-' + earn_lendSortKey;
-                th.classList.toggle('sort-active', isActive);
-                const arrow = th.querySelector('.earn-sort-arrow');
-                if (arrow) arrow.textContent = (isActive && !earn_lendSortDesc) ? '\u25b2' : '\u25bc';
-            });
+            earn_updateSortHeaders('.earn-lending-table thead th[data-sort]', 'lend-' + earn_lendSortKey, earn_lendSortDesc);
 
             // Sort cached positions
             if (key === 'hf') {

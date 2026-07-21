@@ -52,6 +52,12 @@ class EarnLayoutContractsTest(unittest.TestCase):
         self.assertIn("label: 'oDOLO'", self.js)
         self.assertIn('.earn-quality-marker', self.css)
 
+    def test_earn_sort_controls_match_the_assets_table_pattern(self):
+        for table in ('earn-asset-table', 'earn-lending-table', 'earn-past-table'):
+            self.assertIn(f'.{table} thead th[data-sort] .earn-sort-arrow', self.css)
+        self.assertIn("arrow.textContent = isActive ? (ascending ? '\\u25b2' : '\\u25bc') : ''", self.js)
+        self.assertIn('data-sort="token" aria-sort="none" onclick="earn_sortPastPositions(\'token\')"', self.html)
+
 
 if __name__ == '__main__':
     unittest.main()
