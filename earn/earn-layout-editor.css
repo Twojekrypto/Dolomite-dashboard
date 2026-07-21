@@ -1,0 +1,142 @@
+.earn-layout-editor-toolbar {
+    display: flex;
+    width: max-content;
+    align-items: center;
+    gap: 4px;
+    margin: 10px 14px 0 auto;
+    padding: 3px;
+    border: 1px solid rgba(201, 162, 39, 0.22);
+    border-radius: 8px;
+    background: rgba(12, 12, 14, 0.92);
+    box-shadow: 0 7px 18px rgba(0, 0, 0, 0.24);
+}
+
+.earn-layout-editor-toolbar button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 25px;
+    height: 25px;
+    padding: 0;
+    border: 0;
+    border-radius: 5px;
+    color: rgba(201, 162, 39, 0.76);
+    background: transparent;
+    cursor: pointer;
+}
+
+.earn-layout-editor-toolbar button:hover:not(:disabled) {
+    color: #f4d477;
+    background: rgba(251, 191, 36, 0.13);
+}
+
+.earn-layout-editor-toolbar button:focus-visible {
+    outline: 1px solid #c9a227;
+    outline-offset: 2px;
+}
+
+.earn-layout-editor-toolbar button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+.earn-layout-editor-toolbar svg,
+.earn-layout-drag-handle svg {
+    width: 14px;
+    height: 14px;
+}
+
+.earn-layout-editor-header {
+    position: relative;
+    overflow: hidden;
+    padding-left: 25px !important;
+    padding-right: 15px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.earn-layout-drag-handle {
+    position: absolute;
+    top: 50%;
+    left: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    color: rgba(201, 162, 39, 0.58);
+    background: transparent;
+    cursor: grab;
+    touch-action: none;
+    transform: translateY(-50%);
+}
+
+.earn-layout-drag-handle:active {
+    cursor: grabbing;
+}
+
+.earn-layout-resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+.earn-layout-resize-handle::after {
+    position: absolute;
+    top: 25%;
+    right: 3px;
+    width: 1px;
+    height: 50%;
+    background: rgba(201, 162, 39, 0.5);
+    content: '';
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.earn-layout-editor-header:hover .earn-layout-resize-handle::after,
+.earn-layout-resize-handle:hover::after {
+    opacity: 1;
+}
+
+.earn-layout-drop-target {
+    color: #fff !important;
+    background-color: rgba(251, 191, 36, 0.13) !important;
+}
+
+.earn-layout-spacer {
+    min-width: 16px !important;
+    background: repeating-linear-gradient(135deg, rgba(201, 162, 39, 0.07) 0 4px, transparent 4px 8px) !important;
+    border-right: 1px dashed rgba(201, 162, 39, 0.18) !important;
+    border-left: 1px dashed rgba(201, 162, 39, 0.24) !important;
+}
+
+.earn-layout-editor-active td {
+    overflow: hidden;
+}
+
+.earn-layout-editor-active td > * {
+    max-width: 100%;
+}
+
+body.earn-layout-editor-enabled .earn-section-table-shell {
+    overflow-x: auto !important;
+    overscroll-behavior-x: contain;
+}
+
+body.earn-layout-editor-enabled .earn-layout-editor-active {
+    min-width: 100% !important;
+}
+
+@media (max-width: 700px) {
+    .earn-layout-editor-toolbar,
+    .earn-layout-drag-handle,
+    .earn-layout-resize-handle {
+        display: none !important;
+    }
+}
