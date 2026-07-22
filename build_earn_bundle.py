@@ -61,6 +61,7 @@ def render_earn_assets(html_path: Path = SOURCE_HTML, js_path: Path = SOURCE_JS)
     <script src="earn/earn-cache-policy.js?v=earn-cache-policy-20260718"></script>
     <script src="earn/earn-rpc-policy.js?v=earn-rpc-policy-20260718"></script>
     <script src="earn/earn-core.js?v=core-split-20260718-ledger-primary-sla-{STATIC_LAYOUT_VERSION}"></script>
+    <script src="earn/earn-static-layout.js?v=earn-static-layout-20260722-export"></script>
     <script>
     (() => {{
         const isLocalhost = window.location.hostname === 'localhost';
