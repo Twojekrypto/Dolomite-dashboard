@@ -6,6 +6,7 @@ const staticLayout = require('../earn/earn-static-layout.js');
 const core = fs.readFileSync('earn/earn-core.html', 'utf8');
 const source = fs.readFileSync('earn/earn-layout-editor.js', 'utf8');
 const editorCss = fs.readFileSync('earn/earn-layout-editor.css', 'utf8');
+const earnCss = fs.readFileSync('earn/earn-draft.css', 'utf8');
 const staticSource = fs.readFileSync('earn/earn-static-layout.js', 'utf8');
 
 const total = layout => layout.order.reduce((sum, key) => sum + layout.widths[key], 0);
@@ -28,6 +29,11 @@ test('production EARN layout matches the saved local export without shipping edi
   assert.equal(staticLayout.STATIC_LAYOUTS.past.widths.spacer, 52.817557);
   assert.match(core, /earn-static-layout\.js/);
   assert.doesNotMatch(staticSource, /earn-layout-drag-handle|earn-layout-resize-handle|earn-layout-editor-toolbar/);
+});
+
+test('narrow EARN screens preserve the saved layout through horizontal table scrolling', () => {
+  assert.match(earnCss, /@media \(max-width: 1180px\)[\s\S]*?\.earn-static-layout\s*\{[\s\S]*?min-width:\s*1180px !important/);
+  assert.match(earnCss, /@media \(max-width: 1180px\)[\s\S]*?\.earn-section-table-shell\s*\{[\s\S]*?overflow-x:\s*auto !important/);
 });
 
 test('editor is restricted to an explicit loopback query', () => {
