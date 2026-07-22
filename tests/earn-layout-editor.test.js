@@ -2,9 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const editor = require('../earn/earn-layout-editor.js');
+const staticLayout = require('../earn/earn-static-layout.js');
 const core = fs.readFileSync('earn/earn-core.html', 'utf8');
 const source = fs.readFileSync('earn/earn-layout-editor.js', 'utf8');
 const editorCss = fs.readFileSync('earn/earn-layout-editor.css', 'utf8');
+const staticSource = fs.readFileSync('earn/earn-static-layout.js', 'utf8');
 
 const total = layout => layout.order.reduce((sum, key) => sum + layout.widths[key], 0);
 
@@ -15,6 +17,17 @@ test('supply, borrow and Past & Routed defaults contain all required keys and to
   for (const name of ['supply', 'borrow', 'past']) {
     assert.equal(Number(total(editor.createDefaultLayout(name)).toFixed(6)), 100);
   }
+});
+
+test('production EARN layout matches the saved local export without shipping editor controls', () => {
+  assert.deepEqual(staticLayout.STATIC_LAYOUTS.supply.order, ['token', 'price', 'supply', 'balance', 'yield', 'quality', 'details']);
+  assert.deepEqual(staticLayout.STATIC_LAYOUTS.borrow.order, ['health', 'emode', 'spacer', 'collateral', 'debt', 'pnl', 'details']);
+  assert.deepEqual(staticLayout.STATIC_LAYOUTS.past.order, ['token', 'spacer', 'yield', 'quality', 'details']);
+  assert.equal(staticLayout.STATIC_LAYOUTS.supply.widths.balance, 32.26011);
+  assert.equal(staticLayout.STATIC_LAYOUTS.borrow.widths.spacer, 19.172405);
+  assert.equal(staticLayout.STATIC_LAYOUTS.past.widths.spacer, 52.817557);
+  assert.match(core, /earn-static-layout\.js/);
+  assert.doesNotMatch(staticSource, /earn-layout-drag-handle|earn-layout-resize-handle|earn-layout-editor-toolbar/);
 });
 
 test('editor is restricted to an explicit loopback query', () => {
