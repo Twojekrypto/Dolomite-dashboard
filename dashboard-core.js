@@ -18492,7 +18492,7 @@
                         ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                         : '—';
 
-                    const emodeCell = earn_emodeCell(p.eMode);
+                    const emodeCell = earn_emodeBadge(p.eMode) || '<span class="earn-emode-empty">—</span>';
 
                     const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
 
@@ -19073,7 +19073,7 @@
                     ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                     : '—';
 
-                const emodeCell = earn_emodeCell(p.eMode);
+                const emodeCell = earn_emodeBadge(p.eMode) || '<span class="earn-emode-empty">—</span>';
 
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
 
@@ -19342,7 +19342,7 @@
                     const aprClass = adjApr > 0 ? 'assets-apy-green' : (adjApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
                     const displayApr = earn_showApy ? aprToApy(adjApr) : adjApr;
                     const aprStyle = displayApr > 0 ? 'font-size:15px;font-weight:700' : '';
-                    // Match the compact Supply breakdown used by Dolomite Assets.
+                    // Keep the compact Assets-style layout while retaining each reward source.
                     const supplyParts = [];
                     if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
                         supplyParts.push({ key: 'lending', label: 'Lending', rate: rateData.lendingApr });
@@ -19350,7 +19350,20 @@
                     if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
                         supplyParts.push({ key: 'odolo', label: 'oDOLO', rate: rateData.rewards });
                     }
-                    if ((rateData.extYieldApr || 0) > 0.01 && !earn_excludeYield) {
+                    if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
+                        rateData.yieldSources.forEach(ys => {
+                            const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
+                            let displayLabel = earn_cleanSupplyAprLabel(ys.label);
+                            const rewardSymbol = String(ys.rewardSymbol || '').trim();
+                            if (isGm) displayLabel = 'GM Performance';
+                            if (rewardSymbol) {
+                                const upperLabel = displayLabel.toUpperCase();
+                                const upperReward = rewardSymbol.toUpperCase();
+                                displayLabel = upperLabel.includes(upperReward) ? displayLabel : `${rewardSymbol} Rewards`;
+                            }
+                            supplyParts.push({ key: 'yield', label: displayLabel || 'Yield', rate: ys.rate });
+                        });
+                    } else if ((rateData.extYieldApr || 0) > 0.01 && !earn_excludeYield) {
                         supplyParts.push({ key: 'yield', label: 'Yield', rate: rateData.extYieldApr });
                     }
                     const supplyLinesHtml = supplyParts.map(part => {
