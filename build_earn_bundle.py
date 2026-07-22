@@ -42,7 +42,7 @@ def render_earn_assets(html_path: Path = SOURCE_HTML, js_path: Path = SOURCE_JS)
     <link rel="shortcut icon" href="favicon.ico" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260713">
+    <link rel="stylesheet" href="dashboard-core.css?v=earn-core-20260722-static-layout">
     <link rel="dns-prefetch" href="//api.dolomite.io">
     <link rel="dns-prefetch" href="//coins.llama.fi">
     <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
@@ -59,7 +59,22 @@ def render_earn_assets(html_path: Path = SOURCE_HTML, js_path: Path = SOURCE_JS)
     <div class="toast" id="copy-toast">Address copied!</div>
     <script src="earn/earn-cache-policy.js?v=earn-cache-policy-20260718"></script>
     <script src="earn/earn-rpc-policy.js?v=earn-rpc-policy-20260718"></script>
-    <script src="earn/earn-core.js?v=earn-core-20260718-ledger-primary-sla"></script>
+    <script src="earn/earn-core.js?v=earn-core-20260722-static-layout"></script>
+    <script>
+    (() => {{
+        const isLocalhost = window.location.hostname === 'localhost';
+        const loopback = isLocalhost || window.location.hostname === '127.0.0.1' || window.location.hostname === '::1';
+        if (!loopback) return;
+        if (new URLSearchParams(window.location.search).get('layoutEditor') !== '1') return;
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = 'earn/earn-layout-editor.css?v=20260722-2';
+        document.head.append(css);
+        const script = document.createElement('script');
+        script.src = 'earn/earn-layout-editor.js?v=20260722-1';
+        document.body.append(script);
+    }})();
+    </script>
 </body>
 </html>
 '''

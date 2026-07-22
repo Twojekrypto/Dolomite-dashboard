@@ -10094,6 +10094,17 @@
             return isNeg ? '-' + result : result;
         }
 
+        function earn_formatAmountOneDecimal(value, decimals) {
+            const amount = typeof value === 'bigint' ? value : BigInt(value || 0);
+            const negative = amount < 0n;
+            const abs = negative ? -amount : amount;
+            const scale = earn_getPow10(decimals);
+            const tenths = (abs * 10n + (scale / 2n)) / scale;
+            const whole = tenths / 10n;
+            const fraction = tenths % 10n;
+            return `${negative ? '-' : ''}${whole.toLocaleString('en-US')}.${fraction.toString()}`;
+        }
+
         const EARN_USD_SCALE_DECIMALS = 8;
         const EARN_USD_SCALE = 10n ** BigInt(EARN_USD_SCALE_DECIMALS);
         const earn_pow10Cache = { 0: 1n, [EARN_USD_SCALE_DECIMALS]: EARN_USD_SCALE };
@@ -10130,6 +10141,14 @@
             const cid = chainId || document.getElementById('earn-chain')?.value || 'ethereum';
             const priceKey = cid + ':' + ((tokenAddr || '').toLowerCase());
             return earn_priceCache[priceKey] || TOKEN_USD_FALLBACK[symbol] || 0;
+        }
+
+        function earn_formatMarketPrice(price) {
+            const value = Number(price || 0);
+            if (!Number.isFinite(value) || value <= 0) return '—';
+            if (value >= 1000) return '$' + value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            if (value >= 1) return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
         }
 
         function earn_getUsdValueScaled(amountWei, decimals, price) {
@@ -11894,6 +11913,46 @@
             return `<span class="earn-debug-badge ${meta.cls}" data-tip="${earn_escapeHtml(meta.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(meta.label)}</span>`;
         }
 
+        function earn_getCompactQualityLabel(label) {
+            const value = String(label || '');
+            if (value.includes('Netflow')) return 'Netflow';
+            if (value.includes('Snapshot')) return 'Snapshot';
+            if (value.includes('Inferred')) return 'Inferred';
+            if (value.includes('Cycle')) return 'Cycle';
+            if (value.includes('Acct0')) return 'Acct0';
+            if (value.includes('History replay')) return 'Replay';
+            return 'Fallback';
+        }
+
+        function earn_renderSupplyQualityCell(marketId, symbol, decimals, yieldCalc, opts) {
+            opts = opts || {};
+            const markers = [];
+            if (opts.positionStatus) {
+                markers.push(opts.positionStatus);
+            }
+            if (earn_replayVerificationReady) {
+                const verification = earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals);
+                if (verification && verification.counted) {
+                    markers.push({
+                        cls: verification.status,
+                        label: verification.label,
+                        title: verification.title,
+                    });
+                }
+            }
+            if (yieldCalc && yieldCalc.hasData && !earn_isReplayYieldMethod(yieldCalc.method)) {
+                const source = earn_getYieldMethodMeta(yieldCalc.method);
+                const label = earn_getCompactQualityLabel(source.label);
+                if (!markers.some(marker => marker.cls === source.cls && marker.label === label)) {
+                    markers.push({ cls: source.cls, label, title: source.title });
+                }
+            }
+            if (!markers.length) return '<span class="earn-quality-empty">—</span>';
+            return `<div class="earn-quality-cell">${markers.map(marker =>
+                `<span class="earn-quality-marker ${marker.cls}" data-tip="${earn_escapeHtml(marker.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(marker.label)}</span>`
+            ).join('')}</div>`;
+        }
+
         function earn_renderDetailsButton(toggleExpression) {
             const chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
             return `<button type="button" class="earn-row-details-button" onclick="event.stopPropagation();${toggleExpression}" aria-label="Toggle details"><span class="earn-details-label-show">Details</span><span class="earn-details-label-hide">Hide</span>${chevron}</button>`;
@@ -12197,7 +12256,7 @@
                 : 'Strict replay verification was not available for this detail row.';
             const rewardsCardHtml = opts.includeRewards === false ? '' : earn_buildSupplyRewardsCard(position);
             const detailId = `${opts.idPrefix || 'earn'}-detail-${idx}`;
-            const colSpan = Number(opts.colSpan || 5);
+            const colSpan = Number(opts.colSpan || 7);
             const isOpenBorrowRouteYield = !!opts.openBorrowRouteYield;
             const yieldPanelLabel = isOpenBorrowRouteYield ? 'Borrow Route Yield' : 'Yield Performance';
             const yieldHeroLabel = isOpenBorrowRouteYield ? 'Open Borrow Collateral Yield' : 'Total Net Yield';
@@ -12246,7 +12305,7 @@
 
             const breakdownHtml = earn_buildBreakdown(marketId, decimals, symbol);
 
-            return `<tr class="earn-detail-row" id="${detailId}">
+            return `<tr class="earn-detail-row" id="${detailId}" data-earn-layout-detail>
                 <td colspan="${colSpan}">
                     <div class="earn-detail-stack">
                         <div class="earn-detail-panels">
@@ -13155,6 +13214,17 @@
             if (earn_cachedAssets) earn_renderResults(earn_cachedAssets, { skipSummary: true });
         }
 
+        function earn_updateSortHeaders(selector, activeKey, descending) {
+            const ascending = !descending;
+            document.querySelectorAll(selector).forEach(th => {
+                const isActive = th.dataset.sort === activeKey;
+                th.classList.toggle('sort-active', isActive);
+                th.setAttribute('aria-sort', isActive ? (ascending ? 'ascending' : 'descending') : 'none');
+                const arrow = th.querySelector('.earn-sort-arrow');
+                if (arrow) arrow.textContent = isActive ? (ascending ? '\u25b2' : '\u25bc') : '';
+            });
+        }
+
         // Sort assets and re-render
         function earn_sortAssets(key) {
             if (!earn_cachedAssets || earn_cachedAssets.length === 0) return;
@@ -13162,20 +13232,26 @@
                 earn_sortDesc = !earn_sortDesc; // toggle direction
             } else {
                 earn_sortKey = key;
-                earn_sortDesc = true; // default descending for new column
+                earn_sortDesc = key !== 'token'; // text starts A-Z; numeric columns start high-low
             }
 
-            // Update header UI
-            document.querySelectorAll('.earn-asset-table thead th[data-sort]').forEach(th => {
-                th.classList.toggle('sort-active', th.dataset.sort === earn_sortKey);
-                const arrow = th.querySelector('.earn-sort-arrow');
-                if (arrow) arrow.textContent = (th.dataset.sort === earn_sortKey && !earn_sortDesc) ? '\u25b2' : '\u25bc';
-            });
+            earn_updateSortHeaders('#earn-supply-section .earn-asset-table thead th[data-sort]', earn_sortKey, earn_sortDesc);
 
             // Sort
-            if (key === 'balance') {
+            if (key === 'token') {
+                earn_cachedAssets.sort((a, b) => {
+                    const diff = String(a.symbol || '').localeCompare(String(b.symbol || ''), undefined, { sensitivity: 'base' });
+                    return earn_sortDesc ? -diff : diff;
+                });
+            } else if (key === 'balance') {
                 earn_cachedAssets.sort((a, b) => {
                     const diff = a.usdValue - b.usdValue;
+                    return earn_sortDesc ? -diff : diff;
+                });
+            } else if (key === 'price') {
+                const cid = document.getElementById('earn-chain').value;
+                earn_cachedAssets.sort((a, b) => {
+                    const diff = earn_getUsdPrice(a.symbol, a.tokenAddr, cid) - earn_getUsdPrice(b.symbol, b.tokenAddr, cid);
                     return earn_sortDesc ? -diff : diff;
                 });
             } else if (key === 'yield') {
@@ -17756,15 +17832,10 @@
                 earn_pastSortDesc = !earn_pastSortDesc;
             } else {
                 earn_pastSortKey = key;
-                earn_pastSortDesc = true;
+                earn_pastSortDesc = key !== 'token';
             }
 
-            document.querySelectorAll('.earn-past-table thead th[data-sort]').forEach(th => {
-                const isActive = th.dataset.sort === earn_pastSortKey;
-                th.classList.toggle('sort-active', isActive);
-                const arrow = th.querySelector('.earn-sort-arrow');
-                if (arrow) arrow.textContent = (isActive && !earn_pastSortDesc) ? '\u25b2' : '\u25bc';
-            });
+            earn_updateSortHeaders('.earn-past-table thead th[data-sort]', earn_pastSortKey, earn_pastSortDesc);
 
             const table = document.querySelector('.earn-past-table');
             if (table) table.classList.add('no-animate');
@@ -17869,6 +17940,10 @@
                 : '';
         }
 
+        function earn_emodeCell(active) {
+            return earn_emodeBadge(active) || '<span class="earn-emode-empty">—</span>';
+        }
+
         function earn_formatUSD(n) {
             if (n === null || n === undefined) return '—';
             const value = Number(n);
@@ -17879,6 +17954,18 @@
             if (abs >= 999_500) return sign + '$' + (abs / 1_000_000).toFixed(2) + 'M';
             if (abs >= 1_000) return sign + '$' + (abs / 1_000).toFixed(2) + 'K';
             return sign + '$' + abs.toFixed(abs >= 1 ? 2 : 4);
+        }
+
+        function earn_formatUSDOneDecimal(n) {
+            if (n === null || n === undefined) return '—';
+            const value = Number(n);
+            if (!Number.isFinite(value)) return '—';
+            const sign = value < 0 ? '-' : '';
+            const abs = Math.abs(value);
+            if (abs >= 999_500_000) return sign + '$' + (abs / 1_000_000_000).toFixed(1) + 'B';
+            if (abs >= 999_500) return sign + '$' + (abs / 1_000_000).toFixed(1) + 'M';
+            if (abs >= 1_000) return sign + '$' + (abs / 1_000).toFixed(1) + 'K';
+            return sign + '$' + abs.toFixed(1);
         }
 
         function earn_formatUSDExact(n) {
@@ -18405,8 +18492,7 @@
                         ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                         : '—';
 
-                    // E-Mode inline with HF
-                    const emodeBadge = earn_emodeBadge(p.eMode);
+                    const emodeCell = earn_emodeCell(p.eMode);
 
                     const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
 
@@ -18473,25 +18559,26 @@
                     const pnlValue = p.netAccrued !== undefined ? p.netAccrued : null;
                     const pnlClass = pnlValue !== null ? (pnlValue >= 0 ? 'positive' : 'negative') : 'neutral';
                     const pnlDisplay = pnlValue !== null && Math.abs(pnlValue) > 0.01
-                        ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}`
+                        ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSDOneDecimal(Math.abs(pnlValue))}`
                         : '—';
                     const annualDisplay = Math.abs(netAnnual) > 0.01
-                        ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</div>`
+                        ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSDOneDecimal(Math.abs(netAnnual))}/yr</div>`
                         : '';
 
-                    const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                        <td>
-                            <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}
+                    const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" data-earn-layout-row onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
+                        <td data-column="health">
+                            <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}
                             ${ratioBar}
                         </td>
-                        <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
-                        <td><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
-                        <td><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
-                        <td class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
+                        <td data-column="emode" class="earn-emode-cell">${emodeCell}</td>
+                        <td data-column="collateral"><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
+                        <td data-column="debt"><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
+                        <td data-column="pnl"><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
+                        <td data-column="details" class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
                     </tr>`;
 
-                    const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
-                        <td colspan="5">
+                    const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}" data-earn-layout-detail>
+                        <td colspan="6">
                             <div class="earn-lend-detail-inner">
                                 <div class="earn-lend-section">
                                     <div class="earn-lend-section-title earn">Collateral Yield</div>
@@ -18727,6 +18814,11 @@
                     const diff = earn_compareBigInt(aYield, bYield);
                     return earn_pastSortDesc ? -diff : diff;
                 });
+            } else if (earn_pastSortKey === 'token') {
+                inactiveItems.sort((a, b) => {
+                    const diff = String(a.symbol || '').localeCompare(String(b.symbol || ''), undefined, { sensitivity: 'base' });
+                    return earn_pastSortDesc ? -diff : diff;
+                });
             }
 
             countEl.textContent = inactiveItems.length;
@@ -18734,12 +18826,7 @@
             earn_openPastDetailIdx = null;
             const explorerBase = earn_getChain().explorer || 'https://etherscan.io';
 
-            document.querySelectorAll('.earn-past-table thead th[data-sort]').forEach(th => {
-                const isActive = th.dataset.sort === earn_pastSortKey;
-                th.classList.toggle('sort-active', isActive);
-                const arrow = th.querySelector('.earn-sort-arrow');
-                if (arrow) arrow.textContent = (isActive && !earn_pastSortDesc) ? '\u25b2' : '\u25bc';
-            });
+            earn_updateSortHeaders('.earn-past-table thead th[data-sort]', earn_pastSortKey, earn_pastSortDesc);
 
             // Render rows in exact Earn-row UX
             tbody.innerHTML = inactiveItems.map((item, i) => {
@@ -18764,13 +18851,30 @@
                 const yieldPositive = item.yieldWei >= 0n;
                 const yieldSign = yieldPositive && item.yieldWei > 0n ? '+' : '';
                 const yieldColor = yieldPositive ? 'earn-yield-positive' : 'earn-yield-negative';
-                const yieldFmt = earn_formatAmount(item.yieldWei, item.decimals, item.symbol);
+                const yieldFmt = earn_formatAmountOneDecimal(item.yieldWei, item.decimals);
                 const yieldUsdSign = item.yieldUsd > 0 ? '+' : (item.yieldUsd < 0 ? '-' : '');
                 const yieldUsdStr = Math.abs(item.yieldUsd) >= 0.01
-                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}$${Math.abs(item.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                    ? `<div class="earn-usd-sub" style="color:${yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldUsdSign}${earn_formatUSDOneDecimal(Math.abs(item.yieldUsd))}</div>`
                     : '';
-                const verifyBadge = earn_renderVerificationBadge(item.marketId, item.symbol, item.decimals, yieldCalc);
-                const sourceBadge = earn_renderYieldSourceBadge(yieldCalc, { openBorrowRouteYield: !!item.isCollateralized });
+                const qualityCellHtml = earn_renderSupplyQualityCell(
+                    item.marketId,
+                    item.symbol,
+                    item.decimals,
+                    yieldCalc,
+                    {
+                        positionStatus: item.isCollateralized
+                            ? {
+                                cls: 'routed',
+                                label: 'Routed',
+                                title: 'Asset is routed into an open borrow subaccount as collateral, so it is not a withdrawn supply asset.',
+                            }
+                            : {
+                                cls: 'withdrawn',
+                                label: 'Exited',
+                                title: 'This supply position is no longer active.',
+                            },
+                    }
+                );
                 const rowId = `earn-past-row-${i}`;
                 const explorerUrl = `${explorerBase}/address/${item.tokenAddr}`;
                 const balanceUsdScaled = earn_getTokenUsdScaled(item.currentWei, item.decimals, item.symbol, item.tokenAddr, chainId);
@@ -18794,29 +18898,25 @@
 
                 const delay = i * 0.05;
 
-                return `<tr class="earn-data-row earn-row-inactive" id="${rowId}" onclick="earn_togglePastDetail(${i})" style="animation-delay:${delay}s">
-                    <td>
+                return `<tr class="earn-data-row earn-row-inactive" id="${rowId}" data-earn-layout-row onclick="earn_togglePastDetail(${i})" style="animation-delay:${delay}s">
+                    <td data-column="token">
                         <div class="earn-token-cell">
                             <div class="earn-token-left">
                                 ${iconHtml}
                                 <div class="earn-token-info">
-                                        <div class="earn-token-name">${item.symbol}</div>
-                                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:3px">
-                                        <span class="earn-hist-badge earn-position-badge ${item.isCollateralized ? 'routed' : 'withdrawn'}"${item.isCollateralized ? ' data-tip="Asset is routed into a borrow subaccount as collateral, so it is not a withdrawn supply asset"' : ''}><span class="earn-status-dot"></span>${item.isCollateralized ? 'In Borrow Route' : 'Exited Position'}</span>
-                                        ${verifyBadge}
-                                        ${sourceBadge}
-                                    </div>
+                                    <div class="earn-token-name">${item.symbol}</div>
                                 </div>
                             </div>
                         </div>
                     </td>
-                    <td style="text-align:right">
+                    <td data-column="quality">${qualityCellHtml}</td>
+                    <td data-column="yield">
                         ${yieldCellHtml}
                     </td>
-                    <td class="earn-details-cell">
+                    <td data-column="details" class="earn-details-cell">
                         ${earn_renderDetailsButton(`earn_togglePastDetail(${i})`)}
                     </td>
-                </tr>${earn_buildSupplyDetailRow(i, detailPosition, yieldCalc, explorerUrl, { idPrefix: 'earn-past', colSpan: 3, includeRewards: false, openBorrowRouteYield: !!item.isCollateralized })}`;
+                </tr>${earn_buildSupplyDetailRow(i, detailPosition, yieldCalc, explorerUrl, { idPrefix: 'earn-past', colSpan: 4, includeRewards: false, openBorrowRouteYield: !!item.isCollateralized })}`;
             }).join('');
         }
 
@@ -18923,13 +19023,7 @@
                 earn_lendSortDesc = (key !== 'hf'); // HF defaults ascending, others descending
             }
 
-            // Update header UI (mirrors earn_sortAssets)
-            document.querySelectorAll('.earn-lending-table thead th[data-sort]').forEach(th => {
-                const isActive = th.dataset.sort === 'lend-' + earn_lendSortKey;
-                th.classList.toggle('sort-active', isActive);
-                const arrow = th.querySelector('.earn-sort-arrow');
-                if (arrow) arrow.textContent = (isActive && !earn_lendSortDesc) ? '\u25b2' : '\u25bc';
-            });
+            earn_updateSortHeaders('.earn-lending-table thead th[data-sort]', 'lend-' + earn_lendSortKey, earn_lendSortDesc);
 
             // Sort cached positions
             if (key === 'hf') {
@@ -18941,6 +19035,11 @@
             } else if (key === 'collateral') {
                 earn_lendingPositions.sort((a, b) => {
                     const diff = (a.collateralUSD || 0) - (b.collateralUSD || 0);
+                    return earn_lendSortDesc ? -diff : diff;
+                });
+            } else if (key === 'emode') {
+                earn_lendingPositions.sort((a, b) => {
+                    const diff = Number(!!a.eMode) - Number(!!b.eMode);
                     return earn_lendSortDesc ? -diff : diff;
                 });
             } else if (key === 'debt') {
@@ -18974,7 +19073,7 @@
                     ? (p.healthFactor > 10 ? '10<' : p.healthFactor.toFixed(hfDecimals))
                     : '—';
 
-                const emodeBadge = earn_emodeBadge(p.eMode);
+                const emodeCell = earn_emodeCell(p.eMode);
 
                 const collateralDisplay = p.collateralUSD < 0.01 ? '$0.00' : earn_formatUSD(p.collateralUSD);
 
@@ -19032,25 +19131,26 @@
                 const pnlValue = p.netAccrued !== undefined ? p.netAccrued : null;
                 const pnlClass = pnlValue !== null ? (pnlValue >= 0 ? 'positive' : 'negative') : 'neutral';
                 const pnlDisplay = pnlValue !== null && Math.abs(pnlValue) > 0.01
-                    ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSD(Math.abs(pnlValue))}`
+                    ? `${pnlValue >= 0 ? '+' : '-'}${earn_formatUSDOneDecimal(Math.abs(pnlValue))}`
                     : '—';
                 const annualDisplay = Math.abs(netAnnual) > 0.01
-                    ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSD(Math.abs(netAnnual))}/yr</div>`
+                    ? `<div class="earn-net-sub-inline">${netSign}${earn_formatUSDOneDecimal(Math.abs(netAnnual))}/yr</div>`
                     : '';
 
-                const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
-                    <td>
-                        <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${emodeBadge}${ageBadge}
+                const dataRow = `<tr class="earn-lend-row risk-${riskClass}" data-idx="${i}" data-earn-layout-row onclick="earn_toggleLendDetail(${i})" style="animation-delay:${i * 0.08}s">
+                    <td data-column="health">
+                        <span class="earn-hf-badge ${riskClass}"><span class="earn-hf-dot ${riskClass}"></span>${hfText}</span>${ageBadge}
                         ${ratioBar}
                     </td>
-                    <td><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
-                    <td><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
-                    <td><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
-                    <td class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
+                    <td data-column="emode" class="earn-emode-cell">${emodeCell}</td>
+                    <td data-column="collateral"><div class="earn-merged-col"><span class="earn-usd-collateral">${collateralDisplay}</span>${renderMergedTokens(p.collateralTokens)}</div></td>
+                    <td data-column="debt"><div class="earn-merged-col"><span class="earn-usd-debt">${earn_formatUSD(p.debtUSD)}</span>${renderMergedTokens(p.debtTokens)}</div></td>
+                    <td data-column="pnl"><div class="earn-net-inline ${pnlClass}">${pnlDisplay}</div>${annualDisplay}</td>
+                    <td data-column="details" class="earn-details-cell">${earn_renderDetailsButton(`earn_toggleLendDetail(${i})`)}</td>
                 </tr>`;
 
-                const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}">
-                    <td colspan="5">
+                const detailRow = `<tr class="earn-lend-detail" id="earn-lend-detail-${i}" data-earn-layout-detail>
+                    <td colspan="6">
                         <div class="earn-lend-detail-inner">
                             <div class="earn-lend-section">
                                 <div class="earn-lend-section-title earn">Collateral Yield</div>
@@ -19195,13 +19295,13 @@
             supplyAssets.forEach((a, idx) => {
                 let yieldCellHtml;
                 const yieldCalc = getVerifiedYieldCalc(a);
-                const verifyBadge = earn_renderVerificationBadge(a.marketId, a.symbol, a.decimals, yieldCalc);
 
                 if (earn_isTrustedInterestLedgerYieldCalc(yieldCalc)) {
+                    const yieldFmt = earn_formatAmountOneDecimal(yieldCalc.absYield, a.decimals);
                     const yieldUsdStr = Math.abs(yieldCalc.yieldUsd) >= 0.01
-                        ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldCalc.yieldSign}$${Math.abs(yieldCalc.yieldUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>`
+                        ? `<div class="earn-usd-sub" style="color:${yieldCalc.yieldPositive ? 'rgba(52,211,153,0.5)' : 'rgba(248,113,113,0.5)'}">${yieldCalc.yieldSign}${earn_formatUSDOneDecimal(Math.abs(yieldCalc.yieldUsd))}</div>`
                         : '';
-                    yieldCellHtml = `<span class="earn-amount ${yieldCalc.yieldColor}">${yieldCalc.yieldSign + yieldCalc.yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
+                    yieldCellHtml = `<span class="earn-amount ${yieldCalc.yieldColor}">${yieldCalc.yieldSign + yieldFmt}<span class="earn-amount-sym">${a.symbol}</span></span>${yieldUsdStr}`;
                 } else {
                     const yieldPlaceholder = earn_totalYieldStatus === 'loading'
                         ? 'Loading...'
@@ -19210,6 +19310,7 @@
                 }
 
                 const weiFmt = earn_formatAmount(a.wei, a.decimals, a.symbol);
+                const marketPrice = earn_getUsdPrice(a.symbol, a.tokenAddr, document.getElementById('earn-chain').value);
 
                 // Icon
                 let iconHtml;
@@ -19241,70 +19342,52 @@
                     const aprClass = adjApr > 0 ? 'assets-apy-green' : (adjApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
                     const displayApr = earn_showApy ? aprToApy(adjApr) : adjApr;
                     const aprStyle = displayApr > 0 ? 'font-size:15px;font-weight:700' : '';
-                    // Build breakdown lines
-                    let bLines = [];
+                    // Match the compact Supply breakdown used by Dolomite Assets.
+                    const supplyParts = [];
                     if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
-                        bLines.push({ label: 'Lending Interest', rate: rateData.lendingApr, cls: 'lending-part' });
-                    }
-                    if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
-                        rateData.yieldSources.forEach(ys => {
-                            const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                            let displayLabel = earn_cleanSupplyAprLabel(ys.label);
-                            const rewardSymbol = String(ys.rewardSymbol || '').trim();
-                            if (isGm) displayLabel = 'GM Performance';
-                            if (rewardSymbol) {
-                                const upperLabel = displayLabel.toUpperCase();
-                                const upperReward = rewardSymbol.toUpperCase();
-                                displayLabel = upperLabel.includes(upperReward) ? displayLabel : `${rewardSymbol} Rewards`;
-                            }
-                            bLines.push({ label: displayLabel, rate: ys.rate, cls: isGm ? 'gm-part' : 'yield-part' });
-                        });
+                        supplyParts.push({ key: 'lending', label: 'Lending', rate: rateData.lendingApr });
                     }
                     if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
-                        bLines.push({ label: 'oDOLO Rewards', rate: rateData.rewards, cls: 'odolo-part' });
+                        supplyParts.push({ key: 'odolo', label: 'oDOLO', rate: rateData.rewards });
                     }
-                    let bHtml = '';
-                    if (bLines.length > 0) {
-                        bHtml = '<div class="assets-apy-breakdown earn-supply-apr-breakdown">' +
-                            bLines.map(l => {
-                                const displayRate = earn_showApy ? aprToApy(l.rate) : l.rate;
-                                return `<span class="${l.cls}">+ ${displayRate.toFixed(2)}% ${l.label}</span>`;
-                            }).join('') +
-                            '</div>';
+                    if ((rateData.extYieldApr || 0) > 0.01 && !earn_excludeYield) {
+                        supplyParts.push({ key: 'yield', label: 'Yield', rate: rateData.extYieldApr });
                     }
-                    earnAprCellHtml = `<div><span class="${aprClass}" style="${aprStyle}">${displayApr.toFixed(2)}%</span></div>${bHtml}`;
+                    const supplyLinesHtml = supplyParts.map(part => {
+                        const partRate = earn_showApy ? aprToApy(part.rate) : part.rate;
+                        return `<div class="earn-supply-apr-line ${part.key}${partRate < 0 ? ' negative' : ''}"><span class="earn-supply-apr-dash">—</span><span class="earn-supply-apr-source">${part.label}</span><span class="earn-supply-apr-number">${partRate.toFixed(2)}%</span></div>`;
+                    }).join('');
+                    earnAprCellHtml = `<div class="earn-supply-apr-cell"><div class="earn-supply-apr-value${displayApr < 0 ? ' negative' : ''}">${displayApr.toFixed(2)}%</div><div class="earn-supply-apr-lines">${supplyLinesHtml}</div></div>`;
                 } else {
                     earnAprCellHtml = `<span style="color:var(--text-muted)">—</span>`;
                 }
 
-                const sourceBadge = earn_renderYieldSourceBadge(yieldCalc);
-
-                html += `<tr class="earn-data-row" id="earn-row-${idx}" onclick="earn_toggleDetail(${idx})" style="animation-delay:${delay}s">
-                    <td>
+                html += `<tr class="earn-data-row" id="earn-row-${idx}" data-earn-layout-row onclick="earn_toggleDetail(${idx})" style="animation-delay:${delay}s">
+                    <td data-column="token">
                         <div class="earn-token-cell">
                             <div class="earn-token-left">
                                 ${iconHtml}
                                 <div class="earn-token-info">
                                     <div class="earn-token-name">${a.symbol}</div>
-                                    <div style="display:flex;gap:6px;flex-wrap:wrap">
-                                        ${verifyBadge}
-                                        ${sourceBadge}
-                                    </div>
                                 </div>
                             </div>
                         </div>
                     </td>
-                    <td>
+                    <td data-column="quality">${earn_renderSupplyQualityCell(a.marketId, a.symbol, a.decimals, yieldCalc)}</td>
+                    <td data-column="price" class="earn-market-price-cell">
+                        <span class="earn-market-price">${earn_formatMarketPrice(marketPrice)}</span>
+                    </td>
+                    <td data-column="supply" class="earn-supply-rate-cell">
                         ${earnAprCellHtml}
                     </td>
-                    <td>
+                    <td data-column="balance">
                         <span class="earn-amount earn-amount-primary">${weiFmt}<span class="earn-amount-sym">${a.symbol}</span></span>
                         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">≈ ${earn_formatUSD(a.usdValue)}</div>
                     </td>
-                    <td>
+                    <td data-column="yield">
                         ${yieldCellHtml}
                     </td>
-                    <td class="earn-details-cell">
+                    <td data-column="details" class="earn-details-cell">
                         ${earn_renderDetailsButton(`earn_toggleDetail(${idx})`)}
                     </td>
                 </tr>`;
@@ -19328,7 +19411,7 @@
             }
 
             if (supplyAssets.length > 0) {
-                html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="5"></td></tr>';
+                html += '<tr class="earn-table-spacer" aria-hidden="true"><td colspan="7"></td></tr>';
             }
 
             if (supplyTableShell) {
@@ -19761,7 +19844,6 @@
                             <div class="earn-summary-stat earn-summary-hero is-primary">
                                 <div class="earn-summary-hero-top">
                                     <div>
-                                        <div class="earn-summary-eyebrow">Earn Overview</div>
                                         <div class="earn-summary-label" style="display:flex;align-items:center;gap:4px">Portfolio Value${addrBadgeHtml}</div>
                                     </div>
                                     <div class="earn-summary-context-pill">${summaryContextText}</div>
