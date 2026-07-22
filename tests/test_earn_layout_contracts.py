@@ -12,6 +12,7 @@ class EarnLayoutContractsTest(unittest.TestCase):
         cls.js = (ROOT / 'earn/earn-core.js').read_text(encoding='utf-8')
         cls.css = (ROOT / 'dashboard-core.css').read_text(encoding='utf-8')
         cls.draft_css = (ROOT / 'earn/earn-draft.css').read_text(encoding='utf-8')
+        cls.bundle_builder = (ROOT / 'build_earn_bundle.py').read_text(encoding='utf-8')
 
     def test_supply_schema_places_price_before_supply(self):
         expected = ['token', 'quality', 'price', 'supply', 'balance', 'yield', 'details']
@@ -90,6 +91,12 @@ class EarnLayoutContractsTest(unittest.TestCase):
     def test_portfolio_value_has_no_redundant_earn_overview_eyebrow(self):
         self.assertNotIn('Earn Overview', self.js)
         self.assertIn('Portfolio Value${addrBadgeHtml}', self.js)
+        self.assertNotIn('Earn Overview', (ROOT / 'dashboard-core.js').read_text(encoding='utf-8'))
+
+    def test_bundle_builder_keeps_static_layout_cache_and_local_editor_guard(self):
+        self.assertIn('earn-core-20260722-static-layout', self.bundle_builder)
+        self.assertIn("new URLSearchParams(window.location.search).get('layoutEditor')", self.bundle_builder)
+        self.assertIn("const loopback = isLocalhost", self.bundle_builder)
 
     def test_earn_sort_controls_match_the_assets_table_pattern(self):
         for table in ('earn-asset-table', 'earn-lending-table', 'earn-past-table'):
