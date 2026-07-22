@@ -105,6 +105,13 @@ class EarnLayoutContractsTest(unittest.TestCase):
     def test_supply_token_and_borrow_pnl_follow_compact_header_alignment(self):
         self.assertIn('<div class="earn-token-header">', self.html)
         self.assertIn('#earn-supply-section .earn-token-header {', self.css)
+        past_start = self.html.index('<table class="earn-asset-table earn-past-table"')
+        past_end = self.html.index('</table>', past_start)
+        past_table = self.html[past_start:past_end]
+        self.assertIn('<div class="earn-token-header">', past_table)
+        self.assertNotIn('style="display:flex;align-items:center;gap:12px"', past_table)
+        self.assertIn('#earn-past-section .earn-token-header {', self.css)
+        self.assertIn('#earn-past-section .earn-past-table thead th[data-column="token"]', self.draft_css)
         self.assertIn('.earn-lending-table tbody td[data-column="pnl"] .earn-net-inline,', self.css)
         self.assertIn('td[data-column="pnl"] {\n            text-align: left;', self.css)
         self.assertIn('td[data-column="pnl"] {\n  text-align: left !important;', self.draft_css)
