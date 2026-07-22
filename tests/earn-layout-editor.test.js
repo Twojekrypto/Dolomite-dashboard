@@ -4,13 +4,15 @@ const fs = require('node:fs');
 const editor = require('../earn/earn-layout-editor.js');
 const core = fs.readFileSync('earn/earn-core.html', 'utf8');
 const source = fs.readFileSync('earn/earn-layout-editor.js', 'utf8');
+const editorCss = fs.readFileSync('earn/earn-layout-editor.css', 'utf8');
 
 const total = layout => layout.order.reduce((sum, key) => sum + layout.widths[key], 0);
 
-test('supply and borrow defaults contain all required keys and total 100%', () => {
+test('supply, borrow and Past & Routed defaults contain all required keys and total 100%', () => {
   assert.deepEqual(editor.createDefaultLayout('supply').order, ['token', 'quality', 'price', 'supply', 'balance', 'yield', 'details']);
   assert.deepEqual(editor.createDefaultLayout('borrow').order, ['health', 'emode', 'collateral', 'debt', 'pnl', 'details']);
-  for (const name of ['supply', 'borrow']) {
+  assert.deepEqual(editor.createDefaultLayout('past').order, ['token', 'quality', 'yield', 'details']);
+  for (const name of ['supply', 'borrow', 'past']) {
     assert.equal(Number(total(editor.createDefaultLayout(name)).toFixed(6)), 100);
   }
 });
@@ -20,6 +22,10 @@ test('editor is restricted to an explicit loopback query', () => {
   assert.equal(editor.isLocalEditorEnabled({ hostname: '127.0.0.1', search: '?layoutEditor=1' }), true);
   assert.equal(editor.isLocalEditorEnabled({ hostname: 'twojekrypto.github.io', search: '?layoutEditor=1' }), false);
   assert.equal(editor.isLocalEditorEnabled({ hostname: 'localhost', search: '' }), false);
+});
+
+test('local editor controls stay available in a narrow local viewport', () => {
+  assert.doesNotMatch(editorCss, /@media \(max-width: 700px\)[\s\S]*?\.earn-layout-editor-toolbar[\s\S]*?display: none !important/);
 });
 
 test('reorder and one spacer preserve the complete supply schema', () => {
@@ -63,6 +69,29 @@ test('saved state requires both valid table layouts', () => {
   assert.equal(editor.normalizeSavedLayouts({ version: 1, supply: valid.supply }), null);
 });
 
+test('previous saved layouts gain the default Past & Routed layout without changing supply or borrow', () => {
+  const previous = {
+    version: 1,
+    supply: editor.createDefaultLayout('supply'),
+    borrow: editor.createDefaultLayout('borrow'),
+  };
+  const migrated = editor.normalizeSavedLayouts(previous);
+  assert.ok(migrated);
+  assert.deepEqual(migrated.past, editor.createDefaultLayout('past'));
+  assert.deepEqual(migrated.supply, previous.supply);
+  assert.deepEqual(migrated.borrow, previous.borrow);
+});
+
+test('Past & Routed supports reordering and one optional spacer', () => {
+  const base = editor.createDefaultLayout('past');
+  const moved = editor.reorderLayout('past', base, 'details', 'quality', false);
+  assert.deepEqual(moved.order, ['token', 'details', 'quality', 'yield']);
+  const withSpacer = editor.addSpacer('past', moved);
+  assert.equal(withSpacer.order.filter(key => key === 'spacer').length, 1);
+  assert.equal(Number(total(withSpacer).toFixed(6)), 100);
+  assert.deepEqual(editor.removeSpacer('past', withSpacer).order, moved.order);
+});
+
 test('legacy supply layout gains Quality without changing saved widths or order', () => {
   const legacy = {
     version: 1,
@@ -102,10 +131,13 @@ test('core loads the editor only behind loopback and query checks', () => {
   assert.match(core, /earn-layout-editor\.css/);
 });
 
-test('DOM adapter registers both table schemas and re-applies after DOM mutations', () => {
+test('DOM adapter registers all EARN table schemas and re-applies after DOM mutations', () => {
   assert.match(source, /const api = factory\(root\)/);
   assert.match(source, /earn-supply-section/);
   assert.match(source, /earn-lending-section/);
+  assert.match(source, /earn-past-section/);
+  assert.match(core, /data-earn-layout-table="past"/);
+  assert.match(source, /\['supply', 'borrow', 'past'\]/);
   assert.match(source, /new MutationObserver/);
   assert.match(source, /style\.setProperty\('width', `\$\{valid\.widths\[key\]\}%`, 'important'\)/);
   assert.match(source, /earn-layout-draft\.json/);

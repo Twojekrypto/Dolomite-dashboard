@@ -11954,7 +11954,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
 
                 const delay = i * 0.05;
 
-                return `<tr class="earn-data-row earn-row-inactive" id="${rowId}" onclick="earn_togglePastDetail(${i})" style="animation-delay:${delay}s">
+                return `<tr class="earn-data-row earn-row-inactive" id="${rowId}" data-earn-layout-row onclick="earn_togglePastDetail(${i})" style="animation-delay:${delay}s">
                     <td data-column="token">
                         <div class="earn-token-cell">
                             <div class="earn-token-left">

@@ -22,6 +22,10 @@
       keys:["health", "emode", "collateral", "debt", "pnl", "details"],
       widths:{health:17, emode:11, collateral:23, debt:23, pnl:16, details:10},
     },
+    past: {
+      keys:["token", "quality", "yield", "details"],
+      widths:{token:43, quality:22, yield:25, details:10},
+    },
   };
 
   const clone = value => JSON.parse(JSON.stringify(value));
@@ -114,7 +118,12 @@
   }
 
   function createDefaultSavedLayouts(){
-    return {version:VERSION, supply:createDefaultLayout("supply"), borrow:createDefaultLayout("borrow")};
+    return {
+      version:VERSION,
+      supply:createDefaultLayout("supply"),
+      borrow:createDefaultLayout("borrow"),
+      past:createDefaultLayout("past"),
+    };
   }
 
   function migrateSupplyLayout(value){
@@ -140,7 +149,8 @@
     const supply = normalizeLayout("supply", migrateSupplyLayout(value.supply));
     const borrow = normalizeLayout("borrow", migrateBorrowLayout(value.borrow));
     if(!supply || !borrow) return null;
-    return {version:VERSION, supply, borrow};
+    const past = normalizeLayout("past", value.past) || createDefaultLayout("past");
+    return {version:VERSION, supply, borrow, past};
   }
 
   let editorLayouts = null;
@@ -215,9 +225,13 @@
 
   function tableFor(name){
     if(!root?.document) return null;
-    const selector = name === 'supply'
-      ? '#earn-supply-section [data-earn-layout-table="supply"]'
-      : '#earn-lending-section [data-earn-layout-table="borrow"]';
+    const selectors = {
+      supply: '#earn-supply-section [data-earn-layout-table="supply"]',
+      borrow: '#earn-lending-section [data-earn-layout-table="borrow"]',
+      past: '#earn-past-section [data-earn-layout-table="past"]',
+    };
+    const selector = selectors[name];
+    if(!selector) return null;
     return root.document.querySelector(selector);
   }
 
@@ -398,16 +412,13 @@
 
   function reapply(){
     if(!root?.document || !isLocalEditorEnabled(root.location)) return;
-    const supplyTable = tableFor('supply');
-    const borrowTable = tableFor('borrow');
-    if(supplyTable){
-      applyLayout('supply', supplyTable, currentLayout('supply'));
-      createToolbar('supply', root.document.getElementById('earn-supply-section'));
-    }
-    if(borrowTable){
-      applyLayout('borrow', borrowTable, currentLayout('borrow'));
-      createToolbar('borrow', root.document.getElementById('earn-lending-section'));
-    }
+    ['supply', 'borrow', 'past'].forEach(name => {
+      const table = tableFor(name);
+      const section = table?.closest('.earn-section-card');
+      if(!table || !section) return;
+      applyLayout(name, table, currentLayout(name));
+      createToolbar(name, section);
+    });
   }
 
   function scheduleReapply(){

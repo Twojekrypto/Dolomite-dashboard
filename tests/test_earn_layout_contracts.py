@@ -60,7 +60,7 @@ class EarnLayoutContractsTest(unittest.TestCase):
 
     def test_past_assets_move_quality_markers_out_of_token(self):
         expected = ['token', 'quality', 'yield', 'details']
-        start = self.html.index('<table class="earn-asset-table earn-past-table">')
+        start = self.html.index('<table class="earn-asset-table earn-past-table"')
         end = self.html.index('</table>', start)
         past_table = self.html[start:end]
         positions = [past_table.index(f'data-column="{key}"') for key in expected]
