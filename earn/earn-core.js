@@ -12900,7 +12900,6 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                             <div class="earn-summary-stat earn-summary-hero is-primary">
                                 <div class="earn-summary-hero-top">
                                     <div>
-                                        <div class="earn-summary-eyebrow">Earn Overview</div>
                                         <div class="earn-summary-label" style="display:flex;align-items:center;gap:4px">Portfolio Value${addrBadgeHtml}</div>
                                     </div>
                                     <div class="earn-summary-context-pill">${summaryContextText}</div>

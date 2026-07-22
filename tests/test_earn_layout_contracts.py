@@ -81,6 +81,16 @@ class EarnLayoutContractsTest(unittest.TestCase):
         self.assertIn('.earn-past-table tbody td[data-column="details"]', self.draft_css)
         self.assertIn('padding-left: 6px !important;', self.draft_css)
 
+    def test_published_past_layout_matches_saved_local_widths(self):
+        self.assertIn('.earn-past-table colgroup col[data-column="token"] { width: 39%; }', self.css)
+        self.assertIn('.earn-past-table colgroup col[data-column="details"] { width: 14%; }', self.css)
+        self.assertIn('body.earn-draft-route .earn-past-table colgroup col[data-column="token"] { width: 39% !important; }', self.draft_css)
+        self.assertIn('body.earn-draft-route .earn-past-table colgroup col[data-column="details"] { width: 14% !important; }', self.draft_css)
+
+    def test_portfolio_value_has_no_redundant_earn_overview_eyebrow(self):
+        self.assertNotIn('Earn Overview', self.js)
+        self.assertIn('Portfolio Value${addrBadgeHtml}', self.js)
+
     def test_earn_sort_controls_match_the_assets_table_pattern(self):
         for table in ('earn-asset-table', 'earn-lending-table', 'earn-past-table'):
             self.assertIn(f'.{table} thead th[data-sort] .earn-sort-arrow', self.css)
