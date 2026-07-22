@@ -1792,7 +1792,13 @@ function shouldSkipMarket(row){
 }
 function compactYieldSourceLabel(label){
   const cleaned = String(label || "").replace(/\s*\(.*?\)\s*/g,"").replace(/\s+APR$/i,"").replace(/\s+APY$/i,"").trim() || "Yield";
-  return cleaned === "Sky Savings Rate" ? "Sky Rate" : cleaned;
+  const compactLabels = {
+    "Sky Savings Rate": "Sky Rate",
+    "ETH Staking": "Staking",
+    "ETH Staking Yield": "Staking",
+    "Staking Yield": "Staking"
+  };
+  return compactLabels[cleaned] || cleaned;
 }
 function parseYieldParts(parts){
   let odolo = 0;

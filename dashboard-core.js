@@ -6282,6 +6282,7 @@
                         // Strip APR/APY from all display labels
                         displayLabel = displayLabel.replace(/\s*\(APR\)\s*/g, '').replace(/\s+APR$/i, '').replace(/\s+APY$/i, '');
                         if (displayLabel === 'Sky Savings Rate') displayLabel = 'Sky Rate';
+                        if (displayLabel === 'ETH Staking' || displayLabel === 'ETH Staking Yield' || displayLabel === 'Staking Yield') displayLabel = 'Staking';
                         if (isGm) {
                             displayLabel = 'GM Performance';
                             tooltip = 'Annualized return from GM token price change over the past 30 days';
@@ -13062,7 +13063,13 @@
                 .replace(/\s+APY$/i, '')
                 .replace(/\s+\([^)]*\)$/g, '')
                 .trim();
-            return cleaned === 'Sky Savings Rate' ? 'Sky Rate' : cleaned;
+            const compactLabels = {
+                'Sky Savings Rate': 'Sky Rate',
+                'ETH Staking': 'Staking',
+                'ETH Staking Yield': 'Staking',
+                'Staking Yield': 'Staking',
+            };
+            return compactLabels[cleaned] || cleaned;
         }
 
         function earn_buildMarketRatesMap(chainId, json) {
