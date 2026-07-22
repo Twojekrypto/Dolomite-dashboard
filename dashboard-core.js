@@ -6281,6 +6281,7 @@
                         let tooltip = 'External yield from the underlying protocol';
                         // Strip APR/APY from all display labels
                         displayLabel = displayLabel.replace(/\s*\(APR\)\s*/g, '').replace(/\s+APR$/i, '').replace(/\s+APY$/i, '');
+                        if (displayLabel === 'Sky Savings Rate') displayLabel = 'Sky Rate';
                         if (isGm) {
                             displayLabel = 'GM Performance';
                             tooltip = 'Annualized return from GM token price change over the past 30 days';
@@ -13055,12 +13056,13 @@
         }
 
         function earn_cleanSupplyAprLabel(label) {
-            return String(label || '')
+            const cleaned = String(label || '')
                 .replace(/\s*\(APR\)\s*/g, '')
                 .replace(/\s+APR$/i, '')
                 .replace(/\s+APY$/i, '')
                 .replace(/\s+\([^)]*\)$/g, '')
                 .trim();
+            return cleaned === 'Sky Savings Rate' ? 'Sky Rate' : cleaned;
         }
 
         function earn_buildMarketRatesMap(chainId, json) {
