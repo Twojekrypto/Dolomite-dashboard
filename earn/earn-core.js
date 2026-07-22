@@ -6117,7 +6117,13 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 .replace(/\s+APY$/i, '')
                 .replace(/\s+\([^)]*\)$/g, '')
                 .trim();
-            return cleaned === 'Sky Savings Rate' ? 'Sky Rate' : cleaned;
+            const compactLabels = {
+                'Sky Savings Rate': 'Sky Rate',
+                'ETH Staking': 'Staking',
+                'ETH Staking Yield': 'Staking',
+                'Staking Yield': 'Staking',
+            };
+            return compactLabels[cleaned] || cleaned;
         }
 
         function earn_buildMarketRatesMap(chainId, json) {
