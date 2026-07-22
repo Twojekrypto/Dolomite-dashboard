@@ -6111,12 +6111,13 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         }
 
         function earn_cleanSupplyAprLabel(label) {
-            return String(label || '')
+            const cleaned = String(label || '')
                 .replace(/\s*\(APR\)\s*/g, '')
                 .replace(/\s+APR$/i, '')
                 .replace(/\s+APY$/i, '')
                 .replace(/\s+\([^)]*\)$/g, '')
                 .trim();
+            return cleaned === 'Sky Savings Rate' ? 'Sky Rate' : cleaned;
         }
 
         function earn_buildMarketRatesMap(chainId, json) {

@@ -1790,6 +1790,10 @@ function shouldSkipMarket(row){
   if(isExpiredMarket(sym, name)) return true;
   return SKIP_PREFIXES.some(p => sym.startsWith(p) || name.startsWith(p));
 }
+function compactYieldSourceLabel(label){
+  const cleaned = String(label || "").replace(/\s*\(.*?\)\s*/g,"").replace(/\s+APR$/i,"").replace(/\s+APY$/i,"").trim() || "Yield";
+  return cleaned === "Sky Savings Rate" ? "Sky Rate" : cleaned;
+}
 function parseYieldParts(parts){
   let odolo = 0;
   let external = 0;
@@ -1797,7 +1801,7 @@ function parseYieldParts(parts){
   (parts || []).forEach(p=>{
     const raw = (parseFloat(p.interestRate) || 0) * 100;
     if(raw === 0) return;
-    const label = String(p.label || "").replace(/\s*\(.*?\)\s*/g,"").replace(/\s+APR$/i,"").replace(/\s+APY$/i,"").trim() || "Yield";
+    const label = compactYieldSourceLabel(p.label);
     if(label.toLowerCase().includes("odolo")){
       odolo += raw;
     } else if(p.category === "rewards" || p.category === "nativeYield"){
@@ -1840,7 +1844,10 @@ function normalizeAssetRows(rows){
       chain,
       chainName: row.chainName || meta.name || CHAIN_LABELS[chain] || chain,
       icon: tokenIcon(sym, {...row, chain, addr}),
-      yieldSources: Array.isArray(row.yieldSources) ? row.yieldSources : [],
+      yieldSources: Array.isArray(row.yieldSources) ? row.yieldSources.map(source => ({
+        ...source,
+        label: compactYieldSourceLabel(source.label)
+      })) : [],
       borrowDisabled: row.borrowDisabled === true,
       depthReady: row.depthReady === true
     };
