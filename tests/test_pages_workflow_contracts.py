@@ -7,6 +7,12 @@ PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
 
 
 class PagesWorkflowContractTests(unittest.TestCase):
+    def test_active_pages_deploy_is_not_cancelled_by_new_data_commits(self):
+        workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn("group: pages-deploy", workflow)
+        self.assertIn("cancel-in-progress: false", workflow)
+
     def test_pages_redeploys_after_holder_data_workflows(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
 
