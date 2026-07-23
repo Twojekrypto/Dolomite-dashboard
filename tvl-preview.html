@@ -1395,7 +1395,7 @@ function buildChainTokenCompositions(llamaData, officialData, staleKeys=new Set(
   return byChain;
 }
 
-function buildTvlSnapshot(llamaData, officialData){
+function buildTvlSnapshot(llamaData, officialData, fullSupplyData=null){
   const officialCurrent = officialData?.currentChainTvls || {};
   const llamaCurrent = llamaData?.currentChainTvls || {};
   const current = officialData ? officialCurrent : llamaCurrent;
@@ -1443,10 +1443,15 @@ function buildTvlSnapshot(llamaData, officialData){
     totalTvl,
     TVL_HISTORY,
   );
-  const supplyHistory = buildHistory(
+  const llamaSupplyHistory = buildHistory(
     hasDistinctSupplyHistory ? llamaData.totalSupply : llamaData?.tvl,
     supplyLiquidity,
     TOTAL_SUPPLY_HISTORY,
+  );
+  const supplyHistory = buildHistory(
+    fullSupplyData?.totalSupply,
+    supplyLiquidity,
+    llamaSupplyHistory,
   );
   const tokens = buildTokenComposition(llamaData, officialData, staleKeys);
   const tokenCompositionByChain = buildChainTokenCompositions(llamaData, officialData, staleKeys);
@@ -1468,10 +1473,12 @@ function buildTvlSnapshot(llamaData, officialData){
 async function loadTvlSnapshot(){
   let llamaData = null;
   let officialData = null;
+  let fullSupplyData = null;
   try { llamaData = await fetchJson("defillama_data.json"); } catch (error) { console.warn("TVL: DeFiLlama static data unavailable", error); }
   try { officialData = await fetchJson("dolomite_tvl.json"); } catch (error) { console.warn("TVL: official Dolomite TVL data unavailable", error); }
+  try { fullSupplyData = await fetchJson("dolomite_total_supply_history.json"); } catch (error) { console.warn("TVL: full Total Supply history unavailable", error); }
   if (!llamaData && !officialData) return null;
-  return buildTvlSnapshot(llamaData || {}, officialData || null);
+  return buildTvlSnapshot(llamaData || {}, officialData || null, fullSupplyData);
 }
 
 function computeWindowChange(history, days){

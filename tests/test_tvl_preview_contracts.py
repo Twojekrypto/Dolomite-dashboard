@@ -115,6 +115,67 @@ class TvlPreviewContractsTest(unittest.TestCase):
         self.assertIn("supplyHistory", result)
         self.assertEqual(result["supplyHistory"], [[10, 140], [20, 250]])
 
+    def test_snapshot_prefers_full_official_total_supply_history(self):
+        result = run_tvl_js_probe(
+            textwrap.dedent(
+                """
+                const officialData = {
+                  currentChainTvls: {
+                    Arbitrum: 200,
+                    "Arbitrum-borrowed": 100,
+                    borrowed: 100,
+                  },
+                  chainTokensInUsd: { Arbitrum: { USDC: 300 } },
+                  tokensInUsd: [{ tokens: { USDC: 300 } }],
+                  chainMeta: { Arbitrum: { blockTimestamp: Date.now() / 1000 } },
+                  freshnessMaxAgeSeconds: 21600,
+                  staleChains: [],
+                  supplyLiquidity: 300,
+                  totalTvl: 200,
+                  totalBorrowed: 100,
+                  last_updated: "2026-07-23T00:00:00Z",
+                };
+                const llamaData = {
+                  currentChainTvls: {
+                    Arbitrum: 200,
+                    "Arbitrum-borrowed": 100,
+                    borrowed: 100,
+                  },
+                  tvl: [
+                    { date: 10, totalLiquidityUSD: 100 },
+                    { date: 20, totalLiquidityUSD: 200 },
+                  ],
+                  totalSupply: [
+                    { date: 10, totalLiquidityUSD: 140 },
+                    { date: 20, totalLiquidityUSD: 250 },
+                  ],
+                  chainTokensInUsd: { Arbitrum: { USDC: 250 } },
+                  tokensInUsd: [{ tokens: { USDC: 250 } }],
+                  last_updated: "2026-07-23T00:00:00Z",
+                };
+                const fullSupplyData = {
+                  totalSupply: [
+                    { date: 10, totalLiquidityUSD: 180 },
+                    { date: 20, totalLiquidityUSD: 300 },
+                  ],
+                  currentSupply: 300,
+                  last_updated: "2026-07-23T00:00:00Z",
+                };
+                const snapshot = buildTvlSnapshot(
+                  llamaData,
+                  officialData,
+                  fullSupplyData,
+                );
+                process.stdout.write(JSON.stringify({
+                  tvlHistory: snapshot.history,
+                  supplyHistory: snapshot.supplyHistory,
+                }));
+                """
+            )
+        )
+        self.assertEqual(result["tvlHistory"], [[10, 100], [20, 200]])
+        self.assertEqual(result["supplyHistory"], [[10, 180], [20, 300]])
+
     def test_legacy_history_payload_keeps_net_tvl_fallback_distinct(self):
         result = run_tvl_js_probe(
             textwrap.dedent(
@@ -203,6 +264,14 @@ class TvlPreviewContractsTest(unittest.TestCase):
     def test_tvl_route_busts_preview_cache_for_dual_history_charts(self):
         route = TVL_ROUTE.read_text(encoding="utf-8")
         self.assertIn("dual-history-20260723", route)
+
+    def test_tvl_route_and_workflow_publish_full_total_supply_history(self):
+        route = TVL_ROUTE.read_text(encoding="utf-8")
+        workflow = TVL_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn("full-total-supply-20260723", route)
+        self.assertIn("python3 fetch_dolomite_total_supply_history.py", workflow)
+        self.assertIn("dolomite_total_supply_history.json", workflow)
 
     def test_missing_wlfi_in_defillama_does_not_replace_official_supply(self):
         result = run_tvl_js_probe(
