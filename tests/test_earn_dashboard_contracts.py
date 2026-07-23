@@ -118,8 +118,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("earn_fetchLiqRiskForWallet", self.source)
         self.assertNotIn("fetch('liquidation_risk.json')", self.source)
 
-    def test_summary_keeps_historical_pnl_separate_from_current_price_total_yield(self):
-        self.assertIn("Historical Yield P&amp;L", self.source)
+    def test_historical_yield_data_survives_summary_simplification(self):
+        self.assertNotIn(
+            '<div class="earn-summary-label">Historical Yield P&amp;L</div>',
+            self.source,
+        )
         self.assertIn("historicalYieldUsd", self.source)
         self.assertIn("daily-snapshot-constant-par", self.source)
 
@@ -136,9 +139,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("if (currentAccounts && sgEndpoint) {", self.source)
         self.assertIn("if (!hasCurrentBorrow) {", self.source)
 
-    def test_yield_summary_distinguishes_current_market_checks_and_current_usd_value(self):
-        self.assertIn('<div class="earn-summary-label">Current Markets Check</div>', self.source)
-        self.assertNotIn('<div class="earn-summary-label">Ledger Check</div>', self.source)
+    def test_summary_omits_market_check_tile_but_keeps_current_price_copy(self):
+        self.assertNotIn(
+            '<div class="earn-summary-label">Current Markets Check</div>',
+            self.source,
+        )
         self.assertIn("' at current token prices'", self.source)
 
     def test_non_strict_yield_quality_can_override_verified_balance_badge(self):
@@ -1087,7 +1092,12 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         self.assertIn("generated: ~", self.source)
         self.assertIn("earn_renderResults(earn_cachedAssets, { skipSummary: true, softRefresh: true })", self.source)
         self.assertIn("yieldSources.push({ label: sourceLabel, rate: yr * 100, rewardSymbol })", self.source)
-        self.assertIn("supplyParts.push({ key: 'yield', label: 'Yield', rate: rateData.extYieldApr })", self.source)
+        self.assertIn("key: 'yield'", self.source)
+        self.assertIn("rate: rateData.extYieldApr", self.source)
+        self.assertIn(
+            "tip: earn_getSupplyAprSourceTip('yield', a.symbol, rateData)",
+            self.source,
+        )
         self.assertIn("EARN_MERKL_REWARDS_BASE", self.source)
         self.assertIn("earn_fetchCachedMerklRewards", self.source)
 

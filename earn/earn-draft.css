@@ -528,13 +528,18 @@ body.earn-draft-route .dust-pill-label {
   letter-spacing: .08px !important;
 }
 
-body.earn-draft-route .apr-pill-slider {
-  background: rgba(201, 162, 39, .18) !important;
-  border-color: var(--earn-gold-line) !important;
+body.earn-draft-route #earn-supply-section #earn-apr-pill {
+  border-radius: 10px !important;
 }
 
-body.earn-draft-route .apr-pill-opt.active {
-  color: var(--earn-gold-hi) !important;
+body.earn-draft-route #earn-supply-section #earn-apr-pill .apr-pill-slider {
+  background: var(--earn-gold) !important;
+  border-color: transparent !important;
+  box-shadow: 0 2px 8px rgba(201, 162, 39, .35) !important;
+}
+
+body.earn-draft-route #earn-supply-section #earn-apr-pill .apr-pill-opt.active {
+  color: var(--earn-bg-0) !important;
 }
 
 body.earn-draft-route .earn-error,
@@ -566,7 +571,7 @@ body.earn-draft-route .earn-results {
 }
 
 body.earn-draft-route .earn-summary-card {
-  grid-template-columns: minmax(300px, .78fr) minmax(0, 1.22fr) !important;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr) !important;
   align-items: stretch !important;
   gap: 14px !important;
   margin-bottom: 24px !important;
@@ -598,7 +603,7 @@ body.earn-draft-route .earn-summary-card::after {
 }
 
 body.earn-draft-route .earn-summary-main,
-body.earn-draft-route .earn-summary-side {
+body.earn-draft-route .earn-summary-metrics {
   min-width: 0 !important;
 }
 
@@ -606,21 +611,9 @@ body.earn-draft-route .earn-summary-main {
   display: flex !important;
 }
 
-body.earn-draft-route .earn-summary-side {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 12px !important;
-}
-
-body.earn-draft-route .earn-summary-primary-grid {
+body.earn-draft-route .earn-summary-metrics {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 12px !important;
-}
-
-body.earn-draft-route .earn-summary-secondary-grid {
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   gap: 12px !important;
 }
 
@@ -2534,8 +2527,7 @@ body.earn-draft-route .earn-dolo-proto-explore svg {
     padding: 14px !important;
   }
 
-  body.earn-draft-route .earn-summary-primary-grid,
-  body.earn-draft-route .earn-summary-secondary-grid {
+  body.earn-draft-route .earn-summary-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
@@ -2619,8 +2611,7 @@ body.earn-draft-route .earn-dolo-proto-explore svg {
     padding: 12px !important;
   }
 
-  body.earn-draft-route .earn-summary-primary-grid,
-  body.earn-draft-route .earn-summary-secondary-grid {
+  body.earn-draft-route .earn-summary-metrics {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
