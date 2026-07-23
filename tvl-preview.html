@@ -163,7 +163,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .chart-grid text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);font-weight:500}
 .chart-line{fill:none;stroke:var(--gold);stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round;
   filter:drop-shadow(0 0 6px rgba(201,162,39,.25));}
-.chart-area{fill:url(#chartGrad)}
+.chart-area{fill:var(--chart-area-fill,url(#chartGrad))}
 .chart-x text{font-family:var(--mono);font-size:10px;fill:var(--fg-3)}
 .chart-y text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);text-anchor:end}
 .chart-hover-line{stroke:var(--fg-3);stroke-width:1;stroke-dasharray:3 3;opacity:0;pointer-events:none;transition:opacity .12s var(--ease)}
@@ -190,7 +190,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   cursor:crosshair;
 }
 .brush-line{fill:none;stroke:var(--gold);stroke-width:1;opacity:.55}
-.brush-area{fill:url(#brushGrad);opacity:.7}
+.brush-area{fill:var(--brush-area-fill,url(#brushGrad));opacity:.7}
 .brush-overlay{
   position:absolute;top:6px;left:24px;right:24px;height:56px;
   pointer-events:none;
@@ -686,6 +686,59 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
   </section>
 
+  <!-- TOTAL SUPPLY CHART -->
+  <section class="card" style="--chart-area-fill:url(#supplyChartGrad);--brush-area-fill:url(#supplyBrushGrad)">
+    <div class="card-head">
+      <div class="card-title">
+        <h2>Total Supply Over Time</h2>
+        <span class="count-badge" id="supplyRangeBadge">All Time</span>
+      </div>
+      <div class="card-meta"><span class="pulse"></span>drag the window below to zoom</div>
+    </div>
+    <div class="chart-wrap" id="supplyChartWrap">
+      <svg class="chart-svg" id="supplyChart" viewBox="0 0 1000 340" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="supplyChartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a227" stop-opacity=".22"/>
+            <stop offset="55%" stop-color="#c9a227" stop-opacity=".06"/>
+            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <g class="chart-grid" id="supplyChartGrid"></g>
+        <path class="chart-area" id="supplyChartArea" d=""/>
+        <path class="chart-line" id="supplyChartLine" d=""/>
+        <line class="chart-hover-line" id="supplyHoverLine" x1="0" x2="0" y1="0" y2="0"/>
+        <circle class="chart-hover-dot" id="supplyHoverDot" r="4" cx="0" cy="0"/>
+        <g class="chart-x" id="supplyChartX"></g>
+      </svg>
+      <div class="chart-tip" id="supplyChartTip">
+        <div class="tt-date">—</div>
+        <div class="tt-val">—</div>
+      </div>
+    </div>
+    <div class="brush-wrap" id="supplyBrushWrap">
+      <svg class="brush-svg" id="supplyBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="supplyBrushGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c9a227" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="#c9a227" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="brush-area" id="supplyBrushArea" d=""/>
+        <path class="brush-line" id="supplyBrushLine" d=""/>
+      </svg>
+      <div class="brush-overlay" id="supplyBrushOverlay">
+        <div class="brush-dim l" id="supplyBrushDimL"></div>
+        <div class="brush-window" id="supplyBrushWindow">
+          <div class="brush-handle l" id="supplyBrushHandleL"><div class="grip"><span></span><span></span></div></div>
+          <div class="brush-handle r" id="supplyBrushHandleR"><div class="grip"><span></span><span></span></div></div>
+        </div>
+        <div class="brush-dim r" id="supplyBrushDimR"></div>
+      </div>
+      <div class="brush-label" id="supplyBrushLabel"></div>
+    </div>
+  </section>
+
   <!-- TVL CHART -->
   <section class="card">
     <div class="card-head">
@@ -889,9 +942,41 @@ let TOP_TOKENS = [
 ];
 let CHAIN_TOKEN_COMPOSITION = {};
 
-/* Compressed historical TVL series — [unix_seconds, totalLiquidityUSD]  */
-let TVL_HISTORY = [
+/* Compressed historical Total Supply fallback — [unix_seconds, totalLiquidityUSD] */
+let TOTAL_SUPPLY_HISTORY = [
   [1665964800,1451419],[1666396800,1572042],[1666828800,1675977],[1667260800,1686656],[1667692800,1758383],[1668124800,1289923],[1668556800,1278808],[1668988800,1262680],[1669420800,1292627],[1669852800,1334466],[1670284800,1315229],[1670716800,1420922],[1671148800,1422021],[1671580800,1392333],[1672012800,1390294],[1672444800,1374171],[1672876800,1398164],[1673308800,1424820],[1673740800,1444034],[1674172800,1457522],[1674604800,1430028],[1675036800,1365068],[1675468800,1282450],[1675900800,1268300],[1676332800,1220492],[1676764800,1339901],[1677196800,1334484],[1677628800,1349916],[1678060800,1330458],[1678492800,1243002],[1678924800,1295547],[1679356800,1356299],[1679788800,1284120],[1680220800,1788439],[1680652800,2062904],[1681084800,2707213],[1681516800,2876735],[1681948800,2899344],[1682380800,2893479],[1682812800,3227299],[1683244800,3480433],[1683676800,3537383],[1684108800,3862224],[1684540800,3970214],[1684972800,4434067],[1685404800,5027980],[1685836800,5138346],[1686268800,5327698],[1686700800,5027198],[1687132800,5237048],[1687564800,5905309],[1687996800,6834626],[1688428800,7733155],[1688860800,7845946],[1689292800,8025874],[1689724800,7815295],[1690156800,8126860],[1690588800,8099704],[1691020800,7937510],[1691452800,7956773],[1691884800,7891260],[1692316800,7536181],[1692748800,7197595],[1693180800,7352593],[1693612800,7290425],[1694044800,7304967],[1694476800,6866011],[1694908800,7096865],[1695340800,6950734],[1695772800,6792589],[1696204800,7192606],[1696636800,7023463],[1697068800,6958280],[1697500800,6941526],[1697932800,7091562],[1698364800,7447793],[1698796800,7554993],[1699228800,8288016],[1699660800,11796311],[1700092800,14627785],[1700524800,14290351],[1700956800,15287829],[1701388800,15732845],[1701820800,17507935],[1702252800,19853938],[1702684800,23302619],[1703116800,24730377],[1703548800,27198694],[1703980800,30314488],[1704412800,34251331],[1704844800,35157762],[1705276800,38079058],[1705708800,37294506],[1706140800,36473107],[1706572800,37615235],[1707004800,34003646],[1707436800,32770785],[1707868800,35045224],[1708300800,38020085],[1708732800,38785120],[1709164800,45129063],[1709596800,48727703],[1710028800,57917985],[1710460800,67226074],[1710892800,58459068],[1711324800,65603854],[1711756800,65542239],[1712188800,60406579],[1712620800,69577257],[1713052800,56249501],[1713484800,57033246],[1713916800,64164386],[1714348800,62830747],[1714780800,57329724],[1715212800,56007997],[1715644800,55171022],[1716076800,62027455],[1716508800,76489823],[1716940800,81655733],[1717372800,81808568],[1717804800,82291196],[1718236800,71713180],[1718668800,71906782],[1719100800,73970182],[1719532800,67469895],[1719964800,66469767],[1720396800,60908927],[1720828800,64843735],[1721260800,71913499],[1721692800,76615582],[1722124800,76837502],[1722556800,75223305],[1722988800,63749221],[1723420800,61954116],[1723852800,63397383],[1724284800,63898740],[1724716800,65990534],[1725148800,63187819],[1725580800,60656793],[1726012800,62168536],[1726444800,62184016],[1726876800,69393351],[1727308800,69378535],[1727740800,61407159],[1728172800,65084151],[1728604800,62701529],[1729036800,63043198],[1729468800,67633351],[1729900800,65921518],[1730332800,66828729],[1730764800,62916182],[1731196800,79181080],[1731628800,100108079],[1732060800,100228638],[1732492800,113806934],[1732924800,115068820],[1733356800,124902244],[1733788800,122509154],[1734220800,130699317],[1734652800,112550093],[1735084800,120183603],[1735516800,116159274],[1735948800,125764873],[1736380800,113694037],[1736812800,108528068],[1737244800,110670033],[1737676800,114119174],[1738108800,99863946],[1738540800,86065176],[1738972800,396588741],[1739404800,579829833],[1739836800,626160579],[1740268800,863079584],[1740700800,921232368],[1741132800,929265968],[1741564800,901364466],[1741996800,755514385],[1742428800,792346694],[1742860800,803164082],[1743292800,754092616],[1743724800,767641571],[1744156800,674793302],[1744588800,718408884],[1745020800,707061198],[1745452800,813345658],[1745884800,819635575],[1746316800,831269490],[1746748800,643828041],[1747180800,401099898],[1747612800,371947662],[1748044800,371485025],[1748476800,296052269],[1748908800,258009344],[1749340800,221104621],[1749772800,218648682],[1750204800,209422763],[1750636800,192747173],[1751068800,194985641],[1751500800,191013385],[1751932800,195265179],[1752364800,194883313],[1752796800,219730279],[1753228800,229449334],[1753660800,251539235],[1754092800,237923762],[1754524800,264521954],[1754956800,286831850],[1755388800,303009339],[1755820800,297135516],[1756252800,313393014],[1756684800,310173593],[1757116800,315216257],[1757548800,347108380],[1757980800,349854076],[1758412800,344788233],[1758844800,312006311],[1759276800,315054617],[1759708800,276388270],[1760140800,232839183],[1760572800,227106138],[1761004800,225855160],[1761436800,221826848],[1761868800,216485912],[1762300800,192294366],[1762732800,188894945],[1763164800,168976724],[1763596800,162208746],[1764028800,155787754],[1764460800,158397952],[1764892800,150963435],[1765324800,151855985],[1765756800,142639476],[1766188800,137448383],[1766620800,137976971],[1767052800,137112502],[1767484800,142080603],[1767916800,139951592],[1768348800,189548450],[1768780800,309264957],[1769212800,456762272],[1769644800,470024786],[1770076800,433596297],[1770508800,431767445],[1770940800,455973395],[1771372800,466872490],[1771804800,474668139],[1772236800,461651567],[1772668800,468466832],[1773100800,465737625],[1773532800,466730463],[1773964800,477500940],[1774396800,476829315],[1774828800,469081310],[1775260800,466736034],[1775692800,454084426],[1776124800,451934164],[1776556800,478296755],[1776988800,453005867],[1777098059,444727075]
+];
+
+/* Compressed historical Net TVL fallback — sampled from defillama_data.json. */
+let TVL_HISTORY = [
+  [1665964800,1451419],[1666396800,1572042],[1666828800,1675977],[1667260800,1686656],[1667692800,1758383],[1668124800,1289923],[1668556800,1278808],[1668988800,1262680],[1669420800,1292627],[1669852800,1334466],
+  [1670284800,1315229],[1670716800,1420922],[1671148800,1422021],[1671580800,1392333],[1672012800,1390294],[1672444800,1374171],[1672876800,1398164],[1673308800,1424820],[1673740800,1444034],[1674172800,1457522],
+  [1674604800,1430028],[1675036800,1365068],[1675468800,1282450],[1675900800,1268300],[1676332800,1220492],[1676764800,1339901],[1677196800,1334484],[1677628800,1349916],[1678060800,1330458],[1678492800,1243002],
+  [1678924800,1295547],[1679356800,1356299],[1679788800,1284120],[1680220800,1597863],[1680652800,1713213],[1681084800,2075018],[1681516800,2313800],[1681948800,2243656],[1682380800,2231317],[1682812800,2462508],
+  [1683244800,2618513],[1683676800,2466639],[1684108800,2410751],[1684540800,2394178],[1684972800,2847128],[1685404800,3411077],[1685836800,3459065],[1686268800,3548871],[1686700800,3456429],[1687132800,3564773],
+  [1687564800,3881237],[1687996800,4525570],[1688428800,5066081],[1688860800,5198448],[1689292800,5344291],[1689724800,5198802],[1690156800,5339780],[1690588800,5303344],[1691020800,5224085],[1691452800,5422166],
+  [1691884800,5504588],[1692316800,5237696],[1692748800,5062483],[1693180800,5133526],[1693612800,5109953],[1694044800,5120525],[1694476800,4896931],[1694908800,5078361],[1695340800,4948933],[1695772800,4880959],
+  [1696204800,5157338],[1696636800,5034457],[1697068800,4958506],[1697500800,4979719],[1697932800,5107954],[1698364800,5282352],[1698796800,5347438],[1699228800,5716348],[1699660800,7803692],[1700092800,9030478],
+  [1700524800,8719071],[1700956800,9121734],[1701388800,9397075],[1701820800,10449287],[1702252800,12173989],[1702684800,12515670],[1703116800,13168625],[1703548800,14824632],[1703980800,16243898],[1704412800,18509651],
+  [1704844800,19495943],[1705276800,20800762],[1705708800,20109855],[1706140800,19617104],[1706572800,20611959],[1707004800,19459530],[1707436800,19162177],[1707868800,19656960],[1708300800,21138116],[1708732800,21629471],
+  [1709164800,28821464],[1709596800,31121917],[1710028800,36774716],[1710460800,42292074],[1710892800,37822412],[1711324800,41691056],[1711756800,42674878],[1712188800,39122922],[1712620800,44457564],[1713052800,35479993],
+  [1713484800,34396067],[1713916800,39914983],[1714348800,39777998],[1714780800,37314630],[1715212800,36065072],[1715644800,36746785],[1716076800,40423155],[1716508800,48246365],[1716940800,52099145],[1717372800,51833490],
+  [1717804800,50841640],[1718236800,45057888],[1718668800,44934987],[1719100800,46167210],[1719532800,44334368],[1719964800,44379924],[1720396800,41042041],[1720828800,43717636],[1721260800,46737359],[1721692800,50527793],
+  [1722124800,49901355],[1722556800,48063204],[1722988800,41412720],[1723420800,40810035],[1723852800,41396061],[1724284800,42542379],[1724716800,43670744],[1725148800,41304696],[1725580800,39275303],[1726012800,42685961],
+  [1726444800,41180295],[1726876800,44564323],[1727308800,44370280],[1727740800,41778338],[1728172800,41267808],[1728604800,40283307],[1729036800,42381627],[1729468800,44522170],[1729900800,42344335],[1730332800,44017345],
+  [1730764800,42709235],[1731196800,52627127],[1731628800,64210839],[1732060800,67643617],[1732492800,73031549],[1732924800,76007210],[1733356800,80089485],[1733788800,77342729],[1734220800,82663221],[1734652800,80206835],
+  [1735084800,87824644],[1735516800,83519695],[1735948800,86979625],[1736380800,78910200],[1736812800,76774995],[1737244800,77628519],[1737676800,72556456],[1738108800,67843069],[1738540800,59385687],[1738972800,370396406],
+  [1739404800,531942921],[1739836800,574731909],[1740268800,793319096],[1740700800,849688802],[1741132800,850271322],[1741564800,825649581],[1741996800,679317193],[1742428800,716312234],[1742860800,713328368],[1743292800,646752516],
+  [1743724800,660310802],[1744156800,578923318],[1744588800,610419183],[1745020800,592930091],[1745452800,694386677],[1745884800,702069495],[1746316800,708718911],[1746748800,537074736],[1747180800,295788982],[1747612800,275386400],
+  [1748044800,273422438],[1748476800,212227814],[1748908800,178445011],[1749340800,158393575],[1749772800,148685679],[1750204800,142270703],[1750636800,132947032],[1751068800,138724841],[1751500800,138920838],[1751932800,144892927],
+  [1752364800,148887324],[1752796800,164354222],[1753228800,170649541],[1753660800,176128217],[1754092800,166386740],[1754524800,178771229],[1754956800,194576627],[1755388800,206322931],[1755820800,201514056],[1756252800,217456564],
+  [1756684800,211917056],[1757116800,218093120],[1757548800,225367920],[1757980800,227447190],[1758412800,222313343],[1758844800,206401162],[1759276800,215104853],[1759708800,209715245],[1760140800,181849013],[1760572800,175767246],
+  [1761004800,174780226],[1761436800,175426863],[1761868800,171235640],[1762300800,150809880],[1762732800,149825774],[1763164800,134328247],[1763596800,129693839],[1764028800,124748601],[1764460800,127702606],[1764892800,120947194],
+  [1765324800,121206371],[1765756800,114036268],[1766188800,109863655],[1766620800,110399510],[1767052800,110065958],[1767484800,113382131],[1767916800,111794529],[1768348800,150704864],[1768780800,251964527],[1769212800,229043238],
+  [1769644800,231695419],[1770076800,200799363],[1770508800,188241567],[1770940800,197316268],[1771372800,206089735],[1771804800,194593240],[1772236800,185136322],[1772668800,195058304],[1773100800,197219788],[1773532800,199496599],
+  [1773964800,212851079],[1774396800,203197177],[1774828800,193243412],[1775260800,151216070],[1775692800,137883073],[1776124800,147371731],[1776556800,170171471],[1776988800,136332721],[1777420800,146679100],[1777852800,151009523],
+  [1778284800,173455519],[1778716800,164971323],[1779148800,166053814],[1779580800,170878958],[1780012800,154072284],[1780444800,143925090],[1780876800,126468370],[1781308800,124879024],[1781740800,153814893],[1782172800,182692274],
+  [1782604800,191813232],[1783036800,208490362],[1783468800,242152343],[1783900800,241159274],[1784332800,242270410],[1784764800,245772413],[1784796755,243877260]
 ];
 
 const CHAIN_ICONS = {
@@ -1132,19 +1217,19 @@ async function fetchJson(path){
   return response.json();
 }
 
-function buildHistory(llamaData, currentSupply){
-  const raw = Array.isArray(llamaData?.tvl) ? llamaData.tvl : [];
+function buildHistory(rawHistory, currentValue, fallbackHistory){
+  const raw = Array.isArray(rawHistory) ? rawHistory : [];
   const points = raw
     .map(p => [Number(p.date), Number(p.totalLiquidityUSD)])
     .filter(p => Number.isFinite(p[0]) && Number.isFinite(p[1]) && p[1] > 0)
     .sort((a,b)=>a[0]-b[0]);
 
-  if (points.length < 2) return TVL_HISTORY;
+  if (points.length < 2) return fallbackHistory;
 
   // Only smooth tiny current-snapshot drift. A large gap means the sources use
   // different TVL methodology, so scaling the whole history would invent data.
   const last = points[points.length - 1][1];
-  const ratio = last > 0 && currentSupply > 0 ? currentSupply / last : 1;
+  const ratio = last > 0 && currentValue > 0 ? currentValue / last : 1;
   if (ratio > 0.95 && ratio < 1.05) {
     return points.map(p => [p[0], p[1] * ratio]);
   }
@@ -1352,7 +1437,17 @@ function buildTvlSnapshot(llamaData, officialData){
     tokens: Object.values(chainTokens[c.name] || {}).filter(v => Number(v) > 0).length,
   }));
 
-  const history = buildHistory(llamaData, supplyLiquidity);
+  const hasDistinctSupplyHistory = Array.isArray(llamaData?.totalSupply);
+  const history = buildHistory(
+    hasDistinctSupplyHistory ? llamaData?.tvl : null,
+    totalTvl,
+    TVL_HISTORY,
+  );
+  const supplyHistory = buildHistory(
+    hasDistinctSupplyHistory ? llamaData.totalSupply : llamaData?.tvl,
+    supplyLiquidity,
+    TOTAL_SUPPLY_HISTORY,
+  );
   const tokens = buildTokenComposition(llamaData, officialData, staleKeys);
   const tokenCompositionByChain = buildChainTokenCompositions(llamaData, officialData, staleKeys);
 
@@ -1365,6 +1460,7 @@ function buildTvlSnapshot(llamaData, officialData){
     tokens: tokens.length ? tokens : TOP_TOKENS,
     tokenCompositionByChain,
     history,
+    supplyHistory,
     staleChains: [...staleKeys],
   };
 }
@@ -1417,6 +1513,7 @@ function applyTvlSnapshot(snapshot){
   TOP_TOKENS = snapshot.tokens;
   CHAIN_TOKEN_COMPOSITION = snapshot.tokenCompositionByChain || {};
   TVL_HISTORY = snapshot.history;
+  TOTAL_SUPPLY_HISTORY = snapshot.supplyHistory;
 
   const chainCount = CHAINS.length;
   const marketCount = CHAINS.reduce((sum,c)=>sum+(c.tokens || 0), 0);
@@ -1919,250 +2016,293 @@ function centerLabel(){
 }
 
 /* ==========================================================================
-   RENDER · TVL CHART (driven by the brush selection — see initBrush below)
+   HISTORY CHARTS · shared renderer with independent brush state
    ========================================================================== */
 const W = 1000, H = 340, P_L = 56, P_R = 18, P_T = 20, P_B = 28;
 const BW = 1000, BH = 56;
 
-// Brush selection in unix-seconds. Initialised by initBrush().
-let brushSel = { from: 0, to: 0 };
+function createHistoryChart(config){
+  const brushSel = { from: 0, to: 0 };
+  const byId = key => document.getElementById(config[key]);
+  const getHistory = () => {
+    const rows = config.history();
+    return Array.isArray(rows) ? rows : [];
+  };
 
-function renderChart(){
-  const all = TVL_HISTORY;
-  const series = all.filter(p => p[0] >= brushSel.from && p[0] <= brushSel.to);
-  if (series.length < 2){
-    // Fallback: at least 2 points to draw a line
-    const idx = all.findIndex(p => p[0] >= brushSel.from);
-    const s = all.slice(Math.max(0, idx), Math.max(2, idx+2));
-    return renderChartFor(s);
-  }
-  renderChartFor(series);
-
-  // Update header badge with selected range
-  const badge = document.getElementById("rangeBadge");
-  const total = all[all.length-1][0] - all[0][0];
-  const sel   = brushSel.to - brushSel.from;
-  if (sel >= total * 0.99) badge.textContent = "All Time";
-  else {
-    const days = Math.round(sel/86400);
-    if (days >= 365) badge.textContent = `${(days/365).toFixed(1)}Y window`;
-    else if (days >= 60) badge.textContent = `${Math.round(days/30)}M window`;
-    else badge.textContent = `${days}D window`;
-  }
-}
-
-function renderChartFor(series){
-  const minY = Math.min(...series.map(p=>p[1]));
-  const maxY = Math.max(...series.map(p=>p[1]));
-  const minX = series[0][0], maxX = series[series.length-1][0];
-  const xRange = maxX - minX || 1;
-  const yMin = 0;
-  const yMax = maxY * 1.08;
-
-  const xAt = (t)=> P_L + (t - minX)/xRange * (W - P_L - P_R);
-  const yAt = (v)=> P_T + (1 - (v - yMin)/(yMax - yMin)) * (H - P_T - P_B);
-
-  // Line + area paths
-  let line = "";
-  series.forEach((p,i)=>{
-    const x = xAt(p[0]), y = yAt(p[1]);
-    line += (i===0?"M":"L") + x.toFixed(2) + " " + y.toFixed(2) + " ";
-  });
-  const x0 = xAt(series[0][0]).toFixed(2);
-  const xN = xAt(series[series.length-1][0]).toFixed(2);
-  const yBase = (H - P_B).toFixed(2);
-  const area = `M${x0} ${yBase} ` + line.replace(/^M/,"L") + ` L${xN} ${yBase} Z`;
-
-  document.getElementById("chartLine").setAttribute("d", line.trim());
-  document.getElementById("chartArea").setAttribute("d", area);
-
-  // Y-axis grid + labels (5 ticks)
-  const grid = document.getElementById("chartGrid");
-  grid.innerHTML = "";
-  const ticks = 5;
-  for (let i=0; i<=ticks; i++){
-    const v = yMin + (yMax-yMin)*i/ticks;
-    const y = yAt(v);
-    grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y}" y2="${y}"/>`;
-    grid.innerHTML += `<text x="${P_L-10}" y="${y+3}" text-anchor="end">${fmtUsd(v)}</text>`;
-  }
-
-  // X-axis labels — adaptive count + format based on range
-  const xg = document.getElementById("chartX");
-  xg.innerHTML = "";
-  const spanDays = (maxX-minX)/86400;
-  const fmt = spanDays <= 14
-    ? (d)=>d.toLocaleDateString("en-US",{month:"short", day:"numeric"})
-    : spanDays <= 90
-      ? (d)=>d.toLocaleDateString("en-US",{month:"short", day:"numeric"})
-      : (d)=>d.toLocaleDateString("en-US",{month:"short", year:"2-digit"});
-  const xTicks = 5;
-  for (let i=0; i<=xTicks; i++){
-    const t = minX + xRange*i/xTicks;
-    const x = xAt(t);
-    const d = new Date(t*1000);
-    xg.innerHTML += `<text x="${x}" y="${H-8}" text-anchor="middle">${fmt(d)}</text>`;
-  }
-
-  // Re-attach hover for the new series
-  attachHover(series, xAt, yAt);
-}
-
-function attachHover(series, xAt, yAt){
-  const svg  = document.getElementById("chart");
-  const wrap = document.getElementById("chartWrap");
-  const tip  = document.getElementById("chartTip");
-  const line = document.getElementById("hoverLine");
-  const dot  = document.getElementById("hoverDot");
-  line.setAttribute("y1", P_T);
-  line.setAttribute("y2", H-P_B);
-
-  function move(e){
-    const rect = svg.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width * W;
-    if (px < P_L || px > W-P_R){ leave(); return; }
-    let nearest = series[0], best = Infinity;
-    for (const p of series){
-      const xs = xAt(p[0]);
-      const d = Math.abs(xs - px);
-      if (d < best){ best = d; nearest = p; }
+  function render(){
+    const all = getHistory();
+    if (all.length < 2) return;
+    const series = all.filter(p => p[0] >= brushSel.from && p[0] <= brushSel.to);
+    if (series.length < 2){
+      const found = all.findIndex(p => p[0] >= brushSel.from);
+      const start = Math.min(Math.max(0, found), all.length - 2);
+      renderChartFor(all.slice(start, start + 2));
+    } else {
+      renderChartFor(series);
     }
-    const x = xAt(nearest[0]), y = yAt(nearest[1]);
-    line.setAttribute("x1", x); line.setAttribute("x2", x);
-    line.style.opacity = 1;
-    dot.setAttribute("cx", x); dot.setAttribute("cy", y);
-    dot.style.opacity = 1;
 
-    const wrapRect = wrap.getBoundingClientRect();
-    const screenX = rect.left - wrapRect.left + (x/W)*rect.width;
-    const screenY = rect.top  - wrapRect.top  + (y/H)*rect.height;
-    tip.querySelector(".tt-date").textContent = fmtDate(nearest[0]);
-    tip.querySelector(".tt-val").textContent  = fmtUsd(nearest[1]);
-    tip.style.opacity = 1;
-    tip.style.left = "0px"; tip.style.top = "0px";
-    const tipW = tip.offsetWidth, tipH = tip.offsetHeight;
-    const lx = Math.min(Math.max(screenX - tipW/2, 8), wrap.clientWidth - tipW - 8);
-    const ly = Math.max(screenY - tipH - 12, 4);
-    tip.style.left = lx + "px";
-    tip.style.top  = ly + "px";
-  }
-  function leave(){
-    line.style.opacity = 0;
-    dot.style.opacity = 0;
-    tip.style.opacity = 0;
-  }
-  svg.onmousemove = move;
-  svg.onmouseleave = leave;
-}
-
-/* ==========================================================================
-   BRUSH (mini-chart navigator) — drives the main chart range
-   ========================================================================== */
-function initBrush(){
-  const all   = TVL_HISTORY;
-  const minX  = all[0][0], maxX = all[all.length-1][0];
-  const minY  = Math.min(...all.map(p=>p[1])), maxY = Math.max(...all.map(p=>p[1]));
-  // Default selection = full range
-  brushSel = { from: minX, to: maxX };
-
-  // Draw mini chart (line + area)
-  const xAt = (t)=> (t - minX)/(maxX-minX) * BW;
-  const yAt = (v)=> BH - ( (v - 0)/(maxY*1.05) ) * BH;
-  let line = "";
-  all.forEach((p,i)=>{
-    line += (i===0?"M":"L") + xAt(p[0]).toFixed(1) + " " + yAt(p[1]).toFixed(1) + " ";
-  });
-  const x0 = xAt(all[0][0]).toFixed(1), xN = xAt(all[all.length-1][0]).toFixed(1);
-  const area = `M${x0} ${BH} ` + line.replace(/^M/,"L") + ` L${xN} ${BH} Z`;
-  document.getElementById("brushLine").setAttribute("d", line.trim());
-  document.getElementById("brushArea").setAttribute("d", area);
-
-  const overlay = document.getElementById("brushOverlay");
-  const win     = document.getElementById("brushWindow");
-  const dimL    = document.getElementById("brushDimL");
-  const dimR    = document.getElementById("brushDimR");
-  const handleL = document.getElementById("brushHandleL");
-  const handleR = document.getElementById("brushHandleR");
-  const label   = document.getElementById("brushLabel");
-
-  function paintWindow(){
-    // Convert brushSel to overlay percentages
-    const totalSpan = maxX - minX;
-    const lPct = (brushSel.from - minX) / totalSpan * 100;
-    const rPct = (brushSel.to   - minX) / totalSpan * 100;
-    win.style.left  = lPct + "%";
-    win.style.width = (rPct - lPct) + "%";
-    dimL.style.width = lPct + "%";
-    dimR.style.width = (100 - rPct) + "%";
-    label.innerHTML = `<span class="v">${fmtDate(brushSel.from)}</span><span class="sep">→</span><span class="v">${fmtDate(brushSel.to)}</span>`;
+    const badge = byId("rangeBadge");
+    const total = all[all.length-1][0] - all[0][0];
+    const selected = brushSel.to - brushSel.from;
+    if (selected >= total * 0.99) badge.textContent = "All Time";
+    else {
+      const days = Math.round(selected/86400);
+      if (days >= 365) badge.textContent = `${(days/365).toFixed(1)}Y window`;
+      else if (days >= 60) badge.textContent = `${Math.round(days/30)}M window`;
+      else badge.textContent = `${days}D window`;
+    }
   }
 
-  function pxToTime(px){
-    const w = overlay.clientWidth;
-    const t = Math.max(0, Math.min(1, px / w)) * (maxX - minX) + minX;
-    return Math.round(t);
+  function renderChartFor(series){
+    const maxY = Math.max(...series.map(p=>p[1]));
+    const minX = series[0][0], maxX = series[series.length-1][0];
+    const xRange = maxX - minX || 1;
+    const yMin = 0;
+    const yMax = maxY * 1.08;
+    const xAt = t => P_L + (t - minX)/xRange * (W - P_L - P_R);
+    const yAt = v => P_T + (1 - (v - yMin)/(yMax - yMin)) * (H - P_T - P_B);
+
+    let line = "";
+    series.forEach((point,index)=>{
+      const x = xAt(point[0]), y = yAt(point[1]);
+      line += (index===0 ? "M" : "L") + x.toFixed(2) + " " + y.toFixed(2) + " ";
+    });
+    const x0 = xAt(series[0][0]).toFixed(2);
+    const xN = xAt(series[series.length-1][0]).toFixed(2);
+    const yBase = (H - P_B).toFixed(2);
+    const area = `M${x0} ${yBase} ` + line.replace(/^M/,"L") + ` L${xN} ${yBase} Z`;
+    byId("chartLine").setAttribute("d", line.trim());
+    byId("chartArea").setAttribute("d", area);
+
+    const grid = byId("chartGrid");
+    grid.innerHTML = "";
+    const ticks = 5;
+    for (let i=0; i<=ticks; i++){
+      const value = yMin + (yMax-yMin)*i/ticks;
+      const y = yAt(value);
+      grid.innerHTML += `<line x1="${P_L}" x2="${W-P_R}" y1="${y}" y2="${y}"/>`;
+      grid.innerHTML += `<text x="${P_L-10}" y="${y+3}" text-anchor="end">${fmtUsd(value)}</text>`;
+    }
+
+    const xAxis = byId("chartX");
+    xAxis.innerHTML = "";
+    const spanDays = (maxX-minX)/86400;
+    const formatDate = spanDays <= 90
+      ? date => date.toLocaleDateString("en-US",{month:"short",day:"numeric"})
+      : date => date.toLocaleDateString("en-US",{month:"short",year:"2-digit"});
+    const xTicks = 5;
+    for (let i=0; i<=xTicks; i++){
+      const timestamp = minX + xRange*i/xTicks;
+      const x = xAt(timestamp);
+      xAxis.innerHTML += `<text x="${x}" y="${H-8}" text-anchor="middle">${formatDate(new Date(timestamp*1000))}</text>`;
+    }
+    attachHover(series, xAt, yAt);
   }
 
-  // Drag state
-  let drag = null; // {kind:'window'|'l'|'r', startX, startFrom, startTo}
-  function onDown(kind){ return e=>{
-    e.preventDefault(); e.stopPropagation();
-    drag = { kind, startX: e.clientX, startFrom: brushSel.from, startTo: brushSel.to };
-    win.classList.add("dragging");
-    document.body.style.userSelect = "none";
-  };}
-  function onMove(e){
-    if (!drag) return;
-    const w = overlay.clientWidth;
-    const totalSpan = maxX - minX;
-    const dx = e.clientX - drag.startX;
-    const dt = (dx / w) * totalSpan;
-    const minWindow = totalSpan * 0.005; // ~0.5% min width
-    if (drag.kind === "window"){
-      let from = drag.startFrom + dt;
-      let to   = drag.startTo   + dt;
-      const span = to - from;
-      if (from < minX) { from = minX; to = from + span; }
-      if (to   > maxX) { to   = maxX; from = to - span; }
-      brushSel.from = from; brushSel.to = to;
-    } else if (drag.kind === "l"){
-      let from = Math.min(drag.startTo - minWindow, Math.max(minX, drag.startFrom + dt));
+  function attachHover(series, xAt, yAt){
+    const svg = byId("chart");
+    const wrap = byId("chartWrap");
+    const tip = byId("chartTip");
+    const hoverLine = byId("hoverLine");
+    const hoverDot = byId("hoverDot");
+    hoverLine.setAttribute("y1", P_T);
+    hoverLine.setAttribute("y2", H-P_B);
+
+    function leave(){
+      hoverLine.style.opacity = 0;
+      hoverDot.style.opacity = 0;
+      tip.style.opacity = 0;
+    }
+    svg.onmousemove = event => {
+      const rect = svg.getBoundingClientRect();
+      const pointerX = (event.clientX - rect.left) / rect.width * W;
+      if (pointerX < P_L || pointerX > W-P_R){ leave(); return; }
+      let nearest = series[0], best = Infinity;
+      for (const point of series){
+        const distance = Math.abs(xAt(point[0]) - pointerX);
+        if (distance < best){ best = distance; nearest = point; }
+      }
+      const x = xAt(nearest[0]), y = yAt(nearest[1]);
+      hoverLine.setAttribute("x1", x);
+      hoverLine.setAttribute("x2", x);
+      hoverLine.style.opacity = 1;
+      hoverDot.setAttribute("cx", x);
+      hoverDot.setAttribute("cy", y);
+      hoverDot.style.opacity = 1;
+
+      const wrapRect = wrap.getBoundingClientRect();
+      const screenX = rect.left - wrapRect.left + (x/W)*rect.width;
+      const screenY = rect.top - wrapRect.top + (y/H)*rect.height;
+      tip.querySelector(".tt-date").textContent = fmtDate(nearest[0]);
+      tip.querySelector(".tt-val").textContent = fmtUsd(nearest[1]);
+      tip.style.opacity = 1;
+      tip.style.left = "0px";
+      tip.style.top = "0px";
+      const left = Math.min(Math.max(screenX - tip.offsetWidth/2, 8), wrap.clientWidth - tip.offsetWidth - 8);
+      const top = Math.max(screenY - tip.offsetHeight - 12, 4);
+      tip.style.left = left + "px";
+      tip.style.top = top + "px";
+    };
+    svg.onmouseleave = leave;
+  }
+
+  function init(){
+    const all = getHistory();
+    if (all.length < 2) return;
+    const minX = all[0][0], maxX = all[all.length-1][0];
+    const maxY = Math.max(...all.map(p=>p[1]));
+    brushSel.from = minX;
+    brushSel.to = maxX;
+
+    const xAt = timestamp => (timestamp - minX)/(maxX-minX) * BW;
+    const yAt = value => BH - value/(maxY*1.05) * BH;
+    let line = "";
+    all.forEach((point,index)=>{
+      line += (index===0 ? "M" : "L") + xAt(point[0]).toFixed(1) + " " + yAt(point[1]).toFixed(1) + " ";
+    });
+    const x0 = xAt(all[0][0]).toFixed(1);
+    const xN = xAt(all[all.length-1][0]).toFixed(1);
+    const area = `M${x0} ${BH} ` + line.replace(/^M/,"L") + ` L${xN} ${BH} Z`;
+    byId("brushLine").setAttribute("d", line.trim());
+    byId("brushArea").setAttribute("d", area);
+
+    const overlay = byId("brushOverlay");
+    const windowEl = byId("brushWindow");
+    const dimL = byId("brushDimL");
+    const dimR = byId("brushDimR");
+    const handleL = byId("brushHandleL");
+    const handleR = byId("brushHandleR");
+    const label = byId("brushLabel");
+
+    function paintWindow(){
+      const totalSpan = maxX - minX;
+      const leftPct = (brushSel.from - minX) / totalSpan * 100;
+      const rightPct = (brushSel.to - minX) / totalSpan * 100;
+      windowEl.style.left = leftPct + "%";
+      windowEl.style.width = (rightPct - leftPct) + "%";
+      dimL.style.width = leftPct + "%";
+      dimR.style.width = (100 - rightPct) + "%";
+      label.innerHTML = `<span class="v">${fmtDate(brushSel.from)}</span><span class="sep">→</span><span class="v">${fmtDate(brushSel.to)}</span>`;
+    }
+    function pxToTime(px){
+      const ratio = Math.max(0, Math.min(1, px / overlay.clientWidth));
+      return Math.round(ratio * (maxX - minX) + minX);
+    }
+
+    let drag = null;
+    function onDown(kind){
+      return event => {
+        event.preventDefault();
+        event.stopPropagation();
+        drag = {
+          kind,
+          startX: event.clientX,
+          startFrom: brushSel.from,
+          startTo: brushSel.to,
+        };
+        windowEl.classList.add("dragging");
+        document.body.style.userSelect = "none";
+      };
+    }
+    function onMove(event){
+      if (!drag) return;
+      const totalSpan = maxX - minX;
+      const deltaTime = (event.clientX - drag.startX) / overlay.clientWidth * totalSpan;
+      const minWindow = totalSpan * 0.005;
+      if (drag.kind === "window"){
+        let from = drag.startFrom + deltaTime;
+        let to = drag.startTo + deltaTime;
+        const span = to - from;
+        if (from < minX){ from = minX; to = from + span; }
+        if (to > maxX){ to = maxX; from = to - span; }
+        brushSel.from = from;
+        brushSel.to = to;
+      } else if (drag.kind === "l"){
+        brushSel.from = Math.min(drag.startTo - minWindow, Math.max(minX, drag.startFrom + deltaTime));
+      } else {
+        brushSel.to = Math.max(drag.startFrom + minWindow, Math.min(maxX, drag.startTo + deltaTime));
+      }
+      paintWindow();
+      render();
+    }
+    function onUp(){
+      if (!drag) return;
+      drag = null;
+      windowEl.classList.remove("dragging");
+      document.body.style.userSelect = "";
+    }
+
+    windowEl.addEventListener("mousedown", onDown("window"));
+    handleL.addEventListener("mousedown", onDown("l"));
+    handleR.addEventListener("mousedown", onDown("r"));
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    byId("brushSvg").addEventListener("click", event=>{
+      const timestamp = pxToTime(event.clientX - overlay.getBoundingClientRect().left);
+      const span = brushSel.to - brushSel.from;
+      let from = timestamp - span/2, to = timestamp + span/2;
+      if (from < minX){ from = minX; to = from + span; }
+      if (to > maxX){ to = maxX; from = to - span; }
       brushSel.from = from;
-    } else if (drag.kind === "r"){
-      let to = Math.max(drag.startFrom + minWindow, Math.min(maxX, drag.startTo + dt));
       brushSel.to = to;
-    }
+      paintWindow();
+      render();
+    });
+
     paintWindow();
-    renderChart();
-  }
-  function onUp(){
-    if (!drag) return;
-    drag = null;
-    win.classList.remove("dragging");
-    document.body.style.userSelect = "";
+    render();
   }
 
-  win.addEventListener("mousedown", onDown("window"));
-  handleL.addEventListener("mousedown", onDown("l"));
-  handleR.addEventListener("mousedown", onDown("r"));
-  document.addEventListener("mousemove", onMove);
-  document.addEventListener("mouseup", onUp);
-
-  // Click-anywhere on the brush track to recenter the window there
-  document.getElementById("brushSvg").addEventListener("click", e=>{
-    const rect = overlay.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const t = pxToTime(px);
-    const span = brushSel.to - brushSel.from;
-    let from = t - span/2, to = t + span/2;
-    if (from < minX){ from = minX; to = from + span; }
-    if (to   > maxX){ to   = maxX; from = to - span; }
-    brushSel.from = from; brushSel.to = to;
-    paintWindow(); renderChart();
-  });
-
-  paintWindow();
+  return { init, render, selection: brushSel };
 }
+
+const supplyHistoryChart = createHistoryChart({
+  history: ()=>TOTAL_SUPPLY_HISTORY,
+  rangeBadge: "supplyRangeBadge",
+  chartWrap: "supplyChartWrap",
+  chart: "supplyChart",
+  chartGrid: "supplyChartGrid",
+  chartArea: "supplyChartArea",
+  chartLine: "supplyChartLine",
+  hoverLine: "supplyHoverLine",
+  hoverDot: "supplyHoverDot",
+  chartX: "supplyChartX",
+  chartTip: "supplyChartTip",
+  brushSvg: "supplyBrushSvg",
+  brushArea: "supplyBrushArea",
+  brushLine: "supplyBrushLine",
+  brushOverlay: "supplyBrushOverlay",
+  brushWindow: "supplyBrushWindow",
+  brushDimL: "supplyBrushDimL",
+  brushDimR: "supplyBrushDimR",
+  brushHandleL: "supplyBrushHandleL",
+  brushHandleR: "supplyBrushHandleR",
+  brushLabel: "supplyBrushLabel",
+});
+
+const tvlHistoryChart = createHistoryChart({
+  history: ()=>TVL_HISTORY,
+  rangeBadge: "rangeBadge",
+  chartWrap: "chartWrap",
+  chart: "chart",
+  chartGrid: "chartGrid",
+  chartArea: "chartArea",
+  chartLine: "chartLine",
+  hoverLine: "hoverLine",
+  hoverDot: "hoverDot",
+  chartX: "chartX",
+  chartTip: "chartTip",
+  brushSvg: "brushSvg",
+  brushArea: "brushArea",
+  brushLine: "brushLine",
+  brushOverlay: "brushOverlay",
+  brushWindow: "brushWindow",
+  brushDimL: "brushDimL",
+  brushDimR: "brushDimR",
+  brushHandleL: "brushHandleL",
+  brushHandleR: "brushHandleR",
+  brushLabel: "brushLabel",
+});
 
 /* ==========================================================================
    PROTOCOL · Contract Addresses (mirrors DOLO page)
@@ -2248,8 +2388,8 @@ async function bootTvlDashboard(){
   renderChains();
   initChainDropdown();
   renderTokens();
-  initBrush();
-  renderChart();
+  supplyHistoryChart.init();
+  tvlHistoryChart.init();
   renderProto();
   setNow();
 }
