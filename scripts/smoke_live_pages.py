@@ -30,7 +30,7 @@ ASSET_CHECKS = {
     "/dolo-preview.html": ("dolo-address-labels.js", "DOLO Holders"),
     "/dashboard-core.html": ("dolo-address-labels.js", "Earn"),
     "/earn/earn-core.html": ("earn/earn-core.js", "view-earn"),
-    "/earn/earn-core.js": ("EARN TAB NAMESPACE", "Historical Yield P&amp;L"),
+    "/earn/earn-core.js": ("EARN TAB NAMESPACE", "Total Yield Earned", "Rewards"),
     "/liquidation-preview.html": ("dolo-address-labels.js", "Supply"),
     "/revenue-preview.html": ("dolomite_revenue.json", "Revenue"),
     "/rewards-preview.html": ("rewards_programs.json", "Rewards"),
