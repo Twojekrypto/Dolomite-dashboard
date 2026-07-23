@@ -1086,7 +1086,8 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         self.assertIn("function earn_getOdoloEstimateForPosition", self.source)
         self.assertIn("generated: ~", self.source)
         self.assertIn("earn_renderResults(earn_cachedAssets, { skipSummary: true, softRefresh: true })", self.source)
-        self.assertIn("const rewardSymbol = String(ys.rewardSymbol || '').trim()", self.source)
+        self.assertIn("yieldSources.push({ label: sourceLabel, rate: yr * 100, rewardSymbol })", self.source)
+        self.assertIn("supplyParts.push({ key: 'yield', label: 'Yield', rate: rateData.extYieldApr })", self.source)
         self.assertIn("EARN_MERKL_REWARDS_BASE", self.source)
         self.assertIn("earn_fetchCachedMerklRewards", self.source)
 
