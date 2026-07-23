@@ -6122,6 +6122,10 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 'ETH Staking': 'Staking',
                 'ETH Staking Yield': 'Staking',
                 'Staking Yield': 'Staking',
+                'ETH Restaking': 'Restaking',
+                'GLV Performance': 'GLV Perf.',
+                'GM Performance': 'GM Perf.',
+                'Net Lending Rewards': 'Lending',
             };
             return compactLabels[cleaned] || cleaned;
         }
@@ -6160,7 +6164,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                         }
                     } else if (p.category === 'nativeYield' && p.interestRate) {
                         const yr = parseFloat(p.interestRate) || 0;
-                        if (yr > 0) yieldSources.push({ label: earn_cleanSupplyAprLabel(p.label), rate: yr * 100 });
+                        if (yr !== 0) yieldSources.push({ label: earn_cleanSupplyAprLabel(p.label), rate: yr * 100 });
                     }
                 });
                 let extYieldApr = 0;
@@ -12397,7 +12401,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const rateByAddr = earn_marketRates[cid + ':' + (a.tokenAddr || '').toLowerCase()];
                 const rateBySymbol = earn_marketRates['sym:' + (a.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '')];
                 const rateData = rateByAddr || rateBySymbol;
-                if (rateData && rateData.apy > 0) {
+                if (rateData && Number.isFinite(Number(rateData.apy))) {
                     let adjApr = rateData.apy;
                     if (earn_excludeOdolo) adjApr -= (rateData.rewards || 0);
                     if (earn_excludeYield) adjApr -= (rateData.extYieldApr || 0);
@@ -12405,28 +12409,15 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     const aprClass = adjApr > 0 ? 'assets-apy-green' : (adjApr < 0 ? 'assets-apy-red' : 'assets-apy-dim');
                     const displayApr = earn_showApy ? aprToApy(adjApr) : adjApr;
                     const aprStyle = displayApr > 0 ? 'font-size:15px;font-weight:700' : '';
-                    // Keep the compact Assets-style layout while retaining each reward source.
+                    // Keep the same three Supply sources and ordering as Dolomite Assets.
                     const supplyParts = [];
-                    if ((rateData.lendingApr || 0) > 0.01 && !earn_excludeLending) {
+                    if ((rateData.lendingApr || 0) !== 0 && !earn_excludeLending) {
                         supplyParts.push({ key: 'lending', label: 'Lending', rate: rateData.lendingApr });
                     }
-                    if ((rateData.rewards || 0) > 0 && !earn_excludeOdolo) {
+                    if ((rateData.rewards || 0) !== 0 && !earn_excludeOdolo) {
                         supplyParts.push({ key: 'odolo', label: 'oDOLO', rate: rateData.rewards });
                     }
-                    if (rateData.yieldSources && rateData.yieldSources.length > 0 && !earn_excludeYield) {
-                        rateData.yieldSources.forEach(ys => {
-                            const isGm = (ys.label || '').includes('Price Implied') || (ys.label || '').includes('GM ');
-                            let displayLabel = earn_cleanSupplyAprLabel(ys.label);
-                            const rewardSymbol = String(ys.rewardSymbol || '').trim();
-                            if (isGm) displayLabel = 'GM Performance';
-                            if (rewardSymbol) {
-                                const upperLabel = displayLabel.toUpperCase();
-                                const upperReward = rewardSymbol.toUpperCase();
-                                displayLabel = upperLabel.includes(upperReward) ? displayLabel : `${rewardSymbol} Rewards`;
-                            }
-                            supplyParts.push({ key: 'yield', label: displayLabel || 'Yield', rate: ys.rate });
-                        });
-                    } else if ((rateData.extYieldApr || 0) > 0.01 && !earn_excludeYield) {
+                    if ((rateData.extYieldApr || 0) !== 0 && !earn_excludeYield) {
                         supplyParts.push({ key: 'yield', label: 'Yield', rate: rateData.extYieldApr });
                     }
                     const supplyLinesHtml = supplyParts.map(part => {
