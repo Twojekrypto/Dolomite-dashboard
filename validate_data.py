@@ -9,6 +9,7 @@ Usage:
 """
 
 import json
+import math
 import sys
 import os
 from datetime import datetime, timezone
@@ -493,20 +494,35 @@ def _dolomite_stale_chains_known(data):
     return stale.issubset(ALL_TVL_CHAINS)
 
 
-def _defillama_history_valid(data):
-    rows = data.get("tvl", [])
+def _defillama_history_series_valid(data, key):
+    rows = data.get(key, [])
     if len(rows) < 1000:
         return False
     previous = 0
     for row in rows:
         date = row.get("date")
         value = row.get("totalLiquidityUSD")
-        if not isinstance(date, int) or not isinstance(value, (int, float)) or value <= 0:
+        if (
+            isinstance(date, bool)
+            or not isinstance(date, int)
+            or isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value <= 0
+        ):
             return False
         if date <= previous:
             return False
         previous = date
     return True
+
+
+def _defillama_history_valid(data):
+    return _defillama_history_series_valid(data, "tvl")
+
+
+def _defillama_total_supply_history_valid(data):
+    return _defillama_history_series_valid(data, "totalSupply")
 
 
 def _dolomite_revenue_series_valid(data):
@@ -992,11 +1008,12 @@ RULES = {
         "min_bytes": 1_000,
     },
     "defillama_data.json": {
-        "required_keys": ["tvl", "name", "currentChainTvls", "tokensInUsd", "chainTokensInUsd", "last_updated"],
+        "required_keys": ["tvl", "totalSupply", "name", "currentChainTvls", "tokensInUsd", "chainTokensInUsd", "last_updated"],
         "checks": [
             ("last_updated must be fresh", lambda d: _fresh_timestamp(d.get("last_updated"))),
             ("all expected TVL chains must be present", _has_expected_tvl_chains),
             ("TVL history must be sorted and populated", _defillama_history_valid),
+            ("Total Supply history must be sorted and populated", _defillama_total_supply_history_valid),
         ],
         "min_bytes": 10_000,
     },

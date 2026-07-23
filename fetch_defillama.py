@@ -6,6 +6,7 @@ This runs in GitHub Actions so the dashboard doesn't need live API calls.
 """
 
 import json
+import math
 import os
 import requests
 import time
@@ -19,6 +20,46 @@ REQUEST_TIMEOUTS = (
     (10, 75),
     (10, 120),
 )
+
+
+def _history_value_map(points):
+    values = {}
+    for point in points or []:
+        if not isinstance(point, dict):
+            continue
+        raw_date = point.get("date")
+        raw_value = point.get("totalLiquidityUSD")
+        if isinstance(raw_date, bool) or not isinstance(raw_date, (int, float)):
+            continue
+        if isinstance(raw_value, bool) or not isinstance(raw_value, (int, float)):
+            continue
+        if not math.isfinite(raw_date) or not math.isfinite(raw_value):
+            continue
+        timestamp = int(raw_date)
+        if timestamp <= 0 or timestamp != raw_date or raw_value <= 0:
+            continue
+        values[timestamp] = raw_value
+    return values
+
+
+def build_history_series(base_tvl_history, borrowed_history):
+    """Return separate Net TVL and Total Supply histories."""
+    net_values = _history_value_map(base_tvl_history)
+    borrowed_values = _history_value_map(borrowed_history)
+    net_history = [
+        {"date": timestamp, "totalLiquidityUSD": net_values[timestamp]}
+        for timestamp in sorted(net_values)
+    ]
+    supply_history = [
+        {
+            "date": timestamp,
+            "totalLiquidityUSD": (
+                net_values.get(timestamp, 0) + borrowed_values.get(timestamp, 0)
+            ),
+        }
+        for timestamp in sorted(set(net_values) | set(borrowed_values))
+    ]
+    return net_history, supply_history
 
 
 def fetch_defillama_protocol():
@@ -56,21 +97,13 @@ def main():
 
         # --- Build SLIM output (only what the dashboard needs) ---
 
-        # 1. TVL history (small — ~0.1MB, used for chart)
-        # Combine base TVL with Borrowed TVL for Total Supply history
+        # 1. Net TVL and Total Supply histories (used by separate charts)
         base_tvl_history = data.get("tvl", [])
         borrowed_history = data.get("chainTvls", {}).get("borrowed", {}).get("tvl", [])
-        
-        combined_history = {}
-        for p in base_tvl_history:
-            combined_history[p["date"]] = p["totalLiquidityUSD"]
-            
-        for p in borrowed_history:
-            d = p["date"]
-            combined_history[d] = combined_history.get(d, 0) + p["totalLiquidityUSD"]
-            
-        # Sort chronologically by date
-        tvl_history = [{"date": k, "totalLiquidityUSD": v} for k, v in sorted(combined_history.items())]
+        tvl_history, total_supply_history = build_history_series(
+            base_tvl_history,
+            borrowed_history,
+        )
 
         # 2. Current chain TVLs (tiny — used for chain bars + donut fallback)
         current_chain_tvls = data.get("currentChainTvls", {})
@@ -121,6 +154,7 @@ def main():
         output = {
             "currentChainTvls": current_chain_tvls,
             "tvl": tvl_history,
+            "totalSupply": total_supply_history,
             "tokensInUsd": [last_token_entry] if last_token_entry else [],
             "chainTokensInUsd": chain_tokens_in_usd,
             "name": data.get("name", "Dolomite"),
@@ -149,6 +183,7 @@ def main():
         print(f"   TVL: ${total_tvl:,.0f}")
         print(f"   Chains: {len(output['chains'])}")
         print(f"   TVL history points: {len(tvl_history)}")
+        print(f"   Total Supply history points: {len(total_supply_history)}")
 
     except Exception as e:
         print(f"   ⚠️ DeFi Llama fetch failed: {e}")

@@ -65,6 +65,145 @@ class TvlPreviewContractsTest(unittest.TestCase):
         route = TVL_ROUTE.read_text(encoding="utf-8")
         self.assertIn("wlfi-fallback-20260616", route)
 
+    def test_snapshot_keeps_net_tvl_and_total_supply_histories_distinct(self):
+        result = run_tvl_js_probe(
+            textwrap.dedent(
+                """
+                const officialData = {
+                  currentChainTvls: {
+                    Arbitrum: 200,
+                    "Arbitrum-borrowed": 50,
+                    borrowed: 50,
+                  },
+                  chainTokensInUsd: { Arbitrum: { USDC: 250 } },
+                  tokensInUsd: [{ tokens: { USDC: 250 } }],
+                  chainMeta: { Arbitrum: { blockTimestamp: Date.now() / 1000 } },
+                  freshnessMaxAgeSeconds: 21600,
+                  staleChains: [],
+                  supplyLiquidity: 250,
+                  totalTvl: 200,
+                  totalBorrowed: 50,
+                  last_updated: "2026-07-23T00:00:00Z",
+                };
+                const llamaData = {
+                  currentChainTvls: {
+                    Arbitrum: 200,
+                    "Arbitrum-borrowed": 50,
+                    borrowed: 50,
+                  },
+                  tvl: [
+                    { date: 10, totalLiquidityUSD: 100 },
+                    { date: 20, totalLiquidityUSD: 200 },
+                  ],
+                  totalSupply: [
+                    { date: 10, totalLiquidityUSD: 140 },
+                    { date: 20, totalLiquidityUSD: 250 },
+                  ],
+                  chainTokensInUsd: { Arbitrum: { USDC: 250 } },
+                  tokensInUsd: [{ tokens: { USDC: 250 } }],
+                  last_updated: "2026-07-23T00:00:00Z",
+                };
+                const snapshot = buildTvlSnapshot(llamaData, officialData);
+                process.stdout.write(JSON.stringify({
+                  tvlHistory: snapshot.history,
+                  supplyHistory: snapshot.supplyHistory,
+                }));
+                """
+            )
+        )
+        self.assertEqual(result["tvlHistory"], [[10, 100], [20, 200]])
+        self.assertIn("supplyHistory", result)
+        self.assertEqual(result["supplyHistory"], [[10, 140], [20, 250]])
+
+    def test_legacy_history_payload_keeps_net_tvl_fallback_distinct(self):
+        result = run_tvl_js_probe(
+            textwrap.dedent(
+                """
+                const officialData = {
+                  currentChainTvls: {
+                    Arbitrum: 200,
+                    "Arbitrum-borrowed": 50,
+                    borrowed: 50,
+                  },
+                  chainTokensInUsd: { Arbitrum: { USDC: 250 } },
+                  tokensInUsd: [{ tokens: { USDC: 250 } }],
+                  chainMeta: { Arbitrum: { blockTimestamp: Date.now() / 1000 } },
+                  freshnessMaxAgeSeconds: 21600,
+                  staleChains: [],
+                  supplyLiquidity: 250,
+                  totalTvl: 200,
+                  totalBorrowed: 50,
+                  last_updated: "2026-07-23T00:00:00Z",
+                };
+                const legacyLlamaData = {
+                  currentChainTvls: {
+                    Arbitrum: 200,
+                    "Arbitrum-borrowed": 50,
+                    borrowed: 50,
+                  },
+                  tvl: [
+                    { date: 10, totalLiquidityUSD: 140 },
+                    { date: 20, totalLiquidityUSD: 250 },
+                  ],
+                  chainTokensInUsd: { Arbitrum: { USDC: 250 } },
+                  tokensInUsd: [{ tokens: { USDC: 250 } }],
+                  last_updated: "2026-07-23T00:00:00Z",
+                };
+                const legacySnapshot = buildTvlSnapshot(legacyLlamaData, officialData);
+                const unavailableSnapshot = buildTvlSnapshot({}, officialData);
+                process.stdout.write(JSON.stringify({
+                  legacyNet: legacySnapshot.history,
+                  legacySupply: legacySnapshot.supplyHistory,
+                  unavailableNet: unavailableSnapshot.history,
+                  unavailableSupply: unavailableSnapshot.supplyHistory,
+                }));
+                """
+            )
+        )
+        self.assertGreater(len(result["legacyNet"]), 100)
+        self.assertNotEqual(result["legacyNet"], result["legacySupply"])
+        self.assertEqual(result["legacySupply"], [[10, 140], [20, 250]])
+        self.assertEqual(result["unavailableNet"], result["legacyNet"])
+        self.assertNotEqual(
+            result["unavailableSupply"],
+            result["unavailableNet"],
+        )
+
+    def test_total_supply_chart_precedes_tvl_with_independent_brush_contract(self):
+        text = TVL_PREVIEW.read_text(encoding="utf-8")
+
+        self.assertIn("<h2>Total Supply Over Time</h2>", text)
+        self.assertLess(
+            text.index("<h2>Total Supply Over Time</h2>"),
+            text.index("<h2>TVL Over Time</h2>"),
+        )
+        for element_id in (
+            "supplyRangeBadge",
+            "supplyChartWrap",
+            "supplyChart",
+            "supplyChartLine",
+            "supplyChartArea",
+            "supplyChartTip",
+            "supplyBrushSvg",
+            "supplyBrushLine",
+            "supplyBrushArea",
+            "supplyBrushOverlay",
+            "supplyBrushWindow",
+            "supplyBrushHandleL",
+            "supplyBrushHandleR",
+            "supplyBrushLabel",
+        ):
+            self.assertIn(f'id="{element_id}"', text)
+        self.assertIn("function createHistoryChart(config)", text)
+        self.assertIn('history: ()=>TOTAL_SUPPLY_HISTORY', text)
+        self.assertIn('history: ()=>TVL_HISTORY', text)
+        self.assertIn('rangeBadge: "supplyRangeBadge"', text)
+        self.assertIn('rangeBadge: "rangeBadge"', text)
+
+    def test_tvl_route_busts_preview_cache_for_dual_history_charts(self):
+        route = TVL_ROUTE.read_text(encoding="utf-8")
+        self.assertIn("dual-history-20260723", route)
+
     def test_missing_wlfi_in_defillama_does_not_replace_official_supply(self):
         result = run_tvl_js_probe(
             textwrap.dedent(
