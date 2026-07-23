@@ -525,20 +525,54 @@ def _defillama_total_supply_history_valid(data):
     return _defillama_history_series_valid(data, "totalSupply")
 
 
-def _dolomite_total_supply_history_current(data):
-    rows = data.get("totalSupply", [])
-    current_supply = data.get("currentSupply")
-    if not rows or isinstance(current_supply, bool):
+def _dolomite_history_matches_current(data, history_key, current_key):
+    rows = data.get(history_key, [])
+    current_value = data.get(current_key)
+    if not rows or isinstance(current_value, bool):
         return False
-    if not isinstance(current_supply, (int, float)) or not math.isfinite(current_supply):
+    if not isinstance(current_value, (int, float)) or not math.isfinite(current_value):
         return False
     latest = rows[-1].get("totalLiquidityUSD")
     if isinstance(latest, bool) or not isinstance(latest, (int, float)):
         return False
     if not math.isfinite(latest):
         return False
-    tolerance = max(0.01, abs(current_supply) * 1e-9)
-    return abs(latest - current_supply) <= tolerance
+    tolerance = max(0.01, abs(current_value) * 1e-9)
+    return abs(latest - current_value) <= tolerance
+
+
+def _dolomite_total_supply_history_current(data):
+    return _dolomite_history_matches_current(data, "totalSupply", "currentSupply")
+
+
+def _dolomite_net_tvl_history_current(data):
+    return _dolomite_history_matches_current(data, "tvl", "currentTvl")
+
+
+def _dolomite_liquidity_histories_reconcile(data):
+    supply_rows = data.get("totalSupply", [])
+    tvl_rows = data.get("tvl", [])
+    if not supply_rows or len(supply_rows) != len(tvl_rows):
+        return False
+    for supply_row, tvl_row in zip(supply_rows, tvl_rows):
+        if supply_row.get("date") != tvl_row.get("date"):
+            return False
+        supply = supply_row.get("totalLiquidityUSD")
+        tvl = tvl_row.get("totalLiquidityUSD")
+        if (
+            isinstance(supply, bool)
+            or isinstance(tvl, bool)
+            or not isinstance(supply, (int, float))
+            or not isinstance(tvl, (int, float))
+            or not math.isfinite(supply)
+            or not math.isfinite(tvl)
+            or tvl < 0
+        ):
+            return False
+        tolerance = max(0.01, abs(supply) * 1e-9)
+        if tvl > supply + tolerance:
+            return False
+    return True
 
 
 def _dolomite_total_supply_history_coverage(data):
@@ -1065,6 +1099,8 @@ RULES = {
         "required_keys": [
             "totalSupply",
             "currentSupply",
+            "tvl",
+            "currentTvl",
             "officialWindowStart",
             "officialMarketCount",
             "activeMarketCount",
@@ -1082,6 +1118,18 @@ RULES = {
             (
                 "latest Total Supply history must match current supply",
                 _dolomite_total_supply_history_current,
+            ),
+            (
+                "Net TVL history must be sorted and populated",
+                _defillama_history_valid,
+            ),
+            (
+                "latest Net TVL history must match current Net TVL",
+                _dolomite_net_tvl_history_current,
+            ),
+            (
+                "Net TVL history must reconcile with Total Supply history",
+                _dolomite_liquidity_histories_reconcile,
             ),
             (
                 "official Total Supply market coverage must be complete",

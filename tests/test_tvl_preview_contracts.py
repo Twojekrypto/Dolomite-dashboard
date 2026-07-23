@@ -154,10 +154,15 @@ class TvlPreviewContractsTest(unittest.TestCase):
                   last_updated: "2026-07-23T00:00:00Z",
                 };
                 const fullSupplyData = {
+                  tvl: [
+                    { date: 10, totalLiquidityUSD: 150 },
+                    { date: 20, totalLiquidityUSD: 200 },
+                  ],
                   totalSupply: [
                     { date: 10, totalLiquidityUSD: 180 },
                     { date: 20, totalLiquidityUSD: 300 },
                   ],
+                  currentTvl: 200,
                   currentSupply: 300,
                   last_updated: "2026-07-23T00:00:00Z",
                 };
@@ -173,8 +178,16 @@ class TvlPreviewContractsTest(unittest.TestCase):
                 """
             )
         )
-        self.assertEqual(result["tvlHistory"], [[10, 100], [20, 200]])
+        self.assertEqual(result["tvlHistory"], [[10, 150], [20, 200]])
         self.assertEqual(result["supplyHistory"], [[10, 180], [20, 300]])
+
+    def test_total_supply_change_chip_uses_total_supply_history(self):
+        text = TVL_PREVIEW.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "const change7d = computeWindowChange(TOTAL_SUPPLY_HISTORY, 7);",
+            text,
+        )
 
     def test_legacy_history_payload_keeps_net_tvl_fallback_distinct(self):
         result = run_tvl_js_probe(
@@ -270,6 +283,7 @@ class TvlPreviewContractsTest(unittest.TestCase):
         workflow = TVL_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertIn("full-total-supply-20260723", route)
+        self.assertIn("full-net-tvl-20260723", route)
         self.assertIn("python3 fetch_dolomite_total_supply_history.py", workflow)
         self.assertIn("dolomite_total_supply_history.json", workflow)
 

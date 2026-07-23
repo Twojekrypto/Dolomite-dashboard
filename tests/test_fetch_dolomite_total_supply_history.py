@@ -76,6 +76,72 @@ class DolomiteTotalSupplyHistoryTest(unittest.TestCase):
             ],
         )
 
+    def test_aggregates_net_tvl_as_supply_minus_borrowed(self):
+        module = self.history_module()
+
+        self.assertTrue(
+            hasattr(module, "aggregate_net_tvl_histories"),
+            "official Net TVL history aggregator is missing",
+        )
+        aggregate = module.aggregate_net_tvl_histories(
+            [
+                {
+                    "marketKey": "ethereum:usdc",
+                    "currentSupplyUsd": 100,
+                    "points": {10: 80, 20: 90},
+                    "borrowPoints": {10: 20, 20: 25},
+                },
+                {
+                    "marketKey": "arbitrum:weth",
+                    "currentSupplyUsd": 50,
+                    "points": {10: 40, 20: 50},
+                    "borrowPoints": {10: 10, 20: 15},
+                },
+                {
+                    "marketKey": "ethereum:inactive",
+                    "currentSupplyUsd": 0,
+                    "points": {10: 5},
+                    "borrowPoints": {10: 1},
+                },
+            ]
+        )
+
+        self.assertEqual(
+            aggregate,
+            [
+                {"date": 10, "totalLiquidityUSD": 94},
+                {"date": 20, "totalLiquidityUSD": 100},
+            ],
+        )
+
+    def test_net_tvl_allows_negative_market_component_when_protocol_total_is_positive(self):
+        module = self.history_module()
+
+        try:
+            aggregate = module.aggregate_net_tvl_histories(
+                [
+                    {
+                        "marketKey": "berachain:virtual-liquidity",
+                        "currentSupplyUsd": 10,
+                        "points": {10: 10},
+                        "borrowPoints": {10: 20},
+                    },
+                    {
+                        "marketKey": "ethereum:collateral",
+                        "currentSupplyUsd": 50,
+                        "points": {10: 50},
+                        "borrowPoints": {10: 0},
+                    },
+                ]
+            )
+        except ValueError as exc:
+            self.fail(f"protocol-level Net TVL should remain valid: {exc}")
+
+        self.assertEqual(
+            aggregate,
+            [{"date": 10, "totalLiquidityUSD": 40}],
+        )
+
     def test_excludes_active_market_with_stale_metrics_from_recent_window(self):
         module = self.history_module()
         try:
@@ -116,9 +182,19 @@ class DolomiteTotalSupplyHistoryTest(unittest.TestCase):
         self.assertIsNotNone(rules)
         self.assertIn("totalSupply", rules["required_keys"])
         self.assertIn("currentSupply", rules["required_keys"])
+        self.assertIn("tvl", rules["required_keys"])
+        self.assertIn("currentTvl", rules["required_keys"])
         descriptions = [description for description, _ in rules["checks"]]
         self.assertIn(
             "latest Total Supply history must match current supply",
+            descriptions,
+        )
+        self.assertIn(
+            "latest Net TVL history must match current Net TVL",
+            descriptions,
+        )
+        self.assertIn(
+            "Net TVL history must reconcile with Total Supply history",
             descriptions,
         )
 
