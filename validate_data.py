@@ -525,6 +525,50 @@ def _defillama_total_supply_history_valid(data):
     return _defillama_history_series_valid(data, "totalSupply")
 
 
+def _dolomite_total_supply_history_current(data):
+    rows = data.get("totalSupply", [])
+    current_supply = data.get("currentSupply")
+    if not rows or isinstance(current_supply, bool):
+        return False
+    if not isinstance(current_supply, (int, float)) or not math.isfinite(current_supply):
+        return False
+    latest = rows[-1].get("totalLiquidityUSD")
+    if isinstance(latest, bool) or not isinstance(latest, (int, float)):
+        return False
+    if not math.isfinite(latest):
+        return False
+    tolerance = max(0.01, abs(current_supply) * 1e-9)
+    return abs(latest - current_supply) <= tolerance
+
+
+def _dolomite_total_supply_history_coverage(data):
+    official = data.get("officialMarketCount")
+    active = data.get("activeMarketCount")
+    all_markets = data.get("allMarketCount")
+    stale_count = data.get("staleOfficialMarketCount")
+    stale_supply = data.get("staleOfficialMarketSupply")
+    current_supply = data.get("currentSupply")
+    return (
+        isinstance(official, int)
+        and not isinstance(official, bool)
+        and isinstance(active, int)
+        and not isinstance(active, bool)
+        and isinstance(all_markets, int)
+        and not isinstance(all_markets, bool)
+        and isinstance(stale_count, int)
+        and not isinstance(stale_count, bool)
+        and isinstance(stale_supply, (int, float))
+        and not isinstance(stale_supply, bool)
+        and isinstance(current_supply, (int, float))
+        and not isinstance(current_supply, bool)
+        and math.isfinite(stale_supply)
+        and math.isfinite(current_supply)
+        and 0 < official <= active <= all_markets
+        and official + stale_count == active
+        and 0 <= stale_supply <= current_supply * 0.001
+    )
+
+
 def _dolomite_revenue_series_valid(data):
     rows = data.get("series", [])
     if len(rows) < 30:
@@ -1014,6 +1058,35 @@ RULES = {
             ("all expected TVL chains must be present", _has_expected_tvl_chains),
             ("TVL history must be sorted and populated", _defillama_history_valid),
             ("Total Supply history must be sorted and populated", _defillama_total_supply_history_valid),
+        ],
+        "min_bytes": 10_000,
+    },
+    "dolomite_total_supply_history.json": {
+        "required_keys": [
+            "totalSupply",
+            "currentSupply",
+            "officialWindowStart",
+            "officialMarketCount",
+            "activeMarketCount",
+            "allMarketCount",
+            "staleOfficialMarketCount",
+            "staleOfficialMarketSupply",
+            "last_updated",
+        ],
+        "checks": [
+            ("last_updated must be fresh", lambda d: _fresh_timestamp(d.get("last_updated"))),
+            (
+                "Total Supply history must be sorted and populated",
+                _defillama_total_supply_history_valid,
+            ),
+            (
+                "latest Total Supply history must match current supply",
+                _dolomite_total_supply_history_current,
+            ),
+            (
+                "official Total Supply market coverage must be complete",
+                _dolomite_total_supply_history_coverage,
+            ),
         ],
         "min_bytes": 10_000,
     },

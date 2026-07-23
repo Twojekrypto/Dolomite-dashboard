@@ -39,6 +39,9 @@ jobs:
       - name: Fetch Official Dolomite TVL
         run: python3 fetch_dolomite_tvl.py
 
+      - name: Fetch Full Dolomite Total Supply History
+        run: python3 fetch_dolomite_total_supply_history.py
+
       - name: Fetch Dolomite Revenue
         run: python3 fetch_dolomite_revenue.py
         env:
@@ -62,13 +65,13 @@ jobs:
           VEBORROW_VOTES_RETRY_DELAY_SECONDS: '12'
 
       - name: Validate TVL data
-        run: python3 validate_data.py defillama_data.json dolomite_tvl.json dolomite_revenue.json veborrow_simulation.json
+        run: python3 validate_data.py defillama_data.json dolomite_tvl.json dolomite_total_supply_history.json dolomite_revenue.json veborrow_simulation.json
 
       - name: Commit & push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add defillama_data.json dolomite_tvl.json dolomite_revenue.json data/dolomite-revenue-onchain-overrides.json veborrow_simulation.json
+          git add defillama_data.json dolomite_tvl.json dolomite_total_supply_history.json dolomite_revenue.json data/dolomite-revenue-onchain-overrides.json veborrow_simulation.json
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "📊 Auto-update TVL: $(date -u '+%Y-%m-%d %H:%M UTC')"
           pushed=false
