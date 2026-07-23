@@ -7794,11 +7794,6 @@
             text-align: center;
         }
 
-        /* Alternating row tint */
-        .earn-lending-table tbody tr.earn-lend-row:nth-child(4n+1) td {
-            background: rgba(255, 255, 255, 0.012);
-        }
-
         /* Risk-level accent bars (matching Liquidation Risk Monitor colors) */
         .earn-lending-table tbody tr.earn-lend-row.risk-baddebt:hover td:first-child,
         .earn-lending-table tbody tr.earn-lend-row.risk-baddebt.open td:first-child {
@@ -9739,7 +9734,7 @@
         /* ═══════ UX OVERHAUL: Summary Card ═══════ */
         .earn-summary-card {
             display: none;
-            grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
+            grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
             gap: 14px;
             margin-bottom: 20px;
             padding: 20px 22px 22px;
@@ -9753,11 +9748,6 @@
             border: 1px solid rgba(255, 255, 255, 0.07);
             box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.05);
             animation: earnSummaryIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-
-        .earn-summary-card.cols-8,
-        .earn-summary-card.cols-6 {
-            grid-template-columns: minmax(0, 1.14fr) minmax(0, 0.86fr);
         }
 
         .earn-summary-card.visible,
@@ -9785,7 +9775,7 @@
         }
 
         .earn-summary-main,
-        .earn-summary-side {
+        .earn-summary-metrics {
             min-width: 0;
             position: relative;
             z-index: 1;
@@ -9799,36 +9789,21 @@
             width: 100%;
         }
 
-        .earn-summary-side {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .earn-summary-primary-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 10px;
-        }
-
-        .earn-summary-secondary-grid {
+        .earn-summary-metrics {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
         }
 
-        @media (max-width: 1180px) {
+        .earn-summary-metrics .earn-summary-stat {
+            min-height: 100%;
+        }
+
+        @media (max-width: 980px) {
             .earn-summary-card,
             .earn-summary-card.cols-8,
             .earn-summary-card.cols-6 {
                 grid-template-columns: minmax(0, 1fr);
-            }
-        }
-
-        @media (max-width: 860px) {
-            .earn-summary-primary-grid,
-            .earn-summary-secondary-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
 
@@ -9838,8 +9813,7 @@
                 gap: 12px;
             }
 
-            .earn-summary-primary-grid,
-            .earn-summary-secondary-grid {
+            .earn-summary-metrics {
                 grid-template-columns: minmax(0, 1fr);
             }
         }
@@ -11024,6 +10998,50 @@
             margin-left: auto;
         }
 
+        #earn-supply-section #earn-apr-pill {
+            height: 36px;
+            padding: 3px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.035);
+            backdrop-filter: none;
+        }
+
+        #earn-supply-section #earn-apr-pill:hover {
+            border-color: rgba(201, 162, 39, 0.32);
+            background: rgba(201, 162, 39, 0.045);
+            box-shadow: 0 0 14px rgba(201, 162, 39, 0.08);
+        }
+
+        #earn-supply-section #earn-apr-pill .apr-pill-slider {
+            top: 3px;
+            left: 3px;
+            width: calc(50% - 3px);
+            height: 28px;
+            border-radius: 8px;
+            background: var(--earn-gold, #c9a227);
+            box-shadow: 0 2px 8px rgba(201, 162, 39, 0.35);
+        }
+
+        #earn-supply-section #earn-apr-pill .apr-pill-opt {
+            min-width: 48px;
+            height: 28px;
+            padding: 0 12px;
+            border-radius: 8px;
+            color: var(--earn-fg-3, #6b6a66);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        #earn-supply-section #earn-apr-pill .apr-pill-opt.active {
+            color: var(--earn-bg-0, #09090b);
+        }
+
+        #earn-supply-section #earn-apr-pill:focus-visible {
+            outline: 2px solid rgba(201, 162, 39, 0.72);
+            outline-offset: 3px;
+        }
+
         #earn-supply-section {
             border-radius: 14px;
             background: rgba(52, 211, 153, 0.015);
@@ -11324,14 +11342,21 @@
         .earn-quality-marker {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
             width: fit-content;
-            color: rgba(203, 213, 225, 0.84);
-            font-size: 10px;
-            font-weight: 600;
-            line-height: 1.15;
+            min-height: 24px;
+            padding: 0 9px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(148, 163, 184, 0.08);
+            color: #cbd5e1;
+            font-size: 9px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
             white-space: nowrap;
-            cursor: help;
+            cursor: default;
         }
 
         .earn-quality-marker .earn-status-dot {
@@ -11339,21 +11364,46 @@
             height: 6px;
             border-radius: 50%;
             background: currentColor;
+            box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 13%, transparent);
             flex: 0 0 auto;
         }
 
-        .earn-quality-marker.verified { color: #6ee7b7; }
-        .earn-quality-marker.mismatch { color: #fca5a5; }
-        .earn-quality-marker.coverage_incomplete { color: #fcd34d; }
-        .earn-quality-marker.fallback { color: #fdba74; }
-        .earn-quality-marker.inferred,
-        .earn-quality-marker.snapshot,
-        .earn-quality-marker.replay { color: #93c5fd; }
-        .earn-quality-marker.routed { color: #93c5fd; }
-        .earn-quality-marker.withdrawn { color: #d89a8c; }
+        .earn-quality-marker:focus-visible {
+            outline: 2px solid rgba(201, 162, 39, 0.72);
+            outline-offset: 2px;
+        }
+
+        .earn-quality-marker.verified {
+            color: #6ee7b7;
+            border-color: rgba(110, 231, 183, 0.24);
+            background: rgba(110, 231, 183, 0.09);
+        }
+
         .earn-quality-marker.pending,
         .earn-quality-marker.checking,
-        .earn-quality-marker.unverified { color: #cbd5e1; }
+        .earn-quality-marker.coverage_incomplete,
+        .earn-quality-marker.unverified {
+            color: #fcd34d;
+            border-color: rgba(252, 211, 77, 0.22);
+            background: rgba(252, 211, 77, 0.08);
+        }
+
+        .earn-quality-marker.inferred,
+        .earn-quality-marker.snapshot,
+        .earn-quality-marker.replay,
+        .earn-quality-marker.fallback,
+        .earn-quality-marker.routed {
+            color: #93c5fd;
+            border-color: rgba(147, 197, 253, 0.22);
+            background: rgba(147, 197, 253, 0.08);
+        }
+
+        .earn-quality-marker.mismatch,
+        .earn-quality-marker.withdrawn {
+            color: #fca5a5;
+            border-color: rgba(252, 165, 165, 0.22);
+            background: rgba(252, 165, 165, 0.08);
+        }
 
         .earn-quality-empty {
             color: rgba(148, 163, 184, 0.46);
@@ -11437,6 +11487,13 @@
             letter-spacing: 0.1px;
             line-height: 1.2;
             white-space: nowrap;
+            cursor: default;
+        }
+
+        #earn-supply-section .earn-supply-apr-line:focus-visible {
+            outline: 2px solid rgba(201, 162, 39, 0.72);
+            outline-offset: 3px;
+            border-radius: 4px;
         }
 
         #earn-supply-section .earn-supply-apr-dash {
