@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build full Total Supply history from official Dolomite USD market metrics."""
+"""Build Total Supply and Net TVL history from official Dolomite market metrics."""
 
 import json
 import math
@@ -94,7 +94,11 @@ def split_recent_market_histories(market_histories):
     return recent, stale_active
 
 
-def aggregate_market_histories(market_histories):
+def aggregate_market_histories(
+    market_histories,
+    point_key="points",
+    allow_negative_components=False,
+):
     """Sum official USD histories at timestamps covered by every fresh active market."""
     recent_histories, _ = split_recent_market_histories(market_histories)
     prepared = []
@@ -102,8 +106,9 @@ def aggregate_market_histories(market_histories):
     for market in recent_histories:
         points = {
             int(timestamp): _decimal(value)
-            for timestamp, value in (market.get("points") or {}).items()
-            if int(timestamp) > 0 and _decimal(value) >= 0
+            for timestamp, value in (market.get(point_key) or {}).items()
+            if int(timestamp) > 0
+            and (allow_negative_components or _decimal(value) >= 0)
         }
         current_supply = _decimal(market.get("currentSupplyUsd"))
         prepared.append((market, points))
@@ -127,6 +132,10 @@ def aggregate_market_histories(market_histories):
             (points.get(timestamp, Decimal("0")) for _, points in prepared),
             Decimal("0"),
         )
+        if total < 0:
+            raise ValueError(
+                f"Official aggregate is negative at timestamp {timestamp}"
+            )
         result.append(
             {
                 "date": timestamp,
@@ -136,17 +145,41 @@ def aggregate_market_histories(market_histories):
     return result
 
 
-def merge_total_supply_histories(
+def aggregate_net_tvl_histories(market_histories):
+    """Aggregate Net TVL as exact per-market supply minus borrowed liquidity."""
+    histories_with_net_tvl = []
+    for market in market_histories or []:
+        supply_points = market.get("points") or {}
+        borrow_points = market.get("borrowPoints") or {}
+        net_tvl_points = {}
+        for timestamp, supply in supply_points.items():
+            net_tvl = _decimal(supply) - _decimal(borrow_points.get(timestamp))
+            net_tvl_points[timestamp] = net_tvl
+        histories_with_net_tvl.append(
+            {
+                **market,
+                "netTvlPoints": net_tvl_points,
+            }
+        )
+    return aggregate_market_histories(
+        histories_with_net_tvl,
+        point_key="netTvlPoints",
+        allow_negative_components=True,
+    )
+
+
+def _merge_histories(
     defillama_history,
     official_history,
     current_timestamp,
-    current_supply,
+    current_value,
+    metric_name,
 ):
     """Use DeFiLlama before the official window and exact Dolomite data after it."""
     llama_values = _history_rows(defillama_history)
     official_values = _history_rows(official_history)
     if not official_values:
-        raise ValueError("Official Total Supply history is empty")
+        raise ValueError(f"Official {metric_name} history is empty")
 
     official_start = min(official_values)
     merged = {
@@ -157,10 +190,10 @@ def merge_total_supply_histories(
     merged.update(official_values)
 
     timestamp = int(current_timestamp)
-    supply = _decimal(current_supply)
-    if timestamp <= 0 or supply <= 0:
-        raise ValueError("Current Total Supply snapshot is invalid")
-    merged[timestamp] = supply
+    current = _decimal(current_value)
+    if timestamp <= 0 or current <= 0:
+        raise ValueError(f"Current {metric_name} snapshot is invalid")
+    merged[timestamp] = current
 
     return [
         {
@@ -171,19 +204,39 @@ def merge_total_supply_histories(
     ]
 
 
+def merge_total_supply_histories(
+    defillama_history,
+    official_history,
+    current_timestamp,
+    current_supply,
+):
+    return _merge_histories(
+        defillama_history,
+        official_history,
+        current_timestamp,
+        current_supply,
+        "Total Supply",
+    )
+
+
 def _parse_metric_rows(rows):
-    points = {}
+    supply_points = {}
+    borrow_points = {}
     for row in rows or []:
         try:
             timestamp = int(row.get("timestamp") or 0)
         except (AttributeError, TypeError, ValueError):
             continue
-        value = _decimal(
+        supply = _decimal(
             row.get("supplyLiquidityUSD") if isinstance(row, dict) else None
         )
-        if timestamp > 0 and value >= 0:
-            points[timestamp] = value
-    return points
+        borrowed = _decimal(
+            row.get("borrowLiquidityUSD") if isinstance(row, dict) else None
+        )
+        if timestamp > 0 and supply >= 0 and borrowed >= 0:
+            supply_points[timestamp] = supply
+            borrow_points[timestamp] = borrowed
+    return supply_points, borrow_points
 
 
 def _fetch_metric_series(market):
@@ -200,9 +253,11 @@ def _fetch_metric_series(market):
             rows = payload.get("data") if isinstance(payload, dict) else None
             if not isinstance(rows, list):
                 raise ValueError("Dolomite metrics response has no data array")
+            supply_points, borrow_points = _parse_metric_rows(rows)
             return {
                 **market,
-                "points": _parse_metric_rows(rows),
+                "points": supply_points,
+                "borrowPoints": borrow_points,
             }
         except (requests.RequestException, ValueError) as exc:
             if attempt == len(METRICS_RETRY_DELAYS):
@@ -297,28 +352,45 @@ def main():
         Decimal("0"),
     )
     current_supply = _decimal(official_snapshot.get("supplyLiquidity"))
+    current_tvl = _decimal(official_snapshot.get("totalTvl"))
     if (
         current_supply <= 0
+        or current_tvl <= 0
+        or current_tvl > current_supply
         or stale_market_supply > current_supply * MAX_STALE_MARKET_SHARE
     ):
         raise ValueError(
-            "Stale official metrics cover too much current supply: "
-            f"${float(stale_market_supply):,.2f}"
+            "Official liquidity snapshot or stale market coverage is invalid: "
+            f"Supply ${float(current_supply):,.2f}, "
+            f"Net TVL ${float(current_tvl):,.2f}, "
+            f"stale supply ${float(stale_market_supply):,.2f}"
         )
 
-    official_history = aggregate_market_histories(histories)
-    if len(official_history) < MIN_OFFICIAL_HISTORY_POINTS:
+    official_supply_history = aggregate_market_histories(histories)
+    official_tvl_history = aggregate_net_tvl_histories(histories)
+    if (
+        len(official_supply_history) < MIN_OFFICIAL_HISTORY_POINTS
+        or len(official_tvl_history) < MIN_OFFICIAL_HISTORY_POINTS
+    ):
         raise ValueError(
-            "Official Total Supply history is too short: "
-            f"{len(official_history)} points"
+            "Official liquidity history is too short: "
+            f"{len(official_supply_history)} Total Supply points, "
+            f"{len(official_tvl_history)} Net TVL points"
         )
 
     current_timestamp = _snapshot_timestamp(official_snapshot.get("last_updated"))
     total_supply_history = merge_total_supply_histories(
         llama_data.get("totalSupply", []),
-        official_history,
+        official_supply_history,
         current_timestamp,
         current_supply,
+    )
+    tvl_history = _merge_histories(
+        llama_data.get("tvl", []),
+        official_tvl_history,
+        current_timestamp,
+        current_tvl,
+        "Net TVL",
     )
     active_market_count = sum(
         1
@@ -331,11 +403,13 @@ def main():
         if _decimal(market.get("currentSupplyUsd")) > MIN_ACTIVE_SUPPLY_USD
     )
     output = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "source": "defillama_then_dolomite_official_market_metrics",
         "totalSupply": total_supply_history,
         "currentSupply": _json_number(current_supply),
-        "officialWindowStart": official_history[0]["date"],
+        "tvl": tvl_history,
+        "currentTvl": _json_number(current_tvl),
+        "officialWindowStart": official_supply_history[0]["date"],
         "officialMarketCount": official_market_count,
         "activeMarketCount": active_market_count,
         "allMarketCount": len(markets),
@@ -361,10 +435,12 @@ def main():
     os.replace(temporary_file, OUTPUT_FILE)
 
     print(
-        "✅ Saved full Total Supply history: "
-        f"{len(total_supply_history)} points, "
-        f"{len(official_history)} official daily points, "
-        f"${float(current_supply):,.2f} current supply"
+        "✅ Saved full liquidity history: "
+        f"{len(total_supply_history)} Total Supply points, "
+        f"{len(tvl_history)} Net TVL points, "
+        f"{len(official_supply_history)} official daily points, "
+        f"${float(current_supply):,.2f} current supply, "
+        f"${float(current_tvl):,.2f} current Net TVL"
     )
 
 

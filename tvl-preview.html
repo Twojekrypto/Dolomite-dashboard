@@ -1438,10 +1438,15 @@ function buildTvlSnapshot(llamaData, officialData, fullSupplyData=null){
   }));
 
   const hasDistinctSupplyHistory = Array.isArray(llamaData?.totalSupply);
-  const history = buildHistory(
+  const llamaTvlHistory = buildHistory(
     hasDistinctSupplyHistory ? llamaData?.tvl : null,
     totalTvl,
     TVL_HISTORY,
+  );
+  const history = buildHistory(
+    fullSupplyData?.tvl,
+    totalTvl,
+    llamaTvlHistory,
   );
   const llamaSupplyHistory = buildHistory(
     hasDistinctSupplyHistory ? llamaData.totalSupply : llamaData?.tvl,
@@ -1526,7 +1531,7 @@ function applyTvlSnapshot(snapshot){
   const marketCount = CHAINS.reduce((sum,c)=>sum+(c.tokens || 0), 0);
   const utilPct = TOTAL_SUPPLY > 0 ? TOTAL_BORROW / TOTAL_SUPPLY * 100 : 0;
   const netPct = TOTAL_SUPPLY > 0 ? TOTAL_TVL / TOTAL_SUPPLY * 100 : 0;
-  const change7d = computeWindowChange(TVL_HISTORY, 7);
+  const change7d = computeWindowChange(TOTAL_SUPPLY_HISTORY, 7);
 
   setMetricText("heroSupply", fmtUsd(TOTAL_SUPPLY));
   setMetricText("heroBorrowed", fmtUsd(TOTAL_BORROW));
