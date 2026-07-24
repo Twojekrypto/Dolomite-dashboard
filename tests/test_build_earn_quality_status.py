@@ -158,7 +158,7 @@ class EarnQualityStatusTest(unittest.TestCase):
         self.assertEqual(status["summary"]["strictVerifiedMarketRatio"], 0.333333)
         self.assertEqual(status["summary"]["actionableBlockingMarketCount"], 0)
 
-    def test_live_balance_adjusted_status_counts_as_verified_quality(self):
+    def test_live_balance_adjusted_status_remains_non_strict_quality(self):
         wallet = "0x3333333333333333333333333333333333333333"
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -192,11 +192,12 @@ class EarnQualityStatusTest(unittest.TestCase):
             status = build_quality_status(data_dir=root)
 
         chain = status["chains"]["arbitrum"]
-        self.assertEqual(chain["strictVerifiedMarketCount"], 1)
-        self.assertEqual(chain["nonStrictMarketCount"], 0)
+        self.assertEqual(chain["strictVerifiedMarketCount"], 0)
+        self.assertEqual(chain["nonStrictMarketCount"], 1)
         self.assertEqual(chain["blockingMarketCount"], 0)
         self.assertEqual(chain["actionableBlockingMarketCount"], 0)
-        self.assertEqual(chain["marketStatusCounts"], {"verified": 1})
+        self.assertEqual(chain["inferredMarketCount"], 1)
+        self.assertEqual(chain["marketStatusCounts"], {"inferred": 1})
 
     def test_snapshot_netflow_strict_status_is_reclassified_as_inferred(self):
         wallet = "0x5555555555555555555555555555555555555555"
