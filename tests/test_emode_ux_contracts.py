@@ -60,7 +60,7 @@ class EModeUxContractsTest(unittest.TestCase):
             "liquidation/index.html": "20260713-emode",
             "borrow/index.html": "20260713-emode",
             "supply/index.html": "20260713-emode",
-            "earn/index.html": "earn-core-20260724-portfolio-dedupe",
+            "earn/index.html": "earn-core-20260724-strict-replay",
             "rewards/index.html": "20260713-supply-copy",
         }
         for path, version in route_versions.items():
@@ -71,7 +71,7 @@ class EModeUxContractsTest(unittest.TestCase):
             self.earn_html,
         )
         self.assertIn(
-            "dashboard-core.js?v=core-split-20260724-portfolio-dedupe",
+            "dashboard-core.js?v=core-split-20260724-strict-replay",
             self.earn_html,
         )
 
