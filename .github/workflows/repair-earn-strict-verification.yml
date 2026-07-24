@@ -1,0 +1,205 @@
+name: Repair Active EARN Strict Verification
+run-name: Repair Active EARN Strict Verification
+
+on:
+  schedule:
+    - cron: '41 */4 * * *'
+  workflow_dispatch:
+    inputs:
+      chain:
+        description: 'Active EARN chain to repair.'
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - ethereum
+          - arbitrum
+          - berachain
+          - mantle
+          - xlayer
+      wallet_limit:
+        description: 'Maximum active wallets per chain (1-100).'
+        required: false
+        default: '25'
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  repair:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - chain: ethereum
+            concurrency_group: earn-ethereum-canonical-history
+          - chain: arbitrum
+            concurrency_group: earn-arbitrum-canonical-history
+          - chain: berachain
+            concurrency_group: earn-berachain-canonical-history
+          - chain: mantle
+            concurrency_group: earn-secondary-canonical-history-mantle
+          - chain: xlayer
+            concurrency_group: earn-secondary-canonical-history-xlayer
+    concurrency:
+      group: ${{ matrix.concurrency_group }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      PYTHONUNBUFFERED: '1'
+      CHAIN: ${{ matrix.chain }}
+      WALLET_LIMIT: ${{ github.event.inputs.wallet_limit || '25' }}
+      REQUESTED_CHAIN: ${{ github.event.inputs.chain || 'all' }}
+      ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
+      ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}
+      ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}
+      ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
+      ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
+      ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
+      ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}
+      ALCHEMY_ARBITRUM_RPC_DAN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_DAN }}
+      ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}
+      ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
+      ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
+      ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 }}
+      ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+      QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
+      DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+      ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+      ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+      MANTLE_RPC: ${{ secrets.MANTLE_RPC }}
+      MANTLE_RPC_2: ${{ secrets.MANTLE_RPC_2 }}
+      QUICKNODE_MANTLE_RPC: ${{ secrets.QUICKNODE_MANTLE_RPC }}
+      QUICKNODE_MANTLE_RPC_2: ${{ secrets.QUICKNODE_MANTLE_RPC_2 }}
+      MANTLE_RPC_QUICKNODE_TWOJE: ${{ secrets.MANTLE_RPC_QUICKNODE_TWOJE }}
+      DRPC_MANTLE_RPC: ${{ secrets.DRPC_MANTLE_RPC }}
+      DRPC_MANTLE_RPC_ZEN: ${{ secrets.DRPC_MANTLE_RPC_ZEN }}
+      ALCHEMY_MANTLE_RPC_ZEN: ${{ secrets.ALCHEMY_MANTLE_RPC_ZEN }}
+      ALCHEMY_MANTLE_RPC_DANU: ${{ secrets.ALCHEMY_MANTLE_RPC_DANU }}
+      ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
+      ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
+      ALCHEMY_MANTLE_RPC_3: ${{ secrets.ALCHEMY_MANTLE_RPC_3 }}
+      XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}
+      XLAYER_RPC: ${{ secrets.XLAYER_RPC }}
+      XLAYER_RPC_2: ${{ secrets.XLAYER_RPC_2 }}
+      ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}
+      DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}
+      ALCHEMY_XLAYER_RPC: ${{ secrets.ALCHEMY_XLAYER_RPC }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: python3 -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Select unresolved active wallets
+        id: select
+        run: |
+          set -euo pipefail
+          selection_path="/tmp/earn-${CHAIN}-strict-repair-addresses.txt"
+          if [ "$REQUESTED_CHAIN" != "all" ] && [ "$REQUESTED_CHAIN" != "$CHAIN" ]; then
+            : > "$selection_path"
+            echo "selection_path=$selection_path" >> "$GITHUB_OUTPUT"
+            echo "selected_count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          case "$WALLET_LIMIT" in
+            ''|*[!0-9]*) echo "wallet_limit must be an integer"; exit 1 ;;
+          esac
+          if [ "$WALLET_LIMIT" -lt 1 ] || [ "$WALLET_LIMIT" -gt 100 ]; then
+            echo "wallet_limit must be between 1 and 100"
+            exit 1
+          fi
+          metadata_path="/tmp/earn-${CHAIN}-strict-repair-selection.json"
+          selector_args=(
+            python3 select_earn_canonical_hot_addresses.py
+            --chain "$CHAIN"
+            --limit "$WALLET_LIMIT"
+            --strict-remediation
+            --priority-address-file config/earn_canonical_priority_addresses.txt
+            --include-priority-even-if-unknown
+            --output "$selection_path"
+            --metadata-output "$metadata_path"
+          )
+          chain_priority="config/earn_${CHAIN}_canonical_hot_addresses.txt"
+          if [ -f "$chain_priority" ]; then
+            selector_args+=(--priority-address-file "$chain_priority")
+          fi
+          "${selector_args[@]}"
+          LC_ALL=C sort -u "$selection_path" -o "$selection_path"
+          selected_count="$(grep -c '^0x' "$selection_path" || true)"
+          echo "selection_path=$selection_path" >> "$GITHUB_OUTPUT"
+          echo "selected_count=$selected_count" >> "$GITHUB_OUTPUT"
+          cat "$metadata_path"
+
+      - name: Build exact replay ledgers
+        if: steps.select.outputs.selected_count != '0'
+        run: |
+          set -euo pipefail
+          diagnostic_path="/tmp/earn-${CHAIN}-strict-repair-diagnostics.json"
+          python3 build_earn_resolved_interest_ledger.py \
+            --chain "$CHAIN" \
+            --address-file "${{ steps.select.outputs.selection_path }}" \
+            --fetch-strict-rpc-evidence \
+            --status-output "$diagnostic_path"
+          python3 build_earn_verified_ledger.py \
+            --chain "$CHAIN" \
+            --address-file "${{ steps.select.outputs.selection_path }}"
+          python3 build_earn_verified_ledger_shards.py \
+            --chain "$CHAIN" \
+            --address-file "${{ steps.select.outputs.selection_path }}"
+          python3 build_earn_quality_status.py
+
+      - name: Run EARN audit checks
+        if: steps.select.outputs.selected_count != '0'
+        run: python3 run_earn_audit_checks.py
+
+      - name: Commit exact cohort outputs
+        if: steps.select.outputs.selected_count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EARN_DISPATCH_PAGES_AFTER_PUSH: 'false'
+          EARN_DISPATCH_FRESHNESS_AFTER_PUSH: 'true'
+        run: |
+          set -euo pipefail
+          selection_path="${{ steps.select.outputs.selection_path }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -f data/earn-resolved-interest-ledger/manifest.json
+          git add -f data/earn-verified-ledger/manifest.json
+          git add -f data/earn-verified-ledger-shards
+          git add -f data/earn-quality/status.json
+          while IFS= read -r address; do
+            [ -n "$address" ] || continue
+            resolved_path="data/earn-resolved-interest-ledger/${CHAIN}/${address}.json"
+            ledger_path="data/earn-verified-ledger/${CHAIN}/${address}.json"
+            for path in "$resolved_path" "$ledger_path"; do
+              if [ -f "$path" ] || git ls-files --error-unmatch "$path" >/dev/null 2>&1; then
+                git add -A -f -- "$path"
+              fi
+            done
+          done < "$selection_path"
+          bash scripts/commit_with_fresh_earn_status.sh \
+            "Repair ${CHAIN} strict EARN verification - $(date -u '+%Y-%m-%d %H:%M UTC')"
+
+      - name: Upload strict replay diagnostics
+        if: always() && steps.select.outputs.selected_count != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: earn-${{ matrix.chain }}-strict-repair-${{ github.run_id }}
+          path: /tmp/earn-${{ matrix.chain }}-strict-repair-diagnostics.json
+          if-no-files-found: warn
+          retention-days: 14

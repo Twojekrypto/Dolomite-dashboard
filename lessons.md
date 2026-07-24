@@ -326,6 +326,10 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
 **Reguła na przyszłość:** Watchdog Earn może odpalić wiele chain refreshy naraz, więc push helper musi zakładać wielominutowy wyścig o `master`. Krótkie stałe retry typu 12 x 5s nie wystarcza przy dużych commitach; używaj dłuższego limitu prób, backoffu i jittera, zanim uznasz run za czerwony.
 **Reguła na przyszłość:** Częste workflowy EARN nie powinny robić pełnego checkoutu historii repo. Przy dużej liczbie generated JSONów `fetch-depth: 0` potrafi zjeść kilkanaście minut samego checkoutu i opóźnić watchdog zanim wejdzie nasza logika; używaj płytkiego checkoutu i kontraktu testowego, który blokuje powrót do full fetch.
 
+### EARN strict replay remediation
+**Reguła na przyszłość:** `recent-cycle` wolno wyznaczyć wyłącznie po udowodnionym, dokładnym agregacie `Par == 0`. Mały dodatni reset nie jest początkiem cyklu, a wpis bez `cycleStartProof: exact-zero` nie może zasilać cycle inference.
+**Reguła na przyszłość:** Naprawa `mismatch`, `Carry` ani `Inferred` nie polega na zmianie etykiety lub dopasowaniu replayu do snapshotu. Strict `Verified` wymaga pełnej historii od protocol start, indeksu `LogIndexUpdate` sprzed każdego eventu z archive RPC, przypiętych `getMarketCurrentIndex` i `getAccountBalances` na tym samym bloku oraz dokładnych różnic `Par == 0` i `Wei == 0`. Brak dowodu pozostaje blockerem.
+
 ### Supply Asset Activity history loading
 **Reguła na przyszłość:** `Load older tx` w Supply Activity nie powinno ponownie pobierać ostatnich 30 dni, które UI już ma. Najpierw ładuj świeży zakres 30D, a dla pełnej historii dociągaj tylko rekordy starsze przez filtr `transaction_.timestamp_lt`, scalając je po `id` z bieżącymi tx i zostawiając fallback do pełnego replayu, jeśli subgraph odrzuci zakres.
 **Reguła na przyszłość:** Podczas długiego dociągania starszej historii zostaw widoczną tabelę 30D i pokaż osobny stan `loading older history` z progressem źródeł. Ukryty spinner w samym przycisku jest za słaby UX dla rynków z dużą historią.

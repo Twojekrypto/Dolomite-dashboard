@@ -24,6 +24,7 @@ BERACHAIN_NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berac
 BERACHAIN_BORROW_ROUTE_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-berachain-borrow-route-history.yml"
 EARN_FRESHNESS_WORKFLOW = ROOT / ".github" / "workflows" / "monitor-earn-freshness.yml"
 EARN_COVERAGE_BACKFILL_WORKFLOW = ROOT / ".github" / "workflows" / "backfill-earn-canonical-coverage.yml"
+EARN_STRICT_REPAIR_WORKFLOW = ROOT / ".github" / "workflows" / "repair-earn-strict-verification.yml"
 EARN_WATCHDOG_DISPATCH_PLANNER = ROOT / "scripts" / "plan_earn_watchdog_dispatch.py"
 EARN_SNAPSHOTS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-snapshots.yml"
 EARN_MERKL_REWARDS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-merkl-rewards.yml"
@@ -53,6 +54,40 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("cycleStartProof", self.source)
         self.assertIn("flowMeta.cycleStartProof === 'exact-zero'", self.source)
         self.assertIn("cycleStartProof: 'exact-zero'", self.source)
+
+    def test_strict_verification_repair_is_bounded_exact_and_active_chain_only(self):
+        self.assertTrue(EARN_STRICT_REPAIR_WORKFLOW.is_file())
+        workflow = EARN_STRICT_REPAIR_WORKFLOW.read_text(encoding="utf-8")
+        for chain in ("ethereum", "arbitrum", "berachain", "mantle", "xlayer"):
+            self.assertIn(f"chain: {chain}", workflow)
+        self.assertNotIn("chain: botanix", workflow)
+        self.assertNotIn("chain: polygonzkevm", workflow)
+        self.assertIn("wallet_limit:", workflow)
+        self.assertIn("--strict-remediation", workflow)
+        self.assertIn("--fetch-strict-rpc-evidence", workflow)
+        self.assertIn("group: ${{ matrix.concurrency_group }}", workflow)
+        for group in (
+            "earn-ethereum-canonical-history",
+            "earn-arbitrum-canonical-history",
+            "earn-berachain-canonical-history",
+            "earn-secondary-canonical-history-mantle",
+            "earn-secondary-canonical-history-xlayer",
+        ):
+            self.assertIn(f"concurrency_group: {group}", workflow)
+        self.assertIn("python3 run_earn_audit_checks.py", workflow)
+        self.assertIn('LC_ALL=C sort -u "$selection_path" -o "$selection_path"', workflow)
+        self.assertIn('done < "$selection_path"', workflow)
+        self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
+        self.assertIn("actions/upload-artifact@v4", workflow)
+        for env_name in (
+            "ALCHEMY_ETHEREUM_RPC_KAT",
+            "ALCHEMY_ARBITRUM_RPC_KAT",
+            "QUICKNODE_BERACHAIN_RPC_2",
+            "QUICKNODE_MANTLE_RPC_2",
+            "XLAYER_RPC_QUICKNODE_TWOJE",
+        ):
+            self.assertIn(f"{env_name}: ${{{{ secrets.{env_name} }}}}", workflow)
+        self.assertNotIn("/v2/", workflow)
 
     def test_borrow_positions_prefer_replay_ledger_for_open_debt_cost(self):
         self.assertIn("function earn_getOpenDebtYieldForAccount", self.source)
