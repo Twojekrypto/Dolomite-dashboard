@@ -223,7 +223,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         let earn_merklFetchError = '';
         // v15 preserves a previously trusted interest-ledger result while a live
         // refresh is temporarily degraded by an unavailable browser RPC.
-        const EARN_LOOKUP_CACHE_VERSION = 15;
+        const EARN_LOOKUP_CACHE_VERSION = 16;
         const EARN_LOOKUP_CACHE_TTL_MS = 10 * 60 * 1000;
         const earn_lookupResultCache = {};
         let earn_rpcPolicy = null;
@@ -3361,7 +3361,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             if (entry.snapshotIncomplete || entry.subgraphReplayTruncated || entry.replayStateAdjusted) {
                 return 'coverage_incomplete';
             }
-            if (entry.rawVerified) {
+            if (entry.rawVerified || entry.usdDriftVerified) {
                 return 'verified';
             }
             return 'mismatch';
@@ -4683,6 +4683,9 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         function earn_buildVerificationTitle(entry, symbol, decimals) {
             if (!entry) return '';
             if (entry.status === 'verified') {
+                if (entry.usdDriftVerified && !entry.rawVerified) {
+                    return 'Replay drift is below the $0.10 display threshold and all Par buckets reconcile within strict tolerance.';
+                }
                 return 'Replay reconciles with onchain current balances.';
             }
             if (entry.status === 'coverage_incomplete' || entry.status === 'unverified') {
@@ -5516,10 +5519,12 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const collateralWeiTolerance = earn_getVerificationWeiTolerance(decimals, actualCollateralWei, expectedCollateralWei);
                 const borrowWeiTolerance = earn_getVerificationWeiTolerance(decimals, actualBorrowWei, expectedBorrowWei);
                 const canVerify = hasReplayData && replay.canVerify !== false;
-                const rawVerified = canVerify &&
+                const parBucketsAligned =
                     earn_absBigInt(supplyParDiff) <= parTolerance &&
                     earn_absBigInt(collateralParDiff) <= parTolerance &&
-                    earn_absBigInt(borrowParDiff) <= parTolerance &&
+                    earn_absBigInt(borrowParDiff) <= parTolerance;
+                const rawVerified = canVerify &&
+                    parBucketsAligned &&
                     earn_absBigInt(supplyWeiDiff) <= supplyWeiTolerance &&
                     earn_absBigInt(collateralWeiDiff) <= collateralWeiTolerance &&
                     earn_absBigInt(borrowWeiDiff) <= borrowWeiTolerance;
@@ -5530,8 +5535,9 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 const collateralUsdDrift = hasUsdDrift && scale > 0 ? (Number(earn_absBigInt(collateralWeiDiff)) / scale) * priceUsd : null;
                 const borrowUsdDrift = hasUsdDrift && scale > 0 ? (Number(earn_absBigInt(borrowWeiDiff)) / scale) * priceUsd : null;
                 const maxUsdDrift = hasUsdDrift ? Math.max(supplyUsdDrift || 0, collateralUsdDrift || 0, borrowUsdDrift || 0) : null;
-                const usdVerificationThreshold = 1;
-                const usdDriftVerified = canVerify && hasUsdDrift && maxUsdDrift < usdVerificationThreshold;
+                const usdVerificationThreshold = 0.1;
+                const usdDriftVerified = canVerify && parBucketsAligned && hasUsdDrift
+                    && maxUsdDrift < usdVerificationThreshold;
                 const subgraphReplayTruncated = earn_replaySubgraphHistoryIncomplete
                     || earn_replayTruncatedSubgraphMarkets.has(String(mid));
                 const replayStateAdjusted = earn_replayReconciledMarkets.has(String(mid));

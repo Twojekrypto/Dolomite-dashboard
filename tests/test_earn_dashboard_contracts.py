@@ -399,7 +399,7 @@ for (const [input, decimals, expected] of cases) {
         self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_yield_calculation_release_invalidates_prior_lookup_cache(self):
-        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 15;", self.source)
+        self.assertIn("const EARN_LOOKUP_CACHE_VERSION = 16;", self.source)
         self.assertIn("parsed.version !== EARN_LOOKUP_CACHE_VERSION", self.source)
 
     def test_earn_rpc_policy_is_loaded_before_dashboard_runtime(self):
@@ -555,6 +555,44 @@ if (actual !== 'coverage_incomplete') {{
 
     def test_reconciled_replay_state_cannot_be_strict_verified(self):
         self._assert_strict_status_for_incomplete_replay("replayStateAdjusted")
+
+    def test_complete_aligned_replay_ignores_usd_drift_below_ten_cents(self):
+        self.assertIn("const usdVerificationThreshold = 0.1;", self.source)
+        self.assertIn(
+            "const usdDriftVerified = canVerify && parBucketsAligned && hasUsdDrift",
+            self.source,
+        )
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+const start = source.indexOf('function earn_getStrictVerificationStatus(');
+const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+if (start < 0 || end < 0) throw new Error('earn_getStrictVerificationStatus not found');
+eval(source.slice(start, end));
+const base = {
+  counted: true,
+  canVerify: true,
+  snapshotIncomplete: false,
+  subgraphReplayTruncated: false,
+  replayStateAdjusted: false,
+  rawVerified: false,
+  usdDriftVerified: true,
+};
+if (earn_getStrictVerificationStatus({...base, maxUsdDrift: 0.099}) !== 'verified') {
+  throw new Error('drift below $0.10 should not be shown as mismatch');
+}
+if (earn_getStrictVerificationStatus({...base, usdDriftVerified: false, maxUsdDrift: 0.10}) !== 'mismatch') {
+  throw new Error('the $0.10 boundary should remain mismatch');
+}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_live_index_refresh_overrides_stale_subgraph_indexes(self):
         refresh_start = self.source.index("async function earn_refreshReplayWithLiveCurrentIndexes(")

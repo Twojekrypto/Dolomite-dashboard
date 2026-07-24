@@ -282,7 +282,7 @@ if (earn_getMismatchQualityLabel({
         self.assertNotIn(".earn-summary-secondary-grid", summary_css)
 
     def test_dedicated_earn_bundle_uses_premium_ux_cache_version(self):
-        version = "earn-core-20260724-mismatch-usd"
+        version = "earn-core-20260724-mismatch-floor"
         builder = (ROOT / "build_earn_bundle.py").read_text(encoding="utf-8")
         route = (ROOT / "earn/index.html").read_text(encoding="utf-8")
         self.assertIn(version, builder)
@@ -294,7 +294,7 @@ if (earn_getMismatchQualityLabel({
             self.html,
         )
         self.assertIn(
-            "dashboard-core.js?v=core-split-20260724-mismatch-usd",
+            "dashboard-core.js?v=core-split-20260724-mismatch-floor",
             self.html,
         )
 
