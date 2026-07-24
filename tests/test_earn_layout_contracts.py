@@ -95,7 +95,7 @@ class EarnLayoutContractsTest(unittest.TestCase):
 
     def test_bundle_builder_keeps_static_layout_cache_and_local_editor_guard(self):
         self.assertIn(
-            "earn-core-20260724-mismatch-usd",
+            "earn-core-20260724-mismatch-floor",
             self.bundle_builder,
         )
         self.assertIn("new URLSearchParams(window.location.search).get('layoutEditor')", self.bundle_builder)
