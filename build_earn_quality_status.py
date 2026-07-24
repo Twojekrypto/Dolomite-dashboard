@@ -95,6 +95,41 @@ def _ledger_market_quality(data_dir: Path, chain: str, address: str, market_id: 
             "reason": "missing_market",
             "coverage": str(payload.get("canonicalHistory", {}).get("coverageStatus") or "unknown"),
         }
+    resolved = payload.get("resolvedInterestLedger") or {}
+    resolved_markets = resolved.get("markets") or {} if isinstance(resolved, dict) else {}
+    resolved_market = (
+        resolved_markets.get(str(market_id))
+        if isinstance(resolved_markets, dict)
+        else None
+    )
+    verification = (
+        (resolved.get("replayVerificationData") or {}).get(str(market_id))
+        if isinstance(resolved, dict)
+        and isinstance(resolved.get("replayVerificationData") or {}, dict)
+        else None
+    )
+    if (
+        isinstance(resolved_market, dict)
+        and isinstance(verification, dict)
+        and str(resolved.get("strictStatus") or "") == "verified"
+        and str(resolved.get("strictMethod") or "") == "interest-ledger"
+        and str(resolved_market.get("strictStatus") or "") == "verified"
+        and str(resolved_market.get("strictMethod") or "") == "interest-ledger"
+        and verification.get("rawVerified") is True
+        and verification.get("snapshotIncomplete") is not True
+        and verification.get("subgraphReplayTruncated") is not True
+        and verification.get("replayStateAdjusted") is not True
+    ):
+        return {
+            "status": "verified",
+            "method": "interest-ledger",
+            "reason": "exact_replay_reconciled",
+            "coverage": str(
+                resolved.get("canonicalHistoryCoverageStatus")
+                or market.get("canonicalHistoryCoverageStatus")
+                or "fresh"
+            ),
+        }
     status = _normalize_status(market.get("strictStatus") or market.get("status"))
     method = str(market.get("strictMethod") or market.get("method") or "unknown")
     reason = str(market.get("strictReason") or "unknown")

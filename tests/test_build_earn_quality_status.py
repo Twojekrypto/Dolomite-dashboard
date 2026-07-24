@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from build_earn_quality_status import build_quality_status
+from build_earn_quality_status import _ledger_market_quality, build_quality_status
 
 
 class EarnQualityStatusTest(unittest.TestCase):
@@ -11,6 +11,91 @@ class EarnQualityStatusTest(unittest.TestCase):
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload), encoding="utf-8")
+
+    def test_exact_nested_replay_overrides_quality_without_rewriting_raw_forensics(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            ledger = {
+                "markets": {
+                    "7": {
+                        "strictStatus": "mismatch",
+                        "strictMethod": "canonical-history-mismatch",
+                        "strictReason": "canonical_history_mismatch",
+                    },
+                },
+                "resolvedInterestLedger": {
+                    "strictStatus": "verified",
+                    "strictMethod": "interest-ledger",
+                    "markets": {
+                        "7": {
+                            "strictStatus": "verified",
+                            "strictMethod": "interest-ledger",
+                        },
+                    },
+                    "replayVerificationData": {
+                        "7": {
+                            "status": "verified",
+                            "rawVerified": True,
+                            "snapshotIncomplete": False,
+                            "subgraphReplayTruncated": False,
+                            "replayStateAdjusted": False,
+                        },
+                    },
+                },
+            }
+            ledger_path = root / f"earn-verified-ledger/arbitrum/{wallet}.json"
+            self._write_json(
+                root,
+                f"earn-verified-ledger/arbitrum/{wallet}.json",
+                ledger,
+            )
+
+            quality = _ledger_market_quality(root, "arbitrum", wallet, "7")
+            persisted = json.loads(ledger_path.read_text(encoding="utf-8"))
+
+        self.assertEqual("verified", quality["status"])
+        self.assertEqual("interest-ledger", quality["method"])
+        self.assertEqual("exact_replay_reconciled", quality["reason"])
+        self.assertEqual("mismatch", persisted["markets"]["7"]["strictStatus"])
+        self.assertEqual(
+            "canonical_history_mismatch",
+            persisted["markets"]["7"]["strictReason"],
+        )
+
+    def test_adjusted_nested_replay_does_not_override_raw_mismatch(self):
+        wallet = "0x2222222222222222222222222222222222222222"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(
+                root,
+                f"earn-verified-ledger/arbitrum/{wallet}.json",
+                {
+                    "markets": {"7": {"strictStatus": "mismatch"}},
+                    "resolvedInterestLedger": {
+                        "strictStatus": "verified",
+                        "strictMethod": "interest-ledger",
+                        "markets": {
+                            "7": {
+                                "strictStatus": "verified",
+                                "strictMethod": "interest-ledger",
+                            },
+                        },
+                        "replayVerificationData": {
+                            "7": {
+                                "rawVerified": True,
+                                "snapshotIncomplete": False,
+                                "subgraphReplayTruncated": False,
+                                "replayStateAdjusted": True,
+                            },
+                        },
+                    },
+                },
+            )
+
+            quality = _ledger_market_quality(root, "arbitrum", wallet, "7")
+
+        self.assertEqual("mismatch", quality["status"])
 
     def test_active_snapshot_positions_are_counted_against_strict_ledger_status(self):
         wallet_a = "0x1111111111111111111111111111111111111111"

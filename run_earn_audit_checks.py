@@ -26,8 +26,11 @@ PYTHON_FILES = [
     ROOT / "build_earn_bundle.py",
     ROOT / "build_earn_historical_prices.py",
     ROOT / "build_earn_representative_audit.py",
+    ROOT / "build_earn_resolved_interest_ledger.py",
     ROOT / "build_earn_verified_ledger.py",
     ROOT / "build_earn_verified_ledger_shards.py",
+    ROOT / "earn_strict_replay.py",
+    ROOT / "earn_strict_rpc_evidence.py",
     ROOT / "earn_live_config.py",
     ROOT / "materialize_earn_subaccount_history.py",
     ROOT / "plan_earn_subaccount_history_incremental.py",
@@ -37,9 +40,17 @@ PYTHON_FILES = [
     ROOT / "run_earn_canonical_history_refresh.py",
     ROOT / "run_earn_data_correctness_pipeline.py",
     ROOT / "run_earn_subaccount_history_incremental.py",
+    ROOT / "select_earn_canonical_hot_addresses.py",
     ROOT / "update_earn_freshness_status.py",
     ROOT / "update_dolo_price.py",
     ROOT / "scripts" / "smoke_live_pages.py",
+]
+
+FOCUSED_TEST_MODULES = [
+    "tests.test_earn_strict_replay",
+    "tests.test_earn_strict_rpc_evidence",
+    "tests.test_build_earn_resolved_interest_ledger",
+    "tests.test_select_earn_canonical_hot_addresses",
 ]
 
 JAVASCRIPT_FILES = [
@@ -72,6 +83,7 @@ def main() -> int:
     finally:
         js_path.unlink(missing_ok=True)
 
+    run(["python3", "-m", "unittest", *FOCUSED_TEST_MODULES], cwd=ROOT)
     run(["python3", "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"], cwd=ROOT)
     print("All EARN audit checks passed.")
     return 0
