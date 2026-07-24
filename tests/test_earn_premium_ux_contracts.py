@@ -40,33 +40,47 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
         start = self.css.index("#earn-supply-section #earn-apr-pill {")
         end = self.css.index(".earn-asset-table {", start)
         switch_css = self.css[start:end]
-        self.assertIn("height: 36px", switch_css)
-        self.assertIn("border-radius: 10px", switch_css)
-        self.assertIn("background: var(--earn-gold", switch_css)
-        self.assertIn("height: 28px", switch_css)
-        self.assertIn("border-radius: 8px", switch_css)
+        for rule in (
+            "height: 36px",
+            "padding: 3px",
+            "border-radius: 10px",
+            "width: 52px",
+            "height: 28px",
+            "display: inline-flex",
+            "align-items: center",
+            "padding: 0 14px",
+            "line-height: 18px",
+            "transform: translateX(52px)",
+            "background: var(--earn-gold",
+        ):
+            self.assertIn(rule, switch_css)
+        self.assertNotIn("min-width: 48px", switch_css)
         self.assertIn(
             "#earn-supply-section #earn-apr-pill .apr-pill-opt.active",
             switch_css,
         )
 
-    def test_dedicated_earn_route_keeps_the_gold_toggle_active_state(self):
-        self.assertIn(
-            "body.earn-draft-route #earn-supply-section #earn-apr-pill {",
-            self.draft_css,
+    def test_dedicated_earn_route_keeps_assets_switch_geometry(self):
+        start = self.draft_css.index(
+            "body.earn-draft-route #earn-supply-section #earn-apr-pill {"
         )
-        self.assertIn(
-            "border-radius: 10px !important",
-            self.draft_css,
+        end = self.draft_css.index(
+            "body.earn-draft-route .earn-error",
+            start,
         )
-        self.assertIn(
-            "background: var(--earn-gold) !important",
-            self.draft_css,
-        )
-        self.assertIn(
-            "color: var(--earn-bg-0) !important",
-            self.draft_css,
-        )
+        switch_css = self.draft_css[start:end]
+        for rule in (
+            "height: 36px !important",
+            "padding: 3px !important",
+            "width: 52px !important",
+            "height: 28px !important",
+            "display: inline-flex !important",
+            "align-items: center !important",
+            "padding: 0 14px !important",
+            "line-height: 18px !important",
+            "transform: translateX(52px) !important",
+        ):
+            self.assertIn(rule, switch_css)
 
     def test_supply_rate_lines_have_source_aware_unified_tooltips(self):
         self.assertIn(
@@ -117,17 +131,61 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
             self.css,
         )
 
+    def test_shared_summary_uses_one_institutional_ledger_surface(self):
+        start = self.css.index("/* Institutional Ledger */")
+        end = self.css.index("/* ═══════ Filter Bar", start)
+        ledger_css = self.css[start:end]
+        for rule in (
+            "grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.7fr)",
+            "gap: 0",
+            ".earn-summary-main::after",
+            "width: 1px",
+            "#c9a227",
+            ".earn-summary-metrics .earn-summary-stat + .earn-summary-stat",
+            "border-left: 1px solid",
+            "background: transparent",
+            "box-shadow: none",
+        ):
+            self.assertIn(rule, ledger_css)
+
+    def test_dedicated_summary_uses_gold_rail_without_nested_metric_cards(self):
+        start = self.draft_css.index(
+            "body.earn-draft-route .earn-summary-card {"
+        )
+        end = self.draft_css.index(
+            "body.earn-draft-route #earn-supply-section",
+            start,
+        )
+        ledger_css = self.draft_css[start:end]
+        for rule in (
+            "gap: 0 !important",
+            "padding: 0 !important",
+            "body.earn-draft-route .earn-summary-main::after",
+            "width: 1px !important",
+            "background: transparent !important",
+            "border-left: 1px solid var(--earn-line-2) !important",
+            "box-shadow: none !important",
+        ):
+            self.assertIn(rule, ledger_css)
+
+    def test_summary_rail_and_metrics_stack_without_mobile_overflow(self):
+        mobile = self.draft_css[self.draft_css.index("@media (max-width: 980px)"):]
+        self.assertIn("height: 1px !important", mobile)
+        self.assertIn("width: auto !important", mobile)
+        self.assertIn("border-top: 1px solid var(--earn-line-2) !important", mobile)
+        self.assertIn("grid-template-columns: minmax(0, 1fr) !important", mobile)
+
     def test_dedicated_earn_route_preserves_approved_summary_hierarchy(self):
         summary_start = self.draft_css.index(
             "body.earn-draft-route .earn-summary-card {"
         )
         summary_end = self.draft_css.index(
-            "body.earn-draft-route .earn-summary-stat {",
+            "body.earn-draft-route #earn-supply-section",
             summary_start,
         )
         summary_css = self.draft_css[summary_start:summary_end]
         self.assertIn(
-            "grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr) !important",
+            "grid-template-columns: minmax(0, 1.3fr) minmax(360px, .7fr) !important",
             summary_css,
         )
         self.assertIn(
@@ -143,14 +201,14 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
         self.assertNotIn(".earn-summary-secondary-grid", summary_css)
 
     def test_dedicated_earn_bundle_uses_premium_ux_cache_version(self):
-        version = "earn-core-20260723-premium-ux-2"
+        version = "earn-core-20260724-institutional-premium"
         builder = (ROOT / "build_earn_bundle.py").read_text(encoding="utf-8")
         route = (ROOT / "earn/index.html").read_text(encoding="utf-8")
         self.assertIn(version, builder)
         self.assertGreaterEqual(route.count(version), 2)
 
     def test_shared_dashboard_assets_use_premium_ux_cache_version(self):
-        version = "core-split-20260723-earn-premium-ux"
+        version = "core-split-20260724-earn-institutional-premium"
         self.assertIn(f"dashboard-core.css?v={version}", self.html)
         self.assertIn(f"dashboard-core.js?v={version}", self.html)
 

@@ -10371,7 +10371,7 @@
                 return {
                     counted: true,
                     status: 'inferred',
-                    label: inferred.status === 'pre_snapshot_carry' ? 'Inferred Carry' : 'Inferred',
+                    label: inferred.status === 'pre_snapshot_carry' ? 'Carry' : 'Inferred',
                     title: inferred.status === 'pre_snapshot_carry'
                         ? 'This market can be inferred from public netflow plus snapshot history, but it is not treated as strict verification because part of the carry predates local coverage.'
                         : 'This market can be inferred from public netflow plus snapshot history, but it is not treated as strict verification.',
@@ -10390,7 +10390,7 @@
                 return {
                     counted: true,
                     status: 'inferred',
-                    label: isPreSnapshotCarry ? 'Inferred Carry' : 'Inferred',
+                    label: isPreSnapshotCarry ? 'Carry' : 'Inferred',
                     title: isPreSnapshotCarry
                         ? 'Historical snapshot data suggests older carry existed before local coverage began. This is useful evidence, but not strict replay verification.'
                         : 'Snapshot and public netflow reconcile for this market, but principal can change between snapshots, so this remains historical evidence rather than strict replay verification.',
@@ -11773,12 +11773,12 @@
                 return {
                     counted: true,
                     status: 'inferred',
-                    label: (method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry') ? 'Inferred Carry' : 'Inferred',
+                    label: (method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry') ? 'Carry' : 'Inferred',
                     title: (method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry')
                         ? 'This yield can be inferred from public netflow plus snapshot history, but it is not strict replay verification because part of the carry predates local coverage.'
                         : 'This yield reconciles through public netflow plus snapshot history, but it is not strict replay verification.',
                     rawStatus: status || 'inferred',
-                    rawLabel: (method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry') ? 'Inferred Carry' : 'Inferred',
+                    rawLabel: (method === 'all-netflow-pre-snapshot-carry' || method === 'recent-cycle-pre-snapshot-carry') ? 'Carry' : 'Inferred',
                     rawTitle: 'Useful historical evidence, but not strict replay verification.',
                     overridden: true,
                     entry: null,

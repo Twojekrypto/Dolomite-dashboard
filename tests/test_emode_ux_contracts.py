@@ -60,14 +60,20 @@ class EModeUxContractsTest(unittest.TestCase):
             "liquidation/index.html": "20260713-emode",
             "borrow/index.html": "20260713-emode",
             "supply/index.html": "20260713-emode",
-            "earn/index.html": "earn-core-20260723-premium-ux-2",
+            "earn/index.html": "earn-core-20260724-institutional-premium",
             "rewards/index.html": "20260713-supply-copy",
         }
         for path, version in route_versions.items():
             with self.subTest(path=path):
                 self.assertIn(version, (ROOT / path).read_text(encoding="utf-8"))
-        self.assertIn('dashboard-core.css?v=core-split-20260723-earn-premium-ux', self.earn_html)
-        self.assertIn('dashboard-core.js?v=core-split-20260723-earn-premium-ux', self.earn_html)
+        self.assertIn(
+            "dashboard-core.css?v=core-split-20260724-earn-institutional-premium",
+            self.earn_html,
+        )
+        self.assertIn(
+            "dashboard-core.js?v=core-split-20260724-earn-institutional-premium",
+            self.earn_html,
+        )
 
     def test_both_earn_render_paths_share_full_emode_badge(self):
         badge_css = between(
