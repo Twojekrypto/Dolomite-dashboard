@@ -131,6 +131,29 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
             self.css,
         )
 
+    def test_portfolio_value_uses_chips_without_duplicate_counter_sentence(self):
+        summary_scope = self.js.index("const summaryRunId =")
+        summary_start = self.js.index("summaryEl.innerHTML = `", summary_scope)
+        summary_end = self.js.index(
+            "summaryEl.classList.add('visible')",
+            summary_start,
+        )
+        summary_js = self.js[summary_start:summary_end]
+        debt_start = self.js.index("function earn_updateSummaryDebt(positions)")
+        debt_end = self.js.index(
+            "function earn_renderWithdrawnAssets",
+            debt_start,
+        )
+        debt_js = self.js[debt_start:debt_end]
+
+        self.assertNotIn("earn-summary-portfolio-sub", summary_js)
+        self.assertNotIn("portfolioSub", summary_js)
+        self.assertNotIn("earn-summary-portfolio-sub", debt_js)
+        self.assertNotIn("portfolioSubEl", debt_js)
+        self.assertIn('id="earn-summary-supply-chip"', summary_js)
+        self.assertIn('id="earn-summary-borrow-chip"', summary_js)
+        self.assertIn("summaryVerificationChip", summary_js)
+
     def test_shared_summary_uses_one_institutional_ledger_surface(self):
         start = self.css.index("/* Institutional Ledger */")
         end = self.css.index("/* ═══════ Filter Bar", start)
@@ -201,14 +224,14 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
         self.assertNotIn(".earn-summary-secondary-grid", summary_css)
 
     def test_dedicated_earn_bundle_uses_premium_ux_cache_version(self):
-        version = "earn-core-20260724-institutional-premium"
+        version = "earn-core-20260724-portfolio-dedupe"
         builder = (ROOT / "build_earn_bundle.py").read_text(encoding="utf-8")
         route = (ROOT / "earn/index.html").read_text(encoding="utf-8")
         self.assertIn(version, builder)
         self.assertGreaterEqual(route.count(version), 2)
 
     def test_shared_dashboard_assets_use_premium_ux_cache_version(self):
-        version = "core-split-20260724-earn-institutional-premium"
+        version = "core-split-20260724-portfolio-dedupe"
         self.assertIn(f"dashboard-core.css?v={version}", self.html)
         self.assertIn(f"dashboard-core.js?v={version}", self.html)
 

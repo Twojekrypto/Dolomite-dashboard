@@ -18741,7 +18741,6 @@
 
             const portfolioVal = totalSupplyUsd + totalCollateral - totalDebt;
             const portfolioValueEl = document.getElementById('earn-summary-portfolio-value');
-            const portfolioSubEl = document.getElementById('earn-summary-portfolio-sub');
             const supplyChipEl = document.getElementById('earn-summary-supply-chip');
             const borrowChipEl = document.getElementById('earn-summary-borrow-chip');
             if (portfolioValueEl) {
@@ -18749,9 +18748,6 @@
                 portfolioValueEl.setAttribute('data-tip', earn_formatUSDExact(portfolioVal));
                 portfolioValueEl.removeAttribute('title');
                 portfolioValueEl.className = 'earn-summary-value ' + (portfolioVal > 0 ? 'neutral' : 'negative');
-            }
-            if (portfolioSubEl) {
-                portfolioSubEl.innerHTML = `<span class="sub-highlight">${activeCount}</span> supply · <span style="color:#f87171">${positions.length}</span> borrow`;
             }
             if (supplyChipEl) {
                 supplyChipEl.textContent = `${activeCount} supply asset${activeCount !== 1 ? 's' : ''}`;
@@ -19878,9 +19874,6 @@
                     const bestPerformerValueClass = bestYieldUsd > 0 ? 'positive' : 'neutral';
                     const rewardsMutedClass = ' is-muted';
 
-                    // Portfolio sub label (will be updated when lending positions arrive)
-                    const portfolioSub = `<span class="sub-highlight">${activeCount}</span> supply · <span style="color:#f87171">${borrowRouteCount}</span> borrow`;
-
                     // Check if the current address has a known identity
                     const searchAddr = document.getElementById('earn-address').value.trim();
                     const addrBadgeHtml = (typeof dolo_labelBadge === 'function') ? dolo_labelBadge(searchAddr) : '';
@@ -19905,7 +19898,6 @@
                                     <div class="earn-summary-context-pill">${summaryContextText}</div>
                                 </div>
                                 <div class="earn-summary-value neutral" id="earn-summary-portfolio-value" data-tip="${portfolioValueTitle}">${earn_formatUSD(totalUsd)}</div>
-                                <div class="earn-summary-sub" id="earn-summary-portfolio-sub">${portfolioSub}</div>
                                 <div class="earn-summary-chip-row">
                                     <span class="earn-summary-chip" id="earn-summary-supply-chip">${activeCount} supply asset${activeCount !== 1 ? 's' : ''}</span>
                                     <span class="earn-summary-chip ${summaryBorrowChipClass}" id="earn-summary-borrow-chip">${summaryBorrowChip}</span>
