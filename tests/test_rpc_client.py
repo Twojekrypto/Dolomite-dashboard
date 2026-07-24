@@ -25,6 +25,29 @@ def _response(json_data, status=200):
 
 
 class TestEndpoints(unittest.TestCase):
+    def test_strict_replay_reads_existing_mantle_and_xlayer_secret_names(self):
+        for env_name in (
+            "MANTLE_RPC",
+            "MANTLE_RPC_2",
+            "QUICKNODE_MANTLE_RPC",
+            "QUICKNODE_MANTLE_RPC_2",
+            "MANTLE_RPC_QUICKNODE_TWOJE",
+            "DRPC_MANTLE_RPC",
+            "DRPC_MANTLE_RPC_ZEN",
+            "ALCHEMY_MANTLE_RPC_ZEN",
+            "ALCHEMY_MANTLE_RPC_DANU",
+            "ALCHEMY_MANTLE_RPC_3",
+        ):
+            self.assertIn(env_name, rpc_client.CHAIN_ENV_KEYS["mantle"])
+        for env_name in (
+            "XLAYER_RPC_QUICKNODE_TWOJE",
+            "XLAYER_RPC",
+            "XLAYER_RPC_2",
+            "ALCHEMY_XLAYER_RPC_ZEN",
+            "DRP_XLAYER_RPC_TWO",
+        ):
+            self.assertIn(env_name, rpc_client.CHAIN_ENV_KEYS["xlayer"])
+
     def test_env_endpoint_first(self):
         with mock.patch.dict(os.environ, {"ALCHEMY_BERACHAIN_RPC": "https://x.example/v2/key"}):
             eps = get_endpoints("berachain")
