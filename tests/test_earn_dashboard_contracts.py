@@ -64,6 +64,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertNotIn("chain: polygonzkevm", workflow)
         self.assertIn("wallet_limit:", workflow)
         self.assertIn("--strict-remediation", workflow)
+        self.assertNotIn("--include-priority-even-if-unknown", workflow)
         self.assertIn("--fetch-strict-rpc-evidence", workflow)
         self.assertIn("group: ${{ matrix.concurrency_group }}", workflow)
         for group in (
