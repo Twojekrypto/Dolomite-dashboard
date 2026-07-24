@@ -804,22 +804,21 @@ def apply_cycle_metadata(netflows, cycle_market_state):
         storage_entry["endingPar"] = str(state["endingPar"])
         storage_entry.pop("recentNetFlow", None)
         storage_entry.pop("resetPar", None)
+        storage_entry.pop("cycleStartProof", None)
         if state["endingPar"] <= 0 or state["peakPar"] <= 0:
             continue
 
-        reset_threshold = state["endingPar"] // 5
         reset_candidate = None
         for candidate in reversed(state["suffixCandidates"]):
-            if candidate["balance"] <= 0:
-                continue
-            if candidate["balance"] <= reset_threshold:
+            if candidate["balance"] == 0:
                 reset_candidate = candidate
                 break
         if reset_candidate is None:
             continue
         recent_netflow = state["totalWei"] - reset_candidate["prefixWei"]
         storage_entry["recentNetFlow"] = str(recent_netflow)
-        storage_entry["resetPar"] = str(reset_candidate["balance"])
+        storage_entry["resetPar"] = "0"
+        storage_entry["cycleStartProof"] = "exact-zero"
 
 
 def write_netflow_output(chain_id, last_block, netflows, *, scan_complete=True, scan_status="complete"):

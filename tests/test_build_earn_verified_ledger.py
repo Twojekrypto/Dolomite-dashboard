@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import build_earn_verified_ledger as verified_ledger
 from build_earn_verified_ledger import (
     _calculate_historical_yield_pnl,
     _derive_strict_verification,
@@ -13,6 +14,24 @@ from build_earn_verified_ledger import (
 
 
 class BuildEarnVerifiedLedgerTest(unittest.TestCase):
+    def test_recent_cycle_baseline_requires_exact_zero_proof(self):
+        helper = getattr(verified_ledger, "_trusted_recent_cycle_netflow", None)
+        self.assertIsNotNone(helper)
+        self.assertIsNone(helper({"recentNetFlow": "100", "resetPar": "0"}))
+        self.assertIsNone(helper({
+            "recentNetFlow": "100",
+            "resetPar": "10",
+            "cycleStartProof": "heuristic",
+        }))
+        self.assertEqual(
+            helper({
+                "recentNetFlow": "100",
+                "resetPar": "0",
+                "cycleStartProof": "exact-zero",
+            }),
+            100,
+        )
+
     def test_accepts_verified_resolved_interest_ledger_at_canonical_block(self):
         address = "0x1111111111111111111111111111111111111111"
         artifact = {

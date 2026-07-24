@@ -14,6 +14,58 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ScanEarnNetflowTest(unittest.TestCase):
+    def test_cycle_metadata_rejects_a_small_nonzero_reset(self):
+        netflows = {
+            "0x1111111111111111111111111111111111111111": {
+                "1": {"t": "150"},
+            },
+        }
+        cycle_market_state = {
+            ("0x1111111111111111111111111111111111111111", "1"): {
+                "endingPar": 100,
+                "peakPar": 100,
+                "totalWei": 150,
+                "suffixCandidates": [
+                    {"balance": 10, "prefixWei": 50},
+                    {"balance": 100, "prefixWei": 150},
+                ],
+            },
+        }
+
+        scan_earn_netflow.apply_cycle_metadata(netflows, cycle_market_state)
+
+        entry = netflows["0x1111111111111111111111111111111111111111"]["1"]
+        self.assertEqual(entry["endingPar"], "100")
+        self.assertNotIn("recentNetFlow", entry)
+        self.assertNotIn("resetPar", entry)
+        self.assertNotIn("cycleStartProof", entry)
+
+    def test_cycle_metadata_requires_and_marks_an_exact_zero_reset(self):
+        netflows = {
+            "0x1111111111111111111111111111111111111111": {
+                "1": {"t": "150"},
+            },
+        }
+        cycle_market_state = {
+            ("0x1111111111111111111111111111111111111111", "1"): {
+                "endingPar": 100,
+                "peakPar": 100,
+                "totalWei": 150,
+                "suffixCandidates": [
+                    {"balance": 0, "prefixWei": 50},
+                    {"balance": 100, "prefixWei": 150},
+                ],
+            },
+        }
+
+        scan_earn_netflow.apply_cycle_metadata(netflows, cycle_market_state)
+
+        entry = netflows["0x1111111111111111111111111111111111111111"]["1"]
+        self.assertEqual(entry["endingPar"], "100")
+        self.assertEqual(entry["recentNetFlow"], "100")
+        self.assertEqual(entry["resetPar"], "0")
+        self.assertEqual(entry["cycleStartProof"], "exact-zero")
+
     def test_ethereum_prefers_verified_archive_log_endpoints(self):
         rpcs = scan_earn_netflow.CHAINS["ethereum"]["rpcs"]
 

@@ -72,6 +72,19 @@ def _parse_int(value, default=0):
         return default
 
 
+def _trusted_recent_cycle_netflow(flow_entry):
+    """Return cycle netflow only when its exact zero-balance start is proven."""
+    if not isinstance(flow_entry, dict):
+        return None
+    if str(flow_entry.get("cycleStartProof") or "") != "exact-zero":
+        return None
+    if _parse_int(flow_entry.get("resetPar"), None) != 0:
+        return None
+    if flow_entry.get("recentNetFlow") is None:
+        return None
+    return _parse_int(flow_entry.get("recentNetFlow"), None)
+
+
 def _is_integer_text(value):
     if isinstance(value, bool):
         return False
@@ -622,7 +635,7 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
         ending_par = None
         if isinstance(flow_entry, dict):
             netflow_t = _parse_int(flow_entry.get("t", "0"))
-            recent_cycle_t = _parse_int(flow_entry.get("recentNetFlow"), None) if flow_entry.get("recentNetFlow") is not None else None
+            recent_cycle_t = _trusted_recent_cycle_netflow(flow_entry)
             reset_par = _parse_int(flow_entry.get("resetPar"), None) if flow_entry.get("resetPar") is not None else None
             ending_par = _parse_int(flow_entry.get("endingPar"), None) if flow_entry.get("endingPar") is not None else None
         elif flow_entry is not None:
@@ -780,6 +793,7 @@ def _build_address_ledger(address, chain, latest_date, snapshots, netflow_by_add
             payload["recentCycleDiff"] = str(recent_cycle_diff)
         if recent_cycle_t is not None:
             payload["recentCycleNetFlow"] = str(recent_cycle_t)
+            payload["cycleStartProof"] = "exact-zero"
         if reset_par is not None:
             payload["resetPar"] = str(reset_par)
         if ending_par is not None:
