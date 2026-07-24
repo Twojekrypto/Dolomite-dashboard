@@ -3650,7 +3650,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     hasStaticParWindow
                 )
             ];
-            if (flowMeta.recentCycleNetFlow !== null) {
+            if (flowMeta.recentCycleNetFlow !== null && flowMeta.cycleStartProof === 'exact-zero') {
                 baselines.push(
                     earn_buildPublicLedgerBaseline(
                         'recent-cycle',
@@ -5674,6 +5674,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                     recentCycleNetFlow: null,
                     resetPar: null,
                     endingPar: null,
+                    cycleStartProof: '',
                 };
             }
             return {
@@ -5689,6 +5690,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 recentCycleNetFlow: flowData.recentNetFlow !== undefined ? BigInt(flowData.recentNetFlow || '0') : null,
                 resetPar: flowData.resetPar !== undefined ? BigInt(flowData.resetPar || '0') : null,
                 endingPar: flowData.endingPar !== undefined ? BigInt(flowData.endingPar || '0') : null,
+                cycleStartProof: String(flowData.cycleStartProof || ''),
             };
         }
 
@@ -5768,7 +5770,12 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             }
 
             const allNetflowCandidate = hasAllNetflow ? (wei - flowMeta.netFlow) : null;
-            const recentCycleCandidate = (isActivePosition && hasAllNetflow && flowMeta.recentCycleNetFlow !== null)
+            const recentCycleCandidate = (
+                isActivePosition
+                && hasAllNetflow
+                && flowMeta.recentCycleNetFlow !== null
+                && flowMeta.cycleStartProof === 'exact-zero'
+            )
                 ? (wei - flowMeta.recentCycleNetFlow)
                 : null;
             const interestYieldCandidate = hasInterestYield ? BigInt(interestMeta.earnYield || '0') : null;
@@ -8484,13 +8491,9 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 });
                 if (runningPar <= 0n || peakPar <= 0n) return { endingPar: runningPar.toString() };
 
-                const resetThreshold = runningPar / 5n;
-                let suffixMin = runningPar;
                 let resetIdx = -1;
                 for (let i = balances.length - 1; i >= 0; i--) {
-                    const bal = balances[i].balance;
-                    if (bal < suffixMin) suffixMin = bal;
-                    if (bal === suffixMin && bal > 0n && bal <= resetThreshold) {
+                    if (balances[i].balance === 0n) {
                         resetIdx = i;
                         break;
                     }
@@ -8503,9 +8506,10 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 }
                 return {
                     endingPar: runningPar.toString(),
-                    resetPar: balances[resetIdx].balance.toString(),
+                    resetPar: '0',
                     recentNetFlow: recentNetFlow.toString(),
                     lastResetSerial: String(balances[resetIdx].serial),
+                    cycleStartProof: 'exact-zero',
                 };
             };
             const buildInterestYieldSummary = (currentIndexMap) => {
@@ -8890,6 +8894,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 if (cycleSummary && cycleSummary.recentNetFlow !== undefined) {
                     entry.recentNetFlow = cycleSummary.recentNetFlow;
                     entry.resetPar = cycleSummary.resetPar;
+                    entry.cycleStartProof = cycleSummary.cycleStartProof;
                 }
                 if (cycleSummary && cycleSummary.endingPar !== undefined) {
                     entry.endingPar = cycleSummary.endingPar;

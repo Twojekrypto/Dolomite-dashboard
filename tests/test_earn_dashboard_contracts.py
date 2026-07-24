@@ -49,6 +49,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
             if extracted.exists():
                 cls.source += "\n" + extracted.read_text(encoding="utf-8")
 
+    def test_recent_cycle_fallback_requires_exact_zero_proof(self):
+        self.assertIn("cycleStartProof", self.source)
+        self.assertIn("flowMeta.cycleStartProof === 'exact-zero'", self.source)
+        self.assertIn("cycleStartProof: 'exact-zero'", self.source)
+
     def test_borrow_positions_prefer_replay_ledger_for_open_debt_cost(self):
         self.assertIn("function earn_getOpenDebtYieldForAccount", self.source)
         self.assertIn("const replayOpenDebtYieldWei = earn_getOpenDebtYieldForAccount", self.source)
