@@ -109,4 +109,3 @@ stretches to the available width and keeps equal options.
 6. Shared and generated EARN assets are synchronized.
 7. Contract tests pass, JavaScript parses, browser-computed layout is aligned,
    and the requested branch is pushed.
-
