@@ -14,6 +14,54 @@ from build_earn_verified_ledger import (
 
 
 class BuildEarnVerifiedLedgerTest(unittest.TestCase):
+    def test_rejects_truncated_or_adjusted_resolved_replay(self):
+        address = "0x1111111111111111111111111111111111111111"
+        base = {
+            "chain": "arbitrum",
+            "address": address,
+            "snapshotDate": "2026-07-18",
+            "comparisonBlock": 12345,
+            "strictStatus": "verified",
+            "strictMethod": "interest-ledger",
+            "canonicalHistoryCoverageStatus": "fresh",
+            "markets": {"1": {
+                "earnYield": "1",
+                "settledYield": "1",
+                "settledSupplyYield": "1",
+                "settledBorrowYield": "0",
+                "openBorrowYield": "0",
+                "openSupplyYield": "0",
+                "openCollateralYield": "0",
+                "currentBorrowPar": "0",
+                "currentSupplyPar": "0",
+                "currentCollateralSupplyPar": "0",
+                "strictStatus": "verified",
+                "strictMethod": "interest-ledger",
+            }},
+            "replayVerificationData": {"1": {
+                "status": "verified",
+                "counted": True,
+                "canVerify": True,
+                "rawVerified": True,
+                "snapshotIncomplete": False,
+                "subgraphReplayTruncated": False,
+                "replayStateAdjusted": False,
+            }},
+        }
+
+        for flag in ("subgraphReplayTruncated", "replayStateAdjusted"):
+            with self.subTest(flag=flag):
+                artifact = json.loads(json.dumps(base))
+                artifact["replayVerificationData"]["1"][flag] = True
+                self.assertIsNone(_validate_resolved_interest_ledger(
+                    artifact,
+                    chain="arbitrum",
+                    address=address,
+                    latest_date="2026-07-18",
+                    canonical_history={"lastScannedBlock": 12345},
+                    snapshot_comparison_block=12345,
+                ))
+
     def test_recent_cycle_baseline_requires_exact_zero_proof(self):
         helper = getattr(verified_ledger, "_trusted_recent_cycle_netflow", None)
         self.assertIsNotNone(helper)

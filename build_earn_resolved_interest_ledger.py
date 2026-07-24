@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
+from earn_strict_replay import build_strict_replay
 from scan_earn_netflow import CHAINS as EARN_CHAIN_CONFIG
 
 
@@ -166,6 +167,119 @@ def _verification_entry(market: dict, expected_par: int, expected_wei: int) -> d
     }
 
 
+def _strict_diagnostic_failure(diagnostics: Optional[dict], reason: str) -> None:
+    if diagnostics is None:
+        return
+    diagnostics.clear()
+    diagnostics.update({
+        "strictStatus": "coverage_incomplete",
+        "reason": str(reason),
+        "markets": {},
+    })
+
+
+def _build_rpc_resolved_ledger(
+    chain: str,
+    address: str,
+    snapshot_date: str,
+    comparison_block: int,
+    snapshot_markets: dict,
+    history_payload: dict,
+    strict_evidence: dict,
+    *,
+    generated_at: Optional[str],
+    diagnostics: Optional[dict],
+):
+    evidence_block = _integer((strict_evidence or {}).get("comparisonBlock"), 0)
+    if evidence_block != comparison_block:
+        _strict_diagnostic_failure(diagnostics, "evidence_comparison_block_mismatch")
+        return None
+
+    replay = build_strict_replay(history_payload, strict_evidence)
+    verification = dict(replay.get("verification") or {})
+    active_market_ids = {str(market_id) for market_id in snapshot_markets}
+    for market_id in active_market_ids:
+        if market_id not in verification:
+            verification[market_id] = {
+                "status": "coverage_incomplete",
+                "strictStatus": "coverage_incomplete",
+                "reason": "active_market_missing_from_replay",
+                "counted": False,
+                "canVerify": False,
+                "rawVerified": False,
+                "strictVerified": False,
+                "snapshotIncomplete": False,
+                "subgraphReplayTruncated": False,
+                "replayStateAdjusted": False,
+            }
+
+    statuses = {str(row.get("status") or "") for row in verification.values()}
+    diagnostic_status = (
+        "mismatch"
+        if "mismatch" in statuses
+        else "coverage_incomplete"
+        if "coverage_incomplete" in statuses
+        else "verified"
+    )
+    if diagnostics is not None:
+        diagnostics.clear()
+        diagnostics.update({
+            "chain": chain,
+            "address": address,
+            "snapshotDate": str(snapshot_date),
+            "comparisonBlock": comparison_block,
+            "strictStatus": diagnostic_status,
+            "reason": replay.get("reason"),
+            "markets": verification,
+        })
+
+    exact_markets = {
+        market_id: market
+        for market_id, market in (replay.get("markets") or {}).items()
+        if str(market_id) in active_market_ids
+        and str((verification.get(str(market_id)) or {}).get("status") or "") == "verified"
+    }
+    if not exact_markets:
+        return None
+
+    exact_market_ids = set(exact_markets)
+    account_states = {
+        key: state
+        for key, state in (replay.get("accountStates") or {}).items()
+        if "|" in str(key) and str(key).split("|", 1)[1] in exact_market_ids
+    }
+    current_indexes = {
+        market_id: index
+        for market_id, index in ((strict_evidence.get("currentIndexes") or {}).items())
+        if str(market_id) in exact_market_ids
+    }
+    return {
+        "version": 1,
+        "chain": chain,
+        "address": address,
+        "snapshotDate": str(snapshot_date),
+        "comparisonBlock": comparison_block,
+        "generatedAt": generated_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "strictStatus": "verified",
+        "strictMethod": "interest-ledger",
+        "canonicalHistoryCoverageStatus": "fresh",
+        "markets": exact_markets,
+        "replayVerificationData": {
+            market_id: verification[market_id]
+            for market_id in exact_market_ids
+        },
+        "replayStateData": {
+            market_id: state
+            for market_id, state in (replay.get("replayStateData") or {}).items()
+            if str(market_id) in exact_market_ids
+        },
+        "accountStateData": account_states,
+        "currentIndexMap": current_indexes,
+        "openBorrowAccounts": list(replay.get("openBorrowAccounts") or []),
+        "borrowAccountsOverride": list(replay.get("openBorrowAccounts") or []),
+    }
+
+
 def build_resolved_ledger(
     chain: str,
     address: str,
@@ -174,35 +288,57 @@ def build_resolved_ledger(
     history_payload: dict,
     *,
     generated_at: Optional[str] = None,
+    strict_evidence: Optional[dict] = None,
+    diagnostics: Optional[dict] = None,
 ):
     chain = str(chain).lower()
     address = str(address).lower()
     if not isinstance(snapshot_payload, dict) or not isinstance(history_payload, dict):
+        _strict_diagnostic_failure(diagnostics, "invalid_input")
         return None
     if str(history_payload.get("chain") or "").lower() != chain:
+        _strict_diagnostic_failure(diagnostics, "history_chain_mismatch")
         return None
     if str(history_payload.get("address") or "").lower() != address:
+        _strict_diagnostic_failure(diagnostics, "history_address_mismatch")
         return None
     source_date = str(((history_payload.get("sourceMetadata") or {}).get("latestSnapshotDate") or ""))
     if source_date != str(snapshot_date):
+        _strict_diagnostic_failure(diagnostics, "history_snapshot_date_mismatch")
         return None
     canonical_start_block = _integer((EARN_CHAIN_CONFIG.get(chain) or {}).get("start_block"), 0)
     scan_from_block = _integer(((history_payload.get("scanRange") or {}).get("fromBlock")), 0)
     if canonical_start_block > 0 and (scan_from_block <= 0 or scan_from_block > canonical_start_block):
+        _strict_diagnostic_failure(diagnostics, "history_starts_after_protocol_start")
         return None
 
     chain_metadata = ((snapshot_payload.get("chainMetadata") or {}).get(chain) or {})
     comparison_block = _integer(chain_metadata.get("blockNumber"), 0)
     if comparison_block <= 0 or _integer(history_payload.get("lastScannedBlock"), 0) < comparison_block:
+        _strict_diagnostic_failure(diagnostics, "stale_comparison_block")
         return None
     wallet = ((((snapshot_payload.get("snapshots") or {}).get(chain) or {}).get(address)) or {})
     snapshot_markets = wallet.get("markets") or {}
     if not isinstance(snapshot_markets, dict) or not snapshot_markets:
+        _strict_diagnostic_failure(diagnostics, "missing_active_snapshot_markets")
         return None
     index_map = chain_metadata.get("interestIndexes") or {}
     accounts = history_payload.get("accounts") or {}
     if not isinstance(accounts, dict) or not accounts:
+        _strict_diagnostic_failure(diagnostics, "missing_canonical_accounts")
         return None
+    if strict_evidence is not None:
+        return _build_rpc_resolved_ledger(
+            chain,
+            address,
+            snapshot_date,
+            comparison_block,
+            snapshot_markets,
+            history_payload,
+            strict_evidence,
+            generated_at=generated_at,
+            diagnostics=diagnostics,
+        )
     if any(not isinstance(account_data, dict) or account_data.get("accountKnown") is not True or account_data.get("hasBorrow") is True
            for account_data in accounts.values()):
         return None
@@ -363,6 +499,8 @@ def main() -> int:
     parser.add_argument("--all-active", action="store_true")
     parser.add_argument("--existing-addresses", action="store_true")
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
+    parser.add_argument("--fetch-strict-rpc-evidence", action="store_true")
+    parser.add_argument("--status-output", type=Path, default=None)
     args = parser.parse_args()
 
     requested = {str(address).lower() for address in args.address}
@@ -370,10 +508,20 @@ def main() -> int:
     if not requested and not args.all_active and not args.existing_addresses:
         raise SystemExit("Provide --address, --address-file, --all-active, or --existing-addresses")
 
+    status_payload = {
+        "version": 1,
+        "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "chains": {},
+    }
     for chain in sorted({str(value).lower() for value in args.chain}):
         snapshot_date, snapshot_payload = _latest_snapshot(chain)
         if not snapshot_date or not isinstance(snapshot_payload, dict):
             print(f"[{chain}] no snapshot available")
+            status_payload["chains"][chain] = {
+                "strictStatus": "coverage_incomplete",
+                "reason": "missing_snapshot",
+                "addresses": {},
+            }
             continue
         addresses = set(requested)
         if args.all_active:
@@ -383,9 +531,50 @@ def main() -> int:
 
         wrote = 0
         removed = 0
+        chain_diagnostics = {}
         for address in sorted(addresses):
             history = _read_json(HISTORY_DIR / chain / f"{address}.json", None)
-            ledger = build_resolved_ledger(chain, address, snapshot_date, snapshot_payload, history)
+            diagnostics = {}
+            strict_evidence = None
+            evidence_failed = False
+            if args.fetch_strict_rpc_evidence:
+                comparison_block = _integer(
+                    (((snapshot_payload.get("chainMetadata") or {}).get(chain) or {}).get("blockNumber")),
+                    0,
+                )
+                if isinstance(history, dict) and comparison_block > 0:
+                    try:
+                        from earn_strict_rpc_evidence import fetch_strict_evidence
+
+                        strict_evidence = fetch_strict_evidence(
+                            chain,
+                            address,
+                            history,
+                            comparison_block=comparison_block,
+                        )
+                    except Exception as exc:
+                        evidence_failed = True
+                        _strict_diagnostic_failure(diagnostics, "rpc_evidence_error")
+                        print(
+                            f"[{chain}] strict RPC evidence failed for {address}: "
+                            f"{type(exc).__name__}",
+                            flush=True,
+                        )
+                else:
+                    strict_evidence = {}
+
+            if evidence_failed:
+                ledger = None
+            else:
+                ledger = build_resolved_ledger(
+                    chain,
+                    address,
+                    snapshot_date,
+                    snapshot_payload,
+                    history,
+                    strict_evidence=strict_evidence if args.fetch_strict_rpc_evidence else None,
+                    diagnostics=diagnostics if args.fetch_strict_rpc_evidence else None,
+                )
             output_path = args.output_dir / chain / f"{address}.json"
             if ledger:
                 _write_json(output_path, ledger)
@@ -393,8 +582,26 @@ def main() -> int:
             elif output_path.is_file():
                 output_path.unlink()
                 removed += 1
+            if args.fetch_strict_rpc_evidence:
+                diagnostics.setdefault("chain", chain)
+                diagnostics.setdefault("address", address)
+                diagnostics.setdefault("snapshotDate", snapshot_date)
+                chain_diagnostics[address] = diagnostics
         _update_manifest(args.output_dir, chain, snapshot_date)
+        if args.fetch_strict_rpc_evidence:
+            summary = {}
+            for row in chain_diagnostics.values():
+                status = str(row.get("strictStatus") or "coverage_incomplete")
+                summary[status] = summary.get(status, 0) + 1
+            status_payload["chains"][chain] = {
+                "snapshotDate": snapshot_date,
+                "selectedAddressCount": len(addresses),
+                "summary": summary,
+                "addresses": chain_diagnostics,
+            }
         print(f"[{chain}] resolved ledgers: wrote={wrote} removed={removed} selected={len(addresses)}")
+    if args.status_output:
+        _write_json(args.status_output, status_payload)
     return 0
 
 
