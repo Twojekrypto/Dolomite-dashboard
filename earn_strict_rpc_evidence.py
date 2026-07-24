@@ -324,4 +324,3 @@ def fetch_strict_evidence(
         "currentPositions": current_positions,
         "errors": errors,
     }
-

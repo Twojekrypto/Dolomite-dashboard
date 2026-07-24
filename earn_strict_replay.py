@@ -608,4 +608,3 @@ def build_strict_replay(history_payload: dict, evidence: dict) -> dict:
     if reason:
         result["reason"] = reason
     return result
-
