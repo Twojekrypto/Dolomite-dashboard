@@ -4720,6 +4720,16 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 : 'Replay mismatch vs onchain balances.';
         }
 
+        function earn_getMismatchQualityLabel(verification) {
+            if (!verification) return 'Unverified';
+            if (verification.status !== 'mismatch') return verification.label || 'Unverified';
+            const entry = verification.entry;
+            if (!entry || entry.maxUsdDrift === null || entry.maxUsdDrift === undefined) return 'Mismatch';
+            const drift = Number(entry.maxUsdDrift);
+            if (!Number.isFinite(drift) || drift < 0) return 'Mismatch';
+            return `Mismatch · ${earn_formatUsdDrift(drift)}`;
+        }
+
         function earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals) {
             const entry = earn_getVerification(marketId);
             const snapshotLedgerPresentation = earn_getSnapshotLedgerPresentation(marketId, yieldCalc);
@@ -4899,7 +4909,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             if (!earn_replayVerificationReady) return '';
             const presentation = earn_getVerificationPresentation(marketId, yieldCalc, symbol, decimals);
             if (!presentation || !presentation.counted) return '';
-            return `<span class="earn-verify-badge ${presentation.status}" data-tip="${earn_escapeHtml(presentation.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(presentation.label)}</span>`;
+            return `<span class="earn-verify-badge ${presentation.status}" data-tip="${earn_escapeHtml(presentation.title)}"><span class="earn-status-dot"></span>${earn_escapeHtml(earn_getMismatchQualityLabel(presentation))}</span>`;
         }
 
         function earn_escapeHtml(value) {
@@ -4991,7 +5001,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 if (verification && verification.counted) {
                     markers.push({
                         cls: verification.status,
-                        label: verification.label,
+                        label: earn_getMismatchQualityLabel(verification),
                         title: verification.title,
                     });
                 }
@@ -5028,7 +5038,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
             if (!Number.isFinite(num)) return 'Unavailable';
             if (num <= 0) return '$0.00';
             const abs = Math.abs(num);
-            const decimals = abs >= 1000 ? 0 : abs >= 1 ? 2 : abs >= 0.01 ? 4 : 6;
+            const decimals = abs >= 1000 ? 0 : abs >= 0.01 ? 2 : abs >= 0.0001 ? 4 : 6;
             return '$' + abs.toLocaleString('en-US', {
                 minimumFractionDigits: decimals,
                 maximumFractionDigits: decimals,

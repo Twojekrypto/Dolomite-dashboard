@@ -12,7 +12,7 @@ SOURCE_HTML = ROOT / "dashboard-core.html"
 SOURCE_JS = ROOT / "dashboard-core.js"
 OUTPUT_HTML = ROOT / "earn" / "earn-core.html"
 OUTPUT_JS = ROOT / "earn" / "earn-core.js"
-STATIC_LAYOUT_VERSION = "earn-core-20260724-strict-replay"
+STATIC_LAYOUT_VERSION = "earn-core-20260724-mismatch-usd"
 
 
 def _slice(source: str, start: str, end: str, *, include_end: bool = False) -> str:

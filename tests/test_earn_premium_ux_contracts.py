@@ -1,3 +1,4 @@
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -34,6 +35,63 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
         self.assertIn(".earn-quality-marker.verified", quality_css)
         self.assertIn("background:", quality_css)
         self.assertIn("border:", quality_css)
+
+    def test_mismatch_quality_marker_shows_usd_scale_when_price_is_available(self):
+        self.assertIn(
+            "function earn_getMismatchQualityLabel(verification)",
+            self.js,
+        )
+        self.assertIn(
+            "return `Mismatch · ${earn_formatUsdDrift(drift)}`",
+            self.js,
+        )
+        self.assertIn(
+            "label: earn_getMismatchQualityLabel(verification)",
+            self.js,
+        )
+        self.assertIn(
+            "earn_escapeHtml(earn_getMismatchQualityLabel(presentation))",
+            self.js,
+        )
+        script = """
+const fs = require('fs');
+const source = fs.readFileSync('dashboard-core.js', 'utf8');
+for (const name of ['earn_formatUsdDrift', 'earn_getMismatchQualityLabel']) {
+  const start = source.indexOf(`function ${name}(`);
+  const end = source.indexOf(String.fromCharCode(10) + '        function ', start + 1);
+  if (start < 0 || end < 0) throw new Error(`missing ${name}`);
+  eval(source.slice(start, end));
+}
+if (earn_getMismatchQualityLabel({
+  status: 'mismatch',
+  label: 'Mismatch',
+  entry: { maxUsdDrift: 0.84 },
+}) !== 'Mismatch · $0.84') {
+  throw new Error('USD mismatch scale was not rendered');
+}
+if (earn_getMismatchQualityLabel({
+  status: 'verified',
+  label: 'Verified',
+  entry: { maxUsdDrift: 0 },
+}) !== 'Verified') {
+  throw new Error('non-mismatch label changed');
+}
+if (earn_getMismatchQualityLabel({
+  status: 'mismatch',
+  label: 'Mismatch',
+  entry: { maxUsdDrift: null },
+}) !== 'Mismatch') {
+  throw new Error('missing USD price should keep the base label');
+}
+"""
+        completed = subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_earn_apr_toggle_uses_assets_gold_switch_geometry(self):
         self.assertIn("#earn-supply-section #earn-apr-pill {", self.css)
@@ -224,7 +282,7 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
         self.assertNotIn(".earn-summary-secondary-grid", summary_css)
 
     def test_dedicated_earn_bundle_uses_premium_ux_cache_version(self):
-        version = "earn-core-20260724-strict-replay"
+        version = "earn-core-20260724-mismatch-usd"
         builder = (ROOT / "build_earn_bundle.py").read_text(encoding="utf-8")
         route = (ROOT / "earn/index.html").read_text(encoding="utf-8")
         self.assertIn(version, builder)
@@ -236,7 +294,7 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
             self.html,
         )
         self.assertIn(
-            "dashboard-core.js?v=core-split-20260724-strict-replay",
+            "dashboard-core.js?v=core-split-20260724-mismatch-usd",
             self.html,
         )
 
