@@ -1,4 +1,6 @@
+import inspect
 import unittest
+from pathlib import Path
 
 from build_earn_resolved_interest_ledger import build_resolved_ledger
 
@@ -54,7 +56,120 @@ def history_payload(events, *, last_scanned=130, has_borrow=False):
     }
 
 
+def strict_evidence(*, par="100", wei="120", **flags):
+    evidence = {
+        "comparisonBlock": 123,
+        "protocolStartBlock": 1,
+        "eventIndexes": {
+            "100:1:2:0:7": "1000000000000000000",
+        },
+        "eventIndexPairs": {
+            "100:1:2:0:7": {
+                "supplyIndex": "1000000000000000000",
+                "borrowIndex": "1000000000000000000",
+            },
+        },
+        "currentIndexes": {
+            "7": {
+                "supplyIndex": "1200000000000000000",
+                "borrowIndex": "1300000000000000000",
+            },
+        },
+        "currentPositions": {
+            "0|7": {"par": str(par), "wei": str(wei)},
+        },
+    }
+    evidence.update(flags)
+    return evidence
+
+
 class BuildEarnResolvedInterestLedgerTests(unittest.TestCase):
+    def test_cli_exposes_strict_rpc_and_diagnostic_status_options(self):
+        source = (
+            Path(__file__).resolve().parents[1] / "build_earn_resolved_interest_ledger.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"--fetch-strict-rpc-evidence"', source)
+        self.assertIn('"--status-output"', source)
+        self.assertIn("fetch_strict_evidence(", source)
+
+    def test_builds_strict_ledger_from_exact_rpc_evidence(self):
+        if "strict_evidence" not in inspect.signature(build_resolved_ledger).parameters:
+            self.fail("build_resolved_ledger must accept strict_evidence")
+        event = {
+            "blockNumber": 100,
+            "transactionIndex": 1,
+            "logIndex": 2,
+            "deltaWei": "100",
+            "newPar": "100",
+            "accountKnown": True,
+        }
+        diagnostics = {}
+
+        ledger = build_resolved_ledger(
+            "arbitrum",
+            ADDRESS,
+            "2026-07-18",
+            snapshot_payload(),
+            history_payload([event]),
+            generated_at="2026-07-18T12:00:00Z",
+            strict_evidence=strict_evidence(),
+            diagnostics=diagnostics,
+        )
+
+        self.assertEqual("verified", ledger["markets"]["7"]["strictStatus"])
+        self.assertEqual("verified", diagnostics["markets"]["7"]["status"])
+        self.assertEqual("0", ledger["replayVerificationData"]["7"]["supplyParDiff"])
+        self.assertFalse(ledger["replayVerificationData"]["7"]["replayStateAdjusted"])
+
+    def test_exact_rpc_mismatch_stays_out_of_strict_ledger_and_is_diagnostic(self):
+        event = {
+            "blockNumber": 100,
+            "transactionIndex": 1,
+            "logIndex": 2,
+            "deltaWei": "100",
+            "newPar": "100",
+            "accountKnown": True,
+        }
+        diagnostics = {}
+
+        ledger = build_resolved_ledger(
+            "arbitrum",
+            ADDRESS,
+            "2026-07-18",
+            snapshot_payload(),
+            history_payload([event]),
+            strict_evidence=strict_evidence(par="99", wei="120"),
+            diagnostics=diagnostics,
+        )
+
+        self.assertIsNone(ledger)
+        self.assertEqual("mismatch", diagnostics["markets"]["7"]["status"])
+        self.assertEqual("-1", diagnostics["markets"]["7"]["supplyParDiff"])
+
+    def test_incomplete_or_adjusted_rpc_evidence_is_never_published(self):
+        event = {
+            "blockNumber": 100,
+            "transactionIndex": 1,
+            "logIndex": 2,
+            "deltaWei": "100",
+            "newPar": "100",
+            "accountKnown": True,
+        }
+        for flag in ("snapshotIncomplete", "subgraphReplayTruncated", "replayStateAdjusted"):
+            with self.subTest(flag=flag):
+                diagnostics = {}
+                ledger = build_resolved_ledger(
+                    "arbitrum",
+                    ADDRESS,
+                    "2026-07-18",
+                    snapshot_payload(),
+                    history_payload([event]),
+                    strict_evidence=strict_evidence(**{flag: True}),
+                    diagnostics=diagnostics,
+                )
+                self.assertIsNone(ledger)
+                self.assertEqual("coverage_incomplete", diagnostics["strictStatus"])
+
     def test_builds_exact_open_supply_ledger_from_pinned_snapshot(self):
         history = history_payload([{
             "blockNumber": 100,

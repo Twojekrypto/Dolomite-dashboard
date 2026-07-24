@@ -167,6 +167,10 @@ def _validate_resolved_interest_ledger(
             return None
         if entry.get("snapshotIncomplete") is not False:
             return None
+        if entry.get("subgraphReplayTruncated") is True:
+            return None
+        if entry.get("replayStateAdjusted") is True:
+            return None
     if counted_market_ids != {str(market_id) for market_id in markets}:
         return None
     for market_id in markets:
