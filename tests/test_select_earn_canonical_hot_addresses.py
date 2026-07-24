@@ -4,10 +4,100 @@ import inspect
 from pathlib import Path
 from unittest.mock import patch
 
-from select_earn_canonical_hot_addresses import build_selection
+from select_earn_canonical_hot_addresses import _active_strict_quality, build_selection
 
 
 class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
+    def test_strict_quality_requires_resolved_proof_for_every_active_market(self):
+        address = "0x1111111111111111111111111111111111111111"
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_dir = Path(tmp) / "earn-verified-ledger"
+            (ledger_dir / "arbitrum").mkdir(parents=True)
+            (ledger_dir / "arbitrum" / f"{address}.json").write_text(
+                '{"markets":{"1":{"strictStatus":"inferred"},'
+                '"2":{"strictStatus":"inferred"}},'
+                '"resolvedInterestLedger":{"strictStatus":"verified",'
+                '"markets":{"1":{"strictStatus":"verified"}}}}',
+                encoding="utf-8",
+            )
+            with patch(
+                "select_earn_canonical_hot_addresses._latest_snapshot_payload",
+                return_value={
+                    address: {
+                        "markets": {
+                            "1": {"par": "10"},
+                            "2": {"par": "20"},
+                        },
+                    },
+                },
+            ):
+                quality = _active_strict_quality("arbitrum", {address}, ledger_dir)
+
+        self.assertEqual("inferred", quality[address])
+
+    def test_strict_remediation_prioritizes_active_mismatch_and_skips_verified_wallet(self):
+        if "strict_remediation" not in inspect.signature(build_selection).parameters:
+            self.fail("build_selection must expose strict_remediation mode")
+
+        cold_missing = "0x1111111111111111111111111111111111111111"
+        active_mismatch = "0x2222222222222222222222222222222222222222"
+        active_verified = "0x3333333333333333333333333333333333333333"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_dir = root / "earn-subaccount-history"
+            ledger_dir = root / "earn-verified-ledger"
+            (history_dir / "arbitrum").mkdir(parents=True)
+            (ledger_dir / "arbitrum").mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"arbitrum":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            for address in (active_mismatch, active_verified):
+                (history_dir / "arbitrum" / f"{address}.json").write_text(
+                    '{"lastScannedBlock":100}',
+                    encoding="utf-8",
+                )
+            (ledger_dir / "arbitrum" / f"{active_mismatch}.json").write_text(
+                '{"markets":{"1":{"strictStatus":"mismatch"}}}',
+                encoding="utf-8",
+            )
+            (ledger_dir / "arbitrum" / f"{active_verified}.json").write_text(
+                '{"markets":{"1":{"strictStatus":"inferred"}},'
+                '"resolvedInterestLedger":{"strictStatus":"verified",'
+                '"markets":{"1":{"strictStatus":"verified"}}}}',
+                encoding="utf-8",
+            )
+            snapshots = {
+                active_mismatch: {"markets": {"1": {"par": "10"}}},
+                active_verified: {"markets": {"1": {"par": "20"}}},
+            }
+
+            with (
+                patch(
+                    "select_earn_canonical_hot_addresses._load_known_addresses",
+                    return_value=[cold_missing, active_mismatch, active_verified],
+                ),
+                patch(
+                    "select_earn_canonical_hot_addresses._latest_snapshot_payload",
+                    return_value=snapshots,
+                ),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, metadata = build_selection(
+                    "arbitrum",
+                    limit=1,
+                    priority_files=[],
+                    include_priority_even_if_unknown=False,
+                    history_dir=history_dir,
+                    ledger_dir=ledger_dir,
+                    strict_remediation=True,
+                )
+
+        self.assertEqual([active_mismatch], selected)
+        self.assertEqual(1, metadata["activeStrictBlockingAddressCount"])
+        self.assertEqual(1, metadata["activeMismatchAddressCount"])
+        self.assertEqual(1, metadata["activeStrictVerifiedAddressCount"])
+
     def test_coverage_backfill_adds_missing_wallet_after_public_baseline(self):
         if "coverage_backfill" not in inspect.signature(build_selection).parameters:
             self.fail("build_selection must expose coverage_backfill mode")
