@@ -224,16 +224,21 @@ class EarnPremiumUxContractsTest(unittest.TestCase):
         self.assertNotIn(".earn-summary-secondary-grid", summary_css)
 
     def test_dedicated_earn_bundle_uses_premium_ux_cache_version(self):
-        version = "earn-core-20260724-portfolio-dedupe"
+        version = "earn-core-20260724-strict-replay"
         builder = (ROOT / "build_earn_bundle.py").read_text(encoding="utf-8")
         route = (ROOT / "earn/index.html").read_text(encoding="utf-8")
         self.assertIn(version, builder)
-        self.assertGreaterEqual(route.count(version), 2)
+        self.assertIn(f'"version": "{version}"', route)
 
     def test_shared_dashboard_assets_use_premium_ux_cache_version(self):
-        version = "core-split-20260724-portfolio-dedupe"
-        self.assertIn(f"dashboard-core.css?v={version}", self.html)
-        self.assertIn(f"dashboard-core.js?v={version}", self.html)
+        self.assertIn(
+            "dashboard-core.css?v=core-split-20260724-portfolio-dedupe",
+            self.html,
+        )
+        self.assertIn(
+            "dashboard-core.js?v=core-split-20260724-strict-replay",
+            self.html,
+        )
 
 
 if __name__ == "__main__":
