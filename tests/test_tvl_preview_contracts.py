@@ -243,15 +243,27 @@ class TvlPreviewContractsTest(unittest.TestCase):
             result["unavailableNet"],
         )
 
-    def test_total_supply_chart_precedes_tvl_with_independent_brush_contract(self):
+    def test_supply_and_tvl_share_one_switchable_history_card(self):
         text = TVL_PREVIEW.read_text(encoding="utf-8")
 
-        self.assertIn("<h2>Total Supply Over Time</h2>", text)
-        self.assertLess(
-            text.index("<h2>Total Supply Over Time</h2>"),
-            text.index("<h2>TVL Over Time</h2>"),
+        self.assertEqual(text.count("<h2>Dolomite Supply &amp; TVL</h2>"), 1)
+        self.assertNotIn("<h2>Total Supply Over Time</h2>", text)
+        self.assertNotIn("<h2>TVL Over Time</h2>", text)
+        self.assertIn('id="protocol-history-metric"', text)
+        self.assertIn(
+            'data-history-metric="supply" aria-pressed="true"',
+            text,
         )
+        self.assertIn(
+            'data-history-metric="tvl" aria-pressed="false"',
+            text,
+        )
+        self.assertIn('data-history-panel="supply"', text)
+        self.assertIn('data-history-panel="tvl" hidden', text)
+        self.assertIn("function setProtocolHistoryMetric(metric)", text)
+        self.assertIn('setProtocolHistoryMetric("supply")', text)
         for element_id in (
+            "protocolHistoryRangeBadge",
             "supplyRangeBadge",
             "supplyChartWrap",
             "supplyChart",
@@ -274,9 +286,9 @@ class TvlPreviewContractsTest(unittest.TestCase):
         self.assertIn('rangeBadge: "supplyRangeBadge"', text)
         self.assertIn('rangeBadge: "rangeBadge"', text)
 
-    def test_tvl_route_busts_preview_cache_for_dual_history_charts(self):
+    def test_tvl_route_busts_preview_cache_for_combined_history_card(self):
         route = TVL_ROUTE.read_text(encoding="utf-8")
-        self.assertIn("dual-history-20260723", route)
+        self.assertIn("combined-history-20260724", route)
 
     def test_tvl_route_and_workflow_publish_full_total_supply_history(self):
         route = TVL_ROUTE.read_text(encoding="utf-8")

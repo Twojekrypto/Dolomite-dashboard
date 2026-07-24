@@ -156,6 +156,29 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   z-index:0;
 }
 
+/* Protocol history metric switch — mirrors the DOLO holder chart control */
+.protocol-history-toolbar{display:flex;align-items:center;padding:14px 24px 0}
+.history-metric-mode{
+  display:inline-grid;grid-template-columns:repeat(2,minmax(128px,1fr));height:34px;gap:0;padding:3px;
+  border:1px solid rgba(255,255,255,.075);border-radius:999px;
+  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
+}
+.history-metric-mode button{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:128px;height:28px;padding:0 14px;
+  border:0;border-radius:999px;background:transparent;color:var(--fg-3);appearance:none;
+  font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.36px;cursor:pointer;
+  transition:background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease)
+}
+.history-metric-mode button.active,
+.history-metric-mode button:hover,
+.history-metric-mode button:focus-visible{
+  background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
+  box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
+}
+.history-metric-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
+.protocol-history-panel[hidden]{display:none}
+
 /* CHART */
 .chart-wrap{padding:24px 24px 22px;position:relative}
 .chart-svg{width:100%;height:340px;display:block;overflow:visible}
@@ -556,6 +579,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .nav-item{width:40px;height:38px;padding:0;justify-content:center;gap:0}
   .nav-item span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .nav-item.active::after{display:none}
+  .protocol-history-toolbar{padding:14px 16px 0}
+  .history-metric-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .history-metric-mode button{width:100%;min-width:0;padding:0 8px}
   .chart-svg{height:240px}
 }
 </style>
@@ -686,15 +712,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
   </section>
 
-  <!-- TOTAL SUPPLY CHART -->
-  <section class="card" style="--chart-area-fill:url(#supplyChartGrad);--brush-area-fill:url(#supplyBrushGrad)">
-    <div class="card-head">
+  <!-- PROTOCOL HISTORY CHART -->
+  <section class="card protocol-history-card" id="protocol-history-card">
+    <div class="card-head protocol-history-head">
       <div class="card-title">
-        <h2>Total Supply Over Time</h2>
-        <span class="count-badge" id="supplyRangeBadge">All Time</span>
+        <h2>Dolomite Supply &amp; TVL</h2>
+        <span class="count-badge" id="protocolHistoryRangeBadge">All Time</span>
       </div>
       <div class="card-meta"><span class="pulse"></span>drag the window below to zoom</div>
     </div>
+    <div class="protocol-history-toolbar">
+      <div class="history-metric-mode" id="protocol-history-metric" role="group" aria-label="Protocol history metric">
+        <button type="button" class="active" data-history-metric="supply" aria-pressed="true">TOTAL SUPPLY</button>
+        <button type="button" data-history-metric="tvl" aria-pressed="false">TVL</button>
+      </div>
+    </div>
+    <div class="protocol-history-panel" data-history-panel="supply" style="--chart-area-fill:url(#supplyChartGrad);--brush-area-fill:url(#supplyBrushGrad)">
+      <span id="supplyRangeBadge" hidden>All Time</span>
     <div class="chart-wrap" id="supplyChartWrap">
       <svg class="chart-svg" id="supplyChart" viewBox="0 0 1000 340" preserveAspectRatio="none">
         <defs>
@@ -737,17 +771,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
       <div class="brush-label" id="supplyBrushLabel"></div>
     </div>
-  </section>
-
-  <!-- TVL CHART -->
-  <section class="card">
-    <div class="card-head">
-      <div class="card-title">
-        <h2>TVL Over Time</h2>
-        <span class="count-badge" id="rangeBadge">All Time</span>
-      </div>
-      <div class="card-meta"><span class="pulse"></span>drag the window below to zoom</div>
     </div>
+    <div class="protocol-history-panel" data-history-panel="tvl" hidden>
+      <span id="rangeBadge" hidden>All Time</span>
     <div class="chart-wrap" id="chartWrap">
       <svg class="chart-svg" id="chart" viewBox="0 0 1000 340" preserveAspectRatio="none">
         <defs>
@@ -790,6 +816,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <div class="brush-dim r" id="brushDimR"></div>
       </div>
       <div class="brush-label" id="brushLabel"></div>
+    </div>
     </div>
   </section>
 
@@ -2030,6 +2057,34 @@ function centerLabel(){
 /* ==========================================================================
    HISTORY CHARTS · shared renderer with independent brush state
    ========================================================================== */
+let protocolHistoryMetric = "supply";
+
+function syncProtocolHistoryRangeBadge(){
+  const visibleBadge = document.getElementById("protocolHistoryRangeBadge");
+  const sourceBadge = document.getElementById(protocolHistoryMetric === "tvl" ? "rangeBadge" : "supplyRangeBadge");
+  if (visibleBadge && sourceBadge) visibleBadge.textContent = sourceBadge.textContent;
+}
+
+function setProtocolHistoryMetric(metric){
+  protocolHistoryMetric = metric === "tvl" ? "tvl" : "supply";
+  document.querySelectorAll("[data-history-metric]").forEach(button => {
+    const active = button.dataset.historyMetric === protocolHistoryMetric;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  document.querySelectorAll("[data-history-panel]").forEach(panel => {
+    panel.hidden = panel.dataset.historyPanel !== protocolHistoryMetric;
+  });
+  syncProtocolHistoryRangeBadge();
+}
+
+function initProtocolHistoryMetric(){
+  document.querySelectorAll("[data-history-metric]").forEach(button => {
+    button.addEventListener("click", () => setProtocolHistoryMetric(button.dataset.historyMetric));
+  });
+  setProtocolHistoryMetric("supply");
+}
+
 const W = 1000, H = 340, P_L = 56, P_R = 18, P_T = 20, P_B = 28;
 const BW = 1000, BH = 56;
 
@@ -2063,6 +2118,7 @@ function createHistoryChart(config){
       else if (days >= 60) badge.textContent = `${Math.round(days/30)}M window`;
       else badge.textContent = `${days}D window`;
     }
+    syncProtocolHistoryRangeBadge();
   }
 
   function renderChartFor(series){
@@ -2402,6 +2458,7 @@ async function bootTvlDashboard(){
   renderTokens();
   supplyHistoryChart.init();
   tvlHistoryChart.init();
+  initProtocolHistoryMetric();
   renderProto();
   setNow();
 }
