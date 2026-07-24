@@ -8,6 +8,29 @@ from select_earn_canonical_hot_addresses import _active_strict_quality, build_se
 
 
 class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
+    def test_strict_quality_rejects_adjusted_nested_replay(self):
+        address = "0x1111111111111111111111111111111111111111"
+        with tempfile.TemporaryDirectory() as tmp:
+            ledger_dir = Path(tmp) / "earn-verified-ledger"
+            (ledger_dir / "arbitrum").mkdir(parents=True)
+            (ledger_dir / "arbitrum" / f"{address}.json").write_text(
+                '{"markets":{"1":{"strictStatus":"mismatch"}},'
+                '"resolvedInterestLedger":{"strictStatus":"verified",'
+                '"strictMethod":"interest-ledger",'
+                '"markets":{"1":{"strictStatus":"verified","strictMethod":"interest-ledger"}},'
+                '"replayVerificationData":{"1":{"rawVerified":true,'
+                '"snapshotIncomplete":false,"subgraphReplayTruncated":false,'
+                '"replayStateAdjusted":true}}}}',
+                encoding="utf-8",
+            )
+            with patch(
+                "select_earn_canonical_hot_addresses._latest_snapshot_payload",
+                return_value={address: {"markets": {"1": {"par": "10"}}}},
+            ):
+                quality = _active_strict_quality("arbitrum", {address}, ledger_dir)
+
+        self.assertEqual("mismatch", quality[address])
+
     def test_strict_quality_requires_resolved_proof_for_every_active_market(self):
         address = "0x1111111111111111111111111111111111111111"
         with tempfile.TemporaryDirectory() as tmp:
@@ -17,7 +40,11 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
                 '{"markets":{"1":{"strictStatus":"inferred"},'
                 '"2":{"strictStatus":"inferred"}},'
                 '"resolvedInterestLedger":{"strictStatus":"verified",'
-                '"markets":{"1":{"strictStatus":"verified"}}}}',
+                '"strictMethod":"interest-ledger",'
+                '"markets":{"1":{"strictStatus":"verified","strictMethod":"interest-ledger"}},'
+                '"replayVerificationData":{"1":{"rawVerified":true,'
+                '"snapshotIncomplete":false,"subgraphReplayTruncated":false,'
+                '"replayStateAdjusted":false}}}}',
                 encoding="utf-8",
             )
             with patch(
@@ -64,7 +91,11 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
             (ledger_dir / "arbitrum" / f"{active_verified}.json").write_text(
                 '{"markets":{"1":{"strictStatus":"inferred"}},'
                 '"resolvedInterestLedger":{"strictStatus":"verified",'
-                '"markets":{"1":{"strictStatus":"verified"}}}}',
+                '"strictMethod":"interest-ledger",'
+                '"markets":{"1":{"strictStatus":"verified","strictMethod":"interest-ledger"}},'
+                '"replayVerificationData":{"1":{"rawVerified":true,'
+                '"snapshotIncomplete":false,"subgraphReplayTruncated":false,'
+                '"replayStateAdjusted":false}}}}',
                 encoding="utf-8",
             )
             snapshots = {

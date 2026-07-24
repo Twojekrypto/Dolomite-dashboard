@@ -190,9 +190,15 @@ def _active_strict_quality(
         public_markets = ledger.get("markets") or {}
         resolved = ledger.get("resolvedInterestLedger") or {}
         resolved_markets = resolved.get("markets") or {} if isinstance(resolved, dict) else {}
+        resolved_verification = (
+            resolved.get("replayVerificationData") or {}
+            if isinstance(resolved, dict)
+            else {}
+        )
         resolved_is_verified = (
             isinstance(resolved, dict)
             and str(resolved.get("strictStatus") or "") == "verified"
+            and str(resolved.get("strictMethod") or "") == "interest-ledger"
         )
 
         market_quality: List[str] = []
@@ -202,10 +208,21 @@ def _active_strict_quality(
                 if isinstance(resolved_markets, dict)
                 else None
             )
+            verification = (
+                resolved_verification.get(market_id)
+                if isinstance(resolved_verification, dict)
+                else None
+            )
             if (
                 resolved_is_verified
                 and isinstance(resolved_market, dict)
+                and isinstance(verification, dict)
                 and str(resolved_market.get("strictStatus") or "") == "verified"
+                and str(resolved_market.get("strictMethod") or "") == "interest-ledger"
+                and verification.get("rawVerified") is True
+                and verification.get("snapshotIncomplete") is not True
+                and verification.get("subgraphReplayTruncated") is not True
+                and verification.get("replayStateAdjusted") is not True
             ):
                 market_quality.append("verified")
                 continue
