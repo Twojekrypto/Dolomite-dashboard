@@ -94,7 +94,10 @@ class EarnLayoutContractsTest(unittest.TestCase):
         self.assertNotIn('Earn Overview', (ROOT / 'dashboard-core.js').read_text(encoding='utf-8'))
 
     def test_bundle_builder_keeps_static_layout_cache_and_local_editor_guard(self):
-        self.assertIn('earn-core-20260723-premium-ux-2', self.bundle_builder)
+        self.assertIn(
+            "earn-core-20260724-institutional-premium",
+            self.bundle_builder,
+        )
         self.assertIn("new URLSearchParams(window.location.search).get('layoutEditor')", self.bundle_builder)
         self.assertIn("const loopback = isLocalhost", self.bundle_builder)
 

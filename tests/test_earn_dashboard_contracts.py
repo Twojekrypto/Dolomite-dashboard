@@ -151,7 +151,19 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("if (fallbackStatus === 'verified')", self.source)
         self.assertIn("const yieldQualityPresentation = earn_getYieldQualityPresentation(yieldCalc)", self.source)
         self.assertIn("method === 'all-netflow-verified'", self.source)
-        self.assertIn("'Inferred Carry'", self.source)
+        self.assertIn(
+            "inferred.status === 'pre_snapshot_carry' ? 'Carry' : 'Inferred'",
+            self.source,
+        )
+        self.assertIn(
+            "isPreSnapshotCarry ? 'Carry' : 'Inferred'",
+            self.source,
+        )
+        self.assertIn(
+            "? 'Carry' : 'Inferred'",
+            self.source,
+        )
+        self.assertNotIn("'Inferred Carry'", self.source)
         self.assertIn("label: 'Fallback'", self.source)
         self.assertIn("label: 'Inferred'", self.source)
 

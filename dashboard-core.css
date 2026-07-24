@@ -10336,6 +10336,155 @@
             color: rgba(251, 191, 36, 0.72);
         }
 
+        /* Institutional Ledger */
+        .earn-summary-card,
+        .earn-summary-card.cols-8,
+        .earn-summary-card.cols-6 {
+            grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.7fr);
+            gap: 0;
+            padding: 0;
+            border-radius: 20px;
+            background:
+                radial-gradient(620px 220px at 14% -18%, rgba(201, 162, 39, 0.11), transparent 64%),
+                linear-gradient(180deg, #151518 0%, #09090b 100%);
+            border: 1px solid rgba(255, 255, 255, 0.075);
+            box-shadow: inset 0 1px 0 rgba(244, 243, 239, 0.035), 0 20px 48px rgba(0, 0, 0, 0.28);
+        }
+
+        .earn-summary-card::before {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, rgba(201, 162, 39, 0.72) 18%, rgba(228, 193, 90, 0.34) 52%, transparent 100%);
+        }
+
+        .earn-summary-card::after {
+            display: none;
+        }
+
+        .earn-summary-main {
+            display: flex;
+            padding: 26px 30px;
+            position: relative;
+        }
+
+        .earn-summary-main::after {
+            content: "";
+            position: absolute;
+            top: 24px;
+            right: 0;
+            bottom: 24px;
+            width: 1px;
+            background: linear-gradient(180deg, transparent, #c9a227 18%, rgba(228, 193, 90, 0.76) 50%, #c9a227 82%, transparent);
+            box-shadow: 0 0 16px rgba(201, 162, 39, 0.12);
+            transition: box-shadow 180ms ease, opacity 180ms ease;
+            opacity: 0.82;
+        }
+
+        .earn-summary-card:hover .earn-summary-main::after {
+            opacity: 1;
+            box-shadow: 0 0 20px rgba(201, 162, 39, 0.18);
+        }
+
+        .earn-summary-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0;
+            padding: 26px 0;
+        }
+
+        .earn-summary-main .earn-summary-stat,
+        .earn-summary-main .earn-summary-stat.is-primary,
+        .earn-summary-metrics .earn-summary-stat,
+        .earn-summary-metrics .earn-summary-stat.kpi-primary {
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            overflow: visible;
+        }
+
+        .earn-summary-main .earn-summary-stat,
+        .earn-summary-main .earn-summary-stat.is-primary {
+            padding-right: 30px;
+        }
+
+        .earn-summary-metrics .earn-summary-stat,
+        .earn-summary-metrics .earn-summary-stat.kpi-primary {
+            padding: 0 24px;
+        }
+
+        .earn-summary-metrics .earn-summary-stat + .earn-summary-stat {
+            border-left: 1px solid rgba(255, 255, 255, 0.075);
+        }
+
+        .earn-summary-main .earn-summary-stat:hover,
+        .earn-summary-main .earn-summary-stat.is-primary:hover,
+        .earn-summary-metrics .earn-summary-stat:hover,
+        .earn-summary-metrics .earn-summary-stat.kpi-primary:hover {
+            background: transparent;
+            box-shadow: none;
+        }
+
+        @media (max-width: 980px) {
+            .earn-summary-card,
+            .earn-summary-card.cols-8,
+            .earn-summary-card.cols-6 {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .earn-summary-main {
+                padding: 24px;
+            }
+
+            .earn-summary-main::after {
+                top: auto;
+                left: 24px;
+                right: 24px;
+                bottom: 0;
+                width: auto;
+                height: 1px;
+                background: linear-gradient(90deg, transparent, #c9a227 18%, rgba(228, 193, 90, 0.76) 50%, #c9a227 82%, transparent);
+            }
+
+            .earn-summary-main .earn-summary-stat,
+            .earn-summary-main .earn-summary-stat.is-primary {
+                padding-right: 0;
+            }
+
+            .earn-summary-metrics {
+                padding: 22px 0;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .earn-summary-main {
+                padding: 20px;
+            }
+
+            .earn-summary-main::after {
+                left: 20px;
+                right: 20px;
+            }
+
+            .earn-summary-metrics {
+                grid-template-columns: minmax(0, 1fr);
+                padding: 0 20px;
+            }
+
+            .earn-summary-metrics .earn-summary-stat,
+            .earn-summary-metrics .earn-summary-stat.kpi-primary {
+                padding: 20px 0;
+            }
+
+            .earn-summary-metrics .earn-summary-stat + .earn-summary-stat {
+                border-top: 1px solid rgba(255, 255, 255, 0.075);
+                border-left: 0;
+            }
+        }
+
         /* ═══════ Filter Bar ═══════ */
         .earn-filter-bar {
             display: none;
@@ -11016,21 +11165,27 @@
         #earn-supply-section #earn-apr-pill .apr-pill-slider {
             top: 3px;
             left: 3px;
-            width: calc(50% - 3px);
+            width: 52px;
             height: 28px;
             border-radius: 8px;
             background: var(--earn-gold, #c9a227);
             box-shadow: 0 2px 8px rgba(201, 162, 39, 0.35);
         }
 
+        #earn-supply-section #earn-apr-pill .apr-pill-slider.right {
+            transform: translateX(52px);
+        }
+
         #earn-supply-section #earn-apr-pill .apr-pill-opt {
-            min-width: 48px;
+            display: inline-flex;
+            align-items: center;
             height: 28px;
-            padding: 0 12px;
+            padding: 0 14px;
             border-radius: 8px;
             color: var(--earn-fg-3, #6b6a66);
             font-size: 12px;
             font-weight: 600;
+            line-height: 18px;
         }
 
         #earn-supply-section #earn-apr-pill .apr-pill-opt.active {

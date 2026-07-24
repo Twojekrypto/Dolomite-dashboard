@@ -33,7 +33,7 @@ test('Supply breakdown uses the same canonical labels in Assets and EARN', () =>
   );
   assert.match(earnRenderer, /label: 'Lending'/);
   assert.match(earnRenderer, /label: 'oDOLO'/);
-  assert.match(earnRenderer, /label: 'Yield', rate: rateData\.extYieldApr/);
+  assert.match(earnRenderer, /label:\s*'Yield',\s*rate:\s*rateData\.extYieldApr/);
   assert.doesNotMatch(earnRenderer, /rewardSymbol|Rewards`/);
 });
 
