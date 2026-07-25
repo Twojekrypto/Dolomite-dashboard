@@ -12,6 +12,7 @@ class PagesWorkflowContractTests(unittest.TestCase):
 
         self.assertIn("group: pages-deploy", workflow)
         self.assertIn("cancel-in-progress: false", workflow)
+        self.assertIn("with:\n          ref: master", workflow)
 
     def test_pages_redeploys_after_holder_data_workflows(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
@@ -30,6 +31,9 @@ class PagesWorkflowContractTests(unittest.TestCase):
         self.assertIn("allow_remediation:", monitor)
         self.assertIn("Enforce EARN freshness SLA", monitor)
         self.assertIn("Deploy verified EARN snapshot", monitor)
+        self.assertIn("gh run list", monitor)
+        self.assertIn("--workflow pages.yml", monitor)
+        self.assertIn("--status queued", monitor)
         self.assertIn("gh workflow run pages.yml", monitor)
         self.assertLess(
             monitor.index("Enforce EARN freshness SLA"),

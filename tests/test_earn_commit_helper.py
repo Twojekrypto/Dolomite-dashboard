@@ -102,6 +102,10 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             '{"dates":["2026-05-10"]}\n',
             encoding="utf-8",
         )
+        (work / "data" / "earn-snapshots" / "2026-05-10.json").write_text(
+            '{"generatedAt":"2026-05-10T10:00:00Z","chains":{}}\n',
+            encoding="utf-8",
+        )
         (work / "data" / "earn-subaccount-history" / "manifest.json").write_text(
             json.dumps(
                 {
@@ -263,6 +267,54 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
                 ],
             )
 
+    def test_queued_freshness_monitor_suppresses_duplicate_dispatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _remote, work = self._prepare_repo(Path(tmp))
+            status = work / "data" / "earn-freshness" / "status.json"
+            status.write_text('{"status":"changed"}\n', encoding="utf-8")
+            _run(["git", "add", "data/earn-freshness/status.json"], cwd=work)
+
+            fake_bin = work / "fake-bin"
+            fake_bin.mkdir()
+            dispatched = work / "gh-dispatched"
+            fake_gh = fake_bin / "gh"
+            fake_gh.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env bash
+                    if [[ "$1 $2" == "run list" ]]; then
+                      echo 1
+                      exit 0
+                    fi
+                    if [[ "$1 $2" == "workflow run" ]]; then
+                      touch "$GH_DISPATCHED"
+                    fi
+                    """
+                ),
+                encoding="utf-8",
+            )
+            fake_gh.chmod(0o755)
+
+            env = {
+                **dict(os.environ),
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_FRESHNESS_AFTER_PUSH": "true",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
+                "GH_TOKEN": "test-token",
+                "GH_DISPATCHED": str(dispatched),
+                "PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}",
+            }
+            result = _run(
+                ["bash", "scripts/commit_with_fresh_earn_status.sh", "producer update"],
+                cwd=work,
+                env=env,
+            )
+
+            self.assertFalse(dispatched.exists(), result.stdout + result.stderr)
+            self.assertIn("already queued", result.stdout)
+
     def test_no_data_change_still_publishes_freshness_status(self):
         with tempfile.TemporaryDirectory() as tmp:
             _remote, work = self._prepare_repo(Path(tmp))
@@ -346,6 +398,89 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
                 "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
             }
             _run(["bash", "scripts/commit_with_fresh_earn_status.sh", "ledger update"], cwd=work, env=env)
+
+            calls = (work / "rebuild-calls.txt").read_text(encoding="utf-8")
+            self.assertIn("build_earn_resolved_interest_ledger.py --chain mantle --address-file", calls)
+            self.assertIn("build_earn_verified_ledger.py --chain mantle --address-file", calls)
+            self.assertIn("build_earn_verified_ledger_shards.py --chain mantle --address-file", calls)
+            self.assertIn(f"addresses={address}", calls)
+            self.assertEqual("yes", (work / "audit-ran.txt").read_text(encoding="utf-8"))
+
+    def test_same_day_snapshot_payload_change_rebuilds_staged_ledger_addresses(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, work = self._prepare_repo(Path(tmp))
+            address = "0x" + "b" * 40
+            ledger_dir = work / "data" / "earn-verified-ledger" / "mantle"
+
+            for script_name in (
+                "build_earn_resolved_interest_ledger.py",
+                "build_earn_verified_ledger.py",
+                "build_earn_verified_ledger_shards.py",
+            ):
+                (work / script_name).write_text(
+                    textwrap.dedent(
+                        f"""\
+                        import sys
+                        from pathlib import Path
+                        args = sys.argv[1:]
+                        addresses = ""
+                        if "--address-file" in args:
+                            addresses = Path(args[args.index("--address-file") + 1]).read_text(encoding="utf-8").strip()
+                        with Path("rebuild-calls.txt").open("a", encoding="utf-8") as handle:
+                            handle.write("{script_name} " + " ".join(args) + " addresses=" + addresses + "\\n")
+                        """
+                    ),
+                    encoding="utf-8",
+                )
+            (work / "build_earn_representative_audit.py").write_text(
+                'from pathlib import Path\nPath("audit-ran.txt").write_text("yes", encoding="utf-8")\n',
+                encoding="utf-8",
+            )
+            _run(
+                [
+                    "git",
+                    "add",
+                    "build_earn_resolved_interest_ledger.py",
+                    "build_earn_verified_ledger.py",
+                    "build_earn_verified_ledger_shards.py",
+                    "build_earn_representative_audit.py",
+                ],
+                cwd=work,
+            )
+            _run(["git", "commit", "-m", "test builders"], cwd=work)
+            _run(["git", "push", "origin", "master"], cwd=work)
+
+            ledger_dir.mkdir()
+            ledger = ledger_dir / f"{address}.json"
+            ledger.write_text('{"snapshotDate":"2026-05-10"}\n', encoding="utf-8")
+            _run(["git", "add", "-f", str(ledger)], cwd=work)
+
+            peer = Path(tmp) / "peer"
+            _run(["git", "clone", str(remote), str(peer)], cwd=Path(tmp))
+            _run(["git", "config", "user.name", "Remote Bot"], cwd=peer)
+            _run(["git", "config", "user.email", "remote@example.invalid"], cwd=peer)
+            snapshot = peer / "data" / "earn-snapshots" / "2026-05-10.json"
+            snapshot.write_text(
+                '{"generatedAt":"2026-05-10T11:00:00Z","chains":{"mantle":{}}}\n',
+                encoding="utf-8",
+            )
+            _run(["git", "add", "data/earn-snapshots/2026-05-10.json"], cwd=peer)
+            _run(["git", "commit", "-m", "refresh same-day snapshot"], cwd=peer)
+            _run(["git", "push", "origin", "master"], cwd=peer)
+
+            env = {
+                **dict(os.environ),
+                "CHAIN": "mantle",
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
+            }
+            _run(
+                ["bash", "scripts/commit_with_fresh_earn_status.sh", "ledger update"],
+                cwd=work,
+                env=env,
+            )
 
             calls = (work / "rebuild-calls.txt").read_text(encoding="utf-8")
             self.assertIn("build_earn_resolved_interest_ledger.py --chain mantle --address-file", calls)

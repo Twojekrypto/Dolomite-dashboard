@@ -11,6 +11,33 @@ max_retry_sleep_seconds="${EARN_PUSH_MAX_RETRY_SLEEP_SECONDS:-30}"
 git_remote="${EARN_GIT_REMOTE:-origin}"
 git_branch="${EARN_GIT_BRANCH:-master}"
 
+workflow_has_queued_run() {
+  local workflow_file="${1:?workflow file is required}"
+  local queued_count
+
+  if [ -n "${GITHUB_REPOSITORY:-}" ]; then
+    queued_count="$(
+      gh run list \
+        --repo "$GITHUB_REPOSITORY" \
+        --workflow "$workflow_file" \
+        --status queued \
+        --limit 1 \
+        --json databaseId \
+        --jq 'length' 2>/dev/null || true
+    )"
+  else
+    queued_count="$(
+      gh run list \
+        --workflow "$workflow_file" \
+        --status queued \
+        --limit 1 \
+        --json databaseId \
+        --jq 'length' 2>/dev/null || true
+    )"
+  fi
+  [[ "${queued_count:-0}" =~ ^[0-9]+$ ]] && [ "$queued_count" -gt 0 ]
+}
+
 resolve_rebase_modify_delete_conflicts() {
   local path
   local ours_exists
@@ -174,7 +201,7 @@ fi
 
 pushed=false
 for i in $(seq 1 "$attempts"); do
-  snapshot_manifest_before_pull="$(git rev-parse HEAD:data/earn-snapshots/manifest.json 2>/dev/null || true)"
+  snapshot_tree_before_pull="$(git rev-parse HEAD:data/earn-snapshots 2>/dev/null || true)"
   pull_succeeded=false
   if git pull --rebase -X theirs "$git_remote" "$git_branch"; then
     pull_succeeded=true
@@ -182,9 +209,9 @@ for i in $(seq 1 "$attempts"); do
     pull_succeeded=true
   fi
   if [ "$pull_succeeded" = "true" ]; then
-    snapshot_manifest_after_pull="$(git rev-parse HEAD:data/earn-snapshots/manifest.json 2>/dev/null || true)"
-    if [ -n "$snapshot_manifest_before_pull" ] && [ "$snapshot_manifest_before_pull" != "$snapshot_manifest_after_pull" ]; then
-      echo "Snapshot manifest changed during rebase; rebuilding affected EARN ledgers."
+    snapshot_tree_after_pull="$(git rev-parse HEAD:data/earn-snapshots 2>/dev/null || true)"
+    if [ -n "$snapshot_tree_before_pull" ] && [ "$snapshot_tree_before_pull" != "$snapshot_tree_after_pull" ]; then
+      echo "Snapshot data changed during rebase; rebuilding affected EARN ledgers."
       for address_file in "$rebase_address_dir"/*.txt; do
         [ -s "$address_file" ] || continue
         chain="$(basename "$address_file" .txt)"
@@ -291,19 +318,27 @@ if [ "${EARN_DISPATCH_FRESHNESS_AFTER_PUSH:-false}" = "true" ]; then
     exit 1
   fi
   export GH_TOKEN="$dispatch_token"
-  echo "Dispatching EARN freshness monitor for $git_branch after producer push."
-  gh workflow run monitor-earn-freshness.yml \
-    --ref "$git_branch" \
-    -f "allow_remediation=$allow_remediation"
+  if workflow_has_queued_run monitor-earn-freshness.yml; then
+    echo "Skipping EARN freshness monitor dispatch because a run is already queued."
+  else
+    echo "Dispatching EARN freshness monitor for $git_branch after producer push."
+    gh workflow run monitor-earn-freshness.yml \
+      --ref "$git_branch" \
+      -f "allow_remediation=$allow_remediation"
+  fi
 fi
 
 if [ "${EARN_DISPATCH_PAGES_AFTER_PUSH:-true}" = "true" ]; then
   deploy_token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
   if [ -n "$deploy_token" ] && command -v gh >/dev/null 2>&1; then
     export GH_TOKEN="$deploy_token"
-    echo "Dispatching GitHub Pages deploy for $git_branch after EARN data push."
-    if ! gh workflow run pages.yml --ref "$git_branch"; then
-      echo "::warning::Failed to dispatch GitHub Pages deploy after EARN data push."
+    if workflow_has_queued_run pages.yml; then
+      echo "Skipping GitHub Pages deploy dispatch because a run is already queued."
+    else
+      echo "Dispatching GitHub Pages deploy for $git_branch after EARN data push."
+      if ! gh workflow run pages.yml --ref "$git_branch"; then
+        echo "::warning::Failed to dispatch GitHub Pages deploy after EARN data push."
+      fi
     fi
   else
     echo "Skipping GitHub Pages deploy dispatch; gh CLI or GitHub token is unavailable."

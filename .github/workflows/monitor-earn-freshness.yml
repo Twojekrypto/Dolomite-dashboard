@@ -251,4 +251,19 @@ jobs:
 
       - name: Deploy verified EARN snapshot
         if: ${{ success() }}
-        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref master
+        run: |
+          set -euo pipefail
+          queued="$(
+            gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow pages.yml \
+              --status queued \
+              --limit 1 \
+              --json databaseId \
+              --jq 'length' 2>/dev/null || echo 0
+          )"
+          if [ "${queued:-0}" -gt 0 ]; then
+            echo "Skipping Pages dispatch because a deployment is already queued."
+          else
+            gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref master
+          fi

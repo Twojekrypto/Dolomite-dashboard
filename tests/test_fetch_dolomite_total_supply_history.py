@@ -1,5 +1,7 @@
 import importlib
 import unittest
+from decimal import Decimal
+from unittest import mock
 
 from validate_data import RULES
 
@@ -175,6 +177,53 @@ class DolomiteTotalSupplyHistoryTest(unittest.TestCase):
                 {"date": 1_086_400, "totalLiquidityUSD": 90},
             ],
         )
+
+    def test_transient_failure_for_immaterial_market_is_marked_stale(self):
+        module = self.history_module()
+        markets = [
+            {
+                "marketKey": "mantle:major",
+                "currentSupplyUsd": Decimal("814000000"),
+            },
+            {
+                "marketKey": "mantle:tiny",
+                "currentSupplyUsd": Decimal("12"),
+            },
+        ]
+
+        def fake_fetch(market):
+            if market["marketKey"] == "mantle:tiny":
+                raise RuntimeError("HTTP 500")
+            return {
+                **market,
+                "points": {1_000_000: Decimal("800000000")},
+                "borrowPoints": {1_000_000: Decimal("300000000")},
+            }
+
+        with mock.patch.object(module, "_fetch_metric_series", side_effect=fake_fetch):
+            histories = module._fetch_all_market_histories(markets)
+
+        recent, stale = module.split_recent_market_histories(histories)
+        stale_supply = module.validate_official_snapshot_coverage(
+            Decimal("814000012"),
+            Decimal("514000000"),
+            stale,
+        )
+
+        self.assertEqual(["mantle:major"], [market["marketKey"] for market in recent])
+        self.assertEqual(["mantle:tiny"], [market["marketKey"] for market in stale])
+        self.assertEqual("HTTP 500", stale[0]["fetchError"])
+        self.assertEqual(Decimal("12"), stale_supply)
+
+    def test_material_missing_market_share_still_fails(self):
+        module = self.history_module()
+
+        with self.assertRaisesRegex(ValueError, "stale market coverage"):
+            module.validate_official_snapshot_coverage(
+                Decimal("814000000"),
+                Decimal("514000000"),
+                [{"marketKey": "mantle:material", "currentSupplyUsd": Decimal("1000000")}],
+            )
 
     def test_validator_requires_official_total_supply_history(self):
         rules = RULES.get("dolomite_total_supply_history.json")
