@@ -231,6 +231,73 @@ class TestHistoryStats(unittest.TestCase):
         self.assertAlmostEqual(rows[1]["protocolFeeUSD"], 5.0)
 
 
+class TestPositionCountHistory(unittest.TestCase):
+    def test_counts_the_same_ten_dollar_scope_as_borrow_ui(self):
+        positions = [
+            {"collateralUSD": 4, "debtUSD": 6},
+            {"collateralUSD": 4, "debtUSD": 5.99},
+            {"collateralUSD": "bad", "debtUSD": 20},
+        ]
+
+        self.assertEqual(flr.count_monitored_positions(positions), 2)
+
+    def test_builds_negative_24h_change_from_nearest_baseline(self):
+        now = 200_000
+        previous = {
+            "snapshots": [
+                {"timestamp": now - 90_000, "count": 20},
+                {"timestamp": now - 86_400, "count": 12},
+                {"timestamp": now - 82_000, "count": 30},
+            ]
+        }
+
+        result = flr.build_position_count_history(previous, now, 9)
+
+        self.assertEqual(result["change24h"], {
+            "currentCount": 9,
+            "baselineCount": 12,
+            "change": -3,
+            "baselineAt": now - 86_400,
+        })
+
+    def test_builds_positive_and_zero_24h_changes(self):
+        now = 300_000
+        baseline = {"snapshots": [{"timestamp": now - 86_400, "count": 12}]}
+
+        positive = flr.build_position_count_history(baseline, now, 15)
+        neutral = flr.build_position_count_history(baseline, now, 12)
+
+        self.assertEqual(positive["change24h"]["change"], 3)
+        self.assertEqual(neutral["change24h"]["change"], 0)
+
+    def test_rejects_a_baseline_more_than_six_hours_from_target(self):
+        now = 400_000
+        previous = {"snapshots": [{"timestamp": now - 60_000, "count": 12}]}
+
+        result = flr.build_position_count_history(previous, now, 9)
+
+        self.assertIsNone(result["change24h"])
+
+    def test_retains_only_valid_observations_from_the_last_72_hours(self):
+        now = 500_000
+        previous = {
+            "snapshots": [
+                {"timestamp": now - (73 * 60 * 60), "count": 100},
+                {"timestamp": now - (48 * 60 * 60), "count": 10},
+                {"timestamp": now - (48 * 60 * 60), "count": 11},
+                {"timestamp": "bad", "count": 7},
+                {"timestamp": now - 1_000, "count": -1},
+            ]
+        }
+
+        result = flr.build_position_count_history(previous, now, 12)
+
+        self.assertEqual(result["snapshots"], [
+            {"timestamp": now - (48 * 60 * 60), "count": 11},
+            {"timestamp": now, "count": 12},
+        ])
+
+
 class TestIndexSerialization(unittest.TestCase):
     def test_decimal_index_is_exact(self):
         raw = 1052103456789012345678  # 18-decimal index ≈ 1052.10…
