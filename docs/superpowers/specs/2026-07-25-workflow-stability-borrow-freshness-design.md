@@ -16,7 +16,7 @@ The helper will compare the Git tree object for the complete `data/earn-snapshot
 
 Bot-authored data commits still need the explicit Monitor and Pages dispatch paths because a `GITHUB_TOKEN` push does not reliably start another push workflow. Those paths stay intact.
 
-Before dispatching Monitor or Pages, the caller will check whether that workflow already has a queued run. A queued run already represents the latest pending deployment, so an additional dispatch is skipped. An in-progress run alone does not suppress the next queued run.
+Before dispatching Monitor or Pages, the caller will check whether that workflow already has a queued run. Both workflows explicitly check out `master` when execution starts, so the queued run consumes the newest pending data instead of an event-time SHA. An additional duplicate dispatch is skipped. An in-progress run alone does not suppress the next queued run.
 
 ### TVL endpoint tolerance
 

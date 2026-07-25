@@ -40,7 +40,7 @@
 **Files:**
 
 - Modify: `tests/test_borrow_ux_contracts.py`
-- Modify: `borrow/index.html`
+- Modify: `liquidation-preview.html`
 
 1. Add failing source contracts for the shared DOLO-style freshness component and two-line change badge.
 2. Replace the three freshness variants with the shared component.

@@ -306,7 +306,6 @@ def _load_market_definitions():
 
 def _fetch_all_market_histories(markets):
     histories = []
-    failures = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {
             executor.submit(_fetch_metric_series, market): market
@@ -317,12 +316,14 @@ def _fetch_all_market_histories(markets):
             try:
                 histories.append(future.result())
             except RuntimeError as exc:
-                failures.append(f"{market['marketKey']}: {exc}")
-    if failures:
-        sample = "; ".join(failures[:5])
-        raise RuntimeError(
-            f"{len(failures)} official market histories failed: {sample}"
-        )
+                histories.append(
+                    {
+                        **market,
+                        "points": {},
+                        "borrowPoints": {},
+                        "fetchError": str(exc),
+                    }
+                )
     return histories
 
 
@@ -338,12 +339,13 @@ def _snapshot_timestamp(value):
     return int(parsed.timestamp())
 
 
-def main():
-    llama_data = _read_json(DEFILLAMA_FILE)
-    official_snapshot = _read_json(OFFICIAL_SNAPSHOT_FILE)
-    markets = _load_market_definitions()
-    histories = _fetch_all_market_histories(markets)
-    recent_histories, stale_histories = split_recent_market_histories(histories)
+def validate_official_snapshot_coverage(
+    current_supply,
+    current_tvl,
+    stale_histories,
+):
+    current_supply = _decimal(current_supply)
+    current_tvl = _decimal(current_tvl)
     stale_market_supply = sum(
         (
             _decimal(market.get("currentSupplyUsd"))
@@ -351,8 +353,6 @@ def main():
         ),
         Decimal("0"),
     )
-    current_supply = _decimal(official_snapshot.get("supplyLiquidity"))
-    current_tvl = _decimal(official_snapshot.get("totalTvl"))
     if (
         current_supply <= 0
         or current_tvl <= 0
@@ -365,6 +365,22 @@ def main():
             f"Net TVL ${float(current_tvl):,.2f}, "
             f"stale supply ${float(stale_market_supply):,.2f}"
         )
+    return stale_market_supply
+
+
+def main():
+    llama_data = _read_json(DEFILLAMA_FILE)
+    official_snapshot = _read_json(OFFICIAL_SNAPSHOT_FILE)
+    markets = _load_market_definitions()
+    histories = _fetch_all_market_histories(markets)
+    recent_histories, stale_histories = split_recent_market_histories(histories)
+    current_supply = _decimal(official_snapshot.get("supplyLiquidity"))
+    current_tvl = _decimal(official_snapshot.get("totalTvl"))
+    stale_market_supply = validate_official_snapshot_coverage(
+        current_supply,
+        current_tvl,
+        stale_histories,
+    )
 
     official_supply_history = aggregate_market_histories(histories)
     official_tvl_history = aggregate_net_tvl_histories(histories)
@@ -420,6 +436,7 @@ def main():
                 "marketKey": market.get("marketKey"),
                 "symbol": market.get("symbol"),
                 "currentSupplyUsd": _json_number(market.get("currentSupplyUsd")),
+                "fetchError": market.get("fetchError"),
             }
             for market in sorted(
                 stale_histories,

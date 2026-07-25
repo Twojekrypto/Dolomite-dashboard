@@ -6154,10 +6154,27 @@
             font-weight: 500 !important;
         }
         body.route-liquidation .liquidation-intel-asof #stat-updated {
-            color: var(--fg-2) !important;
-            font-family: var(--mono) !important;
+            color: inherit !important;
+            font: inherit !important;
+        }
+        body.route-liquidation .borrow-data-meta {
             font-size: 11px !important;
-            font-weight: 500 !important;
+            color: var(--fg-3) !important;
+            font-family: var(--mono) !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            font-weight: 400 !important;
+            line-height: 1.4 !important;
+            white-space: nowrap !important;
+        }
+        body.route-liquidation .borrow-data-pulse {
+            width: 6px !important;
+            height: 6px !important;
+            border-radius: 50% !important;
+            background: var(--gold) !important;
+            box-shadow: 0 0 8px var(--gold) !important;
+            flex: 0 0 6px !important;
         }
         body.route-liquidation .live-dot {
             background: var(--gold) !important;
@@ -6217,17 +6234,15 @@
         body.route-liquidation .stat-total-change {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 7px !important;
-            min-height: 34px !important;
-            padding: 7px 12px !important;
+            gap: 10px !important;
+            min-height: 46px !important;
+            padding: 7px 13px 7px 11px !important;
             margin-bottom: 4px !important;
             border: 1px solid var(--line-2) !important;
-            border-radius: 10px !important;
+            border-radius: 11px !important;
             background: var(--bg-2) !important;
             color: var(--fg-3) !important;
             font-family: var(--mono) !important;
-            font-size: 12px !important;
-            font-weight: 650 !important;
             font-variant-numeric: tabular-nums !important;
             white-space: nowrap !important;
         }
@@ -6245,13 +6260,35 @@
             color: var(--fg-2) !important;
         }
         body.route-liquidation .stat-total-change svg {
-            width: 13px !important;
-            height: 13px !important;
+            width: 15px !important;
+            height: 15px !important;
             flex: 0 0 auto !important;
+        }
+        body.route-liquidation .stat-total-change-copy {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1px !important;
+            line-height: 1.15 !important;
+        }
+        body.route-liquidation .stat-total-change-primary {
+            display: inline-flex !important;
+            align-items: baseline !important;
+            gap: 4px !important;
+        }
+        body.route-liquidation #stat-total-change-value {
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            letter-spacing: -.02em !important;
+        }
+        body.route-liquidation .stat-total-change-unit {
+            font-size: 10px !important;
+            font-weight: 600 !important;
+            opacity: .92 !important;
         }
         body.route-liquidation .stat-total-change-label {
             color: currentColor !important;
-            opacity: .72 !important;
+            opacity: .78 !important;
             font-size: 10px !important;
             font-weight: 600 !important;
             letter-spacing: .02em !important;
@@ -9693,10 +9730,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="liquidation-intel-asof">
-                    <span>Updated</span>
-                    <span class="live-dot"></span>
-                    <span id="stat-updated">—</span>
+                <div class="liquidation-intel-asof borrow-data-meta">
+                    <span class="borrow-data-pulse"></span>
+                    <span>Data updated · <span id="stat-updated">—</span></span>
                 </div>
             </div>
 
@@ -9708,8 +9744,13 @@
                             <div id="stat-total">—</div>
                             <div id="stat-total-change" class="stat-total-change unavailable" aria-label="24 hour position change unavailable">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
-                                <span id="stat-total-change-value">—</span>
-                                <span class="stat-total-change-label">24h change</span>
+                                <span class="stat-total-change-copy">
+                                    <span class="stat-total-change-primary">
+                                        <span id="stat-total-change-value">—</span>
+                                        <span id="stat-total-change-unit" class="stat-total-change-unit">positions</span>
+                                    </span>
+                                    <span id="stat-total-change-percent" class="stat-total-change-label">— · 24h</span>
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -10012,7 +10053,7 @@
                         <div class="liquidation-table-subtitle">Health factor first, with filters and risk windows applied directly to this table.</div>
                     </div>
                     <div class="liquidation-table-meta">
-                        <div class="liquidation-table-meta-pill"><span class="live-dot"></span><span>Data updated · <span id="positions-data-updated">—</span></span></div>
+                        <div class="borrow-data-meta"><span class="borrow-data-pulse"></span><span>Data updated · <span id="positions-data-updated">—</span></span></div>
                     </div>
                 </div>
 
@@ -10195,7 +10236,7 @@
                         <div class="liquidation-table-subtitle">All Dolomite liquidation events found in the monitored subgraphs.</div>
                     </div>
                     <div class="liquidation-table-meta">
-                        <div class="liquidation-table-meta-pill"><span class="live-dot"></span><span>Data updated · <span id="liquidation-history-data-updated">—</span></span></div>
+                        <div class="borrow-data-meta"><span class="borrow-data-pulse"></span><span>Data updated · <span id="liquidation-history-data-updated">—</span></span></div>
                     </div>
                 </div>
 
@@ -12180,27 +12221,42 @@
         function renderPositionCount24h(history) {
             const chip = document.getElementById('stat-total-change');
             const value = document.getElementById('stat-total-change-value');
-            if (!chip || !value) return;
+            const unit = document.getElementById('stat-total-change-unit');
+            const percent = document.getElementById('stat-total-change-percent');
+            if (!chip || !value || !unit || !percent) return;
 
             chip.classList.remove('positive', 'negative', 'neutral', 'unavailable');
             const rawChange = history?.change24h?.change;
             const change = rawChange === null || rawChange === undefined ? Number.NaN : Number(rawChange);
+            const rawBaseline = history?.change24h?.baselineCount;
+            const baseline = rawBaseline === null || rawBaseline === undefined ? Number.NaN : Number(rawBaseline);
+            const percentage = Number.isFinite(baseline) && baseline > 0
+                ? (change / baseline) * 100
+                : Number.NaN;
             const icon = chip.querySelector('svg');
             if (!Number.isFinite(change)) {
                 chip.classList.add('unavailable');
                 value.textContent = '—';
+                unit.textContent = 'positions';
+                percent.textContent = '— · 24h';
                 chip.setAttribute('aria-label', '24 hour position change unavailable');
                 if (icon) icon.innerHTML = '<path d="M5 12h14"/>';
                 return;
             }
 
             const state = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
-            const sign = change > 0 ? '+' : change < 0 ? '−' : '';
             chip.classList.add(state);
-            value.textContent = `${sign}${Math.abs(change).toLocaleString()}`;
+            value.textContent = Math.abs(change).toLocaleString();
+            unit.textContent = Math.abs(change) === 1 ? 'position' : 'positions';
+            percent.textContent = Number.isFinite(percentage)
+                ? `${percentage > 0 ? '+' : percentage < 0 ? '−' : ''}${Math.abs(percentage).toFixed(2)}% · 24h`
+                : '— · 24h';
+            const percentAria = Number.isFinite(percentage)
+                ? `, ${Math.abs(percentage).toFixed(2)} percent ${percentage > 0 ? 'up' : percentage < 0 ? 'down' : 'unchanged'}`
+                : '';
             chip.setAttribute(
                 'aria-label',
-                `${Math.abs(change).toLocaleString()} ${change > 0 ? 'more' : change < 0 ? 'fewer' : 'net change in'} positions over 24 hours`
+                `${Math.abs(change).toLocaleString()} ${change > 0 ? 'more' : change < 0 ? 'fewer' : 'net change in'} positions over 24 hours${percentAria}`
             );
             if (icon) {
                 icon.innerHTML = change > 0
@@ -13532,26 +13588,19 @@
             const diffMs = now - window._dataGeneratedAt;
             const diffMin = Math.floor(diffMs / 60000);
 
-            let text, color;
+            let text;
             if (diffMin < 1) {
                 text = 'just now';
-                color = 'var(--accent-green)';
             } else if (diffMin < 60) {
                 text = diffMin + ' min ago';
-                color = diffMin < 10 ? 'var(--accent-green)' : diffMin < 30 ? 'var(--accent-amber)' : 'var(--accent-rose)';
             } else {
                 const diffH = Math.floor(diffMin / 60);
                 text = diffH + 'h ' + (diffMin % 60) + 'm ago';
-                color = 'var(--accent-rose)';
             }
             ['stat-updated', 'positions-data-updated', 'liquidation-history-data-updated'].forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
                 el.textContent = text;
-                el.style.color = color;
-                const container = el.closest('.liquidation-intel-asof, .liquidation-table-meta-pill');
-                const dot = container?.querySelector('.live-dot');
-                if (dot) dot.style.background = color;
             });
         }
 

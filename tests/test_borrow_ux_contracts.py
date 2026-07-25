@@ -16,12 +16,32 @@ class TestBorrowHeroUx(unittest.TestCase):
             'id="stat-total-row"',
             'id="stat-total-change"',
             'id="stat-total-change-value"',
-            'class="stat-total-change-label">24h change',
+            'id="stat-total-change-unit"',
+            'id="stat-total-change-percent"',
+            'class="stat-total-change-copy"',
             "data/liquidation-risk/position-count-history.json",
             "renderPositionCount24h",
+            "baselineCount",
+            ".toFixed(2)",
+            "% · 24h",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
+
+    def test_24h_change_uses_a_two_line_count_and_percentage_badge(self):
+        self.assertIn(
+            "body.route-liquidation .stat-total-change-copy {\n"
+            "            display: flex !important;\n"
+            "            flex-direction: column !important;",
+            SOURCE,
+        )
+        self.assertIn(
+            "body.route-liquidation .stat-total-change-primary {\n"
+            "            display: inline-flex !important;\n"
+            "            align-items: baseline !important;",
+            SOURCE,
+        )
+        self.assertNotIn('class="stat-total-change-label">24h change', SOURCE)
 
     def test_committed_position_history_is_internally_consistent(self):
         snapshots = POSITION_HISTORY["snapshots"]
@@ -84,6 +104,32 @@ class TestBorrowTableHeaderUx(unittest.TestCase):
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
+
+    def test_all_freshness_labels_match_dolo_holders_ux(self):
+        self.assertGreaterEqual(SOURCE.count("borrow-data-meta"), 3)
+        self.assertGreaterEqual(SOURCE.count('class="borrow-data-pulse"'), 3)
+        self.assertIn(
+            "body.route-liquidation .borrow-data-meta {\n"
+            "            font-size: 11px !important;\n"
+            "            color: var(--fg-3) !important;\n"
+            "            font-family: var(--mono) !important;\n"
+            "            display: inline-flex !important;\n"
+            "            align-items: center !important;\n"
+            "            gap: 6px !important;",
+            SOURCE,
+        )
+        self.assertIn(
+            "body.route-liquidation .borrow-data-pulse {\n"
+            "            width: 6px !important;\n"
+            "            height: 6px !important;\n"
+            "            border-radius: 50% !important;\n"
+            "            background: var(--gold) !important;\n"
+            "            box-shadow: 0 0 8px var(--gold) !important;",
+            SOURCE,
+        )
+        self.assertNotIn("el.style.color = color", SOURCE)
+        self.assertNotIn("dot.style.background = color", SOURCE)
+        self.assertNotIn("<span>Updated</span>", SOURCE)
 
 
 class TestBorrowSimulatorAddressUx(unittest.TestCase):
