@@ -111,4 +111,3 @@ alone. Existing keyboard focus and action behavior remain intact.
   that address links are not underlined.
 - Existing Borrow/liquidation tests, Python compilation, HTML/JS syntax checks,
   and GitHub Pages smoke tests must pass before completion.
-

@@ -139,6 +139,11 @@ OUTPUT_FILE = "liquidation_risk.json"
 # not download it. Only liquidation-preview fetches this file on demand.
 HISTORY_FILE = "liquidation_history.json"
 LIQUIDATION_SHARD_DIR = Path("data/liquidation-risk")
+POSITION_COUNT_HISTORY_FILE = LIQUIDATION_SHARD_DIR / "position-count-history.json"
+MONITORED_POSITION_MIN_USD = 10
+POSITION_COUNT_HISTORY_RETENTION_SECONDS = 72 * 60 * 60
+POSITION_COUNT_24H_SECONDS = 24 * 60 * 60
+POSITION_COUNT_24H_MAX_SKEW_SECONDS = 6 * 60 * 60
 # LiquidatorProxyV6 transfers Dolomite's liquidation fee rake to the registry
 # fee agent. This is a protocol address, not a secret. Keep the metric
 # conservative: only subgraph-confirmed fee-agent transfers count as protocol
@@ -1346,6 +1351,84 @@ def load_previous_snapshot(path):
         return {}
 
 
+def count_monitored_positions(positions, min_usd=MONITORED_POSITION_MIN_USD):
+    """Count the same non-dust position scope displayed in the Borrow hero."""
+    return sum(
+        1
+        for position in positions or []
+        if (
+            safe_float((position or {}).get("collateralUSD"))
+            + safe_float((position or {}).get("debtUSD"))
+        ) >= min_usd
+    )
+
+
+def build_position_count_history(previous, generated_at, current_count):
+    """Append one observation and derive an honest nearest-to-24h comparison."""
+    generated_at = int(generated_at)
+    current_count = int(current_count)
+    earliest_kept = generated_at - POSITION_COUNT_HISTORY_RETENTION_SECONDS
+    observations_by_timestamp = {}
+
+    for observation in (previous or {}).get("snapshots") or []:
+        try:
+            timestamp = int(observation.get("timestamp"))
+            count = int(observation.get("count"))
+        except (AttributeError, TypeError, ValueError):
+            continue
+        if timestamp < earliest_kept or timestamp > generated_at or count < 0:
+            continue
+        observations_by_timestamp[timestamp] = count
+
+    observations_by_timestamp[generated_at] = max(0, current_count)
+    snapshots = [
+        {"timestamp": timestamp, "count": count}
+        for timestamp, count in sorted(observations_by_timestamp.items())
+    ]
+
+    target_timestamp = generated_at - POSITION_COUNT_24H_SECONDS
+    baseline_candidates = [
+        observation
+        for observation in snapshots
+        if abs(observation["timestamp"] - target_timestamp) <= POSITION_COUNT_24H_MAX_SKEW_SECONDS
+    ]
+    baseline = min(
+        baseline_candidates,
+        key=lambda observation: (
+            abs(observation["timestamp"] - target_timestamp),
+            observation["timestamp"],
+        ),
+        default=None,
+    )
+    change_24h = None
+    if baseline is not None:
+        change_24h = {
+            "currentCount": max(0, current_count),
+            "baselineCount": baseline["count"],
+            "change": max(0, current_count) - baseline["count"],
+            "baselineAt": baseline["timestamp"],
+        }
+
+    return {
+        "generatedAt": generated_at,
+        "snapshots": snapshots,
+        "change24h": change_24h,
+    }
+
+
+def write_position_count_history(positions, generated_at, output_path=POSITION_COUNT_HISTORY_FILE):
+    output_path = Path(output_path)
+    previous = load_previous_snapshot(output_path)
+    payload = build_position_count_history(
+        previous,
+        generated_at,
+        count_monitored_positions(positions),
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+    return payload
+
+
 def build_liquidation_history_stats(rows):
     by_chain = {}
     for row in rows:
@@ -1575,6 +1658,7 @@ def generate_sample_data():
     with open(OUTPUT_FILE, "w") as f:
         json.dump(output, f, separators=(",", ":"))
     write_liquidation_risk_shards(output)
+    write_position_count_history(all_positions, output["generatedAt"])
 
     with open(HISTORY_FILE, "w") as f:
         json.dump({
@@ -1721,6 +1805,7 @@ def main():
 
     with open(OUTPUT_FILE, "w") as f:
         json.dump(output, f, separators=(",", ":"))
+    write_position_count_history(all_positions, output["generatedAt"])
 
     history_output = {
         "generatedAt": output["generatedAt"],
