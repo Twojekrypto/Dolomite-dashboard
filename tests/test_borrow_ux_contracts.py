@@ -20,17 +20,13 @@ LIQUIDATION_RENDER_SOURCE = SOURCE[
 
 
 class TestBorrowHeroUx(unittest.TestCase):
-    def test_hero_has_source_backed_24h_position_change(self):
+    def test_hero_has_source_backed_truthful_position_change(self):
         for contract in (
             'id="stat-total-row"',
             'id="stat-total-change"',
-            'id="stat-total-change-value"',
-            'id="stat-total-change-unit"',
             'id="stat-total-change-percent"',
-            'class="stat-total-change-copy"',
             "data/liquidation-risk/position-count-history.json",
             "renderPositionCount24h",
-            "baselineCount",
             "fallbackChange",
             "windowSeconds",
             "formatPositionCountWindow",
@@ -41,20 +37,36 @@ class TestBorrowHeroUx(unittest.TestCase):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
 
-    def test_24h_change_uses_a_two_line_count_and_percentage_badge(self):
+    def test_change_chip_contains_only_percentage_and_real_window(self):
+        for obsolete in (
+            'id="stat-total-change-value"',
+            'id="stat-total-change-unit"',
+            'class="stat-total-change-copy"',
+            'class="stat-total-change-primary"',
+        ):
+            with self.subTest(obsolete=obsolete):
+                self.assertNotIn(obsolete, SOURCE)
         self.assertIn(
-            "body.route-liquidation .stat-total-change-copy {\n"
-            "            display: flex !important;\n"
-            "            flex-direction: column !important;",
+            '<span id="stat-total-change-percent" class="stat-total-change-label">— · awaiting history</span>',
             SOURCE,
         )
+        self.assertIn("percent.textContent = '— · awaiting history';", SOURCE)
+
+    def test_change_chip_uses_compact_dolo_style(self):
         self.assertIn(
-            "body.route-liquidation .stat-total-change-primary {\n"
+            "body.route-liquidation .stat-total-change {\n"
             "            display: inline-flex !important;\n"
-            "            align-items: baseline !important;",
+            "            align-items: center !important;\n"
+            "            gap: 6px !important;\n"
+            "            min-height: 30px !important;",
             SOURCE,
         )
-        self.assertNotIn('class="stat-total-change-label">24h change', SOURCE)
+        self.assertIn(
+            "body.route-liquidation .stat-total-change-label {\n"
+            "            color: currentColor !important;\n"
+            "            opacity: 1 !important;",
+            SOURCE,
+        )
 
     def test_committed_position_history_is_internally_consistent(self):
         snapshots = POSITION_HISTORY["snapshots"]

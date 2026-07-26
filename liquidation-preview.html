@@ -6202,12 +6202,12 @@
         body.route-liquidation .stat-total-change {
             display: inline-flex !important;
             align-items: center !important;
-            gap: 10px !important;
-            min-height: 46px !important;
-            padding: 7px 13px 7px 11px !important;
-            margin-bottom: 4px !important;
+            gap: 6px !important;
+            min-height: 30px !important;
+            padding: 6px 10px !important;
+            margin-bottom: 7px !important;
             border: 1px solid var(--line-2) !important;
-            border-radius: 11px !important;
+            border-radius: 9px !important;
             background: var(--bg-2) !important;
             color: var(--fg-3) !important;
             font-family: var(--mono) !important;
@@ -6228,38 +6228,16 @@
             color: var(--fg-2) !important;
         }
         body.route-liquidation .stat-total-change svg {
-            width: 15px !important;
-            height: 15px !important;
+            width: 13px !important;
+            height: 13px !important;
             flex: 0 0 auto !important;
-        }
-        body.route-liquidation .stat-total-change-copy {
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: flex-start !important;
-            gap: 1px !important;
-            line-height: 1.15 !important;
-        }
-        body.route-liquidation .stat-total-change-primary {
-            display: inline-flex !important;
-            align-items: baseline !important;
-            gap: 4px !important;
-        }
-        body.route-liquidation #stat-total-change-value {
-            font-size: 14px !important;
-            font-weight: 700 !important;
-            letter-spacing: -.02em !important;
-        }
-        body.route-liquidation .stat-total-change-unit {
-            font-size: 10px !important;
-            font-weight: 600 !important;
-            opacity: .92 !important;
         }
         body.route-liquidation .stat-total-change-label {
             color: currentColor !important;
-            opacity: .78 !important;
-            font-size: 10px !important;
-            font-weight: 600 !important;
-            letter-spacing: .02em !important;
+            opacity: 1 !important;
+            font-size: 11px !important;
+            font-weight: 650 !important;
+            letter-spacing: .01em !important;
         }
         body.route-liquidation .liquidation-hero-meta {
             display: flex !important;
@@ -9951,15 +9929,9 @@
                     <div class="liquidation-hero-main">
                         <div id="stat-total-row">
                             <div id="stat-total">—</div>
-                            <div id="stat-total-change" class="stat-total-change unavailable" aria-label="24 hour position change unavailable">
+                            <div id="stat-total-change" class="stat-total-change unavailable" aria-label="Position change history unavailable">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
-                                <span class="stat-total-change-copy">
-                                    <span class="stat-total-change-primary">
-                                        <span id="stat-total-change-value">—</span>
-                                        <span id="stat-total-change-unit" class="stat-total-change-unit">positions</span>
-                                    </span>
-                                    <span id="stat-total-change-percent" class="stat-total-change-label">— · 24h</span>
-                                </span>
+                                <span id="stat-total-change-percent" class="stat-total-change-label">— · awaiting history</span>
                             </div>
                         </div>
                     </div>
@@ -12450,10 +12422,8 @@
 
         function renderPositionCount24h(history) {
             const chip = document.getElementById('stat-total-change');
-            const value = document.getElementById('stat-total-change-value');
-            const unit = document.getElementById('stat-total-change-unit');
             const percent = document.getElementById('stat-total-change-percent');
-            if (!chip || !value || !unit || !percent) return;
+            if (!chip || !percent) return;
 
             chip.classList.remove('positive', 'negative', 'neutral', 'unavailable');
             const exactChange = history?.change24h;
@@ -12471,30 +12441,24 @@
             const icon = chip.querySelector('svg');
             if (!Number.isFinite(change) || !windowLabel) {
                 chip.classList.add('unavailable');
-                value.textContent = '—';
-                unit.textContent = 'positions';
-                percent.textContent = '— · 24h';
-                chip.setAttribute('aria-label', '24 hour position change unavailable');
+                percent.textContent = '— · awaiting history';
+                chip.setAttribute('aria-label', 'Position change history unavailable');
                 chip.removeAttribute('title');
                 if (icon) icon.innerHTML = '<path d="M5 12h14"/>';
                 return;
             }
 
             const state = change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral';
+            const direction = percentage > 0 ? 'up' : percentage < 0 ? 'down' : 'unchanged';
             chip.classList.add(state);
-            value.textContent = Math.abs(change).toLocaleString();
-            unit.textContent = Math.abs(change) === 1 ? 'position' : 'positions';
             percent.textContent = Number.isFinite(percentage)
                 ? `${percentage > 0 ? '+' : percentage < 0 ? '−' : ''}${Math.abs(percentage).toFixed(2)}% · ${windowLabel}`
                 : `— · ${windowLabel}`;
-            const percentAria = Number.isFinite(percentage)
-                ? `, ${Math.abs(percentage).toFixed(2)} percent ${percentage > 0 ? 'up' : percentage < 0 ? 'down' : 'unchanged'}`
-                : '';
-            const windowAria = exactChange ? '24 hours' : windowLabel;
-            const fallbackAria = exactChange ? '' : '. The 24-hour baseline is still building';
             chip.setAttribute(
                 'aria-label',
-                `${Math.abs(change).toLocaleString()} ${change > 0 ? 'more' : change < 0 ? 'fewer' : 'net change in'} positions over ${windowAria}${percentAria}${fallbackAria}`
+                Number.isFinite(percentage)
+                    ? `${Math.abs(percentage).toFixed(2)} percent ${direction} over ${exactChange ? '24 hours' : windowLabel}${exactChange ? '' : '. The 24-hour baseline is still building'}`
+                    : `Position change percentage unavailable over ${windowLabel}`
             );
             if (exactChange) {
                 chip.removeAttribute('title');
