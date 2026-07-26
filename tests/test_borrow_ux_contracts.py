@@ -228,7 +228,7 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
         for contract in (
             "Build Scenario",
             "Price shock",
-            "Live Impact",
+            "Scenario Result",
             'id="sim-impact-headline"',
             'id="sim-impact-state"',
             'id="sim-risk-level"',
@@ -238,12 +238,40 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
 
-    def test_each_scenario_row_exposes_safe_negative_presets(self):
-        for pct in ("-5", "-10", "-25"):
-            with self.subTest(pct=pct):
-                self.assertIn(f'data-pct="{pct}"', SOURCE)
-        self.assertIn("applyMultiAssetPreset", SOURCE)
-        self.assertIn("Scenario active", SOURCE)
+    def test_scenario_rows_use_one_manual_input_without_presets(self):
+        for obsolete in (
+            'class="sim-multi-presets"',
+            'class="sim-multi-preset"',
+            'data-pct="-5"',
+            'data-pct="-10"',
+            'data-pct="-25"',
+            "applyMultiAssetPreset",
+        ):
+            with self.subTest(obsolete=obsolete):
+                self.assertNotIn(obsolete, SOURCE)
+        self.assertIn('data-step="-1"', SOURCE)
+        self.assertIn('data-step="1"', SOURCE)
+        self.assertIn('step="any"', SOURCE)
+        self.assertIn('class="sim-multi-shock-rail"', SOURCE)
+        self.assertIn("function clampMultiAssetPct(value)", SOURCE)
+        self.assertIn("'--sim-shock-left'", SOURCE)
+        self.assertIn("'--sim-shock-width'", SOURCE)
+
+    def test_builder_actions_live_in_header_and_result_is_announced(self):
+        header = SOURCE[
+            SOURCE.index('<div class="sim-multi-header">'):
+            SOURCE.index('<div class="sim-multi-builder">', SOURCE.index('<div class="sim-multi-header">'))
+        ]
+        self.assertIn('class="sim-multi-header-actions"', header)
+        self.assertIn('id="sim-multi-add"', header)
+        self.assertIn("Add Asset", header)
+        self.assertIn('id="sim-multi-reset"', header)
+        self.assertIn("Reset Scenario", header)
+        self.assertNotIn('class="sim-multi-summary-card"', SOURCE)
+        self.assertIn(
+            'class="liquidation-sim-metric liq sim-impact-primary" role="status" aria-live="polite" aria-atomic="true"',
+            SOURCE,
+        )
 
     def test_result_status_remains_readable_and_mobile_rows_do_not_reserve_empty_slots(self):
         self.assertIn(

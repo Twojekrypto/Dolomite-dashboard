@@ -7372,8 +7372,7 @@
             display: none !important;
             content: none !important;
         }
-        body.route-liquidation .sim-multi-field-label,
-        body.route-liquidation .sim-multi-summary-kicker {
+        body.route-liquidation .sim-multi-field-label {
             display: none !important;
             color: var(--fg-3) !important;
             font-size: 9px !important;
@@ -7477,7 +7476,7 @@
             background: currentColor !important;
             transform: translate(-50%, -50%) !important;
         }
-        body.route-liquidation .sim-multi-step[data-step="5"]::after {
+        body.route-liquidation .sim-multi-step[data-step="1"]::after {
             transform: translate(-50%, -50%) rotate(90deg) !important;
         }
         body.route-liquidation .sim-multi-pct-symbol {
@@ -7556,37 +7555,6 @@
         body.route-liquidation .sim-multi-token-item:hover {
             background: var(--bg-3) !important;
             color: var(--fg-1) !important;
-        }
-        body.route-liquidation .sim-multi-summary-card {
-            order: 2 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: flex-end !important;
-            gap: 10px !important;
-            min-width: 0 !important;
-            min-height: 58px !important;
-            height: auto !important;
-            padding: 10px !important;
-            border-radius: var(--r-md) !important;
-            background:
-                radial-gradient(circle at top right, rgba(201,162,39,.10), transparent 44%),
-                var(--bg-2) !important;
-            border: 1px solid var(--line-1) !important;
-            position: relative !important;
-            z-index: 2 !important;
-        }
-        body.route-liquidation .sim-multi-summary-main {
-            display: none !important;
-        }
-        body.route-liquidation .sim-multi-summary-actions {
-            display: grid !important;
-            grid-template-columns: 170px !important;
-            gap: 9px !important;
-            align-items: center !important;
-            justify-self: end !important;
-            width: auto !important;
-            min-width: 0 !important;
-            margin-top: 0 !important;
         }
         body.route-liquidation .sim-multi-add {
             display: inline-flex !important;
@@ -8020,17 +7988,6 @@
         }
         body.route-liquidation #sim-card #sim-multi-panel .sim-multi-editor {
             flex: 1 1 auto !important;
-        }
-        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-summary-card {
-            justify-content: flex-start !important;
-            min-height: 52px !important;
-            padding: 8px 10px !important;
-            background: transparent !important;
-            border: 0 !important;
-        }
-        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-summary-actions {
-            justify-self: start !important;
-            grid-template-columns: 160px !important;
         }
         body.route-liquidation #sim-card #sim-multi-rows {
             min-height: var(--sim-multi-rows-height, 190px) !important;
@@ -8900,9 +8857,6 @@
             body.route-liquidation .sim-multi-input-wrap {
                 width: 100% !important;
             }
-            body.route-liquidation .sim-multi-summary-card {
-                min-height: 0 !important;
-            }
             body.route-liquidation .liquidation-table-container {
                 overflow-x: auto !important;
                 -webkit-overflow-scrolling: touch !important;
@@ -8974,33 +8928,8 @@
                 grid-template-columns: 1fr !important;
                 height: auto !important;
             }
-            body.route-liquidation .sim-multi-summary-card {
-                height: auto !important;
-                min-height: 0 !important;
-            }
-            body.route-liquidation .sim-multi-summary-actions {
-                grid-template-columns: 156px !important;
-                width: 156px !important;
-                justify-self: end !important;
-            }
         }
         @media (max-width: 940px) {
-            body.route-liquidation .sim-multi-summary-card {
-                grid-template-columns: 1fr !important;
-                align-items: stretch !important;
-            }
-            body.route-liquidation .sim-multi-summary-main {
-                grid-template-columns: 1fr !important;
-                grid-template-areas:
-                    "kicker"
-                    "title"
-                    "copy" !important;
-            }
-            body.route-liquidation .sim-multi-summary-actions {
-                grid-template-columns: 1fr !important;
-                width: 100% !important;
-                justify-self: stretch !important;
-            }
         }
         @media (max-width: 620px) {
             body.route-liquidation .liquidation-intel-title {
@@ -9056,15 +8985,6 @@
             body.route-liquidation .sim-impact-label .impact-value {
                 width: 100% !important;
                 line-height: 1.35 !important;
-            }
-            body.route-liquidation .sim-multi-summary-card {
-                grid-template-columns: 1fr !important;
-                gap: 12px !important;
-            }
-            body.route-liquidation .sim-multi-summary-actions {
-                grid-template-columns: 1fr !important;
-                width: 100% !important;
-                justify-self: stretch !important;
             }
         }
 
@@ -9124,20 +9044,16 @@
             background: rgba(180,121,107,.10) !important;
             border-color: rgba(180,121,107,.26) !important;
         }
-        body.route-liquidation #sim-card .sim-multi-summary-card {
-            order: 1 !important;
-            min-height: 46px !important;
-            padding: 0 !important;
-            background: transparent !important;
-            border: 0 !important;
-            box-shadow: none !important;
+        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-header {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 12px !important;
         }
-        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-summary-actions,
-        body.route-liquidation #sim-card .sim-multi-summary-actions {
+        body.route-liquidation #sim-card .sim-multi-header-actions {
             display: inline-grid !important;
             grid-template-columns: 148px 108px !important;
             width: auto !important;
-            justify-self: start !important;
             justify-content: start !important;
             gap: 8px !important;
         }
@@ -9351,8 +9267,11 @@
             }
         }
         @media (max-width: 760px) {
-            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-summary-actions,
-            body.route-liquidation #sim-card .sim-multi-summary-actions {
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-header {
+                align-items: flex-start !important;
+                flex-direction: column !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-header-actions {
                 grid-template-columns: 1fr 1fr !important;
                 width: 100% !important;
             }
@@ -9398,7 +9317,7 @@
         }
         body.route-liquidation #sim-card .sim-multi-move-layout {
             display: grid !important;
-            grid-template-columns: minmax(126px, 1fr) auto !important;
+            grid-template-columns: minmax(126px, 1fr) minmax(84px, .8fr) !important;
             align-items: center !important;
             gap: 8px !important;
             min-width: 0 !important;
@@ -9412,42 +9331,36 @@
             height: 30px !important;
             min-height: 30px !important;
         }
-        body.route-liquidation #sim-card .sim-multi-presets {
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 4px !important;
-            min-width: 0 !important;
+        body.route-liquidation #sim-card .sim-multi-shock-rail {
+            position: relative !important;
+            height: 8px !important;
+            min-width: 84px !important;
+            overflow: hidden !important;
+            border-radius: 999px !important;
+            background: var(--bg-4) !important;
         }
-        body.route-liquidation #sim-card .sim-multi-preset {
-            display: inline-flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            height: 28px !important;
-            min-width: 38px !important;
-            padding: 0 6px !important;
-            border: 1px solid var(--line-1) !important;
-            border-radius: 7px !important;
-            background: rgba(255,255,255,.018) !important;
-            color: var(--fg-3) !important;
-            font-family: var(--mono) !important;
-            font-size: 9.5px !important;
-            font-weight: 600 !important;
-            font-variant-numeric: tabular-nums !important;
-            cursor: pointer !important;
-            transition: color .15s var(--ease), background .15s var(--ease), border-color .15s var(--ease) !important;
+        body.route-liquidation #sim-card .sim-multi-shock-fill {
+            position: absolute !important;
+            top: 0 !important;
+            bottom: 0 !important;
+            left: var(--sim-shock-left, 50%) !important;
+            width: var(--sim-shock-width, 0%) !important;
+            background: var(--gold) !important;
         }
-        body.route-liquidation #sim-card .sim-multi-preset:hover,
-        body.route-liquidation #sim-card .sim-multi-preset:focus-visible {
-            color: var(--down) !important;
-            background: rgba(180,121,107,.08) !important;
-            border-color: rgba(180,121,107,.24) !important;
-            outline: none !important;
+        body.route-liquidation #sim-card .sim-multi-row.is-drop .sim-multi-shock-fill {
+            background: var(--down) !important;
         }
-        body.route-liquidation #sim-card .sim-multi-preset.active {
-            color: #d49b8e !important;
-            background: rgba(180,121,107,.12) !important;
-            border-color: rgba(180,121,107,.34) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+        body.route-liquidation #sim-card .sim-multi-row.is-rise .sim-multi-shock-fill {
+            background: var(--up) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-zero {
+            position: absolute !important;
+            top: 0 !important;
+            bottom: 0 !important;
+            left: 50% !important;
+            width: 1px !important;
+            background: var(--fg-1) !important;
+            opacity: .45 !important;
         }
         body.route-liquidation #sim-card .liquidation-sim-metrics {
             position: relative !important;
@@ -9597,11 +9510,8 @@
                 grid-template-columns: minmax(0, 1fr) !important;
                 gap: 7px !important;
             }
-            body.route-liquidation #sim-card .sim-multi-presets {
+            body.route-liquidation #sim-card .sim-multi-shock-rail {
                 width: 100% !important;
-            }
-            body.route-liquidation #sim-card .sim-multi-preset {
-                flex: 1 1 0 !important;
             }
             body.route-liquidation #sim-card .sim-impact-secondary-grid {
                 grid-template-columns: 1fr !important;
@@ -10095,10 +10005,10 @@
 
                     <div class="liquidation-sim-metrics">
                         <div class="sim-result-head">
-                            <span>Live Impact</span>
+                            <span>Scenario Result</span>
                             <small id="sim-impact-state">Adjust a token to simulate impact</small>
                         </div>
-                        <div class="liquidation-sim-metric liq sim-impact-primary">
+                        <div class="liquidation-sim-metric liq sim-impact-primary" role="status" aria-live="polite" aria-atomic="true">
                             <div class="liquidation-sim-metric-label">Threshold crossings</div>
                             <div id="sim-impact-headline" class="sim-impact-headline">
                                 <span id="sim-liq-count">0</span> positions cross HF 1.0
@@ -10207,7 +10117,17 @@
                         <div class="sim-multi-header">
                             <div class="sim-multi-header-main">
                                 <span class="sim-multi-header-title">Build Scenario</span>
-                                <div class="sim-multi-header-copy">Choose assets and apply a signed price shock. Results update live.</div>
+                                <div class="sim-multi-header-copy">Set a signed price shock for each asset. Results update live.</div>
+                            </div>
+                            <div class="sim-multi-header-actions">
+                                <button type="button" class="sim-multi-add" id="sim-multi-add" onclick="addMultiAssetRow()">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Add Asset
+                                </button>
+                                <button type="button" class="sim-multi-reset" id="sim-multi-reset" onclick="resetMultiAssetRows()">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                                    Reset Scenario
+                                </button>
                             </div>
                         </div>
                         <div class="sim-multi-builder">
@@ -10216,18 +10136,6 @@
                                     <span></span><span>Asset</span><span>Price shock</span>
                                 </div>
                                 <div id="sim-multi-rows"></div>
-                            </div>
-                            <div class="sim-multi-summary-card">
-                                <div class="sim-multi-summary-actions">
-                                    <button type="button" class="sim-multi-add" id="sim-multi-add" onclick="addMultiAssetRow()">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                        Add Token
-                                    </button>
-                                    <button type="button" class="sim-multi-reset" id="sim-multi-reset" onclick="resetMultiAssetRows()">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-                                        Reset
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -13537,25 +13445,24 @@
             return defaults.slice(0, 3);
         }
 
-        function updateMultiRowMoveUi(row) {
-            const pctInput = row.querySelector('input[type="number"]');
-            const pct = parseFloat(pctInput?.value) || 0;
-            row.classList.toggle('is-drop', pct < 0);
-            row.classList.toggle('is-rise', pct > 0);
-            row.querySelectorAll('.sim-multi-preset').forEach(button => {
-                const isActive = Math.abs(pct - Number(button.dataset.pct)) < 0.0001;
-                button.classList.toggle('active', isActive);
-                button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-            });
+        function clampMultiAssetPct(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number)) return 0;
+            return Math.max(-100, Math.min(500, number));
         }
 
-        function applyMultiAssetPreset(row, percentage) {
-            const pctInput = row?.querySelector('input[type="number"]');
-            if (!pctInput) return;
-            pctInput.value = Math.max(-100, Math.min(500, Number(percentage) || 0));
-            pctInput.dispatchEvent(new Event('input', { bubbles: true }));
+        function updateMultiRowMoveUi(row) {
+            const pctInput = row.querySelector('input[type="number"]');
+            const pct = clampMultiAssetPct(parseFloat(pctInput?.value) || 0);
+            const width = pct < 0
+                ? Math.min(50, Math.abs(pct) / 2)
+                : Math.min(50, pct / 10);
+            const left = pct < 0 ? 50 - width : 50;
+            row.classList.toggle('is-drop', pct < 0);
+            row.classList.toggle('is-rise', pct > 0);
+            row.style.setProperty('--sim-shock-left', `${left}%`);
+            row.style.setProperty('--sim-shock-width', `${width}%`);
         }
-        window.applyMultiAssetPreset = applyMultiAssetPreset;
 
         function addMultiAssetRow(defaultToken, defaultPct, options = {}) {
             const container = document.getElementById('sim-multi-rows');
@@ -13594,17 +13501,16 @@
                 `<div class="sim-multi-move-cell">` +
                     `<div class="sim-multi-move-layout">` +
                         `<div class="sim-multi-move-control">` +
-                            `<button type="button" class="sim-multi-step" data-step="-5" aria-label="Decrease move">-</button>` +
+                            `<button type="button" class="sim-multi-step" data-step="-1" aria-label="Decrease ${token} price shock by 1 percentage point">−</button>` +
                             `<span class="sim-multi-input-wrap">` +
-                                `<input type="number" class="sim-multi-pct-input" min="-100" max="500" value="${initialPct}" step="5" aria-label="Token price shock percentage">` +
+                                `<input type="number" class="sim-multi-pct-input" min="-100" max="500" value="${initialPct}" step="any" inputmode="decimal" aria-label="${token} price shock percentage">` +
                                 `<span class="sim-multi-pct-symbol">%</span>` +
                             `</span>` +
-                            `<button type="button" class="sim-multi-step" data-step="5" aria-label="Increase move">+</button>` +
+                            `<button type="button" class="sim-multi-step" data-step="1" aria-label="Increase ${token} price shock by 1 percentage point">+</button>` +
                         `</div>` +
-                        `<div class="sim-multi-presets" aria-label="Quick negative price shocks">` +
-                            `<button type="button" class="sim-multi-preset" data-pct="-5" aria-pressed="false">−5%</button>` +
-                            `<button type="button" class="sim-multi-preset" data-pct="-10" aria-pressed="false">−10%</button>` +
-                            `<button type="button" class="sim-multi-preset" data-pct="-25" aria-pressed="false">−25%</button>` +
+                        `<div class="sim-multi-shock-rail" aria-hidden="true">` +
+                            `<span class="sim-multi-shock-fill"></span>` +
+                            `<i class="sim-multi-shock-zero"></i>` +
                         `</div>` +
                     `</div>` +
                 `</div>`;
@@ -13639,6 +13545,15 @@
                             ? `<img src="${url2}" width="16" height="16" style="border-radius:50%" alt="">`
                             : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${sym.charAt(0)}</span>`;
                         trigLabel.textContent = sym;
+                        pctInput.setAttribute('aria-label', `${sym} price shock percentage`);
+                        row.querySelector('[data-step="-1"]')?.setAttribute(
+                            'aria-label',
+                            `Decrease ${sym} price shock by 1 percentage point`
+                        );
+                        row.querySelector('[data-step="1"]')?.setAttribute(
+                            'aria-label',
+                            `Increase ${sym} price shock by 1 percentage point`
+                        );
                         closeMultiTokenPopover(popover);
                         updateMultiScenarioSummary();
                         updateMultiAddButtonState();
@@ -13690,18 +13605,21 @@
                 updateMultiScenarioSummary();
                 if (window._multiAssetMode) runMultiAssetSim();
             });
+            pctInput.addEventListener('change', () => {
+                pctInput.value = clampMultiAssetPct(pctInput.value);
+                updateMultiRowMoveUi(row);
+                updateMultiScenarioSummary();
+                if (window._multiAssetMode) runMultiAssetSim();
+            });
             row.querySelectorAll('.sim-multi-step').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const current = parseFloat(pctInput.value) || 0;
-                    const next = Math.max(-100, Math.min(500, current + (parseFloat(btn.dataset.step) || 0)));
+                    const next = clampMultiAssetPct(current + (parseFloat(btn.dataset.step) || 0));
                     pctInput.value = next;
                     updateMultiRowMoveUi(row);
                     updateMultiScenarioSummary();
                     if (window._multiAssetMode) runMultiAssetSim();
                 });
-            });
-            row.querySelectorAll('.sim-multi-preset').forEach(btn => {
-                btn.addEventListener('click', () => applyMultiAssetPreset(row, btn.dataset.pct));
             });
             updateMultiRowMoveUi(row);
             updateMultiScenarioSummary();
