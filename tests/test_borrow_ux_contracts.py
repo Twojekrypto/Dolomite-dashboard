@@ -290,6 +290,36 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             SOURCE,
         )
 
+    def test_scenario_desk_uses_balanced_desktop_panels(self):
+        for contract in (
+            "grid-template-columns: minmax(0, 1.12fr) minmax(340px, .88fr) !important;",
+            "body.route-liquidation #sim-card .sim-multi-header-actions {",
+            "body.route-liquidation #sim-card .sim-multi-shock-rail {",
+            "body.route-liquidation #sim-card .sim-multi-shock-fill {",
+            "left: var(--sim-shock-left, 50%) !important;",
+            "width: var(--sim-shock-width, 0%) !important;",
+            "body.route-liquidation #sim-card #sim-multi-panel,\n"
+            "        body.route-liquidation #sim-card .liquidation-sim-metrics {\n"
+            "            height: 100% !important;",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
+    def test_scenario_desk_stacks_without_mobile_preset_space(self):
+        self.assertIn(
+            "@media (max-width: 980px) {\n"
+            "            body.route-liquidation #sim-card.liquidation-sim-card {\n"
+            "                grid-template-columns: 1fr !important;",
+            SOURCE,
+        )
+        self.assertIn(
+            "body.route-liquidation #sim-card .sim-multi-header-actions {\n"
+            "                width: 100% !important;",
+            SOURCE,
+        )
+        self.assertNotIn(".sim-multi-presets", SOURCE)
+        self.assertNotIn(".sim-multi-preset", SOURCE)
+
 
 if __name__ == "__main__":
     unittest.main()

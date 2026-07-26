@@ -9296,34 +9296,73 @@
             }
         }
 
-        /* Institutional Live Impact: explicit scenario inputs and a causal result hierarchy. */
-        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads {
-            display: grid !important;
-            grid-template-columns: 30px minmax(122px, .72fr) minmax(250px, 1.28fr) !important;
+        /* Institutional Scenario Desk: manual inputs, causal results, responsive balance. */
+        body.route-liquidation #sim-card.liquidation-sim-card {
+            grid-template-columns: minmax(0, 1.12fr) minmax(340px, .88fr) !important;
+            align-items: stretch !important;
+            column-gap: 14px !important;
+        }
+        body.route-liquidation #sim-card #sim-multi-panel,
+        body.route-liquidation #sim-card .liquidation-sim-metrics {
+            height: 100% !important;
+            min-height: 0 !important;
+        }
+        body.route-liquidation #sim-card #sim-multi-panel {
+            padding: 15px !important;
+        }
+        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-header {
+            display: flex !important;
             align-items: center !important;
+            justify-content: space-between !important;
+            gap: 16px !important;
+            margin-bottom: 12px !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-header-main {
+            min-width: 0 !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-header-actions {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: flex-end !important;
+            gap: 7px !important;
+            flex: 0 0 auto !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-add,
+        body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-reset {
+            width: auto !important;
+            min-width: 0 !important;
+            height: 32px !important;
+            min-height: 32px !important;
+            padding: 0 11px !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-add {
+            color: var(--gold) !important;
+            border-color: var(--gold-line) !important;
+            background: rgba(201,162,39,.08) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-builder {
+            display: block !important;
+            height: auto !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-editor {
+            padding: 9px !important;
+        }
+        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads,
+        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-row {
+            grid-template-columns: 30px minmax(120px, .74fr) minmax(190px, 1.26fr) !important;
             gap: 10px !important;
-            padding: 0 9px 7px !important;
-            color: var(--fg-4) !important;
-            font-family: var(--mono) !important;
-            font-size: 9px !important;
-            font-weight: 650 !important;
-            letter-spacing: .72px !important;
-            line-height: 1 !important;
-            text-transform: uppercase !important;
         }
         body.route-liquidation #sim-card #sim-multi-panel .sim-multi-row {
-            grid-template-columns: 30px minmax(122px, .72fr) minmax(250px, 1.28fr) !important;
-            gap: 10px !important;
+            min-height: 64px !important;
+            padding: 8px 9px !important;
         }
         body.route-liquidation #sim-card .sim-multi-move-layout {
             display: grid !important;
-            grid-template-columns: minmax(126px, 1fr) minmax(84px, .8fr) !important;
-            align-items: center !important;
-            gap: 8px !important;
-            min-width: 0 !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            gap: 7px !important;
         }
         body.route-liquidation #sim-card .sim-multi-move-control {
-            grid-template-columns: 30px minmax(58px, 1fr) 30px !important;
+            grid-template-columns: 30px minmax(70px, 1fr) 30px !important;
             gap: 5px !important;
         }
         body.route-liquidation #sim-card .sim-multi-step {
@@ -9333,19 +9372,20 @@
         }
         body.route-liquidation #sim-card .sim-multi-shock-rail {
             position: relative !important;
-            height: 8px !important;
-            min-width: 84px !important;
+            height: 3px !important;
+            margin: 0 4px !important;
             overflow: hidden !important;
             border-radius: 999px !important;
-            background: var(--bg-4) !important;
+            background: rgba(255,255,255,.055) !important;
         }
         body.route-liquidation #sim-card .sim-multi-shock-fill {
             position: absolute !important;
-            top: 0 !important;
-            bottom: 0 !important;
+            inset-block: 0 !important;
             left: var(--sim-shock-left, 50%) !important;
             width: var(--sim-shock-width, 0%) !important;
+            border-radius: inherit !important;
             background: var(--gold) !important;
+            transition: left .16s var(--ease), width .16s var(--ease), background .16s var(--ease) !important;
         }
         body.route-liquidation #sim-card .sim-multi-row.is-drop .sim-multi-shock-fill {
             background: var(--down) !important;
@@ -9355,45 +9395,17 @@
         }
         body.route-liquidation #sim-card .sim-multi-shock-zero {
             position: absolute !important;
-            top: 0 !important;
-            bottom: 0 !important;
-            left: 50% !important;
+            top: -2px !important;
+            bottom: -2px !important;
+            left: calc(50% - .5px) !important;
             width: 1px !important;
-            background: var(--fg-1) !important;
-            opacity: .45 !important;
+            background: var(--fg-3) !important;
+            opacity: .62 !important;
         }
         body.route-liquidation #sim-card .liquidation-sim-metrics {
-            position: relative !important;
             grid-template-columns: minmax(0, 1fr) !important;
-            grid-template-rows: auto auto auto auto !important;
-            align-content: start !important;
-            overflow: visible !important;
-        }
-        body.route-liquidation #sim-card .liquidation-sim-metrics::before {
-            content: "" !important;
-            position: absolute !important;
-            left: -13px !important;
-            top: 50% !important;
-            width: 12px !important;
-            height: 1px !important;
-            background: linear-gradient(90deg, transparent, var(--gold-line)) !important;
-            pointer-events: none !important;
-        }
-        body.route-liquidation #sim-card .liquidation-sim-metrics::after {
-            content: "" !important;
-            position: absolute !important;
-            left: -3px !important;
-            top: calc(50% - 2px) !important;
-            width: 4px !important;
-            height: 4px !important;
-            border-radius: 50% !important;
-            background: var(--gold) !important;
-            box-shadow: 0 0 8px var(--gold-line) !important;
-            pointer-events: none !important;
-        }
-        body.route-liquidation #sim-card .sim-result-head {
-            padding-bottom: 7px !important;
-            border-bottom: 1px solid var(--line-1) !important;
+            grid-template-rows: auto minmax(126px, auto) auto auto !important;
+            align-content: stretch !important;
         }
         body.route-liquidation #sim-card .sim-result-head small {
             max-width: min(330px, calc(100% - 96px)) !important;
@@ -9406,95 +9418,47 @@
             color: var(--gold) !important;
         }
         body.route-liquidation #sim-card .sim-impact-primary {
-            display: flex !important;
-            flex-direction: column !important;
-            justify-content: center !important;
-            min-height: 126px !important;
-            padding: 19px 20px !important;
-            background:
-                radial-gradient(circle at 8% 0, rgba(201,162,39,.09), transparent 45%),
-                var(--bg-2) !important;
-            border-color: var(--line-2) !important;
-        }
-        body.route-liquidation #sim-card .sim-impact-headline {
-            margin-top: 8px !important;
-            color: var(--fg-1) !important;
-            font-size: 18px !important;
-            font-weight: 590 !important;
-            line-height: 1.25 !important;
-            letter-spacing: -.2px !important;
-        }
-        body.route-liquidation #sim-card .sim-impact-headline #sim-liq-count {
-            margin-right: 3px !important;
-            color: var(--gold) !important;
-            font-family: var(--mono) !important;
-            font-size: 34px !important;
-            font-weight: 720 !important;
-            line-height: 1 !important;
-            letter-spacing: -1px !important;
-            font-variant-numeric: tabular-nums !important;
-        }
-        body.route-liquidation #sim-card .sim-impact-headline.is-risk #sim-liq-count {
-            color: var(--down) !important;
+            order: 1 !important;
         }
         body.route-liquidation #sim-card .sim-impact-secondary-grid {
-            display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 9px !important;
-        }
-        body.route-liquidation #sim-card .sim-impact-secondary-grid .liquidation-sim-metric {
-            min-height: 104px !important;
-            padding: 13px 14px 12px 17px !important;
-        }
-        body.route-liquidation #sim-card .sim-impact-secondary-grid .liquidation-sim-metric-value {
-            font-size: 20px !important;
+            order: 2 !important;
         }
         body.route-liquidation #sim-card .sim-impact-risk-row {
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            gap: 12px !important;
-            min-height: 44px !important;
-            padding: 0 13px !important;
-            border: 1px solid var(--line-1) !important;
-            border-radius: var(--r-md) !important;
-            background: rgba(255,255,255,.012) !important;
-        }
-        body.route-liquidation #sim-card .sim-impact-risk-row > span {
-            color: var(--fg-4) !important;
-            font-size: 10px !important;
-            font-weight: 650 !important;
-            letter-spacing: .58px !important;
-            text-transform: uppercase !important;
-        }
-        body.route-liquidation #sim-card #sim-risk-level {
-            color: var(--fg-2) !important;
-            font-family: var(--mono) !important;
-            font-size: 11px !important;
-            font-weight: 650 !important;
-        }
-        body.route-liquidation #sim-card #sim-risk-level[data-level="watch"] {
-            color: var(--gold) !important;
-        }
-        body.route-liquidation #sim-card #sim-risk-level[data-level="high"] {
-            color: var(--down) !important;
+            order: 3 !important;
         }
         @media (max-width: 980px) {
-            body.route-liquidation #sim-card .liquidation-sim-metrics::before,
-            body.route-liquidation #sim-card .liquidation-sim-metrics::after {
-                display: none !important;
+            body.route-liquidation #sim-card.liquidation-sim-card {
+                grid-template-columns: 1fr !important;
+                grid-template-areas:
+                    "header"
+                    "basket"
+                    "result"
+                    "wallets" !important;
+            }
+            body.route-liquidation #sim-card #sim-multi-panel,
+            body.route-liquidation #sim-card .liquidation-sim-metrics {
+                height: auto !important;
             }
         }
-        @media (max-width: 760px) {
-            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads {
-                display: none !important;
+        @media (max-width: 620px) {
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-header {
+                align-items: flex-start !important;
+                flex-direction: column !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-header-actions {
+                width: 100% !important;
+                display: grid !important;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-add,
+            body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-reset {
+                width: 100% !important;
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-row {
                 grid-template-columns: 30px minmax(0, 1fr) !important;
                 grid-template-areas:
                     "remove asset"
                     ". shock" !important;
-                align-items: start !important;
                 min-height: 118px !important;
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-remove {
@@ -9506,25 +9470,10 @@
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-move-cell {
                 grid-area: shock !important;
             }
-            body.route-liquidation #sim-card .sim-multi-move-layout {
-                grid-template-columns: minmax(0, 1fr) !important;
-                gap: 7px !important;
-            }
-            body.route-liquidation #sim-card .sim-multi-shock-rail {
-                width: 100% !important;
-            }
-            body.route-liquidation #sim-card .sim-impact-secondary-grid {
-                grid-template-columns: 1fr !important;
-            }
-            body.route-liquidation #sim-card .sim-impact-primary {
-                min-height: 112px !important;
-                padding: 16px !important;
-            }
-            body.route-liquidation #sim-card .sim-impact-headline {
-                font-size: 16px !important;
-            }
-            body.route-liquidation #sim-card .sim-impact-headline #sim-liq-count {
-                font-size: 28px !important;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            body.route-liquidation #sim-card .sim-multi-shock-fill {
+                transition: none !important;
             }
         }
 
