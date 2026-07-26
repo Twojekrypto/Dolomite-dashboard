@@ -344,6 +344,14 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
         self.assertNotIn(".sim-multi-presets", SOURCE)
         self.assertNotIn(".sim-multi-preset", SOURCE)
 
+    def test_mobile_scenario_input_remains_readable(self):
+        self.assertIn(
+            "body.route-liquidation #sim-card .sim-multi-row input[type=\"number\"] {\n"
+            "                width: 64px !important;\n"
+            "            }",
+            SOURCE,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
