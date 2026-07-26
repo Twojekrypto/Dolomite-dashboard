@@ -9123,13 +9123,6 @@
             font-weight: 680 !important;
             letter-spacing: 0 !important;
         }
-        body.route-liquidation #sim-card .sim-result-head small {
-            color: var(--fg-4) !important;
-            font-family: var(--mono) !important;
-            font-size: 10px !important;
-            font-weight: 500 !important;
-            white-space: nowrap !important;
-        }
         body.route-liquidation #sim-card .liquidation-sim-metric {
             min-height: 76px !important;
             padding: 13px 14px 12px 17px !important;
@@ -9298,7 +9291,7 @@
 
         /* Institutional Scenario Desk: manual inputs, causal results, responsive balance. */
         body.route-liquidation #sim-card.liquidation-sim-card {
-            grid-template-columns: minmax(0, 1.12fr) minmax(340px, .88fr) !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             align-items: stretch !important;
             column-gap: 14px !important;
         }
@@ -9416,27 +9409,42 @@
         }
         body.route-liquidation #sim-card .liquidation-sim-metrics {
             grid-template-columns: minmax(0, 1fr) !important;
-            grid-template-rows: auto minmax(126px, auto) auto auto !important;
+            grid-template-rows: auto minmax(140px, 1.1fr) minmax(132px, .9fr) !important;
             align-content: stretch !important;
-        }
-        body.route-liquidation #sim-card .sim-result-head small {
-            max-width: min(330px, calc(100% - 96px)) !important;
-            white-space: normal !important;
-            overflow: visible !important;
-            text-align: right !important;
-            text-overflow: clip !important;
-        }
-        body.route-liquidation #sim-card .sim-result-head small.is-active {
-            color: var(--gold) !important;
         }
         body.route-liquidation #sim-card .sim-impact-primary {
             order: 1 !important;
+            height: 100% !important;
         }
         body.route-liquidation #sim-card .sim-impact-secondary-grid {
             order: 2 !important;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 10px !important;
+            min-height: 0 !important;
         }
-        body.route-liquidation #sim-card .sim-impact-risk-row {
-            order: 3 !important;
+        body.route-liquidation #sim-card .sim-impact-secondary-grid > .liquidation-sim-metric {
+            height: 100% !important;
+        }
+        @media (min-width: 981px) {
+            body.route-liquidation #sim-card .sim-multi-builder {
+                display: flex !important;
+                flex: 1 1 auto !important;
+                min-height: 0 !important;
+                height: auto !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-editor {
+                flex: 1 1 auto !important;
+                min-height: 0 !important;
+            }
+            body.route-liquidation #sim-card #sim-multi-rows {
+                display: grid !important;
+                flex: 1 1 auto !important;
+                grid-auto-rows: minmax(64px, 1fr) !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                height: auto !important;
+            }
         }
         @media (max-width: 980px) {
             body.route-liquidation #sim-card.liquidation-sim-card {
@@ -9450,6 +9458,9 @@
             body.route-liquidation #sim-card #sim-multi-panel,
             body.route-liquidation #sim-card .liquidation-sim-metrics {
                 height: auto !important;
+            }
+            body.route-liquidation #sim-card .liquidation-sim-metrics {
+                grid-template-rows: auto auto auto !important;
             }
         }
         @media (max-width: 620px) {
@@ -9465,6 +9476,9 @@
             body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-add,
             body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-reset {
                 width: 100% !important;
+            }
+            body.route-liquidation #sim-card .sim-impact-secondary-grid {
+                grid-template-columns: minmax(0, 1fr) !important;
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads {
                 display: none !important;
@@ -9973,7 +9987,6 @@
                     <div class="liquidation-sim-metrics">
                         <div class="sim-result-head">
                             <span>Scenario Result</span>
-                            <small id="sim-impact-state">Adjust a token to simulate impact</small>
                         </div>
                         <div class="liquidation-sim-metric liq sim-impact-primary" role="status" aria-live="polite" aria-atomic="true">
                             <div class="liquidation-sim-metric-label">Threshold crossings</div>
@@ -9995,10 +10008,6 @@
                                 <div id="sim-col-pct" class="liquidation-sim-metric-sub">0% of visible collateral</div>
                                 <div class="sim-metric-progress"><div class="sim-metric-progress-fill" id="sim-col-progress" style="background:#fbbf24"></div></div>
                             </div>
-                        </div>
-                        <div class="sim-impact-risk-row">
-                            <span>Risk level</span>
-                            <strong id="sim-risk-level" data-level="none">No impact</strong>
                         </div>
                     </div>
 
@@ -13185,28 +13194,9 @@
         }
         function updateInstitutionalImpactState(crossingCount, hasScenario) {
             const count = Math.max(0, Number(crossingCount || 0));
-            const total = Math.max(0, Number(window._simTotalPos || 0));
-            const ratio = total > 0 ? count / total : 0;
-            const impactState = document.getElementById('sim-impact-state');
-            const riskLevel = document.getElementById('sim-risk-level');
             const impactHeadline = document.getElementById('sim-impact-headline');
             const metrics = document.querySelector('#sim-card .liquidation-sim-metrics');
 
-            if (impactState) {
-                impactState.textContent = hasScenario
-                    ? 'Scenario active · Updated live as you edit'
-                    : 'Adjust a token to simulate impact';
-                impactState.classList.toggle('is-active', !!hasScenario);
-            }
-            const riskState = count === 0 ? 'none' : (ratio >= 0.05 || count >= 50 ? 'high' : 'watch');
-            if (riskLevel) {
-                riskLevel.dataset.level = riskState;
-                riskLevel.textContent = riskState === 'high'
-                    ? 'High impact'
-                    : riskState === 'watch'
-                        ? 'Watch'
-                        : 'No impact';
-            }
             if (impactHeadline) impactHeadline.classList.toggle('is-risk', count > 0);
             if (metrics) metrics.classList.toggle('has-scenario', !!hasScenario);
         }

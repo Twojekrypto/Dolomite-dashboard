@@ -325,6 +325,20 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             "body.route-liquidation #sim-card .sim-impact-secondary-grid > .liquidation-sim-metric",
             SOURCE,
         )
+        self.assertIn(
+            "@media (min-width: 981px) {\n"
+            "            body.route-liquidation #sim-card .sim-multi-builder {\n"
+            "                display: flex !important;\n"
+            "                flex: 1 1 auto !important;",
+            SOURCE,
+        )
+        self.assertIn(
+            "body.route-liquidation #sim-card #sim-multi-rows {\n"
+            "                display: grid !important;\n"
+            "                flex: 1 1 auto !important;\n"
+            "                grid-auto-rows: minmax(64px, 1fr) !important;",
+            SOURCE,
+        )
 
     def test_mobile_scenario_rows_do_not_reserve_empty_slots(self):
         self.assertIn(
