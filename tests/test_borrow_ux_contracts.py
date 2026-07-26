@@ -305,6 +305,30 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
 
+    def test_scenario_desk_column_headers_align_with_desktop_rows_and_hide_when_stacked(self):
+        self.assertIn(
+            "body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads {\n"
+            "            display: grid !important;\n"
+            "            align-items: center !important;\n"
+            "            padding: 0 9px 7px !important;\n"
+            "            color: var(--fg-4) !important;\n"
+            "            font-family: var(--mono) !important;\n"
+            "            font-size: 9px !important;\n"
+            "            font-weight: 650 !important;\n"
+            "            letter-spacing: .72px !important;\n"
+            "            line-height: 1 !important;\n"
+            "            text-transform: uppercase !important;\n"
+            "        }",
+            SOURCE,
+        )
+        self.assertIn(
+            "body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads {\n"
+            "                display: none !important;\n"
+            "            }\n"
+            "            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-row {",
+            SOURCE,
+        )
+
     def test_scenario_desk_stacks_without_mobile_preset_space(self):
         self.assertIn(
             "@media (max-width: 980px) {\n"
