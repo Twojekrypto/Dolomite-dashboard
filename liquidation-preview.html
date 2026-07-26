@@ -2299,10 +2299,9 @@
         }
         .liquidation-history-table colgroup col:nth-child(1) { width: 7.8%; }  /* Chain */
         .liquidation-history-table colgroup col:nth-child(2) { width: 19%; }   /* Liquidated wallet */
-        .liquidation-history-table colgroup col:nth-child(3) { width: 39%; }   /* Date + former spacer */
-        .liquidation-history-table colgroup col:nth-child(4) { width: 0%; }    /* Collapsed spacer */
-        .liquidation-history-table colgroup col:nth-child(5) { width: 18.2%; } /* Collateral seized */
-        .liquidation-history-table colgroup col:nth-child(6) { width: 16%; }   /* Debt repaid */
+        .liquidation-history-table colgroup col:nth-child(3) { width: 39%; }   /* Date */
+        .liquidation-history-table colgroup col:nth-child(4) { width: 18.2%; } /* Collateral seized */
+        .liquidation-history-table colgroup col:nth-child(5) { width: 16%; }   /* Debt repaid */
         .liquidation-history-table thead th {
             position: sticky;
             top: 0;
@@ -2357,32 +2356,17 @@
         .liquidation-history-table tbody td:nth-child(2) {
             overflow: visible;
         }
-        .liquidation-history-table thead th:nth-child(3),
-        .liquidation-history-table tbody td:nth-child(3) {
-            padding-left: 0;
-            transform: translateX(-12px);
-        }
         .liquidation-history-table tbody td:first-child {
             overflow: visible;
             text-overflow: clip;
         }
         /* Amount columns (Collateral seized, Debt repaid) — pos-merged display, left-aligned, right group */
-        .liquidation-history-table tbody td:nth-child(5),
-        .liquidation-history-table tbody td:nth-child(6) {
+        .liquidation-history-table tbody td:nth-child(4),
+        .liquidation-history-table tbody td:nth-child(5) {
             overflow: visible;
             white-space: normal;
             text-align: left;
             vertical-align: middle;
-        }
-        .liquidation-history-table thead th.col-spacer,
-        .liquidation-history-table tbody td.col-spacer {
-            width: 0;
-            min-width: 0;
-            max-width: 0;
-            padding: 0;
-            border: 0;
-            background: transparent;
-            overflow: hidden;
         }
         .liquidation-history-wallet {
             display: inline-flex;
@@ -5178,9 +5162,8 @@
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 7.8% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19% !important; }
         body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 39% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 0% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 18.2% !important; }
-        body.route-liquidation #liquidation-history-table colgroup col:nth-child(6) { width: 16% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 18.2% !important; }
+        body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 16% !important; }
         body.route-liquidation #positions-table thead th,
         body.route-liquidation #liquidation-history-table thead th {
             padding: 12px 14px !important;
@@ -5197,21 +5180,6 @@
             font-size: 12px !important;
             line-height: 1.25 !important;
             vertical-align: middle !important;
-        }
-        body.route-liquidation #liquidation-history-table thead th:nth-child(3),
-        body.route-liquidation #liquidation-history-table tbody td:nth-child(3) {
-            padding-left: 0 !important;
-            transform: translateX(-12px) !important;
-        }
-        body.route-liquidation #liquidation-history-table thead th.col-spacer,
-        body.route-liquidation #liquidation-history-table tbody td.col-spacer {
-            width: 0 !important;
-            min-width: 0 !important;
-            max-width: 0 !important;
-            padding: 0 !important;
-            border: 0 !important;
-            background: transparent !important;
-            overflow: hidden !important;
         }
         body.route-liquidation #positions-table tbody tr,
         body.route-liquidation #liquidation-history-table tbody tr {
@@ -9431,6 +9399,247 @@
             }
         }
 
+        /* Institutional Live Impact: explicit scenario inputs and a causal result hierarchy. */
+        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads {
+            display: grid !important;
+            grid-template-columns: 30px minmax(122px, .72fr) minmax(250px, 1.28fr) !important;
+            align-items: center !important;
+            gap: 10px !important;
+            padding: 0 9px 7px !important;
+            color: var(--fg-4) !important;
+            font-family: var(--mono) !important;
+            font-size: 9px !important;
+            font-weight: 650 !important;
+            letter-spacing: .72px !important;
+            line-height: 1 !important;
+            text-transform: uppercase !important;
+        }
+        body.route-liquidation #sim-card #sim-multi-panel .sim-multi-row {
+            grid-template-columns: 30px minmax(122px, .72fr) minmax(250px, 1.28fr) !important;
+            gap: 10px !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-move-layout {
+            display: grid !important;
+            grid-template-columns: minmax(126px, 1fr) auto !important;
+            align-items: center !important;
+            gap: 8px !important;
+            min-width: 0 !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-move-control {
+            grid-template-columns: 30px minmax(58px, 1fr) 30px !important;
+            gap: 5px !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-step {
+            width: 30px !important;
+            height: 30px !important;
+            min-height: 30px !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-presets {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 4px !important;
+            min-width: 0 !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-preset {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 28px !important;
+            min-width: 38px !important;
+            padding: 0 6px !important;
+            border: 1px solid var(--line-1) !important;
+            border-radius: 7px !important;
+            background: rgba(255,255,255,.018) !important;
+            color: var(--fg-3) !important;
+            font-family: var(--mono) !important;
+            font-size: 9.5px !important;
+            font-weight: 600 !important;
+            font-variant-numeric: tabular-nums !important;
+            cursor: pointer !important;
+            transition: color .15s var(--ease), background .15s var(--ease), border-color .15s var(--ease) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-preset:hover,
+        body.route-liquidation #sim-card .sim-multi-preset:focus-visible {
+            color: var(--down) !important;
+            background: rgba(180,121,107,.08) !important;
+            border-color: rgba(180,121,107,.24) !important;
+            outline: none !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-preset.active {
+            color: #d49b8e !important;
+            background: rgba(180,121,107,.12) !important;
+            border-color: rgba(180,121,107,.34) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+        }
+        body.route-liquidation #sim-card .liquidation-sim-metrics {
+            position: relative !important;
+            grid-template-columns: minmax(0, 1fr) !important;
+            grid-template-rows: auto auto auto auto !important;
+            align-content: start !important;
+            overflow: visible !important;
+        }
+        body.route-liquidation #sim-card .liquidation-sim-metrics::before {
+            content: "" !important;
+            position: absolute !important;
+            left: -13px !important;
+            top: 50% !important;
+            width: 12px !important;
+            height: 1px !important;
+            background: linear-gradient(90deg, transparent, var(--gold-line)) !important;
+            pointer-events: none !important;
+        }
+        body.route-liquidation #sim-card .liquidation-sim-metrics::after {
+            content: "" !important;
+            position: absolute !important;
+            left: -3px !important;
+            top: calc(50% - 2px) !important;
+            width: 4px !important;
+            height: 4px !important;
+            border-radius: 50% !important;
+            background: var(--gold) !important;
+            box-shadow: 0 0 8px var(--gold-line) !important;
+            pointer-events: none !important;
+        }
+        body.route-liquidation #sim-card .sim-result-head {
+            padding-bottom: 7px !important;
+            border-bottom: 1px solid var(--line-1) !important;
+        }
+        body.route-liquidation #sim-card .sim-result-head small {
+            max-width: min(330px, calc(100% - 96px)) !important;
+            white-space: normal !important;
+            overflow: visible !important;
+            text-align: right !important;
+            text-overflow: clip !important;
+        }
+        body.route-liquidation #sim-card .sim-result-head small.is-active {
+            color: var(--gold) !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-primary {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            min-height: 126px !important;
+            padding: 19px 20px !important;
+            background:
+                radial-gradient(circle at 8% 0, rgba(201,162,39,.09), transparent 45%),
+                var(--bg-2) !important;
+            border-color: var(--line-2) !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-headline {
+            margin-top: 8px !important;
+            color: var(--fg-1) !important;
+            font-size: 18px !important;
+            font-weight: 590 !important;
+            line-height: 1.25 !important;
+            letter-spacing: -.2px !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-headline #sim-liq-count {
+            margin-right: 3px !important;
+            color: var(--gold) !important;
+            font-family: var(--mono) !important;
+            font-size: 34px !important;
+            font-weight: 720 !important;
+            line-height: 1 !important;
+            letter-spacing: -1px !important;
+            font-variant-numeric: tabular-nums !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-headline.is-risk #sim-liq-count {
+            color: var(--down) !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-secondary-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 9px !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-secondary-grid .liquidation-sim-metric {
+            min-height: 104px !important;
+            padding: 13px 14px 12px 17px !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-secondary-grid .liquidation-sim-metric-value {
+            font-size: 20px !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-risk-row {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 12px !important;
+            min-height: 44px !important;
+            padding: 0 13px !important;
+            border: 1px solid var(--line-1) !important;
+            border-radius: var(--r-md) !important;
+            background: rgba(255,255,255,.012) !important;
+        }
+        body.route-liquidation #sim-card .sim-impact-risk-row > span {
+            color: var(--fg-4) !important;
+            font-size: 10px !important;
+            font-weight: 650 !important;
+            letter-spacing: .58px !important;
+            text-transform: uppercase !important;
+        }
+        body.route-liquidation #sim-card #sim-risk-level {
+            color: var(--fg-2) !important;
+            font-family: var(--mono) !important;
+            font-size: 11px !important;
+            font-weight: 650 !important;
+        }
+        body.route-liquidation #sim-card #sim-risk-level[data-level="watch"] {
+            color: var(--gold) !important;
+        }
+        body.route-liquidation #sim-card #sim-risk-level[data-level="high"] {
+            color: var(--down) !important;
+        }
+        @media (max-width: 980px) {
+            body.route-liquidation #sim-card .liquidation-sim-metrics::before,
+            body.route-liquidation #sim-card .liquidation-sim-metrics::after {
+                display: none !important;
+            }
+        }
+        @media (max-width: 760px) {
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads {
+                display: none !important;
+            }
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-row {
+                grid-template-columns: 30px minmax(0, 1fr) !important;
+                grid-template-areas:
+                    "remove asset"
+                    ". shock" !important;
+                align-items: start !important;
+                min-height: 118px !important;
+            }
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-remove {
+                grid-area: remove !important;
+            }
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-token-cell {
+                grid-area: asset !important;
+            }
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-move-cell {
+                grid-area: shock !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-move-layout {
+                grid-template-columns: minmax(0, 1fr) !important;
+                gap: 7px !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-presets {
+                width: 100% !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-preset {
+                flex: 1 1 0 !important;
+            }
+            body.route-liquidation #sim-card .sim-impact-secondary-grid {
+                grid-template-columns: 1fr !important;
+            }
+            body.route-liquidation #sim-card .sim-impact-primary {
+                min-height: 112px !important;
+                padding: 16px !important;
+            }
+            body.route-liquidation #sim-card .sim-impact-headline {
+                font-size: 16px !important;
+            }
+            body.route-liquidation #sim-card .sim-impact-headline #sim-liq-count {
+                font-size: 28px !important;
+            }
+        }
+
         /* PROTOCOL INFO — same card pattern as DOLO / Assets */
         .proto {
             margin-top: 24px;
@@ -9914,25 +10123,33 @@
 
                     <div class="liquidation-sim-metrics">
                         <div class="sim-result-head">
-                            <span>Scenario Result</span>
-                            <small>Visible borrow positions</small>
+                            <span>Live Impact</span>
+                            <small id="sim-impact-state">Adjust a token to simulate impact</small>
                         </div>
-                        <div class="liquidation-sim-metric liq">
-                            <div class="liquidation-sim-metric-label">Crossing HF 1.0</div>
-                            <div id="sim-liq-count" class="liquidation-sim-metric-value">0</div>
+                        <div class="liquidation-sim-metric liq sim-impact-primary">
+                            <div class="liquidation-sim-metric-label">Threshold crossings</div>
+                            <div id="sim-impact-headline" class="sim-impact-headline">
+                                <span id="sim-liq-count">0</span> positions cross HF 1.0
+                            </div>
                             <div id="sim-liq-pct" class="liquidation-sim-metric-sub">0% of visible positions</div>
                         </div>
-                        <div class="liquidation-sim-metric debt">
-                            <div class="liquidation-sim-metric-label">Debt Exposed</div>
-                            <div id="sim-debt-risk" class="liquidation-sim-metric-value">$0</div>
-                            <div id="sim-debt-pct" class="liquidation-sim-metric-sub">0% of visible debt</div>
-                            <div class="sim-metric-progress"><div class="sim-metric-progress-fill" id="sim-debt-progress" style="background:#f97316"></div></div>
+                        <div class="sim-impact-secondary-grid">
+                            <div class="liquidation-sim-metric debt">
+                                <div class="liquidation-sim-metric-label">Debt Exposed</div>
+                                <div id="sim-debt-risk" class="liquidation-sim-metric-value">$0</div>
+                                <div id="sim-debt-pct" class="liquidation-sim-metric-sub">0% of visible debt</div>
+                                <div class="sim-metric-progress"><div class="sim-metric-progress-fill" id="sim-debt-progress" style="background:#f97316"></div></div>
+                            </div>
+                            <div class="liquidation-sim-metric collateral">
+                                <div class="liquidation-sim-metric-label">Collateral Exposed</div>
+                                <div id="sim-col-risk" class="liquidation-sim-metric-value">$0</div>
+                                <div id="sim-col-pct" class="liquidation-sim-metric-sub">0% of visible collateral</div>
+                                <div class="sim-metric-progress"><div class="sim-metric-progress-fill" id="sim-col-progress" style="background:#fbbf24"></div></div>
+                            </div>
                         </div>
-                        <div class="liquidation-sim-metric collateral">
-                            <div class="liquidation-sim-metric-label">Collateral Exposed</div>
-                            <div id="sim-col-risk" class="liquidation-sim-metric-value">$0</div>
-                            <div id="sim-col-pct" class="liquidation-sim-metric-sub">0% of visible collateral</div>
-                            <div class="sim-metric-progress"><div class="sim-metric-progress-fill" id="sim-col-progress" style="background:#fbbf24"></div></div>
+                        <div class="sim-impact-risk-row">
+                            <span>Risk level</span>
+                            <strong id="sim-risk-level" data-level="none">No impact</strong>
                         </div>
                     </div>
 
@@ -10017,12 +10234,15 @@
                     <div class="sim-multi-panel visible is-editing" id="sim-multi-panel">
                         <div class="sim-multi-header">
                             <div class="sim-multi-header-main">
-                                <span class="sim-multi-header-title">Scenario</span>
-                                <div class="sim-multi-header-copy">Choose tokens and set the price move for each one.</div>
+                                <span class="sim-multi-header-title">Build Scenario</span>
+                                <div class="sim-multi-header-copy">Choose assets and apply a signed price shock. Results update live.</div>
                             </div>
                         </div>
                         <div class="sim-multi-builder">
                             <div class="sim-multi-editor">
+                                <div class="sim-multi-column-heads" aria-hidden="true">
+                                    <span></span><span>Asset</span><span>Price shock</span>
+                                </div>
                                 <div id="sim-multi-rows"></div>
                             </div>
                             <div class="sim-multi-summary-card">
@@ -10259,14 +10479,13 @@
                     </div>
                     <table class="liquidation-history-table" id="liquidation-history-table" style="display:none;">
                         <colgroup>
-                            <col><col><col><col><col><col>
+                            <col><col><col><col><col>
                         </colgroup>
                         <thead>
                             <tr>
                                 <th>Chain</th>
                                 <th>Liquidated wallet</th>
                                 <th>Date</th>
-                                <th class="col-spacer" aria-hidden="true"></th>
                                 <th style="text-align:left; overflow:visible">
                                     <span class="col-header-group">
                                         Collateral seized
@@ -12218,6 +12437,17 @@
         }
 
         // ─── Summary Cards ───────────────────────────────────────────────────
+        function formatPositionCountWindow(windowSeconds) {
+            const seconds = Number(windowSeconds);
+            if (!Number.isFinite(seconds) || seconds <= 0) return null;
+            const minutes = Math.max(1, Math.round(seconds / 60));
+            if (minutes < 60) return `${minutes}m`;
+            const hours = seconds / 3600;
+            if (hours < 48) return `${Math.max(1, Math.round(hours))}h`;
+            const days = hours / 24;
+            return `${days < 10 ? days.toFixed(1) : Math.round(days)}d`;
+        }
+
         function renderPositionCount24h(history) {
             const chip = document.getElementById('stat-total-change');
             const value = document.getElementById('stat-total-change-value');
@@ -12226,20 +12456,26 @@
             if (!chip || !value || !unit || !percent) return;
 
             chip.classList.remove('positive', 'negative', 'neutral', 'unavailable');
-            const rawChange = history?.change24h?.change;
+            const exactChange = history?.change24h;
+            const comparison = exactChange || history?.fallbackChange;
+            const rawChange = comparison?.change;
             const change = rawChange === null || rawChange === undefined ? Number.NaN : Number(rawChange);
-            const rawBaseline = history?.change24h?.baselineCount;
+            const rawBaseline = comparison?.baselineCount;
             const baseline = rawBaseline === null || rawBaseline === undefined ? Number.NaN : Number(rawBaseline);
             const percentage = Number.isFinite(baseline) && baseline > 0
                 ? (change / baseline) * 100
                 : Number.NaN;
+            const windowLabel = exactChange
+                ? '24h'
+                : formatPositionCountWindow(comparison?.windowSeconds);
             const icon = chip.querySelector('svg');
-            if (!Number.isFinite(change)) {
+            if (!Number.isFinite(change) || !windowLabel) {
                 chip.classList.add('unavailable');
                 value.textContent = '—';
                 unit.textContent = 'positions';
                 percent.textContent = '— · 24h';
                 chip.setAttribute('aria-label', '24 hour position change unavailable');
+                chip.removeAttribute('title');
                 if (icon) icon.innerHTML = '<path d="M5 12h14"/>';
                 return;
             }
@@ -12249,15 +12485,22 @@
             value.textContent = Math.abs(change).toLocaleString();
             unit.textContent = Math.abs(change) === 1 ? 'position' : 'positions';
             percent.textContent = Number.isFinite(percentage)
-                ? `${percentage > 0 ? '+' : percentage < 0 ? '−' : ''}${Math.abs(percentage).toFixed(2)}% · 24h`
-                : '— · 24h';
+                ? `${percentage > 0 ? '+' : percentage < 0 ? '−' : ''}${Math.abs(percentage).toFixed(2)}% · ${windowLabel}`
+                : `— · ${windowLabel}`;
             const percentAria = Number.isFinite(percentage)
                 ? `, ${Math.abs(percentage).toFixed(2)} percent ${percentage > 0 ? 'up' : percentage < 0 ? 'down' : 'unchanged'}`
                 : '';
+            const windowAria = exactChange ? '24 hours' : windowLabel;
+            const fallbackAria = exactChange ? '' : '. The 24-hour baseline is still building';
             chip.setAttribute(
                 'aria-label',
-                `${Math.abs(change).toLocaleString()} ${change > 0 ? 'more' : change < 0 ? 'fewer' : 'net change in'} positions over 24 hours${percentAria}`
+                `${Math.abs(change).toLocaleString()} ${change > 0 ? 'more' : change < 0 ? 'fewer' : 'net change in'} positions over ${windowAria}${percentAria}${fallbackAria}`
             );
+            if (exactChange) {
+                chip.removeAttribute('title');
+            } else {
+                chip.title = `Nearest available comparison: ${windowLabel}. The 24-hour baseline is still building.`;
+            }
             if (icon) {
                 icon.innerHTML = change > 0
                     ? '<path d="m5 15 7-7 7 7"/>'
@@ -12832,6 +13075,7 @@
                     document.getElementById('sim-liq-pct').textContent = liqPct + '% of visible positions';
                     document.getElementById('sim-debt-pct').textContent = debtPctVal + '% of visible debt';
                     document.getElementById('sim-col-pct').textContent = colPctVal + '% of visible collateral';
+                    updateInstitutionalImpactState(liqCount, changeVal !== 0);
                     // Impact Summary Bar
                     const impactFill = document.getElementById('sim-impact-fill');
                     const impactVal = document.getElementById('sim-impact-value');
@@ -12941,18 +13185,20 @@
             requestAnimationFrame(() => {
                 const rows = Array.from(container.querySelectorAll('.sim-multi-row'));
                 const visibleRows = 4;
-                const fallback = window.matchMedia && window.matchMedia('(max-width: 760px)').matches ? 432 : 244;
+                const isCompact = !!(window.matchMedia && window.matchMedia('(max-width: 760px)').matches);
+                const fallback = isCompact ? 432 : 244;
                 let height = fallback;
                 if (rows.length) {
                     const first = rows[0];
                     const firstStyle = window.getComputedStyle(first);
                     const rowHeight = first.getBoundingClientRect().height || (fallback / visibleRows);
                     const rowGap = parseFloat(firstStyle.marginBottom) || 0;
+                    const rowSlots = isCompact ? Math.min(rows.length, visibleRows) : visibleRows;
                     if (rows.length >= visibleRows) {
                         const lastVisible = rows[visibleRows - 1];
                         height = (lastVisible.offsetTop + lastVisible.offsetHeight) - first.offsetTop;
                     } else {
-                        height = (rowHeight * visibleRows) + (rowGap * (visibleRows - 1));
+                        height = (rowHeight * rowSlots) + (rowGap * Math.max(0, rowSlots - 1));
                     }
                 }
                 container.style.setProperty('--sim-multi-rows-height', Math.ceil(height) + 'px');
@@ -13097,6 +13343,33 @@
                 details.classList.toggle('has-risk', hasRisk);
             }
             if (label) label.textContent = hasRisk ? 'Wallets crossing HF 1.0' : (shocked ? 'View closest wallets' : 'View wallets at risk');
+        }
+        function updateInstitutionalImpactState(crossingCount, hasScenario) {
+            const count = Math.max(0, Number(crossingCount || 0));
+            const total = Math.max(0, Number(window._simTotalPos || 0));
+            const ratio = total > 0 ? count / total : 0;
+            const impactState = document.getElementById('sim-impact-state');
+            const riskLevel = document.getElementById('sim-risk-level');
+            const impactHeadline = document.getElementById('sim-impact-headline');
+            const metrics = document.querySelector('#sim-card .liquidation-sim-metrics');
+
+            if (impactState) {
+                impactState.textContent = hasScenario
+                    ? 'Scenario active · Updated live as you edit'
+                    : 'Adjust a token to simulate impact';
+                impactState.classList.toggle('is-active', !!hasScenario);
+            }
+            const riskState = count === 0 ? 'none' : (ratio >= 0.05 || count >= 50 ? 'high' : 'watch');
+            if (riskLevel) {
+                riskLevel.dataset.level = riskState;
+                riskLevel.textContent = riskState === 'high'
+                    ? 'High impact'
+                    : riskState === 'watch'
+                        ? 'Watch'
+                        : 'No impact';
+            }
+            if (impactHeadline) impactHeadline.classList.toggle('is-risk', count > 0);
+            if (metrics) metrics.classList.toggle('has-scenario', !!hasScenario);
         }
         function setSimRiskDetailsOpen(open) {
             const details = document.getElementById('sim-risk-details');
@@ -13305,7 +13578,20 @@
             const pct = parseFloat(pctInput?.value) || 0;
             row.classList.toggle('is-drop', pct < 0);
             row.classList.toggle('is-rise', pct > 0);
+            row.querySelectorAll('.sim-multi-preset').forEach(button => {
+                const isActive = Math.abs(pct - Number(button.dataset.pct)) < 0.0001;
+                button.classList.toggle('active', isActive);
+                button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
         }
+
+        function applyMultiAssetPreset(row, percentage) {
+            const pctInput = row?.querySelector('input[type="number"]');
+            if (!pctInput) return;
+            pctInput.value = Math.max(-100, Math.min(500, Number(percentage) || 0));
+            pctInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        window.applyMultiAssetPreset = applyMultiAssetPreset;
 
         function addMultiAssetRow(defaultToken, defaultPct, options = {}) {
             const container = document.getElementById('sim-multi-rows');
@@ -13342,13 +13628,20 @@
                     `</div>` +
                 `</div>` +
                 `<div class="sim-multi-move-cell">` +
-                    `<div class="sim-multi-move-control">` +
-                        `<button type="button" class="sim-multi-step" data-step="-5" aria-label="Decrease move">-</button>` +
-                        `<span class="sim-multi-input-wrap">` +
-                            `<input type="number" class="sim-multi-pct-input" min="-100" max="500" value="${initialPct}" step="5" aria-label="Token price move percentage">` +
-                            `<span class="sim-multi-pct-symbol">%</span>` +
-                        `</span>` +
-                        `<button type="button" class="sim-multi-step" data-step="5" aria-label="Increase move">+</button>` +
+                    `<div class="sim-multi-move-layout">` +
+                        `<div class="sim-multi-move-control">` +
+                            `<button type="button" class="sim-multi-step" data-step="-5" aria-label="Decrease move">-</button>` +
+                            `<span class="sim-multi-input-wrap">` +
+                                `<input type="number" class="sim-multi-pct-input" min="-100" max="500" value="${initialPct}" step="5" aria-label="Token price shock percentage">` +
+                                `<span class="sim-multi-pct-symbol">%</span>` +
+                            `</span>` +
+                            `<button type="button" class="sim-multi-step" data-step="5" aria-label="Increase move">+</button>` +
+                        `</div>` +
+                        `<div class="sim-multi-presets" aria-label="Quick negative price shocks">` +
+                            `<button type="button" class="sim-multi-preset" data-pct="-5" aria-pressed="false">−5%</button>` +
+                            `<button type="button" class="sim-multi-preset" data-pct="-10" aria-pressed="false">−10%</button>` +
+                            `<button type="button" class="sim-multi-preset" data-pct="-25" aria-pressed="false">−25%</button>` +
+                        `</div>` +
                     `</div>` +
                 `</div>`;
 
@@ -13442,6 +13735,9 @@
                     updateMultiScenarioSummary();
                     if (window._multiAssetMode) runMultiAssetSim();
                 });
+            });
+            row.querySelectorAll('.sim-multi-preset').forEach(btn => {
+                btn.addEventListener('click', () => applyMultiAssetPreset(row, btn.dataset.pct));
             });
             updateMultiRowMoveUi(row);
             updateMultiScenarioSummary();
@@ -13551,6 +13847,7 @@
             const simBanner = document.getElementById('sim-active-banner');
             const simResetBtn = document.getElementById('sim-reset-btn');
             const hasCustomMove = Object.values(tokenMuls).some(mul => Math.abs(Number(mul || 1) - 1) > 0.000001);
+            updateInstitutionalImpactState(liqCount, hasCustomMove);
             if (simBanner) simBanner.classList.toggle('visible', hasCustomMove);
             if (simResetBtn) simResetBtn.classList.toggle('visible', true);
             const card = document.getElementById('sim-card');
@@ -14464,7 +14761,7 @@
                 : `(${filteredTotal.toLocaleString()})`;
 
             if (!filteredTotal) {
-                body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
                 pager.innerHTML = '';
                 return;
             }
@@ -14489,7 +14786,6 @@
                             <span>${supplyEscapeHtml(supplyFormatRelativeTime(row.timestamp))} · ${supplyEscapeHtml(supplyFormatActivityTime(row.timestamp))}</span>
                         </div>
                     </td>
-                    <td class="col-spacer" aria-hidden="true"></td>
                     <td>${renderLiquidationHistoryAmount(row.collateralSeizedAmount, row.heldToken, row.collateralSeizedUSD, 'collateral')}</td>
                     <td>${renderLiquidationHistoryAmount(row.debtRepaidAmount, row.borrowedToken, row.debtRepaidUSD, 'debt')}</td>
                 </tr>`;
@@ -14497,7 +14793,7 @@
 
             if (pageRows.length < LIQUIDATION_HISTORY_PAGE_SIZE) {
                 for (let i = 0; i < (LIQUIDATION_HISTORY_PAGE_SIZE - pageRows.length); i++) {
-                    body.innerHTML += '<tr><td colspan="6" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
+                    body.innerHTML += '<tr><td colspan="5" style="padding:15px; opacity:0; pointer-events:none;">&nbsp;</td></tr>';
                 }
             }
 

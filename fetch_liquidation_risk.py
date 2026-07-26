@@ -1409,10 +1409,34 @@ def build_position_count_history(previous, generated_at, current_count):
             "baselineAt": baseline["timestamp"],
         }
 
+    fallback_change = None
+    if change_24h is None:
+        fallback_baseline = min(
+            (
+                observation
+                for observation in snapshots
+                if observation["timestamp"] < generated_at
+            ),
+            key=lambda observation: (
+                abs(observation["timestamp"] - target_timestamp),
+                observation["timestamp"],
+            ),
+            default=None,
+        )
+        if fallback_baseline is not None:
+            fallback_change = {
+                "currentCount": max(0, current_count),
+                "baselineCount": fallback_baseline["count"],
+                "change": max(0, current_count) - fallback_baseline["count"],
+                "baselineAt": fallback_baseline["timestamp"],
+                "windowSeconds": generated_at - fallback_baseline["timestamp"],
+            }
+
     return {
         "generatedAt": generated_at,
         "snapshots": snapshots,
         "change24h": change_24h,
+        "fallbackChange": fallback_change,
     }
 
 
