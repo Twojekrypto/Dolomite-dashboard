@@ -176,6 +176,40 @@ class TestBorrowTableHeaderUx(unittest.TestCase):
 
 
 class TestBorrowSimulatorAddressUx(unittest.TestCase):
+    def test_at_risk_table_exposes_dolo_style_sort_controls_for_risk_metrics(self):
+        for contract in (
+            'data-sim-risk-sort="hfAfter"',
+            'data-sim-risk-sort="collateral"',
+            'data-sim-risk-sort="debt"',
+            'class="sim-atrisk-sort"',
+            'class="sort" aria-hidden="true"',
+            'aria-sort="ascending"',
+            'body.route-liquidation #sim-card .sim-atrisk-sort {',
+            'padding: 0 !important;\n            border: 0 !important;\n            background: transparent !important;\n            appearance: none !important;',
+            'body.route-liquidation #sim-card .sim-atrisk-sort .sort {',
+            'body.route-liquidation #sim-card .sim-atrisk-sortable[aria-sort="ascending"] .sort,',
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
+    def test_at_risk_metric_sorting_reorders_full_result_set_and_resets_pagination(self):
+        for contract in (
+            'window.simRiskSort = function(sortKey) {',
+            "const initialDirection = sortKey === 'hfAfter' ? 'asc' : 'desc';",
+            'window._simRiskPage = 1;',
+            "const sortKey = window._simRiskSortKey || 'hfAfter';",
+            "const sortDirection = window._simRiskSortDirection || 'asc';",
+            'const sortValues = {',
+            'hfAfter: row => Number(row.newHF),',
+            'collateral: row => Number(row.collateralUSD),',
+            'debt: row => Number(row.debtUSD),',
+            'return sortDirection === \'asc\' ? comparison : -comparison;',
+            'renderSimRiskSortHeaders(sortKey, sortDirection);',
+            "return sortDirection === 'asc' ? 'smallest collateral' : 'largest collateral';",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
     def test_wallet_label_and_address_are_never_underlined(self):
         self.assertIn(
             "body.route-liquidation #sim-card .sim-atrisk-table .known-address-label,\n"
