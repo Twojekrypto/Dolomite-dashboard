@@ -20,6 +20,15 @@ LIQUIDATION_RENDER_SOURCE = SOURCE[
 
 
 class TestBorrowHeroUx(unittest.TestCase):
+    def test_position_change_provenance_uses_a_nameable_live_status(self):
+        self.assertRegex(
+            SOURCE,
+            re.compile(
+                r'<div id="stat-total-change" class="stat-total-change unavailable" '
+                r'role="status" aria-label="Position change history unavailable">'
+            ),
+        )
+
     def test_hero_has_source_backed_truthful_position_change(self):
         for contract in (
             'id="stat-total-row"',
@@ -224,6 +233,28 @@ class TestBorrowLiquidationHistoryUx(unittest.TestCase):
 
 
 class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
+    def test_live_simulation_clamps_every_row_value_before_consuming_it(self):
+        run_source = SOURCE[
+            SOURCE.index("function runMultiAssetSim()"):
+            SOURCE.index("function updateBorrowFreshnessLabels", SOURCE.index("function runMultiAssetSim()"))
+        ]
+        self.assertIn(
+            "const pctVal = clampMultiAssetPct("
+            "row.querySelector('input[type=\"number\"]').value"
+            ");",
+            run_source,
+        )
+        self.assertIn(
+            "const pct = clampMultiAssetPct("
+            "row.querySelector('input[type=\"number\"]').value"
+            ");",
+            run_source,
+        )
+        self.assertNotIn(
+            "parseFloat(row.querySelector('input[type=\"number\"]').value)",
+            run_source,
+        )
+
     def test_simulator_explains_the_causal_flow(self):
         for contract in (
             "Build Scenario",
