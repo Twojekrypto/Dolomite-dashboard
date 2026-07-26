@@ -8600,6 +8600,46 @@
             text-align: left !important;
             cursor: default !important;
         }
+        body.route-liquidation #sim-card .positions-table.sim-atrisk-table thead th.sim-atrisk-sortable {
+            cursor: pointer !important;
+        }
+        body.route-liquidation #sim-card .sim-atrisk-sort {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            appearance: none !important;
+            color: inherit !important;
+            font: inherit !important;
+            letter-spacing: inherit !important;
+            line-height: inherit !important;
+            text-transform: inherit !important;
+            cursor: pointer !important;
+            transition: color .15s var(--ease) !important;
+        }
+        body.route-liquidation #sim-card .sim-atrisk-sort:hover,
+        body.route-liquidation #sim-card .sim-atrisk-sort:focus-visible {
+            color: var(--fg-1) !important;
+            outline: none !important;
+        }
+        body.route-liquidation #sim-card .sim-atrisk-sort:focus-visible {
+            box-shadow: 0 0 0 2px rgba(201,162,39,.42) !important;
+            border-radius: 3px !important;
+        }
+        body.route-liquidation #sim-card .sim-atrisk-sort .sort {
+            width: 10px !important;
+            color: var(--fg-4) !important;
+            font-size: 9px !important;
+            line-height: 1 !important;
+            text-align: center !important;
+        }
+        body.route-liquidation #sim-card .sim-atrisk-sortable[aria-sort="ascending"] .sort,
+        body.route-liquidation #sim-card .sim-atrisk-sortable[aria-sort="descending"] .sort {
+            color: var(--gold) !important;
+        }
         body.route-liquidation #sim-card .positions-table.sim-atrisk-table tbody tr {
             border-bottom: 1px solid var(--line-1) !important;
             background: transparent !important;
@@ -10056,10 +10096,10 @@
                                                     <tr>
                                                         <th>Chain</th>
                                                         <th>Address</th>
-                                                        <th>HF After</th>
+                                                        <th class="sim-atrisk-sortable" aria-sort="ascending"><button class="sim-atrisk-sort" type="button" data-sim-risk-sort="hfAfter" onclick="window.simRiskSort && window.simRiskSort('hfAfter')" aria-label="Sort by HF After, ascending"><span>HF After</span><span class="sort" aria-hidden="true">▲</span></button></th>
                                                         <th class="sim-atrisk-spacer" aria-hidden="true"></th>
-                                                        <th>Collateral</th>
-                                                        <th>Debt</th>
+                                                        <th class="sim-atrisk-sortable" aria-sort="none"><button class="sim-atrisk-sort" type="button" data-sim-risk-sort="collateral" onclick="window.simRiskSort && window.simRiskSort('collateral')" aria-label="Sort by Collateral"><span>Collateral</span><span class="sort" aria-hidden="true"></span></button></th>
+                                                        <th class="sim-atrisk-sortable" aria-sort="none"><button class="sim-atrisk-sort" type="button" data-sim-risk-sort="debt" onclick="window.simRiskSort && window.simRiskSort('debt')" aria-label="Sort by Debt"><span>Debt</span><span class="sort" aria-hidden="true"></span></button></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="sim-atrisk-list"></tbody>
@@ -13231,6 +13271,37 @@
                 window.renderSimImpact(window._lastSimResults, !!window._lastSimShocked);
             }
         };
+        function describeSimRiskSort(sortKey, sortDirection) {
+            if (sortKey === 'collateral') return sortDirection === 'asc' ? 'smallest collateral' : 'largest collateral';
+            if (sortKey === 'debt') return sortDirection === 'asc' ? 'smallest debt' : 'largest debt';
+            return sortDirection === 'asc' ? 'lowest simulated HF' : 'highest simulated HF';
+        }
+        function renderSimRiskSortHeaders(sortKey, sortDirection) {
+            const labels = { hfAfter: 'HF After', collateral: 'Collateral', debt: 'Debt' };
+            document.querySelectorAll('[data-sim-risk-sort]').forEach(button => {
+                const active = button.dataset.simRiskSort === sortKey;
+                const header = button.closest('th');
+                const indicator = button.querySelector('.sort');
+                if (header) header.setAttribute('aria-sort', active ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none');
+                if (indicator) indicator.textContent = active ? (sortDirection === 'asc' ? '▲' : '▼') : '';
+                const label = labels[button.dataset.simRiskSort] || 'risk metric';
+                button.setAttribute('aria-label', `Sort by ${label}${active ? `, ${sortDirection === 'asc' ? 'ascending' : 'descending'}` : ''}`);
+            });
+        }
+        window.simRiskSort = function(sortKey) {
+            if (!['hfAfter', 'collateral', 'debt'].includes(sortKey)) return;
+            const currentKey = window._simRiskSortKey || 'hfAfter';
+            const currentDirection = window._simRiskSortDirection || 'asc';
+            const initialDirection = sortKey === 'hfAfter' ? 'asc' : 'desc';
+            window._simRiskSortKey = sortKey;
+            window._simRiskSortDirection = currentKey === sortKey
+                ? (currentDirection === 'asc' ? 'desc' : 'asc')
+                : initialDirection;
+            window._simRiskPage = 1;
+            if (window._lastSimResults && typeof window.renderSimImpact === 'function') {
+                window.renderSimImpact(window._lastSimResults, !!window._lastSimShocked);
+            }
+        };
         function renderSimImpact(results, shocked) {
             window._lastSimResults = results;
             window._lastSimShocked = shocked;
@@ -13272,12 +13343,24 @@
 
             // Closest to liquidation: positions solvent today, ranked by health after the shock
             const riskQuery = String(window._simRiskSearch || '').trim().toLowerCase();
-            const rankedBase = results.filter(r => r.hf >= 1.0 && isFinite(r.newHF))
-                                      .sort((a, b) => a.newHF - b.newHF);
+            const sortKey = window._simRiskSortKey || 'hfAfter';
+            const sortDirection = window._simRiskSortDirection || 'asc';
+            const rankedBase = results.filter(r => r.hf >= 1.0 && isFinite(r.newHF));
             const crossingCount = results.filter(r => r.hf >= 1.0 && isFinite(r.newHF) && r.newHF < 1.0).length;
-            const ranked = riskQuery
+            const filteredRanked = riskQuery
                 ? rankedBase.filter(r => String(r.addr || '').toLowerCase().includes(riskQuery))
                 : rankedBase;
+            const sortValues = {
+                hfAfter: row => Number(row.newHF),
+                collateral: row => Number(row.collateralUSD),
+                debt: row => Number(row.debtUSD),
+            };
+            const ranked = filteredRanked.slice().sort((left, right) => {
+                const comparison = sortValues[sortKey](left) - sortValues[sortKey](right);
+                if (comparison) return sortDirection === 'asc' ? comparison : -comparison;
+                return String(left.addr || '').localeCompare(String(right.addr || ''));
+            });
+            renderSimRiskSortHeaders(sortKey, sortDirection);
             const pageCount = Math.max(1, Math.ceil(ranked.length / SIM_RISK_PAGE_SIZE));
             const currentPage = Math.min(Math.max(1, window._simRiskPage || 1), pageCount);
             window._simRiskPage = currentPage;
@@ -13291,7 +13374,7 @@
                 countEl.textContent = ranked.length
                     ? (crossingCount
                         ? `${crossingCount.toLocaleString()} crossing · ${ranked.length.toLocaleString()} monitored`
-                        : `${ranked.length.toLocaleString()} addresses · sorted by lowest simulated HF`)
+                        : `${ranked.length.toLocaleString()} addresses · sorted by ${describeSimRiskSort(sortKey, sortDirection)}`)
                     : (riskQuery ? 'No address matches this search' : 'No leveraged addresses in the visible set');
             }
             if (pageLabelEl) pageLabelEl.textContent = ranked.length ? `${pageStart + 1}\u2013${pageEnd} of ${ranked.length.toLocaleString()}` : '0-0 of 0';
