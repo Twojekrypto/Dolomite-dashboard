@@ -1,4 +1,5 @@
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -8,6 +9,14 @@ SOURCE = (ROOT / "liquidation-preview.html").read_text(encoding="utf-8")
 POSITION_HISTORY = json.loads(
     (ROOT / "data" / "liquidation-risk" / "position-count-history.json").read_text(encoding="utf-8")
 )
+LIQUIDATION_TABLE_SOURCE = SOURCE[
+    SOURCE.index('<table class="liquidation-history-table" id="liquidation-history-table"'):
+    SOURCE.index("</table>", SOURCE.index('<table class="liquidation-history-table" id="liquidation-history-table"'))
+]
+LIQUIDATION_RENDER_SOURCE = SOURCE[
+    SOURCE.index("function renderLiquidationHistoryTable()"):
+    SOURCE.index("function liquidationHistoryGoPage", SOURCE.index("function renderLiquidationHistoryTable()"))
+]
 
 
 class TestBorrowHeroUx(unittest.TestCase):
@@ -22,8 +31,12 @@ class TestBorrowHeroUx(unittest.TestCase):
             "data/liquidation-risk/position-count-history.json",
             "renderPositionCount24h",
             "baselineCount",
+            "fallbackChange",
+            "windowSeconds",
+            "formatPositionCountWindow",
+            "24-hour baseline is still building",
             ".toFixed(2)",
-            "% · 24h",
+            "const windowLabel",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
@@ -45,15 +58,24 @@ class TestBorrowHeroUx(unittest.TestCase):
 
     def test_committed_position_history_is_internally_consistent(self):
         snapshots = POSITION_HISTORY["snapshots"]
-        change = POSITION_HISTORY["change24h"]
+        exact_change = POSITION_HISTORY["change24h"]
+        fallback_change = POSITION_HISTORY["fallbackChange"]
 
         self.assertGreaterEqual(len(snapshots), 2)
         self.assertEqual(POSITION_HISTORY["generatedAt"], snapshots[-1]["timestamp"])
+        change = exact_change or fallback_change
+        self.assertIsNotNone(change)
         self.assertEqual(change["currentCount"], snapshots[-1]["count"])
         self.assertEqual(
             change["change"],
             change["currentCount"] - change["baselineCount"],
         )
+        if exact_change is None:
+            self.assertEqual(
+                fallback_change["windowSeconds"],
+                POSITION_HISTORY["generatedAt"] - fallback_change["baselineAt"],
+            )
+            self.assertGreater(fallback_change["windowSeconds"], 0)
 
     def test_summary_value_colors_follow_requested_risk_hierarchy(self):
         self.assertIn(
@@ -162,6 +184,69 @@ class TestBorrowSimulatorAddressUx(unittest.TestCase):
         )
         self.assertIn(
             "colgroup col:nth-child(6) { width: 16.3% !important; }",
+            SOURCE,
+        )
+
+
+class TestBorrowLiquidationHistoryUx(unittest.TestCase):
+    def test_history_uses_five_real_columns_without_a_spacer(self):
+        self.assertEqual(LIQUIDATION_TABLE_SOURCE.count("<col>"), 5)
+        self.assertNotIn("col-spacer", LIQUIDATION_TABLE_SOURCE)
+        self.assertNotIn("col-spacer", LIQUIDATION_RENDER_SOURCE)
+        self.assertIn('colspan="5"', LIQUIDATION_RENDER_SOURCE)
+
+    def test_history_amount_selectors_follow_the_five_column_layout(self):
+        self.assertIn(
+            "#liquidation-history-table colgroup col:nth-child(4) { width: 18.2% !important; }",
+            SOURCE,
+        )
+        self.assertIn(
+            "#liquidation-history-table colgroup col:nth-child(5) { width: 16% !important; }",
+            SOURCE,
+        )
+        self.assertNotRegex(
+            SOURCE,
+            re.compile(r"(?:#|\.)liquidation-history-table[^\n]*nth-child\(6\)"),
+        )
+        self.assertNotIn("transform: translateX(-12px)", SOURCE)
+
+
+class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
+    def test_simulator_explains_the_causal_flow(self):
+        for contract in (
+            "Build Scenario",
+            "Price shock",
+            "Live Impact",
+            'id="sim-impact-headline"',
+            'id="sim-impact-state"',
+            'id="sim-risk-level"',
+            "Adjust a token to simulate impact",
+            "positions cross HF 1.0",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
+    def test_each_scenario_row_exposes_safe_negative_presets(self):
+        for pct in ("-5", "-10", "-25"):
+            with self.subTest(pct=pct):
+                self.assertIn(f'data-pct="{pct}"', SOURCE)
+        self.assertIn("applyMultiAssetPreset", SOURCE)
+        self.assertIn("Scenario active", SOURCE)
+
+    def test_result_status_remains_readable_and_mobile_rows_do_not_reserve_empty_slots(self):
+        self.assertIn(
+            "body.route-liquidation #sim-card .sim-result-head small {\n"
+            "            max-width: min(330px, calc(100% - 96px)) !important;\n"
+            "            white-space: normal !important;\n"
+            "            overflow: visible !important;",
+            SOURCE,
+        )
+        self.assertIn(
+            "const rowSlots = isCompact ? Math.min(rows.length, visibleRows) : visibleRows;",
+            SOURCE,
+        )
+        self.assertIn(
+            "height = (rowHeight * rowSlots) + (rowGap * Math.max(0, rowSlots - 1));",
             SOURCE,
         )
 

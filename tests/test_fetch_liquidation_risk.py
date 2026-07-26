@@ -277,6 +277,19 @@ class TestPositionCountHistory(unittest.TestCase):
         result = flr.build_position_count_history(previous, now, 9)
 
         self.assertIsNone(result["change24h"])
+        self.assertEqual(result["fallbackChange"], {
+            "currentCount": 9,
+            "baselineCount": 12,
+            "change": -3,
+            "baselineAt": now - 60_000,
+            "windowSeconds": 60_000,
+        })
+
+    def test_omits_fallback_when_there_is_no_older_observation(self):
+        result = flr.build_position_count_history({}, 400_000, 9)
+
+        self.assertIsNone(result["change24h"])
+        self.assertIsNone(result["fallbackChange"])
 
     def test_retains_only_valid_observations_from_the_last_72_hours(self):
         now = 500_000
