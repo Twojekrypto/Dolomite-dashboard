@@ -9806,7 +9806,7 @@
                     <div class="liquidation-hero-main">
                         <div id="stat-total-row">
                             <div id="stat-total">—</div>
-                            <div id="stat-total-change" class="stat-total-change unavailable" aria-label="Position change history unavailable">
+                            <div id="stat-total-change" class="stat-total-change unavailable" role="status" aria-label="Position change history unavailable">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>
                                 <span id="stat-total-change-percent" class="stat-total-change-label">— · awaiting history</span>
                             </div>
@@ -13629,7 +13629,7 @@
             const tokenMuls = {};
             for (const row of rows) {
                 const token = row.dataset.token;
-                const pctVal = parseFloat(row.querySelector('input[type="number"]').value) || 0;
+                const pctVal = clampMultiAssetPct(row.querySelector('input[type="number"]').value);
                 tokenMuls[token] = 1 + pctVal / 100;
             }
 
@@ -13715,7 +13715,7 @@
             const scenarioParts = [];
             for (const row of rows) {
                 const label = row.dataset.token;
-                const pct = parseFloat(row.querySelector('input[type="number"]').value) || 0;
+                const pct = clampMultiAssetPct(row.querySelector('input[type="number"]').value);
                 if (Math.abs(pct) > 0.0001) scenarioParts.push(`${label} ${pct > 0 ? '+' : ''}${pct}%`);
             }
             const scenarioLabel = document.getElementById('sim-scenario-label');
