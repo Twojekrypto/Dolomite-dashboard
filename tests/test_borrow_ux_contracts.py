@@ -255,19 +255,27 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             run_source,
         )
 
-    def test_simulator_explains_the_causal_flow(self):
+    def test_simulator_explains_the_causal_flow_without_redundant_status_copy(self):
         for contract in (
             "Build Scenario",
             "Price shock",
             "Scenario Result",
             'id="sim-impact-headline"',
-            'id="sim-impact-state"',
-            'id="sim-risk-level"',
-            "Adjust a token to simulate impact",
             "positions cross HF 1.0",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
+        for obsolete in (
+            'id="sim-impact-state"',
+            'id="sim-risk-level"',
+            'class="sim-impact-risk-row"',
+            "Scenario active · Updated live as you edit",
+            "Adjust a token to simulate impact",
+            "Risk level",
+            "High impact",
+        ):
+            with self.subTest(obsolete=obsolete):
+                self.assertNotIn(obsolete, SOURCE)
 
     def test_scenario_rows_use_one_manual_input_without_presets(self):
         for obsolete in (
@@ -304,14 +312,21 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             SOURCE,
         )
 
-    def test_result_status_remains_readable_and_mobile_rows_do_not_reserve_empty_slots(self):
+    def test_result_cards_fill_the_simplified_result_panel(self):
         self.assertIn(
-            "body.route-liquidation #sim-card .sim-result-head small {\n"
-            "            max-width: min(330px, calc(100% - 96px)) !important;\n"
-            "            white-space: normal !important;\n"
-            "            overflow: visible !important;",
+            "grid-template-rows: auto minmax(140px, 1.1fr) minmax(132px, .9fr) !important;",
             SOURCE,
         )
+        self.assertIn(
+            "grid-template-columns: repeat(2, minmax(0, 1fr)) !important;",
+            SOURCE,
+        )
+        self.assertIn(
+            "body.route-liquidation #sim-card .sim-impact-secondary-grid > .liquidation-sim-metric",
+            SOURCE,
+        )
+
+    def test_mobile_scenario_rows_do_not_reserve_empty_slots(self):
         self.assertIn(
             "const rowSlots = isCompact ? Math.min(rows.length, visibleRows) : visibleRows;",
             SOURCE,
@@ -323,7 +338,7 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
 
     def test_scenario_desk_uses_balanced_desktop_panels(self):
         for contract in (
-            "grid-template-columns: minmax(0, 1.12fr) minmax(340px, .88fr) !important;",
+            "grid-template-columns: repeat(2, minmax(0, 1fr)) !important;",
             "body.route-liquidation #sim-card .sim-multi-header-actions {",
             "body.route-liquidation #sim-card .sim-multi-shock-rail {",
             "body.route-liquidation #sim-card .sim-multi-shock-fill {",
