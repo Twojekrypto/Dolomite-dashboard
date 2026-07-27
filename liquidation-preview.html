@@ -9466,20 +9466,33 @@
         }
         body.route-liquidation #sim-card .sim-multi-shock-rail {
             position: relative !important;
-            height: 3px !important;
+            height: 16px !important;
             margin: 0 4px !important;
-            overflow: hidden !important;
+            overflow: visible !important;
             border-radius: 999px !important;
+            background: transparent !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-rail::before {
+            content: "" !important;
+            position: absolute !important;
+            top: 6px !important;
+            right: 0 !important;
+            left: 0 !important;
+            height: 3px !important;
+            border-radius: inherit !important;
             background: rgba(255,255,255,.055) !important;
+            pointer-events: none !important;
         }
         body.route-liquidation #sim-card .sim-multi-shock-fill {
             position: absolute !important;
-            inset-block: 0 !important;
+            top: 6px !important;
+            height: 3px !important;
             left: var(--sim-shock-left, 50%) !important;
             width: var(--sim-shock-width, 0%) !important;
             border-radius: inherit !important;
             background: var(--gold) !important;
             transition: left .16s var(--ease), width .16s var(--ease), background .16s var(--ease) !important;
+            pointer-events: none !important;
         }
         body.route-liquidation #sim-card .sim-multi-row.is-drop .sim-multi-shock-fill {
             background: var(--down) !important;
@@ -9489,12 +9502,69 @@
         }
         body.route-liquidation #sim-card .sim-multi-shock-zero {
             position: absolute !important;
-            top: -2px !important;
-            bottom: -2px !important;
+            top: 3px !important;
+            bottom: 3px !important;
             left: calc(50% - .5px) !important;
             width: 1px !important;
             background: var(--fg-3) !important;
             opacity: .62 !important;
+            pointer-events: none !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-slider {
+            --sim-shock-thumb: var(--gold) !important;
+            position: absolute !important;
+            inset: 0 !important;
+            z-index: 2 !important;
+            width: 100% !important;
+            height: 16px !important;
+            margin: 0 !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            background: transparent !important;
+            cursor: ew-resize !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-row.is-drop .sim-multi-shock-slider {
+            --sim-shock-thumb: var(--down) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-row.is-rise .sim-multi-shock-slider {
+            --sim-shock-thumb: var(--up) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-slider::-webkit-slider-runnable-track {
+            height: 16px !important;
+            background: transparent !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-slider::-webkit-slider-thumb {
+            width: 12px !important;
+            height: 12px !important;
+            margin-top: 2px !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            border: 2px solid var(--bg-1) !important;
+            border-radius: 50% !important;
+            background: var(--sim-shock-thumb) !important;
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--sim-shock-thumb) 60%, transparent), 0 2px 5px rgba(0,0,0,.32) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-slider::-moz-range-track {
+            height: 3px !important;
+            border: 0 !important;
+            background: transparent !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-slider::-moz-range-thumb {
+            width: 12px !important;
+            height: 12px !important;
+            border: 2px solid var(--bg-1) !important;
+            border-radius: 50% !important;
+            background: var(--sim-shock-thumb) !important;
+            box-shadow: 0 0 0 1px color-mix(in srgb, var(--sim-shock-thumb) 60%, transparent), 0 2px 5px rgba(0,0,0,.32) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-slider:focus-visible {
+            outline: none !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-slider:focus-visible::-webkit-slider-thumb {
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--sim-shock-thumb) 20%, transparent), 0 2px 5px rgba(0,0,0,.32) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-shock-slider:focus-visible::-moz-range-thumb {
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--sim-shock-thumb) 20%, transparent), 0 2px 5px rgba(0,0,0,.32) !important;
         }
         body.route-liquidation #sim-card .liquidation-sim-metrics {
             grid-template-columns: minmax(0, 1fr) !important;
@@ -13582,10 +13652,14 @@
         function updateMultiRowMoveUi(row) {
             const pctInput = row.querySelector('input[type="number"]');
             const pct = clampMultiAssetPct(parseFloat(pctInput?.value) || 0);
-            const width = pct < 0
-                ? Math.min(50, Math.abs(pct) / 2)
-                : Math.min(50, pct / 10);
-            const left = pct < 0 ? 50 - width : 50;
+            const sliderPct = Math.max(-100, Math.min(100, pct));
+            const width = Math.abs(sliderPct) / 2;
+            const left = sliderPct < 0 ? 50 - width : 50;
+            const pctSlider = row.querySelector('.sim-multi-shock-slider');
+            if (pctSlider) {
+                pctSlider.value = Math.max(-100, Math.min(100, pct));
+                pctSlider.setAttribute('aria-valuetext', `${pct}%`);
+            }
             row.classList.toggle('is-drop', pct < 0);
             row.classList.toggle('is-rise', pct > 0);
             row.style.setProperty('--sim-shock-left', `${left}%`);
@@ -13636,9 +13710,10 @@
                             `</span>` +
                             `<button type="button" class="sim-multi-step" data-step="1" aria-label="Increase ${token} price shock by 1 percentage point">+</button>` +
                         `</div>` +
-                        `<div class="sim-multi-shock-rail" aria-hidden="true">` +
+                        `<div class="sim-multi-shock-rail">` +
                             `<span class="sim-multi-shock-fill"></span>` +
                             `<i class="sim-multi-shock-zero"></i>` +
+                            `<input type="range" class="sim-multi-shock-slider" min="-100" max="100" value="${Math.max(-100, Math.min(100, initialPct))}" step="1" aria-label="Set ${token} price shock with slider">` +
                         `</div>` +
                     `</div>` +
                 `</div>`;
@@ -13674,6 +13749,14 @@
                             : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${sym.charAt(0)}</span>`;
                         trigLabel.textContent = sym;
                         pctInput.setAttribute('aria-label', `${sym} price shock percentage`);
+                        row.querySelector('.sim-multi-shock-slider')?.setAttribute(
+                            'aria-label',
+                            `Set ${sym} price shock with slider`
+                        );
+                        row.querySelector('.sim-multi-remove')?.setAttribute(
+                            'aria-label',
+                            `Remove ${sym} from scenario`
+                        );
                         row.querySelector('[data-step="-1"]')?.setAttribute(
                             'aria-label',
                             `Decrease ${sym} price shock by 1 percentage point`
@@ -13728,6 +13811,7 @@
             });
             searchInput.addEventListener('click', (e) => e.stopPropagation());
             const pctInput = row.querySelector('input[type="number"]');
+            const pctSlider = row.querySelector('.sim-multi-shock-slider');
             pctInput.addEventListener('input', () => {
                 updateMultiRowMoveUi(row);
                 updateMultiScenarioSummary();
@@ -13735,6 +13819,12 @@
             });
             pctInput.addEventListener('change', () => {
                 pctInput.value = clampMultiAssetPct(pctInput.value);
+                updateMultiRowMoveUi(row);
+                updateMultiScenarioSummary();
+                if (window._multiAssetMode) runMultiAssetSim();
+            });
+            pctSlider.addEventListener('input', () => {
+                pctInput.value = pctSlider.value;
                 updateMultiRowMoveUi(row);
                 updateMultiScenarioSummary();
                 if (window._multiAssetMode) runMultiAssetSim();
