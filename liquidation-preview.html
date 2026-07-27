@@ -9479,11 +9479,13 @@
             }
             body.route-liquidation #sim-card #sim-multi-rows {
                 display: grid !important;
-                flex: 1 1 auto !important;
+                flex: 0 0 var(--sim-multi-rows-height, 190px) !important;
                 grid-auto-rows: minmax(64px, 1fr) !important;
-                min-height: 0 !important;
-                max-height: none !important;
-                height: auto !important;
+                min-height: var(--sim-multi-rows-height, 190px) !important;
+                max-height: var(--sim-multi-rows-height, 190px) !important;
+                height: var(--sim-multi-rows-height, 190px) !important;
+                overflow-y: auto !important;
+                overflow-x: visible !important;
             }
         }
         @media (max-width: 980px) {
@@ -10096,7 +10098,28 @@
                                                     <tr>
                                                         <th>Chain</th>
                                                         <th>Address</th>
-                                                        <th class="sim-atrisk-sortable" aria-sort="ascending"><button class="sim-atrisk-sort" type="button" data-sim-risk-sort="hfAfter" onclick="window.simRiskSort && window.simRiskSort('hfAfter')" aria-label="Sort by HF After, ascending"><span>HF After</span><span class="sort" aria-hidden="true">▲</span></button></th>
+                                                        <th class="sim-atrisk-sortable sim-atrisk-hf-header" aria-sort="ascending">
+                                                            <span class="col-header-group sim-atrisk-header-group">
+                                                                <button class="sim-atrisk-sort" type="button" data-sim-risk-sort="hfAfter" onclick="window.simRiskSort && window.simRiskSort('hfAfter')" aria-label="Sort by HF After, ascending"><span>HF After</span><span class="sort" aria-hidden="true">▲</span></button>
+                                                                <button type="button" class="col-filter-btn" id="sim-risk-hf-filter-trigger" aria-label="Filter HF After range">
+                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                                                </button>
+                                                                <button type="button" class="col-filter-clear" id="sim-risk-hf-filter-clear" aria-label="Clear HF After filter">✕</button>
+                                                            </span>
+                                                            <div class="col-filter-popover" id="sim-risk-hf-popover">
+                                                                <div class="col-filter-inner">
+                                                                    <div class="col-filter-label">
+                                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                                                                        HF After Range
+                                                                    </div>
+                                                                    <div class="col-filter-row">
+                                                                        <input type="number" step="0.01" class="debt-custom-input" id="sim-risk-hf-min" placeholder="Min">
+                                                                        <span>–</span>
+                                                                        <input type="number" step="0.01" class="debt-custom-input" id="sim-risk-hf-max" placeholder="Max">
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </th>
                                                         <th class="sim-atrisk-spacer" aria-hidden="true"></th>
                                                         <th class="sim-atrisk-sortable" aria-sort="none"><button class="sim-atrisk-sort" type="button" data-sim-risk-sort="collateral" onclick="window.simRiskSort && window.simRiskSort('collateral')" aria-label="Sort by Collateral"><span>Collateral</span><span class="sort" aria-hidden="true"></span></button></th>
                                                         <th class="sim-atrisk-sortable" aria-sort="none"><button class="sim-atrisk-sort" type="button" data-sim-risk-sort="debt" onclick="window.simRiskSort && window.simRiskSort('debt')" aria-label="Sort by Debt"><span>Debt</span><span class="sort" aria-hidden="true"></span></button></th>
@@ -12228,6 +12251,8 @@
         let debtRangeKey = 'all';
         let hfRangeMin = null;
         let hfRangeMax = null;
+        let simRiskHfRangeMin = null;
+        let simRiskHfRangeMax = null;
         const chainFilterSelection = new Set();
         const riskFilterSelection = new Set();
 
@@ -13072,7 +13097,7 @@
             if (!container) return;
             requestAnimationFrame(() => {
                 const rows = Array.from(container.querySelectorAll('.sim-multi-row'));
-                const visibleRows = 4;
+                const visibleRows = 3;
                 const isCompact = !!(window.matchMedia && window.matchMedia('(max-width: 760px)').matches);
                 const fallback = isCompact ? 432 : 244;
                 let height = fallback;
@@ -13089,6 +13114,7 @@
                         height = (rowHeight * rowSlots) + (rowGap * Math.max(0, rowSlots - 1));
                     }
                 }
+                if (!isCompact) height = Math.max(fallback, height);
                 container.style.setProperty('--sim-multi-rows-height', Math.ceil(height) + 'px');
                 positionOpenMultiTokenPopovers();
             });
@@ -13302,6 +13328,12 @@
                 window.renderSimImpact(window._lastSimResults, !!window._lastSimShocked);
             }
         };
+        function applySimRiskHfFilter() {
+            window._simRiskPage = 1;
+            if (window._lastSimResults && typeof window.renderSimImpact === 'function') {
+                window.renderSimImpact(window._lastSimResults, !!window._lastSimShocked);
+            }
+        }
         function renderSimImpact(results, shocked) {
             window._lastSimResults = results;
             window._lastSimShocked = shocked;
@@ -13346,10 +13378,17 @@
             const sortKey = window._simRiskSortKey || 'hfAfter';
             const sortDirection = window._simRiskSortDirection || 'asc';
             const rankedBase = results.filter(r => r.hf >= 1.0 && isFinite(r.newHF));
-            const crossingCount = results.filter(r => r.hf >= 1.0 && isFinite(r.newHF) && r.newHF < 1.0).length;
+            const scenarioCrossingCount = results.filter(r => r.hf >= 1.0 && isFinite(r.newHF) && r.newHF < 1.0).length;
+            const rangeRanked = rankedBase.filter(row => {
+                const hf = Number(row.newHF);
+                if (simRiskHfRangeMin !== null && hf < simRiskHfRangeMin) return false;
+                if (simRiskHfRangeMax !== null && hf > simRiskHfRangeMax) return false;
+                return true;
+            });
             const filteredRanked = riskQuery
-                ? rankedBase.filter(r => String(r.addr || '').toLowerCase().includes(riskQuery))
-                : rankedBase;
+                ? rangeRanked.filter(r => String(r.addr || '').toLowerCase().includes(riskQuery))
+                : rangeRanked;
+            const filteredCrossingCount = filteredRanked.filter(r => r.newHF < 1.0).length;
             const sortValues = {
                 hfAfter: row => Number(row.newHF),
                 collateral: row => Number(row.collateralUSD),
@@ -13369,11 +13408,11 @@
             const pageEnd = Math.min(pageStart + SIM_RISK_PAGE_SIZE, ranked.length);
             const pageRows = ranked.slice(pageStart, pageEnd);
             if (subEl) subEl.textContent = shocked ? 'Lowest health factor after the shock' : 'Smallest buffer above HF 1.0';
-            updateSimRiskVisualState(crossingCount, shocked);
+            updateSimRiskVisualState(scenarioCrossingCount, shocked);
             if (countEl) {
                 countEl.textContent = ranked.length
-                    ? (crossingCount
-                        ? `${crossingCount.toLocaleString()} crossing · ${ranked.length.toLocaleString()} monitored`
+                    ? (filteredCrossingCount
+                        ? `${filteredCrossingCount.toLocaleString()} crossing · ${ranked.length.toLocaleString()} monitored`
                         : `${ranked.length.toLocaleString()} addresses · sorted by ${describeSimRiskSort(sortKey, sortDirection)}`)
                     : (riskQuery ? 'No address matches this search' : 'No leveraged addresses in the visible set');
             }
@@ -15413,6 +15452,18 @@
             getMax: () => hfRangeMax,
         });
 
+        initColFilterPopover({
+            triggerId: 'sim-risk-hf-filter-trigger',
+            popoverId: 'sim-risk-hf-popover',
+            minInputId: 'sim-risk-hf-min',
+            maxInputId: 'sim-risk-hf-max',
+            setMin: v => { simRiskHfRangeMin = v; },
+            setMax: v => { simRiskHfRangeMax = v; },
+            getMin: () => simRiskHfRangeMin,
+            getMax: () => simRiskHfRangeMax,
+            apply: applySimRiskHfFilter,
+        });
+
         const positionsTokenScope = () => chainFilterSelection.size === 0
             ? allPositions
             : allPositions.filter(p => chainFilterSelection.has(p.chain));
@@ -15921,6 +15972,7 @@
             });
         }
         wireRangeClear('hf-filter-clear', 'hf-filter-trigger', 'hf-custom-min', 'hf-custom-max', v => { hfRangeMin = v; }, v => { hfRangeMax = v; }, 'hf-presets');
+        wireRangeClear('sim-risk-hf-filter-clear', 'sim-risk-hf-filter-trigger', 'sim-risk-hf-min', 'sim-risk-hf-max', v => { simRiskHfRangeMin = v; }, v => { simRiskHfRangeMax = v; }, null, null, applySimRiskHfFilter);
         wireRangeClear('collateral-filter-clear', 'collateral-filter-trigger', 'collateral-custom-min', 'collateral-custom-max', v => { collateralRangeMin = v; }, v => { collateralRangeMax = v; }, 'collateral-presets', () => collateralTokenFilter);
         wireRangeClear('debt-filter-clear', 'debt-filter-trigger', 'debt-custom-min', 'debt-custom-max', v => { debtRangeMin = v; }, v => { debtRangeMax = v; }, 'debt-presets', () => debtTokenFilter);
 
