@@ -369,7 +369,7 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
         self.assertIn(
             "body.route-liquidation #sim-card #sim-multi-rows {\n"
             "                display: grid !important;\n"
-            "                flex: 1 1 auto !important;\n"
+            "                flex: 0 0 var(--sim-multi-rows-height, 190px) !important;\n"
             "                grid-auto-rows: minmax(64px, 1fr) !important;",
             SOURCE,
         )
@@ -383,6 +383,39 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             "height = (rowHeight * rowSlots) + (rowGap * Math.max(0, rowSlots - 1));",
             SOURCE,
         )
+
+    def test_scenario_asset_viewport_stays_at_three_rows_and_scrolls_overflow(self):
+        for contract in (
+            "const visibleRows = 3;",
+            "flex: 0 0 var(--sim-multi-rows-height, 190px) !important;",
+            "max-height: var(--sim-multi-rows-height, 190px) !important;",
+            "height: var(--sim-multi-rows-height, 190px) !important;",
+            "overflow-y: auto !important;",
+            "if (!isCompact) height = Math.max(fallback, height);",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
+    def test_wallet_crossings_hf_after_has_an_independent_range_filter(self):
+        for contract in (
+            'id="sim-risk-hf-filter-trigger"',
+            'aria-label="Filter HF After range"',
+            'id="sim-risk-hf-filter-clear"',
+            'id="sim-risk-hf-popover"',
+            'id="sim-risk-hf-min"',
+            'id="sim-risk-hf-max"',
+            'let simRiskHfRangeMin = null;',
+            'let simRiskHfRangeMax = null;',
+            'function applySimRiskHfFilter() {',
+            'hfAfter: row => Number(row.newHF),',
+            'if (simRiskHfRangeMin !== null && hf < simRiskHfRangeMin) return false;',
+            'if (simRiskHfRangeMax !== null && hf > simRiskHfRangeMax) return false;',
+            "triggerId: 'sim-risk-hf-filter-trigger'",
+            "apply: applySimRiskHfFilter,",
+            "wireRangeClear('sim-risk-hf-filter-clear'",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
 
     def test_scenario_desk_uses_balanced_desktop_panels(self):
         for contract in (
