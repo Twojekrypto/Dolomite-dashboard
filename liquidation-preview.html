@@ -9373,12 +9373,45 @@
             border-color: var(--gold-line) !important;
             background: rgba(201,162,39,.08) !important;
         }
+        body.route-liquidation #sim-card .sim-multi-reset.is-dirty {
+            color: #cf9788 !important;
+            border-color: rgba(180,121,107,.34) !important;
+            background: rgba(180,121,107,.075) !important;
+            box-shadow: inset 0 0 0 1px rgba(180,121,107,.05) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-reset.is-dirty:hover,
+        body.route-liquidation #sim-card .sim-multi-reset.is-dirty:focus-visible {
+            color: #ddb0a5 !important;
+            border-color: rgba(180,121,107,.48) !important;
+            background: rgba(180,121,107,.12) !important;
+        }
         body.route-liquidation #sim-card .sim-multi-builder {
             display: block !important;
             height: auto !important;
         }
         body.route-liquidation #sim-card .sim-multi-editor {
             padding: 9px !important;
+        }
+        body.route-liquidation #sim-card #sim-multi-rows {
+            position: relative !important;
+            display: grid !important;
+            grid-auto-rows: 76px !important;
+            align-content: start !important;
+            row-gap: 8px !important;
+        }
+        body.route-liquidation #sim-card #sim-multi-rows:empty::after {
+            content: "No assets selected · Add Asset to build a scenario" !important;
+            position: absolute !important;
+            inset: 0 !important;
+            display: grid !important;
+            place-items: center !important;
+            padding: 20px !important;
+            border: 1px dashed var(--line-2) !important;
+            border-radius: 8px !important;
+            color: var(--fg-3) !important;
+            font-size: 11px !important;
+            text-align: center !important;
+            pointer-events: none !important;
         }
         body.route-liquidation #sim-card #sim-multi-panel .sim-multi-column-heads {
             display: grid !important;
@@ -9399,7 +9432,9 @@
         }
         body.route-liquidation #sim-card #sim-multi-panel .sim-multi-row {
             min-height: 64px !important;
+            margin-bottom: 0 !important;
             padding: 8px 9px !important;
+            box-sizing: border-box !important;
         }
         body.route-liquidation #sim-card .sim-multi-move-layout {
             display: grid !important;
@@ -9467,7 +9502,9 @@
         body.route-liquidation #sim-card .sim-multi-shock-rail {
             position: relative !important;
             height: 16px !important;
-            margin: 0 4px !important;
+            width: calc(100% - 70px) !important;
+            margin: 0 !important;
+            justify-self: center !important;
             overflow: visible !important;
             border-radius: 999px !important;
             background: transparent !important;
@@ -9566,6 +9603,15 @@
         body.route-liquidation #sim-card .sim-multi-shock-slider:focus-visible::-moz-range-thumb {
             box-shadow: 0 0 0 4px color-mix(in srgb, var(--sim-shock-thumb) 20%, transparent), 0 2px 5px rgba(0,0,0,.32) !important;
         }
+        @media (min-width: 621px) {
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-token-cell {
+                align-self: start !important;
+            }
+            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-token-trigger {
+                height: 38px !important;
+                min-height: 38px !important;
+            }
+        }
         body.route-liquidation #sim-card .liquidation-sim-metrics {
             grid-template-columns: minmax(0, 1fr) !important;
             grid-template-rows: auto minmax(140px, 1.1fr) minmax(132px, .9fr) !important;
@@ -9599,7 +9645,7 @@
             body.route-liquidation #sim-card #sim-multi-rows {
                 display: grid !important;
                 flex: 0 0 var(--sim-multi-rows-height, 190px) !important;
-                grid-auto-rows: minmax(64px, 1fr) !important;
+                grid-auto-rows: 76px !important;
                 min-height: var(--sim-multi-rows-height, 190px) !important;
                 max-height: var(--sim-multi-rows-height, 190px) !important;
                 height: var(--sim-multi-rows-height, 190px) !important;
@@ -9650,6 +9696,9 @@
                     "remove asset"
                     ". shock" !important;
                 min-height: 118px !important;
+            }
+            body.route-liquidation #sim-card #sim-multi-rows {
+                grid-auto-rows: 118px !important;
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-remove {
                 grid-area: remove !important;
@@ -13215,26 +13264,14 @@
             const container = document.getElementById('sim-multi-rows');
             if (!container) return;
             requestAnimationFrame(() => {
-                const rows = Array.from(container.querySelectorAll('.sim-multi-row'));
                 const visibleRows = 3;
-                const isCompact = !!(window.matchMedia && window.matchMedia('(max-width: 760px)').matches);
-                const fallback = isCompact ? 432 : 244;
-                let height = fallback;
-                if (rows.length) {
-                    const first = rows[0];
-                    const firstStyle = window.getComputedStyle(first);
-                    const rowHeight = first.getBoundingClientRect().height || (fallback / visibleRows);
-                    const rowGap = parseFloat(firstStyle.marginBottom) || 0;
-                    const rowSlots = isCompact ? Math.min(rows.length, visibleRows) : visibleRows;
-                    if (rows.length >= visibleRows) {
-                        const lastVisible = rows[visibleRows - 1];
-                        height = (lastVisible.offsetTop + lastVisible.offsetHeight) - first.offsetTop;
-                    } else {
-                        height = (rowHeight * rowSlots) + (rowGap * Math.max(0, rowSlots - 1));
-                    }
-                }
-                if (!isCompact) height = Math.max(fallback, height);
-                container.style.setProperty('--sim-multi-rows-height', Math.ceil(height) + 'px');
+                const desktopHeight = 244;
+                const mobileHeight = 370;
+                const height = window.matchMedia && window.matchMedia('(max-width: 620px)').matches
+                    ? mobileHeight
+                    : desktopHeight;
+                container.dataset.visibleRows = String(visibleRows);
+                container.style.setProperty('--sim-multi-rows-height', height + 'px');
                 positionOpenMultiTokenPopovers();
             });
         }
@@ -13623,7 +13660,20 @@
         }
 
         function updateMultiScenarioSummary() {
-            return;
+            const resetButton = document.getElementById('sim-multi-reset');
+            if (!resetButton) return;
+            const rows = getMultiAssetRows();
+            const defaults = getDefaultRiskBasketTokens();
+            const isDirty = rows.length !== defaults.length || rows.some((row, index) => {
+                const pctInput = row.querySelector('input[type="number"]');
+                return row.dataset.token !== defaults[index] || clampMultiAssetPct(pctInput?.value) !== 0;
+            });
+            resetButton.classList.toggle('is-dirty', isDirty);
+            resetButton.setAttribute('data-active', isDirty ? 'true' : 'false');
+            resetButton.setAttribute(
+                'aria-label',
+                isDirty ? 'Reset changed scenario' : 'Reset Scenario'
+            );
         }
 
         function getDefaultRiskBasketTokens() {
