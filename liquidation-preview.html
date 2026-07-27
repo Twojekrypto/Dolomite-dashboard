@@ -9448,6 +9448,11 @@
             overflow: visible !important;
             border-radius: 9px !important;
         }
+        body.route-liquidation #sim-card .sim-multi-row input[type="number"] {
+            width: calc(var(--sim-pct-ch, 1) * 1ch) !important;
+            min-width: 1ch !important;
+            max-width: 8ch !important;
+        }
         body.route-liquidation #sim-card .sim-multi-move-layout {
             display: block !important;
         }
@@ -9713,9 +9718,6 @@
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-move-cell {
                 grid-area: shock !important;
-            }
-            body.route-liquidation #sim-card .sim-multi-row input[type="number"] {
-                width: 64px !important;
             }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -13706,6 +13708,9 @@
 
         function updateMultiRowMoveUi(row) {
             const pctInput = row.querySelector('input[type="number"]');
+            const inputText = String(pctInput?.value || '0');
+            const inputChars = Math.max(1, Math.min(8, inputText.length));
+            pctInput?.style.setProperty('--sim-pct-ch', String(inputChars));
             const pct = clampMultiAssetPct(parseFloat(pctInput?.value) || 0);
             const sliderPct = Math.max(-100, Math.min(100, pct));
             const width = Math.abs(sliderPct) / 2;

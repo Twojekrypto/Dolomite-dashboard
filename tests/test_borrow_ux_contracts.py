@@ -539,13 +539,24 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
         self.assertNotIn(".sim-multi-presets", SOURCE)
         self.assertNotIn(".sim-multi-preset", SOURCE)
 
-    def test_mobile_scenario_input_remains_readable(self):
+    def test_scenario_percentage_label_tracks_visible_number_width(self):
+        self.assertRegex(
+            SOURCE,
+            re.compile(
+                r'body\.route-liquidation #sim-card \.sim-multi-row input\[type="number"\] \{'
+                r'[^}]*width: calc\(var\(--sim-pct-ch, 1\) \* 1ch\) !important;'
+                r'[^}]*min-width: 1ch !important;'
+                r'[^}]*max-width: 8ch !important;',
+                re.DOTALL,
+            ),
+        )
         self.assertIn(
-            "body.route-liquidation #sim-card .sim-multi-row input[type=\"number\"] {\n"
-            "                width: 64px !important;\n"
-            "            }",
+            "const inputText = String(pctInput?.value || '0');\n"
+            "            const inputChars = Math.max(1, Math.min(8, inputText.length));\n"
+            "            pctInput?.style.setProperty('--sim-pct-ch', String(inputChars));",
             SOURCE,
         )
+        self.assertNotIn("width: 64px !important;", SOURCE)
 
 
 if __name__ == "__main__":
