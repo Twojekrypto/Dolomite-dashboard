@@ -1133,94 +1133,32 @@ body.supply-draft-route .supply-filter-pill {
   box-shadow: none !important;
 }
 
-body.supply-draft-route .supply-activity-history-btn,
 body.supply-draft-route .supply-activity-history-state {
   display: inline-flex !important;
   align-items: center !important;
-  justify-content: center !important;
-  height: 36px !important;
+  gap: 7px !important;
   min-height: 36px !important;
-  padding: 0 12px !important;
-  border: 1px solid var(--supply-line-2) !important;
-  border-radius: 10px !important;
-  background: var(--supply-bg-3) !important;
-  color: var(--supply-fg-2) !important;
-  font-family: Inter, system-ui, sans-serif !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--supply-fg-3) !important;
+  font-family: var(--supply-mono) !important;
+  font-size: 11px !important;
   white-space: nowrap !important;
   box-shadow: none !important;
 }
 
-body.supply-draft-route .supply-activity-history-btn {
-  appearance: none !important;
-  gap: 8px !important;
-  cursor: pointer !important;
-  transition:
-    border-color .16s var(--supply-ease),
-    background .16s var(--supply-ease),
-    color .16s var(--supply-ease),
-    opacity .16s var(--supply-ease) !important;
-}
-
-body.supply-draft-route .supply-activity-history-btn[hidden] {
-  display: none !important;
-}
-
-body.supply-draft-route .supply-activity-history-btn svg {
-  width: 13px !important;
-  height: 13px !important;
-  flex: 0 0 13px !important;
-  opacity: .9 !important;
-}
-
-body.supply-draft-route .supply-activity-history-btn.loading {
-  border-color: var(--supply-gold-line) !important;
-  background:
-    linear-gradient(180deg, rgba(201, 162, 39, .14), rgba(201, 162, 39, .06)),
-    var(--supply-bg-3) !important;
-  color: var(--supply-gold-hi) !important;
-  cursor: wait !important;
-  opacity: 1 !important;
-}
-
-body.supply-draft-route .supply-activity-history-btn.loading svg {
-  animation: supplyActivitySpin .86s linear infinite !important;
-}
-
-body.supply-draft-route .supply-activity-history-btn:hover:not(:disabled) {
-  border-color: var(--supply-gold-line) !important;
-  background: var(--supply-gold-wash) !important;
-  color: var(--supply-fg-1) !important;
-}
-
-body.supply-draft-route .supply-activity-history-btn:disabled {
-  cursor: default !important;
-  opacity: .56 !important;
-  background: var(--supply-bg-2) !important;
-  color: var(--supply-fg-3) !important;
-}
-
-body.supply-draft-route .supply-activity-history-state {
-  gap: 8px !important;
-  min-width: 104px !important;
-  justify-content: flex-start !important;
-  font-family: var(--supply-mono) !important;
-  font-size: 11px !important;
-  color: var(--supply-green-hi) !important;
-}
-
 body.supply-draft-route .supply-activity-history-state.loading {
-  border-color: var(--supply-gold-line) !important;
-  background: var(--supply-gold-wash) !important;
   color: var(--supply-gold-hi) !important;
 }
 
 body.supply-draft-route .supply-activity-history-state.full {
-  border-color: var(--supply-green-line) !important;
-  background: var(--supply-green-wash) !important;
   color: var(--supply-green-hi) !important;
+}
+
+body.supply-draft-route .supply-activity-history-state.error {
+  color: #cf8a8a !important;
 }
 
 body.supply-draft-route .supply-activity-history-dot {
@@ -1228,8 +1166,8 @@ body.supply-draft-route .supply-activity-history-dot {
   height: 7px !important;
   border-radius: 50% !important;
   flex: 0 0 7px !important;
-  background: var(--supply-green) !important;
-  box-shadow: 0 0 0 3px var(--supply-green-wash) !important;
+  background: var(--supply-fg-3) !important;
+  box-shadow: none !important;
 }
 
 body.supply-draft-route .supply-activity-history-dot.loading {
@@ -1240,6 +1178,11 @@ body.supply-draft-route .supply-activity-history-dot.loading {
 body.supply-draft-route .supply-activity-history-dot.full {
   background: var(--supply-green-hi) !important;
   box-shadow: 0 0 0 3px var(--supply-green-wash) !important;
+}
+
+body.supply-draft-route .supply-activity-history-dot.error {
+  background: #c57b7b !important;
+  box-shadow: 0 0 0 3px rgba(197, 123, 123, .12) !important;
 }
 
 body.supply-draft-route .supply-activity-toolbar {
@@ -2614,9 +2557,7 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
     flex: 1 1 100% !important;
   }
 
-  body.supply-draft-route .supply-activity-toolbar-main,
-  body.supply-draft-route .supply-activity-history-inline,
-  body.supply-draft-route .supply-activity-toolbar-actions {
+  body.supply-draft-route .supply-activity-toolbar-main {
     width: 100%;
     flex: 1 1 100% !important;
     margin-left: 0 !important;
@@ -2624,11 +2565,17 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
 
   body.supply-draft-route .supply-activity-history-inline,
   body.supply-draft-route .supply-activity-toolbar-actions {
+    width: 100% !important;
+    flex: 1 1 100% !important;
     justify-content: space-between !important;
+    margin-left: 0 !important;
   }
 
-  body.supply-draft-route .supply-activity-history-btn {
-    flex: 1 1 auto !important;
+  body.supply-draft-route .supply-activity-toolbar-actions .supply-activity-period-filter,
+  body.supply-draft-route .supply-activity-toolbar-actions .supply-activity-period-filter .supply-activity-type-trigger {
+    width: 96px !important;
+    min-width: 96px !important;
+    flex: 0 0 96px !important;
   }
 
   body.supply-draft-route .supply-activity-history-state {
