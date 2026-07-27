@@ -23,6 +23,7 @@
 ### Task 1: Lock dynamic counts and two-content footers
 
 **Files:**
+- Create: `tests/supply-ui-behavior.test.js`
 - Modify: `tests/test_supply_table_ux_contracts.py`
 - Modify: `supply/supply-draft.js:1003-1080`
 - Modify: `supply/supply-draft.css:2376-2413,2676-2688`
@@ -32,43 +33,46 @@
 - Consumes: `currentSupplyOverview.supplierCount`, `currentSupplyData.length`, `currentSupplyActivity.length`, filtered row counts, `supplyPage`, `supplyActivityPage`, `SUPPLY_PER_PAGE`, and `SUPPLY_ACTIVITY_PAGE_SIZE`.
 - Produces: `formatSupplyCountBadge(total, filtered, noun) -> string`, `syncSupplierCountBadge(filteredRows) -> void`, `syncActivityCountBadge(filteredRows) -> void`, and footer markup containing only `.supply-page-range` plus `.supply-pager-controls`.
 
-- [ ] **Step 1: Replace the outdated three-content footer contract with failing parity tests**
+- [ ] **Step 1: Write failing behavior tests for the rendered count and footer output**
 
-Add these assertions to `tests/test_supply_table_ux_contracts.py`:
+Create `tests/supply-ui-behavior.test.js`:
 
-```python
-def test_supply_headers_use_dynamic_dolo_style_count_badges(self):
-    html = LIQUIDATION_VIEW.read_text(encoding="utf-8")
-    source = SUPPLY_SCRIPT.read_text(encoding="utf-8")
+```js
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const ui = require('../supply/supply-draft.js');
 
-    self.assertIn('class="header-count supply-count-badge"', html)
-    self.assertIn("function formatSupplyCountBadge", source)
-    self.assertIn("formatSupplyCountBadge(total, filteredRows, 'suppliers')", source)
-    self.assertIn("formatSupplyCountBadge(total, filteredRows, 'events')", source)
-    self.assertNotIn("textContent = `(${filtered.length}", html)
+test('count badges expose total and filtered rows in the DOLO Holders hierarchy', () => {
+  assert.equal(ui.formatSupplyCountBadge(777, 777, 'suppliers'), '777 suppliers · showing 777');
+  assert.equal(ui.formatSupplyCountBadge(706, 84, 'events'), '706 events · showing 84');
+});
 
-def test_supply_footers_match_dolo_holders_without_right_totals(self):
-    source = SUPPLY_SCRIPT.read_text(encoding="utf-8")
-    styles = SUPPLY_STYLES.read_text(encoding="utf-8")
+test('table footer renders the visible range and centered pager without a redundant total', () => {
+  const html = ui.buildSupplyTableFooter(1, 78, 777, 10, 'supply_goPage');
+  assert.match(html, /class="supply-page-range">1–10 of 777</);
+  assert.match(html, /class="supply-pager-controls"/);
+  assert.match(html, />1 \/ 78</);
+  assert.doesNotMatch(html, /flow-pager-total|777 wallets|777 events/);
+});
 
-    footer = source[source.index("function buildSupplyTableFooter"):source.index(
-        "function renderSupplyDraftActivityPagination"
-    )]
-    self.assertIn("supply-page-range", footer)
-    self.assertIn("supply-pager-controls", footer)
-    self.assertNotIn("flow-pager-total", footer)
-    self.assertIn("grid-template-columns: 1fr auto 1fr", styles)
+test('empty table footer preserves a stable zero range and disabled navigation', () => {
+  const html = ui.buildSupplyTableFooter(1, 1, 0, 10, 'supply_goPage');
+  assert.match(html, /class="supply-page-range">0–0 of 0</);
+  assert.equal((html.match(/disabled/g) || []).length, 4);
+});
 ```
+
+Remove the obsolete `test_supply_footers_use_dolo_holders_three_column_shape` source-text test from `tests/test_supply_table_ux_contracts.py`; the Node test now exercises the production renderer directly.
 
 - [ ] **Step 2: Run the focused tests and confirm the intended failure**
 
 Run:
 
 ```bash
-python3 -m unittest tests.test_supply_table_ux_contracts
+node --test tests/supply-ui-behavior.test.js
 ```
 
-Expected: FAIL because the header still renders `(777)` / `(706)` and the footer still contains `.flow-pager-total`.
+Expected: FAIL because `supply/supply-draft.js` is not yet safe to load under Node and does not export the production render helpers.
 
 - [ ] **Step 3: Add DOLO-style count badge markup and rendering**
 
@@ -79,13 +83,18 @@ Change both existing header count spans to include `supply-count-badge`:
 <span class="header-count supply-count-badge" id="supply-activity-count"></span>
 ```
 
-Add the shared formatter and synchronizers in `supply/supply-draft.js`:
+Move `buildSupplyTableFooter()` to the top of the Supply draft IIFE, add `formatSupplyCountBadge()`, and expose both real production functions to Node before any browser-only initialization:
 
 ```js
 function formatSupplyCountBadge(totalRows, filteredRows, noun) {
   const total = Math.max(0, Number(totalRows) || 0);
   const showing = Math.max(0, Number(filteredRows) || 0);
   return `${total.toLocaleString()} ${noun} · showing ${showing.toLocaleString()}`;
+}
+
+if (typeof module === 'object' && module.exports && typeof document === 'undefined') {
+  module.exports = { formatSupplyCountBadge, buildSupplyTableFooter };
+  return;
 }
 
 function syncSupplierCountBadge(filteredRows) {
@@ -156,6 +165,7 @@ Delete the `.flow-pager-total` Supply rules and mobile selector. Run:
 
 ```bash
 node --check supply/supply-draft.js
+node --test tests/supply-ui-behavior.test.js
 python3 -m unittest tests.test_supply_table_ux_contracts tests.test_supply_activity_ui_contracts
 ```
 
@@ -164,7 +174,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit the independently testable count/footer change**
 
 ```bash
-git add tests/test_supply_table_ux_contracts.py liquidation-preview.html supply/supply-draft.js supply/supply-draft.css
+git add tests/supply-ui-behavior.test.js tests/test_supply_table_ux_contracts.py liquidation-preview.html supply/supply-draft.js supply/supply-draft.css
 git commit -m "fix: align supply counts and pagination"
 ```
 
@@ -173,38 +183,39 @@ git commit -m "fix: align supply counts and pagination"
 ### Task 2: Remove the manual history control and expose a quiet automatic state
 
 **Files:**
-- Modify: `tests/test_supply_activity_ui_contracts.py`
+- Modify: `tests/supply-ui-behavior.test.js`
 - Modify: `liquidation-preview.html:12212-12221,16463-16514,17497-17517,17562-17598,20216-20227`
+- Modify: `supply/supply-draft.js:1-40`
 - Modify: `supply/supply-draft.css:1136-1243,1334-1353,2613-2632`
 
 **Interfaces:**
 - Consumes: `currentSupplyOverview.activityStage`, `currentSupplyOverview.activityFullLoading`, and a new presentation-only `currentSupplyOverview.activityFullError`.
-- Produces: `setSupplyActivityHistoryState(copy, mode) -> void` where `mode` is `loading`, `full`, `error`, or an empty string; one borderless `#supply-activity-history-pill`; no `#supply-activity-load-all-btn`.
+- Produces: `getSupplyActivityHistoryPresentation(overview) -> {copy, mode}`, `setSupplyActivityHistoryState(copy, mode) -> void` where `mode` is `loading`, `full`, `error`, or an empty string; one borderless `#supply-activity-history-pill`; no `#supply-activity-load-all-btn`.
 
-- [ ] **Step 1: Write failing history-status contracts**
+- [ ] **Step 1: Write failing behavior tests for every history state**
 
-Add to `tests/test_supply_activity_ui_contracts.py`:
+Extend `tests/supply-ui-behavior.test.js`:
 
-```python
-def test_activity_history_is_automatic_and_borderless(self):
-    html = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
-    css = SUPPLY_DRAFT_CSS.read_text(encoding="utf-8")
-
-    self.assertNotIn('id="supply-activity-load-all-btn"', html)
-    self.assertNotIn("Load older tx", html)
-    self.assertIn("function setSupplyActivityHistoryState", html)
-    self.assertIn("Loading full history…", html)
-    self.assertIn("Full history", html)
-    state_block = css.split(
-        "body.supply-draft-route .supply-activity-history-state {", 1
-    )[1].split("}", 1)[0]
-    self.assertIn("border: 0", state_block)
-    self.assertIn("background: transparent", state_block)
-
-def test_full_history_failure_has_a_clear_status(self):
-    html = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
-    self.assertIn("activityFullError", html)
-    self.assertIn("Full history unavailable", html)
+```js
+test('activity history presentation distinguishes loading, recent, full, and error states', () => {
+  assert.deepEqual(ui.getSupplyActivityHistoryPresentation(null), {
+    copy: 'Loading latest 30D activity…', mode: 'loading',
+  });
+  assert.deepEqual(ui.getSupplyActivityHistoryPresentation({ activityStage: 'recent' }), {
+    copy: '30D history', mode: '',
+  });
+  assert.deepEqual(ui.getSupplyActivityHistoryPresentation({
+    activityStage: 'recent', activityFullLoading: true,
+  }), {
+    copy: 'Loading full history…', mode: 'loading',
+  });
+  assert.deepEqual(ui.getSupplyActivityHistoryPresentation({ activityStage: 'full' }), {
+    copy: 'Full history', mode: 'full',
+  });
+  assert.deepEqual(ui.getSupplyActivityHistoryPresentation({ activityFullError: true }), {
+    copy: 'Full history unavailable', mode: 'error',
+  });
+});
 ```
 
 - [ ] **Step 2: Run the tests and confirm failure**
@@ -212,10 +223,10 @@ def test_full_history_failure_has_a_clear_status(self):
 Run:
 
 ```bash
-python3 -m unittest tests.test_supply_activity_ui_contracts
+node --test tests/supply-ui-behavior.test.js
 ```
 
-Expected: FAIL because the manual button and framed status still exist.
+Expected: FAIL because the production helper is not exported yet.
 
 - [ ] **Step 3: Remove only the manual button markup**
 
@@ -234,7 +245,7 @@ Do not remove `supplyLoadFullActivityHistory()` or `supplyActivityLoadAllHandler
 
 - [ ] **Step 4: Make the core history-state renderer independent of the deleted button**
 
-Add:
+Add `getSupplyActivityHistoryPresentation()` beside the other exported helpers in `supply/supply-draft.js`, include it in `module.exports`, and use it from `updateSupplyActivityHistoryAction()`. Add the DOM adapter:
 
 ```js
 function setSupplyActivityHistoryState(copy, mode = '') {
@@ -256,20 +267,11 @@ function setSupplyActivityHistoryState(copy, mode = '') {
 }
 ```
 
-Refactor `updateSupplyActivityHistoryAction()` to these deterministic states:
+Refactor `updateSupplyActivityHistoryAction()` to consume the tested production result:
 
 ```js
-if (currentSupplyOverview?.activityFullError) {
-  setSupplyActivityHistoryState('Full history unavailable', 'error');
-} else if (currentSupplyOverview?.activityStage === 'full') {
-  setSupplyActivityHistoryState('Full history', 'full');
-} else if (currentSupplyOverview?.activityFullLoading) {
-  setSupplyActivityHistoryState('Loading full history…', 'loading');
-} else if (currentSupplyOverview?.activityStage === 'recent') {
-  setSupplyActivityHistoryState('30D history');
-} else {
-  setSupplyActivityHistoryState('Loading latest 30D activity…', 'loading');
-}
+const presentation = getSupplyActivityHistoryPresentation(currentSupplyOverview);
+setSupplyActivityHistoryState(presentation.copy, presentation.mode);
 syncSupplyActivityFullLoadingPanel();
 ```
 
@@ -305,6 +307,7 @@ Run:
 
 ```bash
 node --check supply/supply-draft.js
+node --test tests/supply-ui-behavior.test.js
 python3 -m unittest tests.test_supply_activity_ui_contracts tests.test_supply_table_ux_contracts
 ```
 
@@ -313,7 +316,7 @@ Expected: PASS.
 Commit:
 
 ```bash
-git add tests/test_supply_activity_ui_contracts.py liquidation-preview.html supply/supply-draft.css
+git add tests/supply-ui-behavior.test.js liquidation-preview.html supply/supply-draft.js supply/supply-draft.css
 git commit -m "fix: simplify supply activity history status"
 ```
 
@@ -322,43 +325,23 @@ git commit -m "fix: simplify supply activity history status"
 ### Task 3: Match the Asset Activity shell and header geometry to DOLO Holders
 
 **Files:**
-- Modify: `tests/test_data_freshness_surface_contracts.py`
 - Modify: `supply/supply-draft.css:536-544,606-635,703-710,967-980,2691-2703`
 
 **Interfaces:**
 - Consumes: `.supply-draft-activity-continuous-surface`, `.supply-activity-header`, `.supply-data-updated`, and `.supply-intel-stats`.
 - Produces: a card shell with `var(--bg-2)`, one-pixel border, 22-pixel radius, DOLO-style shadow; header-aligned freshness; exactly one divider below Selected Market.
 
-- [ ] **Step 1: Strengthen the computed-style source contracts**
+- [ ] **Step 1: Capture the failing computed-style baseline in the browser**
 
-Update `tests/test_data_freshness_surface_contracts.py`:
+Serve the unchanged page with `python3 -m http.server 8765`, load `/supply/`, and record:
 
-```python
-def test_asset_activity_matches_holder_card_shell(self):
-    surface = SUPPLY_STYLES.split(
-        "#supply-activity-card.supply-draft-activity-continuous-surface {", 1
-    )[1].split("}", 1)[0]
-    self.assertIn("background: var(--bg-2, #141417) !important", surface)
-    self.assertIn("border: 1px solid var(--supply-line-2) !important", surface)
-    self.assertIn("border-radius: 22px !important", surface)
-    self.assertIn("box-shadow:", surface)
+- `getComputedStyle(#supply-activity-card)`: current border is `0px`, so it does not match DOLO Holders;
+- `getComputedStyle(#supply-activity-card .table-card-inner)`: current duplicate shadow is present;
+- `getComputedStyle(.supply-intel-header).borderBottomWidth` and `getComputedStyle(.supply-intel-stats).borderTopWidth`: both are `1px`, producing the duplicate line.
 
-def test_selected_market_has_one_horizontal_divider(self):
-    stats = SUPPLY_STYLES.split(
-        "body.supply-draft-route .supply-intel-stats {", 1
-    )[1].split("}", 1)[0]
-    self.assertIn("border-top: 0", stats)
-```
+- [ ] **Step 2: Confirm the baseline fails the approved acceptance values**
 
-- [ ] **Step 2: Run the contract and confirm failure**
-
-Run:
-
-```bash
-python3 -m unittest tests.test_data_freshness_surface_contracts
-```
-
-Expected: FAIL because the Activity outer shell lacks the DOLO border/shadow and the statistics rail still has a top border.
+Expected: Activity outer border is not `1px`, the inner shadow is not `none`, and both neighboring divider widths are `1px`.
 
 - [ ] **Step 3: Apply the single-shell surface**
 
@@ -383,17 +366,19 @@ Keep `.supply-intel-header`'s bottom border. Change `.supply-intel-stats` to `bo
 
 Run:
 
+Repeat the same browser measurements. Expected: Activity outer border `1px`, radius `22px`, inner shadow `none`, header bottom border `1px`, statistics top border `0px`. Then run:
+
 ```bash
 python3 -m unittest tests.test_data_freshness_surface_contracts tests.test_supply_table_ux_contracts tests.test_supply_activity_ui_contracts
 git diff --check
 ```
 
-Expected: PASS and no whitespace errors.
+Expected: browser values match and all existing regressions pass.
 
 Commit:
 
 ```bash
-git add tests/test_data_freshness_surface_contracts.py supply/supply-draft.css
+git add supply/supply-draft.css
 git commit -m "fix: match supply activity holder surface"
 ```
 
@@ -418,6 +403,7 @@ Run:
 
 ```bash
 node --check supply/supply-draft.js
+node --test tests/supply-ui-behavior.test.js
 python3 -m unittest \
   tests.test_supply_table_ux_contracts \
   tests.test_supply_activity_ui_contracts \
