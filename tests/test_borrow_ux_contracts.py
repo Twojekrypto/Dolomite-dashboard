@@ -346,14 +346,24 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
 
     def test_scenario_slider_matches_the_percentage_field_geometry(self):
         for contract in (
-            "width: calc(100% - 70px) !important;",
-            "justify-self: center !important;",
-            "margin: 0 !important;",
-            "align-self: start !important;",
-            "height: 38px !important;",
+            "body.route-liquidation #sim-card .sim-multi-input-wrap {\n"
+            "            height: 46px !important;",
+            "body.route-liquidation #sim-card .sim-multi-token-trigger {\n"
+            "            height: 46px !important;",
+            "body.route-liquidation #sim-card .sim-multi-input-wrap > .sim-multi-shock-rail {",
+            "right: -1px !important;",
+            "bottom: -1px !important;",
+            "left: -1px !important;",
+            "width: auto !important;",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
+        self.assertRegex(
+            SOURCE,
+            r'`<span class="sim-multi-pct-symbol">%</span>` \+\s+'
+            r'`<div class="sim-multi-shock-rail">` \+',
+        )
+        self.assertNotIn("width: calc(100% - 70px) !important;", SOURCE)
 
     def test_scenario_reset_highlights_only_after_the_default_basket_changes(self):
         for contract in (
@@ -479,7 +489,7 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
         for contract in (
             "grid-template-columns: repeat(2, minmax(0, 1fr)) !important;",
             "body.route-liquidation #sim-card .sim-multi-header-actions {",
-            "body.route-liquidation #sim-card .sim-multi-shock-rail {",
+            "body.route-liquidation #sim-card .sim-multi-input-wrap > .sim-multi-shock-rail {",
             "body.route-liquidation #sim-card .sim-multi-shock-fill {",
             "left: var(--sim-shock-left, 50%) !important;",
             "width: var(--sim-shock-width, 0%) !important;",
