@@ -330,6 +330,20 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
         self.assertIn("'--sim-shock-left'", SOURCE)
         self.assertIn("'--sim-shock-width'", SOURCE)
 
+    def test_scenario_rows_offer_a_draggable_shock_slider_synced_to_the_input(self):
+        for contract in (
+            'class="sim-multi-shock-slider"',
+            'min="-100" max="100"',
+            'aria-label="Set ${token} price shock with slider"',
+            "const pctSlider = row.querySelector('.sim-multi-shock-slider');",
+            'pctSlider.value = Math.max(-100, Math.min(100, pct));',
+            "pctSlider.addEventListener('input', () => {",
+            'pctInput.value = pctSlider.value;',
+            'body.route-liquidation #sim-card .sim-multi-shock-slider {',
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
     def test_scenario_controls_prioritize_add_adjust_and_remove_actions(self):
         for contract in (
             'aria-label="Remove ${token} from scenario"',
