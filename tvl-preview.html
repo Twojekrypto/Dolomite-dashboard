@@ -11,8 +11,8 @@
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
 <script defer src="shared-hover-tooltips.js?v=20260507u"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
-<link rel="stylesheet" href="tvl/supply-health.css?v=20260727a">
-<script defer src="tvl/supply-health.js?v=20260727a"></script>
+<link rel="stylesheet" href="tvl/supply-health.css?v=20260727b">
+<script defer src="tvl/supply-health.js?v=20260727b"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (shared with dolo / assets previews)
@@ -898,26 +898,28 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <div class="supply-health-updated" id="supply-health-updated" aria-live="polite"></div>
     </div>
     <div class="supply-health-toolbar">
-      <div class="supply-health-search-shell">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
-        <input id="supply-health-search" type="search" aria-label="Search asset" placeholder="Search asset" autocomplete="off" spellcheck="false">
-        <button type="button" class="supply-health-search-clear" id="supply-health-search-clear" aria-label="Clear asset search">
-          <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 2.5 7 7m0-7-7 7"></path></svg>
-        </button>
-      </div>
-      <div class="tvl-dd supply-health-chain-dropdown" id="supply-health-chain-dropdown">
-        <button class="tvl-dd-btn" id="supply-health-chain-filter" type="button" aria-expanded="false" aria-controls="supply-health-chain-panel">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"></path></svg>
-          <span class="lbl" id="supply-health-chain-label">All Networks</span>
-          <span class="count" id="supply-health-chain-count">5</span>
-          <span class="dd-clear" id="supply-health-chain-clear" role="button" aria-label="Reset network filter">
-            <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m2.5 2.5 7 7m0-7-7 7"></path></svg>
-          </span>
-          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
-        </button>
-        <div class="tvl-dd-panel" id="supply-health-chain-panel">
-          <div class="tvl-dd-panel-head">Networks</div>
-          <div class="tvl-dd-list" id="supply-health-chain-list"></div>
+      <div class="supply-health-filter-group">
+        <div class="supply-health-search-shell">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+          <input id="supply-health-search" type="search" aria-label="Search asset" placeholder="Search asset" autocomplete="off" spellcheck="false">
+          <button type="button" class="supply-health-search-clear" id="supply-health-search-clear" aria-label="Clear asset search">
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 2.5 7 7m0-7-7 7"></path></svg>
+          </button>
+        </div>
+        <div class="tvl-dd supply-health-chain-dropdown" id="supply-health-chain-dropdown">
+          <button class="tvl-dd-btn" id="supply-health-chain-filter" type="button" aria-expanded="false" aria-controls="supply-health-chain-panel">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"></path></svg>
+            <span class="lbl" id="supply-health-chain-label">All Chains</span>
+            <span class="count" id="supply-health-chain-count">5/5</span>
+            <span class="dd-clear" id="supply-health-chain-clear" role="button" aria-label="Reset network filter">
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m2.5 2.5 7 7m0-7-7 7"></path></svg>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </button>
+          <div class="tvl-dd-panel" id="supply-health-chain-panel">
+            <div class="tvl-dd-panel-head">Chain</div>
+            <div class="tvl-dd-list" id="supply-health-chain-list"></div>
+          </div>
         </div>
       </div>
     </div>

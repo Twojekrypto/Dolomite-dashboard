@@ -1474,16 +1474,16 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   background:var(--pf-ex-green);
   box-shadow:0 0 8px var(--pf-ex-green);
 }
-#pf-exercises-section .pf-exercise-summary{
+#pf-exercises-section .pf-exercise-summary.selected-market-rail{
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:0;
   border-bottom:1px solid var(--line-1);
   background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));
 }
-#pf-exercises-section .pf-exercise-summary-item{
+#pf-exercises-section .pf-exercise-summary-item.selected-market-metric{
   min-width:0;
-  padding:15px 18px;
+  padding:20px 24px;
   border-left:1px solid var(--line-1);
 }
 #pf-exercises-section .pf-exercise-summary-item:first-child{border-left:0}
@@ -1508,18 +1508,18 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   opacity:.85;
 }
 #pf-exercises-section .pf-exercise-summary-value{
-  margin-top:7px;
+  margin-top:10px;
   font-family:var(--mono);
-  font-size:16px;
-  font-weight:800;
-  line-height:1.15;
+  font-size:24px;
+  font-weight:600;
+  line-height:1;
   color:var(--fg-1);
   font-variant-numeric:tabular-nums;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{font-size:17px}
+#pf-exercises-section .pf-exercise-summary-item.primary .pf-exercise-summary-value{font-size:24px}
 #pf-exercises-section .pf-exercise-summary-value .unit{
   margin-left:5px;
   font-size:9.5px;
@@ -1531,9 +1531,9 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-exercises-section .pf-exercise-summary-item.accent .pf-exercise-summary-value{color:var(--pf-ex-green)}
 #pf-exercises-section .pf-exercise-summary-value .accent-price{color:#9ab7c2}
 #pf-exercises-section .pf-exercise-summary-sub{
-  margin-top:6px;
+  margin-top:7px;
   font-family:var(--mono);
-  font-size:10px;
+  font-size:11px;
   line-height:1.25;
   color:var(--fg-3);
   white-space:nowrap;
@@ -1917,7 +1917,7 @@ body:not(.pf-active) #pf-results{display:none}
         </div>
         <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span><span class="pf-meta-age" id="pf-exercises-updated">· —</span></div>
       </div>
-      <div class="pf-exercise-summary" id="pf-exercises-summary" style="display:none"></div>
+      <div class="pf-exercise-summary selected-market-rail" id="pf-exercises-summary" style="display:none"></div>
       <div class="pf-filters" id="pf-exercises-filters" style="display:none"></div>
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
@@ -3409,7 +3409,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   }
   function exerciseSummaryItem(label, value, sub, primary, accent, subHtml, icon){
     const subContent = subHtml ? sub : esc(sub);
-    return `<div class="pf-exercise-summary-item${primary ? " primary" : ""}${accent ? " accent" : ""}">
+    return `<div class="pf-exercise-summary-item selected-market-metric${primary ? " primary" : ""}${accent ? " accent" : ""}">
       <div class="pf-exercise-summary-label">${icon || ""}${esc(label)}</div>
       <div class="pf-exercise-summary-value">${value}</div>
       <div class="pf-exercise-summary-sub">${subContent}</div>

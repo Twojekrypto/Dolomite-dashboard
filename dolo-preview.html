@@ -505,17 +505,17 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-flow-stat.neutral .dot{background:var(--gold);box-shadow:0 0 10px rgba(201,162,39,.38)}
 .holder-flow-stat.neutral .value{color:var(--fg-1)}
 .fresh-wallets-card{background:linear-gradient(180deg,rgba(20,20,23,.98),var(--bg-2))}
-.fresh-wallet-stats{
+.fresh-wallet-stats.selected-market-rail{
   display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-bottom:1px solid var(--line-1);
-  background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006))
+  background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));
 }
-.fresh-stat{padding:15px 18px;border-left:1px solid var(--line-1);min-width:0}
+.fresh-wallet-stats.selected-market-rail .fresh-stat{padding:20px 24px;border-left:1px solid var(--line-1);min-width:0}
 .fresh-stat:first-child{border-left:0}
 .fresh-stat .label{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fresh-stat .label svg{width:13px;height:13px;flex:0 0 13px;opacity:.85}
-.fresh-stat .value{margin-top:7px;font-family:var(--mono);font-size:16px;font-weight:800;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
-.fresh-stat.primary .value{color:var(--gold);font-size:17px}
-.fresh-stat .sub{margin-top:4px;font-family:var(--mono);font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fresh-wallet-stats.selected-market-rail .fresh-stat .value{margin-top:10px;font-family:var(--mono);font-size:24px;font-weight:600;line-height:1;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.fresh-wallet-stats.selected-market-rail .fresh-stat.primary .value{color:var(--fg-1);font-size:24px}
+.fresh-wallet-stats.selected-market-rail .fresh-stat .sub{margin-top:7px;font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fresh-wallets-table{min-width:960px;table-layout:fixed}
 .fresh-wallets-table thead th[data-fresh-sort]{cursor:pointer}
 .fresh-wallets-table td{overflow:hidden}
@@ -1387,7 +1387,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First on-chain tx + 10K+ exposure</span></div>
     </div>
 
-    <div class="fresh-wallet-stats" id="fresh-wallet-stats"></div>
+    <div class="fresh-wallet-stats selected-market-rail" id="fresh-wallet-stats"></div>
 
     <div class="toolbar">
       <div class="tb-left">
@@ -4793,10 +4793,10 @@ function renderFreshStats(rows){
     retention: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 15 6-6"/><path d="M9.5 9.5h.01"/><path d="M14.5 14.5h.01"/></svg>',
   };
   box.innerHTML = `
-    <div class="fresh-stat primary"><div class="label">${ICONS.wallets}Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ exposure</div></div>
-    <div class="fresh-stat"><div class="label">${ICONS.received}DOLO Received</div><div class="value">${fmtNum(received)}</div><div class="sub">fresh 10K+ wallets</div></div>
-    <div class="fresh-stat"><div class="label">${ICONS.exposure}Current Exposure</div><div class="value">${fmtNum(balance)}</div><div class="sub">${locked > 0 ? `${fmtNum(locked)} locked` : "liquid + locked"}</div></div>
-    <div class="fresh-stat"><div class="label">${ICONS.retention}Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept exposure</div></div>
+    <div class="fresh-stat selected-market-metric primary"><div class="label">${ICONS.wallets}Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ exposure</div></div>
+    <div class="fresh-stat selected-market-metric"><div class="label">${ICONS.received}DOLO Received</div><div class="value">${fmtNum(received)}</div><div class="sub">fresh 10K+ wallets</div></div>
+    <div class="fresh-stat selected-market-metric"><div class="label">${ICONS.exposure}Current Exposure</div><div class="value">${fmtNum(balance)}</div><div class="sub">${locked > 0 ? `${fmtNum(locked)} locked` : "liquid + locked"}</div></div>
+    <div class="fresh-stat selected-market-metric"><div class="label">${ICONS.retention}Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept exposure</div></div>
   `;
 }
 function renderFreshPager(totalRows){

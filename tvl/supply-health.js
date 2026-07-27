@@ -419,29 +419,30 @@
     const filtered = selected.size > 0;
     button.classList.toggle('filtered', filtered);
     label.textContent = !filtered
-      ? 'All Networks'
+      ? 'All Chains'
       : selected.size === 1
-        ? availableChains.find(chain => selected.has(chain.key))?.label || '1 Network'
-        : `${selected.size} Networks`;
-    count.textContent = String(filtered ? selected.size : availableChains.length);
+        ? availableChains.find(chain => selected.has(chain.key))?.label || '1 Chain'
+        : `${selected.size} Chains`;
+    count.textContent = `${filtered ? selected.size : availableChains.length}/${availableChains.length}`;
 
     const check = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 6 2.5 2.5L10 3"/></svg>';
+    const globe = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/></svg>';
     const allRow = `
       <button type="button" class="tvl-dd-opt select-all${filtered ? '' : ' active'}" data-health-chain="all">
-        <span class="opt-ico">◆</span>
-        <span class="tvl-dd-opt-name">All Networks</span>
+        <span class="dd-opt-check">${check}</span>
+        <span class="dd-ico">${globe}</span>
+        <span class="tvl-dd-opt-name">All Chains</span>
         <span class="tvl-dd-opt-count">${availableChains.length}</span>
-        <span class="tvl-dd-opt-check">${check}</span>
       </button>
     `;
     const chainRows = availableChains.map(chain => {
       const marketCount = state.payload.markets.filter(market => market.chain === chain.key).length;
       return `
         <button type="button" class="tvl-dd-opt${selected.has(chain.key) ? ' active' : ''}" data-health-chain="${chain.key}">
+          <span class="dd-opt-check">${check}</span>
           <img src="${chain.icon}" alt="">
           <span class="tvl-dd-opt-name">${chain.label}</span>
           <span class="tvl-dd-opt-count">${marketCount}</span>
-          <span class="tvl-dd-opt-check">${check}</span>
         </button>
       `;
     }).join('');
@@ -488,6 +489,9 @@
     chainList.addEventListener('click', event => {
       const option = event.target.closest('[data-health-chain]');
       if (!option) return;
+      // The option list is rerendered below; stop the document-level outside-click
+      // handler from seeing the detached option as an external click.
+      event.stopPropagation();
       const key = option.dataset.healthChain;
       let chains = new Set(state.chains);
       if (key === 'all') {
