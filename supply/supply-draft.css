@@ -706,7 +706,7 @@ body.supply-draft-route .supply-intel-stats {
   gap: 0 !important;
   margin: 0 0 22px !important;
   padding-top: 22px !important;
-  border-top: 1px solid var(--supply-line-1);
+  border-top: 0 !important;
 }
 
 body.supply-draft-route .supply-intel-stat-value {
@@ -2640,15 +2640,30 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
 /* ---- Asset Activity: one continuous DOLO-Holders-style surface ---- */
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface {
   background: var(--bg-2, #141417) !important;
+  border: 1px solid var(--supply-line-2) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .02) inset, 0 1px 2px rgba(0, 0, 0, .4) !important;
 }
 
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface .table-card-inner,
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface .supply-activity-header,
+body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface #supply-activity-stats,
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface .supply-activity-toolbar,
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface .table-scroll,
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface #supply-activity-table,
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface #supply-activity-pagination {
   background: transparent !important;
+}
+
+body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface .table-card-inner {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+body.supply-draft-route .supply-activity-header .supply-data-updated {
+  align-self: flex-start !important;
+  position: relative;
+  top: 2px;
 }
 
 /* ---- Asset Activity metric rail (Selected Market template) ---- */
