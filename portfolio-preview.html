@@ -1479,12 +1479,13 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   grid-template-columns:repeat(4,minmax(0,1fr));
   gap:0;
   border-bottom:1px solid var(--line-1);
-  background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));
+  background:var(--bg-2);
 }
 #pf-exercises-section .pf-exercise-summary-item.selected-market-metric{
   min-width:0;
   padding:20px 24px;
   border-left:1px solid var(--line-1);
+  background:transparent;
 }
 #pf-exercises-section .pf-exercise-summary-item:first-child{border-left:0}
 #pf-exercises-section .pf-exercise-summary-label{
@@ -3441,7 +3442,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     el.innerHTML = [
       exerciseSummaryItem(
         "Total locked",
-        `${fmtCompact(lockedVe)} <span class="unit">veDOLO</span>`,
+        `${fmtCompact(lockedVe)} <span class="unit">DOLO</span>`,
         currentNfts ? `${currentNfts} current position${currentNfts === 1 ? "" : "s"}` : "From loaded position activity",
         true,
         false,
@@ -3450,7 +3451,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       ),
       exerciseSummaryItem(
         "oDOLO Exercises",
-        `<span class="pf-ex-pair">${fmtCompact(claimVe)} <span class="unit">veDOLO</span></span>`,
+        `<span class="pf-ex-pair">${fmtCompact(claimVe)}</span>`,
         claimRows.length ? `${claimRows.length} exercises · <span class="accent-money">${fmtUSD(claimPaid)} USDC paid</span>` : "No oDOLO option exercises",
         false,
         false,
@@ -3468,7 +3469,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       ),
       exerciseSummaryItem(
         "Vote power",
-        `${fmtCompact(currentVote)} <span class="unit">veDOLO</span>`,
+        fmtCompact(currentVote),
         currentNfts ? "Current voting weight" : "Current snapshot unavailable",
         false,
         false,
