@@ -24,10 +24,21 @@
     return `${total.toLocaleString()} ${noun} · showing ${showing.toLocaleString()}`;
   }
 
+  function getSupplyActivityHistoryPresentation(overview) {
+    if (!overview) return { copy: 'Loading latest 30D activity…', mode: 'loading' };
+    if (overview.activityFullError) return { copy: 'Full history unavailable', mode: 'error' };
+    if (overview.activityStage === 'full') return { copy: 'Full history', mode: 'full' };
+    if (overview.activityFullLoading) return { copy: 'Loading full history…', mode: 'loading' };
+    if (overview.activityStage === 'recent') return { copy: '30D history', mode: '' };
+    return { copy: 'Loading latest 30D activity…', mode: 'loading' };
+  }
+
   if (typeof module === 'object' && module.exports && typeof document === 'undefined') {
-    module.exports = { formatSupplyCountBadge, buildSupplyTableFooter };
+    module.exports = { formatSupplyCountBadge, buildSupplyTableFooter, getSupplyActivityHistoryPresentation };
     return;
   }
+
+  window.getSupplyActivityHistoryPresentation = getSupplyActivityHistoryPresentation;
 
   function syncSupplierCountBadge(filteredRows) {
     const count = document.getElementById('supply-count-header');
