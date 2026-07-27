@@ -43,6 +43,10 @@ class DataFreshnessSurfaceContractsTest(unittest.TestCase):
         )[1].split("}", 1)[0]
         self.assertIn("background:transparent", rail_block)
         self.assertNotIn("linear-gradient", rail_block)
+        self.assertIn(
+            ".fresh-wallet-stats.selected-market-rail{grid-template-columns:1fr}",
+            DOLO_VIEW,
+        )
 
     def test_position_activity_uses_consistent_surface_and_correct_units(self):
         rail = PORTFOLIO_VIEW.split(
@@ -64,6 +68,10 @@ class DataFreshnessSurfaceContractsTest(unittest.TestCase):
         )
         self.assertNotIn(
             'fmtCompact(currentVote)} <span class="unit">veDOLO</span>',
+            PORTFOLIO_VIEW,
+        )
+        self.assertIn(
+            "#pf-exercises-section .pf-exercise-summary.selected-market-rail{grid-template-columns:1fr}",
             PORTFOLIO_VIEW,
         )
 
