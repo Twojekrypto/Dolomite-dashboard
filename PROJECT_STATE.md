@@ -45,7 +45,7 @@ Dolomite website/
 | **Rewards** | `rewards/` → `rewards-preview.html` | Programy nagród (Merkl + oDOLO): APR, eligible TVL, daily rewards, efficiency |
 | **Pozostałe sekcje** | `vedolo/`, `odolo/`, `tvl/`, `revenue/`, `assets/`, `portfolio/`, `history/` | Dedykowane strony preview per temat |
 
-Zakładka Supply zawiera dodatkowo kartę **Supply Pool Health** (`data/supply-health/latest.json`): per-asset liczba portfeli, koncentracja Top10/largest/Gini, trendy 7d/30d i ważony Supply Quality Score (A–F, propozycja społeczności 2026-06-29).
+Zakładka TVL zawiera pod Token Composition kartę **Supply Pool Health** (`data/supply-health/latest.json`): per-asset liczba portfeli, koncentracja Top10/largest/Gini, trendy 7d/30d i ważony Supply Quality Score (A–F, propozycja społeczności 2026-06-29), z niezależnym filtrem sieci i wyszukiwarką assetów.
 
 Adresy kontraktowe protokołu: wspólna stopka (`protocol-footer.js`) na każdej stronie.
 

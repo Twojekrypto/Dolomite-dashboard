@@ -134,43 +134,12 @@
     return `$${numeric.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   }
 
-  function supplyDraftFormatSignedUsd(value) {
-    const numeric = Number(value || 0);
-    try {
-      if (typeof supplyFormatSignedCompact === 'function' && typeof formatUSDCompact === 'function') {
-        return supplyFormatSignedCompact(numeric, formatUSDCompact);
-      }
-    } catch (error) {}
-    const sign = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
-    return `${sign}${supplyDraftFormatUsd(Math.abs(numeric))}`;
-  }
-
   function supplyDraftFormatToken(value) {
     const numeric = Number(value || 0);
     try {
       if (typeof supplyFormatTokenCompact === 'function') return supplyFormatTokenCompact(numeric);
     } catch (error) {}
     return numeric.toLocaleString('en-US', { maximumFractionDigits: 2 });
-  }
-
-  function supplyDraftFormatSignedToken(value) {
-    const numeric = Number(value || 0);
-    try {
-      if (typeof supplyFormatSignedCompact === 'function' && typeof supplyFormatTokenCompact === 'function') {
-        return supplyFormatSignedCompact(numeric, supplyFormatTokenCompact);
-      }
-    } catch (error) {}
-    const sign = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
-    return `${sign}${supplyDraftFormatToken(Math.abs(numeric))}`;
-  }
-
-  function supplyDraftFormatSignedShare(value) {
-    const numeric = Number(value || 0);
-    try {
-      if (typeof supplyFormatSignedPercent === 'function') return supplyFormatSignedPercent(numeric);
-    } catch (error) {}
-    const sign = numeric > 0 ? '+' : numeric < 0 ? '-' : '';
-    return `${sign}${Math.abs(numeric).toFixed(2)}%`;
   }
 
   function renderSupplyActivityStats() {
@@ -192,10 +161,8 @@
       && !!currentSupplyOverview?.activityFullLoading
       && currentSupplyOverview?.activityStage !== 'full';
     let tokenSymbol = '';
-    let liveSupply = 0;
     try {
       tokenSymbol = currentSupplyOverview?.token?.symbol || '';
-      liveSupply = Number(currentSupplyOverview?.supply || 0);
     } catch (error) {}
 
     const statsKey = JSON.stringify([
@@ -204,10 +171,8 @@
       supplyActivityRowsVersion,
       rows.length,
       tokenSymbol,
-      liveSupply,
       currentSupplyOverview?.activityStage || '',
       isSyncingOlder ? 'loading' : 'ready',
-      summary.netUsd,
       summary.inflowUsd,
       summary.outflowUsd,
       summary.internalUsd,
@@ -218,18 +183,10 @@
     if (stats.dataset.supplyStatsKey === statsKey && stats.children.length > 0) return;
     stats.dataset.supplyStatsKey = statsKey;
 
-    const netClass = summary.netUsd > 0 ? 'positive' : summary.netUsd < 0 ? 'negative' : 'neutral';
     const tokenSuffix = tokenSymbol ? ` ${tokenSymbol}` : '';
-    const netTokenText = `${supplyDraftFormatSignedToken(summary.netToken)}${tokenSuffix}`;
-    const netShareText = liveSupply > 0
-      ? `${supplyDraftFormatSignedShare((summary.netToken / liveSupply) * 100)} supply`
-      : '';
-    const netSub = isSyncingOlder
-      ? 'syncing older tx…'
-      : [netTokenText, netShareText].filter(Boolean).join(' · ');
+    const activitySub = value => isSyncingOlder ? 'syncing older tx…' : value;
 
     const statIcons = {
-      net: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>',
       deposits: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>',
       withdrawals: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>',
       transfers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
@@ -237,38 +194,31 @@
     };
     const cells = [
       {
-        icon: statIcons.net,
-        label: `Net Flow · ${meta.short}`,
-        value: supplyDraftFormatSignedUsd(summary.netUsd),
-        sub: netSub,
-        cls: `primary ${netClass}`,
-      },
-      {
         icon: statIcons.deposits,
         label: 'Deposits',
         value: supplyDraftFormatUsd(summary.inflowUsd),
-        sub: `${supplyDraftFormatToken(summary.inflowToken)}${tokenSuffix}`,
+        sub: activitySub(`${supplyDraftFormatToken(summary.inflowToken)}${tokenSuffix}`),
         cls: 'deposit',
       },
       {
         icon: statIcons.withdrawals,
         label: 'Withdrawals',
         value: supplyDraftFormatUsd(summary.outflowUsd),
-        sub: `${supplyDraftFormatToken(summary.outflowToken)}${tokenSuffix}`,
+        sub: activitySub(`${supplyDraftFormatToken(summary.outflowToken)}${tokenSuffix}`),
         cls: 'withdraw',
       },
       {
         icon: statIcons.transfers,
         label: 'Transfers',
         value: supplyDraftFormatUsd(summary.internalUsd),
-        sub: `${supplyDraftFormatToken(summary.internalToken)}${tokenSuffix}`,
+        sub: activitySub(`${supplyDraftFormatToken(summary.internalToken)}${tokenSuffix}`),
         cls: 'transfer',
       },
       {
         icon: statIcons.wallets,
         label: 'Active Wallets',
         value: Number(summary.wallets || 0).toLocaleString('en-US'),
-        sub: `${Number(summary.events || 0).toLocaleString('en-US')} events`,
+        sub: activitySub(`${Number(summary.events || 0).toLocaleString('en-US')} events`),
         cls: '',
       },
     ];
@@ -1272,22 +1222,57 @@
     return true;
   }
 
+  // Official Dolomite icons used by isolation-market asset selectors.
+  const SUPPLY_ASSET_ICON_CDN = 'https://app.dolomite.io/static/media/';
+  const supplyAssetIconOverrides = {
+    'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': SUPPLY_ASSET_ICON_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
+    'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': SUPPLY_ASSET_ICON_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+    'arbitrum:0x505582242757f16d72f8c4462a616e388ca1b074': SUPPLY_ASSET_ICON_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+    'arbitrum:0x18cb14564fbb015bd3439220d177799355abc0e0': SUPPLY_ASSET_ICON_CDN + 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg',
+    'arbitrum:0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8': SUPPLY_ASSET_ICON_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
+    'arbitrum:0x2d165a76dd3e552df3860789331ab73c5a3d7f92': SUPPLY_ASSET_ICON_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
+    'arbitrum:0x20d51cb520c4622dcc3d7e35003dbab07d547e7e': SUPPLY_ASSET_ICON_CDN + 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg',
+    'arbitrum:0x24c9121c75c099b38d40020872b8a0d2c27c614d': SUPPLY_ASSET_ICON_CDN + 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg',
+    'arbitrum:0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1': SUPPLY_ASSET_ICON_CDN + 'gmDOGE.36090e2ebcd305890c779e005d41d331.svg',
+    'arbitrum:0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c': SUPPLY_ASSET_ICON_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+    'arbitrum:0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412': SUPPLY_ASSET_ICON_CDN + 'gmSOL.73d56a4a2dcf3d39fc5c946b8c65c631.svg',
+    'arbitrum:0xc587646f67b38739006ed0200e2e0a26fdb01c9b': SUPPLY_ASSET_ICON_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
+    'arbitrum:0xcf248baf933c7b1b876b997246f25021a65383b3': SUPPLY_ASSET_ICON_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
+    'arbitrum:0xe5d6fe410c69b44c357403a1936b3bfaddbe340b': SUPPLY_ASSET_ICON_CDN + 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg',
+    'arbitrum:0x6586f1db71513daf94b0431156d225a46c00f20b': SUPPLY_ASSET_ICON_CDN + 'gmPEPE.966f4beb1b823729066c29c52921b664.svg',
+    'arbitrum:0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3': SUPPLY_ASSET_ICON_CDN + 'gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg',
+    'arbitrum:0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e': SUPPLY_ASSET_ICON_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
+    'arbitrum:0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4': SUPPLY_ASSET_ICON_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
+    'arbitrum:0x51fc0f6660482ea73330e414efd7808811a57fa2': SUPPLY_ASSET_ICON_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
+    'berachain:0xe946dd7d03f6f5c440f68c84808ca88d26475fc5': SUPPLY_ASSET_ICON_CDN + 'WBTC.f3c8718835179e7543b5.png',
+    'berachain:0x1fcca65fb6ae3b2758b9b2b394cb227eae404e1e': SUPPLY_ASSET_ICON_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+  };
+  const supplyAssetSymbolIconFallbacks = {
+    stBTC: SUPPLY_ASSET_ICON_CDN + 'stBTC.3935aab6a35bd55630f244a1f56631ba.svg',
+    rswETH: SUPPLY_ASSET_ICON_CDN + 'rswETH.fc4bdb76a764bf110676766fd0185dfe.svg',
+    'pumpBTC.bera': SUPPLY_ASSET_ICON_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+    PREMIA: SUPPLY_ASSET_ICON_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
+    ylBTCLST: SUPPLY_ASSET_ICON_CDN + 'WBTC.f3c8718835179e7543b5.png',
+    'SolvBTC.BBN': SUPPLY_ASSET_ICON_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+  };
+
+
   function getIconPath(token) {
     const iconKey = token?.chain && token?.tokenId
       ? `${String(token.chain).toLowerCase()}:${String(token.tokenId).toLowerCase()}`
       : '';
-    if (iconKey && supplyHealthAssetIconOverrides[iconKey]) {
-      return supplyHealthAssetIconOverrides[iconKey];
+    if (iconKey && supplyAssetIconOverrides[iconKey]) {
+      return supplyAssetIconOverrides[iconKey];
     }
     try {
       if (token && typeof getTokenIcon === 'function' && typeof truncateTokenName === 'function') {
         return getTokenIcon(token.symbol)
           || getTokenIcon(truncateTokenName(token.symbol))
-          || supplyHealthSymbolIconFallbacks[token.symbol]
+          || supplyAssetSymbolIconFallbacks[token.symbol]
           || '';
       }
     } catch (error) {}
-    return supplyHealthSymbolIconFallbacks[token?.symbol] || '';
+    return supplyAssetSymbolIconFallbacks[token?.symbol] || '';
   }
 
   function setSelectorUi(token, pending) {
@@ -1463,7 +1448,6 @@
       const result = originalSelectChain.apply(this, arguments);
       syncSupplyChainOptions();
       syncApplyButton();
-      setTimeout(syncSupplyHealthChain, 0);
       setTimeout(setAssetPlaceholder, 0);
       setTimeout(autoApplyDefaultSupplyAsset, 0);
       setTimeout(syncSupplyChainOptions, 0);
@@ -1485,444 +1469,11 @@
     }
   }
 
-  // ---- Supply Pool Health (community proposal, 2026-06-29) ----
-  // Static data from data/supply-health/latest.json (generate_supply_health.py).
-  const healthChainAliases = { base: 'botanix' };
-  const healthExplorerAddresses = {
-    ethereum: 'https://etherscan.io/address/',
-    berachain: 'https://berascan.com/address/',
-    arbitrum: 'https://arbiscan.io/address/',
-    mantle: 'https://mantlescan.xyz/address/',
-    xlayer: 'https://www.okx.com/web3/explorer/xlayer/address/',
-  };
-  const healthScoreWeights = [
-    { key: 'wallet', label: 'Wallet Distribution', weight: 25 },
-    { key: 'concentration', label: 'Concentration Risk', weight: 30 },
-    { key: 'stability', label: 'Supply Stability', weight: 20 },
-    { key: 'growth', label: 'Growth', weight: 15 },
-    { key: 'resilience', label: 'Exit Resilience', weight: 10 },
-  ];
-  let supplyHealthPayload = null;
-  let supplyHealthFetchState = 'idle';
-  let supplyHealthSortField = 'supplyUsd';
-  let supplyHealthSortAsc = false;
-  let supplyHealthExpandedKey = '';
-  const SUPPLY_HEALTH_PAGE_SIZE = 10;
-  let supplyHealthPage = 1;
-  const SUPPLY_HEALTH_ICON_CDN = 'https://app.dolomite.io/static/media/';
-  const supplyHealthAssetIconOverrides = {
-    'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': SUPPLY_HEALTH_ICON_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
-    'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': SUPPLY_HEALTH_ICON_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
-    'arbitrum:0x505582242757f16d72f8c4462a616e388ca1b074': SUPPLY_HEALTH_ICON_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
-    'arbitrum:0x18cb14564fbb015bd3439220d177799355abc0e0': SUPPLY_HEALTH_ICON_CDN + 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg',
-    'arbitrum:0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8': SUPPLY_HEALTH_ICON_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
-    'arbitrum:0x2d165a76dd3e552df3860789331ab73c5a3d7f92': SUPPLY_HEALTH_ICON_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
-    'arbitrum:0x20d51cb520c4622dcc3d7e35003dbab07d547e7e': SUPPLY_HEALTH_ICON_CDN + 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg',
-    'arbitrum:0x24c9121c75c099b38d40020872b8a0d2c27c614d': SUPPLY_HEALTH_ICON_CDN + 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg',
-    'arbitrum:0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1': SUPPLY_HEALTH_ICON_CDN + 'gmDOGE.36090e2ebcd305890c779e005d41d331.svg',
-    'arbitrum:0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c': SUPPLY_HEALTH_ICON_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
-    'arbitrum:0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412': SUPPLY_HEALTH_ICON_CDN + 'gmSOL.73d56a4a2dcf3d39fc5c946b8c65c631.svg',
-    'arbitrum:0xc587646f67b38739006ed0200e2e0a26fdb01c9b': SUPPLY_HEALTH_ICON_CDN + 'wstETH.2e97640d284bbe78da3776549d27ec47.svg',
-    'arbitrum:0xcf248baf933c7b1b876b997246f25021a65383b3': SUPPLY_HEALTH_ICON_CDN + 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg',
-    'arbitrum:0xe5d6fe410c69b44c357403a1936b3bfaddbe340b': SUPPLY_HEALTH_ICON_CDN + 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg',
-    'arbitrum:0x6586f1db71513daf94b0431156d225a46c00f20b': SUPPLY_HEALTH_ICON_CDN + 'gmPEPE.966f4beb1b823729066c29c52921b664.svg',
-    'arbitrum:0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3': SUPPLY_HEALTH_ICON_CDN + 'gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg',
-    'arbitrum:0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e': SUPPLY_HEALTH_ICON_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
-    'arbitrum:0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4': SUPPLY_HEALTH_ICON_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
-    'arbitrum:0x51fc0f6660482ea73330e414efd7808811a57fa2': SUPPLY_HEALTH_ICON_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
-    'berachain:0xe946dd7d03f6f5c440f68c84808ca88d26475fc5': SUPPLY_HEALTH_ICON_CDN + 'WBTC.f3c8718835179e7543b5.png',
-    'berachain:0x1fcca65fb6ae3b2758b9b2b394cb227eae404e1e': SUPPLY_HEALTH_ICON_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
-  };
-  const supplyHealthSymbolIconFallbacks = {
-    stBTC: SUPPLY_HEALTH_ICON_CDN + 'stBTC.3935aab6a35bd55630f244a1f56631ba.svg',
-    rswETH: SUPPLY_HEALTH_ICON_CDN + 'rswETH.fc4bdb76a764bf110676766fd0185dfe.svg',
-    'pumpBTC.bera': SUPPLY_HEALTH_ICON_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
-    PREMIA: SUPPLY_HEALTH_ICON_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
-    ylBTCLST: SUPPLY_HEALTH_ICON_CDN + 'WBTC.f3c8718835179e7543b5.png',
-    'SolvBTC.BBN': SUPPLY_HEALTH_ICON_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
-  };
-
-  function getHealthChainKey() {
-    const selected = document.getElementById('supply-chain-select')?.value || 'ethereum';
-    return healthChainAliases[selected] || selected;
-  }
-
-  function supplyHealthRelativeAge(timestamp) {
-    const time = Date.parse(String(timestamp || ''));
-    if (!Number.isFinite(time)) return 'recently';
-    const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
-    if (minutes < 1) return 'now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  }
-
-  function syncSupplyHealthChain() {
-    supplyHealthExpandedKey = '';
-    supplyHealthPage = 1;
-    renderSupplyHealthTable();
-  }
-
-  function healthMarketKey(market) {
-    return `${market.chain}:${market.tokenId}`;
-  }
-
-  function formatHealthPct(value, digits = 1) {
-    const numeric = Number(value);
-    if (value == null || !Number.isFinite(numeric)) return '—';
-    return `${numeric.toFixed(digits)}%`;
-  }
-
-  function formatHealthSignedPct(value, digits = 1) {
-    const numeric = Number(value);
-    if (value == null || !Number.isFinite(numeric)) return '—';
-    const sign = numeric > 0 ? '+' : '';
-    return `${sign}${numeric.toFixed(digits)}%`;
-  }
-
-  function healthSignedClass(value) {
-    const numeric = Number(value);
-    if (value == null || !Number.isFinite(numeric) || numeric === 0) return 'neutral';
-    return numeric > 0 ? 'positive' : 'negative';
-  }
-
-  function healthGradeClass(grade) {
-    return `grade-${String(grade || 'x').toLowerCase()}`;
-  }
-
-  function shortHealthAddress(address) {
-    const text = String(address || '');
-    if (text.length < 12) return text;
-    return `${text.slice(0, 6)}…${text.slice(-4)}`;
-  }
-
-  function installSupplyHealthCard() {
-    const tab = document.querySelector('#tab-supply');
-    if (!tab || document.getElementById('supply-health-card')) return;
-    const anchor = document.querySelector('.supply-draft-empty') || tab.querySelector('.premium-supply-frame');
-    if (!anchor) return;
-
-    const card = document.createElement('section');
-    card.id = 'supply-health-card';
-    card.className = 'table-card-outer supply-health-card';
-    card.innerHTML = `
-      <div class="table-card-inner">
-        <div class="table-card-header supply-health-header">
-          <div class="supply-health-heading">
-            <h3><span>Supply Pool Health</span> <span class="header-count" id="supply-health-count"></span></h3>
-            <div class="supply-health-subtitle">Supplier breadth, concentration, and resilience for the selected chain.</div>
-          </div>
-          <div class="supply-health-header-meta">
-            <div class="supply-health-updated" id="supply-health-updated" aria-live="polite"></div>
-          </div>
-        </div>
-        <div class="table-scroll supply-health-scroll">
-          <div class="supply-health-state" id="supply-health-state">Loading pool health…</div>
-          <table class="positions-table supply-health-table" id="supply-health-table" style="display:none;">
-            <thead>
-              <tr>
-                <th data-health-sort="symbol">Asset</th>
-                <th class="num" data-health-sort="supplyUsd">Supply</th>
-                <th class="num" data-health-sort="wallets">Suppliers</th>
-                <th class="num" data-health-sort="avgWalletUsd">Average</th>
-                <th class="num" data-health-sort="top10Pct">Top 10</th>
-                <th class="num" data-health-sort="largestPct">Largest</th>
-                <th class="num" data-health-sort="supply30dPct">30D Change</th>
-                <th class="num" data-health-sort="scoreTotal">Quality</th>
-              </tr>
-            </thead>
-            <tbody id="supply-health-table-body"></tbody>
-          </table>
-        </div>
-        <div class="supply-health-pagination" id="supply-health-pagination" aria-label="Supply pool health pages"></div>
-        <div class="supply-health-footnote">Wallet counts are on-chain addresses: one supplier can split funds across wallets, and vaults/protocol contracts count as a single wallet — treat concentration as an upper bound.</div>
-      </div>
-    `;
-    anchor.insertAdjacentElement('afterend', card);
-
-    card.querySelectorAll('th[data-health-sort]').forEach(th => {
-      th.classList.add('sortable');
-      th.addEventListener('click', () => {
-        const field = th.dataset.healthSort;
-        if (supplyHealthSortField === field) {
-          supplyHealthSortAsc = !supplyHealthSortAsc;
-        } else {
-          supplyHealthSortField = field;
-          supplyHealthSortAsc = field === 'symbol';
-        }
-        supplyHealthPage = 1;
-        renderSupplyHealthTable();
-      });
-    });
-    const supplyChainSelect = document.getElementById('supply-chain-select');
-    if (supplyChainSelect && supplyChainSelect.dataset.supplyHealthReady !== 'true') {
-      supplyChainSelect.dataset.supplyHealthReady = 'true';
-      supplyChainSelect.addEventListener('change', syncSupplyHealthChain);
-    }
-  }
-
-  function fetchSupplyHealth() {
-    if (supplyHealthFetchState === 'loading' || supplyHealthFetchState === 'ready') return;
-    supplyHealthFetchState = 'loading';
-    fetch('data/supply-health/latest.json', { cache: 'no-cache' })
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(payload => {
-        if (!payload || !Array.isArray(payload.markets)) throw new Error('bad payload');
-        supplyHealthPayload = payload;
-        supplyHealthFetchState = 'ready';
-        renderSupplyHealthTable();
-      })
-      .catch(error => {
-        supplyHealthFetchState = 'error';
-        const state = document.getElementById('supply-health-state');
-        if (state) state.textContent = 'Pool health data is unavailable right now.';
-        console.error('supply health load failed', error);
-      });
-  }
-
-  function healthSortValue(market, field) {
-    switch (field) {
-      case 'symbol': return String(market.symbol || '').toUpperCase();
-      case 'supply30dPct': {
-        const value = Number(market.growth?.supply30dPct);
-        return Number.isFinite(value) ? value : -Infinity;
-      }
-      case 'scoreTotal': {
-        const value = Number(market.score?.total);
-        return Number.isFinite(value) ? value : -Infinity;
-      }
-      default: {
-        const value = Number(market[field]);
-        return Number.isFinite(value) ? value : -Infinity;
-      }
-    }
-  }
-
-  function renderSupplyHealthScoreBreakdown(market) {
-    const score = market.score || {};
-    const rows = healthScoreWeights.map(component => {
-      const value = score[component.key];
-      const numeric = Number(value);
-      const hasValue = value != null && Number.isFinite(numeric);
-      const width = hasValue ? Math.max(2, Math.min(100, numeric)) : 0;
-      return `
-        <div class="supply-health-component">
-          <div class="supply-health-component-label">${supplyDraftEscape(component.label)} <span>${component.weight}%</span></div>
-          <div class="supply-health-component-bar"><span style="width:${width}%"></span></div>
-          <div class="supply-health-component-value">${hasValue ? numeric.toFixed(0) : '—'}</div>
-        </div>
-      `;
-    }).join('');
-    return `<div class="supply-health-components">${rows}</div>`;
-  }
-
-  function renderSupplyHealthDetail(market) {
-    const growth = market.growth || {};
-    const top = Array.isArray(market.topWallets) ? market.topWallets.slice(0, 3) : [];
-    const explorer = healthExplorerAddresses[market.chain] || '';
-    const topRows = top.map((wallet, index) => `
-      <div class="supply-health-top-wallet">
-        <span class="supply-health-top-rank">#${index + 1}</span>
-        ${explorer && wallet.address
-          ? `<a class="supply-health-top-addr" href="${supplyDraftEscape(explorer + wallet.address)}" target="_blank" rel="noopener" title="Open ${supplyDraftEscape(wallet.address)} in explorer">${supplyDraftEscape(shortHealthAddress(wallet.address))}</a>`
-          : `<span class="supply-health-top-addr">${supplyDraftEscape(shortHealthAddress(wallet.address))}</span>`}
-        <span class="supply-health-top-share">${formatHealthPct(wallet.sharePct, 2)}</span>
-        <span class="supply-health-top-usd">${supplyDraftFormatUsd(wallet.usd)}</span>
-      </div>
-    `).join('');
-    const stats = [
-      { label: 'Median / Wallet', value: market.medianWalletUsd != null ? supplyDraftFormatUsd(market.medianWalletUsd) : '—' },
-      { label: 'Gini Coefficient', value: market.gini != null ? Number(market.gini).toFixed(3) : '—' },
-      { label: '7D Supply', value: formatHealthSignedPct(growth.supply7dPct), tone: healthSignedClass(growth.supply7dPct) },
-      { label: '30D Wallets', value: formatHealthSignedPct(growth.wallets30dPct), tone: healthSignedClass(growth.wallets30dPct) },
-      { label: 'Avg Daily Move 30D', value: formatHealthPct(growth.avgDailyChange30dPct) },
-      { label: 'Exit Impact', value: market.largestPct != null ? `−${formatHealthPct(market.largestPct)}` : '—' },
-    ].map(stat => `
-      <div class="supply-health-detail-stat">
-        <div class="supply-health-detail-stat-label">${supplyDraftEscape(stat.label)}</div>
-        <div class="supply-health-detail-stat-value ${stat.tone || ''}">${stat.value}</div>
-      </div>
-    `).join('');
-    return `
-      <div class="supply-health-detail">
-        <div class="supply-health-detail-col">
-          <div class="supply-health-detail-title">Score Breakdown</div>
-          ${renderSupplyHealthScoreBreakdown(market)}
-        </div>
-        <div class="supply-health-detail-col">
-          <div class="supply-health-detail-title">Market Signals</div>
-          <div class="supply-health-detail-stats">${stats}</div>
-        </div>
-        <div class="supply-health-detail-col">
-          <div class="supply-health-detail-title">Largest Suppliers</div>
-          ${topRows || '<div class="supply-health-detail-empty">No supplier data</div>'}
-          <button type="button" class="supply-health-open-market" data-health-open="${supplyDraftEscape(market.tokenId)}">Open market view</button>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderSupplyHealthPagination(totalRows) {
-    const pager = document.getElementById('supply-health-pagination');
-    if (!pager) return;
-    const totalPages = Math.max(1, Math.ceil(totalRows / SUPPLY_HEALTH_PAGE_SIZE));
-    supplyHealthPage = Math.max(1, Math.min(supplyHealthPage, totalPages));
-    if (totalPages <= 1) {
-      pager.innerHTML = '';
-      return;
-    }
-    pager.innerHTML =
-      `<button class="flow-pager-btn" aria-label="First page" onclick="supplyHealthGoPage(1)" ${supplyHealthPage === 1 ? 'disabled' : ''}>«</button>` +
-      `<button class="flow-pager-btn" aria-label="Previous page" onclick="supplyHealthGoPage(${supplyHealthPage - 1})" ${supplyHealthPage === 1 ? 'disabled' : ''}>‹</button>` +
-      `<span class="flow-pager-info">${supplyHealthPage} / ${totalPages}</span>` +
-      `<button class="flow-pager-btn" aria-label="Next page" onclick="supplyHealthGoPage(${supplyHealthPage + 1})" ${supplyHealthPage === totalPages ? 'disabled' : ''}>›</button>` +
-      `<button class="flow-pager-btn" aria-label="Last page" onclick="supplyHealthGoPage(${totalPages})" ${supplyHealthPage === totalPages ? 'disabled' : ''}>»</button>`;
-  }
-
-  function supplyHealthGoPage(page) {
-    const markets = supplyHealthPayload?.markets?.filter(market => market.chain === getHealthChainKey()) || [];
-    const totalPages = Math.max(1, Math.ceil(markets.length / SUPPLY_HEALTH_PAGE_SIZE));
-    supplyHealthPage = Math.max(1, Math.min(Number(page) || 1, totalPages));
-    supplyHealthExpandedKey = '';
-    renderSupplyHealthTable();
-    document.querySelector('.supply-health-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  window.supplyHealthGoPage = supplyHealthGoPage;
-
-  function renderSupplyHealthTable() {
-    const table = document.getElementById('supply-health-table');
-    const body = document.getElementById('supply-health-table-body');
-    const state = document.getElementById('supply-health-state');
-    const count = document.getElementById('supply-health-count');
-    const updatedLabel = document.getElementById('supply-health-updated');
-    if (!table || !body || !supplyHealthPayload) return;
-
-    const chain = getHealthChainKey();
-    const markets = supplyHealthPayload.markets.filter(market => market.chain === chain);
-    markets.sort((a, b) => {
-      const va = healthSortValue(a, supplyHealthSortField);
-      const vb = healthSortValue(b, supplyHealthSortField);
-      const cmp = typeof va === 'string' ? va.localeCompare(vb) : (va - vb);
-      return supplyHealthSortAsc ? cmp : -cmp;
-    });
-    const totalPages = Math.max(1, Math.ceil(markets.length / SUPPLY_HEALTH_PAGE_SIZE));
-    supplyHealthPage = Math.max(1, Math.min(supplyHealthPage, totalPages));
-    const start = (supplyHealthPage - 1) * SUPPLY_HEALTH_PAGE_SIZE;
-    const pageMarkets = markets.slice(start, start + SUPPLY_HEALTH_PAGE_SIZE);
-
-    if (count) count.textContent = markets.length ? `${markets.length} markets` : '';
-    if (updatedLabel) {
-      updatedLabel.textContent = `Data updated · ${supplyHealthRelativeAge(supplyHealthPayload.generatedAt)}`;
-    }
-
-    table.querySelectorAll('th[data-health-sort]').forEach(th => {
-      const isActive = th.dataset.healthSort === supplyHealthSortField;
-      th.classList.toggle('sorted', isActive);
-      th.setAttribute('aria-sort', isActive ? (supplyHealthSortAsc ? 'ascending' : 'descending') : 'none');
-      const label = th.textContent.replace(/[▲▼]\s*$/, '').trim();
-      th.innerHTML = `<span class="th-content">${supplyDraftEscape(label)} <span class="sort-arrow">${isActive ? (supplyHealthSortAsc ? '▲' : '▼') : ''}</span></span>`;
-    });
-
-    if (!markets.length) {
-      table.style.display = 'none';
-      renderSupplyHealthPagination(0);
-      if (state) {
-        state.style.display = 'block';
-        state.textContent = 'No pool health data for this chain yet.';
-      }
-      return;
-    }
-    if (state) state.style.display = 'none';
-    table.style.display = 'table';
-
-    const healthRows = pageMarkets.map(market => {
-      const key = healthMarketKey(market);
-      const expanded = key === supplyHealthExpandedKey;
-      const score = market.score || {};
-      const iconPath = getIconPath(market);
-      const icon = iconPath
-        ? `<img class="supply-health-asset-icon" src="${supplyDraftEscape(iconPath)}" alt="" onerror="this.style.display='none'">`
-        : '';
-      const growth30 = market.growth?.supply30dPct;
-      const detailRow = expanded
-        ? `<tr class="supply-health-detail-row"><td colspan="8">${renderSupplyHealthDetail(market)}</td></tr>`
-        : '';
-      return `
-        <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${supplyDraftEscape(key)}" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}">
-          <td class="supply-health-asset-cell">
-            <button type="button" class="supply-health-expander" data-health-toggle="${supplyDraftEscape(key)}" aria-label="${expanded ? 'Hide' : 'Show'} ${supplyDraftEscape(market.symbol || 'asset')} health details" aria-expanded="${expanded ? 'true' : 'false'}">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-            ${icon}
-            <span class="supply-health-asset-copy"><span class="supply-health-asset-symbol">${supplyDraftEscape(market.symbol || '')}</span><span class="supply-health-asset-name">${supplyDraftEscape(market.name || '')}</span></span>
-          </td>
-          <td class="num">${supplyDraftFormatUsd(market.supplyUsd)}</td>
-          <td class="num">${Number(market.wallets || 0).toLocaleString('en-US')}</td>
-          <td class="num">${market.avgWalletUsd != null ? supplyDraftFormatUsd(market.avgWalletUsd) : '—'}</td>
-          <td class="num">${formatHealthPct(market.top10Pct)}</td>
-          <td class="num">${formatHealthPct(market.largestPct)}</td>
-          <td class="num ${healthSignedClass(growth30)}">${formatHealthSignedPct(growth30)}</td>
-          <td class="num supply-health-score-cell">
-            <span class="supply-health-score">${score.total != null ? Math.round(score.total) : '—'}</span>
-            <span class="supply-health-grade ${healthGradeClass(score.grade)}">${supplyDraftEscape(score.grade || '·')}</span>
-          </td>
-        </tr>
-        ${detailRow}
-      `;
-    }).join('');
-    const spacerRows = Array.from(
-      { length: Math.max(0, SUPPLY_HEALTH_PAGE_SIZE - pageMarkets.length) },
-      () => '<tr class="supply-health-spacer-row" aria-hidden="true"><td colspan="8">&nbsp;</td></tr>'
-    ).join('');
-    body.innerHTML = healthRows + spacerRows;
-    renderSupplyHealthPagination(markets.length);
-
-    const toggleRow = key => {
-      supplyHealthExpandedKey = supplyHealthExpandedKey === key ? '' : key;
-      renderSupplyHealthTable();
-    };
-    body.querySelectorAll('tr.supply-health-row').forEach(row => {
-      row.addEventListener('click', event => {
-        if (event.target.closest('a, button')) return;
-        toggleRow(row.dataset.healthKey || '');
-      });
-      row.addEventListener('keydown', event => {
-        const isToggleKey = event.key === 'Enter' || event.key === ' ';
-        if (event.target !== row || !isToggleKey) return;
-        event.preventDefault();
-        toggleRow(row.dataset.healthKey || '');
-      });
-    });
-    body.querySelectorAll('[data-health-toggle]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.stopPropagation();
-        toggleRow(button.dataset.healthToggle || '');
-      });
-    });
-    body.querySelectorAll('[data-health-open]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.stopPropagation();
-        const tokenId = button.dataset.healthOpen;
-        if (tokenId && getSupplyToken(tokenId)) {
-          window.selectSupplyAsset(tokenId, { auto: true });
-          document.getElementById('supply-intel-shell')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      });
-    });
-  }
-
   function boot() {
     document.body.classList.add('supply-draft-route');
     enhanceSupplyFrame();
     markResultCards();
     installEmptyState();
-    installSupplyHealthCard();
-    fetchSupplyHealth();
     installAssetSearchClear();
     installApplyButton();
     organizeSupplyControls();
