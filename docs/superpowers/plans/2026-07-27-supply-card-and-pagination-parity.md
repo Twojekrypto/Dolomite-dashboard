@@ -458,9 +458,13 @@ git add supply/index.html
 git commit -m "chore: refresh supply page assets"
 ```
 
-- [ ] **Step 6: Rebase safely over automatic data commits and push**
+- [ ] **Step 6: Hand the verified commit to the controller**
 
-Run:
+Record the exact committed HEAD in the report and leave the worktree clean. Do not push from the task subagent: the controller runs the whole-branch review first, then owns the rebase, production push, Actions verification, and cache-busted live smoke test.
+
+## Controller deployment after the whole-branch review
+
+After the final SDD reviewer approves the complete branch, run:
 
 ```bash
 git fetch dolomite-dashboard master
@@ -468,11 +472,7 @@ git rebase dolomite-dashboard/master
 git push dolomite-dashboard HEAD:master
 ```
 
-If the remote advances during the push, verify the incoming commits affect generated data only, fetch/rebase again, and retry without force.
-
-- [ ] **Step 7: Verify GitHub Actions and the live page**
-
-Wait for the `Deploy GitHub Pages` workflow associated with the pushed UI commit. Open the cache-busted production route:
+If the remote advances during the push, verify that incoming commits affect generated data only, fetch/rebase again, and retry without force. Wait for `Deploy GitHub Pages`, then open the cache-busted production route:
 
 ```bash
 ui_commit_sha="$(git rev-parse HEAD)"
