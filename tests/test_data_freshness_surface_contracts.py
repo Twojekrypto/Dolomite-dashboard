@@ -27,7 +27,11 @@ class DataFreshnessSurfaceContractsTest(unittest.TestCase):
         self.assertIn("Data updating", SUPPLY_VIEW)
 
     def test_asset_activity_uses_solid_holder_surface(self):
-        self.assertIn("background: var(--bg-2, #141417) !important", SUPPLY_STYLES)
+        activity_surface = SUPPLY_STYLES.split(
+            "#supply-activity-card.supply-draft-activity-continuous-surface {", 1
+        )[1].split("}", 1)[0]
+        self.assertIn("background: var(--bg-2, #141417) !important", activity_surface)
+        self.assertNotIn("linear-gradient", activity_surface)
 
     def test_fresh_wallets_use_solid_holder_surface(self):
         self.assertIn(".fresh-wallets-card{", DOLO_VIEW)

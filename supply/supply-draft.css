@@ -603,13 +603,36 @@ body.supply-draft-route .supply-intel-subtitle {
   font-size: 12px !important;
 }
 
-body.supply-draft-route .supply-intel-asof {
-  padding: 8px 12px !important;
-  border-color: var(--supply-line-2) !important;
-  background: var(--supply-bg-3) !important;
+body.supply-draft-route .supply-data-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
   color: var(--supply-fg-3) !important;
   font-family: var(--supply-mono);
   font-size: 11px !important;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+body.supply-draft-route .supply-data-updated::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--supply-gold);
+  box-shadow: 0 0 8px var(--supply-gold-line);
+}
+
+body.supply-draft-route .supply-data-updated.is-updating::before {
+  background: var(--supply-fg-3);
+  box-shadow: none;
+  opacity: .55;
 }
 
 body.supply-draft-route .supply-intel-asof:empty {
@@ -973,7 +996,7 @@ body.supply-draft-route .supply-activity-header {
 
 body.supply-draft-route .supply-table-heading,
 body.supply-draft-route .supply-activity-heading {
-  width: 100%;
+  width: auto;
   flex: 1 1 auto !important;
 }
 
@@ -2667,7 +2690,7 @@ body.supply-draft-route #supply-pagination .flow-pager-info {
 
 /* ---- Asset Activity: one continuous DOLO-Holders-style surface ---- */
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface {
-  background: linear-gradient(180deg, var(--supply-bg-2), rgba(16, 16, 18, .96)) !important;
+  background: var(--bg-2, #141417) !important;
 }
 
 body.supply-draft-route #supply-activity-card.supply-draft-activity-continuous-surface .table-card-inner,
