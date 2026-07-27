@@ -85,7 +85,10 @@
     const supplyTable = document.getElementById('supply-table');
     const supplierCard = supplyTable ? supplyTable.closest('.table-card-outer') : null;
     if (supplierCard) supplierCard.classList.add('supply-draft-result-card');
-    document.getElementById('supply-activity-card')?.classList.add('supply-draft-activity-card');
+    document.getElementById('supply-activity-card')?.classList.add(
+      'supply-draft-activity-card',
+      'supply-draft-activity-continuous-surface',
+    );
   }
 
   function ensureSupplyActivityStats() {
@@ -961,11 +964,7 @@
       });
     }
 
-    if (dropdown.parentElement) {
-      dropdown.insertAdjacentElement('afterend', periodDropdown);
-    } else if (periodDropdown.parentElement !== main) {
-      main.appendChild(periodDropdown);
-    }
+    moveActivityPeriodToToolbarActions(periodDropdown);
 
     if (toolbar.dataset.supplyDraftClickClose !== 'true') {
       toolbar.dataset.supplyDraftClickClose = 'true';
@@ -983,6 +982,12 @@
     syncActivityPeriodDropdown();
   }
 
+  function moveActivityPeriodToToolbarActions(periodDropdown) {
+    const actions = document.querySelector('.supply-activity-toolbar-actions');
+    if (!periodDropdown || !actions || periodDropdown.parentElement === actions) return;
+    actions.appendChild(periodDropdown);
+  }
+
   function stripSupplyActivityHoverExplanations() {
     document.querySelectorAll([
       '#supply-activity-table .col-filter-btn',
@@ -993,6 +998,26 @@
       el.removeAttribute('title');
       el.removeAttribute('data-tooltip');
     });
+  }
+
+  function buildSupplyTableFooter(page, totalPages, totalRows, perPage, pageHandler, noun) {
+    const total = Math.max(0, Number(totalRows) || 0);
+    const currentPage = Math.max(1, Math.min(Number(page) || 1, Math.max(1, totalPages)));
+    const start = total ? ((currentPage - 1) * perPage) + 1 : 0;
+    const end = total ? Math.min(currentPage * perPage, total) : 0;
+    const disabledPrev = currentPage === 1 ? 'disabled' : '';
+    const disabledNext = currentPage === totalPages ? 'disabled' : '';
+    return `
+      <span class="supply-page-range">${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}</span>
+      <span class="supply-pager-controls">
+        <button class="flow-pager-btn" aria-label="First page" onclick="${pageHandler}(1)" ${disabledPrev}>«</button>
+        <button class="flow-pager-btn" aria-label="Previous page" onclick="${pageHandler}(${currentPage - 1})" ${disabledPrev}>‹</button>
+        <span class="flow-pager-info">${currentPage} / ${totalPages}</span>
+        <button class="flow-pager-btn" aria-label="Next page" onclick="${pageHandler}(${currentPage + 1})" ${disabledNext}>›</button>
+        <button class="flow-pager-btn" aria-label="Last page" onclick="${pageHandler}(${totalPages})" ${disabledNext}>»</button>
+      </span>
+      <span class="flow-pager-total">${total.toLocaleString()} ${noun}</span>
+    `;
   }
 
   function renderSupplyDraftActivityPagination(totalLen) {
@@ -1006,16 +1031,14 @@
     } catch (error) {}
     const totalPages = Math.max(1, Math.ceil((Number(totalLen) || 0) / perPage));
     page = Math.max(1, Math.min(page, totalPages));
-    if (totalPages <= 1) {
-      el.innerHTML = '';
-      return;
-    }
-    el.innerHTML =
-      `<button class="flow-pager-btn" aria-label="First page" onclick="supplyGoActivityPage(1)" ${page === 1 ? 'disabled' : ''}>«</button>` +
-      `<button class="flow-pager-btn" aria-label="Previous page" onclick="supplyGoActivityPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>` +
-      `<span class="flow-pager-info">${page} / ${totalPages}</span>` +
-      `<button class="flow-pager-btn" aria-label="Next page" onclick="supplyGoActivityPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>` +
-      `<button class="flow-pager-btn" aria-label="Last page" onclick="supplyGoActivityPage(${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>`;
+    el.innerHTML = buildSupplyTableFooter(
+      page,
+      totalPages,
+      totalLen,
+      perPage,
+      'supplyGoActivityPage',
+      'events',
+    );
   }
 
   function polishSupplyActivityPagination() {
@@ -1047,16 +1070,14 @@
     } catch (error) {}
     const totalPages = Math.max(1, Math.ceil((Number(totalLen) || 0) / perPage));
     page = Math.max(1, Math.min(page, totalPages));
-    if (totalPages <= 1) {
-      el.innerHTML = '';
-      return;
-    }
-    el.innerHTML =
-      `<button class="flow-pager-btn" aria-label="First page" onclick="supply_goPage(1)" ${page === 1 ? 'disabled' : ''}>«</button>` +
-      `<button class="flow-pager-btn" aria-label="Previous page" onclick="supply_goPage(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>` +
-      `<span class="flow-pager-info">${page} / ${totalPages}</span>` +
-      `<button class="flow-pager-btn" aria-label="Next page" onclick="supply_goPage(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>` +
-      `<button class="flow-pager-btn" aria-label="Last page" onclick="supply_goPage(${totalPages})" ${page === totalPages ? 'disabled' : ''}>»</button>`;
+    el.innerHTML = buildSupplyTableFooter(
+      page,
+      totalPages,
+      totalLen,
+      perPage,
+      'supply_goPage',
+      'wallets',
+    );
   }
 
   function patchSupplyTableRenderer() {

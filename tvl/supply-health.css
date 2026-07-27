@@ -51,6 +51,13 @@
   background: rgba(255, 255, 255, .008);
 }
 
+#supply-health-card .supply-health-filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 #supply-health-card .supply-health-search-shell {
   position: relative;
   display: flex;
@@ -154,9 +161,26 @@
   text-align: left;
 }
 
-#supply-health-card .supply-health-chain-dropdown .opt-ico {
+#supply-health-card .supply-health-chain-dropdown .dd-opt-check {
+  order: 0;
+}
+
+#supply-health-card .supply-health-chain-dropdown .dd-ico {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  color: var(--fg-2);
+}
+
+#supply-health-card .supply-health-chain-dropdown .dd-ico svg {
+  width: 16px;
+  height: 16px;
+}
+
+#supply-health-card .supply-health-chain-dropdown .tvl-dd-opt.active .dd-ico {
   color: var(--gold);
-  font-size: 9px;
 }
 
 #supply-health-card .supply-health-scroll {
@@ -666,6 +690,12 @@
   #supply-health-card .supply-health-toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  #supply-health-card .supply-health-filter-group {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   #supply-health-card .supply-health-search-shell,
