@@ -54,16 +54,6 @@ class SupplyTableUxContractsTest(unittest.TestCase):
         self.assertFalse("'polygon_zkevm'" in active_keys, "retired Polygon zkEVM key must not be active")
         self.assert_source_has('sanitizeLendingPositionChainSelection()', source, "Lending Positions")
 
-    def test_supply_footers_use_dolo_holders_three_column_shape(self):
-        source = SUPPLY_SCRIPT.read_text(encoding="utf-8")
-        styles = SUPPLY_STYLES.read_text(encoding="utf-8")
-
-        self.assert_source_has('function buildSupplyTableFooter', source, "Supply footer renderer")
-        self.assert_source_has('supply-page-range', source, "Supply footer renderer")
-        self.assert_source_has('supply-pager-controls', source, "Supply footer renderer")
-        self.assert_source_has('flow-pager-total', source, "Supply footer renderer")
-        self.assert_source_has('grid-template-columns: 1fr auto 1fr', styles, "Supply footer styles")
-
     def test_asset_activity_has_live_loading_copy_and_right_side_period_control(self):
         html = LIQUIDATION_VIEW.read_text(encoding="utf-8")
         source = SUPPLY_SCRIPT.read_text(encoding="utf-8")

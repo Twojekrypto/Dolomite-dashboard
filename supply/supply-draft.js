@@ -1,4 +1,54 @@
 (function () {
+  function buildSupplyTableFooter(page, totalPages, totalRows, perPage, pageHandler) {
+    const total = Math.max(0, Number(totalRows) || 0);
+    const currentPage = Math.max(1, Math.min(Number(page) || 1, Math.max(1, totalPages)));
+    const start = total ? ((currentPage - 1) * perPage) + 1 : 0;
+    const end = total ? Math.min(currentPage * perPage, total) : 0;
+    const disabledPrev = currentPage === 1 ? 'disabled' : '';
+    const disabledNext = currentPage === totalPages ? 'disabled' : '';
+    return `
+      <span class="supply-page-range">${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}</span>
+      <span class="supply-pager-controls">
+        <button class="flow-pager-btn" aria-label="First page" onclick="${pageHandler}(1)" ${disabledPrev}>«</button>
+        <button class="flow-pager-btn" aria-label="Previous page" onclick="${pageHandler}(${currentPage - 1})" ${disabledPrev}>‹</button>
+        <span class="flow-pager-info">${currentPage} / ${totalPages}</span>
+        <button class="flow-pager-btn" aria-label="Next page" onclick="${pageHandler}(${currentPage + 1})" ${disabledNext}>›</button>
+        <button class="flow-pager-btn" aria-label="Last page" onclick="${pageHandler}(${totalPages})" ${disabledNext}>»</button>
+      </span>
+    `;
+  }
+
+  function formatSupplyCountBadge(totalRows, filteredRows, noun) {
+    const total = Math.max(0, Number(totalRows) || 0);
+    const showing = Math.max(0, Number(filteredRows) || 0);
+    return `${total.toLocaleString()} ${noun} · showing ${showing.toLocaleString()}`;
+  }
+
+  if (typeof module === 'object' && module.exports && typeof document === 'undefined') {
+    module.exports = { formatSupplyCountBadge, buildSupplyTableFooter };
+    return;
+  }
+
+  function syncSupplierCountBadge(filteredRows) {
+    const count = document.getElementById('supply-count-header');
+    if (!count) return;
+    let total = Number(filteredRows) || 0;
+    try {
+      total = Number(currentSupplyOverview?.supplierCount) || currentSupplyData.length || total;
+    } catch (error) {}
+    count.textContent = formatSupplyCountBadge(total, filteredRows, 'suppliers');
+  }
+
+  function syncActivityCountBadge(filteredRows) {
+    const count = document.getElementById('supply-activity-count');
+    if (!count) return;
+    let total = Number(filteredRows) || 0;
+    try {
+      total = currentSupplyActivity.length || total;
+    } catch (error) {}
+    count.textContent = formatSupplyCountBadge(total, filteredRows, 'events');
+  }
+
   const searchIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>';
   const applyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
   const clearIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
@@ -1000,26 +1050,6 @@
     });
   }
 
-  function buildSupplyTableFooter(page, totalPages, totalRows, perPage, pageHandler, noun) {
-    const total = Math.max(0, Number(totalRows) || 0);
-    const currentPage = Math.max(1, Math.min(Number(page) || 1, Math.max(1, totalPages)));
-    const start = total ? ((currentPage - 1) * perPage) + 1 : 0;
-    const end = total ? Math.min(currentPage * perPage, total) : 0;
-    const disabledPrev = currentPage === 1 ? 'disabled' : '';
-    const disabledNext = currentPage === totalPages ? 'disabled' : '';
-    return `
-      <span class="supply-page-range">${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}</span>
-      <span class="supply-pager-controls">
-        <button class="flow-pager-btn" aria-label="First page" onclick="${pageHandler}(1)" ${disabledPrev}>«</button>
-        <button class="flow-pager-btn" aria-label="Previous page" onclick="${pageHandler}(${currentPage - 1})" ${disabledPrev}>‹</button>
-        <span class="flow-pager-info">${currentPage} / ${totalPages}</span>
-        <button class="flow-pager-btn" aria-label="Next page" onclick="${pageHandler}(${currentPage + 1})" ${disabledNext}>›</button>
-        <button class="flow-pager-btn" aria-label="Last page" onclick="${pageHandler}(${totalPages})" ${disabledNext}>»</button>
-      </span>
-      <span class="flow-pager-total">${total.toLocaleString()} ${noun}</span>
-    `;
-  }
-
   function renderSupplyDraftActivityPagination(totalLen) {
     const el = document.getElementById('supply-activity-pagination');
     if (!el) return;
@@ -1031,13 +1061,13 @@
     } catch (error) {}
     const totalPages = Math.max(1, Math.ceil((Number(totalLen) || 0) / perPage));
     page = Math.max(1, Math.min(page, totalPages));
+    syncActivityCountBadge(totalLen);
     el.innerHTML = buildSupplyTableFooter(
       page,
       totalPages,
       totalLen,
       perPage,
       'supplyGoActivityPage',
-      'events',
     );
   }
 
@@ -1070,13 +1100,13 @@
     } catch (error) {}
     const totalPages = Math.max(1, Math.ceil((Number(totalLen) || 0) / perPage));
     page = Math.max(1, Math.min(page, totalPages));
+    syncSupplierCountBadge(totalLen);
     el.innerHTML = buildSupplyTableFooter(
       page,
       totalPages,
       totalLen,
       perPage,
       'supply_goPage',
-      'wallets',
     );
   }
 
