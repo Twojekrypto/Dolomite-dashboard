@@ -9436,14 +9436,25 @@
             padding: 8px 9px !important;
             box-sizing: border-box !important;
         }
+        body.route-liquidation #sim-card .sim-multi-token-trigger {
+            height: 46px !important;
+            min-height: 46px !important;
+            border-radius: 9px !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.025) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-input-wrap {
+            height: 46px !important;
+            min-height: 46px !important;
+            overflow: visible !important;
+            border-radius: 9px !important;
+        }
         body.route-liquidation #sim-card .sim-multi-move-layout {
-            display: grid !important;
-            grid-template-columns: minmax(0, 1fr) !important;
-            gap: 7px !important;
+            display: block !important;
         }
         body.route-liquidation #sim-card .sim-multi-move-control {
             grid-template-columns: 30px minmax(70px, 1fr) 30px !important;
             gap: 5px !important;
+            min-height: 46px !important;
         }
         body.route-liquidation #sim-card .sim-multi-step {
             width: 30px !important;
@@ -9499,12 +9510,15 @@
             background: rgba(225,95,95,.21) !important;
             outline: none !important;
         }
-        body.route-liquidation #sim-card .sim-multi-shock-rail {
-            position: relative !important;
+        body.route-liquidation #sim-card .sim-multi-input-wrap > .sim-multi-shock-rail {
+            position: absolute !important;
+            top: auto !important;
+            right: -1px !important;
+            bottom: -1px !important;
+            left: -1px !important;
             height: 16px !important;
-            width: calc(100% - 70px) !important;
+            width: auto !important;
             margin: 0 !important;
-            justify-self: center !important;
             overflow: visible !important;
             border-radius: 999px !important;
             background: transparent !important;
@@ -9512,7 +9526,7 @@
         body.route-liquidation #sim-card .sim-multi-shock-rail::before {
             content: "" !important;
             position: absolute !important;
-            top: 6px !important;
+            top: 7px !important;
             right: 0 !important;
             left: 0 !important;
             height: 3px !important;
@@ -9522,7 +9536,7 @@
         }
         body.route-liquidation #sim-card .sim-multi-shock-fill {
             position: absolute !important;
-            top: 6px !important;
+            top: 7px !important;
             height: 3px !important;
             left: var(--sim-shock-left, 50%) !important;
             width: var(--sim-shock-width, 0%) !important;
@@ -9602,15 +9616,6 @@
         }
         body.route-liquidation #sim-card .sim-multi-shock-slider:focus-visible::-moz-range-thumb {
             box-shadow: 0 0 0 4px color-mix(in srgb, var(--sim-shock-thumb) 20%, transparent), 0 2px 5px rgba(0,0,0,.32) !important;
-        }
-        @media (min-width: 621px) {
-            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-token-cell {
-                align-self: start !important;
-            }
-            body.route-liquidation #sim-card #sim-multi-panel .sim-multi-token-trigger {
-                height: 38px !important;
-                min-height: 38px !important;
-            }
         }
         body.route-liquidation #sim-card .liquidation-sim-metrics {
             grid-template-columns: minmax(0, 1fr) !important;
@@ -13754,16 +13759,16 @@
                     `<div class="sim-multi-move-layout">` +
                         `<div class="sim-multi-move-control">` +
                             `<button type="button" class="sim-multi-step" data-step="-1" aria-label="Decrease ${token} price shock by 1 percentage point">−</button>` +
-                            `<span class="sim-multi-input-wrap">` +
+                            `<div class="sim-multi-input-wrap">` +
                                 `<input type="number" class="sim-multi-pct-input" min="-100" max="500" value="${initialPct}" step="any" inputmode="decimal" aria-label="${token} price shock percentage">` +
                                 `<span class="sim-multi-pct-symbol">%</span>` +
-                            `</span>` +
+                                `<div class="sim-multi-shock-rail">` +
+                                    `<span class="sim-multi-shock-fill"></span>` +
+                                    `<i class="sim-multi-shock-zero"></i>` +
+                                    `<input type="range" class="sim-multi-shock-slider" min="-100" max="100" value="${Math.max(-100, Math.min(100, initialPct))}" step="1" aria-label="Set ${token} price shock with slider">` +
+                                `</div>` +
+                            `</div>` +
                             `<button type="button" class="sim-multi-step" data-step="1" aria-label="Increase ${token} price shock by 1 percentage point">+</button>` +
-                        `</div>` +
-                        `<div class="sim-multi-shock-rail">` +
-                            `<span class="sim-multi-shock-fill"></span>` +
-                            `<i class="sim-multi-shock-zero"></i>` +
-                            `<input type="range" class="sim-multi-shock-slider" min="-100" max="100" value="${Math.max(-100, Math.min(100, initialPct))}" step="1" aria-label="Set ${token} price shock with slider">` +
                         `</div>` +
                     `</div>` +
                 `</div>`;
