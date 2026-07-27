@@ -163,6 +163,32 @@
 
 #supply-health-card .supply-health-chain-dropdown .dd-opt-check {
   order: 0;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  border: 1.5px solid var(--line-3);
+  border-radius: 4px;
+  background: var(--bg-4);
+  transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+
+#supply-health-card .supply-health-chain-dropdown .dd-opt-check svg {
+  width: 9px;
+  height: 9px;
+  color: var(--bg-0);
+  opacity: 0;
+  transition: opacity .15s var(--ease);
+}
+
+#supply-health-card .supply-health-chain-dropdown .tvl-dd-opt.active .dd-opt-check {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+
+#supply-health-card .supply-health-chain-dropdown .tvl-dd-opt.active .dd-opt-check svg {
+  opacity: 1;
 }
 
 #supply-health-card .supply-health-chain-dropdown .dd-ico {
