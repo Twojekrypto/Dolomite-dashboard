@@ -9415,6 +9415,55 @@
             height: 30px !important;
             min-height: 30px !important;
         }
+        /* Scenario action hierarchy: add/increase is green, decrease is quiet, removal is explicit. */
+        body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-add {
+            color: var(--up) !important;
+            border-color: rgba(117,184,123,.34) !important;
+            background: rgba(117,184,123,.10) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-add:hover,
+        body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-add:focus-visible {
+            color: var(--profit-hi) !important;
+            border-color: rgba(117,184,123,.52) !important;
+            background: rgba(117,184,123,.16) !important;
+            outline: none !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-step[data-step="1"] {
+            color: var(--up) !important;
+            border-color: rgba(117,184,123,.26) !important;
+            background: rgba(117,184,123,.075) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-step[data-step="1"]:hover,
+        body.route-liquidation #sim-card .sim-multi-step[data-step="1"]:focus-visible {
+            color: var(--profit-hi) !important;
+            border-color: rgba(117,184,123,.42) !important;
+            background: rgba(117,184,123,.13) !important;
+            outline: none !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-step[data-step="-1"] {
+            color: var(--down) !important;
+            border-color: rgba(180,121,107,.18) !important;
+            background: rgba(180,121,107,.055) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-step[data-step="-1"]:hover,
+        body.route-liquidation #sim-card .sim-multi-step[data-step="-1"]:focus-visible {
+            color: #cf9788 !important;
+            border-color: rgba(180,121,107,.32) !important;
+            background: rgba(180,121,107,.10) !important;
+            outline: none !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-remove {
+            color: #e15f5f !important;
+            border-color: rgba(225,95,95,.42) !important;
+            background: rgba(225,95,95,.14) !important;
+        }
+        body.route-liquidation #sim-card .sim-multi-remove:hover,
+        body.route-liquidation #sim-card .sim-multi-remove:focus-visible {
+            color: #f28585 !important;
+            border-color: rgba(225,95,95,.62) !important;
+            background: rgba(225,95,95,.21) !important;
+            outline: none !important;
+        }
         body.route-liquidation #sim-card .sim-multi-shock-rail {
             position: relative !important;
             height: 3px !important;
@@ -13564,7 +13613,7 @@
                 : `<span style="font-size:11px;font-weight:700;color:var(--text-muted)">${token.charAt(0)}</span>`;
 
             row.innerHTML =
-                `<button type="button" class="sim-multi-remove" onclick="removeMultiAssetRow(${id})" aria-label="Remove token move">` +
+                `<button type="button" class="sim-multi-remove" onclick="removeMultiAssetRow(${id})" aria-label="Remove ${token} from scenario">` +
                 `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="7" y1="7" x2="17" y2="17"></line><line x1="17" y1="7" x2="7" y2="17"></line></svg></button>` +
                 `<div class="sim-multi-token-cell">` +
                     `<button type="button" class="sim-multi-token-trigger" data-popover="sim-multi-pop-${id}">` +
