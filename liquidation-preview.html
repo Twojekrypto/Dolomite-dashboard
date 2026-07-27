@@ -12115,7 +12115,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="supply-intel-asof" id="supply-intel-asof"></div>
+                    <div class="supply-intel-asof supply-data-updated" id="supply-intel-asof" aria-live="polite">Data updating</div>
                 </div>
                 <div id="supply-intel-stats" class="supply-intel-stats"></div>
                 <div class="supply-history-card">
@@ -12154,6 +12154,7 @@
                                 <button type="button" class="search-clear" id="supply-search-clear" style="right:14px; top:50%; transform:translateY(-50%);">✕</button>
                             </div>
                         </div>
+                        <div class="supply-data-updated" id="supply-leaderboard-data-updated" aria-live="polite">Data updating</div>
                     </div>
 
                     <div class="table-scroll">
@@ -12193,6 +12194,7 @@
                             </h3>
                             <div class="supply-activity-subtitle" id="supply-activity-subtitle">Deposits, withdrawals, transfers, and liquidations for the selected market.</div>
                         </div>
+                        <div class="supply-data-updated" id="supply-activity-data-updated" aria-live="polite">Data updating</div>
                     </div>
                     <div class="supply-activity-summary" id="supply-activity-summary" style="display:none;">
                         <div class="supply-activity-summary-head">
@@ -16333,6 +16335,8 @@
         let supplySortField = 'amount';
         let supplySortAsc = false;
         let currentSupplyOverview = null;
+        let currentSupplyDataUpdatedAt = null;
+        let supplyDataFreshnessIntervalId = null;
         let currentSupplyActivity = [];
         let supplyActivityLoadAllHandler = null;
         const SUPPLY_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -16633,6 +16637,31 @@
             if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
             if (diff < 86400 * 7) return Math.floor(diff / 86400) + 'd ago';
             return Math.floor(diff / 604800) + 'w ago';
+        }
+
+        function renderSupplyDataFreshness(timestamp = currentSupplyDataUpdatedAt) {
+            const nodes = [
+                document.getElementById('supply-intel-asof'),
+                document.getElementById('supply-leaderboard-data-updated'),
+                document.getElementById('supply-activity-data-updated'),
+            ].filter(Boolean);
+            const numeric = Number(timestamp);
+            const ready = Number.isFinite(numeric) && numeric > 0;
+            currentSupplyDataUpdatedAt = ready ? numeric : null;
+            nodes.forEach(node => {
+                node.classList.toggle('is-updating', !ready);
+                node.textContent = ready
+                    ? `Data updated · ${supplyFormatRelativeTime(numeric)}`
+                    : 'Data updating';
+            });
+        }
+
+        function startSupplyDataFreshnessClock() {
+            renderSupplyDataFreshness();
+            if (supplyDataFreshnessIntervalId !== null) return;
+            supplyDataFreshnessIntervalId = window.setInterval(() => {
+                renderSupplyDataFreshness();
+            }, 30000);
         }
 
         function supplyFormatDateLabel(timestamp) {
@@ -17505,7 +17534,6 @@
             const chart = document.getElementById('supply-history-chart');
             const axis = document.getElementById('supply-history-axis');
             const subtitle = document.getElementById('supply-intel-subtitle');
-            const asof = document.getElementById('supply-intel-asof');
             const icon = document.getElementById('supply-intel-asset-icon');
             const symbol = tokenObj && tokenObj.symbol ? tokenObj.symbol : 'Selected Market';
             const chainName = CHAIN_DISPLAY_NAMES[chain] || chain;
@@ -17516,7 +17544,7 @@
             }
             renderSupplyIntelTitle(symbol, chainName);
             if (subtitle) subtitle.textContent = 'Fetching supplier breadth now and syncing the official Dolomite daily supply-liquidity curve in the background...';
-            if (asof) asof.textContent = 'Refreshing selected market';
+            renderSupplyDataFreshness();
             if (stats) {
                 stats.innerHTML = Array.from({ length: 4 }).map(() => `
                     <div class="supply-intel-stat">
@@ -18078,7 +18106,6 @@
             const shell = document.getElementById('supply-intel-shell');
             const stats = document.getElementById('supply-intel-stats');
             const subtitle = document.getElementById('supply-intel-subtitle');
-            const asof = document.getElementById('supply-intel-asof');
             const icon = document.getElementById('supply-intel-asset-icon');
             if (!shell || !stats || !currentSupplyOverview) return;
 
@@ -18102,8 +18129,6 @@
                 : (supplierStage === 'partial'
                     ? `Market #${info.token.marketId} · top suppliers are ready while the broader supplier map is still loading · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`
                     : `Market #${info.token.marketId} · supplier breadth is still loading · ${info.borrowingDisabled ? 'borrowing disabled' : 'borrowing enabled'}`);
-            if (asof) asof.textContent = '';
-
             const supplyCapPct = info.supplyCap > 0 ? Math.min(100, (info.supply / info.supplyCap) * 100) : 0;
             const borrowCapPct = info.borrowCap > 0 ? Math.min(100, (info.borrow / info.borrowCap) * 100) : 0;
             const topSupplier = currentSupplyData && currentSupplyData.length > 0 ? currentSupplyData[0] : null;
@@ -19256,6 +19281,7 @@
             polygon_zkevm: `${DOLOMITE_SUPPLY_BASE}/dolomite-polygon-zkevm/latest/gn`
         };
         const SUPPLY_CHAIN_BUNDLE_QUERY = `{
+            _meta { block { timestamp } }
             tokens(first: 100, where:{marketId_not: null}, orderBy: marketId) {
                 id
                 symbol
@@ -19281,6 +19307,7 @@
         }`;
 
         let currentSupplyTokensMap = {};
+        const SUPPLY_CHAIN_BUNDLE_CACHE_VERSION = 'meta-v1';
 
         async function doGraphQuery(url, query) {
             const res = await fetch(url, {
@@ -19495,6 +19522,7 @@
         }
 
         function applySupplyChainBundle(bundle) {
+            renderSupplyDataFreshness(bundle?._meta?.block?.timestamp);
             currentSupplyTokensMap = {};
             currentSupplyTokensList = (bundle?.tokens || []).slice().sort((a, b) => {
                 const liquidityDiff = getSupplyAssetLiquidityUsd(b) - getSupplyAssetLiquidityUsd(a);
@@ -19593,7 +19621,7 @@
 
         function prefetchSupplyChainBundle(chain) {
             if (!chain || !DOLOMITE_MINI_GRAPHS[chain]) return Promise.resolve(null);
-            const bundleCacheKey = `${getSupplyCacheChainKey(chain)}:bundle`;
+            const bundleCacheKey = `${getSupplyCacheChainKey(chain)}:bundle:${SUPPLY_CHAIN_BUNDLE_CACHE_VERSION}`;
             return getSupplyCachedResource(
                 supplyChainBundleCache,
                 bundleCacheKey,
@@ -19632,8 +19660,9 @@
             const assetText = document.getElementById('selected-asset-text');
             const assetIcon = document.getElementById('selected-asset-icon');
             const loader = document.getElementById('supply-loading-state');
-            const bundleCacheKey = `${getSupplyCacheChainKey(chain)}:bundle`;
+            const bundleCacheKey = `${getSupplyCacheChainKey(chain)}:bundle:${SUPPLY_CHAIN_BUNDLE_CACHE_VERSION}`;
             resetSupplyIntelState();
+            renderSupplyDataFreshness(null);
             currentSupplyData = [];
             currentSupplyOraclePrices = {};
             currentSupplyInterestIndexes = {};
@@ -20302,6 +20331,7 @@
         }
 
         // ─── Launch ──────────────────────────────────────────────────────────
+        startSupplyDataFreshnessClock();
         init();
     </script>
 </body>
