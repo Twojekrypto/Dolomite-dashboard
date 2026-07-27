@@ -330,6 +330,21 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
         self.assertIn("'--sim-shock-left'", SOURCE)
         self.assertIn("'--sim-shock-width'", SOURCE)
 
+    def test_scenario_controls_prioritize_add_adjust_and_remove_actions(self):
+        for contract in (
+            'aria-label="Remove ${token} from scenario"',
+            'body.route-liquidation #sim-card .sim-multi-header-actions .sim-multi-add {\n'
+            '            color: var(--up) !important;',
+            'body.route-liquidation #sim-card .sim-multi-step[data-step="1"] {\n'
+            '            color: var(--up) !important;',
+            'body.route-liquidation #sim-card .sim-multi-step[data-step="-1"] {\n'
+            '            color: var(--down) !important;',
+            'body.route-liquidation #sim-card .sim-multi-remove {\n'
+            '            color: #e15f5f !important;',
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
     def test_builder_actions_live_in_header_and_result_is_announced(self):
         header = SOURCE[
             SOURCE.index('<div class="sim-multi-header">'):
