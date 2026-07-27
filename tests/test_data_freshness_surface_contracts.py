@@ -38,12 +38,22 @@ class DataFreshnessSurfaceContractsTest(unittest.TestCase):
         fresh_block = DOLO_VIEW.split(".fresh-wallets-card{", 1)[1].split("}", 1)[0]
         self.assertIn("background:var(--bg-2)", fresh_block)
         self.assertNotIn("linear-gradient", fresh_block)
+        rail_block = DOLO_VIEW.split(
+            ".fresh-wallet-stats.selected-market-rail{", 1
+        )[1].split("}", 1)[0]
+        self.assertIn("background:transparent", rail_block)
+        self.assertNotIn("linear-gradient", rail_block)
 
     def test_position_activity_uses_consistent_surface_and_correct_units(self):
         rail = PORTFOLIO_VIEW.split(
             "#pf-exercises-section .pf-exercise-summary.selected-market-rail{", 1
         )[1].split("}", 1)[0]
         self.assertIn("background:var(--bg-2)", rail)
+        metric = PORTFOLIO_VIEW.split(
+            "#pf-exercises-section .pf-exercise-summary-item.selected-market-metric{",
+            1,
+        )[1].split("}", 1)[0]
+        self.assertIn("background:transparent", metric)
         self.assertIn(
             'fmtCompact(lockedVe)} <span class="unit">DOLO</span>',
             PORTFOLIO_VIEW,
