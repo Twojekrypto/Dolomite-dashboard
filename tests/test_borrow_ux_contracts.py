@@ -344,6 +344,28 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
 
+    def test_scenario_slider_matches_the_percentage_field_geometry(self):
+        for contract in (
+            "width: calc(100% - 70px) !important;",
+            "justify-self: center !important;",
+            "margin: 0 !important;",
+            "align-self: start !important;",
+            "height: 38px !important;",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
+    def test_scenario_reset_highlights_only_after_the_default_basket_changes(self):
+        for contract in (
+            "function updateMultiScenarioSummary() {",
+            "const isDirty = rows.length !== defaults.length || rows.some((row, index) => {",
+            "resetButton.classList.toggle('is-dirty', isDirty);",
+            "resetButton.setAttribute('data-active', isDirty ? 'true' : 'false');",
+            "body.route-liquidation #sim-card .sim-multi-reset.is-dirty {",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+
     def test_scenario_controls_prioritize_add_adjust_and_remove_actions(self):
         for contract in (
             'aria-label="Remove ${token} from scenario"',
@@ -399,17 +421,24 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             "body.route-liquidation #sim-card #sim-multi-rows {\n"
             "                display: grid !important;\n"
             "                flex: 0 0 var(--sim-multi-rows-height, 190px) !important;\n"
-            "                grid-auto-rows: minmax(64px, 1fr) !important;",
+            "                grid-auto-rows: 76px !important;",
             SOURCE,
         )
 
-    def test_mobile_scenario_rows_do_not_reserve_empty_slots(self):
-        self.assertIn(
+    def test_scenario_rows_keep_fixed_geometry_after_empty_and_readd(self):
+        for contract in (
+            "const desktopHeight = 244;",
+            "const mobileHeight = 370;",
+            "const height = window.matchMedia && window.matchMedia('(max-width: 620px)').matches",
+            "grid-auto-rows: 76px !important;",
+            "row-gap: 8px !important;",
+            "grid-auto-rows: 118px !important;",
+            "body.route-liquidation #sim-card #sim-multi-rows:empty::after {",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, SOURCE)
+        self.assertNotIn(
             "const rowSlots = isCompact ? Math.min(rows.length, visibleRows) : visibleRows;",
-            SOURCE,
-        )
-        self.assertIn(
-            "height = (rowHeight * rowSlots) + (rowGap * Math.max(0, rowSlots - 1));",
             SOURCE,
         )
 
@@ -420,7 +449,7 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             "max-height: var(--sim-multi-rows-height, 190px) !important;",
             "height: var(--sim-multi-rows-height, 190px) !important;",
             "overflow-y: auto !important;",
-            "if (!isCompact) height = Math.max(fallback, height);",
+            "container.style.setProperty('--sim-multi-rows-height', height + 'px');",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, SOURCE)
