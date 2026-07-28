@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const publishedSupplyHealth = require('../data/supply-health/latest.json');
 
 const {
   clearSupplyHealthSearch,
@@ -7,6 +8,7 @@ const {
   formatHealthConcentrationTip,
   formatHealthUsd,
   formatSupplyHealthPageRange,
+  getSupplyHealthMarketPresentation,
   healthConcentrationLevel,
   isExpiredSupplyHealthMarket,
   paginateSupplyHealthMarkets,
@@ -75,6 +77,74 @@ test('network filter is independent and combines with asset search', () => {
     }),
     [],
   );
+});
+
+test('known dGM wrappers resolve to their specific GM market labels', () => {
+  assert.deepEqual(
+    getSupplyHealthMarketPresentation({
+      chain: 'arbitrum',
+      tokenId: '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef',
+      symbol: 'dGM',
+      name: 'Dolomite Isolation: GMX Market',
+    }),
+    {
+      symbol: 'gmBTC-USD',
+      name: 'Dolomite GM Market',
+    },
+  );
+});
+
+test('unknown market presentation falls back to raw subgraph metadata', () => {
+  assert.deepEqual(
+    getSupplyHealthMarketPresentation({
+      chain: 'arbitrum',
+      tokenId: '0x9999',
+      symbol: 'dGM',
+      name: 'Dolomite Isolation: GMX Market',
+    }),
+    {
+      symbol: 'dGM',
+      name: 'Dolomite Isolation: GMX Market',
+    },
+  );
+});
+
+test('asset search matches resolved GM labels and the original dGM symbol', () => {
+  const dgmMarket = {
+    chain: 'arbitrum',
+    tokenId: '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef',
+    symbol: 'dGM',
+    name: 'Dolomite Isolation: GMX Market',
+    supplyUsd: 2801914.88,
+  };
+
+  assert.deepEqual(
+    filterSupplyHealthMarkets([dgmMarket], {
+      query: 'gmBTC-USD',
+      chains: new Set(),
+    }),
+    [dgmMarket],
+  );
+  assert.deepEqual(
+    filterSupplyHealthMarkets([dgmMarket], {
+      query: 'dGM',
+      chains: new Set(),
+    }),
+    [dgmMarket],
+  );
+});
+
+test('published dGM wrappers have unique specific display symbols', () => {
+  const dgmMarkets = publishedSupplyHealth.markets.filter(
+    market => String(market.symbol).toLowerCase() === 'dgm',
+  );
+  const displaySymbols = dgmMarkets.map(
+    market => getSupplyHealthMarketPresentation(market).symbol,
+  );
+
+  assert.ok(dgmMarkets.length > 0);
+  assert.equal(displaySymbols.includes('dGM'), false);
+  assert.equal(new Set(displaySymbols).size, dgmMarkets.length);
 });
 
 test('expired dated dPT markets are hidden without removing active or undated markets', () => {
