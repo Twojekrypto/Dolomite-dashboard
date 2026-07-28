@@ -78,6 +78,21 @@
     };
   }
 
+  function formatSupplyHealthInteger(value) {
+    return String(Math.max(0, Number(value) || 0))
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  }
+
+  function formatSupplyHealthPageRange(totalRows, requestedPage, pageSize = 10) {
+    const total = Math.max(0, Number(totalRows) || 0);
+    const size = Math.max(1, Number(pageSize) || 10);
+    const totalPages = Math.max(1, Math.ceil(total / size));
+    const page = Math.min(totalPages, Math.max(1, Number(requestedPage) || 1));
+    const first = total === 0 ? 0 : ((page - 1) * size) + 1;
+    const last = total === 0 ? 0 : Math.min(total, page * size);
+    return `${formatSupplyHealthInteger(first)}–${formatSupplyHealthInteger(last)} of ${formatSupplyHealthInteger(total)}`;
+  }
+
   function updateSupplyHealthFilters(targetState, patch = {}) {
     if (Object.prototype.hasOwnProperty.call(patch, 'query')) {
       targetState.query = patch.query;
@@ -274,13 +289,22 @@
 
   function renderSupplyHealthPagination(totalRows) {
     const pager = document.getElementById('supply-health-pagination');
-    if (!pager) return;
+    const range = document.getElementById('supply-health-page-range');
+    if (!pager && !range) return;
     const pagination = paginateSupplyHealthMarkets(
       Array.from({ length: totalRows }),
       state.page,
       SUPPLY_HEALTH_PAGE_SIZE,
     );
     state.page = pagination.page;
+    if (range) {
+      range.textContent = formatSupplyHealthPageRange(
+        totalRows,
+        state.page,
+        SUPPLY_HEALTH_PAGE_SIZE,
+      );
+    }
+    if (!pager) return;
     if (pagination.totalPages <= 1) {
       pager.innerHTML = '';
       return;
@@ -564,6 +588,7 @@
     clearSupplyHealthSearch,
     filterSupplyHealthMarkets,
     formatHealthUsd,
+    formatSupplyHealthPageRange,
     mount,
     paginateSupplyHealthMarkets,
     updateSupplyHealthFilters,

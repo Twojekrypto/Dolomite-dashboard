@@ -51,6 +51,38 @@ class DolomiteTotalSupplyHistoryTest(unittest.TestCase):
             ],
         )
 
+    def test_short_new_market_does_not_collapse_established_history(self):
+        module = self.history_module()
+        aggregate = module.aggregate_market_histories(
+            [
+                {
+                    "marketKey": "arbitrum:weth",
+                    "currentSupplyUsd": 100,
+                    "points": {
+                        10: 80,
+                        20: 90,
+                        30: 100,
+                    },
+                },
+                {
+                    "marketKey": "arbitrum:new-market",
+                    "currentSupplyUsd": 10,
+                    "points": {
+                        30: 10,
+                    },
+                },
+            ]
+        )
+
+        self.assertEqual(
+            aggregate,
+            [
+                {"date": 10, "totalLiquidityUSD": 80},
+                {"date": 20, "totalLiquidityUSD": 90},
+                {"date": 30, "totalLiquidityUSD": 110},
+            ],
+        )
+
     def test_merges_official_window_and_anchors_latest_to_current_supply(self):
         module = self.history_module()
         merged = module.merge_total_supply_histories(

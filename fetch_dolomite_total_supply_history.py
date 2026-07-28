@@ -99,10 +99,9 @@ def aggregate_market_histories(
     point_key="points",
     allow_negative_components=False,
 ):
-    """Sum official USD histories at timestamps covered by every fresh active market."""
+    """Sum official histories without letting a newly listed market truncate them."""
     recent_histories, _ = split_recent_market_histories(market_histories)
     prepared = []
-    required_timestamp_sets = []
     for market in recent_histories:
         points = {
             int(timestamp): _decimal(value)
@@ -117,12 +116,22 @@ def aggregate_market_histories(
                 raise ValueError(
                     f"Active market has no official metrics: {market.get('marketKey')}"
                 )
-            required_timestamp_sets.append(set(points))
 
-    if not required_timestamp_sets:
+    active_histories = [
+        points
+        for market, points in prepared
+        if _decimal(market.get("currentSupplyUsd")) > MIN_ACTIVE_SUPPLY_USD
+    ]
+    if not active_histories:
         raise ValueError("No active Dolomite markets found for Total Supply history")
 
-    complete_timestamps = set.intersection(*required_timestamp_sets)
+    longest_history = max(len(points) for points in active_histories)
+    established_timestamp_sets = [
+        set(points)
+        for points in active_histories
+        if len(points) == longest_history
+    ]
+    complete_timestamps = set.intersection(*established_timestamp_sets)
     if not complete_timestamps:
         raise ValueError("Official market histories have no complete timestamps")
 

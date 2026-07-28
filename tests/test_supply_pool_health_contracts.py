@@ -78,6 +78,16 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         self.assertIn("paginateSupplyHealthMarkets(markets, state.page", source)
         self.assertIn("window.supplyHealthGoPage", source)
 
+    def test_pool_health_footer_matches_holders_range_layout(self):
+        html = TVL_VIEW.read_text(encoding="utf-8")
+
+        self.assertNotIn(
+            "Wallet counts are on-chain addresses:",
+            html,
+        )
+        self.assertIn('id="supply-health-page-range"', html)
+        self.assertIn('id="supply-health-pagination"', html)
+
     def test_supply_route_no_longer_mounts_pool_health(self):
         source = SUPPLY_SCRIPT.read_text(encoding="utf-8")
         styles = SUPPLY_STYLES.read_text(encoding="utf-8")
