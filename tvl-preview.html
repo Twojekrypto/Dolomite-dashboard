@@ -11,8 +11,8 @@
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
 <script defer src="shared-hover-tooltips.js?v=20260507u"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
-<link rel="stylesheet" href="tvl/supply-health.css?v=20260727c">
-<script defer src="tvl/supply-health.js?v=20260727c"></script>
+<link rel="stylesheet" href="tvl/supply-health.css?v=20260728-pager">
+<script defer src="tvl/supply-health.js?v=20260728-pager"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (shared with dolo / assets previews)
@@ -941,8 +941,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <tbody id="supply-health-table-body"></tbody>
       </table>
     </div>
-    <div class="supply-health-pagination" id="supply-health-pagination" aria-label="Supply pool health pages"></div>
-    <div class="supply-health-footnote">Wallet counts are on-chain addresses: one supplier can split funds across wallets, and vaults or protocol contracts count as a single wallet. Treat concentration as an upper bound.</div>
+    <div class="supply-health-footer">
+      <div class="supply-health-page-range" id="supply-health-page-range">0–0 of 0</div>
+      <div class="supply-health-pagination" id="supply-health-pagination" aria-label="Supply pool health pages"></div>
+    </div>
   </section>
 
   <!-- PROTOCOL INFO — same shape as DOLO page -->

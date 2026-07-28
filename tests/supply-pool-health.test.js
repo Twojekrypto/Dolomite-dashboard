@@ -5,6 +5,7 @@ const {
   clearSupplyHealthSearch,
   filterSupplyHealthMarkets,
   formatHealthUsd,
+  formatSupplyHealthPageRange,
   paginateSupplyHealthMarkets,
   updateSupplyHealthFilters,
 } = require('../tvl/supply-health.js');
@@ -92,6 +93,12 @@ test('pagination clamps an out-of-range page after filtering', () => {
   assert.equal(page.totalPages, 2);
   assert.deepEqual(page.rows.map(market => market.symbol), ['ASSET-11', 'ASSET-12']);
   assert.equal(page.spacerCount, 8);
+});
+
+test('pagination range matches the DOLO Holders footer hierarchy', () => {
+  assert.equal(formatSupplyHealthPageRange?.(14192, 1, 10), '1–10 of 14 192');
+  assert.equal(formatSupplyHealthPageRange?.(14192, 3, 10), '21–30 of 14 192');
+  assert.equal(formatSupplyHealthPageRange?.(0, 1, 10), '0–0 of 0');
 });
 
 test('missing USD values render as unavailable instead of zero', () => {
