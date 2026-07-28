@@ -8,6 +8,7 @@ const {
   formatHealthUsd,
   formatSupplyHealthPageRange,
   healthConcentrationLevel,
+  isExpiredSupplyHealthMarket,
   paginateSupplyHealthMarkets,
   updateSupplyHealthFilters,
 } = require('../tvl/supply-health.js');
@@ -73,6 +74,35 @@ test('network filter is independent and combines with asset search', () => {
       chains: new Set(['arbitrum']),
     }),
     [],
+  );
+});
+
+test('expired dated dPT markets are hidden without removing active or undated markets', () => {
+  const now = Date.UTC(2026, 6, 28);
+
+  assert.equal(
+    isExpiredSupplyHealthMarket({ symbol: 'dPT-rsETH-26SEP2024' }, now),
+    true,
+  );
+  assert.equal(
+    isExpiredSupplyHealthMarket({ symbol: 'dPT-weETH-27JUN2024' }, now),
+    true,
+  );
+  assert.equal(
+    isExpiredSupplyHealthMarket({ symbol: 'dPT-rsETH-26SEP2027' }, now),
+    false,
+  );
+  assert.equal(
+    isExpiredSupplyHealthMarket({ symbol: 'PT-rsETH-26SEP2024' }, now),
+    false,
+  );
+  assert.equal(
+    isExpiredSupplyHealthMarket({ symbol: 'dPT-rsETH' }, now),
+    false,
+  );
+  assert.equal(
+    isExpiredSupplyHealthMarket({ symbol: 'dsavETH' }, now),
+    false,
   );
 });
 

@@ -35,6 +35,20 @@
     { key: 'mantle', label: 'Mantle', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg' },
     { key: 'xlayer', label: 'X Layer', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg' },
   ];
+  const supplyHealthMonthIndex = {
+    JAN: 0,
+    FEB: 1,
+    MAR: 2,
+    APR: 3,
+    MAY: 4,
+    JUN: 5,
+    JUL: 6,
+    AUG: 7,
+    SEP: 8,
+    OCT: 9,
+    NOV: 10,
+    DEC: 11,
+  };
   const state = {
     payload: null,
     query: '',
@@ -45,6 +59,21 @@
     page: 1,
   };
   let controlsBound = false;
+
+  function isExpiredSupplyHealthMarket(market, nowMs = Date.now()) {
+    const symbol = String(market?.symbol || '').trim();
+    if (!/^dPT-/i.test(symbol)) return false;
+
+    const maturityLabel = `${symbol} ${String(market?.name || '')}`;
+    const match = maturityLabel.match(/(?:^|[-\s])(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(20\d{2})(?=$|[-\s)])/i);
+    if (!match) return false;
+
+    const day = Number(match[1]);
+    const month = supplyHealthMonthIndex[match[2].toUpperCase()];
+    const year = Number(match[3]);
+    const maturityEndMs = Date.UTC(year, month, day, 23, 59, 59, 999);
+    return Number.isFinite(maturityEndMs) && maturityEndMs < Number(nowMs);
+  }
 
   function filterSupplyHealthMarkets(markets, filters = {}) {
     const query = String(filters.query || '').trim().toLowerCase();
@@ -591,7 +620,12 @@
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const payload = await response.json();
       if (!payload || !Array.isArray(payload.markets)) throw new Error('Invalid payload');
-      state.payload = payload;
+      const markets = payload.markets.filter(market => !isExpiredSupplyHealthMarket(market));
+      state.payload = {
+        ...payload,
+        markets,
+        marketCount: markets.length,
+      };
       renderSupplyHealthChainFilter();
       renderSupplyHealthTable();
     } catch (error) {
@@ -618,6 +652,7 @@
     formatHealthUsd,
     formatSupplyHealthPageRange,
     healthConcentrationLevel,
+    isExpiredSupplyHealthMarket,
     mount,
     paginateSupplyHealthMarkets,
     updateSupplyHealthFilters,
