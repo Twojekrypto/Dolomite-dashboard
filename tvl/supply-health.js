@@ -49,6 +49,24 @@
     NOV: 10,
     DEC: 11,
   };
+  const supplyHealthMarketPresentations = {
+    'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': { symbol: 'gmARB-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': { symbol: 'gmBTC-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0x505582242757f16d72f8c4462a616e388ca1b074': { symbol: 'gmETH-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0x18cb14564fbb015bd3439220d177799355abc0e0': { symbol: 'gmLINK-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8': { symbol: 'gmBTC', name: 'Dolomite GM Market' },
+    'arbitrum:0x2d165a76dd3e552df3860789331ab73c5a3d7f92': { symbol: 'gmETH', name: 'Dolomite GM Market' },
+    'arbitrum:0x20d51cb520c4622dcc3d7e35003dbab07d547e7e': { symbol: 'gmUNI-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0x24c9121c75c099b38d40020872b8a0d2c27c614d': { symbol: 'gmAAVE-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1': { symbol: 'gmDOGE-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c': { symbol: 'gmGMX-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412': { symbol: 'gmSOL-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0xc587646f67b38739006ed0200e2e0a26fdb01c9b': { symbol: 'gmWstETH-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0xcf248baf933c7b1b876b997246f25021a65383b3': { symbol: 'gmGMX', name: 'Dolomite GM Market' },
+    'arbitrum:0xe5d6fe410c69b44c357403a1936b3bfaddbe340b': { symbol: 'gmPENDLE-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0x6586f1db71513daf94b0431156d225a46c00f20b': { symbol: 'gmPEPE-USD', name: 'Dolomite GM Market' },
+    'arbitrum:0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3': { symbol: 'gmWIF-USD', name: 'Dolomite GM Market' },
+  };
   const state = {
     payload: null,
     query: '',
@@ -59,6 +77,17 @@
     page: 1,
   };
   let controlsBound = false;
+
+  function getSupplyHealthMarketPresentation(market) {
+    const key = `${String(market?.chain || '').toLowerCase()}:${String(market?.tokenId || '').toLowerCase()}`;
+    const override = supplyHealthMarketPresentations[key];
+    return override
+      ? { ...override }
+      : {
+          symbol: String(market?.symbol || ''),
+          name: String(market?.name || ''),
+        };
+  }
 
   function isExpiredSupplyHealthMarket(market, nowMs = Date.now()) {
     const symbol = String(market?.symbol || '').trim();
@@ -81,7 +110,10 @@
 
     return (Array.isArray(markets) ? markets : []).filter(market => {
       const matchesChain = chains.size === 0 || chains.has(market.chain);
+      const presentation = getSupplyHealthMarketPresentation(market);
       const haystack = [
+        presentation.symbol,
+        presentation.name,
         market.symbol,
         market.name,
         market.tokenId,
@@ -245,7 +277,7 @@
   function healthSortValue(market, field) {
     switch (field) {
       case 'symbol':
-        return String(market.symbol || '').toUpperCase();
+        return getSupplyHealthMarketPresentation(market).symbol.toUpperCase();
       case 'supply30dPct': {
         const value = Number(market.growth?.supply30dPct);
         return Number.isFinite(value) ? value : -Infinity;
@@ -414,18 +446,19 @@
       const growth30 = market.growth?.supply30dPct;
       const score = market.score || {};
       const icon = getHealthIcon(market);
+      const presentation = getSupplyHealthMarketPresentation(market);
       const top10Tip = formatHealthConcentrationTip('top10', market.top10Pct);
       const largestTip = formatHealthConcentrationTip('largest', market.largestPct);
       return `
         <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${escapeHealthHtml(key)}" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}">
           <td class="supply-health-asset-cell">
-            <button type="button" class="supply-health-expander" data-health-toggle="${escapeHealthHtml(key)}" aria-label="${expanded ? 'Hide' : 'Show'} ${escapeHealthHtml(market.symbol || 'asset')} health details" aria-expanded="${expanded ? 'true' : 'false'}">
+            <button type="button" class="supply-health-expander" data-health-toggle="${escapeHealthHtml(key)}" aria-label="${expanded ? 'Hide' : 'Show'} ${escapeHealthHtml(presentation.symbol || 'asset')} health details" aria-expanded="${expanded ? 'true' : 'false'}">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
             </button>
             <img class="supply-health-asset-icon" src="${escapeHealthHtml(icon)}" alt="" onerror="this.src='dolomite-logo.svg'">
             <span class="supply-health-asset-copy">
-              <span class="supply-health-asset-symbol">${escapeHealthHtml(market.symbol || '')}</span>
-              <span class="supply-health-asset-name">${escapeHealthHtml(market.name || '')}</span>
+              <span class="supply-health-asset-symbol">${escapeHealthHtml(presentation.symbol)}</span>
+              <span class="supply-health-asset-name">${escapeHealthHtml(presentation.name)}</span>
             </span>
           </td>
           <td class="num">${formatHealthUsd(market.supplyUsd)}</td>
@@ -651,6 +684,7 @@
     formatHealthConcentrationTip,
     formatHealthUsd,
     formatSupplyHealthPageRange,
+    getSupplyHealthMarketPresentation,
     healthConcentrationLevel,
     isExpiredSupplyHealthMarket,
     mount,
