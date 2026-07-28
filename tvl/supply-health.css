@@ -245,6 +245,7 @@
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
+  font-size: 13px;
 }
 
 #supply-health-card .supply-health-table[hidden] {
@@ -305,6 +306,37 @@
   justify-content: flex-end;
 }
 
+#supply-health-card .supply-health-table thead th:nth-child(3),
+#supply-health-card .supply-health-table thead th:nth-child(4),
+#supply-health-card .supply-health-table thead th:nth-child(5),
+#supply-health-card .supply-health-table thead th:nth-child(6),
+#supply-health-card .supply-health-table thead th:nth-child(7),
+#supply-health-card .supply-health-table tbody td:nth-child(3),
+#supply-health-card .supply-health-table tbody td:nth-child(4),
+#supply-health-card .supply-health-table tbody td:nth-child(5),
+#supply-health-card .supply-health-table tbody td:nth-child(6),
+#supply-health-card .supply-health-table tbody td:nth-child(7) {
+  text-align: center;
+}
+
+#supply-health-card .supply-health-table thead th:nth-child(3) .th-content,
+#supply-health-card .supply-health-table thead th:nth-child(4) .th-content,
+#supply-health-card .supply-health-table thead th:nth-child(5) .th-content,
+#supply-health-card .supply-health-table thead th:nth-child(6) .th-content,
+#supply-health-card .supply-health-table thead th:nth-child(7) .th-content {
+  position: relative;
+  justify-content: center;
+}
+
+#supply-health-card .supply-health-table thead th:nth-child(3) .sort-arrow,
+#supply-health-card .supply-health-table thead th:nth-child(4) .sort-arrow,
+#supply-health-card .supply-health-table thead th:nth-child(5) .sort-arrow,
+#supply-health-card .supply-health-table thead th:nth-child(6) .sort-arrow,
+#supply-health-card .supply-health-table thead th:nth-child(7) .sort-arrow {
+  position: absolute;
+  right: 0;
+}
+
 #supply-health-card .supply-health-table thead th .sort-arrow {
   min-width: 9px;
   color: currentColor;
@@ -315,18 +347,20 @@
 #supply-health-card .supply-health-table tbody td {
   position: relative;
   height: 62px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, .055);
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line-1);
   background: transparent;
   color: var(--fg-1);
-  font-size: 12.5px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
   vertical-align: middle;
   white-space: nowrap;
 }
 
 #supply-health-card .supply-health-table tbody td.num {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -442,17 +476,18 @@
 #supply-health-card .supply-health-asset-symbol {
   overflow: hidden;
   color: var(--fg-1);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.2;
   text-overflow: ellipsis;
 }
 
 #supply-health-card .supply-health-asset-name {
   overflow: hidden;
   color: var(--fg-3);
-  font-size: 10.5px;
-  line-height: 1.1;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
   text-overflow: ellipsis;
 }
 

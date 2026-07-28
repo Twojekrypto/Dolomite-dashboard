@@ -57,6 +57,31 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         block = styles[start:styles.index("}", start)]
         self.assertIn("background: var(--gold)", block)
 
+    def test_pool_health_rows_match_holders_typography_and_center_requested_columns(self):
+        styles = TVL_STYLES.read_text(encoding="utf-8")
+
+        numeric_selector = "#supply-health-card .supply-health-table tbody td.num"
+        numeric_start = styles.rindex(numeric_selector)
+        numeric_block = styles[numeric_start:styles.index("}", numeric_start)]
+        self.assertIn("font-size: 13px", numeric_block)
+        self.assertIn("font-weight: 500", numeric_block)
+
+        centered_columns = (
+            "#supply-health-card .supply-health-table thead th:nth-child(3),\n"
+            "#supply-health-card .supply-health-table thead th:nth-child(4),\n"
+            "#supply-health-card .supply-health-table thead th:nth-child(5),\n"
+            "#supply-health-card .supply-health-table thead th:nth-child(6),\n"
+            "#supply-health-card .supply-health-table thead th:nth-child(7),\n"
+            "#supply-health-card .supply-health-table tbody td:nth-child(3),\n"
+            "#supply-health-card .supply-health-table tbody td:nth-child(4),\n"
+            "#supply-health-card .supply-health-table tbody td:nth-child(5),\n"
+            "#supply-health-card .supply-health-table tbody td:nth-child(6),\n"
+            "#supply-health-card .supply-health-table tbody td:nth-child(7)"
+        )
+        centered_start = styles.index(centered_columns)
+        centered_block = styles[centered_start:styles.index("}", centered_start)]
+        self.assertIn("text-align: center", centered_block)
+
     def test_pool_health_header_uses_holders_style_data_freshness(self):
         html = TVL_VIEW.read_text(encoding="utf-8")
         source = TVL_SCRIPT.read_text(encoding="utf-8")
