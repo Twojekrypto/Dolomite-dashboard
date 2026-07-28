@@ -153,6 +153,23 @@
     return numeric > 0 ? 'positive' : 'negative';
   }
 
+  function healthConcentrationClass(metric, value) {
+    const numeric = Number(value);
+    if (
+      value == null
+      || String(value).trim() === ''
+      || !Number.isFinite(numeric)
+      || (metric !== 'top10' && metric !== 'largest')
+    ) {
+      return '';
+    }
+    const lowMax = metric === 'largest' ? 20 : 40;
+    const moderateMax = metric === 'largest' ? 40 : 60;
+    if (numeric <= lowMax) return 'health-concentration-low';
+    if (numeric <= moderateMax) return 'health-concentration-moderate';
+    return 'health-concentration-high';
+  }
+
   function healthGradeClass(grade) {
     return `grade-${String(grade || 'x').toLowerCase()}`;
   }
@@ -360,6 +377,8 @@
       const growth30 = market.growth?.supply30dPct;
       const score = market.score || {};
       const icon = getHealthIcon(market);
+      const top10Tone = healthConcentrationClass('top10', market.top10Pct);
+      const largestTone = healthConcentrationClass('largest', market.largestPct);
       return `
         <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${escapeHealthHtml(key)}" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}">
           <td class="supply-health-asset-cell">
@@ -373,10 +392,10 @@
             </span>
           </td>
           <td class="num">${formatHealthUsd(market.supplyUsd)}</td>
-          <td class="num">${Number(market.wallets || 0).toLocaleString('en-US')}</td>
+          <td class="num health-participation">${Number(market.wallets || 0).toLocaleString('en-US')}</td>
           <td class="num">${formatHealthUsd(market.avgWalletUsd)}</td>
-          <td class="num">${formatHealthPct(market.top10Pct)}</td>
-          <td class="num">${formatHealthPct(market.largestPct)}</td>
+          <td class="num health-concentration ${top10Tone}">${formatHealthPct(market.top10Pct)}</td>
+          <td class="num health-concentration ${largestTone}">${formatHealthPct(market.largestPct)}</td>
           <td class="num ${healthSignedClass(growth30)}">${formatHealthSignedPct(growth30)}</td>
           <td class="num supply-health-score-cell">
             <span class="supply-health-score">${score.total != null ? Math.round(score.total) : '—'}</span>
@@ -589,6 +608,7 @@
     filterSupplyHealthMarkets,
     formatHealthUsd,
     formatSupplyHealthPageRange,
+    healthConcentrationClass,
     mount,
     paginateSupplyHealthMarkets,
     updateSupplyHealthFilters,

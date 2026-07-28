@@ -6,6 +6,7 @@ const {
   filterSupplyHealthMarkets,
   formatHealthUsd,
   formatSupplyHealthPageRange,
+  healthConcentrationClass,
   paginateSupplyHealthMarkets,
   updateSupplyHealthFilters,
 } = require('../tvl/supply-health.js');
@@ -104,6 +105,23 @@ test('pagination range matches the DOLO Holders footer hierarchy', () => {
 test('missing USD values render as unavailable instead of zero', () => {
   assert.equal(formatHealthUsd(null), '—');
   assert.equal(formatHealthUsd(undefined), '—');
+});
+
+test('concentration classes follow the existing Supply Health methodology breakpoints', () => {
+  assert.equal(healthConcentrationClass('top10', 40), 'health-concentration-low');
+  assert.equal(healthConcentrationClass('top10', 40.01), 'health-concentration-moderate');
+  assert.equal(healthConcentrationClass('top10', 60), 'health-concentration-moderate');
+  assert.equal(healthConcentrationClass('top10', 60.01), 'health-concentration-high');
+
+  assert.equal(healthConcentrationClass('largest', 20), 'health-concentration-low');
+  assert.equal(healthConcentrationClass('largest', 20.01), 'health-concentration-moderate');
+  assert.equal(healthConcentrationClass('largest', 40), 'health-concentration-moderate');
+  assert.equal(healthConcentrationClass('largest', 40.01), 'health-concentration-high');
+
+  assert.equal(healthConcentrationClass('top10', null), '');
+  assert.equal(healthConcentrationClass('largest', undefined), '');
+  assert.equal(healthConcentrationClass('top10', ''), '');
+  assert.equal(healthConcentrationClass('largest', 'not-a-number'), '');
 });
 
 test('changing a discovery filter resets pagination and expanded details', () => {
