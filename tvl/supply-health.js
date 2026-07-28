@@ -153,7 +153,7 @@
     return numeric > 0 ? 'positive' : 'negative';
   }
 
-  function healthConcentrationClass(metric, value) {
+  function healthConcentrationLevel(metric, value) {
     const numeric = Number(value);
     if (
       value == null
@@ -165,9 +165,17 @@
     }
     const lowMax = metric === 'largest' ? 20 : 40;
     const moderateMax = metric === 'largest' ? 40 : 60;
-    if (numeric <= lowMax) return 'health-concentration-low';
-    if (numeric <= moderateMax) return 'health-concentration-moderate';
-    return 'health-concentration-high';
+    if (numeric <= lowMax) return 'low';
+    if (numeric <= moderateMax) return 'moderate';
+    return 'high';
+  }
+
+  function formatHealthConcentrationTip(metric, value) {
+    const level = healthConcentrationLevel(metric, value);
+    if (!level) return '';
+    const label = metric === 'largest' ? 'Largest supplier' : 'Top 10 suppliers';
+    const levelLabel = `${level.charAt(0).toUpperCase()}${level.slice(1)}`;
+    return `${label} concentration: ${formatHealthPct(value)} · ${levelLabel}`;
   }
 
   function healthGradeClass(grade) {
@@ -377,8 +385,8 @@
       const growth30 = market.growth?.supply30dPct;
       const score = market.score || {};
       const icon = getHealthIcon(market);
-      const top10Tone = healthConcentrationClass('top10', market.top10Pct);
-      const largestTone = healthConcentrationClass('largest', market.largestPct);
+      const top10Tip = formatHealthConcentrationTip('top10', market.top10Pct);
+      const largestTip = formatHealthConcentrationTip('largest', market.largestPct);
       return `
         <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${escapeHealthHtml(key)}" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}">
           <td class="supply-health-asset-cell">
@@ -394,8 +402,8 @@
           <td class="num">${formatHealthUsd(market.supplyUsd)}</td>
           <td class="num health-participation">${Number(market.wallets || 0).toLocaleString('en-US')}</td>
           <td class="num">${formatHealthUsd(market.avgWalletUsd)}</td>
-          <td class="num health-concentration ${top10Tone}">${formatHealthPct(market.top10Pct)}</td>
-          <td class="num health-concentration ${largestTone}">${formatHealthPct(market.largestPct)}</td>
+          <td class="num health-concentration" data-tip="${escapeHealthHtml(top10Tip)}">${formatHealthPct(market.top10Pct)}</td>
+          <td class="num health-concentration" data-tip="${escapeHealthHtml(largestTip)}">${formatHealthPct(market.largestPct)}</td>
           <td class="num ${healthSignedClass(growth30)}">${formatHealthSignedPct(growth30)}</td>
           <td class="num supply-health-score-cell">
             <span class="supply-health-score">${score.total != null ? Math.round(score.total) : '—'}</span>
@@ -606,9 +614,10 @@
   return {
     clearSupplyHealthSearch,
     filterSupplyHealthMarkets,
+    formatHealthConcentrationTip,
     formatHealthUsd,
     formatSupplyHealthPageRange,
-    healthConcentrationClass,
+    healthConcentrationLevel,
     mount,
     paginateSupplyHealthMarkets,
     updateSupplyHealthFilters,

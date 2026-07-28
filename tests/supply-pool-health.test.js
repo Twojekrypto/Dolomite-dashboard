@@ -4,9 +4,10 @@ const assert = require('node:assert/strict');
 const {
   clearSupplyHealthSearch,
   filterSupplyHealthMarkets,
+  formatHealthConcentrationTip,
   formatHealthUsd,
   formatSupplyHealthPageRange,
-  healthConcentrationClass,
+  healthConcentrationLevel,
   paginateSupplyHealthMarkets,
   updateSupplyHealthFilters,
 } = require('../tvl/supply-health.js');
@@ -107,21 +108,34 @@ test('missing USD values render as unavailable instead of zero', () => {
   assert.equal(formatHealthUsd(undefined), '—');
 });
 
-test('concentration classes follow the existing Supply Health methodology breakpoints', () => {
-  assert.equal(healthConcentrationClass('top10', 40), 'health-concentration-low');
-  assert.equal(healthConcentrationClass('top10', 40.01), 'health-concentration-moderate');
-  assert.equal(healthConcentrationClass('top10', 60), 'health-concentration-moderate');
-  assert.equal(healthConcentrationClass('top10', 60.01), 'health-concentration-high');
+test('concentration levels preserve the Supply Health methodology breakpoints', () => {
+  assert.equal(healthConcentrationLevel('top10', 40), 'low');
+  assert.equal(healthConcentrationLevel('top10', 40.01), 'moderate');
+  assert.equal(healthConcentrationLevel('top10', 60), 'moderate');
+  assert.equal(healthConcentrationLevel('top10', 60.01), 'high');
 
-  assert.equal(healthConcentrationClass('largest', 20), 'health-concentration-low');
-  assert.equal(healthConcentrationClass('largest', 20.01), 'health-concentration-moderate');
-  assert.equal(healthConcentrationClass('largest', 40), 'health-concentration-moderate');
-  assert.equal(healthConcentrationClass('largest', 40.01), 'health-concentration-high');
+  assert.equal(healthConcentrationLevel('largest', 20), 'low');
+  assert.equal(healthConcentrationLevel('largest', 20.01), 'moderate');
+  assert.equal(healthConcentrationLevel('largest', 40), 'moderate');
+  assert.equal(healthConcentrationLevel('largest', 40.01), 'high');
 
-  assert.equal(healthConcentrationClass('top10', null), '');
-  assert.equal(healthConcentrationClass('largest', undefined), '');
-  assert.equal(healthConcentrationClass('top10', ''), '');
-  assert.equal(healthConcentrationClass('largest', 'not-a-number'), '');
+  assert.equal(healthConcentrationLevel('top10', null), '');
+  assert.equal(healthConcentrationLevel('largest', undefined), '');
+  assert.equal(healthConcentrationLevel('top10', ''), '');
+  assert.equal(healthConcentrationLevel('largest', 'not-a-number'), '');
+  assert.equal(healthConcentrationLevel('unknown', 10), '');
+});
+
+test('concentration tooltip keeps the risk level without changing the number color', () => {
+  assert.equal(
+    formatHealthConcentrationTip('largest', 40.01),
+    'Largest supplier concentration: 40.0% · High',
+  );
+  assert.equal(
+    formatHealthConcentrationTip('top10', 55),
+    'Top 10 suppliers concentration: 55.0% · Moderate',
+  );
+  assert.equal(formatHealthConcentrationTip('largest', null), '');
 });
 
 test('changing a discovery filter resets pagination and expanded details', () => {
