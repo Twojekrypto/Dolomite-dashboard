@@ -1,59 +1,59 @@
 {
   "chainReport": [
     {
-      "canonicalLagMinutes": 21.8,
+      "canonicalLagMinutes": 24.6,
       "chain": "ethereum",
       "label": "Ethereum",
       "lastRefreshAt": "2026-07-28T10:08:12.392853Z",
-      "netflowLagMinutes": 27.6,
-      "refreshMode": "none",
-      "slaStatus": "ok",
-      "status": "verified",
-      "supportMode": "canonical-ledger",
-      "weakPoint": "none"
-    },
-    {
-      "canonicalLagMinutes": 64.6,
-      "chain": "berachain",
-      "label": "Berachain",
-      "lastRefreshAt": "2026-07-28T10:04:18Z",
-      "netflowLagMinutes": 22.7,
+      "netflowLagMinutes": 30.4,
       "refreshMode": "background",
       "slaStatus": "ok",
       "status": "verified",
       "supportMode": "canonical-ledger",
-      "weakPoint": "canonical background refresh due"
+      "weakPoint": "netflow background refresh due"
     },
     {
-      "canonicalLagMinutes": 22.6,
+      "canonicalLagMinutes": 22.2,
+      "chain": "berachain",
+      "label": "Berachain",
+      "lastRefreshAt": "2026-07-28T10:07:58.000391Z",
+      "netflowLagMinutes": 25.4,
+      "refreshMode": "none",
+      "slaStatus": "ok",
+      "status": "verified",
+      "supportMode": "canonical-ledger",
+      "weakPoint": "canonical global backfill 4591/41713 wallets backfilled"
+    },
+    {
+      "canonicalLagMinutes": 25.3,
       "chain": "arbitrum",
       "label": "Arbitrum",
       "lastRefreshAt": "2026-07-28T10:05:03.338663Z",
-      "netflowLagMinutes": 27.7,
-      "refreshMode": "none",
+      "netflowLagMinutes": 30.4,
+      "refreshMode": "background",
       "slaStatus": "ok",
       "status": "verified",
       "supportMode": "canonical-ledger",
-      "weakPoint": "canonical global backfill 3934/49746 wallets backfilled"
+      "weakPoint": "netflow background refresh due"
     },
     {
-      "canonicalLagMinutes": 22.6,
+      "canonicalLagMinutes": 25.3,
       "chain": "mantle",
       "label": "Mantle",
       "lastRefreshAt": "2026-07-28T10:05:07.067963Z",
-      "netflowLagMinutes": 27.8,
-      "refreshMode": "none",
+      "netflowLagMinutes": 30.5,
+      "refreshMode": "background",
       "slaStatus": "ok",
       "status": "verified",
       "supportMode": "canonical-ledger",
-      "weakPoint": "canonical global backfill 2298/2299 wallets backfilled"
+      "weakPoint": "netflow background refresh due"
     },
     {
-      "canonicalLagMinutes": 12.3,
+      "canonicalLagMinutes": 15.0,
       "chain": "xlayer",
       "label": "X Layer",
       "lastRefreshAt": "2026-07-28T10:15:04.572270Z",
-      "netflowLagMinutes": 27.8,
+      "netflowLagMinutes": 30.4,
       "refreshMode": "catchup",
       "slaStatus": "ok",
       "status": "syncing",
@@ -65,7 +65,7 @@
     "arbitrum": {
       "blockTimeSeconds": 0.25,
       "canonical": {
-        "blockLag": 5418,
+        "blockLag": 6063,
         "coverage": {
           "backfillCoverageRatio": 0.079082,
           "backfillStatus": "partial",
@@ -86,9 +86,9 @@
         "coverageBacklog": true,
         "coverageCatchup": false,
         "coverageCompleteness": "advisory",
-        "estimatedLagMinutes": 22.6,
+        "estimatedLagMinutes": 25.3,
         "lastBlock": 488566065,
-        "liveBlock": 488571483,
+        "liveBlock": 488572128,
         "reason": "canonical global backfill pending: 3934/49746 wallets backfilled",
         "recencyStatus": "verified",
         "refreshAfterBlockLag": 7200,
@@ -98,28 +98,28 @@
         "slaStatus": "ok",
         "staleBlockLag": 86400,
         "status": "verified",
-        "updatedAgeMinutes": 21.9,
+        "updatedAgeMinutes": 24.6,
         "updatedAt": "2026-07-28T10:05:03.338663Z",
         "verifiedBlockLag": 28800
       },
       "label": "Arbitrum",
       "netflow": {
-        "blockLag": 6653,
-        "estimatedLagMinutes": 27.7,
+        "blockLag": 7298,
+        "estimatedLagMinutes": 30.4,
         "lastBlock": 488564830,
-        "liveBlock": 488571483,
+        "liveBlock": 488572128,
         "refreshAfterBlockLag": 7200,
         "refreshAfterMinutes": 30.0,
-        "refreshMode": "none",
-        "refreshRecommended": false,
+        "refreshMode": "background",
+        "refreshRecommended": true,
         "slaStatus": "ok",
         "staleBlockLag": 86400,
         "status": "verified",
-        "updatedAgeMinutes": 27.6,
+        "updatedAgeMinutes": 30.3,
         "updatedAt": "2026-07-28T09:59:23Z",
         "verifiedBlockLag": 28800
       },
-      "refreshMode": "none",
+      "refreshMode": "background",
       "slaStatus": "ok",
       "snapshot": {
         "available": true,
@@ -131,7 +131,7 @@
     "berachain": {
       "blockTimeSeconds": 2.0,
       "canonical": {
-        "blockLag": 1939,
+        "blockLag": 666,
         "coverage": {
           "backfillCoverageRatio": 0.110062,
           "backfillStatus": "partial",
@@ -142,38 +142,21 @@
           "headFreshWalletCount": 4591,
           "incompleteBackfillWalletCount": 0,
           "knownAddressCount": 41713,
-          "maxLastScannedBlock": 24107910,
-          "minLastScannedBlock": 24107910,
+          "maxLastScannedBlock": 24109266,
+          "minLastScannedBlock": 24109266,
           "missingWalletCount": 37122,
           "partialWalletCount": 0,
           "status": "partial",
-          "targetBlock": 24107910
+          "targetBlock": 24109266
         },
         "coverageBacklog": true,
         "coverageCatchup": false,
         "coverageCompleteness": "advisory",
-        "estimatedLagMinutes": 64.6,
-        "lastBlock": 24107910,
-        "liveBlock": 24109849,
+        "estimatedLagMinutes": 22.2,
+        "lastBlock": 24109266,
+        "liveBlock": 24109932,
         "reason": "canonical global backfill pending: 4591/41713 wallets backfilled",
         "recencyStatus": "verified",
-        "refreshAfterBlockLag": 900,
-        "refreshAfterMinutes": 30.0,
-        "refreshMode": "background",
-        "refreshRecommended": true,
-        "slaStatus": "ok",
-        "staleBlockLag": 10800,
-        "status": "verified",
-        "updatedAgeMinutes": 64.2,
-        "updatedAt": "2026-07-28T09:22:44.805874Z",
-        "verifiedBlockLag": 3600
-      },
-      "label": "Berachain",
-      "netflow": {
-        "blockLag": 680,
-        "estimatedLagMinutes": 22.7,
-        "lastBlock": 24109169,
-        "liveBlock": 24109849,
         "refreshAfterBlockLag": 900,
         "refreshAfterMinutes": 30.0,
         "refreshMode": "none",
@@ -181,11 +164,28 @@
         "slaStatus": "ok",
         "staleBlockLag": 10800,
         "status": "verified",
-        "updatedAgeMinutes": 22.6,
+        "updatedAgeMinutes": 21.7,
+        "updatedAt": "2026-07-28T10:07:58.000391Z",
+        "verifiedBlockLag": 3600
+      },
+      "label": "Berachain",
+      "netflow": {
+        "blockLag": 763,
+        "estimatedLagMinutes": 25.4,
+        "lastBlock": 24109169,
+        "liveBlock": 24109932,
+        "refreshAfterBlockLag": 900,
+        "refreshAfterMinutes": 30.0,
+        "refreshMode": "none",
+        "refreshRecommended": false,
+        "slaStatus": "ok",
+        "staleBlockLag": 10800,
+        "status": "verified",
+        "updatedAgeMinutes": 25.4,
         "updatedAt": "2026-07-28T10:04:18Z",
         "verifiedBlockLag": 3600
       },
-      "refreshMode": "background",
+      "refreshMode": "none",
       "slaStatus": "ok",
       "snapshot": {
         "available": true,
@@ -197,7 +197,7 @@
     "ethereum": {
       "blockTimeSeconds": 12.0,
       "canonical": {
-        "blockLag": 109,
+        "blockLag": 123,
         "coverage": {
           "backfillCoverageRatio": 1.0,
           "backfillStatus": "full",
@@ -218,9 +218,9 @@
         "coverageBacklog": false,
         "coverageCatchup": false,
         "coverageCompleteness": "advisory",
-        "estimatedLagMinutes": 21.8,
+        "estimatedLagMinutes": 24.6,
         "lastBlock": 25630604,
-        "liveBlock": 25630713,
+        "liveBlock": 25630727,
         "refreshAfterBlockLag": 150,
         "refreshAfterMinutes": 30.0,
         "refreshMode": "none",
@@ -228,28 +228,28 @@
         "slaStatus": "ok",
         "staleBlockLag": 1800,
         "status": "verified",
-        "updatedAgeMinutes": 18.7,
+        "updatedAgeMinutes": 21.5,
         "updatedAt": "2026-07-28T10:08:12.392853Z",
         "verifiedBlockLag": 600
       },
       "label": "Ethereum",
       "netflow": {
-        "blockLag": 138,
-        "estimatedLagMinutes": 27.6,
+        "blockLag": 152,
+        "estimatedLagMinutes": 30.4,
         "lastBlock": 25630575,
-        "liveBlock": 25630713,
+        "liveBlock": 25630727,
         "refreshAfterBlockLag": 150,
         "refreshAfterMinutes": 30.0,
-        "refreshMode": "none",
-        "refreshRecommended": false,
+        "refreshMode": "background",
+        "refreshRecommended": true,
         "slaStatus": "ok",
         "staleBlockLag": 1800,
         "status": "verified",
-        "updatedAgeMinutes": 27.5,
+        "updatedAgeMinutes": 30.3,
         "updatedAt": "2026-07-28T09:59:25Z",
         "verifiedBlockLag": 600
       },
-      "refreshMode": "none",
+      "refreshMode": "background",
       "slaStatus": "ok",
       "snapshot": {
         "available": true,
@@ -261,7 +261,7 @@
     "mantle": {
       "blockTimeSeconds": 2.0,
       "canonical": {
-        "blockLag": 678,
+        "blockLag": 759,
         "coverage": {
           "backfillCoverageRatio": 0.999565,
           "backfillStatus": "partial",
@@ -282,9 +282,9 @@
         "coverageBacklog": true,
         "coverageCatchup": false,
         "coverageCompleteness": "advisory",
-        "estimatedLagMinutes": 22.6,
+        "estimatedLagMinutes": 25.3,
         "lastBlock": 98551376,
-        "liveBlock": 98552054,
+        "liveBlock": 98552135,
         "reason": "canonical global backfill pending: 2298/2299 wallets backfilled",
         "recencyStatus": "verified",
         "refreshAfterBlockLag": 900,
@@ -294,28 +294,28 @@
         "slaStatus": "ok",
         "staleBlockLag": 10800,
         "status": "verified",
-        "updatedAgeMinutes": 21.8,
+        "updatedAgeMinutes": 24.6,
         "updatedAt": "2026-07-28T10:05:07.067963Z",
         "verifiedBlockLag": 3600
       },
       "label": "Mantle",
       "netflow": {
-        "blockLag": 833,
-        "estimatedLagMinutes": 27.8,
+        "blockLag": 914,
+        "estimatedLagMinutes": 30.5,
         "lastBlock": 98551221,
-        "liveBlock": 98552054,
+        "liveBlock": 98552135,
         "refreshAfterBlockLag": 900,
         "refreshAfterMinutes": 30.0,
-        "refreshMode": "none",
-        "refreshRecommended": false,
+        "refreshMode": "background",
+        "refreshRecommended": true,
         "slaStatus": "ok",
         "staleBlockLag": 10800,
         "status": "verified",
-        "updatedAgeMinutes": 27.7,
+        "updatedAgeMinutes": 30.4,
         "updatedAt": "2026-07-28T09:59:16Z",
         "verifiedBlockLag": 3600
       },
-      "refreshMode": "none",
+      "refreshMode": "background",
       "slaStatus": "ok",
       "snapshot": {
         "available": true,
@@ -327,7 +327,7 @@
     "xlayer": {
       "blockTimeSeconds": 1.0,
       "canonical": {
-        "blockLag": 738,
+        "blockLag": 899,
         "coverage": {
           "backfillCoverageRatio": 0.992509,
           "backfillStatus": "partial",
@@ -348,9 +348,9 @@
         "coverageBacklog": false,
         "coverageCatchup": true,
         "coverageCompleteness": "required",
-        "estimatedLagMinutes": 12.3,
+        "estimatedLagMinutes": 15.0,
         "lastBlock": 66464648,
-        "liveBlock": 66465386,
+        "liveBlock": 66465547,
         "reason": "canonical coverage incomplete: 265/267 wallets fresh",
         "recencyStatus": "verified",
         "refreshAfterBlockLag": 1800,
@@ -360,24 +360,24 @@
         "slaStatus": "ok",
         "staleBlockLag": 21600,
         "status": "syncing",
-        "updatedAgeMinutes": 11.9,
+        "updatedAgeMinutes": 14.6,
         "updatedAt": "2026-07-28T10:15:04.572270Z",
         "verifiedBlockLag": 7200
       },
       "label": "X Layer",
       "netflow": {
-        "blockLag": 1665,
-        "estimatedLagMinutes": 27.8,
+        "blockLag": 1826,
+        "estimatedLagMinutes": 30.4,
         "lastBlock": 66463721,
-        "liveBlock": 66465386,
+        "liveBlock": 66465547,
         "refreshAfterBlockLag": 1800,
         "refreshAfterMinutes": 30.0,
-        "refreshMode": "none",
-        "refreshRecommended": false,
+        "refreshMode": "background",
+        "refreshRecommended": true,
         "slaStatus": "ok",
         "staleBlockLag": 21600,
         "status": "verified",
-        "updatedAgeMinutes": 27.7,
+        "updatedAgeMinutes": 30.4,
         "updatedAt": "2026-07-28T09:59:17Z",
         "verifiedBlockLag": 7200
       },
@@ -391,7 +391,7 @@
       "supportMode": "canonical-ledger"
     }
   },
-  "generatedAt": "2026-07-28T10:26:56.212404Z",
+  "generatedAt": "2026-07-28T10:29:41.856930Z",
   "policy": {
     "refreshAfterMinutes": 30,
     "slaCriticalAfterHours": 6,
@@ -415,20 +415,52 @@
         "workflow": "update-earn-secondary-canonical-history.yml"
       },
       {
-        "inputs": {},
+        "inputs": {
+          "chain": "arbitrum"
+        },
         "mode": "background",
-        "priority": 50,
-        "reason": "berachain: canonical background refresh (verified, 64.6m lag)",
-        "workflow": "update-earn-berachain-canonical-history.yml"
+        "priority": 55,
+        "reason": "arbitrum: netflow background refresh (verified, 30.4m lag)",
+        "workflow": "update-earn-netflow.yml"
+      },
+      {
+        "inputs": {
+          "chain": "ethereum"
+        },
+        "mode": "background",
+        "priority": 55,
+        "reason": "ethereum: netflow background refresh (verified, 30.4m lag)",
+        "workflow": "update-earn-netflow.yml"
+      },
+      {
+        "inputs": {
+          "chain": "mantle"
+        },
+        "mode": "background",
+        "priority": 55,
+        "reason": "mantle: netflow background refresh (verified, 30.5m lag)",
+        "workflow": "update-earn-netflow.yml"
+      },
+      {
+        "inputs": {
+          "chain": "xlayer"
+        },
+        "mode": "background",
+        "priority": 55,
+        "reason": "xlayer: netflow background refresh (verified, 30.4m lag)",
+        "workflow": "update-earn-netflow.yml"
       }
     ],
     "refreshReasons": [
-      "berachain: canonical background refresh (verified, 64.6m lag)",
-      "xlayer: canonical coverage catchup (265/267 wallets fresh, 0 behind, 2 missing)"
+      "ethereum: netflow background refresh (verified, 30.4m lag)",
+      "arbitrum: netflow background refresh (verified, 30.4m lag)",
+      "mantle: netflow background refresh (verified, 30.5m lag)",
+      "xlayer: canonical coverage catchup (265/267 wallets fresh, 0 behind, 2 missing)",
+      "xlayer: netflow background refresh (verified, 30.4m lag)"
     ],
     "refreshRecommended": true,
     "refreshWorkflows": [
-      "update-earn-berachain-canonical-history.yml",
+      "update-earn-netflow.yml",
       "update-earn-secondary-canonical-history.yml"
     ],
     "slaCriticalChains": [],
