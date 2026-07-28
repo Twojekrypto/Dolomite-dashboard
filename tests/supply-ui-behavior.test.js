@@ -64,9 +64,9 @@ async function captureNewMarketLoadingPresentation(previousOverview) {
   return vm.runInContext('transitionPresentation', context);
 }
 
-test('count badges expose total and filtered rows in the DOLO Holders hierarchy', () => {
-  assert.equal(ui.formatSupplyCountBadge(777, 777, 'suppliers'), '777 suppliers · showing 777');
-  assert.equal(ui.formatSupplyCountBadge(706, 84, 'events'), '706 events · showing 84');
+test('count badges show only the unfiltered supplier and event totals', () => {
+  assert.equal(ui.formatSupplyCountBadge(3620, 'suppliers'), '3 620 suppliers');
+  assert.equal(ui.formatSupplyCountBadge(209394, 'events'), '209 394 events');
 });
 
 test('table footer renders the visible range and centered pager without a redundant total', () => {

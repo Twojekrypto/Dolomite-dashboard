@@ -18,10 +18,10 @@
     `;
   }
 
-  function formatSupplyCountBadge(totalRows, filteredRows, noun) {
+  function formatSupplyCountBadge(totalRows, noun) {
     const total = Math.max(0, Number(totalRows) || 0);
-    const showing = Math.max(0, Number(filteredRows) || 0);
-    return `${total.toLocaleString()} ${noun} · showing ${showing.toLocaleString()}`;
+    const formattedTotal = String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return `${formattedTotal} ${noun}`;
   }
 
   function getSupplyActivityHistoryPresentation(overview) {
@@ -47,7 +47,7 @@
     try {
       total = Number(currentSupplyOverview?.supplierCount) || currentSupplyData.length || total;
     } catch (error) {}
-    count.textContent = formatSupplyCountBadge(total, filteredRows, 'suppliers');
+    count.textContent = formatSupplyCountBadge(total, 'suppliers');
   }
 
   function syncActivityCountBadge(filteredRows) {
@@ -57,7 +57,7 @@
     try {
       total = currentSupplyActivity.length || total;
     } catch (error) {}
-    count.textContent = formatSupplyCountBadge(total, filteredRows, 'events');
+    count.textContent = formatSupplyCountBadge(total, 'events');
   }
 
   const searchIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>';

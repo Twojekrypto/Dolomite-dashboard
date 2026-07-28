@@ -73,6 +73,17 @@ class SupplyActivityUiContractsTest(unittest.TestCase):
         self.assertIn("body.supply-draft-route #supply-activity-card .supply-activity-toolbar", css)
         self.assertIn("z-index: 100;", css)
 
+    def test_activity_continuous_surface_disables_legacy_gradient_overlay(self):
+        css = SUPPLY_DRAFT_CSS.read_text(encoding="utf-8")
+        self.assertIn(
+            "body.supply-draft-route "
+            "#supply-activity-card.supply-draft-activity-continuous-surface::before {\n"
+            "  content: none !important;\n"
+            "  animation: none !important;\n"
+            "}",
+            css,
+        )
+
     def test_supply_route_cache_is_busted_for_activity_update(self):
         html = SUPPLY_INDEX.read_text(encoding="utf-8")
         self.assertIn("activity-labels-alltime-dropdown", html)
