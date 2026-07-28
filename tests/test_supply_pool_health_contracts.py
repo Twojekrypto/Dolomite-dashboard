@@ -82,6 +82,19 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         centered_block = styles[centered_start:styles.index("}", centered_start)]
         self.assertIn("text-align: center", centered_block)
 
+    def test_pool_health_semantic_colors_are_card_scoped(self):
+        source = TVL_SCRIPT.read_text(encoding="utf-8")
+        styles = TVL_STYLES.read_text(encoding="utf-8")
+
+        self.assertIn('class="num health-participation"', source)
+        self.assertIn("healthConcentrationClass('top10', market.top10Pct)", source)
+        self.assertIn("healthConcentrationClass('largest', market.largestPct)", source)
+        cell_selector = "#supply-health-card .supply-health-table tbody td"
+        self.assertIn(f"{cell_selector}.health-participation", styles)
+        self.assertIn(f"{cell_selector}.health-concentration-low", styles)
+        self.assertIn(f"{cell_selector}.health-concentration-moderate", styles)
+        self.assertIn(f"{cell_selector}.health-concentration-high", styles)
+
     def test_pool_health_header_uses_holders_style_data_freshness(self):
         html = TVL_VIEW.read_text(encoding="utf-8")
         source = TVL_SCRIPT.read_text(encoding="utf-8")
