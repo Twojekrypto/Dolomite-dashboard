@@ -149,14 +149,17 @@
     bundleReady = false,
     nowMs = Date.now(),
   } = {}) {
-    if (stagedAssetId && stagedAssetId !== appliedAssetId) {
-      return { status: 'preserve', token: null, isDeepLink: false };
-    }
     if (awaitingChainBundle && !bundleReady) {
       return { status: 'wait', token: null, isDeepLink: false };
     }
 
     const selectable = getSelectableSupplyMarkets(tokens, chain, nowMs);
+    const stagedIsSelectable = stagedAssetId && selectable.some(
+      (token) => normalizeSupplyAddress(token?.id) === normalizeSupplyAddress(stagedAssetId),
+    );
+    if (stagedIsSelectable && stagedAssetId !== appliedAssetId) {
+      return { status: 'preserve', token: null, isDeepLink: false };
+    }
     if (requestedMarket && requestedMarket.chain === String(chain || '').toLowerCase()) {
       const requested = selectable.find(
         (token) => normalizeSupplyAddress(token?.id) === requestedMarket.asset,
@@ -1416,6 +1419,20 @@
     return null;
   }
 
+  function getCurrentSelectableSupplyToken(id) {
+    if (!id) return null;
+    try {
+      return getSelectableSupplyMarkets(
+        currentSupplyTokensList,
+        getCurrentSupplyChain(),
+      ).find(
+        (token) => normalizeSupplyAddress(token?.id) === normalizeSupplyAddress(id),
+      ) || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   function getDefaultSupplyToken() {
     let tokens = [];
     try {
@@ -1592,8 +1609,8 @@
   function syncApplyButton() {
     const button = document.getElementById('supply-asset-apply-btn');
     if (!button) return;
-    const token = stagedAssetId ? getSupplyToken(stagedAssetId) : null;
-    const hasPending = !!(stagedAssetId && stagedAssetId !== appliedAssetId);
+    const token = getCurrentSelectableSupplyToken(stagedAssetId);
+    const hasPending = !!(token && stagedAssetId !== appliedAssetId);
     button.disabled = !hasPending;
     button.classList.toggle('is-applied', !!(appliedAssetId && stagedAssetId === appliedAssetId));
     button.classList.toggle('is-pending', !!hasPending);
@@ -1717,7 +1734,7 @@
   }
 
   function stageSupplyAsset(id) {
-    const token = getSupplyToken(id);
+    const token = getCurrentSelectableSupplyToken(id);
     if (!token) return;
     stagedAssetId = id;
     const hidden = document.getElementById('supply-asset-select');
@@ -1732,9 +1749,39 @@
     }
   }
 
+  function reconcileStalePendingSupplyAsset() {
+    const appliedToken = getCurrentSelectableSupplyToken(appliedAssetId);
+    const hidden = document.getElementById('supply-asset-select');
+    document.body.classList.remove('supply-has-pending-asset');
+
+    if (appliedToken) {
+      stagedAssetId = appliedAssetId;
+      if (hidden) hidden.value = appliedAssetId;
+      setAssetState(true);
+      setSelectorUi(appliedToken, false);
+    } else {
+      stagedAssetId = '';
+      appliedAssetId = '';
+      if (hidden) hidden.value = '';
+      setAssetState(false);
+      const text = document.getElementById('selected-asset-text');
+      const icon = document.getElementById('selected-asset-icon');
+      if (text) text.textContent = 'Select asset';
+      if (icon) icon.style.display = 'none';
+    }
+
+    markStagedOption();
+    syncApplyButton();
+  }
+
   function applyStagedAsset(options = {}) {
     if (!stagedAssetId || stagedAssetId === appliedAssetId || !originalSelectAsset) return;
     chainDefaultAutoApplyArmed = false;
+    const token = getCurrentSelectableSupplyToken(stagedAssetId);
+    if (!token) {
+      reconcileStalePendingSupplyAsset();
+      return;
+    }
     appliedAssetId = stagedAssetId;
     document.body.classList.remove('supply-has-pending-asset');
     setAssetState(true);
@@ -1769,7 +1816,10 @@
           return false;
         }
         const token = automatic.token;
-        if (!token || !originalSelectAsset) return false;
+        if (!token || !originalSelectAsset) {
+          reconcileStalePendingSupplyAsset();
+          return false;
+        }
         if (automatic.isDeepLink) supplyDeepLinkApplied = true;
         stagedAssetId = token.id;
         appliedAssetId = token.id;

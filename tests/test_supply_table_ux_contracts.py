@@ -126,6 +126,31 @@ class SupplyTableUxContractsTest(unittest.TestCase):
         self.assertIn("supplyAwaitingChainBundle = true;", chain_preamble)
         self.assertIn("if (chainDefaultAutoApplyArmed) return;", source)
 
+    def test_supply_confirm_rejects_a_missing_or_ineligible_staged_market(self):
+        source = SUPPLY_SCRIPT.read_text(encoding="utf-8")
+        apply_start = source.index("function applyStagedAsset(options = {})")
+        apply_end = source.index("function patchSelectionFunctions()", apply_start)
+        apply_block = source[apply_start:apply_end]
+        sync_start = source.index("function syncApplyButton()")
+        sync_end = source.index("function installApplyButton()", sync_start)
+        sync_block = source[sync_start:sync_end]
+        lookup = "const token = getCurrentSelectableSupplyToken(stagedAssetId);"
+        applied_assignment = "appliedAssetId = stagedAssetId;"
+
+        self.assertIn(lookup, sync_block)
+        self.assertIn("const hasPending = !!(token && stagedAssetId !== appliedAssetId);", sync_block)
+        self.assertIn(lookup, apply_block)
+        self.assertIn("if (!token) {", apply_block)
+        self.assertIn("reconcileStalePendingSupplyAsset();", apply_block)
+        self.assertLess(
+            apply_block.index(lookup),
+            apply_block.index(applied_assignment),
+        )
+        self.assertLess(
+            apply_block.index("chainDefaultAutoApplyArmed = false;"),
+            apply_block.index("if (!token) {"),
+        )
+
     def test_fresh_and_portfolio_position_summaries_share_metric_rail_contract(self):
         dolo = DOLO_VIEW.read_text(encoding="utf-8")
         portfolio = PORTFOLIO_VIEW.read_text(encoding="utf-8")
