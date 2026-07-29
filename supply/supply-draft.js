@@ -1,4 +1,128 @@
 (function () {
+  const SUPPLY_ASSET_ICON_CDN = 'https://app.dolomite.io/static/media/';
+  const SUPPLY_SUPPORTED_CHAINS = new Set([
+    'ethereum', 'berachain', 'arbitrum', 'mantle', 'xlayer', 'base', 'polygon_zkevm',
+  ]);
+  const SUPPLY_SAVETH_BASE = '0x23e3df1196b3249c9b0a9476f990f105591872de';
+  const SUPPLY_DSAVETH = '0x51bc8e41cbec0aa97ec07c73597829c70b2eed46';
+  const SUPPLY_SAVETH_ICON = SUPPLY_ASSET_ICON_CDN + 'savETH.1c28535854c4a65f2a4786a2f02ae499.svg';
+  const SUPPLY_MARKET_PRESENTATIONS = {
+    'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': ['gmARB-USD', 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg'],
+    'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': ['gmBTC-USD', 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg'],
+    'arbitrum:0x505582242757f16d72f8c4462a616e388ca1b074': ['gmETH-USD', 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg'],
+    'arbitrum:0x18cb14564fbb015bd3439220d177799355abc0e0': ['gmLINK-USD', 'LINK-GM.7d4b33346ec9822f9dc7c22a393f7698.svg'],
+    'arbitrum:0xb15bbbfcff6c411410c66642306d1ffa7ecec4d8': ['gmBTC', 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg'],
+    'arbitrum:0x2d165a76dd3e552df3860789331ab73c5a3d7f92': ['gmETH', 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg'],
+    'arbitrum:0x20d51cb520c4622dcc3d7e35003dbab07d547e7e': ['gmUNI-USD', 'UNI-GM.8a4dfd0dc79f5b60138039338d28a6c7.svg'],
+    'arbitrum:0x24c9121c75c099b38d40020872b8a0d2c27c614d': ['gmAAVE-USD', 'gmAAVE.e032a2febd818f511cf782e09b12f212.svg'],
+    'arbitrum:0x1beed3b7d1237b7773b5c4c249933e3ca5e027c1': ['gmDOGE-USD', 'gmDOGE.36090e2ebcd305890c779e005d41d331.svg'],
+    'arbitrum:0x5c99f6cf6069698d234d50bf69ebd2f53e45ed1c': ['gmGMX-USD', 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg'],
+    'arbitrum:0x1ebb1c7023addbb2b6e30e6f4c8d4a4440bfd412': ['gmSOL-USD', 'gmSOL.73d56a4a2dcf3d39fc5c946b8c65c631.svg'],
+    'arbitrum:0xc587646f67b38739006ed0200e2e0a26fdb01c9b': ['gmWstETH-USD', 'wstETH.2e97640d284bbe78da3776549d27ec47.svg'],
+    'arbitrum:0xcf248baf933c7b1b876b997246f25021a65383b3': ['gmGMX', 'gmGMX.2c5cb2e0f1769629b38580607b77ecbc.svg'],
+    'arbitrum:0xe5d6fe410c69b44c357403a1936b3bfaddbe340b': ['gmPENDLE-USD', 'gmPENDLE.cd8acede00414f70056c0fb9aa2baa7c.svg'],
+    'arbitrum:0x6586f1db71513daf94b0431156d225a46c00f20b': ['gmPEPE-USD', 'gmPEPE.966f4beb1b823729066c29c52921b664.svg'],
+    'arbitrum:0xf5063b40fa66ab2fbda2e6807ac5759a41a1b0c3': ['gmWIF-USD', 'gmWIF.8dfcfc27c0c56651a2e523e97c7fdcb4.svg'],
+  };
+  const SUPPLY_MATURITY_MONTHS = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+  };
+
+  function normalizeSupplyAddress(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function getSupplyMarketPresentation(token, chain) {
+    const chainKey = String(chain || '').trim().toLowerCase();
+    const address = normalizeSupplyAddress(token?.id);
+    const mapped = SUPPLY_MARKET_PRESENTATIONS[`${chainKey}:${address}`];
+
+    if (mapped) {
+      return {
+        symbol: mapped[0],
+        name: String(token?.name || 'Dolomite GM Market'),
+        icon: SUPPLY_ASSET_ICON_CDN + mapped[1],
+      };
+    }
+
+    if (chainKey === 'arbitrum' && address === SUPPLY_DSAVETH) {
+      return {
+        symbol: 'savETH',
+        name: String(token?.name || 'Savant ETH'),
+        icon: SUPPLY_SAVETH_ICON,
+      };
+    }
+
+    return {
+      symbol: String(token?.symbol || ''),
+      name: String(token?.name || ''),
+      icon: String(token?.icon || ''),
+    };
+  }
+
+  function isExpiredSupplyMarket(token, nowMs = Date.now()) {
+    if (
+      token?.isActive === false
+      || token?.active === false
+      || String(token?.status || '').toLowerCase() === 'inactive'
+    ) {
+      return true;
+    }
+
+    const match = String(token?.symbol || '').match(
+      /^dPT-.+-(\d{1,2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{4})$/i,
+    );
+    if (!match) return false;
+
+    const month = SUPPLY_MATURITY_MONTHS[match[2].toLowerCase()];
+    const maturityMs = Date.UTC(Number(match[3]), month, Number(match[1]), 23, 59, 59, 999);
+    return Number.isFinite(maturityMs) && maturityMs < Number(nowMs);
+  }
+
+  function getSelectableSupplyMarkets(tokens, chain, nowMs = Date.now()) {
+    const chainKey = String(chain || '').trim().toLowerCase();
+    const active = (Array.isArray(tokens) ? tokens : []).filter(
+      (token) => !isExpiredSupplyMarket(token, nowMs),
+    );
+    const hasActiveWrappedSavEth = chainKey === 'arbitrum' && active.some((token) => (
+      normalizeSupplyAddress(token?.id) === SUPPLY_DSAVETH
+      && Number(token?.supplyLiquidityUSD || 0) > 0
+    ));
+
+    return active.filter((token) => !(
+      hasActiveWrappedSavEth
+      && normalizeSupplyAddress(token?.id) === SUPPLY_SAVETH_BASE
+    ));
+  }
+
+  function filterSupplyMarketOptions(tokens, query, chain, nowMs = Date.now()) {
+    const normalizedQuery = String(query || '').trim().toLowerCase();
+    const options = getSelectableSupplyMarkets(tokens, chain, nowMs);
+    if (!normalizedQuery) return options;
+
+    return options.filter((token) => {
+      const presentation = getSupplyMarketPresentation(token, chain);
+      return [
+        presentation.symbol,
+        presentation.name,
+        token?.symbol,
+        token?.name,
+        token?.id,
+      ].some((value) => String(value || '').toLowerCase().includes(normalizedQuery));
+    });
+  }
+
+  function parseSupplyMarketDeepLink(search) {
+    const params = new URLSearchParams(String(search || '').replace(/^\?/, ''));
+    const chain = String(params.get('chain') || '').toLowerCase();
+    const asset = normalizeSupplyAddress(params.get('asset'));
+    if (!SUPPLY_SUPPORTED_CHAINS.has(chain) || !/^0x[a-f0-9]{40}$/.test(asset)) {
+      return null;
+    }
+    return { chain, asset };
+  }
+
   function buildSupplyTableFooter(page, totalPages, totalRows, perPage, pageHandler) {
     const total = Math.max(0, Number(totalRows) || 0);
     const currentPage = Math.max(1, Math.min(Number(page) || 1, Math.max(1, totalPages)));
@@ -34,7 +158,16 @@
   }
 
   if (typeof module === 'object' && module.exports && typeof document === 'undefined') {
-    module.exports = { formatSupplyCountBadge, buildSupplyTableFooter, getSupplyActivityHistoryPresentation };
+    module.exports = {
+      formatSupplyCountBadge,
+      buildSupplyTableFooter,
+      getSupplyActivityHistoryPresentation,
+      getSupplyMarketPresentation,
+      isExpiredSupplyMarket,
+      getSelectableSupplyMarkets,
+      filterSupplyMarketOptions,
+      parseSupplyMarketDeepLink,
+    };
     return;
   }
 
@@ -1285,7 +1418,6 @@
   }
 
   // Official Dolomite icons used by isolation-market asset selectors.
-  const SUPPLY_ASSET_ICON_CDN = 'https://app.dolomite.io/static/media/';
   const supplyAssetIconOverrides = {
     'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': SUPPLY_ASSET_ICON_CDN + 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg',
     'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': SUPPLY_ASSET_ICON_CDN + 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg',
