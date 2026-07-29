@@ -5,6 +5,11 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ui = require('../supply/supply-draft.js');
 
+const DGM_BTC = '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef';
+const SAVETH_BASE = '0x23e3df1196b3249c9b0a9476f990f105591872de';
+const DSAVETH = '0x51bc8e41cbec0aa97ec07c73597829c70b2eed46';
+const SAVETH_ICON = 'https://app.dolomite.io/static/media/savETH.1c28535854c4a65f2a4786a2f02ae499.svg';
+
 const liquidationSource = fs.readFileSync(
   path.join(__dirname, '..', 'liquidation-preview.html'),
   'utf8',
@@ -115,4 +120,67 @@ test('new-market loading does not inherit a previous full-history error', async 
     await captureNewMarketLoadingPresentation({ activityFullError: true }),
     { copy: 'Loading latest 30D activity…', mode: 'loading' },
   );
+});
+
+test('Supply resolves exact GM labels and icons by chain plus address', () => {
+  const presentation = ui.getSupplyMarketPresentation({
+    id: DGM_BTC,
+    symbol: 'dGM',
+    name: 'Dolomite Isolation: GMX Market',
+  }, 'arbitrum');
+  assert.equal(presentation.symbol, 'gmBTC-USD');
+  assert.match(presentation.icon, /WBTC-GM/);
+});
+
+test('Supply presents the active dsavETH wrapper as savETH with the official icon', () => {
+  const presentation = ui.getSupplyMarketPresentation({
+    id: DSAVETH,
+    symbol: 'dsavETH',
+    name: 'Dolomite Isolation: Staked avETH',
+  }, 'arbitrum');
+  assert.equal(presentation.symbol, 'savETH');
+  assert.equal(presentation.icon, SAVETH_ICON);
+});
+
+test('Supply removes the obsolete savETH duplicate when active dsavETH exists', () => {
+  const tokens = [
+    { id: SAVETH_BASE, symbol: 'savETH', supplyLiquidityUSD: '0' },
+    { id: DSAVETH, symbol: 'dsavETH', supplyLiquidityUSD: '1081512.89' },
+  ];
+  assert.deepEqual(
+    ui.getSelectableSupplyMarkets(tokens, 'arbitrum').map(token => token.id),
+    [DSAVETH],
+  );
+});
+
+test('Supply removes matured dPT markets but preserves future and undated tokens', () => {
+  const now = Date.UTC(2026, 6, 29);
+  const tokens = [
+    { id: '0x1', symbol: 'dPT-rsETH-26SEP2024' },
+    { id: '0x2', symbol: 'dPT-rsETH-26SEP2027' },
+    { id: '0x3', symbol: 'WETH' },
+  ];
+  assert.deepEqual(
+    ui.getSelectableSupplyMarkets(tokens, 'arbitrum', now).map(token => token.id),
+    ['0x2', '0x3'],
+  );
+});
+
+test('Supply asset search matches resolved and raw market identities', () => {
+  const token = {
+    id: DGM_BTC,
+    symbol: 'dGM',
+    name: 'Dolomite Isolation: GMX Market',
+  };
+  assert.deepEqual(ui.filterSupplyMarketOptions([token], 'gmBTC-USD', 'arbitrum'), [token]);
+  assert.deepEqual(ui.filterSupplyMarketOptions([token], 'dGM', 'arbitrum'), [token]);
+});
+
+test('Supply deep links require a supported chain and exact token address', () => {
+  assert.deepEqual(
+    ui.parseSupplyMarketDeepLink(`?chain=arbitrum&asset=${DGM_BTC}`),
+    { chain: 'arbitrum', asset: DGM_BTC },
+  );
+  assert.equal(ui.parseSupplyMarketDeepLink('?chain=arbitrum&asset=dGM'), null);
+  assert.equal(ui.parseSupplyMarketDeepLink('?chain=unknown&asset=0x1111111111111111111111111111111111111111'), null);
 });
