@@ -118,6 +118,40 @@ class TestBorrowHeroUx(unittest.TestCase):
 
 
 class TestBorrowTableHeaderUx(unittest.TestCase):
+    def test_table_and_simulator_headings_match_dolo_holders_scale(self):
+        self.assertIn(
+            "body.route-liquidation .liquidation-table-heading h3,\n"
+            "        body.route-liquidation .liquidation-sim-title {",
+            SOURCE,
+        )
+        heading_start = SOURCE.rindex(
+            "body.route-liquidation .liquidation-table-heading h3,"
+        )
+        heading_block = SOURCE[heading_start:SOURCE.index("}", heading_start)]
+        self.assertIn("font-size: 16px !important", heading_block)
+        self.assertIn("font-weight: 600 !important", heading_block)
+
+        count_start = SOURCE.rindex(
+            "body.route-liquidation .liquidation-table-title-row .header-count"
+        )
+        count_block = SOURCE[count_start:SOURCE.index("}", count_start)]
+        self.assertIn("font-size: 11px !important", count_block)
+        self.assertIn("background: var(--bg-3) !important", count_block)
+        self.assertIn("border: 1px solid var(--line-2) !important", count_block)
+        self.assertIn("border-radius: 999px !important", count_block)
+
+        header_start = SOURCE.rindex(
+            "body.route-liquidation .liquidation-table-header"
+        )
+        header_block = SOURCE[header_start:SOURCE.index("}", header_start)]
+        self.assertIn("padding: 20px 24px 18px !important", header_block)
+
+        subtitle_start = SOURCE.rindex(
+            "body.route-liquidation .liquidation-table-subtitle,"
+        )
+        subtitle_block = SOURCE[subtitle_start:SOURCE.index("}", subtitle_start)]
+        self.assertIn("font-size: 12px !important", subtitle_block)
+
     def test_redundant_kickers_and_old_metadata_are_removed(self):
         self.assertNotIn("Position Monitor", SOURCE)
         self.assertNotIn("Liquidation Log", SOURCE)
