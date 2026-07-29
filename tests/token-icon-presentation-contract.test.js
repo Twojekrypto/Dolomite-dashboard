@@ -8,6 +8,10 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const OFFICIAL_SAVETH_ICON = 'https://app.dolomite.io/static/media/savETH.1c28535854c4a65f2a4786a2f02ae499.svg';
 const OFFICIAL_DARB_ICON = 'https://app.dolomite.io/static/media/oARB.a2c6c20bd4a19274b88e208e43f7ffa3.svg';
+const OFFICIAL_WBTC_GM_ICON = 'https://app.dolomite.io/static/media/WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg';
+const SUPPLY_DSAVETH = '0x51bc8e41cbec0aa97ec07c73597829c70b2eed46';
+const SUPPLY_GMBTC_USD = '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef';
+const supplyUi = require('../supply/supply-draft.js');
 
 function loadTokenIconResolver(file) {
   const source = read(file);
@@ -57,4 +61,21 @@ test('Supply Pool Health resolves dARB to the official Dolomite ARB market icon'
   const tvlTokenIcon = loadTokenIconResolver('tvl-preview.html');
 
   assert.equal(tvlTokenIcon('dARB'), OFFICIAL_DARB_ICON);
+});
+
+test('Supply selector resolves canonical savETH and GM market icons', () => {
+  assert.equal(
+    supplyUi.getSupplyMarketPresentation(
+      { id: SUPPLY_DSAVETH, symbol: 'dsavETH' },
+      'arbitrum',
+    ).icon,
+    OFFICIAL_SAVETH_ICON,
+  );
+  assert.equal(
+    supplyUi.getSupplyMarketPresentation(
+      { id: SUPPLY_GMBTC_USD, symbol: 'dGM' },
+      'arbitrum',
+    ).icon,
+    OFFICIAL_WBTC_GM_ICON,
+  );
 });

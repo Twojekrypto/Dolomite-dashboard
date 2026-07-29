@@ -66,6 +66,53 @@ class SupplyTableUxContractsTest(unittest.TestCase):
         self.assert_source_has('supply-activity-toolbar-actions', source, "Asset Activity script")
         self.assert_source_has('supply-draft-activity-continuous-surface', styles, "Asset Activity styles")
 
+    def test_supply_asset_selector_uses_filtered_single_select_market_options(self):
+        source = SUPPLY_SCRIPT.read_text(encoding="utf-8")
+        styles = SUPPLY_STYLES.read_text(encoding="utf-8")
+
+        self.assertIn("filterSupplyMarketOptions(currentSupplyTokensList", source)
+        self.assertIn("option.setAttribute('aria-selected', selected ? 'true' : 'false')", source)
+        self.assertIn("child.setAttribute('aria-selected', selected ? 'true' : 'false')", source)
+        self.assertIn("activateSupplyMarketDeepLink()", source)
+        self.assertIn("getSupplyMarketPresentation(token, getCurrentSupplyChain())", source)
+        self.assertIn(
+            "body.supply-draft-route #asset-options-container "
+            ".premium-supply-dropdown-item::before",
+            styles,
+        )
+        checker_start = styles.index(
+            "body.supply-draft-route #asset-options-container "
+            ".premium-supply-dropdown-item::before"
+        )
+        checker_end = styles.index("}", checker_start)
+        asset_checker_block = styles[checker_start:checker_end + 1]
+        self.assertIn(
+            "body.supply-draft-route #asset-options-container "
+            ".premium-supply-dropdown-item.active::after",
+            styles,
+        )
+        self.assertIn("display: none !important", asset_checker_block)
+        suffix_start = styles.index(
+            "body.supply-draft-route #asset-options-container "
+            ".premium-supply-dropdown-item.active::after"
+        )
+        suffix_end = styles.index("}", suffix_start)
+        selected_suffix_block = styles[suffix_start:suffix_end + 1]
+        self.assertIn("content: none !important", selected_suffix_block)
+
+    def test_supply_deep_link_preempts_async_chain_default_selection(self):
+        source = SUPPLY_SCRIPT.read_text(encoding="utf-8")
+        auto_start = source.index("if (options.auto) {")
+        token_lookup = source.index("const token = getSupplyToken(id);", auto_start)
+        auto_selection_guard = source[auto_start:token_lookup]
+
+        self.assertIn(
+            "if (!supplyDeepLinkApplied && activateSupplyMarketDeepLink()) return false;",
+            auto_selection_guard,
+        )
+        self.assertIn("chainDefaultAutoApplyArmed = false;", auto_selection_guard)
+        self.assertIn("if (chainDefaultAutoApplyArmed) return;", source)
+
     def test_fresh_and_portfolio_position_summaries_share_metric_rail_contract(self):
         dolo = DOLO_VIEW.read_text(encoding="utf-8")
         portfolio = PORTFOLIO_VIEW.read_text(encoding="utf-8")
