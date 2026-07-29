@@ -300,10 +300,6 @@
         return getSupplyHealthChainPresentation(market.chain).label.toUpperCase();
       case 'symbol':
         return getSupplyHealthMarketPresentation(market).symbol.toUpperCase();
-      case 'supply30dPct': {
-        const value = Number(market.growth?.supply30dPct);
-        return Number.isFinite(value) ? value : -Infinity;
-      }
       case 'scoreTotal': {
         const value = Number(market.score?.total);
         return Number.isFinite(value) ? value : -Infinity;
@@ -363,6 +359,12 @@
         </div>
       `).join('');
     const stats = [
+      {
+        label: '30D Supply Change',
+        value: formatHealthSignedPct(growth.supply30dPct),
+        tone: healthSignedClass(growth.supply30dPct),
+        featured: true,
+      },
       { label: 'Median / Wallet', value: formatHealthUsd(market.medianWalletUsd) },
       { label: 'Gini Coefficient', value: market.gini != null ? Number(market.gini).toFixed(3) : '—' },
       { label: '7D Supply', value: formatHealthSignedPct(growth.supply7dPct), tone: healthSignedClass(growth.supply7dPct) },
@@ -370,7 +372,7 @@
       { label: 'Avg Daily Move 30D', value: formatHealthPct(growth.avgDailyChange30dPct) },
       { label: 'Exit Impact', value: market.largestPct != null ? `−${formatHealthPct(market.largestPct)}` : '—' },
     ].map(stat => `
-      <div class="supply-health-detail-stat">
+      <div class="supply-health-detail-stat${stat.featured ? ' featured' : ''}">
         <div class="supply-health-detail-stat-label">${escapeHealthHtml(stat.label)}</div>
         <div class="supply-health-detail-stat-value ${stat.tone || ''}">${stat.value}</div>
       </div>
@@ -470,7 +472,6 @@
     const dataRows = pageData.rows.map(market => {
       const key = healthMarketKey(market);
       const expanded = state.expandedKey === key;
-      const growth30 = market.growth?.supply30dPct;
       const score = market.score || {};
       const icon = getHealthIcon(market);
       const presentation = getSupplyHealthMarketPresentation(market);
@@ -490,7 +491,8 @@
             data-health-toggle="${escapeHealthHtml(key)}"
             aria-label="${escapeHealthHtml(formatSupplyHealthDisclosureLabel(presentation.symbol, expanded))}"
             aria-expanded="${expanded ? 'true' : 'false'}">
-            <span aria-hidden="true">⌄</span>
+            <span>${expanded ? 'Hide' : 'Details'}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </td>`;
       return `
@@ -507,7 +509,6 @@
           <td class="num health-participation">${Number(market.wallets || 0).toLocaleString('en-US')}</td>
           <td class="num health-concentration" data-tip="${escapeHealthHtml(top10Tip)}">${formatHealthPct(market.top10Pct)}</td>
           <td class="num health-concentration" data-tip="${escapeHealthHtml(largestTip)}">${formatHealthPct(market.largestPct)}</td>
-          <td class="num ${healthSignedClass(growth30)}">${formatHealthSignedPct(growth30)}</td>
           <td class="num supply-health-score-cell">
             <span class="supply-health-score">${score.total != null ? Math.round(score.total) : '—'}</span>
             <span class="supply-health-grade ${healthGradeClass(score.grade)}">${escapeHealthHtml(score.grade || '·')}</span>
@@ -515,17 +516,17 @@
           ${detailsCell}
         </tr>
         ${expanded
-          ? `<tr class="supply-health-detail-row"><td colspan="9">${renderSupplyHealthDetail(market)}</td></tr>`
+          ? `<tr class="supply-health-detail-row"><td colspan="8">${renderSupplyHealthDetail(market)}</td></tr>`
           : ''}
       `;
     }).join('');
     const noMatches = markets.length === 0
-      ? '<tr class="supply-health-empty-row"><td colspan="9">No assets match the current filters.</td></tr>'
+      ? '<tr class="supply-health-empty-row"><td colspan="8">No assets match the current filters.</td></tr>'
       : '';
     const visibleSlots = markets.length === 0 ? 1 : pageData.rows.length;
     const spacerRows = Array.from(
       { length: Math.max(0, SUPPLY_HEALTH_PAGE_SIZE - visibleSlots) },
-      () => '<tr class="supply-health-spacer-row" aria-hidden="true"><td colspan="9">&nbsp;</td></tr>',
+      () => '<tr class="supply-health-spacer-row" aria-hidden="true"><td colspan="8">&nbsp;</td></tr>',
     ).join('');
     body.innerHTML = dataRows + noMatches + spacerRows;
 
