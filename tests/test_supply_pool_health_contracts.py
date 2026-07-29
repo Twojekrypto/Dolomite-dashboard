@@ -182,6 +182,27 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         self.assertIn("paginateSupplyHealthMarkets(markets, state.page", source)
         self.assertIn("window.supplyHealthGoPage", source)
 
+    def test_pool_health_keeps_a_fixed_scroll_viewport_through_expansion(self):
+        styles = TVL_STYLES.read_text(encoding="utf-8")
+
+        scroll_selector = "#supply-health-card .supply-health-scroll"
+        scroll_start = styles.index(scroll_selector)
+        scroll_block = styles[scroll_start:styles.index("}", scroll_start)]
+        self.assertIn("height: 662px", scroll_block)
+        self.assertIn("overflow-y: auto", scroll_block)
+
+        narrow_start = styles.index("@media (max-width: 840px)")
+        narrow_styles = styles[narrow_start:]
+        self.assertIn(
+            "#supply-health-card .supply-health-table thead th:nth-child(3),",
+            narrow_styles,
+        )
+        self.assertIn(
+            "#supply-health-card .supply-health-table tbody td:nth-child(7)",
+            narrow_styles,
+        )
+        self.assertIn("display: none", narrow_styles)
+
     def test_pool_health_footer_matches_holders_range_layout(self):
         html = TVL_VIEW.read_text(encoding="utf-8")
 
