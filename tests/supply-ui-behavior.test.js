@@ -241,6 +241,26 @@ test('a pending manual market survives a later automatic bundle pass until Confi
   });
 });
 
+test('a fresh bundle replaces a removed staged market with the selectable automatic fallback', () => {
+  assert.equal(typeof ui.getSupplyAutomaticSelection, 'function');
+  const fallback = {
+    id: WETH,
+    symbol: 'WETH',
+    supplyLiquidityUSD: '25',
+  };
+  const result = ui.getSupplyAutomaticSelection({
+    tokens: [fallback],
+    chain: 'arbitrum',
+    stagedAssetId: DGM_BTC,
+    appliedAssetId: '0x2222222222222222222222222222222222222222',
+    bundleReady: true,
+  });
+
+  assert.equal(result.status, 'apply');
+  assert.equal(result.token, fallback);
+  assert.equal(result.isDeepLink, false);
+});
+
 test('an awaited chain bundle cannot resolve a shared address from the old chain list', () => {
   assert.equal(typeof ui.getSupplyAutomaticSelection, 'function');
   const oldChainToken = {
