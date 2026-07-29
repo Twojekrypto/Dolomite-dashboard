@@ -8,6 +8,7 @@ const {
   filterSupplyHealthMarkets,
   formatHealthConcentrationTip,
   formatHealthUsd,
+  formatSupplyHealthDisclosureLabel,
   formatSupplyHealthPageRange,
   getSupplyHealthMarketPresentation,
   healthConcentrationLevel,
@@ -48,6 +49,11 @@ test('Supply Health builds an exact chain and address market link', () => {
     }),
     './supply/?chain=arbitrum&asset=0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef',
   );
+});
+
+test('Supply Health disclosure label reflects the expanded state', () => {
+  assert.equal(formatSupplyHealthDisclosureLabel('USD1', false), 'Show USD1 details');
+  assert.equal(formatSupplyHealthDisclosureLabel('USD1', true), 'Hide USD1 details');
 });
 
 test('asset search matches symbol, name, token id, and chain', () => {

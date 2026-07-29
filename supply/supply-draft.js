@@ -1677,7 +1677,7 @@
       if (token && token.id) child.dataset.assetId = token.id;
       const selected = !!(child.dataset.assetId && child.dataset.assetId === stagedAssetId);
       child.classList.toggle('active', selected);
-      child.setAttribute('aria-selected', selected ? 'true' : 'false');
+      child.setAttribute('aria-pressed', selected ? 'true' : 'false');
     });
   }
 
@@ -1708,7 +1708,7 @@
         option.type = 'button';
         option.className = `premium-supply-dropdown-item${selected ? ' active' : ''}`;
         option.dataset.assetId = token.id;
-        option.setAttribute('aria-selected', selected ? 'true' : 'false');
+        option.setAttribute('aria-pressed', selected ? 'true' : 'false');
         option.innerHTML = `
           <img src="${supplyDraftEscape(presentation.icon || getIconPath(token))}"
             alt="" aria-hidden="true">

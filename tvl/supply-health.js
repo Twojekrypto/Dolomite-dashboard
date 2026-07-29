@@ -96,6 +96,10 @@
     return `./supply/?chain=${encodeURIComponent(chain)}&asset=${encodeURIComponent(asset)}`;
   }
 
+  function formatSupplyHealthDisclosureLabel(symbol, expanded) {
+    return `${expanded ? 'Hide' : 'Show'} ${String(symbol || 'asset')} details`;
+  }
+
   function getSupplyHealthChainPresentation(chainKey) {
     const normalized = String(chainKey || '').trim().toLowerCase();
     return healthChains.find((chain) => chain.key === normalized) || {
@@ -484,7 +488,7 @@
         <td class="supply-health-details-cell">
           <button type="button" class="supply-health-row-toggle"
             data-health-toggle="${escapeHealthHtml(key)}"
-            aria-label="Show ${escapeHealthHtml(presentation.symbol || 'asset')} details"
+            aria-label="${escapeHealthHtml(formatSupplyHealthDisclosureLabel(presentation.symbol, expanded))}"
             aria-expanded="${expanded ? 'true' : 'false'}">
             <span aria-hidden="true">⌄</span>
           </button>
@@ -722,6 +726,7 @@
     filterSupplyHealthMarkets,
     formatHealthConcentrationTip,
     formatHealthUsd,
+    formatSupplyHealthDisclosureLabel,
     formatSupplyHealthPageRange,
     getSupplyHealthMarketPresentation,
     healthConcentrationLevel,
