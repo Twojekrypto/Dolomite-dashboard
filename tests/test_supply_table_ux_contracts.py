@@ -71,8 +71,9 @@ class SupplyTableUxContractsTest(unittest.TestCase):
         styles = SUPPLY_STYLES.read_text(encoding="utf-8")
 
         self.assertIn("filterSupplyMarketOptions(currentSupplyTokensList", source)
-        self.assertIn("option.setAttribute('aria-selected', selected ? 'true' : 'false')", source)
-        self.assertIn("child.setAttribute('aria-selected', selected ? 'true' : 'false')", source)
+        self.assertIn("option.setAttribute('aria-pressed', selected ? 'true' : 'false')", source)
+        self.assertIn("child.setAttribute('aria-pressed', selected ? 'true' : 'false')", source)
+        self.assertNotIn("aria-selected", source)
         self.assertIn("activateSupplyMarketDeepLink()", source)
         self.assertIn("getSupplyMarketPresentation(token, getCurrentSupplyChain())", source)
         self.assertIn(
