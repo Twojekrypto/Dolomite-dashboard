@@ -86,7 +86,23 @@
       : {
           symbol: String(market?.symbol || ''),
           name: String(market?.name || ''),
-        };
+      };
+  }
+
+  function buildSupplyMarketHref(market) {
+    const chain = String(market?.chain || '').trim().toLowerCase();
+    const asset = String(market?.tokenId || '').trim().toLowerCase();
+    if (!chain || !/^0x[a-f0-9]{40}$/.test(asset)) return './supply/';
+    return `./supply/?chain=${encodeURIComponent(chain)}&asset=${encodeURIComponent(asset)}`;
+  }
+
+  function getSupplyHealthChainPresentation(chainKey) {
+    const normalized = String(chainKey || '').trim().toLowerCase();
+    return healthChains.find((chain) => chain.key === normalized) || {
+      key: normalized,
+      label: chainKey || '—',
+      icon: 'dolomite-logo.svg',
+    };
   }
 
   function isExpiredSupplyHealthMarket(market, nowMs = Date.now()) {
@@ -276,6 +292,8 @@
 
   function healthSortValue(market, field) {
     switch (field) {
+      case 'chain':
+        return getSupplyHealthChainPresentation(market.chain).label.toUpperCase();
       case 'symbol':
         return getSupplyHealthMarketPresentation(market).symbol.toUpperCase();
       case 'supply30dPct': {
@@ -353,6 +371,11 @@
         <div class="supply-health-detail-stat-value ${stat.tone || ''}">${stat.value}</div>
       </div>
     `).join('');
+    const supplyHref = buildSupplyMarketHref(market);
+    const marketAction = `
+      <a class="supply-health-market-link" href="${escapeHealthHtml(supplyHref)}">
+        Open Supply markets
+      </a>`;
 
     return `
       <div class="supply-health-detail">
@@ -367,7 +390,7 @@
         <div class="supply-health-detail-col">
           <div class="supply-health-detail-title">Largest Suppliers</div>
           ${topWallets || '<div class="supply-health-detail-empty">No supplier data</div>'}
-          <a class="supply-health-open-market" href="./supply/">Open Supply markets</a>
+          ${marketAction}
         </div>
       </div>
     `;
@@ -447,14 +470,29 @@
       const score = market.score || {};
       const icon = getHealthIcon(market);
       const presentation = getSupplyHealthMarketPresentation(market);
+      const chain = getSupplyHealthChainPresentation(market.chain);
       const top10Tip = formatHealthConcentrationTip('top10', market.top10Pct);
       const largestTip = formatHealthConcentrationTip('largest', market.largestPct);
+      const chainCell = `
+        <td class="supply-health-chain-cell">
+          <span class="supply-health-chain-badge">
+            <img src="${escapeHealthHtml(chain.icon)}" alt="" aria-hidden="true">
+            <span>${escapeHealthHtml(chain.label)}</span>
+          </span>
+        </td>`;
+      const detailsCell = `
+        <td class="supply-health-details-cell">
+          <button type="button" class="supply-health-row-toggle"
+            data-health-toggle="${escapeHealthHtml(key)}"
+            aria-label="Show ${escapeHealthHtml(presentation.symbol || 'asset')} details"
+            aria-expanded="${expanded ? 'true' : 'false'}">
+            <span aria-hidden="true">⌄</span>
+          </button>
+        </td>`;
       return `
         <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${escapeHealthHtml(key)}" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}">
+          ${chainCell}
           <td class="supply-health-asset-cell">
-            <button type="button" class="supply-health-expander" data-health-toggle="${escapeHealthHtml(key)}" aria-label="${expanded ? 'Hide' : 'Show'} ${escapeHealthHtml(presentation.symbol || 'asset')} health details" aria-expanded="${expanded ? 'true' : 'false'}">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
             <img class="supply-health-asset-icon" src="${escapeHealthHtml(icon)}" alt="" onerror="this.src='dolomite-logo.svg'">
             <span class="supply-health-asset-copy">
               <span class="supply-health-asset-symbol">${escapeHealthHtml(presentation.symbol)}</span>
@@ -463,7 +501,6 @@
           </td>
           <td class="num">${formatHealthUsd(market.supplyUsd)}</td>
           <td class="num health-participation">${Number(market.wallets || 0).toLocaleString('en-US')}</td>
-          <td class="num">${formatHealthUsd(market.avgWalletUsd)}</td>
           <td class="num health-concentration" data-tip="${escapeHealthHtml(top10Tip)}">${formatHealthPct(market.top10Pct)}</td>
           <td class="num health-concentration" data-tip="${escapeHealthHtml(largestTip)}">${formatHealthPct(market.largestPct)}</td>
           <td class="num ${healthSignedClass(growth30)}">${formatHealthSignedPct(growth30)}</td>
@@ -471,19 +508,20 @@
             <span class="supply-health-score">${score.total != null ? Math.round(score.total) : '—'}</span>
             <span class="supply-health-grade ${healthGradeClass(score.grade)}">${escapeHealthHtml(score.grade || '·')}</span>
           </td>
+          ${detailsCell}
         </tr>
         ${expanded
-          ? `<tr class="supply-health-detail-row"><td colspan="8">${renderSupplyHealthDetail(market)}</td></tr>`
+          ? `<tr class="supply-health-detail-row"><td colspan="9">${renderSupplyHealthDetail(market)}</td></tr>`
           : ''}
       `;
     }).join('');
     const noMatches = markets.length === 0
-      ? '<tr class="supply-health-empty-row"><td colspan="8">No assets match the current filters.</td></tr>'
+      ? '<tr class="supply-health-empty-row"><td colspan="9">No assets match the current filters.</td></tr>'
       : '';
     const visibleSlots = markets.length === 0 ? 1 : pageData.rows.length;
     const spacerRows = Array.from(
       { length: Math.max(0, SUPPLY_HEALTH_PAGE_SIZE - visibleSlots) },
-      () => '<tr class="supply-health-spacer-row" aria-hidden="true"><td colspan="8">&nbsp;</td></tr>',
+      () => '<tr class="supply-health-spacer-row" aria-hidden="true"><td colspan="9">&nbsp;</td></tr>',
     ).join('');
     body.innerHTML = dataRows + noMatches + spacerRows;
 
@@ -493,7 +531,7 @@
     };
     body.querySelectorAll('.supply-health-row').forEach(row => {
       row.addEventListener('click', event => {
-        if (event.target.closest('a, button')) return;
+        if (event.target.closest('a, button, input, select, textarea, [role="button"], [contenteditable="true"]')) return;
         toggleRow(row.dataset.healthKey || '');
       });
       row.addEventListener('keydown', event => {
@@ -679,6 +717,7 @@
   }
 
   return {
+    buildSupplyMarketHref,
     clearSupplyHealthSearch,
     filterSupplyHealthMarkets,
     formatHealthConcentrationTip,

@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const publishedSupplyHealth = require('../data/supply-health/latest.json');
 
 const {
+  buildSupplyMarketHref,
   clearSupplyHealthSearch,
   filterSupplyHealthMarkets,
   formatHealthConcentrationTip,
@@ -38,6 +39,16 @@ const markets = [
     supplyUsd: 100,
   },
 ];
+
+test('Supply Health builds an exact chain and address market link', () => {
+  assert.equal(
+    buildSupplyMarketHref({
+      chain: 'arbitrum',
+      tokenId: '0x1E8E8B7A2F827B3BC12B00EE402145061B7050EF',
+    }),
+    './supply/?chain=arbitrum&asset=0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef',
+  );
+});
 
 test('asset search matches symbol, name, token id, and chain', () => {
   assert.deepEqual(

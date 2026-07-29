@@ -42,6 +42,10 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         self.assertIn('tabindex="0"', source)
         self.assertIn('aria-expanded="${expanded ? \'true\' : \'false\'}"', source)
         self.assertIn("event.key === 'Enter' || event.key === ' '", source)
+        self.assertIn(
+            "event.target.closest('a, button, input, select, textarea, [role=\"button\"], [contenteditable=\"true\"]')",
+            source,
+        )
 
     def test_pool_health_uses_white_rows_and_gold_interaction_rail(self):
         styles = TVL_STYLES.read_text(encoding="utf-8")
@@ -57,8 +61,24 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         block = styles[start:styles.index("}", start)]
         self.assertIn("background: var(--gold)", block)
 
-    def test_pool_health_rows_match_holders_typography_and_center_requested_columns(self):
+    def test_pool_health_uses_nine_columns_with_chain_and_details_controls(self):
+        html = TVL_VIEW.read_text(encoding="utf-8")
+        source = TVL_SCRIPT.read_text(encoding="utf-8")
         styles = TVL_STYLES.read_text(encoding="utf-8")
+
+        self.assertIn('<th data-health-sort="chain"><span class="th-content">Chain', html)
+        self.assertNotIn('data-health-sort="avgWalletUsd"', html)
+        self.assertIn('<th class="supply-health-details-head">Details</th>', html)
+        self.assertIn('class="supply-health-chain-cell"', source)
+        self.assertIn('class="supply-health-details-cell"', source)
+        self.assertIn('<td colspan="9">', source)
+
+        hover_start = styles.index(
+            "#supply-health-card .supply-health-table thead th[data-health-sort]:hover"
+        )
+        hover_end = styles.index("}", hover_start)
+        header_hover_block = styles[hover_start:hover_end + 1]
+        self.assertNotIn('background: var(--bg-3);', header_hover_block)
 
         numeric_selector = "#supply-health-card .supply-health-table tbody td.num"
         numeric_start = styles.rindex(numeric_selector)
@@ -67,20 +87,58 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         self.assertIn("font-weight: 500", numeric_block)
 
         centered_columns = (
-            "#supply-health-card .supply-health-table thead th:nth-child(3),\n"
             "#supply-health-card .supply-health-table thead th:nth-child(4),\n"
             "#supply-health-card .supply-health-table thead th:nth-child(5),\n"
             "#supply-health-card .supply-health-table thead th:nth-child(6),\n"
             "#supply-health-card .supply-health-table thead th:nth-child(7),\n"
-            "#supply-health-card .supply-health-table tbody td:nth-child(3),\n"
+            "#supply-health-card .supply-health-table thead th:nth-child(8),\n"
+            "#supply-health-card .supply-health-table thead th:nth-child(9),\n"
             "#supply-health-card .supply-health-table tbody td:nth-child(4),\n"
             "#supply-health-card .supply-health-table tbody td:nth-child(5),\n"
             "#supply-health-card .supply-health-table tbody td:nth-child(6),\n"
-            "#supply-health-card .supply-health-table tbody td:nth-child(7)"
+            "#supply-health-card .supply-health-table tbody td:nth-child(7),\n"
+            "#supply-health-card .supply-health-table tbody td:nth-child(8),\n"
+            "#supply-health-card .supply-health-table tbody td:nth-child(9)"
         )
         centered_start = styles.index(centered_columns)
         centered_block = styles[centered_start:styles.index("}", centered_start)]
         self.assertIn("text-align: center", centered_block)
+
+        self.assertNotIn(
+            "#supply-health-card .supply-health-table thead th:nth-child(3),\n"
+            "#supply-health-card .supply-health-table thead th:nth-child(4),\n"
+            "#supply-health-card .supply-health-table thead th:nth-child(5)",
+            styles,
+        )
+
+        narrow_hidden_columns = (
+            "  #supply-health-card .supply-health-table thead th:nth-child(3),\n"
+            "  #supply-health-card .supply-health-table thead th:nth-child(4),\n"
+            "  #supply-health-card .supply-health-table thead th:nth-child(5),\n"
+            "  #supply-health-card .supply-health-table thead th:nth-child(6),\n"
+            "  #supply-health-card .supply-health-table thead th:nth-child(7),\n"
+            "  #supply-health-card .supply-health-table tbody td:nth-child(3),\n"
+            "  #supply-health-card .supply-health-table tbody td:nth-child(4),\n"
+            "  #supply-health-card .supply-health-table tbody td:nth-child(5),\n"
+            "  #supply-health-card .supply-health-table tbody td:nth-child(6),\n"
+            "  #supply-health-card .supply-health-table tbody td:nth-child(7)"
+        )
+        self.assertIn(narrow_hidden_columns + " {\n    display: none", styles)
+        self.assertIn(
+            "  #supply-health-card .supply-health-table thead th,\n"
+            "  #supply-health-card .supply-health-table tbody td {\n"
+            "    padding-right: 8px;\n"
+            "    padding-left: 8px;",
+            styles,
+        )
+        self.assertIn(
+            "  #supply-health-card .supply-health-table thead th:nth-child(2) { width: 42%; }\n"
+            "  #supply-health-card .supply-health-table thead th:nth-child(8) { width: 17%; }\n"
+            "  #supply-health-card .supply-health-table thead th:nth-child(9) {\n"
+            "    width: 13%;\n"
+            "    padding: 0;",
+            styles,
+        )
 
     def test_pool_health_semantic_colors_are_card_scoped(self):
         source = TVL_SCRIPT.read_text(encoding="utf-8")

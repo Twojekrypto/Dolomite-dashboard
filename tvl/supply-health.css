@@ -273,23 +273,27 @@
   transition: color .15s var(--ease), background .15s var(--ease);
 }
 
-#supply-health-card .supply-health-table thead th:hover {
+#supply-health-card .supply-health-table thead th[data-health-sort]:hover {
   color: var(--fg-1);
-  background: var(--bg-3);
 }
 
 #supply-health-card .supply-health-table thead th.sorted {
   color: var(--gold);
 }
 
-#supply-health-card .supply-health-table thead th:first-child { width: 27%; }
-#supply-health-card .supply-health-table thead th:nth-child(2) { width: 13%; }
-#supply-health-card .supply-health-table thead th:nth-child(3) { width: 10%; }
-#supply-health-card .supply-health-table thead th:nth-child(4) { width: 12%; }
+#supply-health-card .supply-health-details-head {
+  cursor: default;
+}
+
+#supply-health-card .supply-health-table thead th:nth-child(1) { width: 12%; }
+#supply-health-card .supply-health-table thead th:nth-child(2) { width: 23%; }
+#supply-health-card .supply-health-table thead th:nth-child(3) { width: 13%; }
+#supply-health-card .supply-health-table thead th:nth-child(4) { width: 10%; }
 #supply-health-card .supply-health-table thead th:nth-child(5),
 #supply-health-card .supply-health-table thead th:nth-child(6) { width: 9%; }
-#supply-health-card .supply-health-table thead th:nth-child(7) { width: 11%; }
+#supply-health-card .supply-health-table thead th:nth-child(7) { width: 10%; }
 #supply-health-card .supply-health-table thead th:nth-child(8) { width: 9%; }
+#supply-health-card .supply-health-table thead th:nth-child(9) { width: 5%; }
 
 #supply-health-card .supply-health-table thead th.num,
 #supply-health-card .supply-health-table tbody td.num {
@@ -308,33 +312,35 @@
   justify-content: flex-end;
 }
 
-#supply-health-card .supply-health-table thead th:nth-child(3),
 #supply-health-card .supply-health-table thead th:nth-child(4),
 #supply-health-card .supply-health-table thead th:nth-child(5),
 #supply-health-card .supply-health-table thead th:nth-child(6),
 #supply-health-card .supply-health-table thead th:nth-child(7),
-#supply-health-card .supply-health-table tbody td:nth-child(3),
+#supply-health-card .supply-health-table thead th:nth-child(8),
+#supply-health-card .supply-health-table thead th:nth-child(9),
 #supply-health-card .supply-health-table tbody td:nth-child(4),
 #supply-health-card .supply-health-table tbody td:nth-child(5),
 #supply-health-card .supply-health-table tbody td:nth-child(6),
-#supply-health-card .supply-health-table tbody td:nth-child(7) {
+#supply-health-card .supply-health-table tbody td:nth-child(7),
+#supply-health-card .supply-health-table tbody td:nth-child(8),
+#supply-health-card .supply-health-table tbody td:nth-child(9) {
   text-align: center;
 }
 
-#supply-health-card .supply-health-table thead th:nth-child(3) .th-content,
 #supply-health-card .supply-health-table thead th:nth-child(4) .th-content,
 #supply-health-card .supply-health-table thead th:nth-child(5) .th-content,
 #supply-health-card .supply-health-table thead th:nth-child(6) .th-content,
-#supply-health-card .supply-health-table thead th:nth-child(7) .th-content {
+#supply-health-card .supply-health-table thead th:nth-child(7) .th-content,
+#supply-health-card .supply-health-table thead th:nth-child(8) .th-content {
   position: relative;
   justify-content: center;
 }
 
-#supply-health-card .supply-health-table thead th:nth-child(3) .sort-arrow,
 #supply-health-card .supply-health-table thead th:nth-child(4) .sort-arrow,
 #supply-health-card .supply-health-table thead th:nth-child(5) .sort-arrow,
 #supply-health-card .supply-health-table thead th:nth-child(6) .sort-arrow,
-#supply-health-card .supply-health-table thead th:nth-child(7) .sort-arrow {
+#supply-health-card .supply-health-table thead th:nth-child(7) .sort-arrow,
+#supply-health-card .supply-health-table thead th:nth-child(8) .sort-arrow {
   position: absolute;
   right: 0;
 }
@@ -419,13 +425,37 @@
   min-width: 0;
 }
 
-#supply-health-card .supply-health-expander {
+#supply-health-card .supply-health-chain-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--fg-1);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+#supply-health-card .supply-health-chain-badge img {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg-3);
+  object-fit: contain;
+}
+
+#supply-health-card .supply-health-details-cell {
+  padding-right: 14px;
+  padding-left: 14px;
+}
+
+#supply-health-card .supply-health-row-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
-  margin-right: 8px;
   flex: 0 0 auto;
   border: 1px solid var(--line-2);
   border-radius: 6px;
@@ -434,27 +464,24 @@
   transition: border-color .15s var(--ease), background .15s var(--ease), color .15s var(--ease);
 }
 
-#supply-health-card .supply-health-expander svg {
-  width: 13px;
-  height: 13px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+#supply-health-card .supply-health-row-toggle span {
+  display: block;
+  font-family: var(--mono);
+  font-size: 16px;
+  line-height: 1;
   transition: transform .15s var(--ease);
 }
 
-#supply-health-card .supply-health-expander:hover,
-#supply-health-card .supply-health-expander:focus-visible,
-#supply-health-card .supply-health-row.expanded .supply-health-expander {
+#supply-health-card .supply-health-row-toggle:hover,
+#supply-health-card .supply-health-row-toggle:focus-visible,
+#supply-health-card .supply-health-row.expanded .supply-health-row-toggle {
   border-color: var(--gold-line);
   outline: 0;
   background: var(--gold-wash);
   color: var(--gold);
 }
 
-#supply-health-card .supply-health-row.expanded .supply-health-expander svg {
+#supply-health-card .supply-health-row.expanded .supply-health-row-toggle span {
   transform: rotate(180deg);
 }
 
@@ -672,7 +699,7 @@
   font-size: 12px;
 }
 
-#supply-health-card .supply-health-open-market {
+#supply-health-card .supply-health-market-link {
   display: inline-flex;
   align-items: center;
   min-height: 32px;
@@ -686,8 +713,8 @@
   font-weight: 600;
 }
 
-#supply-health-card .supply-health-open-market:hover,
-#supply-health-card .supply-health-open-market:focus-visible {
+#supply-health-card .supply-health-market-link:hover,
+#supply-health-card .supply-health-market-link:focus-visible {
   outline: 0;
   background: rgba(201, 162, 39, .16);
 }
@@ -786,6 +813,38 @@
     left: 0;
     width: 100%;
     max-width: none;
+  }
+
+  #supply-health-card .supply-health-table {
+    min-width: 0;
+  }
+
+  #supply-health-card .supply-health-table thead th,
+  #supply-health-card .supply-health-table tbody td {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  #supply-health-card .supply-health-table thead th:nth-child(1) { width: 28%; }
+  #supply-health-card .supply-health-table thead th:nth-child(2) { width: 42%; }
+  #supply-health-card .supply-health-table thead th:nth-child(8) { width: 17%; }
+  #supply-health-card .supply-health-table thead th:nth-child(9) {
+    width: 13%;
+    padding: 0;
+    letter-spacing: .6px;
+  }
+
+  #supply-health-card .supply-health-table thead th:nth-child(3),
+  #supply-health-card .supply-health-table thead th:nth-child(4),
+  #supply-health-card .supply-health-table thead th:nth-child(5),
+  #supply-health-card .supply-health-table thead th:nth-child(6),
+  #supply-health-card .supply-health-table thead th:nth-child(7),
+  #supply-health-card .supply-health-table tbody td:nth-child(3),
+  #supply-health-card .supply-health-table tbody td:nth-child(4),
+  #supply-health-card .supply-health-table tbody td:nth-child(5),
+  #supply-health-card .supply-health-table tbody td:nth-child(6),
+  #supply-health-card .supply-health-table tbody td:nth-child(7) {
+    display: none;
   }
 
   #supply-health-card .supply-health-detail {
