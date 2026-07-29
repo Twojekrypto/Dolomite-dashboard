@@ -123,6 +123,63 @@
     return { chain, asset };
   }
 
+  function getTokenSupplyLiquidityUsd(token) {
+    return Math.max(0, Number.parseFloat(token?.supplyLiquidityUSD || '0') || 0);
+  }
+
+  function getLargestSupplyToken(tokens) {
+    const safeTokens = Array.isArray(tokens) ? tokens : [];
+    return safeTokens
+      .slice()
+      .sort((a, b) => {
+        const supplyDiff = getTokenSupplyLiquidityUsd(b) - getTokenSupplyLiquidityUsd(a);
+        if (Math.abs(supplyDiff) > 1e-9) return supplyDiff;
+        return (Number.parseInt(a?.marketId || '0', 10) || 0) - (Number.parseInt(b?.marketId || '0', 10) || 0);
+      })[0] || null;
+  }
+
+  function getSupplyAutomaticSelection({
+    tokens,
+    chain,
+    requestedMarket = null,
+    defaultSymbol = '',
+    stagedAssetId = '',
+    appliedAssetId = '',
+    awaitingChainBundle = false,
+    bundleReady = false,
+    nowMs = Date.now(),
+  } = {}) {
+    if (stagedAssetId && stagedAssetId !== appliedAssetId) {
+      return { status: 'preserve', token: null, isDeepLink: false };
+    }
+    if (awaitingChainBundle && !bundleReady) {
+      return { status: 'wait', token: null, isDeepLink: false };
+    }
+
+    const selectable = getSelectableSupplyMarkets(tokens, chain, nowMs);
+    if (requestedMarket && requestedMarket.chain === String(chain || '').toLowerCase()) {
+      const requested = selectable.find(
+        (token) => normalizeSupplyAddress(token?.id) === requestedMarket.asset,
+      );
+      if (requested) {
+        return { status: 'apply', token: requested, isDeepLink: true };
+      }
+    }
+
+    const normalizedDefault = String(defaultSymbol || '').toUpperCase();
+    const configured = normalizedDefault
+      ? selectable.find(
+        (token) => String(token?.symbol || '').toUpperCase() === normalizedDefault,
+      )
+      : null;
+    const fallback = configured || getLargestSupplyToken(selectable);
+    return {
+      status: fallback ? 'apply' : 'none',
+      token: fallback || null,
+      isDeepLink: false,
+    };
+  }
+
   function buildSupplyTableFooter(page, totalPages, totalRows, perPage, pageHandler) {
     const total = Math.max(0, Number(totalRows) || 0);
     const currentPage = Math.max(1, Math.min(Number(page) || 1, Math.max(1, totalPages)));
@@ -167,6 +224,7 @@
       getSelectableSupplyMarkets,
       filterSupplyMarketOptions,
       parseSupplyMarketDeepLink,
+      getSupplyAutomaticSelection,
     };
     return;
   }
@@ -207,6 +265,7 @@
   let stagedAssetId = '';
   let appliedAssetId = '';
   let chainDefaultAutoApplyArmed = false;
+  let supplyAwaitingChainBundle = false;
   const SUPPLY_CHAIN_LABELS = {
     ethereum: 'Ethereum',
     berachain: 'Berachain',
@@ -1357,49 +1416,22 @@
     return null;
   }
 
-  function getTokenSupplyLiquidityUsd(token) {
-    return Math.max(0, Number.parseFloat(token?.supplyLiquidityUSD || '0') || 0);
-  }
-
-  function getLargestSupplyToken(tokens) {
-    const safeTokens = Array.isArray(tokens) ? tokens : [];
-    return safeTokens
-      .slice()
-      .sort((a, b) => {
-        const supplyDiff = getTokenSupplyLiquidityUsd(b) - getTokenSupplyLiquidityUsd(a);
-        if (Math.abs(supplyDiff) > 1e-9) return supplyDiff;
-        return (Number.parseInt(a?.marketId || '0', 10) || 0) - (Number.parseInt(b?.marketId || '0', 10) || 0);
-      })[0] || null;
-  }
-
   function getDefaultSupplyToken() {
     let tokens = [];
     try {
       if (typeof currentSupplyTokensList !== 'undefined' && Array.isArray(currentSupplyTokensList)) {
-        tokens = getSelectableSupplyMarkets(
-          currentSupplyTokensList,
-          getCurrentSupplyChain(),
-        );
+        tokens = currentSupplyTokensList;
       }
     } catch (error) {}
-
-    if (
-      requestedSupplyMarket
-      && requestedSupplyMarket.chain === getCurrentSupplyChain()
-    ) {
-      const requested = tokens.find(
-        (token) => normalizeSupplyAddress(token.id) === requestedSupplyMarket.asset,
-      );
-      if (requested) return requested;
-    }
-
-    if (defaultSupplyAssetSymbol) {
-      const configured = tokens.find(
-        (token) => String(token?.symbol || '').toUpperCase() === defaultSupplyAssetSymbol,
-      );
-      if (configured) return configured;
-    }
-    return getLargestSupplyToken(tokens);
+    return getSupplyAutomaticSelection({
+      tokens,
+      chain: getCurrentSupplyChain(),
+      requestedMarket: requestedSupplyMarket,
+      defaultSymbol: defaultSupplyAssetSymbol,
+      stagedAssetId,
+      appliedAssetId,
+      awaitingChainBundle: supplyAwaitingChainBundle,
+    }).token;
   }
 
   function activateSupplyMarketDeepLink() {
@@ -1411,13 +1443,18 @@
       window.selectSupplyChain(chain, label);
       return true;
     }
-    let selectable = [];
+    let automatic = null;
     try {
-      selectable = getSelectableSupplyMarkets(currentSupplyTokensList, chain);
+      automatic = getSupplyAutomaticSelection({
+        tokens: currentSupplyTokensList,
+        chain,
+        requestedMarket: requestedSupplyMarket,
+        stagedAssetId,
+        appliedAssetId,
+        awaitingChainBundle: supplyAwaitingChainBundle,
+      });
     } catch (error) {}
-    const token = selectable.find(
-      (candidate) => normalizeSupplyAddress(candidate.id) === requestedSupplyMarket.asset,
-    );
+    const token = automatic?.isDeepLink ? automatic.token : null;
     if (!token) return false;
     supplyDeepLinkApplied = true;
     window.selectSupplyAsset(token.id, { auto: true });
@@ -1714,16 +1751,32 @@
 
     window.selectSupplyAsset = function supplyDraftSelectAsset(id, options = {}) {
       if (options.auto) {
-        if (!supplyDeepLinkApplied && activateSupplyMarketDeepLink()) return false;
+        supplyAwaitingChainBundle = false;
         chainDefaultAutoApplyArmed = false;
-        const token = getSupplyToken(id);
+        const automatic = getSupplyAutomaticSelection({
+          tokens: currentSupplyTokensList,
+          chain: getCurrentSupplyChain(),
+          requestedMarket: requestedSupplyMarket,
+          defaultSymbol: defaultSupplyAssetSymbol,
+          stagedAssetId,
+          appliedAssetId,
+          bundleReady: true,
+        });
+        if (automatic.status === 'preserve') {
+          const pendingToken = getSupplyToken(stagedAssetId);
+          if (pendingToken) setSelectorUi(pendingToken, true);
+          syncApplyButton();
+          return false;
+        }
+        const token = automatic.token;
         if (!token || !originalSelectAsset) return false;
-        stagedAssetId = id;
-        appliedAssetId = id;
+        if (automatic.isDeepLink) supplyDeepLinkApplied = true;
+        stagedAssetId = token.id;
+        appliedAssetId = token.id;
         document.body.classList.remove('supply-has-pending-asset');
         setAssetState(true);
+        originalSelectAsset.call(window, token.id, { auto: true });
         setSelectorUi(token, false);
-        originalSelectAsset.call(window, id, { auto: true });
         syncApplyButton();
         return false;
       }
@@ -1735,6 +1788,7 @@
       stagedAssetId = '';
       appliedAssetId = '';
       chainDefaultAutoApplyArmed = true;
+      supplyAwaitingChainBundle = true;
       setAssetState(false);
       document.body.classList.remove('supply-has-pending-asset');
       const result = originalSelectChain.apply(this, arguments);

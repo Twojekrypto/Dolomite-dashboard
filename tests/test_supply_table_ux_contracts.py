@@ -103,14 +103,27 @@ class SupplyTableUxContractsTest(unittest.TestCase):
     def test_supply_deep_link_preempts_async_chain_default_selection(self):
         source = SUPPLY_SCRIPT.read_text(encoding="utf-8")
         auto_start = source.index("if (options.auto) {")
-        token_lookup = source.index("const token = getSupplyToken(id);", auto_start)
-        auto_selection_guard = source[auto_start:token_lookup]
-
-        self.assertIn(
-            "if (!supplyDeepLinkApplied && activateSupplyMarketDeepLink()) return false;",
-            auto_selection_guard,
+        auto_end = source.index("stageSupplyAsset(id);", auto_start)
+        auto_selection = source[auto_start:auto_end]
+        chain_start = source.index(
+            "window.selectSupplyChain = function supplyDraftSelectChain()"
         )
-        self.assertIn("chainDefaultAutoApplyArmed = false;", auto_selection_guard)
+        original_chain_call = source.index(
+            "const result = originalSelectChain.apply(this, arguments);",
+            chain_start,
+        )
+        chain_preamble = source[chain_start:original_chain_call]
+
+        self.assertIn("getSupplyAutomaticSelection({", auto_selection)
+        self.assertIn("bundleReady: true", auto_selection)
+        self.assertIn("automatic.status === 'preserve'", auto_selection)
+        self.assertIn("chainDefaultAutoApplyArmed = false;", auto_selection)
+        self.assertIn("supplyAwaitingChainBundle = false;", auto_selection)
+        self.assertLess(
+            auto_selection.index("originalSelectAsset.call(window, token.id, { auto: true })"),
+            auto_selection.index("setSelectorUi(token, false)"),
+        )
+        self.assertIn("supplyAwaitingChainBundle = true;", chain_preamble)
         self.assertIn("if (chainDefaultAutoApplyArmed) return;", source)
 
     def test_fresh_and_portfolio_position_summaries_share_metric_rail_contract(self):
