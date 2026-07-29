@@ -147,6 +147,15 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
             "    padding: 0;",
             styles,
         )
+        narrow_start = styles.index("@media (max-width: 840px)")
+        mobile_start = styles.index("@media (max-width: 760px)")
+        narrow_block = styles[narrow_start:mobile_start]
+        self.assertIn(
+            "  #supply-health-card .supply-health-detail {\n"
+            "    grid-template-columns: 1fr;\n"
+            "  }",
+            narrow_block,
+        )
         button_start = styles.index("#supply-health-card .supply-health-row-toggle {")
         button_block = styles[button_start:styles.index("}", button_start)]
         self.assertIn("height: 24px", button_block)
@@ -218,7 +227,7 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
             narrow_styles,
         )
         self.assertIn(
-            "#supply-health-card .supply-health-table tbody td:nth-child(7)",
+            "#supply-health-card .supply-health-table tbody td:nth-child(6)",
             narrow_styles,
         )
         self.assertIn("display: none", narrow_styles)
