@@ -8,6 +8,7 @@ const ui = require('../supply/supply-draft.js');
 const DGM_BTC = '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef';
 const SAVETH_BASE = '0x23e3df1196b3249c9b0a9476f990f105591872de';
 const DSAVETH = '0x51bc8e41cbec0aa97ec07c73597829c70b2eed46';
+const WETH = '0x82af49447d8a07e3bd95bd0d56f35241523fbab1';
 const SAVETH_ICON = 'https://app.dolomite.io/static/media/savETH.1c28535854c4a65f2a4786a2f02ae499.svg';
 
 const liquidationSource = fs.readFileSync(
@@ -183,4 +184,126 @@ test('Supply deep links require a supported chain and exact token address', () =
   );
   assert.equal(ui.parseSupplyMarketDeepLink('?chain=arbitrum&asset=dGM'), null);
   assert.equal(ui.parseSupplyMarketDeepLink('?chain=unknown&asset=0x1111111111111111111111111111111111111111'), null);
+});
+
+test('cached and fresh bundle passes both preserve the exact eligible deep-linked market', () => {
+  assert.equal(typeof ui.getSupplyAutomaticSelection, 'function');
+  const requestedMarket = { chain: 'arbitrum', asset: DGM_BTC };
+  const cachedRequested = { id: DGM_BTC, symbol: 'dGM', supplyLiquidityUSD: '100' };
+  const freshRequested = { id: DGM_BTC, symbol: 'dGM', supplyLiquidityUSD: '120' };
+
+  const cached = ui.getSupplyAutomaticSelection({
+    tokens: [
+      { id: WETH, symbol: 'WETH', supplyLiquidityUSD: '500' },
+      cachedRequested,
+    ],
+    chain: 'arbitrum',
+    requestedMarket,
+    awaitingChainBundle: true,
+    bundleReady: true,
+  });
+  const fresh = ui.getSupplyAutomaticSelection({
+    tokens: [
+      { id: WETH, symbol: 'WETH', supplyLiquidityUSD: '550' },
+      freshRequested,
+    ],
+    chain: 'arbitrum',
+    requestedMarket,
+    bundleReady: true,
+  });
+
+  assert.equal(cached.status, 'apply');
+  assert.equal(cached.token, cachedRequested);
+  assert.equal(cached.isDeepLink, true);
+  assert.equal(fresh.status, 'apply');
+  assert.equal(fresh.token, freshRequested);
+  assert.equal(fresh.isDeepLink, true);
+});
+
+test('a pending manual market survives a later automatic bundle pass until Confirm', () => {
+  assert.equal(typeof ui.getSupplyAutomaticSelection, 'function');
+  const result = ui.getSupplyAutomaticSelection({
+    tokens: [
+      { id: WETH, symbol: 'WETH', supplyLiquidityUSD: '500' },
+      { id: DGM_BTC, symbol: 'dGM', supplyLiquidityUSD: '100' },
+    ],
+    chain: 'arbitrum',
+    requestedMarket: { chain: 'arbitrum', asset: DGM_BTC },
+    stagedAssetId: WETH,
+    appliedAssetId: DGM_BTC,
+    bundleReady: true,
+  });
+
+  assert.deepEqual(result, {
+    status: 'preserve',
+    token: null,
+    isDeepLink: false,
+  });
+});
+
+test('an awaited chain bundle cannot resolve a shared address from the old chain list', () => {
+  assert.equal(typeof ui.getSupplyAutomaticSelection, 'function');
+  const oldChainToken = {
+    id: DGM_BTC,
+    symbol: 'OLD',
+    supplyLiquidityUSD: '900',
+    source: 'old-chain',
+  };
+  const newChainToken = {
+    id: DGM_BTC,
+    symbol: 'dGM',
+    supplyLiquidityUSD: '100',
+    source: 'new-chain',
+  };
+  const requestedMarket = { chain: 'arbitrum', asset: DGM_BTC };
+
+  const waiting = ui.getSupplyAutomaticSelection({
+    tokens: [oldChainToken],
+    chain: 'arbitrum',
+    requestedMarket,
+    awaitingChainBundle: true,
+    bundleReady: false,
+  });
+  const ready = ui.getSupplyAutomaticSelection({
+    tokens: [newChainToken],
+    chain: 'arbitrum',
+    requestedMarket,
+    awaitingChainBundle: true,
+    bundleReady: true,
+  });
+
+  assert.deepEqual(waiting, {
+    status: 'wait',
+    token: null,
+    isDeepLink: false,
+  });
+  assert.equal(ready.status, 'apply');
+  assert.equal(ready.token, newChainToken);
+  assert.equal(ready.isDeepLink, true);
+});
+
+test('automatic fallback skips an expired raw largest market for a smaller selectable market', () => {
+  assert.equal(typeof ui.getSupplyAutomaticSelection, 'function');
+  const selectable = {
+    id: WETH,
+    symbol: 'WETH',
+    supplyLiquidityUSD: '25',
+  };
+  const result = ui.getSupplyAutomaticSelection({
+    tokens: [
+      {
+        id: '0x1111111111111111111111111111111111111111',
+        symbol: 'dPT-rsETH-26SEP2024',
+        supplyLiquidityUSD: '1000',
+      },
+      selectable,
+    ],
+    chain: 'arbitrum',
+    nowMs: Date.UTC(2026, 6, 29),
+    bundleReady: true,
+  });
+
+  assert.equal(result.status, 'apply');
+  assert.equal(result.token, selectable);
+  assert.equal(result.isDeepLink, false);
 });
