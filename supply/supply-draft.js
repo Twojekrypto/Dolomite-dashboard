@@ -207,7 +207,25 @@
   let stagedAssetId = '';
   let appliedAssetId = '';
   let chainDefaultAutoApplyArmed = false;
+  const SUPPLY_CHAIN_LABELS = {
+    ethereum: 'Ethereum',
+    berachain: 'Berachain',
+    arbitrum: 'Arbitrum',
+    mantle: 'Mantle',
+    base: 'Botanix',
+    polygon_zkevm: 'Polygon zkEVM',
+    xlayer: 'X Layer',
+  };
+
+  function getCurrentSupplyChain() {
+    return String(
+      document.getElementById('supply-chain-select')?.value || 'ethereum'
+    ).toLowerCase();
+  }
+
   const defaultSupplyAssetSymbol = String(window.__DOLO_SUPPLY_DEFAULT_ASSET || '').toUpperCase();
+  const requestedSupplyMarket = parseSupplyMarketDeepLink(window.location.search);
+  let supplyDeepLinkApplied = false;
   const activityTypeOptions = [
     { type: 'deposit', label: 'Deposits' },
     { type: 'withdraw', label: 'Withdrawals' },
@@ -1355,28 +1373,55 @@
   }
 
   function getDefaultSupplyToken() {
-    const matchesDefault = token => String(token?.symbol || '').toUpperCase() === defaultSupplyAssetSymbol;
+    let tokens = [];
     try {
       if (typeof currentSupplyTokensList !== 'undefined' && Array.isArray(currentSupplyTokensList)) {
-        if (defaultSupplyAssetSymbol) {
-          const token = currentSupplyTokensList.find(matchesDefault);
-          if (token) return token;
-        }
-        const token = getLargestSupplyToken(currentSupplyTokensList);
-        if (token) return token;
+        tokens = getSelectableSupplyMarkets(
+          currentSupplyTokensList,
+          getCurrentSupplyChain(),
+        );
       }
     } catch (error) {}
+
+    if (
+      requestedSupplyMarket
+      && requestedSupplyMarket.chain === getCurrentSupplyChain()
+    ) {
+      const requested = tokens.find(
+        (token) => normalizeSupplyAddress(token.id) === requestedSupplyMarket.asset,
+      );
+      if (requested) return requested;
+    }
+
+    if (defaultSupplyAssetSymbol) {
+      const configured = tokens.find(
+        (token) => String(token?.symbol || '').toUpperCase() === defaultSupplyAssetSymbol,
+      );
+      if (configured) return configured;
+    }
+    return getLargestSupplyToken(tokens);
+  }
+
+  function activateSupplyMarketDeepLink() {
+    if (!requestedSupplyMarket || supplyDeepLinkApplied) return false;
+    const chain = requestedSupplyMarket.chain;
+    const activeChain = getCurrentSupplyChain();
+    if (activeChain !== chain) {
+      const label = SUPPLY_CHAIN_LABELS[chain];
+      window.selectSupplyChain(chain, label);
+      return true;
+    }
+    let selectable = [];
     try {
-      if (typeof currentSupplyTokensMap !== 'undefined' && currentSupplyTokensMap) {
-        const tokens = Object.values(currentSupplyTokensMap);
-        if (defaultSupplyAssetSymbol) {
-          const token = tokens.find(matchesDefault);
-          if (token) return token;
-        }
-        return getLargestSupplyToken(tokens);
-      }
+      selectable = getSelectableSupplyMarkets(currentSupplyTokensList, chain);
     } catch (error) {}
-    return null;
+    const token = selectable.find(
+      (candidate) => normalizeSupplyAddress(candidate.id) === requestedSupplyMarket.asset,
+    );
+    if (!token) return false;
+    supplyDeepLinkApplied = true;
+    window.selectSupplyAsset(token.id, { auto: true });
+    return true;
   }
 
   function syncAppliedAssetFromHidden() {
@@ -1397,6 +1442,8 @@
   function autoApplyDefaultSupplyAsset() {
     if (autoApplyArmedDefaultSupplyAsset()) return;
     if (appliedAssetId || syncAppliedAssetFromHidden()) return;
+    if (!supplyDeepLinkApplied && activateSupplyMarketDeepLink()) return;
+    if (chainDefaultAutoApplyArmed) return;
     const token = getDefaultSupplyToken();
     if (!token?.id) return;
     if (!originalSelectAsset) captureOriginalSelectAsset();
@@ -1452,15 +1499,20 @@
 
 
   function getIconPath(token) {
-    const iconKey = token?.chain && token?.tokenId
-      ? `${String(token.chain).toLowerCase()}:${String(token.tokenId).toLowerCase()}`
+    const chain = getCurrentSupplyChain();
+    const presentation = getSupplyMarketPresentation(token, chain);
+    if (presentation.icon) return presentation.icon;
+    const iconKey = token?.id
+      ? `${chain}:${normalizeSupplyAddress(token.id)}`
       : '';
     if (iconKey && supplyAssetIconOverrides[iconKey]) {
       return supplyAssetIconOverrides[iconKey];
     }
     try {
       if (token && typeof getTokenIcon === 'function' && typeof truncateTokenName === 'function') {
-        return getTokenIcon(token.symbol)
+        return getTokenIcon(presentation.symbol)
+          || getTokenIcon(truncateTokenName(presentation.symbol))
+          || getTokenIcon(token.symbol)
           || getTokenIcon(truncateTokenName(token.symbol))
           || supplyAssetSymbolIconFallbacks[token.symbol]
           || '';
@@ -1473,7 +1525,8 @@
     const text = document.getElementById('selected-asset-text');
     const icon = document.getElementById('selected-asset-icon');
     if (!token || !text) return;
-    text.textContent = token.symbol;
+    const presentation = getSupplyMarketPresentation(token, getCurrentSupplyChain());
+    text.textContent = presentation.symbol;
     const iconPath = getIconPath(token);
     if (icon && iconPath) {
       icon.src = iconPath;
@@ -1490,7 +1543,8 @@
     if (!title || !copy) return;
     const token = stagedAssetId ? getSupplyToken(stagedAssetId) : null;
     if (token && !appliedAssetId) {
-      title.textContent = `${token.symbol} selected`;
+      const presentation = getSupplyMarketPresentation(token, getCurrentSupplyChain());
+      title.textContent = `${presentation.symbol} selected`;
       copy.textContent = 'Confirm the market to load the leaderboard, liquidity chart, and activity feed.';
     } else {
       title.textContent = 'Select an asset to open market overview';
@@ -1507,7 +1561,8 @@
     button.classList.toggle('is-applied', !!(appliedAssetId && stagedAssetId === appliedAssetId));
     button.classList.toggle('is-pending', !!hasPending);
     if (hasPending && token) {
-      button.innerHTML = `${applyIcon}<span>Apply ${token.symbol}</span>`;
+      const presentation = getSupplyMarketPresentation(token, getCurrentSupplyChain());
+      button.innerHTML = `${applyIcon}<span>Apply ${presentation.symbol}</span>`;
     } else if (appliedAssetId && stagedAssetId === appliedAssetId && token) {
       button.innerHTML = `${applyIcon}<span>Applied</span>`;
     } else {
@@ -1566,20 +1621,61 @@
     Array.from(container.children).forEach((child, index) => {
       const token = Array.isArray(tokens) ? tokens[index] : null;
       if (token && token.id) child.dataset.assetId = token.id;
-      child.classList.toggle('active', !!(child.dataset.assetId && child.dataset.assetId === stagedAssetId));
+      const selected = !!(child.dataset.assetId && child.dataset.assetId === stagedAssetId);
+      child.classList.toggle('active', selected);
+      child.setAttribute('aria-selected', selected ? 'true' : 'false');
     });
   }
 
   function patchOptionsRenderer() {
     if (optionsPatched || typeof window.renderSupplyAssetOptions !== 'function') return;
     optionsPatched = true;
-    const originalRenderSupplyAssetOptions = window.renderSupplyAssetOptions;
-    window.renderSupplyAssetOptions = function supplyDraftRenderSupplyAssetOptions(tokens) {
-      const result = originalRenderSupplyAssetOptions.apply(this, arguments);
-      markStagedOption(tokens);
+
+    window.renderSupplyAssetOptions = function supplyDraftRenderSupplyAssetOptions() {
+      const container = document.getElementById('asset-options-container');
+      if (!container) return;
+      const chain = getCurrentSupplyChain();
+      const query = document.getElementById('asset-search-input')?.value || '';
+      const options = filterSupplyMarketOptions(currentSupplyTokensList, query, chain);
+      container.replaceChildren();
+
+      if (!options.length) {
+        const empty = document.createElement('div');
+        empty.className = 'supply-draft-option-empty';
+        empty.textContent = 'No active supply markets found';
+        container.appendChild(empty);
+        return;
+      }
+
+      options.forEach((token) => {
+        const presentation = getSupplyMarketPresentation(token, chain);
+        const selected = token.id === stagedAssetId;
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = `premium-supply-dropdown-item${selected ? ' active' : ''}`;
+        option.dataset.assetId = token.id;
+        option.setAttribute('aria-selected', selected ? 'true' : 'false');
+        option.innerHTML = `
+          <img src="${supplyDraftEscape(presentation.icon || getIconPath(token))}"
+            alt="" aria-hidden="true">
+          <span class="supply-draft-option-copy">
+            <strong>${supplyDraftEscape(presentation.symbol)}</strong>
+            <small>${supplyDraftEscape(
+              `${token.id.slice(0, 6)}...${token.id.slice(-4)}`
+            )}</small>
+          </span>`;
+        option.addEventListener('click', () => stageSupplyAsset(token.id));
+        container.appendChild(option);
+      });
+
       installAssetSearchClear();
-      setTimeout(autoApplyDefaultSupplyAsset, 0);
-      return result;
+      if (!activateSupplyMarketDeepLink()) {
+        setTimeout(autoApplyDefaultSupplyAsset, 0);
+      }
+    };
+
+    window.filterSupplyAssets = function supplyDraftFilterSupplyAssets() {
+      window.renderSupplyAssetOptions(currentSupplyTokensList);
     };
   }
 
@@ -1618,6 +1714,8 @@
 
     window.selectSupplyAsset = function supplyDraftSelectAsset(id, options = {}) {
       if (options.auto) {
+        if (!supplyDeepLinkApplied && activateSupplyMarketDeepLink()) return false;
+        chainDefaultAutoApplyArmed = false;
         const token = getSupplyToken(id);
         if (!token || !originalSelectAsset) return false;
         stagedAssetId = id;
@@ -1674,6 +1772,7 @@
     captureOriginalSelectAsset();
     patchOptionsRenderer();
     patchSelectionFunctions();
+    activateSupplyMarketDeepLink();
     patchSupplyHistoryRenderer();
     patchSupplyTableRenderer();
     patchSupplyActivityRenderer();
@@ -1688,6 +1787,7 @@
       captureOriginalSelectAsset();
       patchOptionsRenderer();
       patchSelectionFunctions();
+      activateSupplyMarketDeepLink();
       patchSupplyHistoryRenderer();
       patchSupplyTableRenderer();
       patchSupplyActivityRenderer();
