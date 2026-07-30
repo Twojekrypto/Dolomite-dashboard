@@ -10,7 +10,7 @@ const OFFICIAL_SAVETH_ICON = 'https://app.dolomite.io/static/media/savETH.1c2853
 const OFFICIAL_DARB_ICON = 'https://app.dolomite.io/static/media/oARB.a2c6c20bd4a19274b88e208e43f7ffa3.svg';
 const OFFICIAL_WBTC_GM_ICON = 'https://app.dolomite.io/static/media/WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg';
 const OFFICIAL_DPLV_GLP_ICON = 'https://app.dolomite.io/static/media/plvGLP.24551c9e68ef10245cc45fb0b96cfdff.svg';
-const OFFICIAL_SOLVBTC_BBN_ICON = 'https://app.dolomite.io/static/media/solvBTCbbn.a4ffbb3feb4a22c2ca5564097b70f35c.svg';
+const OFFICIAL_SOLVBTC_ICON = 'https://app.dolomite.io/static/media/solvBTC.326d594ebd54e4317f078b70f72a58b4.svg';
 const SUPPLY_DSAVETH = '0x51bc8e41cbec0aa97ec07c73597829c70b2eed46';
 const SUPPLY_GMBTC_USD = '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef';
 const supplyUi = require('../supply/supply-draft.js');
@@ -65,7 +65,7 @@ test('Supply Pool Health resolves dARB to the official Dolomite ARB market icon'
   assert.equal(tvlTokenIcon('dARB'), OFFICIAL_DARB_ICON);
 });
 
-test('Supply Pool Health resolves dplvGLP and SolvBTC.BBN to official artwork', () => {
+test('Supply Pool Health resolves dplvGLP and SolvBTC to Assets-parity artwork', () => {
   const tvlTokenIcon = loadTokenIconResolver('tvl-preview.html');
 
   assert.equal(
@@ -80,7 +80,7 @@ test('Supply Pool Health resolves dplvGLP and SolvBTC.BBN to official artwork', 
       chain: 'berachain',
       addr: '0xcc0966d8418d412c599a6421b760a847eb169a8c',
     }),
-    OFFICIAL_SOLVBTC_BBN_ICON,
+    OFFICIAL_SOLVBTC_ICON,
   );
 });
 
