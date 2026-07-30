@@ -284,14 +284,25 @@
     return `${Math.floor(hours / 24)}d ago`;
   }
 
-  function getHealthIcon(market) {
-    if (typeof tokenIcon === 'function') {
-      return tokenIcon(market.symbol, {
-        chain: market.chain,
-        addr: market.tokenId,
-      });
-    }
-    return 'dolomite-logo.svg';
+  function getSupplyHealthIconPresentation(market, resolvers = {}) {
+    const presentation = getSupplyHealthMarketPresentation(market);
+    const symbol = presentation.symbol || String(market?.symbol || '');
+    const iconResolver = resolvers.icon
+      || (typeof tokenIcon === 'function' ? tokenIcon : null);
+    const frameResolver = resolvers.frame
+      || (typeof tokenIconFrameClass === 'function' ? tokenIconFrameClass : null);
+    const imageResolver = resolvers.image
+      || (typeof tokenIconClass === 'function' ? tokenIconClass : null);
+    const row = {
+      chain: String(market?.chain || ''),
+      addr: String(market?.tokenId || ''),
+    };
+
+    return {
+      src: iconResolver ? iconResolver(symbol, row) : 'dolomite-logo.svg',
+      frameClass: frameResolver ? frameResolver(symbol) : '',
+      imageClass: imageResolver ? imageResolver(symbol) : '',
+    };
   }
 
   function healthSortValue(market, field) {
@@ -345,19 +356,32 @@
 
   function renderSupplyHealthDetail(market) {
     const growth = market.growth || {};
+    const score = market.score || {};
     const explorer = healthExplorerAddresses[market.chain] || '';
+    const presentation = getSupplyHealthMarketPresentation(market);
+    const chain = getSupplyHealthChainPresentation(market.chain);
+    const iconPresentation = getSupplyHealthIconPresentation(market);
     const topWallets = (Array.isArray(market.topWallets) ? market.topWallets : [])
       .slice(0, 3)
-      .map((wallet, index) => `
-        <div class="supply-health-top-wallet">
-          <span class="supply-health-top-rank">#${index + 1}</span>
-          ${explorer && wallet.address
-            ? `<a class="supply-health-top-addr" href="${escapeHealthHtml(explorer + wallet.address)}" target="_blank" rel="noopener" title="Open ${escapeHealthHtml(wallet.address)} in explorer">${escapeHealthHtml(shortHealthAddress(wallet.address))}</a>`
-            : `<span class="supply-health-top-addr">${escapeHealthHtml(shortHealthAddress(wallet.address))}</span>`}
-          <span class="supply-health-top-share">${formatHealthPct(wallet.sharePct, 2)}</span>
-          <span class="supply-health-top-usd">${formatHealthUsd(wallet.usd)}</span>
+      .map((wallet, index) => {
+        const share = Number(wallet.sharePct);
+        const shareWidth = Number.isFinite(share) ? Math.max(0, Math.min(100, share)) : 0;
+        return `
+        <div class="supply-health-supplier">
+          <div class="supply-health-top-wallet">
+            <span class="supply-health-top-rank">0${index + 1}</span>
+            ${explorer && wallet.address
+              ? `<a class="supply-health-top-addr" href="${escapeHealthHtml(explorer + wallet.address)}" target="_blank" rel="noopener" title="Open ${escapeHealthHtml(wallet.address)} in explorer">${escapeHealthHtml(shortHealthAddress(wallet.address))}</a>`
+              : `<span class="supply-health-top-addr">${escapeHealthHtml(shortHealthAddress(wallet.address))}</span>`}
+            <span class="supply-health-top-usd">${formatHealthUsd(wallet.usd)}</span>
+            <span class="supply-health-top-share">${formatHealthPct(wallet.sharePct, 2)}</span>
+          </div>
+          <div class="supply-health-supplier-bar" aria-hidden="true">
+            <span style="width:${shareWidth}%"></span>
+          </div>
         </div>
-      `).join('');
+      `;
+      }).join('');
     const stats = [
       {
         label: '30D Supply Change',
@@ -380,23 +404,79 @@
     const supplyHref = buildSupplyMarketHref(market);
     const marketAction = `
       <a class="supply-health-market-link" href="${escapeHealthHtml(supplyHref)}">
-        Open Supply markets
+        <span>Open Supply market</span>
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h12M11 5l5 5-5 5"/></svg>
       </a>`;
 
     return `
-      <div class="supply-health-detail">
-        <div class="supply-health-detail-col">
-          <div class="supply-health-detail-title">Score Breakdown</div>
-          ${renderSupplyHealthScoreBreakdown(market)}
+      <div class="supply-health-detail-panel">
+        <div class="supply-health-detail-head">
+          <div class="supply-health-detail-identity">
+            <span class="supply-health-token-icon ${iconPresentation.frameClass}">
+              <img class="${iconPresentation.imageClass}" src="${escapeHealthHtml(iconPresentation.src)}" alt="" aria-hidden="true" onerror="this.src='dolomite-logo.svg'">
+            </span>
+            <div class="supply-health-detail-identity-copy">
+              <div class="supply-health-detail-eyebrow">Market intelligence</div>
+              <div class="supply-health-detail-market-line">
+                <span class="supply-health-detail-market-symbol">${escapeHealthHtml(presentation.symbol)}</span>
+                <span class="supply-health-detail-chain">
+                  <img src="${escapeHealthHtml(chain.icon)}" alt="" aria-hidden="true">
+                  ${escapeHealthHtml(chain.label)}
+                </span>
+              </div>
+              <div class="supply-health-detail-market-name">${escapeHealthHtml(presentation.name || 'Dolomite supply market')}</div>
+            </div>
+          </div>
+          <div class="supply-health-detail-head-metrics">
+            <div class="supply-health-detail-head-metric">
+              <span>Total supply</span>
+              <strong>${formatHealthUsd(market.supplyUsd)}</strong>
+            </div>
+            <div class="supply-health-detail-head-metric quality">
+              <span>Quality score</span>
+              <strong>${score.total != null && Number.isFinite(Number(score.total)) ? Math.round(Number(score.total)) : '—'}</strong>
+              <em class="supply-health-grade ${healthGradeClass(score.grade)}">${escapeHealthHtml(score.grade || '·')}</em>
+            </div>
+          </div>
         </div>
-        <div class="supply-health-detail-col">
-          <div class="supply-health-detail-title">Market Signals</div>
-          <div class="supply-health-detail-stats">${stats}</div>
-        </div>
-        <div class="supply-health-detail-col">
-          <div class="supply-health-detail-title">Largest Suppliers</div>
-          ${topWallets || '<div class="supply-health-detail-empty">No supplier data</div>'}
-          ${marketAction}
+        <div class="supply-health-detail supply-health-detail-content">
+          <section class="supply-health-detail-section score">
+            <div class="supply-health-detail-section-head">
+              <div>
+                <div class="supply-health-detail-section-kicker">Quality model</div>
+                <h3>Quality anatomy</h3>
+              </div>
+              <span>Weighted inputs</span>
+            </div>
+            ${renderSupplyHealthScoreBreakdown(market)}
+          </section>
+          <section class="supply-health-detail-section momentum">
+            <div class="supply-health-detail-section-head">
+              <div>
+                <div class="supply-health-detail-section-kicker">Market pulse</div>
+                <h3>Market momentum</h3>
+              </div>
+              <span>Recent signals</span>
+            </div>
+            <div class="supply-health-detail-stats">${stats}</div>
+          </section>
+          <section class="supply-health-detail-section concentration">
+            <div class="supply-health-detail-section-head">
+              <div>
+                <div class="supply-health-detail-section-kicker">Wallet exposure</div>
+                <h3>Supply concentration</h3>
+              </div>
+              <span>Largest suppliers</span>
+            </div>
+            <div class="supply-health-concentration-summary">
+              <div><span>Top 10</span><strong>${formatHealthPct(market.top10Pct)}</strong></div>
+              <div><span>Largest</span><strong>${formatHealthPct(market.largestPct)}</strong></div>
+            </div>
+            <div class="supply-health-suppliers">
+              ${topWallets || '<div class="supply-health-detail-empty">No supplier data</div>'}
+            </div>
+            ${marketAction}
+          </section>
         </div>
       </div>
     `;
@@ -473,7 +553,7 @@
       const key = healthMarketKey(market);
       const expanded = state.expandedKey === key;
       const score = market.score || {};
-      const icon = getHealthIcon(market);
+      const iconPresentation = getSupplyHealthIconPresentation(market);
       const presentation = getSupplyHealthMarketPresentation(market);
       const chain = getSupplyHealthChainPresentation(market.chain);
       const top10Tip = formatHealthConcentrationTip('top10', market.top10Pct);
@@ -499,7 +579,9 @@
         <tr class="supply-health-row${expanded ? ' expanded' : ''}" data-health-key="${escapeHealthHtml(key)}" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}">
           ${chainCell}
           <td class="supply-health-asset-cell">
-            <img class="supply-health-asset-icon" src="${escapeHealthHtml(icon)}" alt="" onerror="this.src='dolomite-logo.svg'">
+            <span class="supply-health-token-icon ${iconPresentation.frameClass}">
+              <img class="${iconPresentation.imageClass}" src="${escapeHealthHtml(iconPresentation.src)}" alt="" aria-hidden="true" onerror="this.src='dolomite-logo.svg'">
+            </span>
             <span class="supply-health-asset-copy">
               <span class="supply-health-asset-symbol">${escapeHealthHtml(presentation.symbol)}</span>
               <span class="supply-health-asset-name">${escapeHealthHtml(presentation.name)}</span>
@@ -729,11 +811,13 @@
     formatHealthUsd,
     formatSupplyHealthDisclosureLabel,
     formatSupplyHealthPageRange,
+    getSupplyHealthIconPresentation,
     getSupplyHealthMarketPresentation,
     healthConcentrationLevel,
     isExpiredSupplyHealthMarket,
     mount,
     paginateSupplyHealthMarkets,
+    renderSupplyHealthDetail,
     updateSupplyHealthFilters,
   };
 });
