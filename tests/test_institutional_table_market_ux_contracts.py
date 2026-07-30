@@ -26,8 +26,11 @@ def first_rule(source, selector):
 class InstitutionalTableMarketUxContracts(unittest.TestCase):
     def test_vedolo_activity_uses_one_continuous_surface(self):
         section = first_rule(PORTFOLIO, "#pf-exercises-section{")
-        self.assertIn("background:var(--bg-2)", section)
-        self.assertNotIn("linear-gradient", section)
+        self.assertIn(
+            "linear-gradient(180deg,rgba(117,184,123,.055),rgba(15,17,15,.82))",
+            section,
+        )
+        self.assertIn("var(--bg-2)", section)
         for selector in (
             "#pf-exercises-section .card-head",
             "#pf-exercises-section .pf-exercise-summary.selected-market-rail",

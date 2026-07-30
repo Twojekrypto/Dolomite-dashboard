@@ -52,8 +52,11 @@ class DataFreshnessSurfaceContractsTest(unittest.TestCase):
         section = PORTFOLIO_VIEW.split(
             "#pf-exercises-section{", 1
         )[1].split("}", 1)[0]
-        self.assertIn("background:var(--bg-2)", section)
-        self.assertNotIn("linear-gradient", section)
+        self.assertIn(
+            "linear-gradient(180deg,rgba(117,184,123,.055),rgba(15,17,15,.82))",
+            section,
+        )
+        self.assertIn("var(--bg-2)", section)
         rail = PORTFOLIO_VIEW.split(
             "#pf-exercises-section .pf-exercise-summary.selected-market-rail{", 1
         )[1].split("}", 1)[0]
