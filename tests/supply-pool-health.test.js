@@ -172,7 +172,9 @@ test('Supply Health renders one market dossier with evidence and exact navigatio
     }],
   });
 
-  assert.match(detail, /Market intelligence/);
+  assert.doesNotMatch(detail, /Market intelligence/);
+  assert.doesNotMatch(detail, /supply-health-detail-head/);
+  assert.doesNotMatch(detail, /supply-health-detail-head-metric/);
   assert.match(detail, /Quality anatomy/);
   assert.match(detail, /Market momentum/);
   assert.match(detail, /Supply concentration/);

@@ -356,11 +356,7 @@
 
   function renderSupplyHealthDetail(market) {
     const growth = market.growth || {};
-    const score = market.score || {};
     const explorer = healthExplorerAddresses[market.chain] || '';
-    const presentation = getSupplyHealthMarketPresentation(market);
-    const chain = getSupplyHealthChainPresentation(market.chain);
-    const iconPresentation = getSupplyHealthIconPresentation(market);
     const topWallets = (Array.isArray(market.topWallets) ? market.topWallets : [])
       .slice(0, 3)
       .map((wallet, index) => {
@@ -410,35 +406,6 @@
 
     return `
       <div class="supply-health-detail-panel">
-        <div class="supply-health-detail-head">
-          <div class="supply-health-detail-identity">
-            <span class="supply-health-token-icon ${iconPresentation.frameClass}">
-              <img class="${iconPresentation.imageClass}" src="${escapeHealthHtml(iconPresentation.src)}" alt="" aria-hidden="true" onerror="this.src='dolomite-logo.svg'">
-            </span>
-            <div class="supply-health-detail-identity-copy">
-              <div class="supply-health-detail-eyebrow">Market intelligence</div>
-              <div class="supply-health-detail-market-line">
-                <span class="supply-health-detail-market-symbol">${escapeHealthHtml(presentation.symbol)}</span>
-                <span class="supply-health-detail-chain">
-                  <img src="${escapeHealthHtml(chain.icon)}" alt="" aria-hidden="true">
-                  ${escapeHealthHtml(chain.label)}
-                </span>
-              </div>
-              <div class="supply-health-detail-market-name">${escapeHealthHtml(presentation.name || 'Dolomite supply market')}</div>
-            </div>
-          </div>
-          <div class="supply-health-detail-head-metrics">
-            <div class="supply-health-detail-head-metric">
-              <span>Total supply</span>
-              <strong>${formatHealthUsd(market.supplyUsd)}</strong>
-            </div>
-            <div class="supply-health-detail-head-metric quality">
-              <span>Quality score</span>
-              <strong>${score.total != null && Number.isFinite(Number(score.total)) ? Math.round(Number(score.total)) : '—'}</strong>
-              <em class="supply-health-grade ${healthGradeClass(score.grade)}">${escapeHealthHtml(score.grade || '·')}</em>
-            </div>
-          </div>
-        </div>
         <div class="supply-health-detail supply-health-detail-content">
           <section class="supply-health-detail-section score">
             <div class="supply-health-detail-section-head">
