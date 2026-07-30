@@ -52,7 +52,10 @@ class DataFreshnessSurfaceContractsTest(unittest.TestCase):
         rail = PORTFOLIO_VIEW.split(
             "#pf-exercises-section .pf-exercise-summary.selected-market-rail{", 1
         )[1].split("}", 1)[0]
-        self.assertIn("background:var(--bg-2)", rail)
+        self.assertIn(
+            "background:linear-gradient(180deg,rgba(117,184,123,.045),rgba(20,20,23,.18))",
+            rail,
+        )
         metric = PORTFOLIO_VIEW.split(
             "#pf-exercises-section .pf-exercise-summary-item.selected-market-metric{",
             1,

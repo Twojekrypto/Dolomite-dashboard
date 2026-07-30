@@ -1803,10 +1803,10 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         end = source.index('<tbody id="liquidation-history-body"', start)
         history_head = source[start:end]
         self.assertIn("<col><col><col><col><col>", history_head)
-        self.assertLess(history_head.index("<th>Chain</th>"), history_head.index("<th>Liquidated wallet</th>"))
-        self.assertLess(history_head.index("<th>Liquidated wallet</th>"), history_head.index("<th>Date</th>"))
+        self.assertLess(history_head.index('data-liquidation-sort="chain"'), history_head.index('data-liquidation-sort="address"'))
+        self.assertLess(history_head.index('data-liquidation-sort="address"'), history_head.index('data-liquidation-sort="date"'))
         self.assertNotIn('class="col-spacer"', history_head)
-        self.assertLess(history_head.index("<th>Liquidated wallet</th>"), history_head.index("Collateral seized"))
+        self.assertLess(history_head.index('data-liquidation-sort="address"'), history_head.index("Collateral seized"))
         self.assertLess(history_head.index("Collateral seized"), history_head.index("Debt repaid"))
         self.assertIn("body.route-liquidation #positions-table tbody tr,\n        body.route-liquidation #liquidation-history-table tbody tr {\n            height: 86px !important;", source)
         self.assertIn("max-width: 132px !important;", source)

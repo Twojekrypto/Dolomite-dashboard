@@ -524,6 +524,7 @@
   }
 
   function renderSupplyHealthTable() {
+    const card = document.getElementById('supply-health-card');
     const table = document.getElementById('supply-health-table');
     const body = document.getElementById('supply-health-table-body');
     const loadingState = document.getElementById('supply-health-state');
@@ -533,6 +534,10 @@
 
     const markets = getSortedSupplyHealthMarkets();
     const pageData = paginateSupplyHealthMarkets(markets, state.page, SUPPLY_HEALTH_PAGE_SIZE);
+    const hasExpandedDetail = pageData.rows.some(
+      market => healthMarketKey(market) === state.expandedKey,
+    );
+    card?.classList.toggle('supply-health-detail-expanded', hasExpandedDetail);
     state.page = pageData.page;
     renderSupplyHealthHeaders();
     renderSupplyHealthPagination(markets.length);
@@ -607,7 +612,7 @@
       : '';
     const visibleSlots = markets.length === 0 ? 1 : pageData.rows.length;
     const spacerRows = Array.from(
-      { length: Math.max(0, SUPPLY_HEALTH_PAGE_SIZE - visibleSlots) },
+      { length: hasExpandedDetail ? 0 : Math.max(0, SUPPLY_HEALTH_PAGE_SIZE - visibleSlots) },
       () => '<tr class="supply-health-spacer-row" aria-hidden="true"><td colspan="8">&nbsp;</td></tr>',
     ).join('');
     body.innerHTML = dataRows + noMatches + spacerRows;
