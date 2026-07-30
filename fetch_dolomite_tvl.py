@@ -14,6 +14,7 @@ DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_tvl.json")
 STALE_CHAIN_SECONDS = 6 * 60 * 60
 TOKEN_API_RETRY_DELAYS = (2, 4, 8)
+SUBGRAPH_RETRY_DELAYS = (2, 4, 8)
 RETRYABLE_TOKEN_API_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 
 ASSETS_CHAINS = {
@@ -62,6 +63,57 @@ QUERY = """
     }
 }
 """
+
+
+def incomplete_chain_meta_fields(data):
+    meta = (data or {}).get("_meta", {}) or {}
+    block = meta.get("block", {}) or {}
+    missing = []
+    for field in ("number", "timestamp"):
+        value = block.get(field)
+        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+            missing.append(f"block.{field}")
+    block_hash = block.get("hash")
+    if not isinstance(block_hash, str) or not block_hash.strip():
+        missing.append("block.hash")
+    deployment = meta.get("deployment")
+    if not isinstance(deployment, str) or not deployment.strip():
+        missing.append("deployment")
+    return missing
+
+
+def fetch_subgraph_payload(chain_name, url):
+    attempts = len(SUBGRAPH_RETRY_DELAYS) + 1
+    for attempt in range(attempts):
+        try:
+            resp = requests.post(url, json={"query": QUERY}, timeout=20)
+            resp.raise_for_status()
+            payload = resp.json()
+            if not isinstance(payload, dict):
+                raise RuntimeError("GraphQL response is not a JSON object")
+            if payload.get("errors"):
+                raise RuntimeError(str(payload["errors"]))
+            data = payload.get("data")
+            if not isinstance(data, dict) or not data:
+                raise RuntimeError("empty GraphQL data")
+            missing = incomplete_chain_meta_fields(data)
+            if missing:
+                raise RuntimeError(
+                    f"{chain_name} subgraph metadata incomplete: {', '.join(missing)}"
+                )
+            return data
+        except (requests.RequestException, RuntimeError, ValueError) as exc:
+            if attempt == len(SUBGRAPH_RETRY_DELAYS):
+                raise
+            delay = SUBGRAPH_RETRY_DELAYS[attempt]
+            print(
+                f"⚠️ {chain_name} subgraph response invalid ({exc}); "
+                f"retrying in {delay}s ({attempt + 1}/{attempts})"
+            )
+            time.sleep(delay)
+
+    raise RuntimeError(f"{chain_name} subgraph retry loop exited unexpectedly")
+
 
 def as_decimal(value, default="0"):
     try:
@@ -370,15 +422,7 @@ def main():
     
     for chain_name, url in ACTIVE_ASSETS_CHAINS.items():
         try:
-            resp = requests.post(url, json={"query": QUERY}, timeout=20)
-            resp.raise_for_status()
-            payload = resp.json()
-            if payload.get("errors"):
-                raise RuntimeError(payload["errors"])
-            data = payload.get("data")
-            if not data:
-                raise RuntimeError("empty GraphQL data")
-
+            data = fetch_subgraph_payload(chain_name, url)
             token_payloads[chain_name] = fetch_token_liquidity_payload(chain_name)
             price_maps[chain_name] = fetch_price_map(chain_name)
             chain_payloads[chain_name] = data
