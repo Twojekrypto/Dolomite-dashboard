@@ -49,7 +49,7 @@ function assertBefore(source, first, second, message) {
   assert(!liveTable.includes('estimated (EST)'), 'Live Programs copy should not describe oDOLO rewards with an EST badge');
   assert(rewards.includes('<div class="val" id="rwRewardContext">—</div>'), 'Rewards hero should not show LIVE as the Reward Value');
   const renderHero = between(rewards, 'function renderHero()', 'function renderAll()');
-  assert(renderHero.includes("document.getElementById('rwRewardContext').textContent = fmtUsd(daily);"), 'Rewards hero should populate Reward Value with the daily rewards amount');
+  assert(renderHero.includes("setMetricText('rwRewardContext', fmtUsd(daily));"), 'Rewards hero should populate Reward Value with the daily rewards amount');
 
   const renderLive = between(rewards, 'function renderLive()', 'function renderPast()');
   assert(!renderLive.includes('<span class="rank">${index + 1}</span>'), 'Live Programs rows should not render row numbers');
@@ -132,7 +132,7 @@ function assertBefore(source, first, second, message) {
   assert(walletOverflowRule.includes('overflow: visible;'), 'Liquidation History address tools should remain visible in the second column');
 
   const historyHead = between(liquidation, '<table class="liquidation-history-table"', '<tbody id="liquidation-history-body"');
-  assertBefore(historyHead, '<th>Liquidated wallet</th>', '<th>Date</th>', 'Liquidation History should put Liquidated wallet before Date');
+  assertBefore(historyHead, 'data-liquidation-sort="address"', 'data-liquidation-sort="date"', 'Liquidation History should put Liquidated wallet before Date');
 
   const historyRows = between(liquidation, 'body.innerHTML = pageRows.map(row => {', 'if (pageRows.length < LIQUIDATION_HISTORY_PAGE_SIZE)');
   assertBefore(historyRows, 'renderLiquidationHistoryAddress(row.liquidatedAddress, chain)', 'supplyFormatActivityDate(row.timestamp)', 'Liquidation History rows should put wallet cells before date cells');

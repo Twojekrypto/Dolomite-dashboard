@@ -112,7 +112,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .pill-switch .opt.active{color:var(--bg-0)}
 .pill-switch .slider{position:absolute;top:3px;left:3px;height:28px;border-radius:8px;background:var(--gold);box-shadow:0 2px 8px rgba(201,162,39,.35);transition:transform .25s var(--ease),width .25s var(--ease)}
 
-.tbl-wrap{overflow-x:auto;border-radius:0 0 var(--r-xl) var(--r-xl)}
+.tbl-wrap{overflow-x:auto;border-radius:0}
 .tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
 .tbl thead th{position:sticky;top:0;z-index:2;font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg-3);text-align:left;
   padding:12px 18px;background:var(--bg-1);border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none;cursor:pointer;transition:color .15s var(--ease)}
@@ -122,6 +122,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl thead th.sorted{color:var(--gold)}
 .tbl thead th.sorted .sort{color:var(--gold)}
 .tbl thead th.num{text-align:right}
+.tbl thead th.ends-col,.tbl tbody td.ends-col{text-align:center;padding-left:18px;padding-right:18px}
 
 .tbl tbody tr{transition:background .12s var(--ease);position:relative}
 .tbl tbody td{padding:12px 18px;border-bottom:1px solid var(--line-1);vertical-align:middle;color:var(--fg-1);font-variant-numeric:tabular-nums;position:relative}
@@ -330,7 +331,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
             <th data-sort="tvlUsd" class="num" style="width:140px">Eligible TVL</th>
             <th data-sort="dailyRewardsUsd" class="num sorted" style="width:150px">Daily Rewards</th>
             <th data-sort="efficiency" class="num" style="width:170px">Reward / $1k · day</th>
-            <th data-sort="campaignEnd" style="width:130px;padding-right:32px">Ends</th>
+            <th data-sort="campaignEnd" class="ends-col" style="width:130px">Ends</th>
           </tr>
         </thead>
         <tbody id="rwLiveBody"></tbody>
@@ -454,6 +455,17 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     try {
       return new Date(n * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     } catch (error) { return '—'; }
+  }
+
+  function formatUpdatedAge(value) {
+    const timestamp = new Date(value || '').getTime();
+    if (!Number.isFinite(timestamp)) return 'unknown';
+    const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+    if (minutes < 1) return 'now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 48) return `${hours}h ago`;
+    return `${Math.round(hours / 24)}d ago`;
   }
 
   function efficiency(program) {
@@ -621,7 +633,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <td class="num">${fmtUsd(program.tvlUsd)}</td>
           <td class="num">${fmtUsd(program.dailyRewardsUsd)}</td>
           <td class="num">${eff != null ? `$${eff.toFixed(2)}` : '—'}${effBar}</td>
-          <td>${ends}</td>
+          <td class="ends-col">${ends}</td>
         </tr>
       `;
     }).join('');
@@ -677,7 +689,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       } catch (error) {}
     }
     const meta = document.getElementById('rwLiveMeta');
-    if (meta) meta.innerHTML = `<span class="pulse"></span>${fmtUsd(daily)} / day across ${live.length} programs`;
+    if (meta) meta.innerHTML = `<span class="pulse"></span>Data updated · ${formatUpdatedAge(generatedAt)}`;
   }
 
   function renderAll() {
