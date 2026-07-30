@@ -24,18 +24,24 @@ def first_rule(source, selector):
 
 
 class InstitutionalTableMarketUxContracts(unittest.TestCase):
-    def test_vedolo_activity_summary_continues_the_header_surface(self):
-        rule = first_rule(
-            PORTFOLIO,
+    def test_vedolo_activity_uses_one_continuous_surface(self):
+        section = first_rule(PORTFOLIO, "#pf-exercises-section{")
+        self.assertIn("background:var(--bg-2)", section)
+        self.assertNotIn("linear-gradient", section)
+        for selector in (
+            "#pf-exercises-section .card-head",
             "#pf-exercises-section .pf-exercise-summary.selected-market-rail",
+            "#pf-exercises-section .pf-filters",
+            "#pf-exercises-section .tbl-foot",
+        ):
+            rule = first_rule(PORTFOLIO, selector)
+            self.assertIn("background:transparent", rule)
+            self.assertNotIn("linear-gradient", rule)
+        thead = first_rule(
+            PORTFOLIO,
+            "#pf-exercises-section .pf-table thead th",
         )
-        head = first_rule(PORTFOLIO, "#pf-exercises-section .card-head")
-        expected_background = (
-            "background:linear-gradient(180deg,rgba(117,184,123,.045),"
-            "rgba(20,20,23,.18))"
-        )
-        self.assertIn(expected_background, head)
-        self.assertIn(expected_background, rule)
+        self.assertIn("background:var(--bg-1)", thead)
 
     def test_expired_vedolo_headers_and_cells_share_alignment_lanes(self):
         for selector in (
@@ -62,6 +68,15 @@ class InstitutionalTableMarketUxContracts(unittest.TestCase):
         self.assertGreaterEqual(history.count('class="sort-arrow"'), 5)
         self.assertIn("syncLiquidationHistorySortHeaders", BORROW)
         self.assertIn("closest('button, input, select, textarea, .col-filter-popover')", BORROW)
+
+    def test_liquidation_history_uses_lending_position_column_rhythm(self):
+        expected_widths = ("11%", "15.8%", "39%", "18.2%", "16%")
+        for index, width in enumerate(expected_widths, start=1):
+            self.assertIn(
+                "body.route-liquidation #liquidation-history-table "
+                f"colgroup col:nth-child({index}) {{ width: {width} !important; }}",
+                BORROW,
+            )
 
     def test_borrow_table_surface_and_typography_match_holders(self):
         selector = (
