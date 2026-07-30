@@ -85,6 +85,6 @@ test('Supply market icon presentation uses official address-first artwork', () =
 
   assert.match(dplv.src, /plvGLP\.24551c9e68ef10245cc45fb0b96cfdff\.svg$/);
   assert.equal(dplv.frameClass, 'full-logo');
-  assert.match(solv.src, /solvBTCbbn\.a4ffbb3feb4a22c2ca5564097b70f35c\.svg$/);
+  assert.match(solv.src, /solvBTC\.326d594ebd54e4317f078b70f72a58b4\.svg$/);
   assert.equal(solv.frameClass, '');
 });
