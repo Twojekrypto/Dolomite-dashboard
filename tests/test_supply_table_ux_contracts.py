@@ -76,6 +76,14 @@ class SupplyTableUxContractsTest(unittest.TestCase):
         self.assertNotIn("aria-selected", source)
         self.assertIn("activateSupplyMarketDeepLink()", source)
         self.assertIn("getSupplyMarketPresentation(token, getCurrentSupplyChain())", source)
+        self.assertNotIn(
+            "#asset-options-container .supply-draft-market-option.active::before",
+            styles,
+        )
+        self.assertIn(
+            "#asset-options-container .supply-draft-market-option.active {",
+            styles,
+        )
         self.assertIn(
             "body.supply-draft-route #asset-options-container "
             ".premium-supply-dropdown-item::before",
