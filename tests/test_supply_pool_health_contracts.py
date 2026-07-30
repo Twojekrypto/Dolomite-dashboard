@@ -180,7 +180,7 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
             source,
         )
         self.assertNotIn('class="supply-health-asset-icon"', source)
-        self.assertIn(
+        self.assertNotIn(
             "#supply-health-card .supply-health-detail-panel::before",
             styles,
         )
@@ -190,6 +190,20 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
             styles,
         )
         self.assertIn("@media (max-width: 1100px)", styles)
+
+    def test_expanded_pool_health_details_do_not_leave_spacer_rows_below(self):
+        source = TVL_SCRIPT.read_text(encoding="utf-8")
+        styles = TVL_STYLES.read_text(encoding="utf-8")
+        self.assertIn("const hasExpandedDetail =", source)
+        self.assertIn("hasExpandedDetail ? 0", source)
+        self.assertIn(
+            "classList.toggle('supply-health-detail-expanded', hasExpandedDetail)",
+            source,
+        )
+        self.assertIn(
+            "#supply-health-card.supply-health-detail-expanded .supply-health-scroll",
+            styles,
+        )
 
     def test_pool_health_semantic_colors_are_card_scoped(self):
         source = TVL_SCRIPT.read_text(encoding="utf-8")

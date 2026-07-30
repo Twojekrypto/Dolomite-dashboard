@@ -9945,8 +9945,108 @@
             font-size: 12px !important;
             line-height: 1.45 !important;
         }
+
+        /* Institutional table parity — DOLO Holders is the visual reference. */
+        body.route-liquidation .liquidation-table-surface .table-card-inner {
+            background: var(--bg-2) !important;
+            box-shadow: var(--sh-card) !important;
+        }
+        body.route-liquidation .liquidation-table-surface .table-card-header,
+        body.route-liquidation .liquidation-history-card .table-card-header {
+            min-height: 76px !important;
+            padding: 20px 24px 18px !important;
+            align-items: center !important;
+            background: var(--bg-2) !important;
+            border-bottom: 1px solid var(--line-1) !important;
+        }
+        body.route-liquidation .liquidation-table-heading h3 {
+            margin: 0 !important;
+            color: var(--fg-1) !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            letter-spacing: -.1px !important;
+            line-height: 1.2 !important;
+        }
+        body.route-liquidation .liquidation-table-meta {
+            align-self: center !important;
+            margin-top: 0 !important;
+            margin-left: auto !important;
+        }
+        body.route-liquidation .borrow-data-meta {
+            min-height: 18px !important;
+            align-items: center !important;
+            color: var(--fg-3) !important;
+            font-family: var(--mono) !important;
+            font-size: 11px !important;
+            font-weight: 400 !important;
+            line-height: 1.4 !important;
+        }
+        body.route-liquidation #positions-table thead th,
+        body.route-liquidation #liquidation-history-table thead th {
+            padding: 12px 18px !important;
+            background: var(--bg-1) !important;
+            color: var(--fg-3) !important;
+            font-family: var(--mono) !important;
+            font-size: 10px !important;
+            font-weight: 600 !important;
+            letter-spacing: 1.6px !important;
+            line-height: 1.2 !important;
+            text-transform: uppercase !important;
+        }
+        body.route-liquidation #positions-table tbody td,
+        body.route-liquidation #liquidation-history-table tbody td {
+            padding: 12px 18px !important;
+            color: var(--fg-2) !important;
+            font-family: var(--mono) !important;
+            font-size: 12px !important;
+            font-weight: 400 !important;
+            line-height: 1.35 !important;
+            background: transparent !important;
+            border-bottom: 1px solid var(--line-1) !important;
+        }
+        body.route-liquidation #positions-table tbody tr:hover td,
+        body.route-liquidation #liquidation-history-table tbody tr:hover td {
+            background: var(--bg-3) !important;
+            color: var(--fg-1) !important;
+        }
+        body.route-liquidation .liquidation-table-surface .table-footer,
+        body.route-liquidation .liquidation-history-card .table-footer,
+        body.route-liquidation #table-footer {
+            min-height: 56px !important;
+            padding: 12px 24px !important;
+            background: var(--bg-2) !important;
+            border-top: 1px solid var(--line-1) !important;
+        }
+        body.route-liquidation #liquidation-history-table th[data-liquidation-sort] {
+            cursor: pointer !important;
+            user-select: none !important;
+            transition: color .15s var(--ease) !important;
+        }
+        body.route-liquidation #liquidation-history-table th[data-liquidation-sort]:hover,
+        body.route-liquidation #liquidation-history-table th[data-liquidation-sort]:focus-visible {
+            color: var(--fg-1) !important;
+            outline: 0 !important;
+        }
+        body.route-liquidation #liquidation-history-table th[data-liquidation-sort].sorted {
+            color: var(--gold) !important;
+        }
+        body.route-liquidation #liquidation-history-table th[data-liquidation-sort] .sort-arrow {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-width: 11px !important;
+            margin-left: 2px !important;
+            color: transparent !important;
+            font-family: var(--mono) !important;
+            font-size: 9px !important;
+            line-height: 1 !important;
+        }
+        body.route-liquidation #liquidation-history-table th[data-liquidation-sort].sorted .sort-arrow {
+            color: currentColor !important;
+        }
     </style>
 <script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
+<script src="liquidation/liquidation-history-sort.js?v=liquidation-history-sort-20260730"></script>
 </head>
 
 <body>
@@ -10610,16 +10710,17 @@
                         </colgroup>
                         <thead>
                             <tr>
-                                <th>Chain</th>
-                                <th>Liquidated wallet</th>
-                                <th>Date</th>
-                                <th style="text-align:left; overflow:visible">
+                                <th data-liquidation-sort="chain" role="button" tabindex="0" aria-sort="none"><span class="col-header-group">Chain <span class="sort-arrow" aria-hidden="true"></span></span></th>
+                                <th data-liquidation-sort="address" role="button" tabindex="0" aria-sort="none"><span class="col-header-group">Liquidated wallet <span class="sort-arrow" aria-hidden="true"></span></span></th>
+                                <th data-liquidation-sort="date" role="button" tabindex="0" aria-sort="descending"><span class="col-header-group">Date <span class="sort-arrow" aria-hidden="true"></span></span></th>
+                                <th data-liquidation-sort="collateral" role="button" tabindex="0" aria-sort="none" style="text-align:left; overflow:visible">
                                     <span class="col-header-group">
                                         Collateral seized
                                         <button type="button" class="col-filter-btn" id="lh-coll-filter-trigger" aria-label="Filter Collateral seized by USD range or token" title="Filter by USD value or token">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                         </button>
                                         <button type="button" class="col-filter-clear" id="lh-coll-filter-clear">✕</button>
+                                        <span class="sort-arrow" aria-hidden="true"></span>
                                     </span>
                                     <div class="col-filter-popover col-filter-popover--combined" id="lh-coll-popover">
                                         <div class="col-filter-inner">
@@ -10642,13 +10743,14 @@
                                         </div>
                                     </div>
                                 </th>
-                                <th style="text-align:left; overflow:visible">
+                                <th data-liquidation-sort="debt" role="button" tabindex="0" aria-sort="none" style="text-align:left; overflow:visible">
                                     <span class="col-header-group">
                                         Debt repaid
                                         <button type="button" class="col-filter-btn" id="lh-debt-filter-trigger" aria-label="Filter Debt repaid by USD range or token" title="Filter by USD value or token">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
                                         </button>
                                         <button type="button" class="col-filter-clear" id="lh-debt-filter-clear">✕</button>
+                                        <span class="sort-arrow" aria-hidden="true"></span>
                                     </span>
                                     <div class="col-filter-popover col-filter-popover--combined" id="lh-debt-popover">
                                         <div class="col-filter-inner">
@@ -12368,6 +12470,8 @@
         const LIQUIDATION_HISTORY_PAGE_SIZE = 10;
         let sortField = 'collateral';
         let sortDirection = 'desc';
+        let liquidationHistorySortField = 'date';
+        let liquidationHistorySortDirection = 'desc';
         let liquidationHistorySearchQuery = '';
         let liquidationHistoryHideDust = true;
         // Liquidation History column filters (combined token + $ range), per amount column
@@ -14899,6 +15003,56 @@
             applyLiquidationHistoryFilters();
         }
 
+        function sortVisibleLiquidationHistoryRows(rows) {
+            const sorter = window.DolomiteLiquidationHistorySort?.sortLiquidationHistoryRows;
+            return typeof sorter === 'function'
+                ? sorter(rows, liquidationHistorySortField, liquidationHistorySortDirection)
+                : (Array.isArray(rows) ? rows.slice() : []);
+        }
+
+        function syncLiquidationHistorySortHeaders() {
+            document.querySelectorAll('#liquidation-history-table th[data-liquidation-sort]').forEach(header => {
+                const active = header.dataset.liquidationSort === liquidationHistorySortField;
+                header.classList.toggle('sorted', active);
+                header.setAttribute(
+                    'aria-sort',
+                    active
+                        ? (liquidationHistorySortDirection === 'asc' ? 'ascending' : 'descending')
+                        : 'none',
+                );
+                const arrow = header.querySelector('.sort-arrow');
+                if (arrow) arrow.textContent = active
+                    ? (liquidationHistorySortDirection === 'asc' ? '▲' : '▼')
+                    : '';
+            });
+        }
+
+        function setLiquidationHistorySort(field) {
+            if (!['chain', 'address', 'date', 'collateral', 'debt'].includes(field)) return;
+            if (liquidationHistorySortField === field) {
+                liquidationHistorySortDirection = liquidationHistorySortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                liquidationHistorySortField = field;
+                liquidationHistorySortDirection = ['chain', 'address'].includes(field) ? 'asc' : 'desc';
+            }
+            liquidationHistoryPage = 1;
+            renderLiquidationHistoryTable();
+        }
+
+        function bindLiquidationHistorySorting() {
+            document.querySelectorAll('#liquidation-history-table th[data-liquidation-sort]').forEach(header => {
+                const activate = event => {
+                    if (event.target.closest('button, input, select, textarea, .col-filter-popover')) return;
+                    if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+                    if (event.type === 'keydown') event.preventDefault();
+                    setLiquidationHistorySort(header.dataset.liquidationSort);
+                };
+                header.addEventListener('click', activate);
+                header.addEventListener('keydown', activate);
+            });
+            syncLiquidationHistorySortHeaders();
+        }
+
         function applyLiquidationHistoryFilters() {
             const q = liquidationHistorySearchQuery.trim().toLowerCase();
             const inRange = (v, min, max) => {
@@ -14945,10 +15099,12 @@
                 return;
             }
 
+            const sortedRows = sortVisibleLiquidationHistoryRows(filteredLiquidationHistory);
+            syncLiquidationHistorySortHeaders();
             const totalPages = Math.max(1, Math.ceil(filteredTotal / LIQUIDATION_HISTORY_PAGE_SIZE));
             liquidationHistoryPage = Math.max(1, Math.min(liquidationHistoryPage, totalPages));
             const start = (liquidationHistoryPage - 1) * LIQUIDATION_HISTORY_PAGE_SIZE;
-            const pageRows = filteredLiquidationHistory.slice(start, start + LIQUIDATION_HISTORY_PAGE_SIZE);
+            const pageRows = sortedRows.slice(start, start + LIQUIDATION_HISTORY_PAGE_SIZE);
 
             body.innerHTML = pageRows.map(row => {
                 const rawChain = row.chain || '';
@@ -16234,6 +16390,7 @@
             },
         });
         wireRangeClear('lh-coll-filter-clear', 'lh-coll-filter-trigger', 'lh-coll-min', 'lh-coll-max', v => { liqCollMin = v; }, v => { liqCollMax = v; }, null, () => liqCollTokenFilter, applyLiquidationHistoryFilters);
+        bindLiquidationHistorySorting();
 
         // ─── Protocol Info Rendering ─────────────────────────────────────────
         function liq_copyAddr(addr, btn) {
@@ -17476,6 +17633,28 @@
             updateSupplyActivitySubtitle();
         }
 
+        function resolveCanonicalSupplyMarketIcon(tokenObj, chain) {
+            const presentation = window.getSupplyMarketIconPresentation?.(tokenObj, chain);
+            if (presentation?.src) return presentation.src;
+            const symbol = tokenObj?.symbol || '';
+            return getTokenIcon(truncateTokenName(symbol))
+                || SYMBOL_ICONS[symbol]
+                || 'dolomite-logo.svg';
+        }
+
+        function applyCanonicalSupplyMarketIcon(element, tokenObj, chain) {
+            if (!element) return;
+            if (typeof window.applySupplyMarketIcon === 'function') {
+                window.applySupplyMarketIcon(element, tokenObj, chain);
+                return;
+            }
+            element.src = resolveCanonicalSupplyMarketIcon(tokenObj, chain);
+            element.onerror = () => {
+                element.onerror = null;
+                element.src = 'dolomite-logo.svg';
+            };
+        }
+
         function setSupplyIntelLoading(tokenObj, chain) {
             const shell = document.getElementById('supply-intel-shell');
             const stats = document.getElementById('supply-intel-stats');
@@ -17485,10 +17664,8 @@
             const icon = document.getElementById('supply-intel-asset-icon');
             const symbol = tokenObj && tokenObj.symbol ? tokenObj.symbol : 'Selected Market';
             const chainName = CHAIN_DISPLAY_NAMES[chain] || chain;
-            const iconPath = tokenObj ? (getTokenIcon(truncateTokenName(symbol)) || SYMBOL_ICONS[symbol] || 'dolomite-logo.svg') : 'dolomite-logo.svg';
             if (icon) {
-                icon.src = iconPath;
-                icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
+                applyCanonicalSupplyMarketIcon(icon, tokenObj, chain);
             }
             renderSupplyIntelTitle(symbol, chainName);
             if (subtitle) subtitle.textContent = 'Fetching supplier breadth now and syncing the official Dolomite daily supply-liquidity curve in the background...';
@@ -18042,7 +18219,6 @@
             const info = currentSupplyOverview;
             const symbol = info.token.symbol;
             const chainName = CHAIN_DISPLAY_NAMES[info.chain] || info.chain;
-            const iconPath = getTokenIcon(truncateTokenName(symbol)) || SYMBOL_ICONS[symbol] || 'dolomite-logo.svg';
             const supplierStage = info.supplierStage || 'loading';
             const hasSupplierCount = Number.isFinite(info.supplierCount);
             const supplierPreviewCount = Number.isFinite(info.supplierPreviewCount) ? info.supplierPreviewCount : currentSupplyData.length;
@@ -18050,8 +18226,7 @@
                 ? info.supplierCount.toLocaleString()
                 : (supplierStage === 'partial' && supplierPreviewCount > 0 ? `${supplierPreviewCount.toLocaleString()}+` : '…');
             if (icon) {
-                icon.src = iconPath;
-                icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
+                applyCanonicalSupplyMarketIcon(icon, info.token, info.chain);
             }
             renderSupplyIntelTitle(symbol, chainName);
             if (subtitle) subtitle.textContent = hasSupplierCount
@@ -19100,11 +19275,9 @@
             const tokenId = document.getElementById('supply-asset-select').value;
             const tokenObj = currentSupplyTokensMap[tokenId] || { decimals: 18, symbol: 'TOKEN' };
             const symHeader = tokenObj.symbol;
-            const iconUrlHeader = SYMBOL_ICONS[symHeader] || `https://icons.llamao.fi/icons/tokens/${symHeader.toLowerCase()}`;
             const headerIcon = document.getElementById('supply-header-icon');
             if (headerIcon) {
-                headerIcon.src = iconUrlHeader;
-                headerIcon.onerror = () => { headerIcon.src = 'dolomite-logo.svg'; };
+                applyCanonicalSupplyMarketIcon(headerIcon, tokenObj, chain);
             }
 
             const explorers = {
@@ -19152,7 +19325,7 @@
                 };
 
                 const sym = tokenObj.symbol;
-                const iconUrl = SYMBOL_ICONS[sym] || `https://icons.llamao.fi/icons/tokens/${sym.toLowerCase()}`;
+                const iconUrl = resolveCanonicalSupplyMarketIcon(tokenObj, chain);
                 const exactAmt = s.amount.toLocaleString('en-US', {maximumFractionDigits: 4});
                 const exactAmountTip = supplyEscapeHtml(`${exactAmt} ${sym}`);
                 const exactUsd = s.usd.toLocaleString('en-US', {style:'currency', currency:'USD'});
@@ -19167,7 +19340,7 @@
                     <td style="text-align: right; font-weight:600; font-family:'JetBrains Mono',monospace;">
                         <div class="supply-token-value" style="display:flex;align-items:center;gap:6px;justify-content:flex-end" data-tooltip="${exactAmountTip}" data-tooltip-cursor="true">
                             <span style="color:#fff; font-size:12px;">${fmtS(s.amount)}</span>
-                            <img src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="${sym}" onerror="this.src='dolomite-logo.svg'">
+                            <img class="supply-market-token-icon${window.getSupplyMarketIconPresentation?.(tokenObj, chain)?.frameClass === 'full-logo' ? ' supply-market-icon-full' : ''}" src="${iconUrl}" width="16" height="16" style="border-radius:50%" alt="${sym}" onerror="this.src='dolomite-logo.svg'">
                         </div>
                     </td>
                     <td style="text-align: right; color:#34d399; font-weight:600; font-family:'JetBrains Mono',monospace; font-size:12px;" data-tooltip="${exactUsd}" data-tooltip-cursor="true">
@@ -19484,9 +19657,10 @@
             if (!token) return;
             if (assetText) assetText.textContent = token.symbol;
             if (assetIcon) {
-                const iconPath = getTokenIcon(truncateTokenName(token.symbol));
+                const chain = document.getElementById('supply-chain-select')?.value || '';
+                const iconPath = resolveCanonicalSupplyMarketIcon(token, chain);
                 if (iconPath) {
-                    assetIcon.src = iconPath;
+                    applyCanonicalSupplyMarketIcon(assetIcon, token, chain);
                     assetIcon.style.display = 'block';
                 } else {
                     assetIcon.style.display = 'none';

@@ -6,6 +6,17 @@
   const SUPPLY_SAVETH_BASE = '0x23e3df1196b3249c9b0a9476f990f105591872de';
   const SUPPLY_DSAVETH = '0x51bc8e41cbec0aa97ec07c73597829c70b2eed46';
   const SUPPLY_SAVETH_ICON = SUPPLY_ASSET_ICON_CDN + 'savETH.1c28535854c4a65f2a4786a2f02ae499.svg';
+  const SUPPLY_DPLV_GLP_ICON = SUPPLY_ASSET_ICON_CDN + 'plvGLP.24551c9e68ef10245cc45fb0b96cfdff.svg';
+  const SUPPLY_SOLVBTC_BBN_ICON = SUPPLY_ASSET_ICON_CDN + 'solvBTCbbn.a4ffbb3feb4a22c2ca5564097b70f35c.svg';
+  const SUPPLY_CANONICAL_ICON_OVERRIDES = {
+    'arbitrum:0x5c80ac681b6b0e7ef6e0751211012601e6cfb043': SUPPLY_DPLV_GLP_ICON,
+    'berachain:0xcc0966d8418d412c599a6421b760a847eb169a8c': SUPPLY_SOLVBTC_BBN_ICON,
+  };
+  const SUPPLY_CANONICAL_SYMBOL_ICONS = {
+    dplvGLP: SUPPLY_DPLV_GLP_ICON,
+    'SolvBTC.BBN': SUPPLY_SOLVBTC_BBN_ICON,
+  };
+  const SUPPLY_FULL_LOGO_PATTERN = /^(?:wstETH|ylstETH|(?:d?PT|d?YT)-|gm(?!x$)|dGM(?:$|[-\s])|d?GLV|(?:m|plv|dplv|dfs|magic|s)GLP)/i;
   const SUPPLY_MARKET_PRESENTATIONS = {
     'arbitrum:0x2c799166c9f0dbf9efc5004cbce4c5a37fa39329': ['gmARB-USD', 'ARB-GM.50df3ed4a1a52b938992cb5e08efbc36.svg'],
     'arbitrum:0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef': ['gmBTC-USD', 'WBTC-GM.6e7f69538bb02b42b881b86aea5c6d6e.svg'],
@@ -58,6 +69,31 @@
       symbol: String(token?.symbol || ''),
       name: String(token?.name || ''),
       icon: String(token?.icon || ''),
+    };
+  }
+
+  function getSupplyMarketIconPresentation(token, chain) {
+    const chainKey = String(chain || '').trim().toLowerCase();
+    const address = normalizeSupplyAddress(token?.id);
+    const addressKey = address ? `${chainKey}:${address}` : '';
+    const mapped = SUPPLY_MARKET_PRESENTATIONS[addressKey];
+    const presentation = getSupplyMarketPresentation(token, chainKey);
+    let src = SUPPLY_CANONICAL_ICON_OVERRIDES[addressKey] || '';
+
+    if (!src && mapped) src = SUPPLY_ASSET_ICON_CDN + mapped[1];
+    if (!src && chainKey === 'arbitrum' && address === SUPPLY_DSAVETH) {
+      src = SUPPLY_SAVETH_ICON;
+    }
+    if (!src) {
+      src = SUPPLY_CANONICAL_SYMBOL_ICONS[presentation.symbol]
+        || SUPPLY_CANONICAL_SYMBOL_ICONS[token?.symbol]
+        || '';
+    }
+
+    return {
+      src,
+      frameClass: SUPPLY_FULL_LOGO_PATTERN.test(presentation.symbol) ? 'full-logo' : '',
+      imageClass: '',
     };
   }
 
@@ -223,6 +259,7 @@
       buildSupplyTableFooter,
       getSupplyActivityHistoryPresentation,
       getSupplyMarketPresentation,
+      getSupplyMarketIconPresentation,
       isExpiredSupplyMarket,
       getSelectableSupplyMarkets,
       filterSupplyMarketOptions,
@@ -1390,6 +1427,7 @@
     polishSearchClear('supply-activity-search-clear');
     renderSupplyActivityStats();
     polishSupplyActivityUi();
+    syncCanonicalSupplyMarketIcons();
   }
 
   function installEmptyState() {
@@ -1417,6 +1455,24 @@
       }
     } catch (error) {}
     return null;
+  }
+
+  function syncCanonicalSupplyMarketIcons() {
+    const selectedId = appliedAssetId
+      || document.getElementById('supply-asset-select')?.value
+      || stagedAssetId;
+    const token = selectedId ? getSupplyToken(selectedId) : null;
+    if (!token) return;
+    const chain = getCurrentSupplyChain();
+    [
+      document.getElementById('selected-asset-icon'),
+      document.getElementById('supply-intel-asset-icon'),
+      document.getElementById('supply-header-icon'),
+    ].forEach(icon => {
+      if (!icon) return;
+      applySupplyMarketIcon(icon, token, chain);
+      icon.style.display = 'block';
+    });
   }
 
   function getCurrentSelectableSupplyToken(id) {
@@ -1539,8 +1595,10 @@
     'arbitrum:0x7e584529bb40220a2bd5d0c13e3d65abd4a47f0e': SUPPLY_ASSET_ICON_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
     'arbitrum:0x11f4532c05fb8ea6320b1dc155bfdc2498a5d8b4': SUPPLY_ASSET_ICON_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
     'arbitrum:0x51fc0f6660482ea73330e414efd7808811a57fa2': SUPPLY_ASSET_ICON_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
+    'arbitrum:0x5c80ac681b6b0e7ef6e0751211012601e6cfb043': SUPPLY_DPLV_GLP_ICON,
     'berachain:0xe946dd7d03f6f5c440f68c84808ca88d26475fc5': SUPPLY_ASSET_ICON_CDN + 'WBTC.f3c8718835179e7543b5.png',
     'berachain:0x1fcca65fb6ae3b2758b9b2b394cb227eae404e1e': SUPPLY_ASSET_ICON_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
+    'berachain:0xcc0966d8418d412c599a6421b760a847eb169a8c': SUPPLY_SOLVBTC_BBN_ICON,
   };
   const supplyAssetSymbolIconFallbacks = {
     stBTC: SUPPLY_ASSET_ICON_CDN + 'stBTC.3935aab6a35bd55630f244a1f56631ba.svg',
@@ -1548,20 +1606,23 @@
     'pumpBTC.bera': SUPPLY_ASSET_ICON_CDN + 'PumpBTC.aa48de36289e8439daf0456c4252dd27.svg',
     PREMIA: SUPPLY_ASSET_ICON_CDN + 'PREMIA.6c5c2339f3179353bb163b4e53d8dfa1.svg',
     ylBTCLST: SUPPLY_ASSET_ICON_CDN + 'WBTC.f3c8718835179e7543b5.png',
-    'SolvBTC.BBN': SUPPLY_ASSET_ICON_CDN + 'solvBTC.326d594ebd54e4317f078b70f72a58b4.svg',
+    dplvGLP: SUPPLY_DPLV_GLP_ICON,
+    'SolvBTC.BBN': SUPPLY_SOLVBTC_BBN_ICON,
   };
 
 
-  function getIconPath(token) {
-    const chain = getCurrentSupplyChain();
+  function getIconPath(token, chainOverride) {
+    const chain = String(chainOverride || getCurrentSupplyChain()).toLowerCase();
     const presentation = getSupplyMarketPresentation(token, chain);
-    if (presentation.icon) return presentation.icon;
+    const canonical = getSupplyMarketIconPresentation(token, chain);
+    if (canonical.src) return canonical.src;
     const iconKey = token?.id
       ? `${chain}:${normalizeSupplyAddress(token.id)}`
       : '';
     if (iconKey && supplyAssetIconOverrides[iconKey]) {
       return supplyAssetIconOverrides[iconKey];
     }
+    if (presentation.icon) return presentation.icon;
     try {
       if (token && typeof getTokenIcon === 'function' && typeof truncateTokenName === 'function') {
         return getTokenIcon(presentation.symbol)
@@ -1575,19 +1636,51 @@
     return supplyAssetSymbolIconFallbacks[token?.symbol] || '';
   }
 
+  function getBrowserSupplyMarketIconPresentation(token, chainOverride) {
+    const chain = String(chainOverride || getCurrentSupplyChain()).toLowerCase();
+    const presentation = getSupplyMarketPresentation(token, chain);
+    const canonical = getSupplyMarketIconPresentation(token, chain);
+    return {
+      src: canonical.src || getIconPath(token, chain) || 'dolomite-logo.svg',
+      frameClass: canonical.frameClass,
+      imageClass: canonical.imageClass,
+      symbol: presentation.symbol,
+      name: presentation.name,
+    };
+  }
+
+  function applySupplyMarketIcon(element, token, chainOverride) {
+    if (!element) return getBrowserSupplyMarketIconPresentation(token, chainOverride);
+    const iconPresentation = getBrowserSupplyMarketIconPresentation(token, chainOverride);
+    element.src = iconPresentation.src;
+    element.classList.toggle('supply-market-icon-full', iconPresentation.frameClass === 'full-logo');
+    element.classList.toggle('supply-market-icon-grayscale', iconPresentation.imageClass === 'grayscale');
+    element.onerror = () => {
+      element.onerror = null;
+      element.src = 'dolomite-logo.svg';
+    };
+    return iconPresentation;
+  }
+
+  window.getSupplyMarketIconPresentation = getBrowserSupplyMarketIconPresentation;
+  window.applySupplyMarketIcon = applySupplyMarketIcon;
+
   function setSelectorUi(token, pending) {
     const text = document.getElementById('selected-asset-text');
-    const icon = document.getElementById('selected-asset-icon');
     if (!token || !text) return;
     const presentation = getSupplyMarketPresentation(token, getCurrentSupplyChain());
     text.textContent = presentation.symbol;
-    const iconPath = getIconPath(token);
-    if (icon && iconPath) {
-      icon.src = iconPath;
-      icon.style.display = 'block';
-    } else if (icon) {
-      icon.style.display = 'none';
+    const identityIcons = [document.getElementById('selected-asset-icon')];
+    if (!pending) {
+      identityIcons.push(
+        document.getElementById('supply-intel-asset-icon'),
+        document.getElementById('supply-header-icon'),
+      );
     }
+    identityIcons.filter(Boolean).forEach((icon) => {
+      applySupplyMarketIcon(icon, token, getCurrentSupplyChain());
+      icon.style.display = 'block';
+    });
     document.body.classList.toggle('supply-has-pending-asset', !!pending);
   }
 
@@ -1644,13 +1737,39 @@
     if (!input || input.dataset.supplyDraftClear === 'true') return;
 
     input.dataset.supplyDraftClear = 'true';
-    const shell = input.parentElement;
-    if (!shell) return;
-    shell.classList.add('supply-asset-search-shell', 'no-clear');
-    shell.querySelector('.supply-asset-search-clear')?.remove();
+    const directoryHead = input.parentElement;
+    if (!directoryHead) return;
+    directoryHead.classList.add('supply-draft-directory-head');
+
+    const heading = document.createElement('div');
+    heading.className = 'supply-draft-directory-heading';
+    heading.innerHTML = `
+      <span>Active supply markets</span>
+      <span class="supply-draft-directory-count" id="supply-asset-directory-count"></span>
+    `;
+
+    const shell = document.createElement('div');
+    shell.className = 'supply-asset-search-shell';
+    input.insertAdjacentElement('beforebegin', shell);
+    shell.appendChild(input);
+
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'supply-asset-search-clear';
+    clear.setAttribute('aria-label', 'Clear asset search');
+    clear.innerHTML = clearIcon;
+    shell.appendChild(clear);
+    directoryHead.insertBefore(heading, shell);
 
     const sync = () => shell.classList.toggle('has-value', input.value.trim().length > 0);
     input.addEventListener('input', sync);
+    clear.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+    });
     sync();
   }
 
@@ -1691,7 +1810,10 @@
       const chain = getCurrentSupplyChain();
       const query = document.getElementById('asset-search-input')?.value || '';
       const options = filterSupplyMarketOptions(currentSupplyTokensList, query, chain);
+      installAssetSearchClear();
       container.replaceChildren();
+      const directoryCount = document.getElementById('supply-asset-directory-count');
+      if (directoryCount) directoryCount.textContent = `${options.length} active`;
 
       if (!options.length) {
         const empty = document.createElement('div');
@@ -1703,26 +1825,41 @@
 
       options.forEach((token) => {
         const presentation = getSupplyMarketPresentation(token, chain);
+        const iconPresentation = getBrowserSupplyMarketIconPresentation(token, chain);
         const selected = token.id === stagedAssetId;
+        const marketLabel = token.marketId != null && String(token.marketId) !== ''
+          ? `Market #${token.marketId}`
+          : 'Supply market';
+        const address = String(token.id || '');
+        const shortAddress = address.length > 12
+          ? `${address.slice(0, 6)}…${address.slice(-4)}`
+          : address;
         const option = document.createElement('button');
         option.type = 'button';
-        option.className = `premium-supply-dropdown-item${selected ? ' active' : ''}`;
+        option.className = `premium-supply-dropdown-item supply-draft-market-option${selected ? ' active' : ''}`;
         option.dataset.assetId = token.id;
         option.setAttribute('aria-pressed', selected ? 'true' : 'false');
         option.innerHTML = `
-          <img src="${supplyDraftEscape(presentation.icon || getIconPath(token))}"
-            alt="" aria-hidden="true">
+          <span class="supply-draft-option-icon ${supplyDraftEscape(iconPresentation.frameClass)}">
+            <img class="${supplyDraftEscape(iconPresentation.imageClass)}"
+              src="${supplyDraftEscape(iconPresentation.src)}" alt="" aria-hidden="true">
+          </span>
           <span class="supply-draft-option-copy">
-            <strong>${supplyDraftEscape(presentation.symbol)}</strong>
-            <small>${supplyDraftEscape(
-              `${token.id.slice(0, 6)}...${token.id.slice(-4)}`
-            )}</small>
-          </span>`;
+            <span class="supply-draft-option-primary">
+              <strong>${supplyDraftEscape(presentation.symbol)}</strong>
+              <span class="supply-draft-option-selected">Selected</span>
+            </span>
+            <span class="supply-draft-option-name">${supplyDraftEscape(presentation.name || 'Dolomite supply market')}</span>
+            <span class="supply-draft-option-market">
+              <span>${supplyDraftEscape(marketLabel)}</span>
+              <span aria-hidden="true">·</span>
+              <span class="supply-draft-option-address">${supplyDraftEscape(shortAddress)}</span>
+            </span>
+          </span>
+          <svg class="supply-draft-option-arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg>`;
         option.addEventListener('click', () => stageSupplyAsset(token.id));
         container.appendChild(option);
       });
-
-      installAssetSearchClear();
       if (!activateSupplyMarketDeepLink()) {
         setTimeout(autoApplyDefaultSupplyAsset, 0);
       }
