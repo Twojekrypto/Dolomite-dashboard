@@ -31,6 +31,82 @@ class FetchDolomiteTvlTest(unittest.TestCase):
         self.assertEqual(3, request_get.call_count)
         self.assertEqual([call(2), call(4)], time_mock.sleep.call_args_list)
 
+    def test_subgraph_payload_retries_incomplete_metadata(self):
+        incomplete = Mock()
+        incomplete.raise_for_status.return_value = None
+        incomplete.json.return_value = {
+            "data": {
+                "tokens": [],
+                "_meta": {
+                    "block": {
+                        "number": 123,
+                        "hash": None,
+                        "timestamp": 1_783_728_000,
+                    },
+                    "deployment": "dolomite-arbitrum",
+                },
+            }
+        }
+        complete_data = {
+            "tokens": [],
+            "_meta": {
+                "block": {
+                    "number": 124,
+                    "hash": "0xabc",
+                    "timestamp": 1_783_728_010,
+                },
+                "deployment": "dolomite-arbitrum",
+            },
+        }
+        complete = Mock()
+        complete.raise_for_status.return_value = None
+        complete.json.return_value = {"data": complete_data}
+
+        with patch.object(
+            fetch_dolomite_tvl.requests,
+            "post",
+            side_effect=[incomplete, complete],
+        ), patch.object(fetch_dolomite_tvl.time, "sleep") as sleep_mock:
+            result = fetch_dolomite_tvl.fetch_subgraph_payload(
+                "Arbitrum",
+                "https://example.test/subgraph",
+            )
+
+        self.assertEqual(complete_data, result)
+        self.assertEqual([call(2)], sleep_mock.call_args_list)
+
+    def test_subgraph_payload_refuses_persistently_incomplete_metadata(self):
+        incomplete = Mock()
+        incomplete.raise_for_status.return_value = None
+        incomplete.json.return_value = {
+            "data": {
+                "tokens": [],
+                "_meta": {
+                    "block": {
+                        "number": 123,
+                        "hash": "",
+                        "timestamp": None,
+                    },
+                    "deployment": "",
+                },
+            }
+        }
+
+        with patch.object(
+            fetch_dolomite_tvl.requests,
+            "post",
+            return_value=incomplete,
+        ), patch.object(fetch_dolomite_tvl.time, "sleep"):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"Arbitrum subgraph metadata incomplete: "
+                r"block\.timestamp, block\.hash, deployment",
+            ):
+                fetch_dolomite_tvl.fetch_subgraph_payload(
+                    "Arbitrum",
+                    "https://example.test/subgraph",
+                )
+
     def test_archived_chain_failures_do_not_block_active_tvl_snapshot(self):
         archived = {"Polygon zkEVM", "Botanix"}
         payloads = {
