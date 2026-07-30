@@ -169,22 +169,23 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         featured_block = styles[featured_start:styles.index("}", featured_start)]
         self.assertIn("grid-column: 1 / -1", featured_block)
 
-    def test_pool_health_details_use_market_dossier_and_assets_icon_frame(self):
+    def test_pool_health_details_start_with_analysis_without_duplicate_identity(self):
         source = TVL_SCRIPT.read_text(encoding="utf-8")
         styles = TVL_STYLES.read_text(encoding="utf-8")
 
         self.assertIn('class="supply-health-detail-panel"', source)
-        self.assertIn('class="supply-health-detail-head"', source)
         self.assertIn(
-            'class="supply-health-token-icon ${iconPresentation.frameClass}"',
+            'class="supply-health-detail supply-health-detail-content"',
             source,
         )
+        self.assertNotIn('class="supply-health-detail-head"', source)
+        self.assertNotIn("Market intelligence", source)
         self.assertNotIn('class="supply-health-asset-icon"', source)
         self.assertNotIn(
             "#supply-health-card .supply-health-detail-panel::before",
             styles,
         )
-        self.assertIn("#supply-health-card .supply-health-detail-head", styles)
+        self.assertNotIn("#supply-health-card .supply-health-detail-head", styles)
         self.assertIn(
             "#supply-health-card .supply-health-token-icon.full-logo",
             styles,
