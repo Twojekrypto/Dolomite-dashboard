@@ -10,10 +10,12 @@ const {
   formatHealthUsd,
   formatSupplyHealthDisclosureLabel,
   formatSupplyHealthPageRange,
+  getSupplyHealthIconPresentation,
   getSupplyHealthMarketPresentation,
   healthConcentrationLevel,
   isExpiredSupplyHealthMarket,
   paginateSupplyHealthMarkets,
+  renderSupplyHealthDetail,
   updateSupplyHealthFilters,
 } = require('../tvl/supply-health.js');
 
@@ -109,6 +111,74 @@ test('known dGM wrappers resolve to their specific GM market labels', () => {
       name: 'Dolomite GM Market',
     },
   );
+});
+
+test('Supply Health icon presentation uses canonical market identity', () => {
+  const calls = [];
+  const market = {
+    chain: 'arbitrum',
+    tokenId: '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef',
+    symbol: 'dGM',
+  };
+  const presentation = getSupplyHealthIconPresentation(market, {
+    icon: (symbol, row) => {
+      calls.push([symbol, row]);
+      return 'official-gm-icon.svg';
+    },
+    frame: symbol => symbol.startsWith('gm') ? 'full-logo' : '',
+    image: () => '',
+  });
+
+  assert.deepEqual(calls, [[
+    'gmBTC-USD',
+    { chain: 'arbitrum', addr: market.tokenId },
+  ]]);
+  assert.deepEqual(presentation, {
+    src: 'official-gm-icon.svg',
+    frameClass: 'full-logo',
+    imageClass: '',
+  });
+});
+
+test('Supply Health renders one market dossier with evidence and exact navigation', () => {
+  const detail = renderSupplyHealthDetail({
+    chain: 'ethereum',
+    tokenId: '0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d',
+    symbol: 'USD1',
+    name: 'World Liberty Financial USD',
+    supplyUsd: 278049648.05,
+    medianWalletUsd: 159.27,
+    gini: 0.9841,
+    largestPct: 40.02,
+    score: {
+      wallet: 96.5,
+      concentration: 15,
+      stability: 99.5,
+      growth: 67.1,
+      resilience: 60,
+      total: 64.6,
+      grade: 'C',
+    },
+    growth: {
+      supply30dPct: 16.68,
+      supply7dPct: -1.13,
+      wallets30dPct: -8.96,
+      avgDailyChange30dPct: 1.05,
+    },
+    topWallets: [{
+      address: '0x5be9a4959308a0d0c7bc0870e319314d8d957dbb',
+      sharePct: 40.02,
+      usd: 111278882.78,
+    }],
+  });
+
+  assert.match(detail, /Market intelligence/);
+  assert.match(detail, /Quality anatomy/);
+  assert.match(detail, /Market momentum/);
+  assert.match(detail, /Supply concentration/);
+  assert.match(detail, /supply-health-supplier-bar/);
+  assert.match(detail, /Open Supply market/);
+  assert.match(detail, /asset=0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d/);
 });
 
 test('unknown market presentation falls back to raw subgraph metadata', () => {

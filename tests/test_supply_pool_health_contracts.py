@@ -169,6 +169,28 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         featured_block = styles[featured_start:styles.index("}", featured_start)]
         self.assertIn("grid-column: 1 / -1", featured_block)
 
+    def test_pool_health_details_use_market_dossier_and_assets_icon_frame(self):
+        source = TVL_SCRIPT.read_text(encoding="utf-8")
+        styles = TVL_STYLES.read_text(encoding="utf-8")
+
+        self.assertIn('class="supply-health-detail-panel"', source)
+        self.assertIn('class="supply-health-detail-head"', source)
+        self.assertIn(
+            'class="supply-health-token-icon ${iconPresentation.frameClass}"',
+            source,
+        )
+        self.assertNotIn('class="supply-health-asset-icon"', source)
+        self.assertIn(
+            "#supply-health-card .supply-health-detail-panel::before",
+            styles,
+        )
+        self.assertIn("#supply-health-card .supply-health-detail-head", styles)
+        self.assertIn(
+            "#supply-health-card .supply-health-token-icon.full-logo",
+            styles,
+        )
+        self.assertIn("@media (max-width: 1100px)", styles)
+
     def test_pool_health_semantic_colors_are_card_scoped(self):
         source = TVL_SCRIPT.read_text(encoding="utf-8")
         styles = TVL_STYLES.read_text(encoding="utf-8")
