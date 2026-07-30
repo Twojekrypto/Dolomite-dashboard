@@ -129,6 +129,11 @@ class InstitutionalTableMarketUxContracts(unittest.TestCase):
         ):
             self.assertIn(contract, SUPPLY_SCRIPT)
         self.assertIn(".supply-draft-market-option", SUPPLY_CSS)
+        self.assertNotIn(
+            "#asset-options-container .supply-draft-market-option.active::before",
+            SUPPLY_CSS,
+        )
+        self.assertIn(".supply-draft-option-selected", SUPPLY_CSS)
         self.assertNotIn("shell.classList.add('supply-asset-search-shell', 'no-clear')", SUPPLY_SCRIPT)
 
     def test_supply_selection_updates_all_market_identity_icons(self):
