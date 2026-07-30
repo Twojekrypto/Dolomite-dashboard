@@ -508,13 +508,37 @@
   transform: rotate(180deg);
 }
 
-#supply-health-card .supply-health-asset-icon {
-  width: 22px;
-  height: 22px;
-  margin-right: 9px;
-  flex: 0 0 auto;
+#supply-health-card .supply-health-token-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
+  flex: 0 0 30px;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
   border-radius: 50%;
   background: var(--bg-3);
+}
+
+#supply-health-card .supply-health-token-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#supply-health-card .supply-health-token-icon img.grayscale {
+  filter: grayscale(1) brightness(1.5);
+}
+
+#supply-health-card .supply-health-token-icon.full-logo {
+  border-color: transparent;
+  border-radius: 5px;
+  background: transparent;
+}
+
+#supply-health-card .supply-health-token-icon.full-logo img {
+  border-radius: 0;
   object-fit: contain;
 }
 
@@ -577,9 +601,9 @@
 #supply-health-card .supply-health-detail-row td {
   position: relative;
   height: auto;
-  padding: 0;
+  padding: 0 0 14px;
   border-bottom-color: var(--line-2);
-  background: var(--bg-1);
+  background: linear-gradient(90deg, rgba(201, 162, 39, .035), var(--bg-1) 42px);
   white-space: normal;
 }
 
@@ -592,37 +616,230 @@
   box-shadow: 0 0 12px var(--gold-line);
 }
 
-#supply-health-card .supply-health-detail {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.1fr) minmax(220px, .9fr);
+#supply-health-card .supply-health-detail-panel {
+  position: relative;
+  margin: 0 12px 0 14px;
+  overflow: hidden;
+  border: 1px solid rgba(201, 162, 39, .18);
+  border-top-color: rgba(201, 162, 39, .48);
+  border-radius: 0 0 12px 12px;
+  background:
+    radial-gradient(circle at 88% -25%, rgba(201, 162, 39, .09), transparent 34%),
+    linear-gradient(180deg, rgba(18, 18, 20, .985), rgba(12, 12, 14, .985));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .04),
+    0 16px 36px rgba(0, 0, 0, .2);
 }
 
-#supply-health-card .supply-health-detail-col {
+#supply-health-card .supply-health-detail-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  width: 3px;
+  background: linear-gradient(180deg, var(--gold), rgba(201, 162, 39, .16));
+  box-shadow: 0 0 18px rgba(201, 162, 39, .24);
+  pointer-events: none;
+}
+
+#supply-health-card .supply-health-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 88px;
+  padding: 16px 20px 15px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, .065);
+}
+
+#supply-health-card .supply-health-detail-identity {
+  display: flex;
+  align-items: center;
   min-width: 0;
-  padding: 18px 19px 20px;
+}
+
+#supply-health-card .supply-health-detail-identity .supply-health-token-icon {
+  margin-right: 12px;
+}
+
+#supply-health-card .supply-health-detail-identity-copy {
+  min-width: 0;
+}
+
+#supply-health-card .supply-health-detail-eyebrow,
+#supply-health-card .supply-health-detail-section-kicker {
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.25px;
+  text-transform: uppercase;
+}
+
+#supply-health-card .supply-health-detail-market-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  margin-top: 5px;
+}
+
+#supply-health-card .supply-health-detail-market-symbol {
+  overflow: hidden;
+  color: var(--fg-1);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#supply-health-card .supply-health-detail-chain {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 21px;
+  padding: 0 7px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .025);
+  color: var(--fg-2);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+#supply-health-card .supply-health-detail-chain img {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  object-fit: contain;
+}
+
+#supply-health-card .supply-health-detail-market-name {
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--fg-3);
+  font-size: 11px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#supply-health-card .supply-health-detail-head-metrics {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, .16);
+  overflow: hidden;
+}
+
+#supply-health-card .supply-health-detail-head-metric {
+  display: grid;
+  grid-template-columns: auto;
+  align-content: center;
+  min-width: 126px;
+  padding: 10px 14px;
+}
+
+#supply-health-card .supply-health-detail-head-metric + .supply-health-detail-head-metric {
   border-left: 1px solid var(--line-1);
 }
 
-#supply-health-card .supply-health-detail-col:first-child {
+#supply-health-card .supply-health-detail-head-metric > span {
+  color: var(--fg-3);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: .85px;
+  text-transform: uppercase;
+}
+
+#supply-health-card .supply-health-detail-head-metric > strong {
+  margin-top: 4px;
+  color: var(--fg-1);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -.2px;
+}
+
+#supply-health-card .supply-health-detail-head-metric.quality {
+  grid-template-columns: auto auto;
+  column-gap: 8px;
+  min-width: 116px;
+}
+
+#supply-health-card .supply-health-detail-head-metric.quality > span {
+  grid-column: 1 / -1;
+}
+
+#supply-health-card .supply-health-detail-head-metric.quality > strong {
+  color: var(--gold-hi);
+  font-size: 17px;
+}
+
+#supply-health-card .supply-health-detail-head-metric.quality > .supply-health-grade {
+  align-self: end;
+  margin-bottom: 1px;
+  font-style: normal;
+}
+
+#supply-health-card .supply-health-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr) minmax(250px, .98fr);
+}
+
+#supply-health-card .supply-health-detail-section {
+  min-width: 0;
+  padding: 18px 20px 20px;
+  border-left: 1px solid var(--line-1);
+}
+
+#supply-health-card .supply-health-detail-section:first-child {
   border-left: 0;
 }
 
-#supply-health-card .supply-health-detail-title {
-  margin-bottom: 12px;
+#supply-health-card .supply-health-detail-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  margin-bottom: 15px;
+}
+
+#supply-health-card .supply-health-detail-section-head h3 {
+  margin: 4px 0 0;
+  color: var(--fg-1);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -.05px;
+  line-height: 1.2;
+}
+
+#supply-health-card .supply-health-detail-section-head > span {
   color: var(--fg-3);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 8.5px;
   font-weight: 600;
-  letter-spacing: .7px;
+  letter-spacing: .45px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 #supply-health-card .supply-health-component {
   display: grid;
-  grid-template-columns: 138px minmax(52px, 1fr) 30px;
+  grid-template-columns: 132px minmax(50px, 1fr) 28px;
   align-items: center;
   gap: 10px;
-  margin-bottom: 7px;
+  min-height: 28px;
 }
 
 #supply-health-card .supply-health-component-label {
@@ -638,9 +855,9 @@
 }
 
 #supply-health-card .supply-health-component-bar {
-  height: 4px;
+  height: 5px;
   overflow: hidden;
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--bg-4);
 }
 
@@ -661,52 +878,125 @@
 #supply-health-card .supply-health-detail-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 16px;
+  gap: 8px;
 }
 
 #supply-health-card .supply-health-detail-stat.featured {
   grid-column: 1 / -1;
+  min-height: 56px;
+  padding: 10px 12px 9px;
+  border: 1px solid rgba(201, 162, 39, .18);
+  border-left: 2px solid var(--gold);
+  border-radius: 7px;
+  background: rgba(201, 162, 39, .055);
+}
+
+#supply-health-card .supply-health-detail-stat:not(.featured) {
+  min-height: 45px;
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--line-1);
 }
 
 #supply-health-card .supply-health-detail-stat-label {
   color: var(--fg-3);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: .4px;
   text-transform: uppercase;
 }
 
 #supply-health-card .supply-health-detail-stat-value {
-  margin-top: 3px;
+  margin-top: 5px;
   color: var(--fg-1);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
+}
+
+#supply-health-card .supply-health-detail-stat.featured .supply-health-detail-stat-value {
+  font-size: 16px;
+  letter-spacing: -.2px;
 }
 
 #supply-health-card .supply-health-detail-stat-value.positive { color: var(--up); }
 #supply-health-card .supply-health-detail-stat-value.negative { color: var(--down); }
 
+#supply-health-card .supply-health-concentration-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 13px;
+  overflow: hidden;
+  border: 1px solid var(--line-1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .012);
+}
+
+#supply-health-card .supply-health-concentration-summary > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+#supply-health-card .supply-health-concentration-summary > div + div {
+  border-left: 1px solid var(--line-1);
+}
+
+#supply-health-card .supply-health-concentration-summary span {
+  color: var(--fg-3);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  text-transform: uppercase;
+}
+
+#supply-health-card .supply-health-concentration-summary strong {
+  color: var(--fg-1);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+#supply-health-card .supply-health-suppliers {
+  display: grid;
+  gap: 8px;
+}
+
+#supply-health-card .supply-health-supplier {
+  min-width: 0;
+}
+
 #supply-health-card .supply-health-top-wallet {
   display: grid;
-  grid-template-columns: 26px 1fr auto auto;
+  grid-template-columns: 22px minmax(76px, 1fr) auto 50px;
   align-items: center;
   gap: 8px;
-  min-height: 24px;
-  margin-bottom: 5px;
+  min-height: 20px;
   font-size: 11.5px;
 }
 
-#supply-health-card .supply-health-top-rank,
+#supply-health-card .supply-health-top-rank {
+  color: var(--gold-lo);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
 #supply-health-card .supply-health-top-usd {
   color: var(--fg-3);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 9.5px;
+  text-align: right;
 }
 
 #supply-health-card .supply-health-top-addr {
+  overflow: hidden;
   color: var(--fg-2);
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #supply-health-card a.supply-health-top-addr:hover,
@@ -719,6 +1009,24 @@
 #supply-health-card .supply-health-top-share {
   color: var(--fg-1);
   font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 650;
+  text-align: right;
+}
+
+#supply-health-card .supply-health-supplier-bar {
+  height: 2px;
+  margin: 4px 0 0 30px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .055);
+}
+
+#supply-health-card .supply-health-supplier-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold-lo), var(--gold));
 }
 
 #supply-health-card .supply-health-detail-empty {
@@ -729,21 +1037,37 @@
 #supply-health-card .supply-health-market-link {
   display: inline-flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
   min-height: 32px;
-  margin-top: 12px;
-  padding: 0 12px;
+  margin-top: 14px;
+  padding: 0 11px 0 12px;
   border: 1px solid var(--gold-line);
   border-radius: 8px;
   background: var(--gold-wash);
   color: var(--gold-hi);
   font-size: 12px;
   font-weight: 600;
+  transition: border-color .15s var(--ease), background .15s var(--ease), color .15s var(--ease);
+}
+
+#supply-health-card .supply-health-market-link svg {
+  width: 14px;
+  height: 14px;
+  transition: transform .15s var(--ease);
 }
 
 #supply-health-card .supply-health-market-link:hover,
 #supply-health-card .supply-health-market-link:focus-visible {
+  border-color: var(--gold);
   outline: 0;
   background: rgba(201, 162, 39, .16);
+  color: var(--fg-1);
+}
+
+#supply-health-card .supply-health-market-link:hover svg,
+#supply-health-card .supply-health-market-link:focus-visible svg {
+  transform: translateX(2px);
 }
 
 #supply-health-card .supply-health-footer {
@@ -817,6 +1141,23 @@
   text-align: center;
 }
 
+@media (max-width: 1100px) {
+  #supply-health-card .supply-health-detail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #supply-health-card .supply-health-detail-section.concentration {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--line-1);
+    border-left: 0;
+  }
+
+  #supply-health-card .supply-health-suppliers {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
 @media (max-width: 840px) {
   #supply-health-card .supply-health-table {
     min-width: 0;
@@ -852,14 +1193,41 @@
     grid-template-columns: 1fr;
   }
 
-  #supply-health-card .supply-health-detail-col,
-  #supply-health-card .supply-health-detail-col:first-child {
+  #supply-health-card .supply-health-detail-panel {
+    margin-right: 6px;
+    margin-left: 8px;
+  }
+
+  #supply-health-card .supply-health-detail-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 15px 15px 18px;
+  }
+
+  #supply-health-card .supply-health-detail-head-metrics {
+    width: 100%;
+  }
+
+  #supply-health-card .supply-health-detail-head-metric {
+    flex: 1 1 50%;
+    min-width: 0;
+  }
+
+  #supply-health-card .supply-health-detail-section,
+  #supply-health-card .supply-health-detail-section:first-child,
+  #supply-health-card .supply-health-detail-section.concentration {
+    grid-column: auto;
     border-top: 1px solid var(--line-1);
     border-left: 0;
   }
 
-  #supply-health-card .supply-health-detail-col:first-child {
+  #supply-health-card .supply-health-detail-section:first-child {
     border-top: 0;
+  }
+
+  #supply-health-card .supply-health-suppliers {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -902,5 +1270,59 @@
 
   #supply-health-card .supply-health-page-range {
     text-align: center;
+  }
+}
+
+@media (max-width: 560px) {
+  #supply-health-card .supply-health-detail-market-line {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  #supply-health-card .supply-health-detail-market-name {
+    white-space: normal;
+  }
+
+  #supply-health-card .supply-health-detail-head-metrics {
+    flex-direction: column;
+  }
+
+  #supply-health-card .supply-health-detail-head-metric + .supply-health-detail-head-metric {
+    border-top: 1px solid var(--line-1);
+    border-left: 0;
+  }
+
+  #supply-health-card .supply-health-detail-section {
+    padding: 16px 13px 18px;
+  }
+
+  #supply-health-card .supply-health-component {
+    grid-template-columns: 114px minmax(44px, 1fr) 26px;
+    gap: 7px;
+  }
+
+  #supply-health-card .supply-health-component-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #supply-health-card .supply-health-detail-section-head > span {
+    display: none;
+  }
+
+  #supply-health-card .supply-health-top-wallet {
+    grid-template-columns: 20px minmax(68px, 1fr) 50px;
+  }
+
+  #supply-health-card .supply-health-top-usd {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #supply-health-card .supply-health-market-link,
+  #supply-health-card .supply-health-market-link svg {
+    transition: none;
   }
 }
