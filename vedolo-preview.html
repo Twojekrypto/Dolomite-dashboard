@@ -323,7 +323,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table col.holder-actions-col{width:96px}
 #holders-table td{font-size:13px}
 #holders-table .holder-data-row{cursor:pointer}
-#holders-table .holder-data-row.holder-row-open td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
+#holders-table .holder-data-row.holder-row-open td{background:var(--gold-wash);border-bottom-color:transparent}
+#holders-table .holder-data-row.holder-row-open td:first-child::before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;box-shadow:0 0 12px var(--gold-line)}
 #holders-table .holder-wallet{display:flex;flex-direction:column;gap:5px;min-width:0}
 #holders-table .holder-wallet-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
 #holders-table .holder-wallet-bottom{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
@@ -351,12 +352,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table .holder-row-open .holder-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
 #holders-table .holder-row-open .holder-toggle svg{transform:rotate(180deg)}
 #holders-table .holder-detail-row{cursor:default}
-#holders-table .holder-detail-row > td{padding:0 14px 18px!important;background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px);border-bottom:1px solid rgba(201,162,39,.18)}
+#holders-table .holder-detail-row > td{position:relative;height:auto;padding:0!important;background:linear-gradient(90deg,rgba(201,162,39,.035),var(--bg-1) 42px);border-bottom-color:var(--line-2);white-space:normal}
+#holders-table .holder-detail-row > td::before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:var(--gold);box-shadow:0 0 12px var(--gold-line)}
 #holders-table .holder-detail-row:hover{background:transparent}
-#holders-table .holder-detail-row:hover > td{background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px)}
-#holders-table .holder-detail-row:hover > td:first-child::before{display:none}
-#holders-table .holder-detail-panel{margin:0;border:1px solid rgba(201,162,39,.2);border-top:1px solid rgba(201,162,39,.48);border-radius:0 0 var(--r-lg) var(--r-lg);background:linear-gradient(180deg,rgba(18,18,20,.985),rgba(12,12,14,.985));overflow:hidden;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 0 0 1px rgba(201,162,39,.055),0 18px 44px rgba(0,0,0,.22)}
-#holders-table .holder-detail-panel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--gold),rgba(201,162,39,.18));box-shadow:0 0 18px rgba(201,162,39,.28);pointer-events:none}
+#holders-table .holder-detail-row:hover > td{background:linear-gradient(90deg,rgba(201,162,39,.035),var(--bg-1) 42px)}
+#holders-table .holder-detail-panel{position:relative;width:100%;margin:0;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
+#holders-table .holder-detail-panel::before{display:none}
 #holders-table .holder-detail-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px 12px}
 #holders-table .holder-detail-eyebrow{font-size:9.5px;letter-spacing:1.45px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
 #holders-table .holder-detail-title{font-size:15px;font-weight:700;color:var(--fg-1);letter-spacing:0;line-height:1.25}
@@ -726,8 +727,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .exit-suite #dd-exit-period .dd-btn{width:auto;min-width:96px}
   .exit-suite #dd-exit-period .dd-panel{left:auto;right:0}
   .holders-card .toolbar .tb-left{width:auto;flex:1 1 220px;min-width:200px}
-  #holders-table .holder-detail-row > td{padding:0 8px 14px!important}
-  #holders-table .holder-detail-panel{width:calc(100vw - 56px);max-width:calc(100vw - 56px)}
+  #holders-table .holder-detail-row > td{padding:0!important}
+  #holders-table .holder-detail-panel{width:100%;max-width:none}
   #holders-table .holder-detail-head{padding:15px 16px}
   #holders-table .holder-detail-scroll{max-height:420px;margin:0 10px 14px 12px;padding:12px 0}
   #holders-table .holder-detail-table{min-width:0}

@@ -1534,7 +1534,11 @@ body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row:hover td {
 }
 
 body.earn-draft-route .earn-asset-table tbody tr.earn-data-row.expanded td,
-body.earn-draft-route .earn-past-table tbody tr.earn-data-row.expanded td,
+body.earn-draft-route .earn-past-table tbody tr.earn-data-row.expanded td {
+  background: var(--earn-gold-wash) !important;
+  border-bottom-color: transparent !important;
+}
+
 body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row.open td {
   background: rgba(201, 162, 39, .035) !important;
   border-bottom-color: transparent !important;
@@ -1547,6 +1551,16 @@ body.earn-draft-route .earn-asset-table tbody tr.earn-data-row.expanded td:first
 body.earn-draft-route .earn-past-table tbody tr.earn-data-row.expanded td:first-child,
 body.earn-draft-route .earn-lending-table tbody tr.earn-lend-row.open td:first-child {
   box-shadow: none !important;
+}
+
+body.earn-draft-route .earn-asset-table tbody tr.earn-data-row.expanded td:first-child::before,
+body.earn-draft-route .earn-past-table tbody tr.earn-data-row.expanded td:first-child::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 auto 0 0 !important;
+  width: 2px !important;
+  background: var(--earn-gold) !important;
+  box-shadow: 0 0 12px var(--earn-gold-line) !important;
 }
 
 body.earn-draft-route .earn-token-icon {
@@ -1793,17 +1807,37 @@ body.earn-draft-route .earn-supply-apr-breakdown .odolo-part {
   color: var(--earn-gold) !important;
 }
 
-body.earn-draft-route .earn-detail-row > td,
-body.earn-draft-route .earn-lend-detail > td {
-  padding: 0 14px 18px !important;
-  background: linear-gradient(90deg, rgba(201, 162, 39, .06), var(--earn-bg-1) 38px) !important;
-  border-bottom: 1px solid rgba(201, 162, 39, .18) !important;
+body.earn-draft-route .earn-detail-row > td {
+  position: relative !important;
+  padding: 0 !important;
+  background: linear-gradient(90deg, rgba(201, 162, 39, .035), var(--earn-bg-1) 42px) !important;
+  border-bottom-color: var(--earn-line-2) !important;
   text-align: left !important;
   height: auto !important;
+  white-space: normal !important;
 }
 
 body.earn-draft-route #earn-supply-section .earn-detail-row.open > td,
-body.earn-draft-route #earn-past-section .earn-detail-row.open > td,
+body.earn-draft-route #earn-past-section .earn-detail-row.open > td {
+  position: relative !important;
+  padding: 0 !important;
+  background: linear-gradient(90deg, rgba(201, 162, 39, .035), var(--earn-bg-1) 42px) !important;
+  border-bottom-color: var(--earn-line-2) !important;
+  text-align: left !important;
+  height: auto !important;
+  white-space: normal !important;
+}
+
+body.earn-draft-route .earn-detail-row > td::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 auto 0 0 !important;
+  width: 2px !important;
+  background: var(--earn-gold) !important;
+  box-shadow: 0 0 12px var(--earn-gold-line) !important;
+}
+
+body.earn-draft-route .earn-lend-detail > td,
 body.earn-draft-route #earn-lending-section .earn-lend-detail.open > td {
   padding: 0 14px 18px !important;
   background: linear-gradient(90deg, rgba(201, 162, 39, .06), var(--earn-bg-1) 38px) !important;
@@ -1812,12 +1846,25 @@ body.earn-draft-route #earn-lending-section .earn-lend-detail.open > td {
   height: auto !important;
 }
 
-body.earn-draft-route .earn-detail-row:hover > td,
+body.earn-draft-route .earn-detail-row:hover > td {
+  background: linear-gradient(90deg, rgba(201, 162, 39, .035), var(--earn-bg-1) 42px) !important;
+}
+
 body.earn-draft-route .earn-lend-detail:hover > td {
   background: linear-gradient(90deg, rgba(201, 162, 39, .06), var(--earn-bg-1) 38px) !important;
 }
 
-body.earn-draft-route .earn-detail-stack,
+body.earn-draft-route .earn-detail-stack {
+  width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  position: relative !important;
+}
+
 body.earn-draft-route .earn-lend-detail-inner {
   margin: 0 !important;
   border: 1px solid rgba(201, 162, 39, .20) !important;
@@ -1829,7 +1876,10 @@ body.earn-draft-route .earn-lend-detail-inner {
   position: relative !important;
 }
 
-body.earn-draft-route .earn-detail-stack::before,
+body.earn-draft-route .earn-detail-stack::before {
+  display: none !important;
+}
+
 body.earn-draft-route .earn-lend-detail-inner::before {
   content: "" !important;
   position: absolute !important;
