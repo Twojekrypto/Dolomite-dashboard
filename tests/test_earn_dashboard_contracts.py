@@ -1795,7 +1795,8 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
     def test_liquidation_tables_keep_address_and_expand_contracts(self):
         source = LIQUIDATION_PREVIEW.read_text(encoding="utf-8")
         self.assertIn("body.route-liquidation #positions-table colgroup col:nth-child(2) { width: 19% !important; }", source)
-        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 19% !important; }", source)
+        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(1) { width: 11% !important; }", source)
+        self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(2) { width: 15.8% !important; }", source)
         self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(3) { width: 39% !important; }", source)
         self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(4) { width: 18.2% !important; }", source)
         self.assertIn("body.route-liquidation #liquidation-history-table colgroup col:nth-child(5) { width: 16% !important; }", source)

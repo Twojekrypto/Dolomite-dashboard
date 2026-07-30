@@ -49,13 +49,16 @@ class DataFreshnessSurfaceContractsTest(unittest.TestCase):
         )
 
     def test_position_activity_uses_consistent_surface_and_correct_units(self):
+        section = PORTFOLIO_VIEW.split(
+            "#pf-exercises-section{", 1
+        )[1].split("}", 1)[0]
+        self.assertIn("background:var(--bg-2)", section)
+        self.assertNotIn("linear-gradient", section)
         rail = PORTFOLIO_VIEW.split(
             "#pf-exercises-section .pf-exercise-summary.selected-market-rail{", 1
         )[1].split("}", 1)[0]
-        self.assertIn(
-            "background:linear-gradient(180deg,rgba(117,184,123,.045),rgba(20,20,23,.18))",
-            rail,
-        )
+        self.assertIn("background:transparent", rail)
+        self.assertNotIn("linear-gradient", rail)
         metric = PORTFOLIO_VIEW.split(
             "#pf-exercises-section .pf-exercise-summary-item.selected-market-metric{",
             1,
