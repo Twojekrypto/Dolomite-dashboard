@@ -368,14 +368,25 @@ body.earn-draft-route .earn-input-row .earn-chain-dropdown::before {
 
 body.earn-draft-route .earn-input-row .earn-chain-trigger {
   min-width: 154px;
+  height: 54px !important;
+  align-self: stretch;
   color: var(--earn-fg-2) !important;
   padding: 0 30px 0 18px !important;
   font-size: 13px !important;
+  transition: background .18s var(--earn-ease), color .18s var(--earn-ease), box-shadow .18s var(--earn-ease) !important;
 }
 
 body.earn-draft-route .earn-input-row .earn-chain-trigger:hover {
   background: rgba(255, 255, 255, .035) !important;
   color: var(--earn-fg-1) !important;
+}
+
+body.earn-draft-route .earn-chain-dropdown.open .earn-chain-trigger,
+body.earn-draft-route .earn-chain-trigger:focus-visible {
+  background: var(--earn-gold-wash) !important;
+  color: var(--earn-fg-1) !important;
+  outline: none !important;
+  box-shadow: inset 0 0 0 1px var(--earn-gold-line) !important;
 }
 
 body.earn-draft-route .earn-chain-menu {
@@ -412,6 +423,7 @@ body.earn-draft-route .earn-chain-option.active .earn-chain-option-status {
 
 body.earn-draft-route .earn-search-btn {
   min-width: 142px !important;
+  height: 54px !important;
   padding: 0 22px !important;
   border-radius: 0 11px 11px 0 !important;
   background: var(--earn-gold) !important;
