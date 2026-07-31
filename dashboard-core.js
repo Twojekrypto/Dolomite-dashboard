@@ -18067,6 +18067,19 @@
             return /^(?:wstETH|ylstETH|(?:d?PT|d?YT)-|gm(?!x$)|dGM(?:$|[-\s])|d?GLV|(?:m|plv|dplv|dfs|magic|s)GLP)/i.test(String(symbol || '').trim()) ? ' full-logo' : '';
         }
 
+        function earn_resolveCanonicalTokenIcon(symbol, tokenAddr, chainId, fallbackIcon = null) {
+            const normalizedChain = String(chainId || '').trim().toLowerCase();
+            const normalizedAddress = String(tokenAddr || '').trim().toLowerCase();
+            const exactToken = normalizedChain && normalizedAddress
+                ? KNOWN_TOKENS[`${normalizedChain}:${normalizedAddress}`]
+                : null;
+            return exactToken?.icon
+                || fallbackIcon
+                || SYMBOL_ICONS[symbol]
+                || SYMBOL_ICONS[String(symbol || '').toUpperCase()]
+                || null;
+        }
+
         function earn_renderTokenPills(tokens) {
             if (!tokens || tokens.length === 0) return '<span style="color:var(--text-muted)">—</span>';
             return tokens.map(t => {
@@ -18897,10 +18910,11 @@
             // Render rows in exact Earn-row UX
             tbody.innerHTML = inactiveItems.map((item, i) => {
                 // Icon
+                const canonicalIcon = earn_resolveCanonicalTokenIcon(item.symbol, item.tokenAddr, chainId, item.icon);
                 let iconHtml;
-                if (item.icon) {
+                if (canonicalIcon) {
                     const _gsF = new Set(['CRV', 'USD0', 'USD0++', 'deUSD', 'sdeUSD', 'MATIC', 'POL', 'stcUSD', 'cUSD', 'USDT', 'cbBTC']).has(item.symbol) ? ' style="filter:grayscale(1) brightness(1.5)"' : '';
-                    iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(item.symbol)}"><img src="${item.icon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
+                    iconHtml = `<div class="earn-token-icon${earnTokenIconFrameClass(item.symbol)}"><img src="${canonicalIcon}" alt="${item.symbol}"${_gsF} onerror="this.parentElement.textContent='${String(item.symbol || '?').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || '?'}'"></div>`;
                 } else {
                     iconHtml = `<div class="earn-token-icon">${item.symbol.slice(0, 2)}</div>`;
                 }

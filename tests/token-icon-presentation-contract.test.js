@@ -27,6 +27,22 @@ function loadTokenIconResolver(file) {
   })()`);
 }
 
+function loadEarnIconResolver() {
+  const source = read('dashboard-core.js');
+  const start = source.indexOf('function earn_resolveCanonicalTokenIcon(');
+  const end = source.indexOf('\n        function ', start + 1);
+  assert.notEqual(start, -1, 'Earn should define its canonical token icon resolver');
+  assert.notEqual(end, -1, 'Earn canonical token icon resolver should have a bounded function body');
+  return vm.runInNewContext(`(() => {
+    const KNOWN_TOKENS = {
+      'arbitrum:${SUPPLY_GMBTC_USD}': { icon: '${OFFICIAL_WBTC_GM_ICON}' },
+    };
+    const SYMBOL_ICONS = { DGM: 'generic-gmx.svg' };
+    ${source.slice(start, end)}
+    return earn_resolveCanonicalTokenIcon;
+  })()`);
+}
+
 test('assets, portfolio, and token composition preserve full composite token logos', () => {
   for (const file of ['assets-preview.html', 'portfolio-preview.html', 'tvl-preview.html']) {
     const source = read(file);
@@ -98,5 +114,22 @@ test('Supply selector resolves canonical savETH and GM market icons', () => {
       'arbitrum',
     ).icon,
     OFFICIAL_WBTC_GM_ICON,
+  );
+});
+
+test('Past and routed assets resolve icons by exact chain and address first', () => {
+  const resolveEarnIcon = loadEarnIconResolver();
+  assert.equal(
+    resolveEarnIcon('dGM', SUPPLY_GMBTC_USD, 'arbitrum', 'generic-gmx.svg'),
+    OFFICIAL_WBTC_GM_ICON,
+  );
+
+  const earnJs = read('dashboard-core.js');
+  const renderStart = earnJs.indexOf('function earn_renderWithdrawnAssets()');
+  const renderEnd = earnJs.indexOf('\n        function earn_togglePastPositions()', renderStart);
+  const renderPast = earnJs.slice(renderStart, renderEnd);
+  assert.match(
+    renderPast,
+    /earn_resolveCanonicalTokenIcon\(item\.symbol, item\.tokenAddr, chainId, item\.icon\)/,
   );
 });
