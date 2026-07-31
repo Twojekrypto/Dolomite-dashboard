@@ -58,6 +58,10 @@ function assertBefore(source, first, second, message) {
   assert(!renderLive.includes('apr-est'), 'Live Programs rows should not render EST badges next to oDOLO rewards');
 
   const endedTable = between(rewards, '<!-- ENDED PROGRAMS -->', '</section>');
+  assert(endedTable.includes('<section class="card ended-programs-card">'), 'Ended Programs should expose a scoped terminal-row card class');
+  assert(rewards.includes('.ended-programs-card .tbl tbody tr:last-child:hover td:first-child{border-radius:0 0 0 var(--r-xl)}'), 'Ended Programs should round the lower-left hover surface');
+  assert(rewards.includes('.ended-programs-card .tbl tbody tr:last-child:hover td:last-child{border-radius:0 0 var(--r-xl) 0}'), 'Ended Programs should round the lower-right hover surface');
+  assert(rewards.includes('.ended-programs-card .tbl tbody tr:last-child:hover td:first-child::before{border-radius:0 2px 0 var(--r-xl)}'), 'Ended Programs gold rail should follow the lower-left corner');
   assert(!endedTable.includes('<th style="width:56px">#</th>'), 'Ended Programs should not render the # ranking column');
   assertBefore(endedTable, '<th style="width:150px">Chain</th>', '<th>Program</th>', 'Ended Programs should put Chain before Program');
   assert(!endedTable.includes('Last TVL'), 'Ended Programs should not report TVL as the historical size metric');
@@ -108,6 +112,10 @@ function assertBefore(source, first, second, message) {
   assert(assets.includes('<col data-column="details" style="width:12.500000%">'), 'Live Assets should keep enough room for the full Details control');
   assert(assets.includes('.assets-table-wrap #tbl{table-layout:fixed}'), 'Live Assets should enforce the approved colgroup widths');
   assert(assets.includes('.tbl tbody tr.data:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}'), 'Assets hover should match DOLO Holders with a gold left-row indicator');
+  assert(assets.includes('rowIndex === rows.length - 1 ? " terminal-row" : ""'), 'Dolomite Assets should explicitly mark the true final data row');
+  assert(assets.includes('.assets-table-wrap #tbl tbody tr.data.terminal-row:hover td:first-child{border-radius:0 0 0 var(--r-xl)}'), 'Dolomite Assets should round the lower-left final-row hover surface');
+  assert(assets.includes('.assets-table-wrap #tbl tbody tr.data.terminal-row:hover td:last-child{border-radius:0 0 var(--r-xl) 0}'), 'Dolomite Assets should round the lower-right final-row hover surface');
+  assert(assets.includes('.assets-table-wrap #tbl tbody tr.data.terminal-row:hover td:first-child::before{border-radius:0 2px 0 var(--r-xl)}'), 'Dolomite Assets final gold rail should follow the table corner');
   assert(assets.includes('.assets-table-wrap #tbl tbody td.details-cell .asset-toggle{margin:0 auto;max-width:72px}'), 'Assets Details toggle should stay compact while preserving its full label');
   assert(assets.includes('gap:3px;flex-shrink:0;overflow:hidden;'), 'Assets Details toggle should reserve enough inner width for its label');
   assert(assets.includes('.asset-toggle span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'), 'Assets Details label should fit beside the chevron without truncation');

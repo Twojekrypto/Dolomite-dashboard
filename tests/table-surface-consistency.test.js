@@ -12,6 +12,8 @@ const odolo = read('odolo-preview.html');
 const assets = read('assets-preview.html');
 const portfolio = read('portfolio-preview.html');
 const coreCss = read('dashboard-core.css');
+const coreJs = read('dashboard-core.js');
+const earnDraftCss = read('earn/earn-draft.css');
 
 function between(source, start, end) {
   const from = source.indexOf(start);
@@ -86,7 +88,23 @@ function between(source, start, end) {
     'Top users saved with current veDOLO should keep the last visible row hover rectangular',
   );
   assert(
-    !/last-of-type[^{}]*\{[^{}]*border-radius:\s*0 0 (?:0 )?(?:14|16)px/s.test(coreCss),
-    'Shared Earn tables should not round the last data row cells',
+    /\.earn-terminal-row:hover td:first-child\s*\{[^}]*border-radius:\s*0 0 0 14px/s.test(earnDraftCss),
+    'The true terminal Earn row should round its lower-left hover surface',
+  );
+  assert(
+    /\.earn-terminal-row:hover td:last-child\s*\{[^}]*border-radius:\s*0 0 14px 0/s.test(earnDraftCss),
+    'The true terminal Earn row should round its lower-right hover surface',
+  );
+  assert(
+    /\.earn-terminal-row:hover td:first-child::before\s*\{[^}]*border-radius:\s*0 2px 0 14px/s.test(earnDraftCss),
+    'The terminal Earn gold rail should follow the lower-left table corner',
+  );
+  assert(
+    /\.earn-lending-table tbody tr\.earn-lend-row:hover td:first-child::before/s.test(earnDraftCss),
+    'Borrow Positions should expose the shared gold hover rail',
+  );
+  assert(
+    coreJs.includes('function earn_markTerminalPrimaryRow'),
+    'Earn should mark the true terminal primary row instead of relying on structural last-child selectors',
   );
 }

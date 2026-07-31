@@ -590,6 +590,9 @@ body::before{
 .tbl tbody td.details-cell{width:112px;text-align:center}
 .tbl tbody tr:hover td{background:var(--bg-3)}
 .tbl tbody tr.data:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
+.assets-table-wrap #tbl tbody tr.data.terminal-row:hover td:first-child{border-radius:0 0 0 var(--r-xl)}
+.assets-table-wrap #tbl tbody tr.data.terminal-row:hover td:last-child{border-radius:0 0 var(--r-xl) 0}
+.assets-table-wrap #tbl tbody tr.data.terminal-row:hover td:first-child::before{border-radius:0 2px 0 var(--r-xl)}
 .tbl tbody tr.expanded td{background:var(--gold-wash);border-bottom-color:transparent}
 .tbl tbody tr.data.expanded td:first-child::before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:var(--gold);border-radius:0 2px 2px 0;box-shadow:0 0 12px var(--gold-line)}
 .tbl tbody tr.loading-row{cursor:default}
@@ -2382,7 +2385,7 @@ function render(){
     }
   });
 
-  tb.innerHTML = rows.map(r=>{
+  tb.innerHTML = rows.map((r,rowIndex)=>{
     const supply = state.mode==="APY" ? aprToApy(r._supply) : r._supply;
     const borrow = state.mode==="APY" ? aprToApy(r.borrow) : r.borrow;
     // Effective borrow cost: base rate + the borrowed asset's own yield
@@ -2414,7 +2417,7 @@ function render(){
     state.calc.set(keyId, calc);
     const toggleHTML = `<button class="asset-toggle" type="button" aria-label="${expanded ? "Hide asset details" : "Show asset details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button>`;
     const row = `
-      <tr class="data ${expanded?"expanded":""}" data-key="${keyId}">
+      <tr class="data${expanded?" expanded":""}${rowIndex === rows.length - 1 ? " terminal-row" : ""}" data-key="${keyId}">
         <td style="padding-left:32px" data-column="chain">${assetChainBadge(r.chain)}</td>
         <td data-column="asset">
           <div class="asset-cell">
