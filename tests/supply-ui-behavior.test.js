@@ -4,6 +4,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const ui = require('../supply/supply-draft.js');
+const supplyCss = fs.readFileSync(
+  path.join(__dirname, '..', 'supply', 'supply-draft.css'),
+  'utf8',
+);
 
 const DGM_BTC = '0x1e8e8b7a2f827b3bc12b00ee402145061b7050ef';
 const SAVETH_BASE = '0x23e3df1196b3249c9b0a9476f990f105591872de';
@@ -73,6 +77,25 @@ async function captureNewMarketLoadingPresentation(previousOverview) {
 test('count badges show only the unfiltered supplier and event totals', () => {
   assert.equal(ui.formatSupplyCountBadge(3620, 'suppliers'), '3 620 suppliers');
   assert.equal(ui.formatSupplyCountBadge(209394, 'events'), '209 394 events');
+});
+
+test('Supply selector keeps asset, network, and Apply states visually coherent', () => {
+  assert.match(
+    supplyCss,
+    /supply-has-pending-asset #custom-asset-selector[^}]*background:\s*rgba\(201, 162, 39, \.075\)/s,
+  );
+  assert.match(
+    supplyCss,
+    /supply-has-pending-asset #custom-chain-selector[^}]*background:\s*rgba\(201, 162, 39, \.035\)/s,
+  );
+  assert.match(
+    supplyCss,
+    /\.supply-draft-apply-btn\.is-applied[^}]*var\(--supply-gold-line\)/s,
+  );
+  assert.match(
+    supplyCss,
+    /supply-has-pending-asset #custom-chain-selector:hover[^}]*rgba\(201, 162, 39, \.055\)/s,
+  );
 });
 
 test('table footer renders the visible range and centered pager without a redundant total', () => {
