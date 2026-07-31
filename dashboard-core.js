@@ -11976,6 +11976,13 @@
             return `<button type="button" class="earn-row-details-button" onclick="event.stopPropagation();${toggleExpression}" aria-label="Toggle details"><span class="earn-details-label-show">Details</span><span class="earn-details-label-hide">Hide</span>${chevron}</button>`;
         }
 
+        function earn_markTerminalPrimaryRow(tbody) {
+            if (!tbody) return;
+            tbody.querySelectorAll('.earn-terminal-row').forEach(row => row.classList.remove('earn-terminal-row'));
+            const rows = tbody.querySelectorAll('tr.earn-data-row, tr.earn-lend-row');
+            if (rows.length > 0) rows[rows.length - 1].classList.add('earn-terminal-row');
+        }
+
         function earn_formatDebugDelta(value, decimals, symbol) {
             const diff = typeof value === 'bigint' ? value : BigInt(value || '0');
             if (diff === 0n) return '0';
@@ -18712,6 +18719,7 @@
 
                     return dataRow + detailRow;
                 }).join('');
+                earn_markTerminalPrimaryRow(tbody);
 
                 // Update summary card with accurate Total Debt from liquidation_risk.json
                 earn_updateSummaryDebt(positions);
@@ -18976,6 +18984,7 @@
                     </td>
                 </tr>${earn_buildSupplyDetailRow(i, detailPosition, yieldCalc, explorerUrl, { idPrefix: 'earn-past', colSpan: 4, includeRewards: false, openBorrowRouteYield: !!item.isCollateralized })}`;
             }).join('');
+            earn_markTerminalPrimaryRow(tbody);
         }
 
         function earn_togglePastPositions() {
@@ -19280,6 +19289,7 @@
 
                 return dataRow + detailRow;
             }).join('');
+            earn_markTerminalPrimaryRow(tbody);
         }
 
         function earn_renderResults(assets, opts) {
@@ -19587,6 +19597,7 @@
             // (elements no longer in DOM)
 
             tbody.innerHTML = html;
+            earn_markTerminalPrimaryRow(tbody);
             if (opts.softRefresh && preservedOpenDetailIdx !== null) {
                 const preservedRow = document.getElementById('earn-row-' + preservedOpenDetailIdx);
                 const preservedDetail = document.getElementById('earn-detail-' + preservedOpenDetailIdx);
