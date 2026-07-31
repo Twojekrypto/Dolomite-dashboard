@@ -95,7 +95,7 @@ class EarnLayoutContractsTest(unittest.TestCase):
 
     def test_bundle_builder_keeps_static_layout_cache_and_local_editor_guard(self):
         self.assertIn(
-            "earn-core-20260731-table-hover-filter-icon-parity",
+            "earn-core-20260724-mismatch-floor-straight-hover-filter-icon-parity-20260731",
             self.bundle_builder,
         )
         self.assertIn("new URLSearchParams(window.location.search).get('layoutEditor')", self.bundle_builder)
