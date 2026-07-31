@@ -12,7 +12,7 @@ SOURCE_HTML = ROOT / "dashboard-core.html"
 SOURCE_JS = ROOT / "dashboard-core.js"
 OUTPUT_HTML = ROOT / "earn" / "earn-core.html"
 OUTPUT_JS = ROOT / "earn" / "earn-core.js"
-STATIC_LAYOUT_VERSION = "earn-core-20260724-mismatch-floor-straight-hover-20260730"
+STATIC_LAYOUT_VERSION = "earn-core-20260731-table-hover-filter-icon-parity"
 
 
 def _slice(source: str, start: str, end: str, *, include_end: bool = False) -> str:
