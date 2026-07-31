@@ -140,6 +140,29 @@ if (earn_getMismatchQualityLabel({
         ):
             self.assertIn(rule, switch_css)
 
+    def test_dedicated_earn_network_control_uses_full_height_premium_states(self):
+        start = self.draft_css.index(
+            "body.earn-draft-route .earn-input-row .earn-chain-trigger {"
+        )
+        end = self.draft_css.index(
+            "body.earn-draft-route .earn-chain-menu {",
+            start,
+        )
+        trigger_css = self.draft_css[start:end]
+        self.assertIn("height: 54px !important", trigger_css)
+        self.assertIn("align-self: stretch", trigger_css)
+        self.assertIn(
+            "body.earn-draft-route .earn-chain-dropdown.open .earn-chain-trigger",
+            trigger_css,
+        )
+        self.assertIn(
+            "body.earn-draft-route .earn-chain-trigger:focus-visible",
+            trigger_css,
+        )
+        self.assertIn("outline: none !important", trigger_css)
+        self.assertIn("var(--earn-gold-wash)", trigger_css)
+        self.assertIn("inset 0 0 0 1px var(--earn-gold-line)", trigger_css)
+
     def test_supply_rate_lines_have_source_aware_unified_tooltips(self):
         self.assertIn(
             "function earn_getSupplyAprSourceTip(sourceKey, symbol, rateData)",
