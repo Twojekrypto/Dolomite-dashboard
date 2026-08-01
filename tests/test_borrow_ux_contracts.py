@@ -578,8 +578,8 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             SOURCE,
             re.compile(
                 r'body\.route-liquidation #sim-card \.sim-multi-row input\[type="number"\] \{'
-                r'[^}]*width: calc\(var\(--sim-pct-ch, 1\) \* 1ch\) !important;'
-                r'[^}]*min-width: 1ch !important;'
+                r'[^}]*width: max\(3ch, calc\(var\(--sim-pct-ch, 1\) \* 1ch\)\) !important;'
+                r'[^}]*min-width: 3ch !important;'
                 r'[^}]*max-width: 8ch !important;',
                 re.DOTALL,
             ),
@@ -591,6 +591,19 @@ class TestBorrowInstitutionalLiveImpactUx(unittest.TestCase):
             SOURCE,
         )
         self.assertNotIn("width: 64px !important;", SOURCE)
+
+    def test_scenario_mobile_adjustments_have_touch_sized_controls(self):
+        mobile_rules = SOURCE[SOURCE.index("@media (max-width: 620px) {", SOURCE.index("/* Risk Simulator final polish")):]
+        for contract in (
+            "grid-template-columns: 44px minmax(0, 1fr) !important;",
+            '"shock shock" !important;',
+            "grid-template-columns: 44px minmax(70px, 1fr) 44px !important;",
+            "width: 44px !important;",
+            "height: 44px !important;",
+            "height: 24px !important;",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, mobile_rules)
 
 
 if __name__ == "__main__":

@@ -9449,8 +9449,8 @@
             border-radius: 9px !important;
         }
         body.route-liquidation #sim-card .sim-multi-row input[type="number"] {
-            width: calc(var(--sim-pct-ch, 1) * 1ch) !important;
-            min-width: 1ch !important;
+            width: max(3ch, calc(var(--sim-pct-ch, 1) * 1ch)) !important;
+            min-width: 3ch !important;
             max-width: 8ch !important;
         }
         body.route-liquidation #sim-card .sim-multi-move-layout {
@@ -9701,10 +9701,10 @@
                 display: none !important;
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-row {
-                grid-template-columns: 30px minmax(0, 1fr) !important;
+                grid-template-columns: 44px minmax(0, 1fr) !important;
                 grid-template-areas:
                     "remove asset"
-                    ". shock" !important;
+                    "shock shock" !important;
                 min-height: 118px !important;
             }
             body.route-liquidation #sim-card #sim-multi-rows {
@@ -9712,12 +9712,46 @@
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-remove {
                 grid-area: remove !important;
+                width: 44px !important;
+                height: 44px !important;
+                min-height: 44px !important;
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-token-cell {
                 grid-area: asset !important;
             }
             body.route-liquidation #sim-card #sim-multi-panel .sim-multi-move-cell {
                 grid-area: shock !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-move-control {
+                grid-template-columns: 44px minmax(70px, 1fr) 44px !important;
+                gap: 6px !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-step {
+                width: 44px !important;
+                height: 44px !important;
+                min-height: 44px !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-input-wrap > .sim-multi-shock-rail,
+            body.route-liquidation #sim-card .sim-multi-shock-slider,
+            body.route-liquidation #sim-card .sim-multi-shock-slider::-webkit-slider-runnable-track {
+                height: 24px !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-shock-rail::before,
+            body.route-liquidation #sim-card .sim-multi-shock-fill {
+                top: 11px !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-shock-zero {
+                top: 5px !important;
+                bottom: 5px !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-shock-slider::-webkit-slider-thumb {
+                width: 16px !important;
+                height: 16px !important;
+                margin-top: 4px !important;
+            }
+            body.route-liquidation #sim-card .sim-multi-shock-slider::-moz-range-thumb {
+                width: 16px !important;
+                height: 16px !important;
             }
         }
         @media (prefers-reduced-motion: reduce) {
