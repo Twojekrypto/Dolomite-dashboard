@@ -448,6 +448,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .exit-summary{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:14px;padding:20px 24px;border-bottom:1px solid rgba(180,121,107,.16);background:linear-gradient(90deg,rgba(180,121,107,.045),rgba(201,162,39,.018))}
 .exit-panel{border:1px solid rgba(180,121,107,.24);border-radius:var(--r-lg);background:linear-gradient(180deg,rgba(180,121,107,.055),rgba(13,13,15,.78));overflow:hidden;box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
 .exit-panel.revenue-impact-panel{display:flex;flex-direction:column}
+.revenue-impact-panel .exit-metric-scroll{flex:1 1 auto;min-width:0;overflow:visible}
 .exit-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(180,121,107,.15);font-size:13px;font-weight:700;color:#e6b5ad}
 .exit-panel-head span{font-family:var(--mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:1.2px;color:var(--fg-3);white-space:nowrap}
 .exit-metric-table{margin:0 16px 6px;width:calc(100% - 32px)}
@@ -466,7 +467,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .exit-metric-table .penalty-split-row.recouped .penalty-split-label::before{background:rgba(201,162,39,.55);box-shadow:0 0 16px rgba(201,162,39,.12)}
 .exit-metric-table .penalty-split-title{display:flex;align-items:center;gap:7px;min-width:0}
 .exit-metric-table .penalty-split-chip{display:inline-flex;align-items:center;height:17px;padding:0 6px;border-radius:999px;border:1px solid rgba(180,121,107,.22);background:rgba(180,121,107,.06);font-family:var(--mono);font-size:8.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:rgba(242,214,209,.54);white-space:nowrap}
-.revenue-impact-panel .exit-metric-table{flex:1 1 auto;margin-bottom:16px;height:100%}
+.revenue-impact-panel .exit-metric-table{margin-bottom:16px;height:100%}
 .revenue-impact-panel .exit-metric-table tbody tr{height:20%}
 .revenue-impact-panel .exit-metric-table td{vertical-align:middle}
 #rev-penalty,#rev-penalty-pct,#rev-burned,#rev-burned-penalty-pct{color:#d58a7c}
@@ -714,6 +715,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .tb-right{margin-left:0}
   .seg{max-width:100%;overflow:auto}
   .exit-summary,.exit-table-head{padding-left:16px;padding-right:16px}
+  .revenue-impact-panel .exit-metric-scroll{width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .revenue-impact-panel .exit-metric-table{width:360px;min-width:360px;margin-right:16px}
   .exit-kpis{grid-template-columns:1fr;padding:14px}
   .exit-behavior-shell{padding:0 14px 14px}
   .exit-table-head{align-items:flex-start;flex-direction:column}
@@ -941,7 +944,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     <div class="exit-summary">
       <div class="exit-panel revenue-impact-panel">
         <div class="exit-panel-head">Revenue Impact <span>penalty split</span></div>
-        <table class="metric-table exit-metric-table">
+        <div class="exit-metric-scroll" tabindex="0" aria-label="Revenue Impact table; scroll horizontally for all columns">
+          <table class="metric-table exit-metric-table">
           <thead><tr><th>Metric</th><th class="num">DOLO</th><th class="num">Share</th></tr></thead>
           <tbody>
             <tr><td>Locked Total<span class="metric-desc">DOLO originally locked by users who performed early exits.</span></td><td class="num" id="rev-original">--</td><td class="num">100%</td></tr>
@@ -950,7 +954,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
             <tr class="penalty-split-row burned"><td><span class="penalty-split-label"><span><span class="penalty-split-title">Burned<span class="penalty-split-chip">from penalty</span></span><span class="metric-desc">DOLO permanently removed from circulating supply.</span></span></span></td><td class="num" id="rev-burned">--</td><td class="num" id="rev-burned-penalty-pct">--</td></tr>
             <tr class="penalty-split-row recouped"><td><span class="penalty-split-label"><span><span class="penalty-split-title">Treasury<span class="penalty-split-chip">from penalty</span></span><span class="metric-desc">DOLO returned to the protocol recoup pool.</span></span></span></td><td class="num" id="rev-recouped">--</td><td class="num" id="rev-recouped-penalty-pct">--</td></tr>
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
       <div class="exit-panel">
         <div class="exit-panel-head">Withdrawal Behavior <span>quick stats</span></div>
