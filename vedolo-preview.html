@@ -2521,6 +2521,13 @@ function renderHolders(){
   syncSortHeader("#holders-table", st.sort, st.asc);
   wireHolderDetails();
 }
+function resetExpandedTableScroll(tableSelector){
+  if(!window.matchMedia("(max-width:760px)").matches) return;
+  requestAnimationFrame(() => {
+    const wrap = document.querySelector(tableSelector)?.closest(".tbl-wrap");
+    if(wrap) wrap.scrollLeft = 0;
+  });
+}
 function wireHolderDetails(){
   const tbody = qs("#holders-body");
   if(!tbody) return;
@@ -2541,6 +2548,7 @@ function wireHolderDetails(){
       state.holder.expanded = state.holder.expanded === addr ? null : addr;
       renderHolders();
       wireCopyButtons();
+      resetExpandedTableScroll("#holders-table");
     });
   });
 }
@@ -3228,7 +3236,7 @@ async function boot(){
   bindUi();
   bindFlowSourceTooltips();
   renderProtocolInfo();
-  setText("now", new Date().toLocaleString());
+  setText("now", new Date().toLocaleString("en-US"));
   try{
     const statsPromise = fetchJson("vedolo_stats.json").catch(() => null);
     const pricePromise = fetchJson("dolo_price.json").catch(() => null);

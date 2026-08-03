@@ -413,7 +413,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .tbl > tbody > tr:hover > td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold);border-radius:0 2px 2px 0}
 .tbl > tbody > tr:last-child > td{border-bottom:0}
 .tbl > tbody > tr.tbl-spacer-row{pointer-events:none;cursor:default}
-.tbl > tbody > tr.tbl-spacer-row > td{color:transparent}
+.tbl > tbody > tr.tbl-spacer-row > td{height:68px;padding:0!important;color:transparent}
 .tbl > tbody > tr.tbl-spacer-row > td > *{visibility:hidden}
 .tbl > tbody > tr.tbl-spacer-row:hover > td{background:transparent}
 .tbl > tbody > tr.tbl-spacer-row:hover > td:first-child::before{display:none}
@@ -2688,7 +2688,7 @@ function updateCbHeaderHelp(extraWallets = 0, extraTotal = 0){
   }
   if(extra){
     extra.dataset.tipTitle = "Extra Used";
-    extra.dataset.tipBody = `${extraWallets.toLocaleString()} wallets exercised +${fmtNum(extraTotal)} oDOLO above their claim in the selected window.`;
+    extra.dataset.tipBody = `${extraWallets.toLocaleString("en-US")} wallets exercised +${fmtNum(extraTotal)} oDOLO above their claim in the selected window.`;
     extra.dataset.tooltip = `${extra.dataset.tipTitle}: ${extra.dataset.tipBody}`;
   }
   if(held){
@@ -2696,6 +2696,20 @@ function updateCbHeaderHelp(extraWallets = 0, extraTotal = 0){
     held.dataset.tipBody = "Current oDOLO balance in this wallet from balanceOf(wallet). Date filters change claim/exercise/outflow; Held stays the latest wallet balance.";
     held.dataset.tooltip = `${held.dataset.tipTitle}: ${held.dataset.tipBody}`;
   }
+}
+
+function stableTableSpacerRowsHtml(count, colSpan){
+  return Array.from({length:Math.max(0, Number(count) || 0)}, () =>
+    `<tr class="tbl-spacer-row" aria-hidden="true" tabindex="-1"><td colspan="${colSpan}">&nbsp;</td></tr>`
+  ).join("");
+}
+
+function resetExpandedTableScroll(tableSelector){
+  if(!window.matchMedia("(max-width:760px)").matches) return;
+  requestAnimationFrame(() => {
+    const wrap = document.querySelector(tableSelector)?.closest(".tbl-wrap");
+    if(wrap) wrap.scrollLeft = 0;
+  });
 }
 
 function renderClaimerBreakdown(){
@@ -2734,7 +2748,7 @@ function renderClaimerBreakdown(){
   const totalClaimers = LIVE.flows?.claimer_periods?.[cbState.period]?.total_claimers
     || LIVE.flows?.claimer_behavior?.total_claimers
     || CLAIMERS.length;
-  document.getElementById("cb-count").textContent = `${totalClaimers.toLocaleString()} claimers`;
+  document.getElementById("cb-count").textContent = `${totalClaimers.toLocaleString("en-US")} claimers`;
   const extraRows = CLAIMERS.filter(r => r.buy > 0);
   const extraTotal = sum(CLAIMERS, r => r.buy);
   updateCbHeaderHelp(extraRows.length, extraTotal);
@@ -2749,7 +2763,7 @@ function renderClaimerBreakdown(){
     </div>`;
   };
 
-  tbody.innerHTML = pageRows.map((r,i)=>{
+  const claimerRowsHtml = pageRows.map((r,i)=>{
     const rank = rankMap.get(r.addr.toLowerCase()) || start + i + 1;
     const typeChip = r.label ? `<span class="addr-name">${r.label}</span>` : `<span class="addr-name addr-generic">Wallet</span>`;
     const actions = `
@@ -2774,12 +2788,13 @@ function renderClaimerBreakdown(){
       </tr>
     `;
   }).join("");
+  tbody.innerHTML = claimerRowsHtml + stableTableSpacerRowsHtml(cbState.pageSize - pageRows.length, 7);
 
   // pager
   const total = rows.length;
   const showStart = total>0 ? start+1 : 0;
   const showEnd = Math.min(start + cbState.pageSize, total);
-  document.getElementById("cb-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  document.getElementById("cb-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}`;
   const totalPages = Math.max(1, Math.ceil(total/cbState.pageSize));
   const curPage = cbState.page + 1;
   const pager = document.getElementById("cb-pager");
@@ -3002,9 +3017,9 @@ function renderLatestExercises(){
   const showStart = total > 0 ? start + 1 : 0;
   const showEnd = Math.min(start + state.latestPageSize, total);
 
-  if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString()} · ${periodLabel}` : "Loading";
+  if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString("en-US")} · ${periodLabel}` : "Loading";
   if(metaEl) setCardMeta("latest-ex-meta", LIVE.exercisers?.updated);
-  if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString()}` : "Loading";
+  if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}` : "Loading";
 
   if(!LIVE.exercisers){
     tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;
@@ -3015,7 +3030,7 @@ function renderLatestExercises(){
     const emptyLabel = state.qLatest.trim()
       ? `No oDOLO exercises match "${esc(state.qLatest.trim())}" for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`
       : `No oDOLO exercises recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`;
-    tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">${emptyLabel}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">${emptyLabel}</div></td></tr>` + stableTableSpacerRowsHtml(state.latestPageSize - 1, 6);
     if(pager) pager.innerHTML = "";
     return;
   }
@@ -3054,7 +3069,7 @@ function renderLatestExercises(){
         <td class="num" data-label="Lock"><span class="ex-detail-lock ${lockBucket(tx.lockDays)}">${fmtLock(tx.lockDays)}</span></td>
       </tr>
     `;
-  }).join("");
+  }).join("") + stableTableSpacerRowsHtml(state.latestPageSize - visibleRows.length, 6);
 
   const curPage = state.latestPage + 1;
   if(pager){
@@ -3170,9 +3185,9 @@ function renderLatestPairs(){
   const showStart = total > 0 ? start + 1 : 0;
   const showEnd = Math.min(start + state.pairPageSize, total);
 
-  if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString()} · ${periodLabel}` : "Loading";
+  if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString("en-US")} · ${periodLabel}` : "Loading";
   if(metaEl) setCardMeta("latest-pair-meta", LIVE.exercisers?.updated);
-  if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString()}` : "Loading";
+  if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}` : "Loading";
 
   if(!LIVE.exercisers){
     tbody.innerHTML = `<tr><td colspan="4"><div class="latest-empty">Loading latest oDOLO pair transactions…</div></td></tr>`;
@@ -3183,7 +3198,7 @@ function renderLatestPairs(){
     const emptyLabel = state.qPair.trim()
       ? `No oDOLO pair transactions match "${esc(state.qPair.trim())}" for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`
       : `No oDOLO pair transactions recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`;
-    tbody.innerHTML = `<tr><td colspan="4"><div class="latest-empty">${emptyLabel}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4"><div class="latest-empty">${emptyLabel}</div></td></tr>` + stableTableSpacerRowsHtml(state.pairPageSize - 1, 4);
     if(pager) pager.innerHTML = "";
     return;
   }
@@ -3220,7 +3235,7 @@ function renderLatestPairs(){
         <td class="num" data-label="DOLO Paired"><span class="bal-val">${fmtTokenFull(tx.dolo)}</span></td>
       </tr>
     `;
-  }).join("");
+  }).join("") + stableTableSpacerRowsHtml(state.pairPageSize - visibleRows.length, 4);
 
   const curPage = state.pairPage + 1;
   if(pager){
@@ -3330,7 +3345,7 @@ function renderExercisers(){
       .map((r,i)=>[r.addr.toLowerCase(), i + 1])
   );
   const totalAddresses = LIVE.exercisers?.total_addresses || EXERCISERS.length;
-  document.getElementById("ex-count").textContent = `${totalAddresses.toLocaleString()} addresses`;
+  document.getElementById("ex-count").textContent = `${totalAddresses.toLocaleString("en-US")} addresses`;
 
   document.querySelectorAll("#tbl-ex thead th[data-sort]").forEach(th=>{
     const k = th.dataset.sort;
@@ -3376,7 +3391,7 @@ function renderExercisers(){
         <td class="num"><span class="bal-val">${fmtNum(r.vedolo)}</span></td>
         <td class="num"><span class="bal-val usd">${fmtUsd(r.usdc)}</span></td>
         <td class="num"><span class="bal-val price">${fmtPrice(avgPrice)}</span></td>
-        <td class="num"><span class="bal-val">${r.exercises.toLocaleString()}</span></td>
+        <td class="num"><span class="bal-val">${r.exercises.toLocaleString("en-US")}</span></td>
         <td class="num" style="padding-right:22px">
           <div class="lock-cell">
             <span class="lock-val ${bucket}">${fmtLock(r.lockDays)}</span>
@@ -3420,7 +3435,7 @@ function renderExercisers(){
   const total = rows.length;
   const showStart = total > 0 ? start + 1 : 0;
   const showEnd = Math.min(start + state.exPageSize, total);
-  document.getElementById("ex-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  document.getElementById("ex-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}`;
   const totalPages = Math.max(1, Math.ceil(total/state.exPageSize));
   const curPage = state.exPage + 1;
   const pager = document.getElementById("ex-pager");
@@ -3459,6 +3474,7 @@ function renderExercisers(){
     const addr = tr.dataset.addr.toLowerCase();
     state.exExpanded = state.exExpanded === addr ? null : addr;
     renderExercisers();
+    resetExpandedTableScroll("#tbl-ex");
   }));
 }
 
@@ -3584,7 +3600,7 @@ function renderFlow(target, kind){
   if(info){
     const showStart = total > 0 ? start + 1 : 0;
     const showEnd = Math.min(start + state.flowsPageSize, total);
-    info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+    info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}`;
   }
   renderFlowPager(kind, total);
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
@@ -3921,14 +3937,14 @@ function syncLiveMetrics(){
   setText("hero-circulating-sub", totalSupply ? `${circulatingPct.toFixed(1)}% of total · ${reserveNote}` : "circulating supply");
   const bar = document.getElementById("hero-circulating-bar");
   if(bar) bar.style.width = `${circulatingPct.toFixed(1)}%`;
-  setMetricText("hero-holders", data.holders ? Number(data.holders).toLocaleString() : "-");
+  setMetricText("hero-holders", data.holders ? Number(data.holders).toLocaleString("en-US") : "-");
   setText("hero-holders-sub", "unique wallets");
   const exerciseSummary = summarizeOdoloExercise(exercisers);
   const exercisedOdolo = exerciseSummary.odolo;
   setMetricText("hero-exercised-usd", exercisedOdolo ? fmtNum(exercisedOdolo) : "-");
   const allExercises = exerciseSummary.exercises || finiteNum(usd.total_txs);
   const exercisedSub = [
-    allExercises ? `${allExercises.toLocaleString()} USDC-paid` : "USDC-paid only",
+    allExercises ? `${allExercises.toLocaleString("en-US")} USDC-paid` : "USDC-paid only",
     exerciseSummary.usdc ? `${fmtUsd(exerciseSummary.usdc)} paid` : "",
     exerciseSummary.pairedOdolo ? "excludes DOLO pairing" : "",
   ].filter(Boolean).join(" · ");
@@ -3942,7 +3958,7 @@ function syncLiveMetrics(){
     .sort()
     .pop();
   setHtml("hero-live-meta", `<span class="dot"></span>${fmtUpdated(latest || data.last_updated)}`);
-  setMetricText("disc-count", usd.total_txs ? `${Number(usd.total_txs).toLocaleString()} exercises` : `${DISC_DATA.length.toLocaleString()} exercises`);
+  setMetricText("disc-count", usd.total_txs ? `${Number(usd.total_txs).toLocaleString("en-US")} exercises` : `${DISC_DATA.length.toLocaleString("en-US")} exercises`);
 }
 
 function syncLiveDistribution(){
@@ -3971,7 +3987,7 @@ function syncLiveBehavior(){
     {label:"Sold or sent away", value:Number(cb.pct_outflow) || 0, color:"#b4796b", desc:"Moved out without exercising", fmt:fmtNum(claimed * (Number(cb.pct_outflow) || 0) / 100) + " oDOLO"},
     {label:"Claim remaining", value:Number(cb.pct_claim_remaining) || 0, color:"#22d3ee", desc:"Claimed allocation not attributed to exercise or outflow", fmt:fmtNum(claimed * (Number(cb.pct_claim_remaining) || 0) / 100) + " oDOLO"},
   ]);
-  setText("behav-count", `${Number(cb.total_claimers || 0).toLocaleString()} claimers`);
+  setText("behav-count", `${Number(cb.total_claimers || 0).toLocaleString("en-US")} claimers`);
   setHtml("behav-meta", `<span class="pulse"></span>${fmtNum(claimed)} oDOLO claimed`);
 }
 
@@ -4060,7 +4076,7 @@ function syncLiveDiscountCurve(){
   });
   if(dots.length){
     applyRows(DISC_DATA, dots);
-    setMetricText("disc-count", `${dots.length.toLocaleString()} USDC exercises`);
+    setMetricText("disc-count", `${dots.length.toLocaleString("en-US")} USDC exercises`);
   }
 }
 
@@ -4116,7 +4132,7 @@ async function initOdoloPage(){
 }
 
 const nowEl = document.getElementById("now");
-if(nowEl) nowEl.textContent = new Date().toLocaleString();
+if(nowEl) nowEl.textContent = new Date().toLocaleString("en-US");
 
 /* INITIAL RENDER */
 initOdoloPage();
