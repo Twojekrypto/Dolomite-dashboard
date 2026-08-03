@@ -350,7 +350,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>Ended Programs</h2>
         <span class="count-badge" id="rwPastTableCount">—</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>historical campaigns</div>
+      <div class="card-meta" id="rwPastMeta"><span class="pulse pulse-loading"></span>Loading data update…</div>
     </div>
     <div class="tbl-wrap">
       <div class="rw-empty" id="rwPastState">Loading…</div>
@@ -693,6 +693,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     }
     const meta = document.getElementById('rwLiveMeta');
     if (meta) meta.innerHTML = `<span class="pulse"></span>Data updated · ${formatUpdatedAge(generatedAt)}`;
+    const pastMeta = document.getElementById('rwPastMeta');
+    if (pastMeta) pastMeta.innerHTML = `<span class="pulse"></span>Data updated · ${formatUpdatedAge(generatedAt)}`;
   }
 
   function renderAll() {

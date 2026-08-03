@@ -1163,7 +1163,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
         <h2>Dolomite Assets</h2>
         <span class="count-badge" id="count-badge">42 markets</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span>Live · updated 2m ago</div>
+      <div class="card-meta"><span class="pulse"></span>Loading data update…</div>
     </div>
 
     <!-- TOOLBAR -->
@@ -1996,7 +1996,7 @@ async function loadLiveAssets(){
 
 function setLiveStatus(ok, count){
   const el = document.querySelector(".card-meta");
-  if(el) el.innerHTML = `<span class="pulse"></span>${ok ? "Direct fetch · official rates" : "Fallback · static snapshot"}`;
+  if(el) el.innerHTML = `<span class="pulse"></span>Data updated · just now`;
   const heroLive = document.querySelector(".hero-live");
   if(heroLive) heroLive.innerHTML = `<span class="dot"></span>${count} markets · ${ok ? "direct refresh" : "static fallback"}`;
   const foot = document.getElementById("now");
@@ -2006,7 +2006,7 @@ function setLiveStatus(ok, count){
 function setSnapshotStatus(count, generatedAt){
   const age = assetAgeLabel(generatedAt);
   const el = document.querySelector(".card-meta");
-  if(el) el.innerHTML = `<span class="pulse"></span>Official data · updated ${age}`;
+  if(el) el.innerHTML = `<span class="pulse"></span>Data updated · ${age}`;
   const heroLive = document.querySelector(".hero-live");
   if(heroLive) heroLive.innerHTML = `<span class="dot"></span>${count} markets · updated ${age}`;
   const foot = document.getElementById("now");
@@ -2019,7 +2019,7 @@ function setSnapshotStatus(count, generatedAt){
 function setCachedLiveStatus(count, savedAt, failed=false, generatedAt=null){
   const age = assetAgeLabel(generatedAt || savedAt);
   const suffix = failed ? "refresh failed" : "refreshing";
-  const label = `Cached official data · ${suffix}`;
+  const label = `Data updated · ${age} · ${suffix}`;
   const el = document.querySelector(".card-meta");
   if(el) el.innerHTML = `<span class="pulse"></span>${label}`;
   const heroLive = document.querySelector(".hero-live");
@@ -2308,7 +2308,7 @@ function renderLoading(){
   const protoSub = document.getElementById("proto-market-sub");
   const foot = document.getElementById("now");
   if(badge) badge.textContent = "Loading markets";
-  if(meta) meta.innerHTML = `<span class="pulse"></span>Loading official rates`;
+  if(meta) meta.innerHTML = `<span class="pulse"></span>Loading data update…`;
   if(heroLive) heroLive.innerHTML = `<span class="dot"></span>Syncing live markets`;
   if(protoSub) protoSub.innerHTML = `Lending &amp; margin · <b>loading live markets</b>`;
   if(foot) foot.textContent = "loading official markets";

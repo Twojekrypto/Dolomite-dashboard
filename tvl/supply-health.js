@@ -14,6 +14,10 @@
   }
 })(typeof globalThis !== 'undefined' ? globalThis : this, function createSupplyHealth() {
   const SUPPLY_HEALTH_PAGE_SIZE = 10;
+  const PAGER_ICON_FIRST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>';
+  const PAGER_ICON_PREV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+  const PAGER_ICON_NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+  const PAGER_ICON_LAST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>';
   const healthScoreWeights = [
     { key: 'wallet', label: 'Wallet Distribution', weight: 25 },
     { key: 'concentration', label: 'Concentration Risk', weight: 30 },
@@ -472,11 +476,11 @@
       return;
     }
     pager.innerHTML = `
-      <button class="supply-health-pager-btn" aria-label="First page" onclick="supplyHealthGoPage(1)" ${state.page === 1 ? 'disabled' : ''}>«</button>
-      <button class="supply-health-pager-btn" aria-label="Previous page" onclick="supplyHealthGoPage(${state.page - 1})" ${state.page === 1 ? 'disabled' : ''}>‹</button>
+      <button type="button" class="supply-health-pager-btn" aria-label="First page" onclick="supplyHealthGoPage(1)" ${state.page === 1 ? 'disabled' : ''}>${PAGER_ICON_FIRST}</button>
+      <button type="button" class="supply-health-pager-btn" aria-label="Previous page" onclick="supplyHealthGoPage(${state.page - 1})" ${state.page === 1 ? 'disabled' : ''}>${PAGER_ICON_PREV}</button>
       <span class="supply-health-pager-info">${state.page} / ${pagination.totalPages}</span>
-      <button class="supply-health-pager-btn" aria-label="Next page" onclick="supplyHealthGoPage(${state.page + 1})" ${state.page === pagination.totalPages ? 'disabled' : ''}>›</button>
-      <button class="supply-health-pager-btn" aria-label="Last page" onclick="supplyHealthGoPage(${pagination.totalPages})" ${state.page === pagination.totalPages ? 'disabled' : ''}>»</button>
+      <button type="button" class="supply-health-pager-btn" aria-label="Next page" onclick="supplyHealthGoPage(${state.page + 1})" ${state.page === pagination.totalPages ? 'disabled' : ''}>${PAGER_ICON_NEXT}</button>
+      <button type="button" class="supply-health-pager-btn" aria-label="Last page" onclick="supplyHealthGoPage(${pagination.totalPages})" ${state.page === pagination.totalPages ? 'disabled' : ''}>${PAGER_ICON_LAST}</button>
     `;
   }
 

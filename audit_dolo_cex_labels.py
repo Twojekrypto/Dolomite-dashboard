@@ -8,6 +8,7 @@ the API access error, and never promotes heuristic addresses to confirmed CEX.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -25,6 +26,11 @@ HOLDERS_JSON = ROOT / "dolo_holders.json"
 FLOWS_JSON = ROOT / "dolo_flows.json"
 DEFAULT_OUTPUT = ROOT / "dolo_cex_label_audit.json"
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
+ETHERSCAN_ADDRESS_PAGE = "https://etherscan.io/address/{address}"
+PUBLIC_EXPLORER_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
 
 CEX_KEYWORDS = (
     "binance",
@@ -224,6 +230,95 @@ def clean_suggestion_label(meta: dict[str, Any]) -> str:
     return nametag[:80] if nametag else ""
 
 
+def extract_public_explorer_metadata(page_html: str) -> dict[str, Any]:
+    """Extract the public nametag from an Etherscan address-page title."""
+    title_match = re.search(r"<title[^>]*>(.*?)</title>", page_html or "", re.I | re.S)
+    if not title_match:
+        return {}
+    title = html.unescape(re.sub(r"\s+", " ", title_match.group(1))).strip()
+    nametag = title.split("|", 1)[0].strip()
+    nametag = re.sub(r":\s*0x[a-fA-F0-9]{4,40}(?:\.{2,3})?.*$", "", nametag).strip()
+    return {
+        "nametag": nametag,
+        "url": "",
+        "shortdescription": "",
+        "labels": [],
+        "labels_slug": [],
+        "publicTitle": title,
+    }
+
+
+def fetch_public_explorer_metadata(
+    address: str,
+    session: requests.Session,
+) -> tuple[dict[str, Any] | None, str | None]:
+    try:
+        response = session.get(
+            ETHERSCAN_ADDRESS_PAGE.format(address=address),
+            headers={"User-Agent": PUBLIC_EXPLORER_USER_AGENT},
+            timeout=30,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        return None, f"request_failed: {exc}"
+    metadata = extract_public_explorer_metadata(response.text)
+    return (metadata or None), None
+
+
+def run_public_page_audit(
+    candidates: list[dict[str, Any]],
+    delay: float,
+    session: requests.Session | None = None,
+) -> dict[str, Any]:
+    """Audit candidates against public Etherscan labels; never mutate runtime labels."""
+    session = session or requests.Session()
+    confirmed: list[dict[str, Any]] = []
+    non_cex_tagged: list[dict[str, Any]] = []
+    no_tag: list[str] = []
+    errors: dict[str, str] = {}
+
+    for idx, candidate in enumerate(candidates, start=1):
+        address = candidate["address"]
+        metadata, error = fetch_public_explorer_metadata(address, session)
+        if error:
+            errors[address] = error
+        elif not metadata:
+            no_tag.append(address)
+        elif is_cex_metadata(metadata):
+            confirmed.append(
+                {
+                    **candidate,
+                    "suggestedLabel": clean_suggestion_label(metadata),
+                    "source": "etherscan-public-page",
+                    "etherscan": {
+                        "nametag": metadata.get("nametag"),
+                        "publicTitle": metadata.get("publicTitle"),
+                    },
+                }
+            )
+        else:
+            non_cex_tagged.append(
+                {
+                    **candidate,
+                    "source": "etherscan-public-page",
+                    "etherscan": {
+                        "nametag": metadata.get("nametag"),
+                        "publicTitle": metadata.get("publicTitle"),
+                    },
+                }
+            )
+        if idx < len(candidates):
+            time.sleep(delay)
+
+    return {
+        "confirmedCexSuggestions": confirmed,
+        "nonCexTagged": non_cex_tagged,
+        "noPublicTag": no_tag,
+        "errors": errors,
+        "queriedCount": len(confirmed) + len(non_cex_tagged) + len(no_tag) + len(errors),
+    }
+
+
 def fetch_nametag(address: str, api_key: str, session: requests.Session) -> tuple[dict[str, Any] | None, str | None]:
     params = {
         "chainid": "1",
@@ -360,13 +455,23 @@ def main() -> int:
     api_status = "skipped"
     if args.no_api:
         api_status = "disabled_by_flag"
-    elif not api_key:
-        api_status = "missing_ETHERSCAN_API_KEY"
     else:
-        api_status = "attempted"
-        api_report = run_api_audit(candidates, api_key, delay=args.delay)
-        if api_report["errors"] and api_report["queriedCount"] <= 2:
-            api_status = "blocked_or_unavailable"
+        if api_key:
+            api_status = "attempted"
+            api_report = run_api_audit(candidates, api_key, delay=args.delay)
+        else:
+            api_status = "missing_ETHERSCAN_API_KEY"
+        api_blocked = (
+            not api_key
+            or (api_report["errors"] and api_report["queriedCount"] <= 2)
+        )
+        if api_blocked:
+            api_report = run_public_page_audit(candidates, delay=args.delay)
+            api_status = (
+                "public_fallback_partial"
+                if api_report["errors"]
+                else "public_fallback_completed"
+            )
         elif api_report["queriedCount"]:
             api_status = "completed"
 
@@ -384,9 +489,9 @@ def main() -> int:
             "includeKnownCex": args.include_known_cex,
         },
         "api": {
-            "provider": "Etherscan V2 nametag",
+            "provider": "Etherscan V2 nametag + public address pages",
             "status": api_status,
-            "note": "Nametag metadata is an Etherscan Pro Plus endpoint; free keys may return an access error.",
+            "note": "The public-page fallback keeps the report useful when the paid nametag endpoint is unavailable; suggestions remain advisory.",
             **api_report,
         },
         "existingCexLabels": existing_cex,

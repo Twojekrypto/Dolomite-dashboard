@@ -257,6 +257,67 @@ class DolomiteTotalSupplyHistoryTest(unittest.TestCase):
                 [{"marketKey": "mantle:material", "currentSupplyUsd": Decimal("1000000")}],
             )
 
+    def test_material_stale_market_is_refetched_before_validation(self):
+        module = self.history_module()
+        histories = [
+            {
+                "marketKey": "ethereum:fresh",
+                "currentSupplyUsd": Decimal("800000000"),
+                "points": {1_000_000: Decimal("790000000")},
+                "borrowPoints": {1_000_000: Decimal("280000000")},
+            },
+            {
+                "marketKey": "xlayer:material",
+                "currentSupplyUsd": Decimal("12000000"),
+                "points": {1_000: Decimal("11000000")},
+                "borrowPoints": {1_000: Decimal("1000000")},
+            },
+        ]
+        refreshed_market = {
+            **histories[1],
+            "points": {1_000_000: Decimal("12000000")},
+            "borrowPoints": {1_000_000: Decimal("1000000")},
+        }
+
+        with mock.patch.object(module, "_fetch_metric_series", return_value=refreshed_market) as fetch:
+            refreshed = module.retry_stale_market_histories(histories)
+
+        fetch.assert_called_once_with(histories[1])
+        recent, stale = module.split_recent_market_histories(refreshed)
+        self.assertEqual([], stale)
+        self.assertEqual(
+            {"ethereum:fresh", "xlayer:material"},
+            {row["marketKey"] for row in recent},
+        )
+
+    def test_failed_stale_market_retry_keeps_strict_failure(self):
+        module = self.history_module()
+        histories = [
+            {
+                "marketKey": "ethereum:fresh",
+                "currentSupplyUsd": Decimal("800000000"),
+                "points": {1_000_000: Decimal("790000000")},
+                "borrowPoints": {1_000_000: Decimal("280000000")},
+            },
+            {
+                "marketKey": "xlayer:material",
+                "currentSupplyUsd": Decimal("12000000"),
+                "points": {},
+                "borrowPoints": {},
+            },
+        ]
+
+        with mock.patch.object(module, "_fetch_metric_series", side_effect=RuntimeError("still stale")):
+            refreshed = module.retry_stale_market_histories(histories)
+
+        _, stale = module.split_recent_market_histories(refreshed)
+        with self.assertRaisesRegex(ValueError, "stale market coverage"):
+            module.validate_official_snapshot_coverage(
+                Decimal("812000000"),
+                Decimal("519000000"),
+                stale,
+            )
+
     def test_validator_requires_official_total_supply_history(self):
         rules = RULES.get("dolomite_total_supply_history.json")
 

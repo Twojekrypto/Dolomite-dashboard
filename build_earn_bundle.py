@@ -12,7 +12,7 @@ SOURCE_HTML = ROOT / "dashboard-core.html"
 SOURCE_JS = ROOT / "dashboard-core.js"
 OUTPUT_HTML = ROOT / "earn" / "earn-core.html"
 OUTPUT_JS = ROOT / "earn" / "earn-core.js"
-STATIC_LAYOUT_VERSION = "earn-core-20260724-mismatch-floor-straight-hover-filter-icon-parity-20260731-responsive-20260801"
+STATIC_LAYOUT_VERSION = "earn-core-20260724-mismatch-floor-straight-hover-filter-icon-parity-20260731-responsive-20260801-table-system-20260803"
 
 
 def _slice(source: str, start: str, end: str, *, include_end: bool = False) -> str:
@@ -47,7 +47,7 @@ def render_earn_assets(html_path: Path = SOURCE_HTML, js_path: Path = SOURCE_JS)
     <link rel="dns-prefetch" href="//api.dolomite.io">
     <link rel="dns-prefetch" href="//coins.llama.fi">
     <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
-    <script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
+    <script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
 </head>
 <body class="earn-draft-route">
     <div class="page-wrapper">
@@ -61,7 +61,7 @@ def render_earn_assets(html_path: Path = SOURCE_HTML, js_path: Path = SOURCE_JS)
     <script src="earn/earn-cache-policy.js?v=earn-cache-policy-20260718"></script>
     <script src="earn/earn-rpc-policy.js?v=earn-rpc-policy-20260718"></script>
     <script src="earn/earn-core.js?v=core-split-20260718-ledger-primary-sla-{STATIC_LAYOUT_VERSION}"></script>
-    <script src="earn/earn-static-layout.js?v=earn-static-layout-20260722-export"></script>
+    <script src="earn/earn-static-layout.js?v=earn-static-layout-20260803-mobile"></script>
     <script>
     (() => {{
         const isLocalhost = window.location.hostname === 'localhost';
