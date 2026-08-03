@@ -993,7 +993,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 </style>
 <script src="count-up.js?v=20260427-countup"></script>
-<script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1384,7 +1384,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <h2>Fresh 10K+ DOLO Wallets</h2>
         <span class="count-badge" id="fresh-wallets-count">--</span>
       </div>
-      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">First on-chain tx + 10K+ exposure</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="fresh-wallets-meta">Loading data update…</span></div>
     </div>
 
     <div class="fresh-wallet-stats selected-market-rail" id="fresh-wallet-stats"></div>
@@ -4096,7 +4096,7 @@ function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta = "", rows, 
             </thead>
             <tbody>
               ${rows.map(row => `
-                <tr data-addr="${escHtml(row.addr)}" data-panel-total="${escHtml(row.panelTotal)}" data-wallet-sort-chain="${escHtml(holderWalletChainSortValue(row))}" data-wallet-sort-dolo="${safeHolderNum(row.panelTotal)}" data-wallet-sort-change="${safeHolderNum(row.rangeChange?.delta)}" data-wallet-search="${escHtml(`${row.addr || ""} ${row.label || ""}`.toLowerCase())}">
+                <tr data-addr="${escHtml(row.addr)}" data-panel-total="${escHtml(row.panelTotal)}" data-wallet-sort-chain="${escHtml(holderWalletChainSortValue(row))}" data-wallet-sort-dolo="${safeHolderNum(row.panelTotal)}" data-wallet-sort-change="${safeHolderNum(row.rangeChange?.delta)}" data-wallet-search="${escHtml(`${row.addr || ""} ${row.label || ""} ${row.type || ""} ${TYPE_LABELS[row.type] || ""}`.toLowerCase())}">
                   <td class="chain-cell" data-column="chain" data-label="Chain">${holderWalletChainHtml(row)}</td>
                   <td data-column="address" data-label="Address">${holderWalletAddressCell(row)}</td>
                   <td class="num" data-column="dolo" data-label="DOLO">
@@ -4207,7 +4207,7 @@ function filterHolders({includeSearch = true} = {}){
     if(state.chain === "ethereum"  && h.balEth  === 0) return false;
     if(state.chain === "berachain" && h.balBera === 0) return false;
     if(!state.types.has(typeFilterKey(h.type))) return false;
-    if(q && !h.addr.toLowerCase().includes(q) && !(h.label||"").toLowerCase().includes(q)) return false;
+    if(q && !`${h.addr || ""} ${h.label || ""} ${h.type || ""} ${TYPE_LABELS[h.type] || ""}`.toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -4489,7 +4489,7 @@ function renderFlow(target, kind){
     .filter(r=> kind==="acc" ? r.chg > 0 : r.chg < 0);
   rows = sortFlowRows(rows, kind);
   const rankMap = new Map(rows.map((r,i)=>[r.addr.toLowerCase(), i + 1]));
-  if(q) rows = rows.filter(r=>r.addr.toLowerCase().includes(q) || (r.label||"").toLowerCase().includes(q));
+  if(q) rows = rows.filter(r=>`${r.addr || ""} ${r.label || ""} ${r.type || ""} ${TYPE_LABELS[r.type] || ""}`.toLowerCase().includes(q));
   const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / state.flowsPageSize));
   state.flowsPage[kind] = Math.max(0, Math.min(state.flowsPage[kind], totalPages - 1));
@@ -4826,7 +4826,7 @@ function renderFreshWallets(){
   let rows = sortFreshWalletRows(allRows);
   renderFreshStats(allRows);
   const q = state.qFresh.trim().toLowerCase();
-  if(q) rows = rows.filter(row => row.addr.toLowerCase().includes(q) || (row.label || "").toLowerCase().includes(q) || row.signal.label.toLowerCase().includes(q));
+  if(q) rows = rows.filter(row => `${row.addr || ""} ${row.label || ""} ${row.type || ""} ${TYPE_LABELS[row.type] || ""} ${row.signal.label || ""}`.toLowerCase().includes(q));
   const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / state.freshPageSize));
   state.freshPage = Math.max(0, Math.min(state.freshPage, totalPages - 1));
@@ -4891,8 +4891,6 @@ function renderFreshWallets(){
   if(info) info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
   const count = document.getElementById("fresh-wallets-count");
   if(count) count.textContent = `${allRows.length.toLocaleString()} wallets`;
-  const metaEl = document.getElementById("fresh-wallets-meta");
-  if(metaEl) metaEl.textContent = "First on-chain tx + 10K+ exposure";
   renderFreshPager(total);
   syncFreshSortHeaders();
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
@@ -5425,6 +5423,8 @@ renderCexSupplyChart();
     const label = "Data updated · " + ago(timestamp);
     document.querySelectorAll(".card-meta").forEach(el => {
       if(el.id === "flows-meta") return;
+      const freshMeta = el.querySelector("#fresh-wallets-meta");
+      if(freshMeta){ freshMeta.textContent = label; return; }
       if(el.id === "holders-meta" || el.textContent.includes("Live") || el.textContent.includes("updated") || el.textContent.includes("Loading")) el.innerHTML = '<span class="pulse"></span>' + label;
     });
   }

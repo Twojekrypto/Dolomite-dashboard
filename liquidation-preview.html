@@ -3872,40 +3872,56 @@
         /* ===== PAGINATION ===== */
         /* Pagination — flow-pager pattern from DOLO Holders */
         .table-footer {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
             align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 14px 20px;
-            border-top: 1px solid var(--border-subtle);
-            background: var(--bg-card);
+            gap: 12px;
+            min-height: 59px;
+            padding: 12px 24px;
+            border-top: 1px solid var(--line-1);
+            background: var(--bg-2);
             border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        }
+
+        .flow-pager-count {
+            grid-column: 1;
+            justify-self: start;
+            color: var(--fg-3);
+            font-family: var(--mono);
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .flow-pager {
+            grid-column: 2;
+            justify-self: center;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .flow-pager-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 28px;
-            height: 28px;
+            width: 30px;
+            height: 30px;
             padding: 0;
             border: 1px solid var(--border-subtle);
-            background: rgba(255, 255, 255, 0.04);
+            background: var(--bg-3);
             border-radius: 6px;
-            color: var(--text-secondary);
+            color: var(--fg-2);
             cursor: pointer;
-            font-size: 14px;
             line-height: 1;
-            transition: all 0.15s;
+            transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
             font-family: inherit;
         }
 
         .flow-pager-btn:hover:not(:disabled) {
-            background: rgba(99, 102, 241, 0.12);
-            color: var(--text-primary);
-            border-color: rgba(99, 102, 241, 0.4);
-            box-shadow: 0 0 8px rgba(99, 102, 241, 0.15);
-            transform: scale(1.08);
+            background: var(--gold-wash);
+            color: var(--gold);
+            border-color: var(--gold-line);
         }
 
         .flow-pager-btn:disabled {
@@ -3914,11 +3930,26 @@
         }
 
         .flow-pager-info {
-            font-size: 11px;
-            color: var(--text-muted);
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--fg-1);
             min-width: 40px;
             text-align: center;
         }
+
+        .flow-pager-current {
+            display: inline-flex;
+            align-items: center;
+            height: 30px;
+            padding: 0 12px;
+            color: var(--fg-1);
+            font-family: var(--mono);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .flow-pager-sep { color: var(--fg-4); font-weight: 400; }
 
         .flow-pager-total {
             font-size: 10px;
@@ -7816,8 +7847,8 @@
         }
         body.route-liquidation .liquidation-history-container {
             --liquidation-history-visible-rows: 10;
-            --liquidation-history-row-height: 86px;
-            --liquidation-history-header-height: 44px;
+            --liquidation-history-row-height: 74px;
+            --liquidation-history-header-height: 42px;
             height: calc(var(--liquidation-history-header-height) + (var(--liquidation-history-row-height) * var(--liquidation-history-visible-rows))) !important;
             min-height: calc(var(--liquidation-history-header-height) + (var(--liquidation-history-row-height) * var(--liquidation-history-visible-rows))) !important;
             max-height: calc(var(--liquidation-history-header-height) + (var(--liquidation-history-row-height) * var(--liquidation-history-visible-rows))) !important;
@@ -9982,6 +10013,8 @@
 
         /* Institutional table parity — DOLO Holders is the visual reference. */
         body.route-liquidation .liquidation-table-surface .table-card-inner {
+            --borrow-table-row-height: 74px;
+            --borrow-table-header-height: 42px;
             background: var(--bg-2) !important;
             box-shadow: var(--sh-card) !important;
         }
@@ -10017,7 +10050,8 @@
         }
         body.route-liquidation #positions-table thead th,
         body.route-liquidation #liquidation-history-table thead th {
-            padding: 12px 18px !important;
+            height: var(--borrow-table-header-height, 42px) !important;
+            padding: 0 18px !important;
             background: var(--bg-1) !important;
             color: var(--fg-3) !important;
             font-family: var(--mono) !important;
@@ -10033,10 +10067,20 @@
             color: var(--fg-2) !important;
             font-family: var(--mono) !important;
             font-size: 12px !important;
-            font-weight: 400 !important;
+            font-weight: 500 !important;
             line-height: 1.35 !important;
             background: transparent !important;
             border-bottom: 1px solid var(--line-1) !important;
+        }
+        /* Position rows can carry a three-line token stack. Tighter vertical
+           cell padding keeps that information readable within the shared
+           74px institutional row rhythm. */
+        body.route-liquidation #positions-table tbody td {
+            padding: 6px 18px !important;
+        }
+        body.route-liquidation #positions-table tbody tr,
+        body.route-liquidation #liquidation-history-table tbody tr {
+            height: var(--borrow-table-row-height, 74px) !important;
         }
         body.route-liquidation #positions-table tbody tr:hover td,
         body.route-liquidation #liquidation-history-table tbody tr:hover td {
@@ -10079,7 +10123,7 @@
             color: currentColor !important;
         }
     </style>
-<script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
 <script src="liquidation/liquidation-history-sort.js?v=liquidation-history-sort-20260730"></script>
 </head>
 
@@ -14253,6 +14297,14 @@
         const PAGER_ICON_NEXT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
         const PAGER_ICON_LAST = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>`;
 
+        function formatBorrowTableRange(startIndex, total, pageSize) {
+            const count = Math.max(0, Number(total) || 0);
+            if (!count) return '0 of 0';
+            const first = Math.max(0, Number(startIndex) || 0) + 1;
+            const last = Math.min(first + Math.max(1, Number(pageSize) || 1) - 1, count);
+            return `${first.toLocaleString()}–${last.toLocaleString()} of ${count.toLocaleString()}`;
+        }
+
         const CHAIN_DEBANK_IDS = {
             'berachain': 'bera',
             'arbitrum': 'arb',
@@ -14944,7 +14996,11 @@
             const totalPages = Math.ceil(filteredPositions.length / PAGE_SIZE);
             const footer = document.getElementById('table-footer');
 
-            const posCount = `${filteredPositions.length.toLocaleString()} position${filteredPositions.length === 1 ? '' : 's'}`;
+            const posCount = formatBorrowTableRange(
+                (Math.max(1, currentPage) - 1) * PAGE_SIZE,
+                filteredPositions.length,
+                PAGE_SIZE
+            );
 
             if (totalPages <= 1) {
                 footer.innerHTML =
@@ -15129,7 +15185,7 @@
 
             if (!filteredTotal) {
                 body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:42px 20px;color:var(--text-muted);border-bottom:none;">No liquidations match this search.</td></tr>`;
-                pager.innerHTML = '';
+                pager.innerHTML = '<span class="flow-pager-count">0 of 0</span>';
                 return;
             }
 
@@ -15166,7 +15222,11 @@
                 }
             }
 
-            const liqCount = `${filteredTotal.toLocaleString()} liquidation${filteredTotal === 1 ? '' : 's'}`;
+            const liqCount = formatBorrowTableRange(
+                start,
+                filteredTotal,
+                LIQUIDATION_HISTORY_PAGE_SIZE
+            );
             pager.innerHTML = totalPages <= 1
                 ? `<span class="flow-pager-count">${liqCount}</span>` +
                   `<div class="flow-pager"><span class="flow-pager-current">1 <span class="flow-pager-sep">/</span> 1</span></div>`
@@ -19148,7 +19208,7 @@
             if (filtered.length === 0) {
                 table.style.display = 'table';
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:34px; color:var(--text-muted);">No activity matches the selected filters.</td></tr>`;
-                pager.innerHTML = '';
+                pager.innerHTML = '<span class="flow-pager-count">0 of 0</span>';
                 return;
             }
 
@@ -19220,14 +19280,13 @@
                 }
             }
 
-            pager.innerHTML = totalPages <= 1
-                ? `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filtered.length.toLocaleString()} events</span>`
-                : `<button class="flow-pager-btn" onclick="supplyGoActivityPage(1)" ${supplyActivityPage === 1 ? 'disabled' : ''}>«</button>` +
-                  `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${supplyActivityPage - 1})" ${supplyActivityPage === 1 ? 'disabled' : ''}>‹</button>` +
-                  `<span class="flow-pager-info">${supplyActivityPage} / ${totalPages}</span>` +
-                  `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${supplyActivityPage + 1})" ${supplyActivityPage === totalPages ? 'disabled' : ''}>›</button>` +
-                  `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${totalPages})" ${supplyActivityPage === totalPages ? 'disabled' : ''}>»</button>` +
-                  `<span class="flow-pager-total">${filtered.length.toLocaleString()} events</span>`;
+            const activityRange = formatBorrowTableRange(start, filtered.length, SUPPLY_ACTIVITY_PAGE_SIZE);
+            pager.innerHTML = `<span class="flow-pager-count">${activityRange}</span><div class="flow-pager">` +
+                `<button type="button" class="flow-pager-btn" aria-label="First page" onclick="supplyGoActivityPage(1)" ${supplyActivityPage === 1 ? 'disabled' : ''}>${PAGER_ICON_FIRST}</button>` +
+                `<button type="button" class="flow-pager-btn" aria-label="Previous page" onclick="supplyGoActivityPage(${supplyActivityPage - 1})" ${supplyActivityPage === 1 ? 'disabled' : ''}>${PAGER_ICON_PREV}</button>` +
+                `<span class="flow-pager-current">${supplyActivityPage} <span class="flow-pager-sep">/</span> ${totalPages}</span>` +
+                `<button type="button" class="flow-pager-btn" aria-label="Next page" onclick="supplyGoActivityPage(${supplyActivityPage + 1})" ${supplyActivityPage === totalPages ? 'disabled' : ''}>${PAGER_ICON_NEXT}</button>` +
+                `<button type="button" class="flow-pager-btn" aria-label="Last page" onclick="supplyGoActivityPage(${totalPages})" ${supplyActivityPage === totalPages ? 'disabled' : ''}>${PAGER_ICON_LAST}</button></div>`;
         }
 
         function supplyGoActivityPage(page) {
@@ -19262,15 +19321,16 @@
         }
 
         function renderSupplyPagination(totalLen) {
-            const total = Math.ceil(totalLen / SUPPLY_PER_PAGE);
+            const total = Math.max(1, Math.ceil(totalLen / SUPPLY_PER_PAGE));
             const el = document.getElementById('supply-pagination');
-            if (total <= 1) { el.innerHTML = ''; return; }
-
-            el.innerHTML = `<button class="flow-pager-btn" onclick="supply_goPage(1)" ${supplyPage === 1 ? 'disabled' : ''}>«</button>` +
-                `<button class="flow-pager-btn" onclick="supply_goPage(${supplyPage - 1})" ${supplyPage === 1 ? 'disabled' : ''}>‹</button>` +
-                `<span class="flow-pager-info">${supplyPage} / ${total}</span>` +
-                `<button class="flow-pager-btn" onclick="supply_goPage(${supplyPage + 1})" ${supplyPage === total ? 'disabled' : ''}>›</button>` +
-                `<button class="flow-pager-btn" onclick="supply_goPage(${total})" ${supplyPage === total ? 'disabled' : ''}>»</button>`;
+            const start = (Math.max(1, supplyPage) - 1) * SUPPLY_PER_PAGE;
+            const range = formatBorrowTableRange(start, totalLen, SUPPLY_PER_PAGE);
+            el.innerHTML = `<span class="flow-pager-count">${range}</span><div class="flow-pager">` +
+                `<button type="button" class="flow-pager-btn" aria-label="First page" onclick="supply_goPage(1)" ${supplyPage === 1 ? 'disabled' : ''}>${PAGER_ICON_FIRST}</button>` +
+                `<button type="button" class="flow-pager-btn" aria-label="Previous page" onclick="supply_goPage(${supplyPage - 1})" ${supplyPage === 1 ? 'disabled' : ''}>${PAGER_ICON_PREV}</button>` +
+                `<span class="flow-pager-current">${supplyPage} <span class="flow-pager-sep">/</span> ${total}</span>` +
+                `<button type="button" class="flow-pager-btn" aria-label="Next page" onclick="supply_goPage(${supplyPage + 1})" ${supplyPage === total ? 'disabled' : ''}>${PAGER_ICON_NEXT}</button>` +
+                `<button type="button" class="flow-pager-btn" aria-label="Last page" onclick="supply_goPage(${total})" ${supplyPage === total ? 'disabled' : ''}>${PAGER_ICON_LAST}</button></div>`;
         }
 
         function renderSupplyTable() {

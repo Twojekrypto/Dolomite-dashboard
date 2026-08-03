@@ -53,6 +53,7 @@
     "0x7efd088ae500598a19a242d6d48b9f7e0d061176": {label:"Investor 3", type:"investor", treasury:true},
 
     "0xf977814e90da44bfa03b6295a0616a897441acec": {label:"Binance Hot Wallet 20", type:"cex", source:"etherscan-public-label"},
+    "0x06fd4ba7973a0d39a91734bbc35bc2bcaa99e3b0": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed"},
     "0x28c6c06298d514db089934071355e5743bf21d60": {label:"Binance 14", type:"cex", source:"etherscan-public-label"},
     "0x21a31ee1afc51d94c2efccaa2092ad1028285549": {label:"Binance 15", type:"cex", source:"etherscan-public-label"},
     "0xdfd5293d8e347dfe59e90efd55b2956a1343963d": {label:"Binance 16", type:"cex", source:"etherscan-public-label"},

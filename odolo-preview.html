@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260507u">
 <script defer src="shared-hover-tooltips.js?v=20260507u"></script>
-<script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <style>
 /* ==========================================================================
@@ -2790,6 +2790,7 @@ function renderClaimerBreakdown(){
     <button class="pg-btn" data-page="next"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button class="pg-btn" data-page="last"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
+  syncPagerAccessibility(pager);
   pager.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", ()=>{
     const a = btn.dataset.page;
     if(a==="first") cbState.page = 0;
@@ -3064,6 +3065,7 @@ function renderLatestExercises(){
       <button class="pg-btn" data-latest-page="next"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
       <button class="pg-btn" data-latest-page="last"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
     `;
+    syncPagerAccessibility(pager);
     pager.querySelectorAll("[data-latest-page]").forEach(btn => btn.addEventListener("click", ()=>{
       const action = btn.dataset.latestPage;
       if(action === "first") state.latestPage = 0;
@@ -3229,6 +3231,7 @@ function renderLatestPairs(){
       <button class="pg-btn" data-pair-page="next"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
       <button class="pg-btn" data-pair-page="last"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
     `;
+    syncPagerAccessibility(pager);
     pager.querySelectorAll("[data-pair-page]").forEach(btn => btn.addEventListener("click", ()=>{
       const action = btn.dataset.pairPage;
       if(action === "first") state.pairPage = 0;
@@ -3428,6 +3431,7 @@ function renderExercisers(){
     <button class="pg-btn" data-page="next"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button class="pg-btn" data-page="last"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
+  syncPagerAccessibility(pager);
   pager.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", ()=>{
     const a = btn.dataset.page;
     if(a==="first") state.exPage = 0;
@@ -3499,6 +3503,7 @@ function renderFlowPager(kind, totalRows){
     <button class="pg-btn" data-flow-page="next"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
     <button class="pg-btn" data-flow-page="last"  ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
+  syncPagerAccessibility(pager);
   pager.querySelectorAll("[data-flow-page]").forEach(btn => btn.addEventListener("click", ()=>{
     const a = btn.dataset.flowPage;
     if(a==="first") state.flowsPage[kind] = 0;
@@ -3611,6 +3616,15 @@ document.getElementById("q-flows").addEventListener("input", e=>{state.qFlows=e.
 function syncSearchClear(input){
   const search = input && input.closest(".search");
   if(search) search.classList.toggle("has-value", input.value.length > 0);
+}
+function syncPagerAccessibility(pager){
+  if(!pager) return;
+  const labels = {first:"First page",prev:"Previous page",next:"Next page",last:"Last page"};
+  pager.querySelectorAll(".pg-btn").forEach(button => {
+    const action = button.dataset.page || button.dataset.latestPage || button.dataset.pairPage || button.dataset.flowPage || "";
+    button.type = "button";
+    if(labels[action]) button.setAttribute("aria-label", labels[action]);
+  });
 }
 function wireSearchClears(){
   document.querySelectorAll(".search").forEach(search=>{

@@ -126,13 +126,14 @@ class DoloAddressLabelsTest(unittest.TestCase):
         odolo_html = (ROOT / "odolo-preview.html").read_text()
         self.assertIn('id="flows-meta">Flow data</span>', dolo_html)
         self.assertIn('id="flows-meta"><span class="pulse"></span>Loading data update…</div>', odolo_html)
-        self.assertIn('id="fresh-wallets-meta">First on-chain tx + 10K+ exposure</span>', dolo_html)
+        self.assertIn('id="fresh-wallets-meta">Loading data update…</span>', dolo_html)
         self.assertIn('<div class="sub">10K+ exposure</div>', dolo_html)
         self.assertNotIn('id="flows-meta">Period:', dolo_html)
         self.assertNotIn('id="flows-meta">Period:', odolo_html)
         self.assertNotIn('Period: " + (meta ? meta.short', dolo_html)
         self.assertNotIn('Period: " + (meta ? meta.short', odolo_html)
         self.assertNotIn('`${meta.short} · first on-chain tx', dolo_html)
+        self.assertNotIn('metaEl.textContent = "First on-chain tx + 10K+ exposure"', dolo_html)
         self.assertIn('setCardMeta("flows-meta", flowUpdated)', odolo_html)
 
     def test_potential_custody_labels_are_not_confirmed_cex(self):
@@ -172,6 +173,7 @@ class DoloAddressLabelsTest(unittest.TestCase):
 
     def test_public_explorer_labels_are_current(self):
         expected = {
+            "0x06fd4ba7973a0d39a91734bbc35bc2bcaa99e3b0": ("Binance Deposit", "cex"),
             "0x000000000004444c5dc75cb358380d2e3de08a90": ("Uniswap V4 Pool Manager", "contract"),
             "0xf977814e90da44bfa03b6295a0616a897441acec": ("Binance Hot Wallet 20", "cex"),
             "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43": ("Coinbase 10", "cex"),
@@ -223,6 +225,12 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertEqual(info["type"], label_type)
                 self.assertEqual(info["source"], "etherscan-public-label")
                 self.assertEqual(info["confidence"], "confirmed")
+
+    def test_dolo_search_surfaces_include_label_type(self):
+        html = (ROOT / "dolo-preview.html").read_text()
+        self.assertIn('${h.type || ""} ${TYPE_LABELS[h.type] || ""}', html)
+        self.assertIn('${r.type || ""} ${TYPE_LABELS[r.type] || ""}', html)
+        self.assertIn('${row.type || ""} ${TYPE_LABELS[row.type] || ""}', html)
 
     def test_mexc_flow_audit_wallet_is_cex_not_market_holder(self):
         info = self.labels["0xd5c342acbeedef81ab8e6072323bfda76172d05f"]

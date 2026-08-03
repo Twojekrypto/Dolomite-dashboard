@@ -688,6 +688,17 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .proto-copy.copied{color:var(--up);border-color:var(--up)}
 .proto-copy svg,.proto-explore svg{width:12px;height:12px;pointer-events:none}
 .foot{font-size:11px;color:var(--fg-4);font-family:var(--mono);text-align:center;margin-top:26px}
+
+/* Institutional table parity — DOLO Holders is the reference surface. */
+.exit-table-card .exit-table-head{align-items:center;padding:20px 24px 18px;background:var(--bg-2);border-bottom:1px solid var(--line-1)}
+.exit-table-card .exit-table-title h3{color:var(--fg-1);font-size:16px;font-weight:600;letter-spacing:-.1px;line-height:1.2}
+.exit-table-card .exit-title-row .count-badge{border-color:var(--line-2);background:var(--bg-3);color:var(--fg-2);font-size:11px;font-weight:500}
+#exits-table th,#holders-table th,#claimable-table th,.flow-col .tbl th{height:42px;padding:12px 14px;background:var(--bg-1);font-size:10px;font-weight:600;letter-spacing:1.6px}
+#exits-table td,#holders-table td,#claimable-table td,.flow-col .tbl td{height:71px;color:var(--fg-2);font-size:12px;font-weight:600;line-height:1.35}
+.exit-table-card .tbl-foot,.holders-card .tbl-foot,.claimable-card .tbl-foot,.flow-col .tbl-foot{min-height:59px;background:var(--bg-2);border-top:1px solid var(--line-1)}
+.tbl-foot-info{font-size:12px;font-weight:500}
+.pager button{width:30px;min-width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.pager button svg{width:12px;height:12px;pointer-events:none}
 @media (max-width:1050px){
   .hero-stats{grid-template-columns:repeat(2,1fr);gap:18px 0}
   .hero-stat:nth-child(3){border-left:0;padding-left:0}
@@ -1347,6 +1358,10 @@ const copySvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const extSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const chevDownSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 const checkSvg = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg>';
+const PAGER_ICON_FIRST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>';
+const PAGER_ICON_PREV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+const PAGER_ICON_NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+const PAGER_ICON_LAST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>';
 const CONTRACTS = [
   {token:"DOLO", logo:"dolo-logo.svg", chain:"Ethereum", chainKey:"ethereum", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
   {token:"DOLO", logo:"dolo-logo.svg", chain:"Berachain", chainKey:"berachain", addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://berascan.com"},
@@ -2070,11 +2085,17 @@ function renderHolderDetailRow(h){
 }
 function pagerHtml(page,totalPages,kind){
   totalPages = Math.max(1,totalPages);
-  return `<button data-page-kind="${kind}" data-page="first" ${page<=1?"disabled":""}>«</button>
-    <button data-page-kind="${kind}" data-page="prev" ${page<=1?"disabled":""}>‹</button>
+  return `<button type="button" data-page-kind="${kind}" data-page="first" aria-label="First page" ${page<=1?"disabled":""}>${PAGER_ICON_FIRST}</button>
+    <button type="button" data-page-kind="${kind}" data-page="prev" aria-label="Previous page" ${page<=1?"disabled":""}>${PAGER_ICON_PREV}</button>
     <span>${page} / ${totalPages}</span>
-    <button data-page-kind="${kind}" data-page="next" ${page>=totalPages?"disabled":""}>›</button>
-    <button data-page-kind="${kind}" data-page="last" ${page>=totalPages?"disabled":""}>»</button>`;
+    <button type="button" data-page-kind="${kind}" data-page="next" aria-label="Next page" ${page>=totalPages?"disabled":""}>${PAGER_ICON_NEXT}</button>
+    <button type="button" data-page-kind="${kind}" data-page="last" aria-label="Last page" ${page>=totalPages?"disabled":""}>${PAGER_ICON_LAST}</button>`;
+}
+function formatTableRange(start,total,perPage){
+  if(!total) return "0 of 0";
+  const first = Math.max(0,Number(start) || 0) + 1;
+  const last = Math.min(first + Math.max(1,Number(perPage) || 1) - 1,total);
+  return `${fmtInt(first)}–${fmtInt(last)} of ${fmtInt(total)}`;
 }
 function wireCopyButtons(){
   qsa("[data-copy]").forEach(btn => {
@@ -2494,8 +2515,8 @@ function renderHolders(){
   </tr>${isExpanded ? renderHolderDetailRow(h) : ""}`;
   }).join("") : '<tr class="loading-row table-empty-row"><td colspan="6">No holders match the current filters.</td></tr>';
   qs("#holders-body").innerHTML = holderRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 6);
-  setText("holders-count", rows.length === state.holders.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.holders.length)}`);
-  setText("holders-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
+  setText("holders-count", rows.length === state.holders.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(state.holders.length)}`);
+  setText("holders-info", formatTableRange(start,rows.length,st.perPage));
   updatePager("holders", rows.length, st.page, st.perPage);
   syncSortHeader("#holders-table", st.sort, st.asc);
   wireHolderDetails();
@@ -2619,8 +2640,8 @@ function renderExpiredClaimable(){
   }).join("") : '<tr class="loading-row table-empty-row"><td colspan="8">No expired claimable veDOLO positions match the current filters.</td></tr>';
   qs("#claimable-body").innerHTML = bodyRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 8);
   const allRows = buildExpiredClaimableRows();
-  setText("claimable-count", rows.length === allRows.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(allRows.length)}`);
-  setText("claimable-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
+  setText("claimable-count", rows.length === allRows.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(allRows.length)}`);
+  setText("claimable-info", formatTableRange(start,rows.length,st.perPage));
   updatePager("claimable", rows.length, st.page, st.perPage);
   syncSortHeader("#claimable-table", st.sort, st.asc);
 }
@@ -2663,8 +2684,8 @@ function renderExits(){
     <td class="num"><span class="exit-loss-pill">${pct(ex.penalty_pct)}</span></td>
   </tr>`).join("") : '<tr class="loading-row table-empty-row"><td colspan="5">No early exits in this period.</td></tr>';
   qs("#exits-body").innerHTML = exitRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 5);
-  setText("exits-count", rows.length === state.exits.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.exits.length)}`);
-  setText("exits-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
+  setText("exits-count", rows.length === state.exits.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(state.exits.length)}`);
+  setText("exits-info", formatTableRange(start,rows.length,st.perPage));
   updatePager("exits", rows.length, st.page, st.perPage);
   syncSortHeader("#exits-table", st.sort, st.asc);
 }
@@ -2712,8 +2733,8 @@ function renderLocks(){
     return `<tr class="stable-data-row"><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(displayAddr, l.date, l.txHash, l.timestamp)}</td><td class="flow-route-cell">${tag}</td><td class="num" style="color:var(--up)">${fmtDolo(l.dolo)}</td><td class="num">${fmtLock(l.lockDays)}</td></tr>`;
   }).join("") : '<tr class="loading-row table-empty-row"><td colspan="5">No locks in this period.</td></tr>';
   qs("#locks-body").innerHTML = lockRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 5);
-  setText("locks-count", rows.length === state.locks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.locks.length)}`);
-  setText("locks-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
+  setText("locks-count", rows.length === state.locks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(state.locks.length)}`);
+  setText("locks-info", formatTableRange(start,rows.length,st.perPage));
   updatePager("locks", rows.length, st.locksPage, st.perPage);
   syncSortHeader("#locks-table", st.locksSort, st.locksAsc);
 }
@@ -2726,8 +2747,8 @@ function renderUnlocks(){
   const pageRows = rows.slice(start,start+st.perPage);
   const unlockRows = pageRows.length ? pageRows.map((u,i) => `<tr class="stable-data-row"><td><span class="rank">${fmtInt(start+i+1)}</span></td><td>${flowAddressCell(u.address, u.date, u.txHash, u.timestamp)}</td><td class="num" style="color:var(--down)">${fmtDolo(u.dolo)}</td></tr>`).join("") : '<tr class="loading-row table-empty-row"><td colspan="3">No unlocks in this period.</td></tr>';
   qs("#unlocks-body").innerHTML = unlockRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 3);
-  setText("unlocks-count", rows.length === state.unlocks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.unlocks.length)}`);
-  setText("unlocks-info", rows.length ? `${fmtInt(start+1)}-${fmtInt(Math.min(start+st.perPage,rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
+  setText("unlocks-count", rows.length === state.unlocks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(state.unlocks.length)}`);
+  setText("unlocks-info", formatTableRange(start,rows.length,st.perPage));
   updatePager("unlocks", rows.length, st.unlocksPage, st.perPage);
   syncSortHeader("#unlocks-table", st.unlocksSort, st.unlocksAsc);
 }

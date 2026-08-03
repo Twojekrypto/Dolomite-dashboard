@@ -16,12 +16,15 @@
   const init = () => {
     schedule();
     new root.MutationObserver(schedule).observe(root.document.body, {childList:true, subtree:true});
+    root.addEventListener('resize', schedule, {passive:true});
   };
 
   if(root.document.readyState === 'loading') root.document.addEventListener('DOMContentLoaded', init, {once:true});
   else init();
 })(typeof window !== 'undefined' ? window : null, function(){
   'use strict';
+
+  const MOBILE_BREAKPOINT = 560;
 
   // Exact export saved from the local EARN layout editor on 2026-07-22.
   const STATIC_LAYOUTS = {
@@ -43,6 +46,12 @@
     supply: '#earn-supply-section [data-earn-layout-table="supply"]',
     borrow: '#earn-lending-section [data-earn-layout-table="borrow"]',
     past: '#earn-past-section [data-earn-layout-table="past"]',
+  };
+
+  const MOBILE_ORDERS = {
+    supply: ['token', 'quality', 'price', 'supply', 'balance', 'yield', 'details'],
+    borrow: ['health', 'emode', 'collateral', 'debt', 'pnl', 'details'],
+    past: ['token', 'quality', 'yield', 'details'],
   };
 
   function directColumn(parent, key){
@@ -78,6 +87,27 @@
     present.forEach(key => parent.append(directColumn(parent, key)));
   }
 
+  function clearDesktopLayout(table){
+    if(!table) return;
+    table.classList.remove('earn-static-layout');
+    table.style.removeProperty('width');
+    table.querySelectorAll('colgroup > col').forEach(col => col.style.removeProperty('width'));
+  }
+
+  function applyMobileLayout(name, table, documentLike){
+    const order = MOBILE_ORDERS[name];
+    if(!table || !order || !documentLike) return;
+    clearDesktopLayout(table);
+    ensureSpacer(documentLike, table, false);
+    const colgroup = table.querySelector('colgroup');
+    reorderColumns(colgroup, order);
+    reorderColumns(table.tHead?.rows?.[0], order);
+    table.querySelectorAll('tbody tr[data-earn-layout-row]').forEach(row => reorderColumns(row, order));
+    table.querySelectorAll('[data-earn-layout-detail] > td, .earn-table-spacer > td').forEach(cell => {
+      cell.colSpan = order.length;
+    });
+  }
+
   function applyLayout(name, table, documentLike){
     const layout = STATIC_LAYOUTS[name];
     if(!table || !layout || !documentLike) return;
@@ -99,12 +129,34 @@
     });
   }
 
-  function applyAll(documentLike){
-    if(!documentLike) return;
-    Object.entries(TABLE_SELECTORS).forEach(([name, selector]) => {
-      applyLayout(name, documentLike.querySelector(selector), documentLike);
+  function syncVerifiedMetadata(documentLike){
+    documentLike.querySelectorAll('[data-earn-verified-meta]').forEach(meta => {
+      const section = meta.closest('.earn-section-card');
+      const hasRows = !!section?.querySelector('tbody tr[data-earn-layout-row]');
+      if(!hasRows){
+        delete meta.dataset.verifiedAt;
+        if(meta.textContent !== 'Verified at · waiting') meta.textContent = 'Verified at · waiting';
+        return;
+      }
+      if(!meta.dataset.verifiedAt) meta.dataset.verifiedAt = new Date().toISOString();
+      const timestamp = new Date(meta.dataset.verifiedAt);
+      const time = timestamp.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit', timeZone:'UTC'});
+      const label = `Verified at · ${time} UTC`;
+      if(meta.textContent !== label) meta.textContent = label;
     });
   }
 
-  return {STATIC_LAYOUTS, applyLayout, applyAll};
+  function applyAll(documentLike){
+    if(!documentLike) return;
+    const viewportWidth = Number(documentLike.defaultView?.innerWidth || 0);
+    const useMobileLayout = viewportWidth > 0 && viewportWidth <= MOBILE_BREAKPOINT;
+    Object.entries(TABLE_SELECTORS).forEach(([name, selector]) => {
+      const table = documentLike.querySelector(selector);
+      if(useMobileLayout) applyMobileLayout(name, table, documentLike);
+      else applyLayout(name, table, documentLike);
+    });
+    syncVerifiedMetadata(documentLike);
+  }
+
+  return {STATIC_LAYOUTS, MOBILE_BREAKPOINT, clearDesktopLayout, applyMobileLayout, syncVerifiedMetadata, applyLayout, applyAll};
 });

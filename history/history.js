@@ -1,12 +1,16 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260714-toolbar-flat";
+  const HISTORY_VERSION = "history-20260803-table-system";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
   const HISTORY_TABLE_COLSPAN = 7;
   const HISTORY_VISIBLE_PAGE_SIZE = 10;
+  const PAGER_ICON_FIRST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>';
+  const PAGER_ICON_PREV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+  const PAGER_ICON_NEXT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+  const PAGER_ICON_LAST = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>';
   const HISTORY_SORT_DEFAULT_ASC = {
     chain: true,
     date: false,
@@ -256,6 +260,7 @@
     reviewNotes: {},
     filtersDirty: false,
     loadedScope: null,
+    reportGeneratedAt: 0,
   };
 
   const els = {};
@@ -322,6 +327,7 @@
     els.sortHeaders = document.querySelectorAll(".history-table thead th[data-history-sort]");
     els.pagination = document.getElementById("history-pagination");
     els.status = document.getElementById("history-status");
+    els.reportGenerated = document.getElementById("history-report-generated");
     els.count = document.getElementById("history-count");
     els.scopeInfo = document.querySelector(".history-scope-info");
     els.taxExport = document.getElementById("history-tax-export");
@@ -4063,19 +4069,23 @@
     if (!els.pagination) return;
     const count = Array.isArray(rows) ? rows.length : 0;
     const total = historyVisiblePageCount(count);
-    if (state.loading || count <= HISTORY_VISIBLE_PAGE_SIZE) {
+    if (state.loading || count <= 0) {
       els.pagination.hidden = true;
       els.pagination.innerHTML = "";
       return;
     }
     state.visiblePage = clampHistoryVisiblePage(state.visiblePage, count);
     const page = state.visiblePage;
+    const start = (page - 1) * HISTORY_VISIBLE_PAGE_SIZE;
+    const end = Math.min(start + HISTORY_VISIBLE_PAGE_SIZE, count);
+    const range = `${(start + 1).toLocaleString()}–${end.toLocaleString()} of ${count.toLocaleString()}`;
     els.pagination.hidden = false;
-    els.pagination.innerHTML = `<button class="flow-pager-btn" type="button" data-history-page="1" aria-label="First transaction page" ${page === 1 ? "disabled" : ""}>«</button>` +
-      `<button class="flow-pager-btn" type="button" data-history-page="${page - 1}" aria-label="Previous transaction page" ${page === 1 ? "disabled" : ""}>‹</button>` +
+    els.pagination.innerHTML = `<span class="history-range">${range}</span><div class="history-pager">` +
+      `<button class="flow-pager-btn" type="button" data-history-page="1" aria-label="First transaction page" ${page === 1 ? "disabled" : ""}>${PAGER_ICON_FIRST}</button>` +
+      `<button class="flow-pager-btn" type="button" data-history-page="${page - 1}" aria-label="Previous transaction page" ${page === 1 ? "disabled" : ""}>${PAGER_ICON_PREV}</button>` +
       `<span class="flow-pager-info">${page} / ${total}</span>` +
-      `<button class="flow-pager-btn" type="button" data-history-page="${page + 1}" aria-label="Next transaction page" ${page === total ? "disabled" : ""}>›</button>` +
-      `<button class="flow-pager-btn" type="button" data-history-page="${total}" aria-label="Last transaction page" ${page === total ? "disabled" : ""}>»</button>`;
+      `<button class="flow-pager-btn" type="button" data-history-page="${page + 1}" aria-label="Next transaction page" ${page === total ? "disabled" : ""}>${PAGER_ICON_NEXT}</button>` +
+      `<button class="flow-pager-btn" type="button" data-history-page="${total}" aria-label="Last transaction page" ${page === total ? "disabled" : ""}>${PAGER_ICON_LAST}</button></div>`;
   }
 
   function goHistoryPage(page) {
@@ -4466,6 +4476,11 @@
     const rows = state.filteredRows;
     const earnEntries = earnTaxEntriesForCurrentView();
     const readiness = reportExportReadiness(rows, earnEntries);
+    if(readiness.canFullReport && !state.reportGeneratedAt) state.reportGeneratedAt = Date.now();
+    if(!readiness.canFullReport) state.reportGeneratedAt = 0;
+    if(els.reportGenerated) els.reportGenerated.textContent = state.reportGeneratedAt
+      ? "Report generated · just now"
+      : "Report generated · waiting for data";
     els.reportStatus.textContent = reportStatusLabel(readiness);
     if (els.reportDetail) els.reportDetail.textContent = reportStatusDetail(readiness);
     if (els.reportMenu) els.reportMenu.dataset.reportState = reportStateName(readiness);

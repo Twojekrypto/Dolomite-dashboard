@@ -336,6 +336,42 @@ def _fetch_all_market_histories(markets):
     return histories
 
 
+def retry_stale_market_histories(market_histories):
+    """Retry only stale active markets once, without weakening coverage checks."""
+    histories = list(market_histories or [])
+    _, stale_histories = split_recent_market_histories(histories)
+    if not stale_histories:
+        return histories
+
+    refreshed_by_key = {}
+    with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(stale_histories))) as executor:
+        futures = {
+            executor.submit(_fetch_metric_series, market): market
+            for market in stale_histories
+        }
+        for future in as_completed(futures):
+            market = futures[future]
+            try:
+                refreshed_by_key[market["marketKey"]] = future.result()
+            except RuntimeError:
+                continue
+
+    candidate_histories = [
+        refreshed_by_key.get(market.get("marketKey"), market)
+        for market in histories
+    ]
+    _, still_stale = split_recent_market_histories(candidate_histories)
+    still_stale_keys = {market.get("marketKey") for market in still_stale}
+    return [
+        (
+            refreshed_by_key.get(market.get("marketKey"), market)
+            if market.get("marketKey") not in still_stale_keys
+            else market
+        )
+        for market in histories
+    ]
+
+
 def _read_json(path):
     with open(path, encoding="utf-8") as handle:
         return json.load(handle)
@@ -382,6 +418,7 @@ def main():
     official_snapshot = _read_json(OFFICIAL_SNAPSHOT_FILE)
     markets = _load_market_definitions()
     histories = _fetch_all_market_histories(markets)
+    histories = retry_stale_market_histories(histories)
     recent_histories, stale_histories = split_recent_market_histories(histories)
     current_supply = _decimal(official_snapshot.get("supplyLiquidity"))
     current_tvl = _decimal(official_snapshot.get("totalTvl"))

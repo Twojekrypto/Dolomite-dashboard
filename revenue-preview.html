@@ -394,8 +394,14 @@ h1{
 .revenue-chart-panel .legend-swatch{width:22px;height:4px}
 .legend-swatch.fees{background:#9ab7c2}
 .legend-swatch.odolo-usdc{background:#8aa37b}
-.table-panel{margin-top:18px;overflow:hidden}
+.table-panel{margin-top:18px;overflow:hidden;border:1px solid rgba(255,255,255,.08);border-radius:22px;background:var(--bg-2);box-shadow:var(--sh-card)}
+.table-panel .panel-title{font-size:16px;font-weight:600;letter-spacing:-.1px}
+.table-panel table th{font-size:10px;font-weight:600;letter-spacing:1.6px}
+.table-panel table td{font-size:12px;font-weight:500}
 .chain-panel-head{align-items:flex-start}
+.chain-panel-actions{display:flex;flex-direction:column;align-items:flex-end;gap:10px;min-width:0}
+.chain-data-updated{display:inline-flex;align-items:center;gap:6px;color:var(--fg-3);font-family:var(--mono);font-size:11px;line-height:1.4;white-space:nowrap}
+.chain-data-updated::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold-line)}
 .chain-range-tools{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;justify-content:flex-end;position:relative}
 .chain-date-field{
   display:flex;flex-direction:column;gap:6px;
@@ -1048,6 +1054,8 @@ h1{
         <div class="panel-title">Protocol Revenue by Chain</div>
         <div class="panel-sub">Chain breakdown of net protocol-retained revenue for selected date range.</div>
       </div>
+      <div class="chain-panel-actions">
+      <div class="chain-data-updated" id="chainDataUpdated">Loading data update…</div>
       <div class="chain-range-tools" aria-label="Protocol Revenue by Chain date range">
         <div class="chain-date-field">
           <span>From</span>
@@ -1090,6 +1098,7 @@ h1{
             <button id="chainCalToday" type="button">Latest</button>
           </div>
         </div>
+      </div>
       </div>
     </div>
     <div class="table-wrap">
@@ -1356,7 +1365,7 @@ h1{
   </section>
 </div>
 
-<script src="dolo-address-labels.js?v=dolo-labels-20260624-bot-mm-audit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
 <script>
 (function(){
   const DATA_URL = "dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate";
@@ -1726,6 +1735,16 @@ h1{
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "fresh data";
     return d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
+  }
+  function dataAgeLabel(iso){
+    const timestamp = new Date(iso || 0).getTime();
+    if(!Number.isFinite(timestamp) || timestamp <= 0) return "unavailable";
+    const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+    if(minutes < 1) return "just now";
+    if(minutes < 60) return `${minutes}m ago`;
+    const hours = Math.round(minutes / 60);
+    if(hours < 48) return `${hours}h ago`;
+    return dateLabel(iso);
   }
   function auditStatusLabel(status){
     const key = String(status || "missing").toLowerCase().replace(/_/g, "-");
@@ -2676,6 +2695,8 @@ h1{
       fresh.classList.toggle("audit-stale", status === "stale");
       if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt);
     }
+    const chainUpdated = qs("chainDataUpdated");
+    if(chainUpdated) chainUpdated.textContent = `Data updated · ${dataAgeLabel(revenueData.generatedAt)}`;
   }
   function veBorrowRebateInfo(){
     return revenueData?.borrowFeeRebates?.chains?.Berachain || {};

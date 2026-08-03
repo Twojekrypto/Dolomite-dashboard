@@ -40,10 +40,11 @@ jobs:
           python3 - <<'PY'
           import json, datetime
           full = json.load(open("dolo_cex_label_audit.json"))
+          api = full.get("api") or {}
           summary = {
               "generatedAt": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-              "apiStatus": full.get("api_status") or full.get("apiStatus"),
-              "confirmedCexSuggestions": full.get("confirmedCexSuggestions", [])[:20],
+              "apiStatus": api.get("status"),
+              "confirmedCexSuggestions": api.get("confirmedCexSuggestions", [])[:20],
               "topRankedCandidates": full.get("rankedCandidates", [])[:20],
           }
           with open("dolo_cex_label_audit_summary.json", "w") as f:
