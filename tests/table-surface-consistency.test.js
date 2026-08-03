@@ -57,29 +57,49 @@ function between(source, start, end) {
 }
 
 {
-  const panelHead = between(revenue, '.panel-head{', '}');
-  assert(
-    panelHead.includes('border-bottom:1px solid var(--line-1)'),
-    'Revenue section headers should keep the DOLO Holders horizontal divider',
-  );
-  assert(
-    revenue.includes('.panel-head.revenue-section-head{border-bottom-color:var(--line-2)'),
-    'Primary Revenue sections should reinforce the shared divider so it remains visible above dense data',
-  );
   assert.strictEqual(
     (revenue.match(/class="panel-head revenue-section-head/g) || []).length,
-    4,
-    'Protocol by Chain and the three requested Revenue charts should use the explicit section divider',
+    5,
+    'All five Revenue sections should use the shared header hierarchy',
   );
   assert.strictEqual(
-    (revenue.match(/<div class="panel-head/g) || []).length,
+    (revenue.match(/class="revenue-section-primary"/g) || []).length,
     5,
-    'All five requested Revenue sections should use the divided panel header',
+    'Each Revenue section should expose a title/freshness row',
+  );
+  assert.strictEqual(
+    (revenue.match(/class="revenue-section-secondary"/g) || []).length,
+    5,
+    'Each Revenue section should expose a subtitle/controls row',
+  );
+  assert.strictEqual(
+    (revenue.match(/ data-revenue-updated>/g) || []).length,
+    5,
+    'Each Revenue section should expose one freshness target',
+  );
+  assert(
+    revenue.includes('.revenue-section-primary{') &&
+      /\.revenue-section-primary\{[^}]*border-bottom:1px solid var\(--line-2\)/s.test(revenue),
+    'The full-width divider should belong to the primary row',
+  );
+  assert.strictEqual(
+    between(revenue, '.hero-live{', '}'),
+    between(dolo, '.hero-live{', '}'),
+    'Revenue hero freshness typography and spacing should match the DOLO hero',
+  );
+  assert.strictEqual(
+    between(revenue, '.hero-live .dot{', '}'),
+    between(dolo, '.hero-live .dot{', '}'),
+    'Revenue hero freshness dot should match the DOLO hero',
   );
   const renderHero = between(revenue, 'function renderHero()', 'function veBorrowRebateInfo()');
   assert(
     renderHero.includes('Data updated · ${dataAgeLabel(revenueData.generatedAt)}'),
     'Revenue hero freshness should use the same relative-age wording as the DOLO hero',
+  );
+  assert(
+    !renderHero.includes('fresh.classList.toggle("audit-'),
+    'Revenue hero freshness should keep the same neutral color and gold dot as the DOLO hero',
   );
   assert(
     !renderHero.includes('"Updated " + dateLabel(revenueData.generatedAt)'),

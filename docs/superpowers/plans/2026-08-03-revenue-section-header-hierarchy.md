@@ -77,7 +77,7 @@ Run:
 
 ```bash
 node tests/table-surface-consistency.test.js
-python3 -m unittest tests.test_fetch_dolomite_revenue.FetchDolomiteRevenueTests.test_revenue_panel_headers_use_the_holders_table_divider
+python3 -m unittest tests.test_fetch_dolomite_revenue.FetchDolomiteRevenueTest.test_revenue_panel_headers_use_the_holders_table_divider
 ```
 
 Expected: both targeted contracts fail because the five primary/secondary rows and common freshness targets do not exist yet.
@@ -164,7 +164,7 @@ Run:
 
 ```bash
 node tests/table-surface-consistency.test.js
-python3 -m unittest tests.test_fetch_dolomite_revenue.FetchDolomiteRevenueTests.test_revenue_panel_headers_use_the_holders_table_divider
+python3 -m unittest tests.test_fetch_dolomite_revenue.FetchDolomiteRevenueTest.test_revenue_panel_headers_use_the_holders_table_divider
 ```
 
 Expected: both targeted contracts pass with zero failures.

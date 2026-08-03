@@ -971,16 +971,18 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
     def test_revenue_panel_headers_use_the_holders_table_divider(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
 
-        panel_head_start = html.index(".panel-head{")
-        panel_head = html[panel_head_start:html.index("}", panel_head_start)]
-        self.assertIn("border-bottom:1px solid var(--line-1)", panel_head)
-        self.assertIn("padding:20px", panel_head)
-        self.assertEqual(html.count('<div class="panel-head'), 5)
+        self.assertEqual(html.count('class="panel-head revenue-section-head'), 5)
+        self.assertEqual(html.count('class="revenue-section-primary"'), 5)
+        self.assertEqual(html.count('class="revenue-section-secondary"'), 5)
+        self.assertEqual(html.count(" data-revenue-updated>"), 5)
         self.assertIn(
-            ".panel-head.revenue-section-head{border-bottom-color:var(--line-2)",
+            'document.querySelectorAll("[data-revenue-updated]")',
             html,
         )
-        self.assertEqual(html.count('class="panel-head revenue-section-head'), 4)
+        self.assertIn(
+            "Data updated · ${dataAgeLabel(revenueData.generatedAt)}",
+            html,
+        )
 
     def test_protocol_revenue_chain_range_uses_borrow_interest_brush_only(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
