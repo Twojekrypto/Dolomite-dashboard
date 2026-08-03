@@ -45,6 +45,7 @@ RATE_LIMIT_DELAY = 0.35
 REQUEST_TIMEOUT = 20
 MAX_RETRIES = 3
 RECEIPT_CACHE_VERSION = 2
+TRANSACTION_FETCH_ATTEMPTS = 3
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(DATA_DIR, "exercisers_cache.json")
@@ -305,7 +306,7 @@ def save_cache(cache):
     os.replace(tmp, CACHE_FILE)
 
 
-def get_all_transactions():
+def _get_all_transactions_once():
     all_txs = []
     page = 1
     while True:
@@ -329,8 +330,73 @@ def get_all_transactions():
         page += 1
         time.sleep(RATE_LIMIT_DELAY)
         if check_timeout("fetch-txs"):
-            break
+            return None
     return all_txs
+
+
+def _duplicate_transaction_hashes(transactions):
+    seen = set()
+    duplicates = set()
+    for tx in transactions:
+        tx_hash = str(tx.get("hash") or "").lower()
+        if not tx_hash:
+            continue
+        if tx_hash in seen:
+            duplicates.add(tx_hash)
+        seen.add(tx_hash)
+    return sorted(duplicates)
+
+
+def _invalid_exercise_transaction_hashes(transactions):
+    invalid = []
+    for tx in transactions:
+        if not (
+            tx.get("methodId") in EXERCISE_METHOD_IDS
+            and tx.get("isError") == "0"
+            and tx.get("txreceipt_status") == "1"
+        ):
+            continue
+        tx_hash = str(tx.get("hash") or "").lower()
+        address = str(tx.get("from") or "").lower()
+        try:
+            timestamp = int(tx.get("timeStamp"))
+        except (TypeError, ValueError):
+            timestamp = 0
+        if not (
+            len(tx_hash) == 66
+            and tx_hash.startswith("0x")
+            and len(address) == 42
+            and address.startswith("0x")
+            and timestamp > 0
+            and extract_lock_duration_days(tx)
+        ):
+            invalid.append(tx_hash or "<missing-hash>")
+    return invalid
+
+
+def get_all_transactions():
+    for attempt in range(1, TRANSACTION_FETCH_ATTEMPTS + 1):
+        transactions = _get_all_transactions_once()
+        if transactions is None:
+            return []
+        duplicates = _duplicate_transaction_hashes(transactions)
+        invalid_exercises = _invalid_exercise_transaction_hashes(transactions)
+        if not duplicates and not invalid_exercises:
+            return transactions
+        issue_parts = []
+        if duplicates:
+            issue_parts.append(f"{len(duplicates)} duplicate transaction hash(es)")
+        if invalid_exercises:
+            issue_parts.append(f"{len(invalid_exercises)} invalid exercise transaction(s)")
+        print(
+            f"  ⚠️ Routescan pagination returned {' and '.join(issue_parts)} "
+            f"on attempt {attempt}/{TRANSACTION_FETCH_ATTEMPTS}; retrying the full snapshot",
+            flush=True,
+        )
+        if attempt < TRANSACTION_FETCH_ATTEMPTS:
+            time.sleep(attempt)
+    print("  ❌ Routescan pagination stayed inconsistent; refusing to build partial data", flush=True)
+    return []
 
 
 # Lock-duration extraction lives in odolo_exercises (shared with

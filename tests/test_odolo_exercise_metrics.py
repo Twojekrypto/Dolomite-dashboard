@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -10,6 +11,79 @@ import validate_data
 
 
 class TestOdoloExerciseMetrics(unittest.TestCase):
+    @staticmethod
+    def _routescan_response(rows, status="1"):
+        class Response:
+            def json(self):
+                return {"status": status, "message": "OK", "result": rows}
+
+        return Response()
+
+    @staticmethod
+    def _routescan_tx(tx_hash, block_number, transaction_index):
+        seven_days_hex = hex(7 * 86400)[2:].zfill(64)
+        return {
+            "hash": tx_hash,
+            "blockNumber": str(block_number),
+            "transactionIndex": str(transaction_index),
+            "methodId": odolo_exercises.EXERCISE_METHOD_DOLO,
+            "input": odolo_exercises.EXERCISE_METHOD_DOLO + seven_days_hex + "0" * 128,
+            "from": "0x" + "1" * 40,
+            "to": generate_exercisers.VESTER_CONTRACT,
+            "timeStamp": "1700000000",
+            "isError": "0",
+            "txreceipt_status": "1",
+        }
+
+    def test_routescan_pagination_retries_before_returning_incomplete_duplicates(self):
+        tx_a = self._routescan_tx("0x" + "a" * 64, 100, 0)
+        tx_b = self._routescan_tx("0x" + "b" * 64, 101, 0)
+        tx_c = self._routescan_tx("0x" + "c" * 64, 102, 0)
+        tx_d = self._routescan_tx("0x" + "d" * 64, 103, 0)
+        responses = [
+            self._routescan_response([tx_a, tx_b]),
+            self._routescan_response([tx_b, tx_c]),
+            self._routescan_response([], status="0"),
+            self._routescan_response([tx_a, tx_b]),
+            self._routescan_response([tx_c, tx_d]),
+            self._routescan_response([], status="0"),
+        ]
+
+        with (
+            patch.object(generate_exercisers, "PAGE_SIZE", 2),
+            patch.object(generate_exercisers.requests, "get", side_effect=responses),
+            patch.object(generate_exercisers.time, "sleep"),
+        ):
+            transactions = generate_exercisers.get_all_transactions()
+
+        self.assertEqual(
+            [tx["hash"] for tx in transactions],
+            [tx_a["hash"], tx_b["hash"], tx_c["hash"], tx_d["hash"]],
+        )
+
+    def test_routescan_pagination_retries_invalid_exercise_calldata(self):
+        tx_a = self._routescan_tx("0x" + "a" * 64, 100, 0)
+        tx_b = self._routescan_tx("0x" + "b" * 64, 101, 0)
+        invalid_tx_b = dict(
+            tx_b,
+            input=odolo_exercises.EXERCISE_METHOD_DOLO + "0" * 192,
+        )
+        responses = [
+            self._routescan_response([tx_a, invalid_tx_b]),
+            self._routescan_response([], status="0"),
+            self._routescan_response([tx_a, tx_b]),
+            self._routescan_response([], status="0"),
+        ]
+
+        with (
+            patch.object(generate_exercisers, "PAGE_SIZE", 2),
+            patch.object(generate_exercisers.requests, "get", side_effect=responses),
+            patch.object(generate_exercisers.time, "sleep"),
+        ):
+            transactions = generate_exercisers.get_all_transactions()
+
+        self.assertEqual(transactions, [tx_a, tx_b])
+
     def test_sub_day_lock_duration_is_not_rounded_to_zero(self):
         timestamp = 1_700_000_000
         lock_end = timestamp + 2_228
