@@ -62,10 +62,28 @@ function between(source, start, end) {
     panelHead.includes('border-bottom:1px solid var(--line-1)'),
     'Revenue section headers should keep the DOLO Holders horizontal divider',
   );
+  assert(
+    revenue.includes('.panel-head.revenue-section-head{border-bottom-color:var(--line-2)'),
+    'Primary Revenue sections should reinforce the shared divider so it remains visible above dense data',
+  );
+  assert.strictEqual(
+    (revenue.match(/class="panel-head revenue-section-head/g) || []).length,
+    4,
+    'Protocol by Chain and the three requested Revenue charts should use the explicit section divider',
+  );
   assert.strictEqual(
     (revenue.match(/<div class="panel-head/g) || []).length,
     5,
     'All five requested Revenue sections should use the divided panel header',
+  );
+  const renderHero = between(revenue, 'function renderHero()', 'function veBorrowRebateInfo()');
+  assert(
+    renderHero.includes('Data updated · ${dataAgeLabel(revenueData.generatedAt)}'),
+    'Revenue hero freshness should use the same relative-age wording as the DOLO hero',
+  );
+  assert(
+    !renderHero.includes('"Updated " + dateLabel(revenueData.generatedAt)'),
+    'Revenue hero should not fall back to a locale-formatted absolute date',
   );
 }
 

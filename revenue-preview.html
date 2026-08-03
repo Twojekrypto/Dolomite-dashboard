@@ -202,6 +202,7 @@ h1{
   padding:20px;
   border-bottom:1px solid var(--line-1);
 }
+.panel-head.revenue-section-head{border-bottom-color:var(--line-2);box-shadow:0 1px 0 rgba(255,255,255,.012)}
 .panel-title{font-size:17px;font-weight:850}
 .panel-sub{margin-top:5px;color:var(--text-3);font-size:12px;line-height:1.45}
 .mix-body{padding:20px}
@@ -1049,7 +1050,7 @@ h1{
   </section>
 
   <section class="panel table-panel">
-    <div class="panel-head chain-panel-head">
+    <div class="panel-head revenue-section-head chain-panel-head">
       <div>
         <div class="panel-title">Protocol Revenue by Chain</div>
         <div class="panel-sub">Chain breakdown of net protocol-retained revenue for selected date range.</div>
@@ -1126,7 +1127,7 @@ h1{
 
   <main class="grid-main revenue-chart-grid">
     <section class="panel revenue-chart-panel revenue-streams-panel">
-      <div class="panel-head">
+      <div class="panel-head revenue-section-head">
         <div>
           <div class="panel-title">Dolomite Revenue Over Time</div>
           <div class="panel-sub">Net protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
@@ -1167,7 +1168,7 @@ h1{
     </section>
 
     <section class="panel revenue-chart-panel borrow-interest-panel">
-      <div class="panel-head">
+      <div class="panel-head revenue-section-head">
         <div>
           <div class="panel-title">Borrow Interest Over Time</div>
           <div class="panel-sub">Gross interest paid by borrowers over time.</div>
@@ -1204,7 +1205,7 @@ h1{
   </main>
 
   <section class="panel veborrow-panel" id="veBorrowPanel">
-    <div class="panel-head veborrow-panel-head">
+    <div class="panel-head revenue-section-head veborrow-panel-head">
       <div>
         <div class="panel-title">veDOLO Borrow Fee Rebates</div>
         <div class="panel-sub">Daily Berachain user savings from closed veBorrow discount epochs.</div>
@@ -1729,12 +1730,6 @@ h1{
         </div>
       </div>
     `;
-  }
-  function dateLabel(iso){
-    if (!iso) return "fresh data";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "fresh data";
-    return d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
   }
   function dataAgeLabel(iso){
     const time = Date.parse(String(iso || ""));
@@ -2693,7 +2688,7 @@ h1{
       fresh.classList.toggle("audit-pass", status === "pass");
       fresh.classList.toggle("audit-warn", status === "warn" || status === "partial");
       fresh.classList.toggle("audit-stale", status === "stale");
-      if (text) text.textContent = "Updated " + dateLabel(revenueData.generatedAt);
+      if (text) text.textContent = `Data updated · ${dataAgeLabel(revenueData.generatedAt)}`;
     }
     const chainUpdated = qs("chainDataUpdated");
     if(chainUpdated) chainUpdated.textContent = `Data updated · ${dataAgeLabel(revenueData.generatedAt)}`;

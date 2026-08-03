@@ -38,6 +38,50 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         self.assertIn(f"history/history.js?v={version}", self.html)
         self.assertIn(f"history/history.css?v={version}", self.html)
 
+    def test_empty_history_uses_the_same_compact_single_row_as_loading(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyEmptyStateTest = { historyEmptyRowHtml };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  setInterval() { return 1; },
+  clearInterval() {},
+  setTimeout() { return 1; },
+  clearTimeout() {},
+  fetch() { return Promise.reject(new Error("fetch disabled")); },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+  location: { search: "", pathname: "/history/", origin: "https://example.test" },
+  history: { replaceState() {} },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} }, getElementById() { return null; }, querySelectorAll() { return []; } },
+  window: {},
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(instrumented, sandbox);
+const html = sandbox.__historyEmptyStateTest.historyEmptyRowHtml("No matching transactions.");
+if (!html.includes('class="empty-row"')) throw new Error("compact empty row is missing");
+if (html.includes("history-spacer-row")) throw new Error("empty state must not add fixed-height spacer rows");
+"""
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        render_rows = self.source[
+            self.source.index("  function renderRows()") : self.source.index("  function historyVisiblePageCount", self.source.index("  function renderRows()"))
+        ]
+        self.assertIn("els.body.innerHTML = historyEmptyRowHtml(msg);", render_rows)
+        self.assertNotIn("historySpacerRowsHtml(1)", render_rows)
+
     def test_history_graph_queries_can_use_fail_fast_options(self):
         script = r"""
 const fs = require("fs");
