@@ -22,9 +22,9 @@ test('long yield labels use compact names in Assets and EARN', () => {
 });
 
 test('Supply breakdown uses the same canonical labels in Assets and EARN', () => {
-  assert.match(assetsSource, /parts\.push\(\{k:"lending", l:"Lending", v:r\.lending\}\)/);
-  assert.match(assetsSource, /parts\.push\(\{k:"odolo",\s+l:"oDOLO",\s+v:r\.odolo\}\)/);
-  assert.match(assetsSource, /parts\.push\(\{k:"yield",\s+l:"Yield",\s+v:r\.yield\}\)/);
+  assert.match(assetsSource, /parts\.push\(\{k:"lending", l:"Lending", v:r\.lending, tip:getSupplyAprSourceTip\("lending", r\.sym, r\)\}\)/);
+  assert.match(assetsSource, /parts\.push\(\{k:"odolo",\s+l:"oDOLO",\s+v:r\.odolo, tip:getSupplyAprSourceTip\("odolo", r\.sym, r\)\}\)/);
+  assert.match(assetsSource, /parts\.push\(\{k:"yield",\s+l:"Yield",\s+v:r\.yield, tip:getSupplyAprSourceTip\("yield", r\.sym, r\)\}\)/);
 
   const earnRendererStart = coreSource.indexOf('// Build Supply APR cell (same breakdown as assets tab)');
   const earnRenderer = coreSource.slice(
@@ -59,4 +59,11 @@ test('EARN keeps negative external yield sources instead of dropping the market 
   assert.match(coreSource, /rateData && Number\.isFinite\(Number\(rateData\.apy\)\)/);
   assert.match(coreSource, /\(rateData\.extYieldApr \|\| 0\) !== 0/);
   assert.match(earnBundle, /if \(yr !== 0\) yieldSources\.push/);
+});
+
+test('Dolomite Assets explains every Supply APR source with the shared premium tooltip UX', () => {
+  assert.match(assetsSource, /function getSupplyAprSourceTip\(sourceKey, symbol, rateData\)/);
+  assert.match(assetsSource, /Weekly oDOLO emissions allocated to/);
+  assert.match(assetsSource, /WLFI incentives from World Liberty Financial/);
+  assert.match(assetsSource, /class="apy-line \$\{p\.k\}[\s\S]*?tabindex="0"[\s\S]*?data-tip=/);
 });
