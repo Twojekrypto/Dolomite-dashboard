@@ -9564,6 +9564,7 @@
             'GLV:BTC': DOLO_CDN + 'GLV-BTC.c576682a1343bbfde84710a572b5a68e.svg',
             'GLV:ETH': DOLO_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
         };
+        Object.assign(SYMBOL_ICONS, globalThis.DOLOMITE_TOKEN_ICONS || {});
 
         async function earn_getTokenInfo(addr) {
             const chainId = document.getElementById('earn-chain').value;

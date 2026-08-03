@@ -205,7 +205,13 @@ function parseYieldParts(parts) {
       odolo += raw;
     } else if (part.category === "rewards" || part.category === "nativeYield") {
       external += raw;
-      sources.push({ label, rate: cleanNumber(raw, 10), category: part.category || "yield" });
+      sources.push({
+        label,
+        rate: cleanNumber(raw, 10),
+        category: part.category || "yield",
+        rewardSymbol: String(part.rewardToken?.symbol || "").trim(),
+        campaignId: String(part.merklData?.campaignIdentifier || "").trim(),
+      });
     }
   }
   return { odolo, external, sources };

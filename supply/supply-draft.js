@@ -44,6 +44,12 @@
     return String(value || '').trim().toLowerCase();
   }
 
+  function getOfficialSupplyAssetIcon(symbol) {
+    return typeof globalThis.getDolomiteOfficialTokenIcon === 'function'
+      ? globalThis.getDolomiteOfficialTokenIcon(symbol)
+      : '';
+  }
+
   function getSupplyMarketPresentation(token, chain) {
     const chainKey = String(chain || '').trim().toLowerCase();
     const address = normalizeSupplyAddress(token?.id);
@@ -68,7 +74,7 @@
     return {
       symbol: String(token?.symbol || ''),
       name: String(token?.name || ''),
-      icon: String(token?.icon || ''),
+      icon: String(token?.icon || getOfficialSupplyAssetIcon(token?.symbol) || ''),
     };
   }
 
@@ -87,6 +93,8 @@
     if (!src) {
       src = SUPPLY_CANONICAL_SYMBOL_ICONS[presentation.symbol]
         || SUPPLY_CANONICAL_SYMBOL_ICONS[token?.symbol]
+        || getOfficialSupplyAssetIcon(presentation.symbol)
+        || getOfficialSupplyAssetIcon(token?.symbol)
         || '';
     }
 

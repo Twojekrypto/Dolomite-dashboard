@@ -12,7 +12,7 @@ SOURCE_HTML = ROOT / "dashboard-core.html"
 SOURCE_JS = ROOT / "dashboard-core.js"
 OUTPUT_HTML = ROOT / "earn" / "earn-core.html"
 OUTPUT_JS = ROOT / "earn" / "earn-core.js"
-STATIC_LAYOUT_VERSION = "earn-core-20260724-mismatch-floor-straight-hover-filter-icon-parity-20260731-responsive-20260801-table-system-20260803"
+STATIC_LAYOUT_VERSION = "earn-core-20260724-mismatch-floor-straight-hover-filter-icon-parity-20260731-responsive-20260801-table-system-20260803-official-icons"
 
 
 def _slice(source: str, start: str, end: str, *, include_end: bool = False) -> str:
@@ -47,6 +47,7 @@ def render_earn_assets(html_path: Path = SOURCE_HTML, js_path: Path = SOURCE_JS)
     <link rel="dns-prefetch" href="//api.dolomite.io">
     <link rel="dns-prefetch" href="//coins.llama.fi">
     <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
+    <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
     <script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
 </head>
 <body class="earn-draft-route">

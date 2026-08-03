@@ -33,6 +33,9 @@ jobs:
       - name: Build assets snapshot
         run: node scripts/build_assets_live.mjs
 
+      - name: Sync official Dolomite token icons
+        run: node scripts/sync_dolomite_token_icons.mjs
+
       - name: Validate generated data
         run: python3 validate_data.py assets_live.json
 
@@ -87,7 +90,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add assets_live.json
+          git add assets_live.json dolomite-token-icons.generated.js
           git diff --staged --quiet && echo "No changes to commit" && exit 0
           git commit -m "Assets live update: $(date -u '+%Y-%m-%d %H:%M UTC')"
           pushed=false

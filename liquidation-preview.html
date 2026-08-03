@@ -9,6 +9,7 @@
     <link rel="shortcut icon" href="favicon.ico" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
     <style>
         /* ===== DESIGN TOKENS (matched to main dashboard) ===== */
         :root {
@@ -15404,6 +15405,7 @@
             'dGLV [WETH-USDC]': DOLO_CDN + 'GLV-ETH.092b4c8a9412efd58d3542d26bc5a522.svg',
             'dGM': DOLO_CDN + 'ETH-GM.0b7d447f3c11298af07411c926352c71.svg',
         };
+        Object.assign(SYMBOL_ICONS, globalThis.DOLOMITE_TOKEN_ICONS || {});
 
         // Smart icon lookup: tries exact match, then falls back to base token
         function getTokenIcon(symbol) {
