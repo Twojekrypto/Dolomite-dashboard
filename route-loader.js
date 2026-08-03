@@ -12,7 +12,7 @@
  *   route    – optional window.__DOLO_ROUTE value
  *   flags    – optional raw JS injected into <head> (e.g. supply route flags)
  *   styles   – optional extra stylesheet hrefs injected into <head>
- *   scripts  – optional extra deferred script srcs injected into <head>
+ *   scripts  – optional extra script srcs (or {src, defer}) injected into <head>
  */
 (function () {
   var NAV_VERSIONS = {
@@ -47,8 +47,11 @@
       (config.styles || []).forEach(function (href) {
         headParts.push('<link rel="stylesheet" href="' + href + '">');
       });
-      (config.scripts || []).forEach(function (src) {
-        headParts.push('<script defer src="' + src + '"><' + '/script>');
+      (config.scripts || []).forEach(function (entry) {
+        var descriptor = typeof entry === "string" ? { src: entry, defer: true } : entry;
+        if (!descriptor || !descriptor.src) return;
+        var deferAttribute = descriptor.defer === false ? "" : " defer";
+        headParts.push('<script' + deferAttribute + ' src="' + descriptor.src + '"><' + '/script>');
       });
 
       document.open();
