@@ -727,7 +727,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
 
         self.assertIn("auditStatusForChain", html)
         self.assertIn("onchainAuditChains", html)
-        self.assertIn('text.textContent = "Updated " + dateLabel(revenueData.generatedAt);', html)
+        self.assertIn('text.textContent = `Data updated · ${dataAgeLabel(revenueData.generatedAt)}`;', html)
+        self.assertNotIn('text.textContent = "Updated " + dateLabel(revenueData.generatedAt);', html)
         self.assertNotIn("DeFiLlama gross + rebate netting", html)
         self.assertNotIn("onchain audit STALE", html)
         self.assertIn("Net Borrow Revenue", html)
@@ -747,7 +748,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a"', route_html)
+        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
@@ -975,6 +976,11 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("border-bottom:1px solid var(--line-1)", panel_head)
         self.assertIn("padding:20px", panel_head)
         self.assertEqual(html.count('<div class="panel-head'), 5)
+        self.assertIn(
+            ".panel-head.revenue-section-head{border-bottom-color:var(--line-2)",
+            html,
+        )
+        self.assertEqual(html.count('class="panel-head revenue-section-head'), 4)
 
     def test_protocol_revenue_chain_range_uses_borrow_interest_brush_only(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")

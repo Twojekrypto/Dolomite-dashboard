@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260803-table-system-table-consistency-20260803a";
+  const HISTORY_VERSION = "history-20260803-table-system-table-consistency-20260803a-compact-empty-state";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -4023,6 +4023,10 @@
     });
   }
 
+  function historyEmptyRowHtml(message) {
+    return `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">${message}</td></tr>`;
+  }
+
   function renderRows() {
     const rows = sortedHistoryRows(state.filteredRows);
     const earnEntries = earnTaxEntriesForCurrentView();
@@ -4033,12 +4037,12 @@
     syncHistorySortHeaders();
 
     if (state.loading) {
-      els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">Loading Dolomite history...</td></tr>`;
+      els.body.innerHTML = historyEmptyRowHtml("Loading Dolomite history...");
       return;
     }
     if (!rows.length) {
       const msg = emptyHistoryMessageHtml(earnEntries);
-      els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">${msg}</td></tr>` + historySpacerRowsHtml(1);
+      els.body.innerHTML = historyEmptyRowHtml(msg);
       return;
     }
 
