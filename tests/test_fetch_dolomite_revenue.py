@@ -748,7 +748,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803-header-hierarchy-20260803"', route_html)
+        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803-header-hierarchy-20260803-copy-above-divider-20260803"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
@@ -869,7 +869,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn("cumulative wallet-days", html)
         self.assertIn('document.querySelectorAll("[data-veborrow-mode]")', html)
         self.assertIn("discountUserCount", html)
-        self.assertIn("Current discount users", html)
+        self.assertIn("Current discount", html)
         self.assertIn("Daily Berachain wallets using discount", html)
         self.assertIn("Berachain active discount", html)
         self.assertIn('id="veBorrowCurrentWalletsPanel"', html)
@@ -993,6 +993,11 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             '${Math.round(latestDaily).toLocaleString("en-US")} Berachain wallets · ${model.length.toLocaleString("en-US")}D range',
             html,
         )
+        self.assertEqual(
+            html.count(r'pattern="\d{1,2}(?:\.|/|-)\d{1,2}(?:\.|/|-)\d{4}"'),
+            2,
+        )
+        self.assertNotIn(r'pattern="\d{1,2}[./-]\d{1,2}[./-]\d{4}"', html)
         self.assertIn(
             'document.querySelectorAll("[data-revenue-updated]")',
             html,
