@@ -68,9 +68,19 @@ function between(source, start, end) {
     'Each Revenue section should expose a title/freshness row',
   );
   assert.strictEqual(
-    (revenue.match(/class="revenue-section-secondary"/g) || []).length,
+    (revenue.match(/class="revenue-section-copy"/g) || []).length,
     5,
-    'Each Revenue section should expose a subtitle/controls row',
+    'Each Revenue section should group its title and description above the divider',
+  );
+  assert.strictEqual(
+    (revenue.match(/class="revenue-section-title-line"/g) || []).length,
+    5,
+    'Each Revenue section should expose one title line above the divider',
+  );
+  assert.strictEqual(
+    (revenue.match(/class="revenue-section-secondary revenue-section-tools"/g) || []).length,
+    4,
+    'Only the four Revenue sections with controls should expose a row below the divider',
   );
   assert.strictEqual(
     (revenue.match(/ data-revenue-updated>/g) || []).length,
@@ -81,6 +91,14 @@ function between(source, start, end) {
     revenue.includes('.revenue-section-primary{') &&
       /\.revenue-section-primary\{[^}]*border-bottom:1px solid var\(--line-2\)/s.test(revenue),
     'The full-width divider should belong to the primary row',
+  );
+  assert(
+    /class="revenue-section-copy">\s*<div class="revenue-section-title-line">\s*<div class="panel-title">Protocol Revenue by Chain<\/div>\s*<\/div>\s*<div class="panel-sub">Chain breakdown of net protocol-retained revenue for selected date range\.<\/div>/s.test(revenue),
+    'Protocol Revenue description should sit directly below its title',
+  );
+  assert(
+    /class="revenue-section-title-line">\s*<div class="panel-title">Current discount<\/div>\s*<div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">/s.test(revenue),
+    'Current discount should keep the live wallet and range metadata directly beside its title',
   );
   assert.strictEqual(
     between(revenue, '.hero-live{', '}'),
