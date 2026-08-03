@@ -204,14 +204,16 @@ h1{
 }
 .panel-head.revenue-section-head{display:block;padding:0;border-bottom:0;box-shadow:none}
 .revenue-section-primary{
-  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:20px;
   padding:20px 24px 18px;border-bottom:1px solid var(--line-2)
 }
-.revenue-section-secondary{
-  display:grid;grid-template-columns:minmax(240px,1fr) minmax(0,auto);align-items:start;gap:18px;
-  padding:14px 24px 16px
+.revenue-section-copy{min-width:0}
+.revenue-section-title-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.revenue-section-copy .panel-sub{margin-top:5px;max-width:680px}
+.revenue-section-tools{
+  display:flex;align-items:center;justify-content:flex-end;gap:18px;
+  min-height:58px;padding:12px 24px 14px
 }
-.revenue-section-secondary .panel-sub{margin-top:0;max-width:620px}
 .revenue-section-updated{
   display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
   color:var(--fg-3);font-family:var(--mono);font-size:11px;line-height:1.4
@@ -869,11 +871,10 @@ h1{
   .grid-main{grid-template-columns:1fr}
 }
 @media (max-width:1080px){
-  .revenue-section-secondary{grid-template-columns:minmax(0,1fr);align-items:stretch}
-  .revenue-section-secondary .panel-sub{max-width:none}
-  .revenue-section-secondary .revenue-series-control{width:100%;justify-content:space-between}
-  .revenue-section-secondary .chain-range-tools,
-  .revenue-section-secondary .veborrow-panel-actions{width:100%;justify-content:flex-end}
+  .revenue-section-tools{justify-content:flex-end}
+  .revenue-section-tools .revenue-series-control{width:100%;justify-content:space-between}
+  .revenue-section-tools .chain-range-tools,
+  .revenue-section-tools .veborrow-panel-actions{width:100%;justify-content:flex-end}
 }
 @media (max-width:720px){
   .wrap{padding:24px 15px 48px}
@@ -886,8 +887,12 @@ h1{
   .hero-card:first-child{border-top:0;padding-top:0}
   .panel-head{display:block}
   .revenue-section-primary{display:block;padding:18px 16px 14px}
-  .revenue-section-secondary{display:block;padding:13px 16px 16px}
-  .revenue-section-updated{margin-top:8px}
+  .revenue-section-title-line{column-gap:8px;row-gap:7px}
+  .revenue-section-tools{display:block;min-height:0;padding:13px 16px 16px}
+  .revenue-section-tools .revenue-series-control,
+  .revenue-section-tools .chain-range-tools,
+  .revenue-section-tools .veborrow-panel-actions{margin-top:0}
+  .revenue-section-updated{margin-top:9px}
   .revenue-series-control{margin-top:12px;width:100%;display:grid;grid-template-columns:1fr;justify-items:stretch}
   .revenue-series-toggles{width:100%;display:grid;grid-template-columns:1fr}
   .revenue-series-toggle{justify-content:flex-start}
@@ -1065,11 +1070,15 @@ h1{
   <section class="panel table-panel">
     <div class="panel-head revenue-section-head chain-panel-head">
       <div class="revenue-section-primary">
-        <div class="panel-title">Protocol Revenue by Chain</div>
+        <div class="revenue-section-copy">
+          <div class="revenue-section-title-line">
+            <div class="panel-title">Protocol Revenue by Chain</div>
+          </div>
+          <div class="panel-sub">Chain breakdown of net protocol-retained revenue for selected date range.</div>
+        </div>
         <div class="revenue-section-updated" id="chainDataUpdated" data-revenue-updated><span class="dot"></span><span>Loading data update…</span></div>
       </div>
-      <div class="revenue-section-secondary">
-        <div class="panel-sub">Chain breakdown of net protocol-retained revenue for selected date range.</div>
+      <div class="revenue-section-secondary revenue-section-tools">
         <div class="chain-range-tools" aria-label="Protocol Revenue by Chain date range">
         <div class="chain-date-field">
           <span>From</span>
@@ -1142,11 +1151,15 @@ h1{
     <section class="panel revenue-chart-panel revenue-streams-panel">
       <div class="panel-head revenue-section-head">
         <div class="revenue-section-primary">
-          <div class="panel-title">Dolomite Revenue Over Time</div>
+          <div class="revenue-section-copy">
+            <div class="revenue-section-title-line">
+              <div class="panel-title">Dolomite Revenue Over Time</div>
+            </div>
+            <div class="panel-sub">Net protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
+          </div>
           <div class="revenue-section-updated" data-revenue-updated><span class="dot"></span><span>Loading data update…</span></div>
         </div>
-        <div class="revenue-section-secondary">
-          <div class="panel-sub">Net protocol-retained borrow interest and USDC paid to exercise oDOLO.</div>
+        <div class="revenue-section-secondary revenue-section-tools">
           <div class="revenue-series-control">
             <div class="revenue-series-toggles" aria-label="Revenue stream chart filter">
               <button class="revenue-series-toggle" type="button" data-series="revenue" aria-pressed="false" aria-label="Toggle net borrow interest revenue series"><span class="series-check" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.3 6.6 11.4 12.7 4.8"/></svg></span><span class="legend-swatch"></span><span>Net Borrow Revenue</span></button>
@@ -1186,11 +1199,15 @@ h1{
     <section class="panel revenue-chart-panel borrow-interest-panel">
       <div class="panel-head revenue-section-head">
         <div class="revenue-section-primary">
-          <div class="panel-title">Borrow Interest Over Time</div>
+          <div class="revenue-section-copy">
+            <div class="revenue-section-title-line">
+              <div class="panel-title">Borrow Interest Over Time</div>
+            </div>
+            <div class="panel-sub">Gross interest paid by borrowers over time.</div>
+          </div>
           <div class="revenue-section-updated" data-revenue-updated><span class="dot"></span><span>Loading data update…</span></div>
         </div>
-        <div class="revenue-section-secondary">
-          <div class="panel-sub">Gross interest paid by borrowers over time.</div>
+        <div class="revenue-section-secondary revenue-section-tools">
           <div class="revenue-series-control">
             <div class="revenue-mode-toggles" aria-label="Borrow interest chart mode">
               <button class="revenue-mode-toggle" type="button" data-chart-mode="daily" aria-pressed="true"><span>Daily</span></button>
@@ -1226,11 +1243,15 @@ h1{
   <section class="panel veborrow-panel" id="veBorrowPanel">
     <div class="panel-head revenue-section-head veborrow-panel-head">
       <div class="revenue-section-primary">
-        <div class="panel-title">veDOLO Borrow Fee Rebates</div>
+        <div class="revenue-section-copy">
+          <div class="revenue-section-title-line">
+            <div class="panel-title">veDOLO Borrow Fee Rebates</div>
+          </div>
+          <div class="panel-sub">Daily Berachain user savings from closed veBorrow discount epochs.</div>
+        </div>
         <div class="revenue-section-updated" data-revenue-updated><span class="dot"></span><span>Loading data update…</span></div>
       </div>
-      <div class="revenue-section-secondary">
-        <div class="panel-sub">Daily Berachain user savings from closed veBorrow discount epochs.</div>
+      <div class="revenue-section-secondary revenue-section-tools">
         <div class="veborrow-panel-actions">
           <button class="veborrow-sim-toggle" id="veBorrowSimToggle" type="button" aria-controls="veBorrowSimulation" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8"/><path d="M8 11h3"/><path d="M13 11h3"/><path d="M8 15h3"/><path d="M13 15h3"/></svg>
@@ -1319,14 +1340,14 @@ h1{
   <section class="panel veborrow-panel veborrow-discount-users-panel" id="veBorrowDiscountUsersPanel">
     <div class="panel-head revenue-section-head veborrow-panel-head">
       <div class="revenue-section-primary">
-        <div class="panel-title">Current discount users</div>
-        <div class="revenue-section-updated" data-revenue-updated><span class="dot"></span><span>Loading data update…</span></div>
-      </div>
-      <div class="revenue-section-secondary">
-        <div class="panel-sub">Daily Berachain wallets using discount from current debt and veDOLO vote weight.</div>
-        <div class="veborrow-panel-actions">
-          <div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">Berachain active discount</div>
+        <div class="revenue-section-copy">
+          <div class="revenue-section-title-line">
+            <div class="panel-title">Current discount</div>
+            <div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">Berachain active discount</div>
+          </div>
+          <div class="panel-sub">Daily Berachain wallets using discount from current debt and veDOLO vote weight.</div>
         </div>
+        <div class="revenue-section-updated" data-revenue-updated><span class="dot"></span><span>Loading data update…</span></div>
       </div>
     </div>
     <div class="veborrow-chart-wrap veborrow-discount-chart-wrap" id="veBorrowDiscountUsersChartWrap">
@@ -3395,7 +3416,7 @@ h1{
     const latestDaily = n(last.discountUserCount);
     if (meta) {
       meta.textContent = model.length
-        ? `${Math.round(latestDaily).toLocaleString("en-US")} Berachain wallets · ${model.length.toLocaleString("en-US")}D range`
+        ? `${Math.round(latestDaily).toLocaleString("en-US")} Berachain wallets · ${model.length.toLocaleString("en-US")}D`
         : "Berachain active discount";
     }
     if (!model.length) {
