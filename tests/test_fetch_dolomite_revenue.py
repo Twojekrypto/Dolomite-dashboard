@@ -973,8 +973,26 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
 
         self.assertEqual(html.count('class="panel-head revenue-section-head'), 5)
         self.assertEqual(html.count('class="revenue-section-primary"'), 5)
-        self.assertEqual(html.count('class="revenue-section-secondary"'), 5)
+        self.assertEqual(html.count('class="revenue-section-copy"'), 5)
+        self.assertEqual(html.count('class="revenue-section-title-line"'), 5)
+        self.assertEqual(
+            html.count('class="revenue-section-secondary revenue-section-tools"'),
+            4,
+        )
         self.assertEqual(html.count(" data-revenue-updated>"), 5)
+        self.assertRegex(
+            html,
+            r'<div class="panel-title">Current discount</div>\s*<div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">',
+        )
+        self.assertNotIn('<div class="panel-title">Current discount users</div>', html)
+        self.assertIn(
+            '${Math.round(latestDaily).toLocaleString("en-US")} Berachain wallets · ${model.length.toLocaleString("en-US")}D',
+            html,
+        )
+        self.assertNotIn(
+            '${Math.round(latestDaily).toLocaleString("en-US")} Berachain wallets · ${model.length.toLocaleString("en-US")}D range',
+            html,
+        )
         self.assertIn(
             'document.querySelectorAll("[data-revenue-updated]")',
             html,
