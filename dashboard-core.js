@@ -111,8 +111,8 @@
                 const s = data.stats;
                 if (!s) return;
 
-                const fmt = n => Number(Math.round(n)).toLocaleString();
-                const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString();
+                const fmt = n => Number(Math.round(n)).toLocaleString("en-US");
+                const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString("en-US");
                 const doloIcon = ' <img src="dolo-logo.svg" class="metric-icon">';
 
                 // --- Primary metrics moved to table ---
@@ -1465,7 +1465,7 @@
         function odolo_renderMetrics(data) {
             if (!data) return;
             document.getElementById('o-m-supply').innerHTML = odolo_formatNum(data.totalSupply) + ' <img src="odolo-logo-official.svg" class="metric-icon">';
-            document.getElementById('o-m-holders').textContent = data.holders ? data.holders.toLocaleString() : '—';
+            document.getElementById('o-m-holders').textContent = data.holders ? data.holders.toLocaleString("en-US") : '—';
             document.getElementById('o-m-vester').textContent = odolo_formatNum(data.availableTokens);
             const vesterPct = data.totalSupply > 0 ? ((data.availableTokens / data.totalSupply) * 100).toFixed(1) : '0';
             document.getElementById('o-m-vester-pct').textContent = vesterPct + '% of supply';
@@ -1713,7 +1713,7 @@
 
             // Count
             const countEl = document.getElementById('odolo-an-claimer-count');
-            if (countEl) countEl.childNodes[0].textContent = cb.total_claimers.toLocaleString();
+            if (countEl) countEl.childNodes[0].textContent = cb.total_claimers.toLocaleString("en-US");
 
             // Canvas donut
             const tc = cb.total_claimed || 0;
@@ -4353,7 +4353,7 @@
                     const ts = document.getElementById('dolo-flow-ts');
                     if (ts && data.timestamp) {
                         const d = new Date(data.timestamp + 'Z');
-                        ts.textContent = 'Updated: ' + d.toLocaleString();
+                        ts.textContent = 'Updated: ' + d.toLocaleString("en-US");
                     }
                 })
                 .catch(err => console.warn('DOLO flows not available:', err));
@@ -4685,7 +4685,7 @@
                     const ts = document.getElementById('odolo-flow-ts');
                     if (ts && data.timestamp) {
                         const d = new Date(data.timestamp + 'Z');
-                        ts.textContent = 'Updated: ' + d.toLocaleString();
+                        ts.textContent = 'Updated: ' + d.toLocaleString("en-US");
                     }
                 })
                 .catch(err => console.warn('oDOLO flows not available:', err));
@@ -20619,7 +20619,7 @@
         async function treasury_init() {
             treasury_loaded = true;
             treasury_bindChartResize();
-            const fmt = n => Number(Math.round(n)).toLocaleString();
+            const fmt = n => Number(Math.round(n)).toLocaleString("en-US");
             const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : fmt(n);
 
             try {
@@ -20699,7 +20699,7 @@
                                     <a href="https://debank.com/profile/${r.address}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
                                 </div>
                             </td>
-                            <td style="padding:4px 5px;text-align:right;color:#fff;font-size:11px;font-weight:600" title="${r.balance.toLocaleString()} DOLO">${fmtM(r.balance)}</td>
+                            <td style="padding:4px 5px;text-align:right;color:#fff;font-size:11px;font-weight:600" title="${r.balance.toLocaleString("en-US")} DOLO">${fmtM(r.balance)}</td>
                             <td style="padding:4px 5px;text-align:right;color:#22d3ee;font-size:11px;font-weight:600">$${fmtM(r.usd)}</td>
                             <td style="padding:4px 5px;text-align:right;color:#a78bfa;font-size:11px;font-weight:600">${r.pct.toFixed(2)}%</td>
                         </tr>
@@ -20810,7 +20810,7 @@
         function treasury_renderDiscountStatsDefault(txs, avgLock, avgDisc, largest, popularLockLabel, popularLockCount) {
             const fmtUsd = v => v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'K' : '$' + Math.round(v);
             treasury_renderStatPills('treasury-discount-stats', [
-                { key: 'exercises', label: 'Exercises', valueHtml: txs.length.toLocaleString() },
+                { key: 'exercises', label: 'Exercises', valueHtml: txs.length.toLocaleString("en-US") },
                 { key: 'avg-lock', label: 'Avg lock', valueHtml: `${avgLock.toFixed(0)}d` },
                 { key: 'avg-discount', label: 'Avg discount', valueHtml: `${avgDisc.toFixed(1)}%` },
                 { key: 'largest', label: 'Largest', valueHtml: `<span style="color:#ec4899">${fmtUsd(largest.usdc)}</span>` },
@@ -20832,7 +20832,7 @@
 
         function treasury_renderLockStatsDefault(totalExercises, medianLabel, topBucket, topPct) {
             treasury_renderStatPills('treasury-lockdist-stats', [
-                { key: 'exercises', label: 'Exercises', valueHtml: totalExercises.toLocaleString() },
+                { key: 'exercises', label: 'Exercises', valueHtml: totalExercises.toLocaleString("en-US") },
                 { key: 'median-lock', label: 'Median lock', valueHtml: medianLabel },
                 { key: 'top-bucket', label: 'Top bucket', valueHtml: `<span style="color:#a78bfa">${topBucket.label}</span>`, meta: `(${topPct}%)` },
             ]);
@@ -20840,10 +20840,10 @@
 
         function treasury_renderLockStatsHover(bucket, totalExercises) {
             const pct = totalExercises > 0 ? (bucket.count / totalExercises * 100).toFixed(1) : '0.0';
-            const fmtV = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toLocaleString();
+            const fmtV = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toLocaleString("en-US");
             treasury_renderStatPills('treasury-lockdist-stats', [
                 { key: 'bucket', label: 'Bucket', valueHtml: bucket.label },
-                { key: 'bucket-exercises', label: 'Exercises', valueHtml: bucket.count.toLocaleString(), meta: `(${pct}%)` },
+                { key: 'bucket-exercises', label: 'Exercises', valueHtml: bucket.count.toLocaleString("en-US"), meta: `(${pct}%)` },
                 { key: 'bucket-volume', label: 'veDOLO', valueHtml: `<span style="color:#a78bfa">${fmtV(bucket.vedolo)}</span>` },
                 { key: 'bucket-paid', label: 'Paid', valueHtml: `<span style="color:#22d3ee">$${fmtV(bucket.usdc)}</span>` },
             ], ['bucket', 'bucket-exercises', 'bucket-volume', 'bucket-paid']);
@@ -21257,7 +21257,7 @@
                     }
                     const bucket = hit.bucket;
                     const pct = _lockDistHoverState.totalExercises > 0 ? (bucket.count / _lockDistHoverState.totalExercises * 100).toFixed(1) : 0;
-                    const fmtV = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toLocaleString();
+                    const fmtV = v => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : Math.round(v).toLocaleString("en-US");
                     const dominantTier = bucket.tiers.reduce((best, tier, ti) => {
                         const value = _lockDistMode === 'count' ? tier.count : tier.vedolo;
                         return value > best.value ? { value, key: _lockDistTiers[ti].key } : best;
@@ -21276,7 +21276,7 @@
                     });
                     tooltip.innerHTML = `
                         <div class="migrated-chart-tooltip-title">${bucket.label}</div>
-                        <div class="migrated-chart-tooltip-row"><span>Exercises</span><b>${bucket.count.toLocaleString()} <span style="color:rgba(226,232,240,.48)">(${pct}%)</span></b></div>
+                        <div class="migrated-chart-tooltip-row"><span>Exercises</span><b>${bucket.count.toLocaleString("en-US")} <span style="color:rgba(226,232,240,.48)">(${pct}%)</span></b></div>
                         <div class="migrated-chart-tooltip-row"><span>Volume</span><b style="color:#a78bfa">${fmtV(bucket.vedolo)} veDOLO</b></div>
                         <div class="migrated-chart-tooltip-row"><span>Paid</span><b style="color:#22d3ee">$${fmtV(bucket.usdc)} USDC</b></div>
                         <div class="migrated-chart-tooltip-divider"></div>
@@ -21474,7 +21474,7 @@
                     ctx.textAlign = 'center';
                     let topLabel;
                     if (isCount) {
-                        topLabel = totalVal.toLocaleString();
+                        topLabel = totalVal.toLocaleString("en-US");
                     } else {
                         topLabel = totalVal >= 1e6 ? (totalVal / 1e6).toFixed(1) + 'M' : totalVal >= 1e3 ? (totalVal / 1e3).toFixed(0) + 'K' : Math.round(totalVal).toString();
                     }
@@ -21506,7 +21506,7 @@
 
         // ===== RECOUP POOL FUNDING =====
         function treasury_renderRecoupPool(stats, odoloResp) {
-            const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString();
+            const fmtM = n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : Math.round(n).toLocaleString("en-US");
             const burned = stats.total_burn_fee_dolo || 0;
             const recouped = stats.total_recoup_fee_dolo || 0;
             const totalPenalty = stats.total_penalty_dolo || (burned + recouped);

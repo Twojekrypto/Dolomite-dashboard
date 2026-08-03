@@ -1737,14 +1737,14 @@ h1{
     return d.toLocaleDateString("en-US", { month:"short", day:"numeric", year:"numeric" });
   }
   function dataAgeLabel(iso){
-    const timestamp = new Date(iso || 0).getTime();
-    if(!Number.isFinite(timestamp) || timestamp <= 0) return "unavailable";
-    const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
-    if(minutes < 1) return "just now";
-    if(minutes < 60) return `${minutes}m ago`;
-    const hours = Math.round(minutes / 60);
-    if(hours < 48) return `${hours}h ago`;
-    return dateLabel(iso);
+    const time = Date.parse(String(iso || ""));
+    if (!Number.isFinite(time)) return "unavailable";
+    const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+    if (minutes < 1) return "now";
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
   }
   function auditStatusLabel(status){
     const key = String(status || "missing").toLowerCase().replace(/_/g, "-");
@@ -3256,16 +3256,14 @@ h1{
     const start = (veBorrowWalletPage - 1) * veBorrowWalletPageSize;
     const pageRows = rows.slice(start, start + veBorrowWalletPageSize);
     const searchValue = esc(veBorrowWalletSearchQuery);
-    const spacerRows = rows.length
-      ? Array.from({ length: Math.max(0, veBorrowWalletPageSize - pageRows.length) }, () => `
+    const spacerRows = Array.from({ length: Math.max(0, veBorrowWalletPageSize - Math.max(pageRows.length, 1)) }, () => `
             <tr class="tbl-spacer-row veborrow-wallet-spacer-row" aria-hidden="true" tabindex="-1">
               <td>${renderVeBorrowWalletAddress({ address: "0x0000000000000000000000000000000000000000", currentVeDoloSavedUSD: 0, chains: { Ethereum: {} } })}</td>
               <td class="num"><div class="veborrow-metric-cell"><span class="bal-val">$0</span></div></td>
               <td class="num"><div class="veborrow-metric-cell"><span class="bal-val">0 veDOLO</span><span class="veborrow-metric-sub">0% coverage</span></div></td>
               <td class="num"><div class="veborrow-metric-cell"><span class="bal-val">$0</span></div></td>
               <td class="num"><div class="veborrow-metric-cell"><span class="bal-val">Maxed</span></div></td>
-            </tr>`).join("")
-      : "";
+            </tr>`).join("");
     const tableRows = rows.length
       ? pageRows.map(row => `<tr>
               <td>${renderVeBorrowWalletAddress(row)}</td>
@@ -3274,14 +3272,14 @@ h1{
               <td class="num"><div class="veborrow-metric-cell"><span class="bal-val">${usdFull(row.currentVeDoloSavedUSD)}</span></div></td>
               <td class="num"><div class="veborrow-metric-cell"><span class="bal-val">${row.missingVeDoloForMax > 0 ? tokenCompact(row.missingVeDoloForMax, " veDOLO") : "Maxed"}</span></div></td>
             </tr>`).join("") + spacerRows
-      : '<tr><td colspan="5" class="empty-state">No wallets match selected filters.</td></tr>';
+      : '<tr><td colspan="5" class="empty-state">No wallets match selected filters.</td></tr>' + spacerRows;
     wrap.innerHTML = `
       <div class="veborrow-wallet-card-head">
         <div class="veborrow-wallet-heading">
           <h2 class="veborrow-wallet-title">Top users saved with current veDOLO</h2>
           <span class="veborrow-wallet-count-badge" id="veBorrowWalletCount">${rows.length.toLocaleString("en-US")} shown</span>
         </div>
-        <div class="veborrow-wallet-meta"><span class="pulse"></span>Current borrower view</div>
+        <div class="veborrow-wallet-meta"><span class="pulse"></span>Data updated · ${dataAgeLabel(revenueData?.generatedAt)}</div>
       </div>
       <div class="veborrow-wallet-toolbar">
         <div class="veborrow-wallet-toolbar-main">

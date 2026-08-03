@@ -31,7 +31,7 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(tx.usdc)}</span>', self.latest_render)
         self.assertIn('data-label="Price"><span class="bal-val price">${fmtPrice(tx.price)}</span>', self.latest_render)
         self.assertIn('tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">Loading latest oDOLO exercises…</div></td></tr>`;', self.latest_render)
-        self.assertIn('tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">${emptyLabel}</div></td></tr>`;', self.latest_render)
+        self.assertIn('tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">${emptyLabel}</div></td></tr>` + stableTableSpacerRowsHtml', self.latest_render)
 
     def test_odolo_route_no_longer_uses_mistaken_latest_price_cache_bust(self):
         self.assertNotIn("latest-ex-price-20260706", self.route)

@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260803-table-system";
+  const HISTORY_VERSION = "history-20260803-table-system-table-consistency-20260803a";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -679,6 +679,7 @@
       }
     });
     els.scopeInfo?.addEventListener("click", toggleHistoryScopeInfo);
+    window.addEventListener?.("resize", clampHistoryScopeTooltip);
     els.yearButton.addEventListener("click", event => toggleHistoryDropdown(event, "year"));
     els.actionButton.addEventListener("click", event => toggleHistoryDropdown(event, "action"));
     els.networkButton.addEventListener("click", event => toggleHistoryDropdown(event, "network"));
@@ -864,7 +865,22 @@
       els.scopeInfo.classList.add("open");
       els.scopeInfo.setAttribute("aria-expanded", "true");
       els.scopeInfo.querySelector(".history-scope-tooltip")?.setAttribute("aria-hidden", "false");
+      clampHistoryScopeTooltip();
     }
+  }
+
+  function clampHistoryScopeTooltip() {
+    const tooltip = els.scopeInfo?.querySelector(".history-scope-tooltip");
+    if (!tooltip) return;
+    tooltip.style.setProperty("--history-scope-shift", "0px");
+    const rect = tooltip.getBoundingClientRect();
+    const gutter = 10;
+    let shift = 0;
+    if (rect.left < gutter) shift = gutter - rect.left;
+    if (rect.right + shift > window.innerWidth - gutter) {
+      shift += window.innerWidth - gutter - (rect.right + shift);
+    }
+    tooltip.style.setProperty("--history-scope-shift", `${Math.round(shift)}px`);
   }
 
   function closeHistoryScopeInfo() {
@@ -888,7 +904,7 @@
       render();
       const count = state.filteredRows.length;
       const suffix = count === 1 ? "" : "s";
-      setStatus(`Applied filters locally: ${count.toLocaleString()} transaction${suffix} match.`, "good");
+      setStatus(`Applied filters locally: ${count.toLocaleString("en-US")} transaction${suffix} match.`, "good");
       return;
     }
     const hasLoadedContext = !!state.address || state.rows.length > 0 || state.filteredRows.length > 0;
@@ -1364,7 +1380,7 @@
         const earnEntries = earnTaxEntriesForCurrentView();
         state.loadingPhase = "done";
         if (earnEntries.length) {
-          setStatus(`No Dolomite transactions found for ${bounds.label}, but candidate evidence has ${earnEntries.length.toLocaleString()} export row${earnEntries.length === 1 ? "" : "s"}.`, "good");
+          setStatus(`No Dolomite transactions found for ${bounds.label}, but candidate evidence has ${earnEntries.length.toLocaleString("en-US")} export row${earnEntries.length === 1 ? "" : "s"}.`, "good");
           render();
           return;
         }
@@ -1374,7 +1390,7 @@
         return;
       }
 
-      setStatus(`Found ${state.rows.length.toLocaleString()} tx. Checking gas receipts, historical prices, and report evidence...`);
+      setStatus(`Found ${state.rows.length.toLocaleString("en-US")} tx. Checking gas receipts, historical prices, and report evidence...`);
       const gasPromise = enrichGasForRows(state.rows, address, runId);
       const finalizeComplete = await waitForHistoryFinalize([gasPromise, earnPromise], HISTORY_FINALIZE_BUDGET_MS);
       if (runId !== state.runId) return;
@@ -1655,7 +1671,7 @@
       try {
         const result = await paginateEntity(chain.subgraph, spec.entity, spec.where, spec.fields, spec.orderBy, HISTORY_GRAPH_OPTIONS);
         if (result.truncated) {
-          warnings.push(`${chain.name} ${spec.entity} exceeded ${result.rows.length.toLocaleString()} rows; report coverage is incomplete until the date range or chain filter is narrowed.`);
+          warnings.push(`${chain.name} ${spec.entity} exceeded ${result.rows.length.toLocaleString("en-US")} rows; report coverage is incomplete until the date range or chain filter is narrowed.`);
         }
         return result.rows.flatMap(row => eventsWithSourceEntity(spec.map(row), spec.entity));
       } catch (error) {
@@ -4022,7 +4038,7 @@
     }
     if (!rows.length) {
       const msg = emptyHistoryMessageHtml(earnEntries);
-      els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">${msg}</td></tr>`;
+      els.body.innerHTML = `<tr class="empty-row"><td colspan="${HISTORY_TABLE_COLSPAN}">${msg}</td></tr>` + historySpacerRowsHtml(1);
       return;
     }
 
@@ -4078,7 +4094,7 @@
     const page = state.visiblePage;
     const start = (page - 1) * HISTORY_VISIBLE_PAGE_SIZE;
     const end = Math.min(start + HISTORY_VISIBLE_PAGE_SIZE, count);
-    const range = `${(start + 1).toLocaleString()}–${end.toLocaleString()} of ${count.toLocaleString()}`;
+    const range = `${(start + 1).toLocaleString("en-US")}–${end.toLocaleString("en-US")} of ${count.toLocaleString("en-US")}`;
     els.pagination.hidden = false;
     els.pagination.innerHTML = `<span class="history-range">${range}</span><div class="history-pager">` +
       `<button class="flow-pager-btn" type="button" data-history-page="1" aria-label="First transaction page" ${page === 1 ? "disabled" : ""}>${PAGER_ICON_FIRST}</button>` +
@@ -4098,9 +4114,9 @@
   }
 
   function historyCountLabel(rows = [], earnEntries = []) {
-    const txLabel = `${rows.length.toLocaleString()} transaction${rows.length === 1 ? "" : "s"}`;
+    const txLabel = `${rows.length.toLocaleString("en-US")} transaction${rows.length === 1 ? "" : "s"}`;
     if (!earnEntries.length) return txLabel;
-    return `${txLabel} · ${earnEntries.length.toLocaleString()} evidence row${earnEntries.length === 1 ? "" : "s"}`;
+    return `${txLabel} · ${earnEntries.length.toLocaleString("en-US")} evidence row${earnEntries.length === 1 ? "" : "s"}`;
   }
 
   function emptyHistoryMessageHtml(earnEntries = []) {
@@ -4108,7 +4124,7 @@
       return `
         <div class="history-empty-note">
           <strong>No transaction rows match these filters.</strong>
-          <span>${earnEntries.length.toLocaleString()} evidence row${earnEntries.length === 1 ? "" : "s"} will still be included in the downloadable report.</span>
+          <span>${earnEntries.length.toLocaleString("en-US")} evidence row${earnEntries.length === 1 ? "" : "s"} will still be included in the downloadable report.</span>
         </div>
       `;
     }
@@ -4746,8 +4762,8 @@
       exportRows,
       receiptLabel: rows.length ? `${receiptChecked}/${rows.length}` : "-",
       priceLabel: eventCount || earnEntries.length ? `${pricedEvents + pricedEarn}/${eventCount + earnEntries.length}` : "-",
-      earnLabel: state.earn?.status === "loading" ? "loading" : earnEntries.length.toLocaleString(),
-      exportRowsLabel: exportRows ? exportRows.toLocaleString() : "-",
+      earnLabel: state.earn?.status === "loading" ? "loading" : earnEntries.length.toLocaleString("en-US"),
+      exportRowsLabel: exportRows ? exportRows.toLocaleString("en-US") : "-",
     };
   }
 
@@ -4947,15 +4963,15 @@
 
   function lifecycleStatusForItem(item) {
     const evidenceLabel = item.sourceType === "earn"
-      ? `${item.eventCount.toLocaleString()} EARN row${item.eventCount === 1 ? "" : "s"}`
-      : `${item.eventCount.toLocaleString()} event${item.eventCount === 1 ? "" : "s"} · ${item.txCount.toLocaleString()} tx`;
+      ? `${item.eventCount.toLocaleString("en-US")} EARN row${item.eventCount === 1 ? "" : "s"}`
+      : `${item.eventCount.toLocaleString("en-US")} event${item.eventCount === 1 ? "" : "s"} · ${item.txCount.toLocaleString("en-US")} tx`;
     if (item.sourceType === "earn") {
       return item.reviewCount
         ? { label: "EARN review", sub: `${evidenceLabel} · timing needs review`, tone: "warn" }
         : { label: "EARN evidence", sub: `${evidenceLabel} · snapshot/ledger-derived`, tone: "good" };
     }
     if (item.reviewCount) {
-      return { label: "Review needed", sub: `${evidenceLabel} · ${item.reviewCount.toLocaleString()} flagged`, tone: "warn" };
+      return { label: "Review needed", sub: `${evidenceLabel} · ${item.reviewCount.toLocaleString("en-US")} flagged`, tone: "warn" };
     }
     return { label: "Lifecycle evidence", sub: `${evidenceLabel} · open/closed not inferred`, tone: "good" };
   }
@@ -5486,20 +5502,20 @@
   function compactDataWarningText() {
     const count = historyWarningCount();
     if (!count) return "";
-    return ` ${count.toLocaleString()} data warning${count === 1 ? "" : "s"} in review/export.`;
+    return ` ${count.toLocaleString("en-US")} data warning${count === 1 ? "" : "s"} in review/export.`;
   }
 
   function historyCompletionStatusMessage(rowCount, visibleRowCount, evidenceEntryCount, finalizeComplete) {
     const safeRows = Number(rowCount || 0);
     const safeVisibleRows = Number(visibleRowCount || 0);
-    const parts = [`Loaded ${safeRows.toLocaleString()} tx.`];
+    const parts = [`Loaded ${safeRows.toLocaleString("en-US")} tx.`];
     if (!finalizeComplete) {
       parts.push("Evidence continues in the progress panel.");
     } else {
       parts.push("Reports ready.");
     }
     if (safeRows && safeVisibleRows !== safeRows) {
-      parts.push(`${safeVisibleRows.toLocaleString()} match current filters.`);
+      parts.push(`${safeVisibleRows.toLocaleString("en-US")} match current filters.`);
     }
     return parts.join(" ");
   }

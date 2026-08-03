@@ -2704,11 +2704,11 @@ function renderHolderDistributionChart(options = {}){
     return `
       <div class="holder-chart-legend-item${active}" data-key="${bucket.key}" style="--series-color:${bucket.color}">
         <div class="holder-legend-row">
-          <button class="holder-legend-cell holder-legend-pin holder-legend-main" type="button" data-column="group" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series. Balance ${fmtNum(bucket.total)} DOLO. Wallets ${bucket.wallets.toLocaleString()}. Change ${fmtSignedHolder(delta)} DOLO ${deltaPct}.">
+          <button class="holder-legend-cell holder-legend-pin holder-legend-main" type="button" data-column="group" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series. Balance ${fmtNum(bucket.total)} DOLO. Wallets ${bucket.wallets.toLocaleString("en-US")}. Change ${fmtSignedHolder(delta)} DOLO ${deltaPct}.">
             <div class="top"><span class="dot" style="background:${bucket.color};box-shadow:0 0 8px ${bucket.color}66"></span><span class="bucket">${bucket.label} DOLO</span></div>
           </button>
           <button class="holder-legend-cell holder-legend-pin holder-legend-metric primary" type="button" data-column="balance" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by balance"><span class="holder-legend-label">Balance</span><strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong></button>
-          <button class="holder-legend-cell holder-legend-pin holder-legend-metric" type="button" data-column="wallets" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by wallet count"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString()}</strong></button>
+          <button class="holder-legend-cell holder-legend-pin holder-legend-metric" type="button" data-column="wallets" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by wallet count"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString("en-US")}</strong></button>
           <button class="holder-legend-cell holder-legend-pin holder-legend-metric delta ${deltaClass}" type="button" data-column="change" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by change. ${fmtSignedHolder(delta)} DOLO ${deltaPct}."><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong><span class="holder-legend-percent">${deltaPct}</span></button>
           <div class="holder-legend-cell holder-legend-details" data-column="details"><button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button></div>
         </div>
@@ -3199,7 +3199,7 @@ function renderAllocationChart(options = {}){
               <span class="holder-legend-label">Balance</span>
               <strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(value)}</span></strong>
             </div>
-            <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${wallets.toLocaleString()}</strong></div>
+            <div class="holder-legend-metric"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${wallets.toLocaleString("en-US")}</strong></div>
             <div class="holder-legend-metric delta ${deltaClass}"><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong></div>
           </div>
           <button class="holder-details-btn" type="button" data-details-key="${series.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${series.label} wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button>
@@ -4154,8 +4154,8 @@ function allocationWalletInlinePanelHtml(series, model = null){
   const eyebrow = series.key === "total" ? "Allocation total" : "Allocation component";
   const meta = baselinePoint
     ? (series.key === "total"
-      ? `${rows.length.toLocaleString()} current/prior Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`
-      : `${rows.length.toLocaleString()} current/prior wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`)
+      ? `${rows.length.toLocaleString("en-US")} current/prior Core Team + Investor wallets · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`
+      : `${rows.length.toLocaleString("en-US")} current/prior wallets included in Total Allocations · ${holderPanelDateText(point)} · DOLO balance · change from ${holderPanelDateText(baselinePoint)}`)
     : `Wallet-level changes are available for standard ranges only · current view ${holderPanelDateText(point)} · DOLO balance`;
   return `
     <div class="holder-wallet-panel holder-wallet-panel-inline is-open" id="allocation-wallet-panel-${escHtml(series.key)}" aria-live="polite">
@@ -4241,7 +4241,7 @@ function renderHolders(){
   );
   // Neutral count; the live override (renderHolders wrapper) replaces this with the
   // real "<total> holders · showing <n>" once dolo_holders.json loads.
-  document.getElementById("holders-count").textContent = rows.length.toLocaleString() + " shown";
+  document.getElementById("holders-count").textContent = rows.length.toLocaleString("en-US") + " shown";
 
   document.querySelectorAll("#tbl-holders thead th").forEach(th=>{
     const k = th.dataset.sort;
@@ -4355,16 +4355,16 @@ function renderHolders(){
   const total = rows.length;
   const showStart = total > 0 ? start + 1 : 0;
   const showEnd = Math.min(start + state.pageSize, total);
-  document.getElementById("holders-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  document.getElementById("holders-info").textContent = `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}`;
   const totalPages = Math.max(1, Math.ceil(total/state.pageSize));
   const curPage = state.page + 1;
   const pager = document.getElementById("holders-pager");
   pager.innerHTML = `
-    <button class="pg-btn" data-page="first" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
-    <button class="pg-btn" data-page="prev" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="pg-btn" data-page="first" aria-label="First page" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-page="prev" aria-label="Previous page" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
     <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
-    <button class="pg-btn" data-page="next" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button class="pg-btn" data-page="last" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+    <button class="pg-btn" data-page="next" aria-label="Next page" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-page="last" aria-label="Last page" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
   pager.querySelectorAll("[data-page]").forEach(btn => btn.addEventListener("click", ()=>{
     const a = btn.dataset.page;
@@ -4444,11 +4444,11 @@ function renderFlowPager(kind, totalRows){
   const pager = document.getElementById(kind === "acc" ? "flows-acc-pager" : "flows-out-pager");
   if(!pager) return;
   pager.innerHTML = `
-    <button class="pg-btn" data-flow-page="first" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
-    <button class="pg-btn" data-flow-page="prev" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="pg-btn" data-flow-page="first" aria-label="First page" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-flow-page="prev" aria-label="Previous page" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
     <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
-    <button class="pg-btn" data-flow-page="next" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button class="pg-btn" data-flow-page="last" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+    <button class="pg-btn" data-flow-page="next" aria-label="Next page" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-flow-page="last" aria-label="Last page" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
   pager.querySelectorAll("[data-flow-page]").forEach(btn => btn.addEventListener("click", ()=>{
     const a = btn.dataset.flowPage;
@@ -4558,7 +4558,7 @@ function renderFlow(target, kind){
   if(info){
     const showStart = total > 0 ? start + 1 : 0;
     const showEnd = Math.min(start + state.flowsPageSize, total);
-    info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+    info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}`;
   }
   renderFlowPager(kind, total);
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
@@ -4793,7 +4793,7 @@ function renderFreshStats(rows){
     retention: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m9 15 6-6"/><path d="M9.5 9.5h.01"/><path d="M14.5 14.5h.01"/></svg>',
   };
   box.innerHTML = `
-    <div class="fresh-stat selected-market-metric primary"><div class="label">${ICONS.wallets}Fresh Wallets</div><div class="value">${rows.length.toLocaleString()}</div><div class="sub">10K+ exposure</div></div>
+    <div class="fresh-stat selected-market-metric primary"><div class="label">${ICONS.wallets}Fresh Wallets</div><div class="value">${rows.length.toLocaleString("en-US")}</div><div class="sub">10K+ exposure</div></div>
     <div class="fresh-stat selected-market-metric"><div class="label">${ICONS.received}DOLO Received</div><div class="value">${fmtNum(received)}</div><div class="sub">fresh 10K+ wallets</div></div>
     <div class="fresh-stat selected-market-metric"><div class="label">${ICONS.exposure}Current Exposure</div><div class="value">${fmtNum(balance)}</div><div class="sub">${locked > 0 ? `${fmtNum(locked)} locked` : "liquid + locked"}</div></div>
     <div class="fresh-stat selected-market-metric"><div class="label">${ICONS.retention}Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept exposure</div></div>
@@ -4806,11 +4806,11 @@ function renderFreshPager(totalRows){
   const pager = document.getElementById("fresh-wallets-pager");
   if(!pager) return;
   pager.innerHTML = `
-    <button class="pg-btn" data-fresh-page="first" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
-    <button class="pg-btn" data-fresh-page="prev" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="pg-btn" data-fresh-page="first" aria-label="First page" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg></button>
+    <button class="pg-btn" data-fresh-page="prev" aria-label="Previous page" ${curPage===1?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
     <span class="pg-current">${curPage} <span class="pg-sep">/</span> ${totalPages}</span>
-    <button class="pg-btn" data-fresh-page="next" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
-    <button class="pg-btn" data-fresh-page="last" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
+    <button class="pg-btn" data-fresh-page="next" aria-label="Next page" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></button>
+    <button class="pg-btn" data-fresh-page="last" aria-label="Last page" ${curPage===totalPages?"disabled":""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></button>
   `;
   pager.querySelectorAll("[data-fresh-page]").forEach(btn => btn.addEventListener("click", () => {
     const a = btn.dataset.freshPage;
@@ -4872,7 +4872,7 @@ function renderFreshWallets(){
         <td colspan="7" class="loading-row">${allRows.length ? "No matching fresh wallets." : "No verified fresh 10K+ DOLO wallets in this period."}</td>
       </tr>
     ` : "";
-  const spacerRowsHtml = total === 0 ? "" : Array.from({length: Math.max(0, state.freshPageSize - pageRows.length)}, () => `
+  const spacerRowsHtml = Array.from({length: Math.max(0, state.freshPageSize - Math.max(pageRows.length, 1))}, () => `
       <tr class="fresh-spacer-row" aria-hidden="true" tabindex="-1">
         <td data-column="chain">&nbsp;</td>
         <td data-column="address">&nbsp;</td>
@@ -4888,9 +4888,9 @@ function renderFreshWallets(){
   const showStart = total > 0 ? start + 1 : 0;
   const showEnd = Math.min(start + state.freshPageSize, total);
   const info = document.getElementById("fresh-wallets-info");
-  if(info) info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString()}`;
+  if(info) info.textContent = `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}`;
   const count = document.getElementById("fresh-wallets-count");
-  if(count) count.textContent = `${allRows.length.toLocaleString()} wallets`;
+  if(count) count.textContent = `${allRows.length.toLocaleString("en-US")} wallets`;
   renderFreshPager(total);
   syncFreshSortHeaders();
   tbody.querySelectorAll(".addr-copy").forEach(btn => btn.addEventListener("click", async e=>{
@@ -5279,7 +5279,7 @@ document.querySelectorAll(".nav-item").forEach(it=>{
   });
 });
 
-{ const __nowEl = document.getElementById("now"); if (__nowEl) __nowEl.textContent = new Date().toLocaleString(); }
+{ const __nowEl = document.getElementById("now"); if (__nowEl) __nowEl.textContent = new Date().toLocaleString("en-US"); }
 
 renderHolders();
 renderFlows();
@@ -5634,19 +5634,19 @@ renderCexSupplyChart();
     flowRowsForPeriod();
     originalRenderFlows();
     const metaEl = document.getElementById("flows-meta");
-    if(metaEl) metaEl.textContent = liveFlowTimestamp ? "Updated " + ago(liveFlowTimestamp) : "Flow data";
+    if(metaEl) metaEl.textContent = liveFlowTimestamp ? "Data updated · " + ago(liveFlowTimestamp) : "Data update unavailable";
   };
   renderHolders = function(){
     originalRenderHolders();
     const shown = filterHolders().length;
     const countEl = document.getElementById("holders-count");
-    if(countEl && liveHolderStats) countEl.textContent = liveHolderStats.total_holders.toLocaleString() + " holders · showing " + shown.toLocaleString();
+    if(countEl && liveHolderStats) countEl.textContent = liveHolderStats.total_holders.toLocaleString("en-US") + " holders · showing " + shown.toLocaleString("en-US");
     const stats = document.querySelectorAll(".hero-stat");
     if(stats[3] && liveHolderStats){
-      setMetricElement(stats[3].querySelector(".val"), liveHolderStats.total_holders.toLocaleString());
+      setMetricElement(stats[3].querySelector(".val"), liveHolderStats.total_holders.toLocaleString("en-US"));
       const sub = stats[3].querySelector(".sub");
       sub.className = "sub";
-      sub.textContent = liveHolderStats.both_chains.toLocaleString() + " on both chains";
+      sub.textContent = liveHolderStats.both_chains.toLocaleString("en-US") + " on both chains";
     }
   };
   async function applyVestingLabels(){

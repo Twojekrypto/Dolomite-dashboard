@@ -219,6 +219,16 @@
     };
   }
 
+  function supplyPagerIcon(action) {
+    const paths = {
+      first: '<polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/>',
+      prev: '<polyline points="15 18 9 12 15 6"/>',
+      next: '<polyline points="9 18 15 12 9 6"/>',
+      last: '<polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/>',
+    };
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[action] || paths.next}</svg>`;
+  }
+
   function buildSupplyTableFooter(page, totalPages, totalRows, perPage, pageHandler) {
     const total = Math.max(0, Number(totalRows) || 0);
     const currentPage = Math.max(1, Math.min(Number(page) || 1, Math.max(1, totalPages)));
@@ -227,13 +237,13 @@
     const disabledPrev = currentPage === 1 ? 'disabled' : '';
     const disabledNext = currentPage === totalPages ? 'disabled' : '';
     return `
-      <span class="supply-page-range">${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()}</span>
+      <span class="supply-page-range">${start.toLocaleString("en-US")}–${end.toLocaleString("en-US")} of ${total.toLocaleString("en-US")}</span>
       <span class="supply-pager-controls">
-        <button class="flow-pager-btn" aria-label="First page" onclick="${pageHandler}(1)" ${disabledPrev}>«</button>
-        <button class="flow-pager-btn" aria-label="Previous page" onclick="${pageHandler}(${currentPage - 1})" ${disabledPrev}>‹</button>
+        <button class="flow-pager-btn" aria-label="First page" onclick="${pageHandler}(1)" ${disabledPrev}>${supplyPagerIcon('first')}</button>
+        <button class="flow-pager-btn" aria-label="Previous page" onclick="${pageHandler}(${currentPage - 1})" ${disabledPrev}>${supplyPagerIcon('prev')}</button>
         <span class="flow-pager-info">${currentPage} / ${totalPages}</span>
-        <button class="flow-pager-btn" aria-label="Next page" onclick="${pageHandler}(${currentPage + 1})" ${disabledNext}>›</button>
-        <button class="flow-pager-btn" aria-label="Last page" onclick="${pageHandler}(${totalPages})" ${disabledNext}>»</button>
+        <button class="flow-pager-btn" aria-label="Next page" onclick="${pageHandler}(${currentPage + 1})" ${disabledNext}>${supplyPagerIcon('next')}</button>
+        <button class="flow-pager-btn" aria-label="Last page" onclick="${pageHandler}(${totalPages})" ${disabledNext}>${supplyPagerIcon('last')}</button>
       </span>
     `;
   }

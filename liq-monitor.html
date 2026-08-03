@@ -6353,7 +6353,7 @@
                     if (isUSD) {
                         el.textContent = formatUSD(current);
                     } else {
-                        el.textContent = current.toLocaleString();
+                        el.textContent = current.toLocaleString("en-US");
                     }
                     if (progress < 1) requestAnimationFrame(step);
                 }
@@ -6815,7 +6815,7 @@
                             colAtRisk += newCol;
                         }
                     }
-                    document.getElementById('sim-liq-count').textContent = liqCount.toLocaleString();
+                    document.getElementById('sim-liq-count').textContent = liqCount.toLocaleString("en-US");
                     document.getElementById('sim-debt-risk').textContent = formatUSD(Math.round(debtAtRisk));
                     document.getElementById('sim-col-risk').textContent = formatUSD(Math.round(colAtRisk));
                     const liqPct = window._simTotalPos > 0 ? (liqCount / window._simTotalPos * 100).toFixed(1) : '0';
@@ -6833,7 +6833,7 @@
                         impactFill.style.width = impactPct + '%';
                         impactVal.textContent = liqCount === 0
                             ? 'No positions cross below HF 1.0'
-                            : liqCount.toLocaleString() + ' position' + (liqCount !== 1 ? 's' : '') + ' cross below HF 1.0';
+                            : liqCount.toLocaleString("en-US") + ' position' + (liqCount !== 1 ? 's' : '') + ' cross below HF 1.0';
                         impactVal.style.color = liqCount === 0 ? 'var(--text-muted)' : liqCount < 50 ? '#fbbf24' : liqCount < 200 ? '#f97316' : '#ef4444';
                     }
                     // Progress bars in metric cards
@@ -7062,7 +7062,7 @@
             }
 
             // Update display
-            document.getElementById('sim-liq-count').textContent = liqCount.toLocaleString();
+            document.getElementById('sim-liq-count').textContent = liqCount.toLocaleString("en-US");
             document.getElementById('sim-debt-risk').textContent = formatUSD(Math.round(debtAtRisk));
             document.getElementById('sim-col-risk').textContent = formatUSD(Math.round(colAtRisk));
             const liqPct = window._simTotalPos > 0 ? (liqCount / window._simTotalPos * 100).toFixed(1) : '0';
@@ -7080,7 +7080,7 @@
                 impactFill.style.width = impactPct + '%';
                 impactVal.textContent = liqCount === 0
                     ? 'No positions cross below HF 1.0'
-                    : liqCount.toLocaleString() + ' position' + (liqCount !== 1 ? 's' : '') + ' cross below HF 1.0';
+                    : liqCount.toLocaleString("en-US") + ' position' + (liqCount !== 1 ? 's' : '') + ' cross below HF 1.0';
                 impactVal.style.color = liqCount === 0 ? 'var(--text-muted)' : liqCount < 50 ? '#fbbf24' : liqCount < 200 ? '#f97316' : '#ef4444';
             }
             // Progress bars
@@ -7206,7 +7206,7 @@
             let html = `<div class="chain-option active" data-chain="all">
                 ${GLOBE_SVG}
                 All Chains
-                <span class="opt-count">${allPositions.length.toLocaleString()}</span>
+                <span class="opt-count">${allPositions.length.toLocaleString("en-US")}</span>
             </div>`;
 
             // Sort chains by TVL (totalCollateralUSD) descending
@@ -7223,7 +7223,7 @@
                 html += `<div class="chain-option" data-chain="${chain}">
                     <img class="opt-icon" src="${icon}" alt="${displayName}">
                     ${displayName}
-                    <span class="opt-count">${(stats.total || 0).toLocaleString()}</span>
+                    <span class="opt-count">${(stats.total || 0).toLocaleString("en-US")}</span>
                 </div>`;
             });
 
@@ -7374,15 +7374,15 @@
             const rc = document.getElementById('results-count');
             if (rc) {
                 if (filteredPositions.length === allPositions.length) {
-                    rc.innerHTML = `<strong>${allPositions.length.toLocaleString()}</strong> positions`;
+                    rc.innerHTML = `<strong>${allPositions.length.toLocaleString("en-US")}</strong> positions`;
                 } else {
-                    rc.innerHTML = `<strong>${filteredPositions.length.toLocaleString()}</strong> of ${allPositions.length.toLocaleString()} positions`;
+                    rc.innerHTML = `<strong>${filteredPositions.length.toLocaleString("en-US")}</strong> of ${allPositions.length.toLocaleString("en-US")} positions`;
                 }
             }
             // Update table card header count
             const pc = document.getElementById('positions-count');
             if (pc) {
-                pc.textContent = `(${filteredPositions.length.toLocaleString()})`;
+                pc.textContent = `(${filteredPositions.length.toLocaleString("en-US")})`;
             }
             updateToolbarFilterHighlights();
             updateClearFiltersVisibility();
@@ -7605,7 +7605,7 @@
             const footer = document.getElementById('table-footer');
 
             if (totalPages <= 1) {
-                footer.innerHTML = `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filteredPositions.length.toLocaleString()} positions</span>`;
+                footer.innerHTML = `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filteredPositions.length.toLocaleString("en-US")} positions</span>`;
                 return;
             }
 
@@ -7615,7 +7615,7 @@
                 `<span class="flow-pager-info">${currentPage} / ${totalPages}</span>` +
                 `<button class="flow-pager-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>` +
                 `<button class="flow-pager-btn" onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>»</button>` +
-                `<span class="flow-pager-total">${filteredPositions.length.toLocaleString()} positions</span>`;
+                `<span class="flow-pager-total">${filteredPositions.length.toLocaleString("en-US")} positions</span>`;
         }
 
         function goToPage(p) {
@@ -7906,7 +7906,7 @@
                 base.filter(p => getRiskClass(p) === current.key).length;
             triggerDot.style.background = current.color;
             triggerLabel.textContent = current.label;
-            triggerCount.textContent = currentCount.toLocaleString();
+            triggerCount.textContent = currentCount.toLocaleString("en-US");
 
             // Render menu options
             let html = RISK_OPTIONS.map(opt => {
@@ -7919,7 +7919,7 @@
                 return `<div class="risk-option${active}" data-risk="${opt.key}">
                     <span class="opt-dot" style="background: ${opt.color}"></span>
                     ${opt.label}
-                    <span class="opt-count">${count.toLocaleString()}</span>
+                    <span class="opt-count">${count.toLocaleString("en-US")}</span>
                 </div>`;
             }).join('');
             menu.innerHTML = html;
@@ -8208,7 +8208,7 @@
                 html += `<div class="col-token-opt${filterSet.size === 0 ? ' selected' : ''}" data-token="__all__">
                     <span class="tok-check">${filterSet.size === 0 ? '✓' : ''}</span>
                     All Tokens
-                    <span class="opt-count">${scoped.length.toLocaleString()}</span>
+                    <span class="opt-count">${scoped.length.toLocaleString("en-US")}</span>
                 </div>`;
 
                 // Show selected tokens at top with separator
@@ -8221,7 +8221,7 @@
                         html += `<div class="col-token-opt selected" data-token="${sym}">
                             <span class="tok-check">✓</span>
                             ${iconHtml}${truncateTokenName(sym)}
-                            <span class="opt-count">${count.toLocaleString()}</span>
+                            <span class="opt-count">${count.toLocaleString("en-US")}</span>
                         </div>`;
                     });
                     html += `<div style="height:1px;background:rgba(255,255,255,0.04);margin:4px 0;"></div>`;
@@ -8233,7 +8233,7 @@
                     html += `<div class="col-token-opt" data-token="${sym}">
                         <span class="tok-check"></span>
                         ${iconHtml}${truncateTokenName(sym)}
-                        <span class="opt-count">${count.toLocaleString()}</span>
+                        <span class="opt-count">${count.toLocaleString("en-US")}</span>
                     </div>`;
                 });
                 listEl.innerHTML = html;
@@ -10247,8 +10247,8 @@
             const hasSupplierCount = Number.isFinite(info.supplierCount);
             const supplierPreviewCount = Number.isFinite(info.supplierPreviewCount) ? info.supplierPreviewCount : currentSupplyData.length;
             const supplierCountDisplay = hasSupplierCount
-                ? info.supplierCount.toLocaleString()
-                : (supplierStage === 'partial' && supplierPreviewCount > 0 ? `${supplierPreviewCount.toLocaleString()}+` : '…');
+                ? info.supplierCount.toLocaleString("en-US")
+                : (supplierStage === 'partial' && supplierPreviewCount > 0 ? `${supplierPreviewCount.toLocaleString("en-US")}+` : '…');
             if (icon) {
                 icon.src = iconPath;
                 icon.onerror = () => { icon.src = 'dolomite-logo.svg'; };
@@ -10716,8 +10716,8 @@
                             </div>
                             <div class="supply-activity-summary-metric">
                                 <div class="supply-activity-summary-metric-label">Active Wallets</div>
-                                <div class="supply-activity-summary-metric-value wallets">${summary.wallets.toLocaleString()}</div>
-                                <div class="supply-activity-summary-metric-sub">${summary.events.toLocaleString()} events</div>
+                                <div class="supply-activity-summary-metric-value wallets">${summary.wallets.toLocaleString("en-US")}</div>
+                                <div class="supply-activity-summary-metric-sub">${summary.events.toLocaleString("en-US")} events</div>
                             </div>
                         </div>
                     </div>
@@ -10804,13 +10804,13 @@
             }
 
             pager.innerHTML = totalPages <= 1
-                ? `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filtered.length.toLocaleString()} events</span>`
+                ? `<span class="flow-pager-info">1 / 1</span><span class="flow-pager-total">${filtered.length.toLocaleString("en-US")} events</span>`
                 : `<button class="flow-pager-btn" onclick="supplyGoActivityPage(1)" ${supplyActivityPage === 1 ? 'disabled' : ''}>«</button>` +
                   `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${supplyActivityPage - 1})" ${supplyActivityPage === 1 ? 'disabled' : ''}>‹</button>` +
                   `<span class="flow-pager-info">${supplyActivityPage} / ${totalPages}</span>` +
                   `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${supplyActivityPage + 1})" ${supplyActivityPage === totalPages ? 'disabled' : ''}>›</button>` +
                   `<button class="flow-pager-btn" onclick="supplyGoActivityPage(${totalPages})" ${supplyActivityPage === totalPages ? 'disabled' : ''}>»</button>` +
-                  `<span class="flow-pager-total">${filtered.length.toLocaleString()} events</span>`;
+                  `<span class="flow-pager-total">${filtered.length.toLocaleString("en-US")} events</span>`;
         }
 
         function supplyGoActivityPage(page) {
@@ -11726,7 +11726,7 @@
                     activityLoadingEl.innerHTML = `
                         <div class="loading-spinner"></div>
                         <div style="margin-top:12px; color:var(--text-muted); font-size:13px;">
-                            Loading recent activity... <strong style="color:#a5b4fc;">${totalEvents.toLocaleString()}</strong> events fetched
+                            Loading recent activity... <strong style="color:#a5b4fc;">${totalEvents.toLocaleString("en-US")}</strong> events fetched
                             <div style="margin-top:4px; font-size:11px; color:rgba(255,255,255,0.35);">${entitiesText}</div>
                         </div>
                     `;
