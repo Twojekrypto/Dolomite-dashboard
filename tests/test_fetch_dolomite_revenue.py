@@ -748,7 +748,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803"', route_html)
+        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803-header-hierarchy-20260803"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),

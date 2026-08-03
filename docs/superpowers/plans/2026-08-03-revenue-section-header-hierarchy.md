@@ -143,7 +143,7 @@ For every scoped section, preserve the existing control markup and IDs but move 
 </div>
 ```
 
-Remove the `chainDataUpdated` ID because its only caller will be replaced by the shared data-attribute updater. Do not rename date, chart, brush, toggle, simulation, or current-discount metadata IDs.
+Keep the `chainDataUpdated` ID as the source-specific table metadata hook while updating it through the shared data-attribute updater. Do not rename date, chart, brush, toggle, simulation, or current-discount metadata IDs.
 
 - [ ] **Step 3: Update all five freshness labels from one code path**
 
@@ -156,7 +156,7 @@ document.querySelectorAll("[data-revenue-updated]").forEach(el => {
 });
 ```
 
-Remove the one-off `chainDataUpdated.textContent` assignment; source inspection shows it is the only JavaScript reference to that ID.
+Remove the one-off `chainDataUpdated.textContent` assignment; the ID remains as a metadata hook but freshness updates through the shared selector.
 
 - [ ] **Step 4: Run the targeted tests and verify GREEN**
 
