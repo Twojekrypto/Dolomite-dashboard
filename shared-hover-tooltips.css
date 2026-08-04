@@ -42,22 +42,34 @@
   cursor: help;
 }
 
+.addr-tooltip-wrap[data-full-addr] {
+  cursor: default;
+}
+
+a.addr-tooltip-wrap[data-full-addr] {
+  cursor: pointer;
+}
+
 table[data-address-match-cells] tbody .addr-tooltip-wrap.address-match-active.address-match-source,
 table[data-address-match-cells] tbody .addr-tooltip-wrap.address-match-active.address-match-peer {
   border-radius: 4px;
-  transition: background-color .14s ease, box-shadow .14s ease;
+  transition: color .14s ease, background-color .14s ease, box-shadow .14s ease;
 }
 
 table[data-address-match-cells] tbody .addr-tooltip-wrap.address-match-active.address-match-source {
-  background-color: rgba(201, 162, 39, .12);
+  color: var(--gold-hi, #e5c85d);
+  background-color: rgba(201, 162, 39, .22);
   box-shadow:
-    0 0 0 1px rgba(201, 162, 39, .66),
-    0 0 12px rgba(201, 162, 39, .12);
+    0 0 0 1px rgba(201, 162, 39, .92),
+    0 0 0 3px rgba(201, 162, 39, .12),
+    0 0 16px rgba(201, 162, 39, .24);
 }
 
 table[data-address-match-cells] tbody .addr-tooltip-wrap.address-match-active.address-match-peer {
-  background-color: rgba(201, 162, 39, .07);
-  box-shadow: 0 0 0 1px rgba(201, 162, 39, .28);
+  background-color: rgba(201, 162, 39, .12);
+  box-shadow:
+    0 0 0 1px rgba(201, 162, 39, .52),
+    0 0 8px rgba(201, 162, 39, .10);
 }
 
 @media (prefers-reduced-motion: reduce) {
