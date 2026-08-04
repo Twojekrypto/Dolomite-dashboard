@@ -50,6 +50,19 @@
     return String(value || '').replace(/\s+/g, ' ').trim();
   }
 
+  function normalizeMatchAddress(value) {
+    var address = cleanText(value).toLowerCase();
+    return /^0x[a-f0-9]{40}$/.test(address) ? address : '';
+  }
+
+  function addressMatchTrigger(target) {
+    var trigger = target.closest && target.closest('.addr-tooltip-wrap[data-full-addr]');
+    var table = trigger && trigger.closest('table[data-address-match-cells]');
+    var cell = trigger && trigger.closest('td');
+    var address = trigger && normalizeMatchAddress(trigger.getAttribute('data-full-addr'));
+    return table && cell && address ? { trigger: trigger, table: table, cell: cell, address: address } : null;
+  }
+
   function isAddress(value) {
     return /^0x[a-f0-9]{40}$/i.test(cleanText(value));
   }
@@ -136,8 +149,37 @@
   }
 
   var activeTarget = null;
+  var activeAddressMatch = null;
   var lastPointer = { x: 0, y: 0 };
   var hideTimer = null;
+
+  function clearAddressMatches() {
+    if (!activeAddressMatch) return;
+    activeAddressMatch.cells.forEach(function (cell) {
+      cell.classList.remove('address-match-source', 'address-match-peer');
+    });
+    activeAddressMatch = null;
+  }
+
+  function showAddressMatches(data) {
+    if (activeAddressMatch && activeAddressMatch.table === data.table && activeAddressMatch.cell === data.cell && activeAddressMatch.address === data.address) return;
+    clearAddressMatches();
+
+    var cells = [];
+    var seen = new Set();
+    data.table.querySelectorAll('.addr-tooltip-wrap[data-full-addr]').forEach(function (trigger) {
+      if (normalizeMatchAddress(trigger.getAttribute('data-full-addr')) !== data.address) return;
+      var cell = trigger.closest('td');
+      if (!cell || seen.has(cell)) return;
+      seen.add(cell);
+      cells.push(cell);
+    });
+
+    cells.forEach(function (cell) {
+      cell.classList.add(cell === data.cell ? 'address-match-source' : 'address-match-peer');
+    });
+    activeAddressMatch = { table: data.table, cell: data.cell, address: data.address, cells: cells };
+  }
 
   function hide() {
     var els = ensureTip();
@@ -145,6 +187,7 @@
     els.tip.style.display = 'none';
     els.arrow.style.opacity = '0';
     activeTarget = null;
+    clearAddressMatches();
   }
 
   function show(data) {
@@ -195,15 +238,31 @@
     scheduleHide();
   });
 
+  document.addEventListener('pointerover', function (event) {
+    var data = addressMatchTrigger(event.target);
+    if (data) showAddressMatches(data);
+  });
+
+  document.addEventListener('pointerout', function (event) {
+    if (!activeAddressMatch || !activeAddressMatch.cell.contains(event.target)) return;
+    if (event.relatedTarget && activeAddressMatch.cell.contains(event.relatedTarget)) return;
+    clearAddressMatches();
+  });
+
   document.addEventListener('focusin', function (event) {
     var data = tooltipText(event.target);
     if (!data || !data.text) return;
     show(data);
+    var addressData = addressMatchTrigger(event.target);
+    if (addressData) showAddressMatches(addressData);
   });
 
   document.addEventListener('focusout', function (event) {
     if (!tooltipText(event.target)) return;
     scheduleHide();
+    if (!activeAddressMatch || !activeAddressMatch.cell.contains(event.target)) return;
+    if (event.relatedTarget && activeAddressMatch.cell.contains(event.relatedTarget)) return;
+    clearAddressMatches();
   });
 
   normalizeTooltipAttributes(document);
@@ -221,4 +280,5 @@
 
   window.addEventListener('scroll', hide, true);
   window.addEventListener('resize', hide);
+  window.addEventListener('blur', clearAddressMatches);
 })();

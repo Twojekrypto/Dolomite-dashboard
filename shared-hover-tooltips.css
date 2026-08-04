@@ -41,3 +41,25 @@
 [data-tip] {
   cursor: help;
 }
+
+table[data-address-match-cells] td.address-match-source,
+table[data-address-match-cells] td.address-match-peer {
+  transition: background-color .14s ease, box-shadow .14s ease;
+}
+
+table[data-address-match-cells] td.address-match-source {
+  background-color: rgba(201, 162, 39, .12);
+  box-shadow: inset 0 0 0 1px rgba(201, 162, 39, .56);
+}
+
+table[data-address-match-cells] td.address-match-peer {
+  background-color: rgba(201, 162, 39, .07);
+  box-shadow: inset 0 0 0 1px rgba(201, 162, 39, .26);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  table[data-address-match-cells] td.address-match-source,
+  table[data-address-match-cells] td.address-match-peer {
+    transition: none;
+  }
+}
