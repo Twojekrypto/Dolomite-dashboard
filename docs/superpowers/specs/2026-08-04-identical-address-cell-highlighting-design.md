@@ -87,6 +87,8 @@ The treatment uses the existing Graphite + Gold palette and CSS custom propertie
 
 The behavior belongs in `shared-hover-tooltips.js` because the supported address renderers already expose their canonical value through `.addr-tooltip-wrap[data-full-addr]`. Shared styles belong in `shared-hover-tooltips.css`.
 
+`liquidation-preview.html` already owns a specialized inline tooltip system. It loads the same shared assets with an explicit marker that keeps the inline tooltip authoritative while the shared file installs only the address-cell matching controller. This avoids duplicate tooltip listeners while preserving one shared implementation of address matching across Borrow, Supply, veDOLO, and oDOLO.
+
 The helper must:
 
 - use delegated pointer and focus events so dynamically rendered and paginated rows work automatically;
@@ -97,6 +99,8 @@ The helper must:
 - preserve copy, DeBank, explorer, sorting, filtering, and row-click interactions.
 
 No new dependency, generated data file, workflow change, or API request is needed.
+
+All affected preview and route cache keys must be advanced with the change so GitHub Pages clients cannot retain the previous shared JavaScript or CSS.
 
 ## Keyboard and Touch Behavior
 

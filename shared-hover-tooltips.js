@@ -212,31 +212,64 @@
     }, 80);
   }
 
-  document.addEventListener('mouseover', function (event) {
-    lastPointer = { x: event.clientX, y: event.clientY };
-    var data = tooltipText(event.target);
-    if (!data || !data.text) return;
-    show(data);
-  });
+  var hasInlineTooltipSystem = !!window.__DOLO_INLINE_TOOLTIP_ACTIVE;
 
-  document.addEventListener('mousemove', function (event) {
-    lastPointer = { x: event.clientX, y: event.clientY };
-    var data = tooltipText(event.target);
-    if (!data || !data.text) {
-      if (activeTarget) scheduleHide();
-      return;
-    }
-    if (data.target !== activeTarget) show(data);
-  });
+  if (!hasInlineTooltipSystem) {
+    document.addEventListener('mouseover', function (event) {
+      lastPointer = { x: event.clientX, y: event.clientY };
+      var data = tooltipText(event.target);
+      if (!data || !data.text) return;
+      show(data);
+    });
 
-  document.addEventListener('mouseout', function (event) {
-    lastPointer = { x: event.clientX, y: event.clientY };
-    var data = tooltipText(event.target);
-    if (!data) return;
-    var related = event.relatedTarget;
-    if (related && data.target.contains && data.target.contains(related)) return;
-    scheduleHide();
-  });
+    document.addEventListener('mousemove', function (event) {
+      lastPointer = { x: event.clientX, y: event.clientY };
+      var data = tooltipText(event.target);
+      if (!data || !data.text) {
+        if (activeTarget) scheduleHide();
+        return;
+      }
+      if (data.target !== activeTarget) show(data);
+    });
+
+    document.addEventListener('mouseout', function (event) {
+      lastPointer = { x: event.clientX, y: event.clientY };
+      var data = tooltipText(event.target);
+      if (!data) return;
+      var related = event.relatedTarget;
+      if (related && data.target.contains && data.target.contains(related)) return;
+      scheduleHide();
+    });
+
+    document.addEventListener('focusin', function (event) {
+      var data = tooltipText(event.target);
+      if (!data || !data.text) return;
+      show(data);
+    });
+
+    document.addEventListener('focusout', function (event) {
+      if (tooltipText(event.target)) scheduleHide();
+    });
+
+    normalizeTooltipAttributes(document);
+    new MutationObserver(function (records) {
+      records.forEach(function (record) {
+        if (record.type === 'childList') {
+          record.addedNodes.forEach(function (node) {
+            if (node.nodeType === 1) normalizeTooltipAttributes(node);
+          });
+        } else if (record.type === 'attributes' && record.target && record.target.nodeType === 1) {
+          normalizeTooltipAttributes(record.target);
+        }
+      });
+    }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['title', 'data-tip', 'data-tooltip'] });
+
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+  } else {
+    window.addEventListener('scroll', clearAddressMatches, true);
+    window.addEventListener('resize', clearAddressMatches);
+  }
 
   document.addEventListener('pointerover', function (event) {
     var data = addressMatchTrigger(event.target);
@@ -250,35 +283,14 @@
   });
 
   document.addEventListener('focusin', function (event) {
-    var data = tooltipText(event.target);
-    if (!data || !data.text) return;
-    show(data);
     var addressData = addressMatchTrigger(event.target);
     if (addressData) showAddressMatches(addressData);
   });
 
   document.addEventListener('focusout', function (event) {
-    if (!tooltipText(event.target)) return;
-    scheduleHide();
     if (!activeAddressMatch || !activeAddressMatch.cell.contains(event.target)) return;
     if (event.relatedTarget && activeAddressMatch.cell.contains(event.relatedTarget)) return;
     clearAddressMatches();
   });
-
-  normalizeTooltipAttributes(document);
-  new MutationObserver(function (records) {
-    records.forEach(function (record) {
-      if (record.type === 'childList') {
-        record.addedNodes.forEach(function (node) {
-          if (node.nodeType === 1) normalizeTooltipAttributes(node);
-        });
-      } else if (record.type === 'attributes' && record.target && record.target.nodeType === 1) {
-        normalizeTooltipAttributes(record.target);
-      }
-    });
-  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['title', 'data-tip', 'data-tooltip'] });
-
-  window.addEventListener('scroll', hide, true);
-  window.addEventListener('resize', hide);
   window.addEventListener('blur', clearAddressMatches);
 })();
