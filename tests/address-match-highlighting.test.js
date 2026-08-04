@@ -237,6 +237,9 @@ function buildFixture(options = {}) {
 
   return {
     document,
+    dispatchWindow(type) {
+      (windowListeners.get(type) || []).forEach((handler) => handler());
+    },
     source,
     peer,
     duplicateWrapperPeer,
@@ -264,6 +267,37 @@ test('highlights only exact repeated address text within the opted-in table', ()
   assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.crossTable.addressTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.unscoped.addressTrigger.classList.contains('address-match-peer'), false);
+});
+
+test('supports mouse hover events when pointer events are not emitted', () => {
+  const fixture = buildFixture();
+
+  fixture.document.dispatch('mouseover', fixture.source.addressTrigger);
+
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+
+  fixture.document.dispatch('mouseout', fixture.source.addressTrigger);
+
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), false);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), false);
+});
+
+test('keeps matching through scroll only while the address remains under the pointer', () => {
+  const fixture = buildFixture({ inlineTooltip: true });
+
+  fixture.document.dispatch('pointerover', fixture.source.addressTrigger);
+  fixture.document.elementFromPoint = () => fixture.source.addressTrigger;
+  fixture.dispatchWindow('scroll');
+
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+
+  fixture.document.elementFromPoint = () => fixture.other.addressTrigger;
+  fixture.dispatchWindow('scroll');
+
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), false);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
 test('rejects malformed addresses and clears all address text states on pointer exit', () => {

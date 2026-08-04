@@ -57,12 +57,27 @@ table[data-address-match-cells] tbody .addr-tooltip-wrap.address-match-active.ad
 }
 
 table[data-address-match-cells] tbody .addr-tooltip-wrap.address-match-active.address-match-source {
-  color: var(--gold-hi, #e5c85d);
+  color: #e5c85d;
   background-color: rgba(201, 162, 39, .22);
   box-shadow:
     0 0 0 1px rgba(201, 162, 39, .92),
     0 0 0 3px rgba(201, 162, 39, .12),
     0 0 16px rgba(201, 162, 39, .24);
+}
+
+table:is(
+  #positions-table,
+  #liquidation-history-table,
+  #supply-activity-table,
+  #exits-table,
+  #locks-table,
+  #unlocks-table,
+  #claimable-table,
+  #tbl-latest-ex,
+  #tbl-latest-pair,
+  .sim-atrisk-table
+)[data-address-match-cells] tbody .addr-tooltip-wrap[data-full-addr].address-match-active.address-match-source {
+  color: #e5c85d !important;
 }
 
 table[data-address-match-cells] tbody .addr-tooltip-wrap.address-match-active.address-match-peer {

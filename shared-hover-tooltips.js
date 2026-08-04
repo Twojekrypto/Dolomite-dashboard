@@ -188,12 +188,16 @@
     activeAddressMatch = { table: data.table, trigger: data.trigger, address: data.address, elements: elements };
   }
 
-  function hide() {
+  function hideTooltip() {
     var els = ensureTip();
     els.tip.style.opacity = '0';
     els.tip.style.display = 'none';
     els.arrow.style.opacity = '0';
     activeTarget = null;
+  }
+
+  function hide() {
+    hideTooltip();
     clearAddressMatches();
   }
 
@@ -217,6 +221,13 @@
       if (activeTarget && el && activeTarget.contains(el)) return;
       hide();
     }, 80);
+  }
+
+  function reconcileAddressMatchAfterViewportChange() {
+    if (!activeAddressMatch) return;
+    var elementAtPointer = document.elementFromPoint(lastPointer.x, lastPointer.y);
+    if (elementAtPointer && activeAddressMatch.trigger.contains(elementAtPointer)) return;
+    clearAddressMatches();
   }
 
   var hasInlineTooltipSystem = !!window.__DOLO_INLINE_TOOLTIP_ACTIVE;
@@ -271,23 +282,33 @@
       });
     }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['title', 'data-tip', 'data-tooltip'] });
 
-    window.addEventListener('scroll', hide, true);
-    window.addEventListener('resize', hide);
+    var handleViewportChange = function () {
+      hideTooltip();
+      reconcileAddressMatchAfterViewportChange();
+    };
+    window.addEventListener('scroll', handleViewportChange, true);
+    window.addEventListener('resize', handleViewportChange);
   } else {
-    window.addEventListener('scroll', clearAddressMatches, true);
-    window.addEventListener('resize', clearAddressMatches);
+    window.addEventListener('scroll', reconcileAddressMatchAfterViewportChange, true);
+    window.addEventListener('resize', reconcileAddressMatchAfterViewportChange);
   }
 
-  document.addEventListener('pointerover', function (event) {
+  function handleAddressMatchOver(event) {
+    lastPointer = { x: event.clientX, y: event.clientY };
     var data = addressMatchTrigger(event.target);
     if (data) showAddressMatches(data);
-  });
+  }
 
-  document.addEventListener('pointerout', function (event) {
+  function handleAddressMatchOut(event) {
     if (!activeAddressMatch || !activeAddressMatch.trigger.contains(event.target)) return;
     if (event.relatedTarget && activeAddressMatch.trigger.contains(event.relatedTarget)) return;
     clearAddressMatches();
-  });
+  }
+
+  document.addEventListener('pointerover', handleAddressMatchOver);
+  document.addEventListener('mouseover', handleAddressMatchOver);
+  document.addEventListener('pointerout', handleAddressMatchOut);
+  document.addEventListener('mouseout', handleAddressMatchOut);
 
   document.addEventListener('focusin', function (event) {
     var addressData = addressMatchTrigger(event.target);
