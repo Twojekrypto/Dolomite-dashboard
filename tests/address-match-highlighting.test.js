@@ -150,6 +150,13 @@ class FakeDocument {
     return [];
   }
 
+  querySelector(selector) {
+    if (selector === '.addr-tooltip-wrap[data-full-addr]:hover') {
+      return this.hoveredAddressTrigger || null;
+    }
+    return null;
+  }
+
   getElementById(id) {
     return this.elementsById.get(id) || null;
   }
@@ -200,8 +207,6 @@ function buildFixture(options = {}) {
     setTimeout,
     clearTimeout,
   });
-  vm.runInContext(SOURCE, context, { filename: 'shared-hover-tooltips.js' });
-
   const address = '0x1111111111111111111111111111111111111111';
   const otherAddress = '0x2222222222222222222222222222222222222222';
   const table = new FakeElement('table', { attributes: { 'data-address-match-cells': '' } });
@@ -216,6 +221,11 @@ function buildFixture(options = {}) {
 
   const unscopedTable = new FakeElement('table');
   const unscoped = appendAddressCell(unscopedTable, address);
+
+  if (options.hoveredAtLoad) document.hoveredAddressTrigger = source.triggers[0];
+  for (let execution = 0; execution < (options.executions || 1); execution += 1) {
+    vm.runInContext(SOURCE, context, { filename: 'shared-hover-tooltips.js' });
+  }
 
   return {
     document,
@@ -235,7 +245,9 @@ test('highlights exact repeated address cells only within the opted-in table', (
   fixture.document.dispatch('pointerover', fixture.source.triggers[0]);
 
   assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
+  assert.equal(fixture.source.cell.classList.contains('address-match-active'), true);
   assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.peer.cell.classList.contains('address-match-active'), true);
   assert.equal(fixture.duplicateWrapperPeer.cell.classList.contains('address-match-peer'), true);
   assert.equal(fixture.duplicateWrapperPeer.cell.classList.addCounts.get('address-match-peer'), 1);
   assert.equal(fixture.other.cell.classList.contains('address-match-peer'), false);
@@ -255,8 +267,18 @@ test('rejects malformed addresses and clears all cell states on pointer exit', (
   fixture.document.dispatch('pointerout', fixture.source.triggers[0]);
 
   assert.equal(fixture.source.cell.classList.contains('address-match-source'), false);
+  assert.equal(fixture.source.cell.classList.contains('address-match-active'), false);
   assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), false);
   assert.equal(fixture.duplicateWrapperPeer.cell.classList.contains('address-match-peer'), false);
+});
+
+test('does not emphasize an address that has no visible peer in its table', () => {
+  const fixture = buildFixture();
+
+  fixture.document.dispatch('pointerover', fixture.other.triggers[0]);
+
+  assert.equal(fixture.other.cell.classList.contains('address-match-source'), false);
+  assert.equal(fixture.other.cell.classList.contains('address-match-active'), false);
 });
 
 test('uses the same cell-only state when an address trigger receives focus', () => {
@@ -277,4 +299,19 @@ test('keeps cell matching active without duplicating an existing page tooltip sy
   assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
   assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
   assert.equal(fixture.document.getElementById('unified-tooltip'), null);
+});
+
+test('installs delegated address matching only once when a route reloads the shared asset', () => {
+  const fixture = buildFixture({ inlineTooltip: true, executions: 2 });
+
+  assert.equal(fixture.document.listeners.get('pointerover').length, 1);
+  fixture.document.dispatch('pointerover', fixture.source.triggers[0]);
+  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
+});
+
+test('initializes matching when a routed page loads while an address is already hovered', () => {
+  const fixture = buildFixture({ inlineTooltip: true, hoveredAtLoad: true });
+
+  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
 });

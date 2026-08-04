@@ -102,10 +102,18 @@ class AddressMatchTableScopeTest(unittest.TestCase):
 
         liquidation = (ROOT / "liquidation-preview.html").read_text(encoding="utf-8")
         marker = "window.__DOLO_INLINE_TOOLTIP_ACTIVE=true"
+        head = liquidation.split("</head>", 1)[0]
         self.assertIn(marker, liquidation)
+        self.assertNotIn(f'src="shared-hover-tooltips.js?v={version}"', head)
         self.assertLess(
             liquidation.index(marker),
-            liquidation.index(f"shared-hover-tooltips.js?v={version}"),
+            liquidation.index(f"shared-hover-tooltips.css?v={version}"),
+        )
+        self.assertIn("if(!window.__DOLO_ADDRESS_MATCH_LOADED)", liquidation)
+        self.assertIn("setTimeout(loadAddressMatch,0)", liquidation)
+        self.assertIn(
+            f"fallback.src='shared-hover-tooltips.js?v={version}'",
+            liquidation,
         )
 
         for route_name in (
@@ -117,7 +125,6 @@ class AddressMatchTableScopeTest(unittest.TestCase):
         ):
             route = (ROOT / route_name).read_text(encoding="utf-8")
             self.assertIn("address-match-20260804", route, route_name)
-
 
 if __name__ == "__main__":
     unittest.main()

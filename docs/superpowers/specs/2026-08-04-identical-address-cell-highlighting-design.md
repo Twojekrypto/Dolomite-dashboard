@@ -67,8 +67,9 @@ These tables do not present repeated wallet activity in the same visible table. 
 3. The full address is normalized to lowercase and accepted only when it is a complete 20-byte EVM address represented by `0x` plus 40 hexadecimal characters.
 4. The source cell receives the stronger gold treatment.
 5. Every other visible cell in the same opted-in table containing that exact normalized address receives a quieter matching treatment.
-6. Different addresses, partial strings, shortened display text, labels, and addresses in other tables do not match.
-7. Leaving the source cell or moving keyboard focus away clears the state immediately.
+6. If the address has no other visible cell in that table, no emphasis is applied.
+7. Different addresses, partial strings, shortened display text, labels, and addresses in other tables do not match.
+8. Leaving the source cell or moving keyboard focus away clears the state immediately.
 
 The match is scoped to the currently rendered page of one table. There is no off-page count or cross-table highlighting.
 
@@ -87,7 +88,7 @@ The treatment uses the existing Graphite + Gold palette and CSS custom propertie
 
 The behavior belongs in `shared-hover-tooltips.js` because the supported address renderers already expose their canonical value through `.addr-tooltip-wrap[data-full-addr]`. Shared styles belong in `shared-hover-tooltips.css`.
 
-`liquidation-preview.html` already owns a specialized inline tooltip system. It loads the same shared assets with an explicit marker that keeps the inline tooltip authoritative while the shared file installs only the address-cell matching controller. This avoids duplicate tooltip listeners while preserving one shared implementation of address matching across Borrow, Supply, veDOLO, and oDOLO.
+`liquidation-preview.html` already owns a specialized inline tooltip system. It sets an explicit marker, then loads the shared controller dynamically after the route loader has closed its written document. The marker keeps the inline tooltip authoritative while the shared file installs only the address-cell matching controller. This avoids duplicate tooltip listeners while preserving one shared implementation of address matching across Borrow, Supply, veDOLO, and oDOLO.
 
 The helper must:
 

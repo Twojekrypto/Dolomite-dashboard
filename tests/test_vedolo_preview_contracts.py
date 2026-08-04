@@ -14,7 +14,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         cls.html = VEDOLO_HTML.read_text(encoding="utf-8")
         cls.route = VEDOLO_ROUTE.read_text(encoding="utf-8")
         cls.claimable_table = re.search(
-            r'<table class="tbl" id="claimable-table">(?P<body>.*?)</table>',
+            r'<table class="tbl" id="claimable-table"[^>]*>(?P<body>.*?)</table>',
             cls.html,
             re.S,
         ).group("body")

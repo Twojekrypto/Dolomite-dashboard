@@ -12,6 +12,7 @@
 
 - Match only complete EVM addresses represented by `0x` plus 40 hexadecimal characters.
 - Match only currently rendered cells in the nearest opted-in table.
+- Do not emphasize a source cell when it has no visible peer in that table.
 - Never highlight a full row or add a left-side rail.
 - Preserve existing row hover, risk colors, zebra backgrounds, links, copy actions, sorting, filtering, and pagination.
 - Use the existing Graphite + Gold design tokens and avoid layout-changing borders.
@@ -150,7 +151,7 @@ Add the boolean `data-address-match-cells` attribute only to:
 
 Do not alter column markup, renderer output, `nth-child` selectors, or any excluded table.
 
-Load `shared-hover-tooltips.js` and `shared-hover-tooltips.css` with the cache key `20260804-address-match` on all three affected previews. Mark `liquidation-preview.html` with `window.__DOLO_INLINE_TOOLTIP_ACTIVE=true` before the deferred shared script so its specialized tooltip remains authoritative and only the shared address matcher is installed. Append `address-match-20260804` to the five affected route preview versions so Borrow, Liquidations, Supply, veDOLO, and oDOLO fetch the updated preview immediately.
+Load `shared-hover-tooltips.js` and `shared-hover-tooltips.css` with the cache key `20260804-address-match` on all three affected previews. Mark `liquidation-preview.html` with `window.__DOLO_INLINE_TOOLTIP_ACTIVE=true`, then load the shared script dynamically after the route loader closes its written document; its specialized tooltip remains authoritative and only the shared address matcher is installed. Append `address-match-20260804` to the five affected route preview versions so Borrow, Liquidations, Supply, veDOLO, and oDOLO fetch the updated preview immediately.
 
 - [ ] **Step 4: Run the scope and runtime tests and verify GREEN**
 

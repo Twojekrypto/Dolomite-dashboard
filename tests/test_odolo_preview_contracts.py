@@ -14,7 +14,7 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         cls.html = ODOLO_HTML.read_text(encoding="utf-8")
         cls.route = ODOLO_ROUTE.read_text(encoding="utf-8")
         cls.latest_table = re.search(
-            r'<table class="tbl latest-ex-tbl" id="tbl-latest-ex">(?P<body>.*?)</table>',
+            r'<table class="tbl latest-ex-tbl" id="tbl-latest-ex"[^>]*>(?P<body>.*?)</table>',
             cls.html,
             re.S,
         ).group("body")
