@@ -1,0 +1,94 @@
+import unittest
+from html.parser import HTMLParser
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class AddressMatchTableParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tables = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != "table":
+            return
+        attributes = dict(attrs)
+        if "data-address-match-cells" not in attributes:
+            return
+        self.tables.append(
+            {
+                "id": attributes.get("id", ""),
+                "classes": frozenset(attributes.get("class", "").split()),
+            }
+        )
+
+
+class AddressMatchTableScopeTest(unittest.TestCase):
+    def _opted_in_tables(self):
+        records = []
+        for path in sorted(ROOT.glob("*-preview.html")):
+            parser = AddressMatchTableParser()
+            parser.feed(path.read_text(encoding="utf-8"))
+            records.extend((path.name, table) for table in parser.tables)
+        return records
+
+    def test_only_audited_repeating_wallet_tables_opt_in(self):
+        records = self._opted_in_tables()
+        identified = {
+            (filename, table["id"])
+            for filename, table in records
+            if table["id"]
+        }
+        class_only = {
+            (filename, table["classes"])
+            for filename, table in records
+            if not table["id"]
+        }
+
+        self.assertEqual(
+            identified,
+            {
+                ("vedolo-preview.html", "exits-table"),
+                ("vedolo-preview.html", "locks-table"),
+                ("vedolo-preview.html", "unlocks-table"),
+                ("vedolo-preview.html", "claimable-table"),
+                ("odolo-preview.html", "tbl-latest-ex"),
+                ("odolo-preview.html", "tbl-latest-pair"),
+                ("liquidation-preview.html", "positions-table"),
+                ("liquidation-preview.html", "liquidation-history-table"),
+                ("liquidation-preview.html", "supply-activity-table"),
+            },
+        )
+        self.assertEqual(
+            class_only,
+            {
+                (
+                    "liquidation-preview.html",
+                    frozenset({"positions-table", "sim-atrisk-table"}),
+                )
+            },
+        )
+        self.assertEqual(len(records), 10)
+
+    def test_opted_in_pages_render_canonical_full_addresses(self):
+        vedolo = (ROOT / "vedolo-preview.html").read_text(encoding="utf-8")
+        odolo = (ROOT / "odolo-preview.html").read_text(encoding="utf-8")
+        liquidation = (ROOT / "liquidation-preview.html").read_text(encoding="utf-8")
+
+        for renderer in ("function exitAddressCell", "function flowAddressCell", "function holderCell"):
+            self.assertIn(renderer, vedolo)
+        self.assertGreaterEqual(vedolo.count("data-full-addr"), 3)
+
+        for renderer in ("function renderLatestExercises", "function renderLatestPairs"):
+            self.assertIn(renderer, odolo)
+        self.assertGreaterEqual(odolo.count("data-full-addr"), 2)
+
+        for renderer in ("renderDoloAddressTools", "renderActivityAddressTools"):
+            self.assertIn(renderer, liquidation)
+        self.assertGreaterEqual(liquidation.count("data-full-addr"), 2)
+
+
+if __name__ == "__main__":
+    unittest.main()
