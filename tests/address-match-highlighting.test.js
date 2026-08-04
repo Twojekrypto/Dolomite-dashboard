@@ -170,17 +170,25 @@ class FakeDocument {
   }
 }
 
-function appendAddressCell(table, address, wrappers = 1) {
+function appendAddressCell(table, address, options = {}) {
   const row = table.appendChild(new FakeElement('tr'));
   const cell = row.appendChild(new FakeElement('td'));
-  const triggers = [];
-  for (let index = 0; index < wrappers; index += 1) {
-    triggers.push(cell.appendChild(new FakeElement('span', {
+  let labelTrigger = null;
+  if (options.knownLabel) {
+    labelTrigger = cell.appendChild(new FakeElement('span', {
       classes: ['addr-tooltip-wrap'],
       attributes: { 'data-full-addr': address },
-    })));
+    }));
+    labelTrigger.textContent = 'Wallet';
   }
-  return { cell, triggers };
+  const addressTrigger = cell.appendChild(new FakeElement('span', {
+    classes: ['addr-tooltip-wrap'],
+    attributes: { 'data-full-addr': address },
+  }));
+  addressTrigger.textContent = /^0x[a-f0-9]{40}$/i.test(address)
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : address;
+  return { cell, labelTrigger, addressTrigger };
 }
 
 function buildFixture(options = {}) {
@@ -210,9 +218,9 @@ function buildFixture(options = {}) {
   const address = '0x1111111111111111111111111111111111111111';
   const otherAddress = '0x2222222222222222222222222222222222222222';
   const table = new FakeElement('table', { attributes: { 'data-address-match-cells': '' } });
-  const source = appendAddressCell(table, address);
-  const peer = appendAddressCell(table, address);
-  const duplicateWrapperPeer = appendAddressCell(table, address.toUpperCase().replace('0X', '0x'), 2);
+  const source = appendAddressCell(table, address, { knownLabel: true });
+  const peer = appendAddressCell(table, address, { knownLabel: true });
+  const duplicateWrapperPeer = appendAddressCell(table, address.toUpperCase().replace('0X', '0x'), { knownLabel: true });
   const other = appendAddressCell(table, otherAddress);
   const malformed = appendAddressCell(table, '0x1234');
 
@@ -222,7 +230,7 @@ function buildFixture(options = {}) {
   const unscopedTable = new FakeElement('table');
   const unscoped = appendAddressCell(unscopedTable, address);
 
-  if (options.hoveredAtLoad) document.hoveredAddressTrigger = source.triggers[0];
+  if (options.hoveredAtLoad) document.hoveredAddressTrigger = source.addressTrigger;
   for (let execution = 0; execution < (options.executions || 1); execution += 1) {
     vm.runInContext(SOURCE, context, { filename: 'shared-hover-tooltips.js' });
   }
@@ -239,65 +247,68 @@ function buildFixture(options = {}) {
   };
 }
 
-test('highlights exact repeated address cells only within the opted-in table', () => {
+test('highlights only exact repeated address text within the opted-in table', () => {
   const fixture = buildFixture();
 
-  fixture.document.dispatch('pointerover', fixture.source.triggers[0]);
+  fixture.document.dispatch('pointerover', fixture.source.addressTrigger);
 
-  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
-  assert.equal(fixture.source.cell.classList.contains('address-match-active'), true);
-  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
-  assert.equal(fixture.peer.cell.classList.contains('address-match-active'), true);
-  assert.equal(fixture.duplicateWrapperPeer.cell.classList.contains('address-match-peer'), true);
-  assert.equal(fixture.duplicateWrapperPeer.cell.classList.addCounts.get('address-match-peer'), 1);
-  assert.equal(fixture.other.cell.classList.contains('address-match-peer'), false);
-  assert.equal(fixture.crossTable.cell.classList.contains('address-match-peer'), false);
-  assert.equal(fixture.unscoped.cell.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-active'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-active'), true);
+  assert.equal(fixture.duplicateWrapperPeer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.source.labelTrigger.classList.contains('address-match-source'), false);
+  assert.equal(fixture.peer.labelTrigger.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.source.cell.classList.contains('address-match-source'), false);
+  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.crossTable.addressTrigger.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.unscoped.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
-test('rejects malformed addresses and clears all cell states on pointer exit', () => {
+test('rejects malformed addresses and clears all address text states on pointer exit', () => {
   const fixture = buildFixture();
 
-  fixture.document.dispatch('pointerover', fixture.malformed.triggers[0]);
-  assert.equal(fixture.malformed.cell.classList.contains('address-match-source'), false);
+  fixture.document.dispatch('pointerover', fixture.malformed.addressTrigger);
+  assert.equal(fixture.malformed.addressTrigger.classList.contains('address-match-source'), false);
 
-  fixture.document.dispatch('pointerover', fixture.source.triggers[0]);
-  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
-  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
-  fixture.document.dispatch('pointerout', fixture.source.triggers[0]);
+  fixture.document.dispatch('pointerover', fixture.source.addressTrigger);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+  fixture.document.dispatch('pointerout', fixture.source.addressTrigger);
 
-  assert.equal(fixture.source.cell.classList.contains('address-match-source'), false);
-  assert.equal(fixture.source.cell.classList.contains('address-match-active'), false);
-  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), false);
-  assert.equal(fixture.duplicateWrapperPeer.cell.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), false);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-active'), false);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.duplicateWrapperPeer.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
 test('does not emphasize an address that has no visible peer in its table', () => {
   const fixture = buildFixture();
 
-  fixture.document.dispatch('pointerover', fixture.other.triggers[0]);
+  fixture.document.dispatch('pointerover', fixture.other.addressTrigger);
 
-  assert.equal(fixture.other.cell.classList.contains('address-match-source'), false);
-  assert.equal(fixture.other.cell.classList.contains('address-match-active'), false);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-source'), false);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-active'), false);
 });
 
-test('uses the same cell-only state when an address trigger receives focus', () => {
+test('uses the same address-text-only state when an address trigger receives focus', () => {
   const fixture = buildFixture();
 
-  fixture.document.dispatch('focusin', fixture.source.triggers[0]);
+  fixture.document.dispatch('focusin', fixture.source.addressTrigger);
 
-  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
-  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
-  assert.equal(fixture.other.cell.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
-test('keeps cell matching active without duplicating an existing page tooltip system', () => {
+test('keeps address matching active without duplicating an existing page tooltip system', () => {
   const fixture = buildFixture({ inlineTooltip: true });
 
-  fixture.document.dispatch('focusin', fixture.source.triggers[0]);
+  fixture.document.dispatch('focusin', fixture.source.addressTrigger);
 
-  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
-  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
   assert.equal(fixture.document.getElementById('unified-tooltip'), null);
 });
 
@@ -305,13 +316,13 @@ test('installs delegated address matching only once when a route reloads the sha
   const fixture = buildFixture({ inlineTooltip: true, executions: 2 });
 
   assert.equal(fixture.document.listeners.get('pointerover').length, 1);
-  fixture.document.dispatch('pointerover', fixture.source.triggers[0]);
-  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
+  fixture.document.dispatch('pointerover', fixture.source.addressTrigger);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), true);
 });
 
 test('initializes matching when a routed page loads while an address is already hovered', () => {
   const fixture = buildFixture({ inlineTooltip: true, hoveredAtLoad: true });
 
-  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
-  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
 });

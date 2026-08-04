@@ -58,12 +58,16 @@
     return /^0x[a-f0-9]{40}$/.test(address) ? address : '';
   }
 
+  function isDisplayedAddressTrigger(trigger) {
+    var text = cleanText(trigger && trigger.textContent).toLowerCase();
+    return /^0x[a-f0-9]{40}$/.test(text) || /^0x[a-f0-9]{4,}(?:\.{3}|…)[a-f0-9]{4}$/.test(text);
+  }
+
   function addressMatchTrigger(target) {
     var trigger = target.closest && target.closest('.addr-tooltip-wrap[data-full-addr]');
     var table = trigger && trigger.closest('table[data-address-match-cells]');
-    var cell = trigger && trigger.closest('td');
     var address = trigger && normalizeMatchAddress(trigger.getAttribute('data-full-addr'));
-    return table && cell && address ? { trigger: trigger, table: table, cell: cell, address: address } : null;
+    return table && address && isDisplayedAddressTrigger(trigger) ? { trigger: trigger, table: table, address: address } : null;
   }
 
   function isAddress(value) {
@@ -158,33 +162,30 @@
 
   function clearAddressMatches() {
     if (!activeAddressMatch) return;
-    activeAddressMatch.cells.forEach(function (cell) {
-      cell.classList.remove('address-match-active', 'address-match-source', 'address-match-peer');
+    activeAddressMatch.elements.forEach(function (element) {
+      element.classList.remove('address-match-active', 'address-match-source', 'address-match-peer');
     });
     activeAddressMatch = null;
   }
 
   function showAddressMatches(data) {
-    if (activeAddressMatch && activeAddressMatch.table === data.table && activeAddressMatch.cell === data.cell && activeAddressMatch.address === data.address) return;
+    if (activeAddressMatch && activeAddressMatch.table === data.table && activeAddressMatch.trigger === data.trigger && activeAddressMatch.address === data.address) return;
     clearAddressMatches();
 
-    var cells = [];
-    var seen = new Set();
+    var elements = [];
     data.table.querySelectorAll('.addr-tooltip-wrap[data-full-addr]').forEach(function (trigger) {
       if (normalizeMatchAddress(trigger.getAttribute('data-full-addr')) !== data.address) return;
-      var cell = trigger.closest('td');
-      if (!cell || seen.has(cell)) return;
-      seen.add(cell);
-      cells.push(cell);
+      if (!isDisplayedAddressTrigger(trigger)) return;
+      elements.push(trigger);
     });
 
-    if (cells.length < 2) return;
+    if (elements.length < 2) return;
 
-    cells.forEach(function (cell) {
-      cell.classList.add('address-match-active');
-      cell.classList.add(cell === data.cell ? 'address-match-source' : 'address-match-peer');
+    elements.forEach(function (element) {
+      element.classList.add('address-match-active');
+      element.classList.add(element === data.trigger ? 'address-match-source' : 'address-match-peer');
     });
-    activeAddressMatch = { table: data.table, cell: data.cell, address: data.address, cells: cells };
+    activeAddressMatch = { table: data.table, trigger: data.trigger, address: data.address, elements: elements };
   }
 
   function hide() {
@@ -283,8 +284,8 @@
   });
 
   document.addEventListener('pointerout', function (event) {
-    if (!activeAddressMatch || !activeAddressMatch.cell.contains(event.target)) return;
-    if (event.relatedTarget && activeAddressMatch.cell.contains(event.relatedTarget)) return;
+    if (!activeAddressMatch || !activeAddressMatch.trigger.contains(event.target)) return;
+    if (event.relatedTarget && activeAddressMatch.trigger.contains(event.relatedTarget)) return;
     clearAddressMatches();
   });
 
@@ -294,8 +295,8 @@
   });
 
   document.addEventListener('focusout', function (event) {
-    if (!activeAddressMatch || !activeAddressMatch.cell.contains(event.target)) return;
-    if (event.relatedTarget && activeAddressMatch.cell.contains(event.relatedTarget)) return;
+    if (!activeAddressMatch || !activeAddressMatch.trigger.contains(event.target)) return;
+    if (event.relatedTarget && activeAddressMatch.trigger.contains(event.relatedTarget)) return;
     clearAddressMatches();
   });
   window.addEventListener('blur', clearAddressMatches);
