@@ -1,4 +1,7 @@
 (function () {
+  if (window.__DOLO_ADDRESS_MATCH_LOADED) return;
+  window.__DOLO_ADDRESS_MATCH_LOADED = true;
+
   var ACTION_TOOLTIP_SELECTOR = [
     '.copy-addr-icon',
     '.addr-copy',
@@ -156,7 +159,7 @@
   function clearAddressMatches() {
     if (!activeAddressMatch) return;
     activeAddressMatch.cells.forEach(function (cell) {
-      cell.classList.remove('address-match-source', 'address-match-peer');
+      cell.classList.remove('address-match-active', 'address-match-source', 'address-match-peer');
     });
     activeAddressMatch = null;
   }
@@ -175,7 +178,10 @@
       cells.push(cell);
     });
 
+    if (cells.length < 2) return;
+
     cells.forEach(function (cell) {
+      cell.classList.add('address-match-active');
       cell.classList.add(cell === data.cell ? 'address-match-source' : 'address-match-peer');
     });
     activeAddressMatch = { table: data.table, cell: data.cell, address: data.address, cells: cells };
@@ -293,4 +299,8 @@
     clearAddressMatches();
   });
   window.addEventListener('blur', clearAddressMatches);
+
+  var initiallyHoveredAddress = document.querySelector('.addr-tooltip-wrap[data-full-addr]:hover');
+  var initialAddressMatch = initiallyHoveredAddress && addressMatchTrigger(initiallyHoveredAddress);
+  if (initialAddressMatch) showAddressMatches(initialAddressMatch);
 })();

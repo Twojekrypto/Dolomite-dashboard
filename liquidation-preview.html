@@ -12,7 +12,6 @@
     <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
     <script>window.__DOLO_INLINE_TOOLTIP_ACTIVE=true;</script>
     <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260804-address-match">
-    <script defer src="shared-hover-tooltips.js?v=20260804-address-match"></script>
     <style>
         /* ===== DESIGN TOKENS (matched to main dashboard) ===== */
         :root {
@@ -20544,6 +20543,16 @@
         // ─── Launch ──────────────────────────────────────────────────────────
         startSupplyDataFreshnessClock();
         init();
+    </script>
+    <script>
+        const loadAddressMatch=()=>{
+            if(!window.__DOLO_ADDRESS_MATCH_LOADED){
+                const fallback=document.createElement('script');
+                fallback.src='shared-hover-tooltips.js?v=20260804-address-match';
+                document.head.appendChild(fallback);
+            }
+        };
+        setTimeout(loadAddressMatch,0);
     </script>
 </body>
 </html>
