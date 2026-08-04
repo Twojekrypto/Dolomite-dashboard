@@ -92,6 +92,12 @@ class AddressMatchTableScopeTest(unittest.TestCase):
     def test_opted_in_pages_load_the_shared_assets_with_fresh_cache_keys(self):
         version = "20260804-address-strong-final"
         for preview_name in (
+            "assets-preview.html",
+            "dolo-preview.html",
+            "portfolio-preview.html",
+            "revenue-preview.html",
+            "rewards-preview.html",
+            "tvl-preview.html",
             "vedolo-preview.html",
             "odolo-preview.html",
             "liquidation-preview.html",
@@ -117,6 +123,12 @@ class AddressMatchTableScopeTest(unittest.TestCase):
         )
 
         for route_name in (
+            "assets/index.html",
+            "dolo/index.html",
+            "portfolio/index.html",
+            "revenue/index.html",
+            "rewards/index.html",
+            "tvl/index.html",
             "vedolo/index.html",
             "odolo/index.html",
             "borrow/index.html",
