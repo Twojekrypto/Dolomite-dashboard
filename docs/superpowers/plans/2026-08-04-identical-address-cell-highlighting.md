@@ -107,6 +107,11 @@ git commit -m "feat: highlight repeated wallet cells"
 - Modify: `vedolo-preview.html`
 - Modify: `odolo-preview.html`
 - Modify: `liquidation-preview.html`
+- Modify: `vedolo/index.html`
+- Modify: `odolo/index.html`
+- Modify: `borrow/index.html`
+- Modify: `liquidation/index.html`
+- Modify: `supply/index.html`
 - Create: `tests/test_address_match_table_scope.py`
 
 **Interfaces:**
@@ -144,6 +149,8 @@ Add the boolean `data-address-match-cells` attribute only to:
 - `liquidation-preview.html`: `.positions-table.sim-atrisk-table`, `#positions-table`, `#liquidation-history-table`, `#supply-activity-table`
 
 Do not alter column markup, renderer output, `nth-child` selectors, or any excluded table.
+
+Load `shared-hover-tooltips.js` and `shared-hover-tooltips.css` with the cache key `20260804-address-match` on all three affected previews. Mark `liquidation-preview.html` with `window.__DOLO_INLINE_TOOLTIP_ACTIVE=true` before the deferred shared script so its specialized tooltip remains authoritative and only the shared address matcher is installed. Append `address-match-20260804` to the five affected route preview versions so Borrow, Liquidations, Supply, veDOLO, and oDOLO fetch the updated preview immediately.
 
 - [ ] **Step 4: Run the scope and runtime tests and verify GREEN**
 

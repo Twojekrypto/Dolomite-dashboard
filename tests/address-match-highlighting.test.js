@@ -176,11 +176,12 @@ function appendAddressCell(table, address, wrappers = 1) {
   return { cell, triggers };
 }
 
-function buildFixture() {
+function buildFixture(options = {}) {
   const document = new FakeDocument();
   const windowListeners = new Map();
   const window = {
     innerWidth: 1440,
+    __DOLO_INLINE_TOOLTIP_ACTIVE: Boolean(options.inlineTooltip),
     addEventListener(type, handler) {
       if (!windowListeners.has(type)) windowListeners.set(type, []);
       windowListeners.get(type).push(handler);
@@ -266,4 +267,14 @@ test('uses the same cell-only state when an address trigger receives focus', () 
   assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
   assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
   assert.equal(fixture.other.cell.classList.contains('address-match-peer'), false);
+});
+
+test('keeps cell matching active without duplicating an existing page tooltip system', () => {
+  const fixture = buildFixture({ inlineTooltip: true });
+
+  fixture.document.dispatch('focusin', fixture.source.triggers[0]);
+
+  assert.equal(fixture.source.cell.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.document.getElementById('unified-tooltip'), null);
 });
