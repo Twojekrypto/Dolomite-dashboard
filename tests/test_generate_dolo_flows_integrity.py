@@ -17,6 +17,8 @@ EARLY_ONLY = "0x1111111111111111111111111111111111111111"
 INVESTOR_ONLY = "0x2222222222222222222222222222222222222222"
 OVERLAP = "0x3333333333333333333333333333333333333333"
 DOLOMITE_GNOSIS_SAFE = "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4"
+CHAINLINK_REWARDS_CLAIM = "0x2f41d42de3eab9e75f3d417259f24421771fb700"
+ECOSYSTEM_INCENTIVES_2 = "0x06265db7ecd9c5724a97bd4909146625d2e2619c"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
@@ -138,6 +140,42 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
 
         self.assertNotIn(COINBASE_10, excluded)
         self.assertIn(UNLABELED_CONTRACT, excluded)
+
+    def test_protocol_transfer_keeps_both_visible_flow_sides(self):
+        excluded = flows.select_dynamic_flow_exclusions(
+            {CHAINLINK_REWARDS_CLAIM, ECOSYSTEM_INCENTIVES_2},
+            {
+                CHAINLINK_REWARDS_CLAIM: {
+                    "label": "Chainlink Rewards Claim",
+                    "type": "protocol",
+                },
+                ECOSYSTEM_INCENTIVES_2: {
+                    "label": "Ecosystem Incentives 2",
+                    "type": "protocol",
+                },
+            },
+        )
+        net = flows.calculate_flows(
+            [(
+                CHAINLINK_REWARDS_CLAIM,
+                ECOSYSTEM_INCENTIVES_2,
+                2_213_363 * 10**18,
+                100,
+            )],
+            excluded,
+        )
+
+        sellers = flows.get_top(net, {}, 10, "seller", excluded)
+        accumulators = flows.get_top(net, {}, 10, "accumulator", excluded)
+
+        self.assertEqual(
+            [row["address"] for row in sellers],
+            [CHAINLINK_REWARDS_CLAIM],
+        )
+        self.assertEqual(
+            [row["address"] for row in accumulators],
+            [ECOSYSTEM_INCENTIVES_2],
+        )
 
     def test_directional_components_reconcile_coinbase_net_flow(self):
         self.assertTrue(hasattr(flows, "calculate_flow_components"))
