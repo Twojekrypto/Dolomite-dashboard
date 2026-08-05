@@ -45,10 +45,9 @@
     "0x871b0afcd3fd44f4c0071d4ade68ce40d0d6bbcc": {label:"Core Team 6", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
     "0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec": {label:"Core Team 7", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
     "0xb8ba44d5e46562ec011ade12603f353b18089a41": {label:"Core Team 8", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
-    // Distribution contract for investor allocations: funded by the Dolomite
-    // Gnosis Safe, pays out vesting tranches to investor wallets (the pipeline
-    // labels its recipients as Investors via extract_vesting_investors).
-    "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07": {label:"Investor Distribution", type:"protocol", treasury:true, source:"flow-audit-20260612", confidence:"confirmed"},
+    // Official long-term investor vesting contract. Recipient wallets are
+    // labeled by the shared claim-provenance pipeline.
+    "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07": {label:"Investor Claims", type:"protocol", treasury:true, source:"dolomite-docs-module-dolo", confidence:"confirmed"},
     "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd": {label:"Investor 2", type:"investor", treasury:true},
     "0x7efd088ae500598a19a242d6d48b9f7e0d061176": {label:"Strategic Investor Claims", type:"protocol", treasury:true, source:"dolomite-docs-module-dolo", confidence:"confirmed"},
 
@@ -155,26 +154,41 @@
     return /^0x[a-f0-9]{40}$/.test(String(value || "").toLowerCase());
   }
 
+  function normalizeInvestorLabel(label){
+    if(label === "Early Investor") return "Strategic Investor";
+    if(label === "Investor") return "Long-term Investor";
+    return label;
+  }
+
   function mergeDoloVestingLabels(targetLabels, payload){
     const labels = targetLabels && typeof targetLabels === "object" ? targetLabels : {};
     if(!payload || typeof payload !== "object" || Array.isArray(payload)) return {labels, changed:false, added:0};
 
     const candidates = new Map();
-    const addCandidate = (address, label, claimSources = []) => {
+    const addCandidate = (address, label, claimSources = [], metadata = {}) => {
       const key = String(address || "").toLowerCase();
-      if(!isDoloAddress(key) || !["Early Investor", "Investor", "Core Team"].includes(label)) return;
+      const normalizedLabel = normalizeInvestorLabel(label);
+      if(!isDoloAddress(key) || !["Strategic Investor", "Long-term Investor", "Core Team"].includes(normalizedLabel)) return;
       const previous = candidates.get(key);
-      const isEarly = label === "Early Investor" || previous?.label === "Early Investor";
+      const isStrategic = normalizedLabel === "Strategic Investor" || previous?.label === "Strategic Investor";
       const sources = new Set([...(previous?.claimSources || []), ...(claimSources || [])]);
-      candidates.set(key, {label:isEarly ? "Early Investor" : label, claimSources:Array.from(sources)});
+      candidates.set(key, {
+        label:isStrategic ? "Strategic Investor" : normalizedLabel,
+        claimSources:Array.from(sources),
+        roundAttribution:metadata.roundAttribution || previous?.roundAttribution || null,
+        vestingSchedule:metadata.vestingSchedule || previous?.vestingSchedule || null,
+      });
     };
 
     (payload.wallets || []).forEach(row => {
       if(!row || typeof row !== "object") return;
-      addCandidate(row.address, row.label, row.claimSources);
+      addCandidate(row.address, row.label, row.claimSources, row);
     });
-    (payload.early_investors || []).forEach(address => addCandidate(address, "Early Investor", ["strategic_investor_claims"]));
-    (payload.investors || []).forEach(address => addCandidate(address, "Investor", ["investor_claims"]));
+    const strategicRows = Array.isArray(payload.strategic_investors)
+      ? payload.strategic_investors
+      : payload.early_investors || [];
+    strategicRows.forEach(address => addCandidate(address, "Strategic Investor", ["strategic_investor_claims"]));
+    (payload.investors || []).forEach(address => addCandidate(address, "Long-term Investor", ["investor_claims"]));
 
     const investorSet = new Set((payload.investors || []).map(address => String(address || "").toLowerCase()));
     const teamRows = (payload.team || []).map(address => String(address || "").toLowerCase());
@@ -191,17 +205,22 @@
       const existing = labels[address];
       const canUpgradeInvestor = existing?.source === "official-claim-contract-transfer"
         && existing?.type === "investor"
-        && candidate.label === "Early Investor";
+        && candidate.label === "Strategic Investor";
       if(existing && !canUpgradeInvestor) return;
-      const hasEarly = candidate.label === "Early Investor";
+      const hasStrategic = candidate.label === "Strategic Investor";
       const hasLongTerm = candidate.claimSources.includes("investor_claims");
-      const description = hasEarly && hasLongTerm
-        ? "Received a strategic investor allocation and also received a long-term investor tranche."
-        : hasEarly
+      const description = hasStrategic && hasLongTerm
+        ? "Received DOLO from the official Strategic Investor Claims contract and also received the long-term investor tranche."
+        : hasStrategic
           ? "Received DOLO from the official Strategic Investor Claims contract."
-          : candidate.label === "Investor"
+          : candidate.label === "Long-term Investor"
             ? "Received DOLO from the official Investor Claims contract."
             : "Verified Core Team allocation wallet.";
+      const roundAttribution = candidate.roundAttribution || (hasStrategic ? {
+        key:"2024-strategic-900k",
+        label:"2024 strategic round · $900K",
+        status:"high-confidence-onchain-attribution",
+      } : null);
       labels[address] = {
         ...(existing || {}),
         label: candidate.label,
@@ -210,7 +229,17 @@
         source: candidate.label === "Core Team" ? "verified-team-allocation" : "official-claim-contract-transfer",
         confidence: "confirmed",
         claimSources: candidate.claimSources,
-        alsoReceivedLongTermTranche: Boolean(hasEarly && hasLongTerm),
+        labelDetail: hasStrategic
+          ? roundAttribution.label
+          : candidate.label === "Long-term Investor"
+            ? candidate.vestingSchedule || "3-year vesting · 1-year cliff"
+            : undefined,
+        attributionStatus: hasStrategic ? roundAttribution.status : undefined,
+        roundAttribution: roundAttribution || undefined,
+        vestingSchedule: hasLongTerm
+          ? candidate.vestingSchedule || "3-year vesting · 1-year cliff"
+          : undefined,
+        alsoReceivedLongTermTranche: Boolean(hasStrategic && hasLongTerm),
         description,
       };
       if(!existing) added += 1;

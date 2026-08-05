@@ -105,11 +105,25 @@ class DoloAddressLabelsTest(unittest.TestCase):
         self.assertEqual(strategic_claims["type"], "protocol")
         self.assertEqual(strategic_claims["source"], "dolomite-docs-module-dolo")
 
+        investor_claims = self.labels["0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"]
+        self.assertEqual(investor_claims["label"], "Investor Claims")
+        self.assertEqual(investor_claims["type"], "protocol")
+
     def test_published_investor_payload_does_not_duplicate_investors_as_team(self):
         payload = json.loads((ROOT / "vesting_investors.json").read_text())
+        self.assertEqual(payload["schemaVersion"], 3)
+        self.assertEqual(payload["strategic_investors"], payload["early_investors"])
         self.assertGreater(len(payload["early_investors"]), 0)
         self.assertGreater(len(payload["investors"]), 0)
         self.assertEqual(payload["team"], [])
+        self.assertNotIn(
+            "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4",
+            payload["strategic_investors"],
+        )
+        self.assertNotIn(
+            "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4",
+            payload["investors"],
+        )
 
     def test_wallet_table_pages_use_the_shared_vesting_label_loader(self):
         expected_consumers = {
