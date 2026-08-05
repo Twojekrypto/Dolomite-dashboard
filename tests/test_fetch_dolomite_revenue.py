@@ -749,7 +749,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803-header-hierarchy-20260803-copy-above-divider-20260803-address-strong-final-20260804-network-filter-20260805"', route_html)
+        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803-header-hierarchy-20260803-copy-above-divider-20260803-address-strong-final-20260804-network-filter-20260805-fast-wallet-sort-20260805"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
@@ -1016,6 +1016,75 @@ assert.deepStrictEqual(toggleResult, {
   chartRenderCount: 0,
   dropdownSyncCount: 1,
 });
+'''
+        subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_current_vedolo_wallet_sort_rerenders_only_cached_table_rows(self):
+        script = r'''
+const assert = require("assert");
+const fs = require("fs");
+const source = fs.readFileSync("revenue-preview.html", "utf8");
+
+function between(start, end) {
+  const from = source.indexOf(start);
+  const to = source.indexOf(end, from);
+  if (from < 0 || to < 0) throw new Error(`Missing production source boundary: ${start} -> ${end}`);
+  return source.slice(from, to);
+}
+
+const sortFunctions = between(
+  "const veBorrowWalletAddressCollator",
+  "window.setVeBorrowWalletSort",
+);
+const result = new Function(`
+  function n(value) { return Number(value) || 0; }
+  let displayNameCalls = 0;
+  function veBorrowWalletDisplayName(row) {
+    displayNameCalls += 1;
+    return { name: row.label || "Wallet" };
+  }
+  let veBorrowWalletSortKey = "saved";
+  let veBorrowWalletSortDesc = true;
+  let veBorrowWalletPage = 4;
+  const veBorrowWalletRowsCache = [
+    { address: "0xbbb", label: "Beta", currentVeDoloSavedUSD: 2 },
+    { address: "0xaaa", label: "Alpha", currentVeDoloSavedUSD: 1 },
+    { address: "0xccc", label: "Alpha", currentVeDoloSavedUSD: 3 },
+  ];
+  let chartRenderCount = 0;
+  let tableRenderCount = 0;
+  let renderedRows = null;
+  function renderVeBorrowChart() { chartRenderCount += 1; }
+  function renderVeBorrowCurrentWalletTable(rows) {
+    tableRenderCount += 1;
+    renderedRows = rows;
+  }
+  ${sortFunctions}
+  setVeBorrowWalletSort("address");
+  const firstOrder = sortVeBorrowWallets(veBorrowWalletRowsCache).map(row => row.address);
+  sortVeBorrowWallets(veBorrowWalletRowsCache);
+  return {
+    chartRenderCount,
+    tableRenderCount,
+    renderedRows,
+    firstOrder,
+    displayNameCalls,
+    page: veBorrowWalletPage,
+  };
+`)();
+
+assert.strictEqual(result.chartRenderCount, 0);
+assert.strictEqual(result.tableRenderCount, 1);
+assert.strictEqual(result.renderedRows.length, 3);
+assert.deepStrictEqual(result.firstOrder, ["0xaaa", "0xccc", "0xbbb"]);
+assert.strictEqual(result.displayNameCalls, 3);
+assert.strictEqual(result.page, 1);
 '''
         subprocess.run(
             ["node", "-e", script],

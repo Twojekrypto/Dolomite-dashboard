@@ -1474,6 +1474,7 @@ h1{
   let veBorrowWalletSelectedChains = new Set();
   let veBorrowWalletNetworkOpen = false;
   let veBorrowWalletRefocus = false;
+  let veBorrowWalletRowsCache = [];
   let chainSortKey = "revenue";
   let chainSortDesc = true;
   let revenueChartModes = { streams: "daily", borrowInterest: "daily", veBorrow: "daily" };
@@ -3110,8 +3111,17 @@ h1{
     }
   }
   window.copyVeBorrowAddress = copyVeBorrowAddress;
+  const veBorrowWalletAddressCollator = new Intl.Collator("en", { sensitivity: "base" });
+  const veBorrowWalletAddressSortCache = new WeakMap();
+  function veBorrowWalletAddressSortValue(row){
+    if (!row || typeof row !== "object") return String(row?.address || "").toLowerCase();
+    if (veBorrowWalletAddressSortCache.has(row)) return veBorrowWalletAddressSortCache.get(row);
+    const value = (veBorrowWalletDisplayName(row).name || String(row.address || "")).toLowerCase();
+    veBorrowWalletAddressSortCache.set(row, value);
+    return value;
+  }
   function veBorrowWalletSortValue(row, key){
-    if (key === "address") return (veBorrowWalletDisplayName(row).name || String(row?.address || "")).toLowerCase();
+    if (key === "address") return veBorrowWalletAddressSortValue(row);
     if (key === "borrowInterest") return n(row?.borrowInterestUSD);
     if (key === "vedolo") return n(row?.veDoloVoteWeight);
     if (key === "saved") return n(row?.currentVeDoloSavedUSD);
@@ -3124,12 +3134,12 @@ h1{
       const bv = veBorrowWalletSortValue(b, veBorrowWalletSortKey);
       let cmp = 0;
       if (typeof av === "string" || typeof bv === "string") {
-        cmp = String(av).localeCompare(String(bv), undefined, { sensitivity: "base" });
+        cmp = veBorrowWalletAddressCollator.compare(String(av), String(bv));
       } else {
         cmp = n(av) - n(bv);
       }
       if (cmp === 0) {
-        return String(a?.address || "").localeCompare(String(b?.address || ""), undefined, { sensitivity: "base" });
+        return veBorrowWalletAddressCollator.compare(String(a?.address || ""), String(b?.address || ""));
       }
       return cmp * (veBorrowWalletSortDesc ? -1 : 1);
     });
@@ -3144,7 +3154,7 @@ h1{
       veBorrowWalletSortDesc = key !== "address";
     }
     veBorrowWalletPage = 1;
-    renderVeBorrowChart({ skipBrush: true });
+    renderVeBorrowCurrentWalletTable(veBorrowWalletRowsCache);
   }
   window.setVeBorrowWalletSort = setVeBorrowWalletSort;
   function veBorrowWalletSortHeader(key, label){
@@ -3260,7 +3270,8 @@ h1{
   function renderVeBorrowCurrentWalletTable(wallets){
     const wrap = qs("veBorrowCurrentWalletsPanel");
     if (!wrap) return;
-    const baseRows = (wallets || []).filter(row => n(row.borrowInterestUSD) > 0);
+    veBorrowWalletRowsCache = Array.isArray(wallets) ? wallets : [];
+    const baseRows = veBorrowWalletRowsCache.filter(row => n(row.borrowInterestUSD) > 0);
     const rows = sortVeBorrowWallets(filterVeBorrowWallets(baseRows));
     const totalPages = Math.max(1, Math.ceil(rows.length / veBorrowWalletPageSize));
     if (veBorrowWalletPage > totalPages) veBorrowWalletPage = totalPages;
