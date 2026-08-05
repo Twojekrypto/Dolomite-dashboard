@@ -80,6 +80,50 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertEqual(info["source"], "coingecko-tokenomics")
                 self.assertEqual(info["confidence"], "confirmed")
 
+    def test_all_core_team_wallets_are_independent_confirmed_labels(self):
+        team_addresses = [
+            "0x185000fb4d98acea1a771db3714a431f7fe51cac",
+            "0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1",
+            "0x6c97802a1815bc459004c686560244de28a2de75",
+            "0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1",
+            "0x3f1f155949f32fa3e688093d176a1b5a72c488eb",
+            "0x871b0afcd3fd44f4c0071d4ade68ce40d0d6bbcc",
+            "0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec",
+            "0xb8ba44d5e46562ec011ade12603f353b18089a41",
+        ]
+        for index, address in enumerate(team_addresses, start=1):
+            with self.subTest(address=address):
+                info = self.labels[address]
+                self.assertEqual(info["label"], f"Core Team {index}")
+                self.assertEqual(info["type"], "protocol")
+                self.assertTrue(info["treasury"])
+                self.assertEqual(info["source"], "coingecko-tokenomics")
+                self.assertEqual(info["confidence"], "confirmed")
+
+        strategic_claims = self.labels["0x7efd088ae500598a19a242d6d48b9f7e0d061176"]
+        self.assertEqual(strategic_claims["label"], "Strategic Investor Claims")
+        self.assertEqual(strategic_claims["type"], "protocol")
+        self.assertEqual(strategic_claims["source"], "dolomite-docs-module-dolo")
+
+    def test_published_investor_payload_does_not_duplicate_investors_as_team(self):
+        payload = json.loads((ROOT / "vesting_investors.json").read_text())
+        self.assertGreater(len(payload["early_investors"]), 0)
+        self.assertGreater(len(payload["investors"]), 0)
+        self.assertEqual(payload["team"], [])
+
+    def test_wallet_table_pages_use_the_shared_vesting_label_loader(self):
+        expected_consumers = {
+            "dashboard-core.js": "window.loadDoloVestingLabels(DOLO_ADDR_LABELS)",
+            "dolo-preview.html": "window.loadDoloVestingLabels(ADDR_LABELS)",
+            "liquidation-preview.html": "window.loadDoloVestingLabels(DOLO_ADDR_LABELS)",
+            "odolo-preview.html": "window.loadDoloVestingLabels(ADDRESS_META)",
+            "revenue-preview.html": "window.loadDoloVestingLabels(VEBORROW_WALLET_LABELS)",
+            "vedolo-preview.html": "window.loadDoloVestingLabels(VEDOLO_ADDRESS_LABELS)",
+        }
+        for filename, marker in expected_consumers.items():
+            with self.subTest(filename=filename):
+                self.assertIn(marker, (ROOT / filename).read_text())
+
     def test_protocol_safe_keeps_dolomite_label(self):
         info = self.labels["0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4"]
         self.assertEqual(info["label"], "Dolomite Gnosis Safe")

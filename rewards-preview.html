@@ -104,7 +104,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .card-meta{font-size:11px;color:var(--fg-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
 .live-programs-head{display:block;padding:0;border-bottom:0;gap:0}
 .live-programs-primary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:20px 24px 18px;border-bottom:1px solid var(--line-1)}
-.live-programs-toolbar{display:flex;align-items:center;justify-content:flex-end;padding:12px 24px}
+.live-programs-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 24px}
+.program-search{width:min(360px,100%);height:36px;display:flex;align-items:center;gap:9px;padding:0 10px;background:var(--bg-3);border:1px solid var(--line-2);border-radius:10px;color:var(--fg-3);transition:border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease)}
+.program-search:focus-within{border-color:var(--gold-line);background:rgba(201,162,39,.055);box-shadow:0 0 0 3px rgba(201,162,39,.07)}
+.program-search>svg{width:15px;height:15px;flex:0 0 auto}
+.program-search input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:var(--fg-1);font:500 12px/1 var(--sans)}
+.program-search input::placeholder{color:var(--fg-4)}
+.program-search-clear{width:22px;height:22px;display:none;align-items:center;justify-content:center;border:0;border-radius:6px;background:transparent;color:var(--fg-3);cursor:pointer;padding:0;transition:color .15s var(--ease),background .15s var(--ease)}
+.program-search.has-value .program-search-clear{display:inline-flex}
+.program-search-clear:hover,.program-search-clear:focus-visible{color:var(--gold-hi);background:var(--gold-wash);outline:none}
+.program-search-clear svg{width:12px;height:12px}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
 .pulse-loading{background:var(--fg-3);box-shadow:none;opacity:.6}
 
@@ -177,7 +186,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 @media (max-width:640px){
   .wrap{padding:24px 14px 72px}
   .live-programs-primary{align-items:flex-start;padding:18px}
-  .live-programs-toolbar{justify-content:flex-start;padding:12px 18px}
+  .live-programs-toolbar{align-items:stretch;flex-direction:column;padding:12px 18px}
+  .program-search{width:100%}
+  .pill-switch{align-self:flex-start}
   .site-nav-wrap{width:100%;justify-content:center;overflow:hidden;padding-bottom:2px}
   .site-nav{width:100%;justify-content:space-between}
   .nav-item{width:40px;height:38px;padding:0;justify-content:center;gap:0}
@@ -321,6 +332,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         <div class="card-meta" id="rwLiveMeta"><span class="pulse pulse-loading"></span>Loading…</div>
       </div>
       <div class="live-programs-toolbar">
+        <label class="program-search" id="rwLiveSearchWrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="rwLiveSearch" type="search" placeholder="Search campaign, token, or network…" autocomplete="off" spellcheck="false">
+          <button class="program-search-clear" id="rwLiveSearchClear" type="button" aria-label="Clear Live Programs search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+        </label>
         <div class="pill-switch" id="rwRateSwitch" aria-label="Reward rate mode">
           <span class="slider"></span>
           <span class="opt active" data-rate-mode="APR">APR</span>
@@ -350,12 +366,21 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
   <!-- ENDED PROGRAMS -->
   <section class="card ended-programs-card">
-    <div class="card-head">
-      <div class="card-title">
-        <h2>Ended Programs</h2>
-        <span class="count-badge" id="rwPastTableCount">—</span>
+    <div class="card-head live-programs-head">
+      <div class="live-programs-primary">
+        <div class="card-title">
+          <h2>Ended Programs</h2>
+          <span class="count-badge" id="rwPastTableCount">—</span>
+        </div>
+        <div class="card-meta" id="rwPastMeta"><span class="pulse pulse-loading"></span>Loading data update…</div>
       </div>
-      <div class="card-meta" id="rwPastMeta"><span class="pulse pulse-loading"></span>Loading data update…</div>
+      <div class="live-programs-toolbar">
+        <label class="program-search" id="rwPastSearchWrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="rwPastSearch" type="search" placeholder="Search campaign, token, or network…" autocomplete="off" spellcheck="false">
+          <button class="program-search-clear" id="rwPastSearchClear" type="button" aria-label="Clear Ended Programs search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+        </label>
+      </div>
     </div>
     <div class="tbl-wrap">
       <div class="rw-empty" id="rwPastState">Loading…</div>
@@ -377,6 +402,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
 </div>
 
+<script src="rewards-search.js?v=rewards-search-20260805"></script>
 <script>
 (function () {
   const CHAIN_LABELS = {
@@ -402,6 +428,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   let liveSortField = 'dailyRewardsUsd';
   let liveSortAsc = false;
   let rewardRateMode = 'APR';
+  let liveSearchQuery = '';
+  let pastSearchQuery = '';
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -607,19 +635,22 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     const body = document.getElementById('rwLiveBody');
     const state = document.getElementById('rwLiveState');
     const count = document.getElementById('rwLiveTableCount');
-    const live = programs.filter(program => program.status === 'LIVE');
+    const allLive = window.RewardsProgramSearch.filterPrograms(programs, 'LIVE', '', CHAIN_LABELS);
+    const live = window.RewardsProgramSearch.filterPrograms(programs, 'LIVE', liveSearchQuery, CHAIN_LABELS);
     live.sort((a, b) => {
       const va = sortValue(a, liveSortField);
       const vb = sortValue(b, liveSortField);
       const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
       return liveSortAsc ? cmp : -cmp;
     });
-    if (count) count.textContent = live.length ? `${live.length} programs` : '—';
+    if (count) count.textContent = liveSearchQuery.trim()
+      ? `${live.length} of ${allLive.length} programs`
+      : (allLive.length ? `${allLive.length} programs` : '—');
     syncLiveSortHeads();
     if (!live.length) {
       table.style.display = 'none';
       state.style.display = 'block';
-      state.textContent = 'No live reward programs right now.';
+      state.textContent = liveSearchQuery.trim() ? 'No live programs match this search.' : 'No live reward programs right now.';
       return;
     }
     state.style.display = 'none';
@@ -652,13 +683,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     const body = document.getElementById('rwPastBody');
     const state = document.getElementById('rwPastState');
     const count = document.getElementById('rwPastTableCount');
-    const past = programs.filter(program => program.status !== 'LIVE');
+    const allPast = window.RewardsProgramSearch.filterPrograms(programs, 'ENDED', '', CHAIN_LABELS);
+    const past = window.RewardsProgramSearch.filterPrograms(programs, 'ENDED', pastSearchQuery, CHAIN_LABELS);
     past.sort((a, b) => (Number(b.campaignEnd) || 0) - (Number(a.campaignEnd) || 0));
-    if (count) count.textContent = past.length ? `${past.length} programs` : '—';
+    if (count) count.textContent = pastSearchQuery.trim()
+      ? `${past.length} of ${allPast.length} programs`
+      : (allPast.length ? `${allPast.length} programs` : '—');
     if (!past.length) {
       table.style.display = 'none';
       state.style.display = 'block';
-      state.textContent = 'No ended programs recorded.';
+      state.textContent = pastSearchQuery.trim() ? 'No ended programs match this search.' : 'No ended programs recorded.';
       return;
     }
     state.style.display = 'none';
@@ -784,6 +818,33 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       renderHero();
       renderLive();
     });
+  });
+
+  function bindProgramSearch(inputId, clearId, wrapId, onChange) {
+    const input = document.getElementById(inputId);
+    const clear = document.getElementById(clearId);
+    const wrap = document.getElementById(wrapId);
+    if (!input || !clear || !wrap) return;
+    const sync = () => wrap.classList.toggle('has-value', Boolean(input.value));
+    input.addEventListener('input', () => {
+      onChange(input.value);
+      sync();
+    });
+    clear.addEventListener('click', event => {
+      event.preventDefault();
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.focus();
+    });
+    sync();
+  }
+  bindProgramSearch('rwLiveSearch', 'rwLiveSearchClear', 'rwLiveSearchWrap', value => {
+    liveSearchQuery = value;
+    renderLive();
+  });
+  bindProgramSearch('rwPastSearch', 'rwPastSearchClear', 'rwPastSearchWrap', value => {
+    pastSearchQuery = value;
+    renderPast();
   });
   window.addEventListener('resize', syncRateSwitch);
   requestAnimationFrame(syncRateSwitch);

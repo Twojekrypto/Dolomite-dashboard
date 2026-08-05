@@ -10126,7 +10126,7 @@
             color: currentColor !important;
         }
     </style>
-<script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260805-investor-provenance"></script>
 <script src="liquidation/liquidation-history-sort.js?v=liquidation-history-sort-20260730"></script>
 </head>
 
@@ -14339,25 +14339,13 @@
         const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
         window.DOLO_ADDR_LABELS = DOLO_ADDR_LABELS;
 
-        fetch('vesting_investors.json').then(r => r.json()).then(data => {
-            if (Array.isArray(data)) return;
-            let changed = false;
-            const addGroup = (items, label, type = 'investor', extra = {}) => {
-                (items || []).forEach(addr => {
-                    const lower = String(addr || '').toLowerCase();
-                    if (!lower || DOLO_ADDR_LABELS[lower]) return;
-                    DOLO_ADDR_LABELS[lower] = { label, type, source: 'vesting_investors', confidence: 'confirmed', ...extra };
-                    changed = true;
-                });
-            };
-            addGroup(data.early_investors, 'Early Investor');
-            addGroup(data.investors, 'Investor');
-            addGroup(data.team, 'Core Team', 'protocol', { treasury: true });
-            if (changed) {
+        if (window.loadDoloVestingLabels) {
+            window.loadDoloVestingLabels(DOLO_ADDR_LABELS).then(result => {
+                if (!result.changed) return;
                 applyFilters();
                 if (typeof renderSupplyActivityTable === 'function') renderSupplyActivityTable();
-            }
-        }).catch(() => {});
+            }).catch(error => console.warn('Investor wallet labels unavailable', error));
+        }
 
         function getDoloAddressInfo(address) {
             const lower = String(address || '').toLowerCase();

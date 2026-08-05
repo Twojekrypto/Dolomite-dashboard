@@ -11,9 +11,59 @@ SOURCE = "0xabe44baf180ac426565503bbc3ecf71a0459456e"
 SILENTLY_MISSED_BLOCK = 25_482_810
 UNLABELED_CONTRACT = "0xcccccccccccccccccccccccccccccccccccccccc"
 OUTSIDE = "0xdddddddddddddddddddddddddddddddddddddddd"
+STRATEGIC_INVESTOR_CLAIMS = "0x7efd088ae500598a19a242d6d48b9f7e0d061176"
+INVESTOR_CLAIMS = "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"
+EARLY_ONLY = "0x1111111111111111111111111111111111111111"
+INVESTOR_ONLY = "0x2222222222222222222222222222222222222222"
+OVERLAP = "0x3333333333333333333333333333333333333333"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
+    def test_vesting_investors_are_classified_by_official_claim_contract(self):
+        payload = flows.extract_vesting_investors({
+            "eth": [
+                (STRATEGIC_INVESTOR_CLAIMS, OUTSIDE, 99 * 10**18, 101),
+            ],
+            "bera": [
+                (STRATEGIC_INVESTOR_CLAIMS, EARLY_ONLY, 2 * 10**18, 102),
+                (INVESTOR_CLAIMS, INVESTOR_ONLY, 3 * 10**18, 103),
+                (STRATEGIC_INVESTOR_CLAIMS, OVERLAP, 4 * 10**18, 201),
+                (INVESTOR_CLAIMS, OVERLAP, 5 * 10**18, 202),
+                (STRATEGIC_INVESTOR_CLAIMS, OVERLAP, 10**18 // 2, 203),
+            ],
+        })
+
+        self.assertEqual(payload["schemaVersion"], 2)
+        self.assertEqual(payload["early_investors"], [EARLY_ONLY, OVERLAP])
+        self.assertEqual(payload["investors"], [INVESTOR_ONLY, OVERLAP])
+        self.assertEqual(payload["team"], [])
+        self.assertNotIn(OUTSIDE, payload["early_investors"])
+
+        records = {row["address"]: row for row in payload["wallets"]}
+        self.assertEqual(records[EARLY_ONLY]["label"], "Early Investor")
+        self.assertEqual(records[EARLY_ONLY]["sourceChains"], ["bera"])
+        self.assertEqual(records[INVESTOR_ONLY]["label"], "Investor")
+        self.assertEqual(records[OVERLAP]["label"], "Early Investor")
+        self.assertEqual(
+            records[OVERLAP]["claimSources"],
+            ["strategic_investor_claims", "investor_claims"],
+        )
+        self.assertEqual(records[OVERLAP]["transferCount"], 3)
+        self.assertEqual(records[OVERLAP]["firstTransferBlock"], 201)
+        self.assertEqual(records[OVERLAP]["lastTransferBlock"], 203)
+        self.assertEqual(records[OVERLAP]["receivedDolo"], "9.5")
+        self.assertTrue(records[OVERLAP]["alsoReceivedLongTermTranche"])
+
+    def test_investor_claim_recipients_are_never_derived_as_core_team(self):
+        payload = flows.extract_vesting_investors({
+            "eth": [],
+            "bera": [(INVESTOR_CLAIMS, INVESTOR_ONLY, 10**18, 300)],
+        })
+
+        self.assertEqual(payload["investors"], [INVESTOR_ONLY])
+        self.assertEqual(payload["team"], [])
+        self.assertEqual(payload["methodology"]["team"], "not-derived-from-investor-claims")
+
     def test_single_block_range_still_has_scan_work(self):
         self.assertTrue(hasattr(flows, "block_range_has_work"))
         self.assertTrue(flows.block_range_has_work(100, 100))

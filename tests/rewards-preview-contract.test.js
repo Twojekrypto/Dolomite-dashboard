@@ -38,3 +38,13 @@ function heroSection() {
   assert(!nameRenderer.includes('return `Lend ${market}`'), 'Rewards should not show Lend for supply programs');
   assert(html.includes("action === 'LEND'"), 'Source LEND classification should remain intact');
 }
+
+{
+  assert(html.includes('id="rwLiveSearch"'), 'Live Programs should expose campaign search');
+  assert(html.includes('id="rwPastSearch"'), 'Ended Programs should expose campaign search');
+  assert(html.includes('rewards-search.js?v=rewards-search-20260805'), 'Rewards page should load the tested search helper');
+  assert(html.includes("`${live.length} of ${allLive.length} programs`"), 'Live count should expose filtered and total programs');
+  assert(html.includes("`${past.length} of ${allPast.length} programs`"), 'Ended count should expose filtered and total programs');
+  assert(html.includes("input.dispatchEvent(new Event('input', { bubbles: true }))"), 'Clear buttons should use the normal input path');
+  assert(/@media \(max-width:640px\)[\s\S]*?\.live-programs-toolbar\{[^}]*flex-direction:column/.test(html), 'Program controls should stack on mobile');
+}

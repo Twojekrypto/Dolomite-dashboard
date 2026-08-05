@@ -1224,41 +1224,122 @@ def load_current_holder_rows():
 
 
 def extract_vesting_investors(all_transfers):
-    vesting_ca = "0x7efd088ae500598a19a242d6d48b9f7e0d061176"
-    investor_ca = "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"
-
-    early_set = set()
-    inv_set = set()
-    team_set = set()
+    claim_contracts = {
+        ("bera", "0x7efd088ae500598a19a242d6d48b9f7e0d061176"): "strategic_investor_claims",
+        ("bera", "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"): "investor_claims",
+    }
+    source_order = ["strategic_investor_claims", "investor_claims"]
+    records = {}
 
     for chain_key in ["eth", "bera"]:
         for transfer in all_transfers.get(chain_key, []):
             from_addr = str(transfer[0] or "").lower()
             to_addr = str(transfer[1] or "").lower()
-            if not to_addr:
+            source = claim_contracts.get((chain_key, from_addr))
+            if not source or not re.fullmatch(r"0x[a-f0-9]{40}", to_addr):
                 continue
-            if from_addr == vesting_ca:
-                early_set.add(to_addr)
-            elif from_addr == investor_ca:
-                inv_set.add(to_addr)
-                team_set.add(to_addr)
+            try:
+                amount_wei = int(transfer[2])
+                block = int(transfer[3])
+            except (TypeError, ValueError, IndexError):
+                continue
+            row = records.setdefault(to_addr, {
+                "sources": set(),
+                "transfer_count": 0,
+                "received_wei": 0,
+                "first_block": block,
+                "last_block": block,
+                "chains": set(),
+            })
+            row["sources"].add(source)
+            row["transfer_count"] += 1
+            row["received_wei"] += amount_wei
+            row["first_block"] = min(row["first_block"], block)
+            row["last_block"] = max(row["last_block"], block)
+            row["chains"].add(chain_key)
+
+    def format_dolo_wei(value):
+        whole, remainder = divmod(max(0, int(value)), 10**18)
+        if not remainder:
+            return str(whole)
+        return f"{whole}.{remainder:018d}".rstrip("0")
+
+    wallet_rows = []
+    for address in sorted(records):
+        row = records[address]
+        sources = [source for source in source_order if source in row["sources"]]
+        is_early = "strategic_investor_claims" in row["sources"]
+        has_long_term = "investor_claims" in row["sources"]
+        wallet_rows.append({
+            "address": address,
+            "label": "Early Investor" if is_early else "Investor",
+            "type": "investor",
+            "claimSources": sources,
+            "primarySource": sources[0],
+            "alsoReceivedLongTermTranche": bool(is_early and has_long_term),
+            "transferCount": row["transfer_count"],
+            "firstTransferBlock": row["first_block"],
+            "lastTransferBlock": row["last_block"],
+            "sourceChains": sorted(row["chains"]),
+            "receivedDolo": format_dolo_wei(row["received_wei"]),
+        })
+
+    early_set = {
+        row["address"] for row in wallet_rows
+        if "strategic_investor_claims" in row["claimSources"]
+    }
+    inv_set = {
+        row["address"] for row in wallet_rows
+        if "investor_claims" in row["claimSources"]
+    }
 
     return {
+        "schemaVersion": 2,
+        "contracts": {
+            "strategicInvestorClaims": "0x7efd088ae500598a19a242d6d48b9f7e0d061176",
+            "investorClaims": "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07",
+        },
+        "methodology": {
+            "classification": "direct-dolo-transfer-from-official-claim-contract",
+            "overlapPriority": "early-investor",
+            "team": "not-derived-from-investor-claims",
+        },
         "early_investors": sorted(early_set),
         "investors": sorted(inv_set),
-        "team": sorted(team_set),
+        "team": [],
+        "wallets": wallet_rows,
     }
 
 
 def merge_vesting_labels(labels, vesting_data):
     if not isinstance(vesting_data, dict):
         return labels
+    structured_wallets = vesting_data.get("wallets") or []
+    for row in structured_wallets:
+        if not isinstance(row, dict):
+            continue
+        addr_key = str(row.get("address") or "").lower()
+        label = row.get("label")
+        if not re.fullmatch(r"0x[a-f0-9]{40}", addr_key) or label not in {"Early Investor", "Investor"}:
+            continue
+        labels.setdefault(addr_key, {
+            "label": label,
+            "type": "investor",
+            "source": "official-claim-contract-transfer",
+            "confidence": "confirmed",
+        })
+
+    investor_rows = set(vesting_data.get("investors", []) or [])
+    legacy_team_rows = set(vesting_data.get("team", []) or [])
+    if investor_rows and legacy_team_rows == investor_rows:
+        legacy_team_rows = set()
     for key, label, label_type in [
         ("early_investors", "Early Investor", "investor"),
         ("investors", "Investor", "investor"),
         ("team", "Core Team", "protocol"),
     ]:
-        for addr in vesting_data.get(key, []) or []:
+        rows = legacy_team_rows if key == "team" else vesting_data.get(key, []) or []
+        for addr in rows:
             addr_key = str(addr or "").lower()
             if not re.fullmatch(r"0x[a-f0-9]{40}", addr_key):
                 continue

@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260804-address-strong-final">
 <script defer src="shared-hover-tooltips.js?v=20260804-address-strong-final"></script>
-<script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260805-investor-provenance"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <style>
 /* ==========================================================================
@@ -458,6 +458,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .type-tag.type-cex{color:var(--down);border-color:rgba(180,121,107,.3);background:rgba(180,121,107,.08)}
 .type-tag.type-mm{color:#9ab7c2;border-color:rgba(154,183,194,.3);background:rgba(154,183,194,.08)}
 .type-tag.type-bot{color:#b4a87a;border-color:rgba(180,168,122,.3);background:rgba(180,168,122,.08)}
+.type-tag.type-investor{color:#75b87b;border-color:rgba(117,184,123,.3);background:rgba(117,184,123,.08)}
 
 .addr-copy,.addr-debank{
   width:22px;height:22px;border-radius:5px;display:grid;place-items:center;
@@ -1787,7 +1788,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
 /* ============================================================
    STATE + CONSTANTS
 ============================================================ */
-const TYPE_LABELS = {eoa:"EOA", ca:"Contract", cex:"CEX", bot:"Bot", mm:"MM"};
+const TYPE_LABELS = {eoa:"EOA", ca:"Contract", cex:"CEX", bot:"Bot", mm:"MM", investor:"Investor"};
 const ADDRESS_TYPES = Object.keys(TYPE_LABELS);
 const TYPE_TIPS = {
   eoa:"Externally Owned Account — regular wallet",
@@ -1795,8 +1796,9 @@ const TYPE_TIPS = {
   cex:"Verified centralized exchange custody address",
   bot:"Automated trading / MEV bot",
   mm: "Market maker — liquidity provider",
+  investor:"Received DOLO from an official investor claim contract",
 };
-const TYPE_GENERIC = {eoa:"Wallet", ca:"Smart contract", cex:"Exchange", bot:"Trading bot", mm:"Market maker"};
+const TYPE_GENERIC = {eoa:"Wallet", ca:"Smart contract", cex:"Exchange", bot:"Trading bot", mm:"Market maker", investor:"Investor"};
 
 const PERIODS = [
   {key:"1d",   short:"24H",  label:"Last 24 hours"},
@@ -1970,7 +1972,7 @@ const DATA_VERSION = "odolo-integrity-20260710b";
 // Address labels come from the shared single source of truth
 // (dolo-address-labels.js, per lessons.md); shared types are mapped onto this
 // page's TYPE_LABELS vocabulary. Inline fallback covers file-load failure.
-const ODOLO_SHARED_TYPE_MAP = { protocol:"ca", contract:"ca", dead:"ca", cex:"cex", bot:"bot", mm:"mm" };
+const ODOLO_SHARED_TYPE_MAP = { protocol:"ca", contract:"ca", dead:"ca", cex:"cex", bot:"bot", mm:"mm", investor:"investor" };
 const ADDRESS_META_FALLBACK = {
   "0x3e9b9a16743551da49b5e136c716bba7932d2cec": { label:"oDOLO Pair Vester", type:"ca" },
   "0x02e513b5b54ee216bf836ceb471507488fc89543": { label:"oDOLO Token", type:"ca" },
@@ -2014,6 +2016,12 @@ const ADDRESS_META = (() => {
   }
   return out;
 })();
+const odoloVestingLabelsPromise = window.loadDoloVestingLabels
+  ? window.loadDoloVestingLabels(ADDRESS_META).catch(error => {
+      console.warn("Investor wallet labels unavailable", error);
+      return null;
+    })
+  : Promise.resolve(null);
 
 function esc(value){
   return String(value ?? "").replace(/[&<>"']/g, ch => ({
@@ -4115,6 +4123,7 @@ async function initOdoloPage(){
       fetchJson("exercisers_by_address.json"),
       fetchJson("odolo_flows.json"),
     ]);
+    await odoloVestingLabelsPromise;
     LIVE.contract = contract;
     LIVE.usd = usd;
     LIVE.lock = lock;

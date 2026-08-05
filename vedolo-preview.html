@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260804-address-strong-final">
 <script defer src="shared-hover-tooltips.js?v=20260804-address-strong-final"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
+<script src="dolo-address-labels.js?v=dolo-labels-20260805-investor-provenance"></script>
 <style>
 :root{
   --up:#75b87b;
@@ -1802,10 +1803,24 @@ function exitDateCell(date, txHash, timestamp){
     ${timeLine ? `<small>${esc(timeLine)}</small>` : ""}
   </div>`;
 }
+const VEDOLO_ADDRESS_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
+const vedoloLabelsPromise = window.loadDoloVestingLabels
+  ? window.loadDoloVestingLabels(VEDOLO_ADDRESS_LABELS).catch(error => {
+      console.warn("Investor wallet labels unavailable", error);
+      return null;
+    })
+  : Promise.resolve(null);
+function vedoloAddressInfo(address){
+  return VEDOLO_ADDRESS_LABELS[String(address || "").toLowerCase()] || null;
+}
+function vedoloAddressName(address){
+  return vedoloAddressInfo(address)?.label || "Wallet";
+}
 function exitAddressCell(addr, tagHtml=""){
   const displayAddr = addr || "";
+  const info = vedoloAddressInfo(displayAddr);
   return `<div class="exit-wallet">
-    <div class="exit-wallet-top"><span class="addr-name addr-generic">Wallet</span>${tagHtml}</div>
+    <div class="exit-wallet-top"><span class="addr-name ${info ? "" : "addr-generic"}">${esc(vedoloAddressName(displayAddr))}</span>${tagHtml}</div>
     <div class="exit-wallet-bottom">
       <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</span>
       <button class="copy-btn addr-copy" data-copy="${esc(displayAddr)}" aria-label="Copy address">${copySvg}</button>
@@ -1886,8 +1901,10 @@ function flowDateLine(date, txHash, timestamp){
 }
 function flowAddressCell(addr, date, txHash, timestamp){
   const displayAddr = addr || "";
+  const info = vedoloAddressInfo(displayAddr);
   return `<div class="flow-tx flow-address-cell">
     <div class="flow-tx-line flow-address-main">
+      <span class="addr-name ${info ? "" : "addr-generic"}">${esc(vedoloAddressName(displayAddr))}</span>
       <a class="addr addr-tooltip-wrap" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</a>
       <button class="copy-btn" data-copy="${esc(displayAddr)}">${copySvg}</button>
       <a class="addr-debank" href="https://debank.com/profile/${esc(displayAddr)}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()"><img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'"></a>
@@ -1897,8 +1914,9 @@ function flowAddressCell(addr, date, txHash, timestamp){
 }
 function holderCell(h){
   const displayAddr = h.address || "";
+  const info = vedoloAddressInfo(displayAddr);
   return `<div class="holder-wallet">
-    <div class="holder-wallet-top"><span class="addr-name addr-generic">Wallet</span></div>
+    <div class="holder-wallet-top"><span class="addr-name ${info ? "" : "addr-generic"}">${esc(vedoloAddressName(displayAddr))}</span></div>
     <div class="holder-wallet-bottom">
       <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(displayAddr)}">${esc(shortAddr(displayAddr))}</span>
       <button class="copy-btn addr-copy" data-copy="${esc(displayAddr)}" aria-label="Copy address">${copySvg}</button>
@@ -3253,7 +3271,7 @@ async function boot(){
     state.price = price;
     renderHero();
 
-    const [holders, early, flows, expiry, exercises, votePower] = await Promise.all([holdersPromise, earlyPromise, flowsPromise, expiryPromise, exercisesPromise, votePowerPromise]);
+    const [holders, early, flows, expiry, exercises, votePower] = await Promise.all([holdersPromise, earlyPromise, flowsPromise, expiryPromise, exercisesPromise, votePowerPromise, vedoloLabelsPromise]);
     if(!stats?.stats && holders?.stats){ state.stats = holders.stats; renderHero(); }
     state.holders = holders?.holders || [];
     state.holdersTimestamp = holders?.timestamp;

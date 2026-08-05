@@ -749,7 +749,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803-header-hierarchy-20260803-copy-above-divider-20260803-address-strong-final-20260804-network-filter-20260805-fast-wallet-sort-20260805"', route_html)
+        self.assertIn("network-filter-20260805-fast-wallet-sort-20260805-investor-provenance-20260805", route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
@@ -921,7 +921,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("addr-mono addr-tooltip-wrap", html)
         self.assertIn("addr-copy", html)
         self.assertIn("addr-debank", html)
-        self.assertIn("dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit", html)
+        self.assertIn("dolo-address-labels.js?v=dolo-labels-20260805-investor-provenance", html)
         self.assertIn("VEBORROW_WALLET_LABELS", html)
         self.assertIn("veBorrowWalletDisplayName", html)
         self.assertIn("addr-name addr-generic", html)
