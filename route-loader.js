@@ -20,6 +20,10 @@
     polish: "mobile-polish-safari-details-20260805",
     footer: "protocol-footer-20260619-links-mobile"
   };
+  var CLOUDFLARE_ANALYTICS = {
+    src: "https://static.cloudflareinsights.com/beacon.min.js",
+    token: "930335c0b8864fdf8d9748c2432adaed"
+  };
 
   function buildNavAssets() {
     return '<link rel="stylesheet" href="mobile-nav.css?v=' + NAV_VERSIONS.nav + '">' +
@@ -28,6 +32,19 @@
       '<script defer src="mobile-nav.js?v=' + NAV_VERSIONS.nav + '"><' + '/script>' +
       '<script defer src="mobile-polish.js?v=' + NAV_VERSIONS.polish + '"><' + '/script>' +
       '<script defer src="protocol-footer.js?v=' + NAV_VERSIONS.footer + '"><' + '/script>';
+  }
+
+  function installAnalyticsBeacon() {
+    if (!document.body) {
+      setTimeout(installAnalyticsBeacon, 0);
+      return;
+    }
+    if (document.querySelector('script[data-cf-beacon]')) return;
+    var script = document.createElement("script");
+    script.type = "module";
+    script.src = CLOUDFLARE_ANALYTICS.src;
+    script.setAttribute("data-cf-beacon", JSON.stringify({ token: CLOUDFLARE_ANALYTICS.token }));
+    document.body.appendChild(script);
   }
 
   window.loadDoloRoute = async function (config) {
@@ -61,6 +78,7 @@
           .replace("</head>", buildNavAssets() + "</head>")
       );
       document.close();
+      setTimeout(installAnalyticsBeacon, 0);
     } catch (error) {
       document.body.innerHTML =
         '<p style="font-family:system-ui,sans-serif;padding:24px;color:#f4f3ef;background:#09090b">Unable to load ' +
