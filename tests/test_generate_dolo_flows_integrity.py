@@ -16,6 +16,7 @@ INVESTOR_CLAIMS = "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"
 EARLY_ONLY = "0x1111111111111111111111111111111111111111"
 INVESTOR_ONLY = "0x2222222222222222222222222222222222222222"
 OVERLAP = "0x3333333333333333333333333333333333333333"
+DOLOMITE_GNOSIS_SAFE = "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
@@ -30,20 +31,39 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
                 (STRATEGIC_INVESTOR_CLAIMS, OVERLAP, 4 * 10**18, 201),
                 (INVESTOR_CLAIMS, OVERLAP, 5 * 10**18, 202),
                 (STRATEGIC_INVESTOR_CLAIMS, OVERLAP, 10**18 // 2, 203),
+                (STRATEGIC_INVESTOR_CLAIMS, DOLOMITE_GNOSIS_SAFE, 166_667 * 10**18, 204),
+                (INVESTOR_CLAIMS, DOLOMITE_GNOSIS_SAFE, 806_667 * 10**18, 205),
             ],
         })
 
-        self.assertEqual(payload["schemaVersion"], 2)
+        self.assertEqual(payload["schemaVersion"], 3)
+        self.assertEqual(payload["strategic_investors"], [EARLY_ONLY, OVERLAP])
         self.assertEqual(payload["early_investors"], [EARLY_ONLY, OVERLAP])
         self.assertEqual(payload["investors"], [INVESTOR_ONLY, OVERLAP])
         self.assertEqual(payload["team"], [])
         self.assertNotIn(OUTSIDE, payload["early_investors"])
+        self.assertNotIn(DOLOMITE_GNOSIS_SAFE, payload["early_investors"])
+        self.assertNotIn(DOLOMITE_GNOSIS_SAFE, payload["investors"])
 
         records = {row["address"]: row for row in payload["wallets"]}
-        self.assertEqual(records[EARLY_ONLY]["label"], "Early Investor")
+        self.assertNotIn(DOLOMITE_GNOSIS_SAFE, records)
+        self.assertEqual(records[EARLY_ONLY]["label"], "Strategic Investor")
         self.assertEqual(records[EARLY_ONLY]["sourceChains"], ["bera"])
-        self.assertEqual(records[INVESTOR_ONLY]["label"], "Investor")
-        self.assertEqual(records[OVERLAP]["label"], "Early Investor")
+        self.assertEqual(
+            records[EARLY_ONLY]["roundAttribution"],
+            {
+                "key": "2024-strategic-900k",
+                "label": "2024 strategic round · $900K",
+                "status": "high-confidence-onchain-attribution",
+            },
+        )
+        self.assertIsNone(records[EARLY_ONLY]["vestingSchedule"])
+        self.assertEqual(records[INVESTOR_ONLY]["label"], "Long-term Investor")
+        self.assertEqual(
+            records[INVESTOR_ONLY]["vestingSchedule"],
+            "3-year vesting · 1-year cliff",
+        )
+        self.assertEqual(records[OVERLAP]["label"], "Strategic Investor")
         self.assertEqual(
             records[OVERLAP]["claimSources"],
             ["strategic_investor_claims", "investor_claims"],
@@ -63,6 +83,7 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(payload["investors"], [INVESTOR_ONLY])
         self.assertEqual(payload["team"], [])
         self.assertEqual(payload["methodology"]["team"], "not-derived-from-investor-claims")
+        self.assertEqual(payload["methodology"]["overlapPriority"], "strategic-investor")
 
     def test_single_block_range_still_has_scan_work(self):
         self.assertTrue(hasattr(flows, "block_range_has_work"))
