@@ -47,4 +47,12 @@ function heroSection() {
   assert(html.includes("`${past.length} of ${allPast.length} programs`"), 'Ended count should expose filtered and total programs');
   assert(html.includes("input.dispatchEvent(new Event('input', { bubbles: true }))"), 'Clear buttons should use the normal input path');
   assert(/@media \(max-width:640px\)[\s\S]*?\.live-programs-toolbar\{[^}]*flex-direction:column/.test(html), 'Program controls should stack on mobile');
+  assert(/\.program-search\{[^}]*width:280px;[^}]*height:36px/.test(html), 'Program search should match the 280 × 36px DOLO Holders geometry');
+  assert(/\.program-search\{[^}]*padding:0 14px 0 36px/.test(html), 'Program search should match DOLO Holders internal spacing');
+  assert(/\.program-search>svg\{[^}]*position:absolute;[^}]*left:12px;[^}]*width:14px/.test(html), 'Program search icon should match DOLO Holders positioning');
+  assert(/\.program-search input\{[^}]*font-size:13px/.test(html), 'Program search input should use the DOLO Holders type size');
+  assert(!html.includes('var(--sans)'), 'Program search should not depend on an undefined font variable');
+  assert(html.includes('-webkit-appearance:none'), 'Program search should neutralize native WebKit search styling');
+  assert(/@media \(max-width:640px\)[\s\S]*?\.program-search\{width:100%/.test(html), 'Program search should fill the mobile toolbar width');
+  assert(/@media \(max-width:640px\)[\s\S]*?\.live-programs-toolbar\{[^}]*padding:12px 24px/.test(html), 'Program search should inherit DOLO Holders mobile side spacing');
 }
