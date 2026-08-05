@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import os
+import subprocess
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -748,7 +749,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803-header-hierarchy-20260803-copy-above-divider-20260803-address-strong-final-20260804"', route_html)
+        self.assertIn('"version": "revenue-20260708-all-time-revenue-hero-holders-dividers-hero-value-chip-20260718-typography-straight-hover-20260730-table-system-20260803-table-consistency-20260803a-revenue-separators-relative-freshness-20260803-header-hierarchy-20260803-copy-above-divider-20260803-address-strong-final-20260804-network-filter-20260805"', route_html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
@@ -947,10 +948,10 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("setVeBorrowWalletSelectedChains", html)
         self.assertIn("toggleVeBorrowWalletNetworkMenu", html)
         self.assertIn("syncVeBorrowWalletNetworkDropdown", html)
-        self.assertIn("veBorrowWalletChainLifecycleLabel", html)
-        self.assertIn('lifecycle: "archived"', html)
-        self.assertIn('lifecycle: "shuttingDown"', html)
-        self.assertIn('!chain.lifecycle', html)
+        self.assertIn('const VEBORROW_WALLET_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer"]', html)
+        self.assertNotIn('lifecycle: "archived"', html)
+        self.assertNotIn('lifecycle: "shuttingDown"', html)
+        self.assertNotIn("veBorrowWalletAvailableChainKeys", html)
         self.assertIn("veBorrowWalletSearchQuery", html)
         self.assertIn("filterVeBorrowWallets", html)
         self.assertIn("clearVeBorrowWalletSearch", html)
@@ -967,6 +968,62 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertLess(borrow_interest_index, user_saved_index)
         self.assertLess(user_saved_index, cumulative_index)
         self.assertNotIn("Net Berachain revenue", html)
+
+    def test_current_vedolo_wallet_filter_uses_active_chains_and_opens_without_chart_render(self):
+        script = r'''
+const assert = require("assert");
+const fs = require("fs");
+const source = fs.readFileSync("revenue-preview.html", "utf8");
+
+function between(start, end) {
+  const from = source.indexOf(start);
+  const to = source.indexOf(end, from);
+  if (from < 0 || to < 0) throw new Error(`Missing production source boundary: ${start} -> ${end}`);
+  return source.slice(from, to);
+}
+
+const chainConstants = between(
+  "const VEBORROW_WALLET_CHAIN_ORDER",
+  "const VEBORROW_WALLET_LABELS",
+);
+const chainFunctions = between(
+  "function normalizeVeBorrowWalletChainKey",
+  "function veBorrowWalletChainSelectionIsDefault",
+);
+const chainKeys = new Function(`
+  ${chainConstants}
+  ${chainFunctions}
+  return veBorrowWalletFilterChains([]).map(chain => chain.key);
+`)();
+assert.deepStrictEqual(chainKeys, ["ethereum", "berachain", "arbitrum", "mantle", "xlayer"]);
+
+const toggleFunction = between(
+  "function toggleVeBorrowWalletNetworkMenu",
+  "window.toggleVeBorrowWalletNetworkMenu",
+);
+const toggleResult = new Function(`
+  let veBorrowWalletNetworkOpen = false;
+  let chartRenderCount = 0;
+  let dropdownSyncCount = 0;
+  function renderVeBorrowChart() { chartRenderCount += 1; }
+  function syncVeBorrowWalletNetworkDropdown() { dropdownSyncCount += 1; }
+  ${toggleFunction}
+  toggleVeBorrowWalletNetworkMenu({ stopPropagation() {} });
+  return { veBorrowWalletNetworkOpen, chartRenderCount, dropdownSyncCount };
+`)();
+assert.deepStrictEqual(toggleResult, {
+  veBorrowWalletNetworkOpen: true,
+  chartRenderCount: 0,
+  dropdownSyncCount: 1,
+});
+'''
+        subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
     def test_revenue_panel_headers_use_the_holders_table_divider(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
