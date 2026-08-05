@@ -1407,7 +1407,7 @@ def load_address_labels(vesting_labels=None):
 
 def select_dynamic_flow_exclusions(detected_contracts, address_labels):
     """Keep known custody/user contracts visible; exclude infrastructure CAs."""
-    visible_label_types = {"cex", "multisig", "safe", "contract_wallet"}
+    visible_label_types = {"cex", "multisig", "safe", "contract_wallet", "protocol"}
     exclusions = set()
     for raw_addr in detected_contracts:
         addr = str(raw_addr or "").lower()

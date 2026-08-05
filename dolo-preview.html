@@ -639,6 +639,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dd-panel-types .rw-dot-src.eoa{background:var(--fg-2)}
 .dd-panel-types .rw-dot-src.multisig{background:#9ab7c2}
 .dd-panel-types .rw-dot-src.ca{background:var(--gold)}
+.dd-panel-types .rw-dot-src.protocol{background:#7fa6b7}
 .dd-panel-types .rw-dot-src.cex{background:var(--down)}
 .dd-panel-types .rw-dot-src.investor{background:#6fc49b}
 .dd-panel-types .rw-dot-src.watch{background:#c69a5b}
@@ -728,6 +729,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .type-tag.type-eoa{color:var(--fg-3);border-color:var(--line-2);background:var(--bg-3)}
 .type-tag.type-ca{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.type-tag.type-protocol{color:#9abfd0;border-color:rgba(127,166,183,.34);background:rgba(127,166,183,.09)}
 .type-tag.type-multisig{color:#9ab7c2;border-color:rgba(154,183,194,.34);background:rgba(154,183,194,.09)}
 .type-tag.type-cex{color:var(--down);border-color:rgba(180,121,107,.3);background:rgba(180,121,107,.08)}
 .type-tag.type-investor{color:#6fc49b;border-color:rgba(111,196,155,.34);background:rgba(111,196,155,.08)}
@@ -1126,7 +1128,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <button class="dd-btn filtered" data-dd="types">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
-            <span class="count">7</span>
+            <span class="count">8</span>
             <span class="dd-clear" data-clear="types" role="button" aria-label="Clear type filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -1149,6 +1151,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src ca"></span>
                 <div class="rw-name">Smart contracts / CA</div>
+              </div>
+              <div class="rw-item active" data-type="protocol">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src protocol"></span>
+                <div class="rw-name">Protocol</div>
               </div>
               <div class="rw-item active" data-type="cex">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1254,7 +1261,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <button class="dd-btn filtered" data-dd="flows-types">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
-            <span class="count">7</span>
+            <span class="count">8</span>
             <span class="dd-clear" data-clear="flows-types" role="button" aria-label="Clear flow type filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -1277,6 +1284,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src ca"></span>
                 <div class="rw-name">Smart contracts / CA</div>
+              </div>
+              <div class="rw-item active" data-type="protocol">
+                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
+                <span class="rw-dot-src protocol"></span>
+                <div class="rw-name">Protocol</div>
               </div>
               <div class="rw-item active" data-type="cex">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1632,7 +1644,7 @@ const HOLDERS = [];
 // total = balEth + balBera; share = total / TOTAL_SUPPLY
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
-const TYPE_LABELS = {eoa:"EOA", multisig:"Safe", ca:"CA", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
+const TYPE_LABELS = {eoa:"EOA", multisig:"Safe", ca:"CA", protocol:"Protocol", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
 // MM wallets are filtered together with "Potential custody/MM" (watch) —
 // one dropdown entry controls both; row tags still show the precise type.
 const TYPE_FILTER_ALIAS = {mm: "watch"};
@@ -1641,7 +1653,8 @@ const ADDRESS_TYPES = Object.keys(TYPE_LABELS).filter(t=>!(t in TYPE_FILTER_ALIA
 const TYPE_TIPS = {
   eoa: "Externally Owned Account — regular wallet",
   multisig: "Smart contract wallet / multisig controlled by user signers",
-  ca:  "Contract address (CA) — smart contract, protocol, LP, or aggregator",
+  ca:  "Contract address (CA) — smart contract, LP, or aggregator",
+  protocol: "Verified Dolomite protocol, treasury, rewards, or distribution address",
   cex: "Verified centralized exchange custody address",
   investor: "CoinGecko tokenomics investor allocation address",
   watch: "Potential custody / market maker - detected by custody-like behavior, not verified",
@@ -5359,7 +5372,8 @@ renderCexSupplyChart();
     if(t === "watch") return "watch";
     if(t === "mm") return "mm";
     if(t === "bot" || t === "liquidator") return "bot";
-    if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || holder?.type === "ca") return "ca";
+    if(t === "protocol") return "protocol";
+    if(t === "lp" || t === "contract" || t === "dead" || holder?.type === "ca") return "ca";
     if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
     if(holder?.is_contract) return "ca";
     return "eoa";
