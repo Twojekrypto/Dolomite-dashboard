@@ -65,8 +65,8 @@ class ResponsiveLayoutContractsTest(unittest.TestCase):
         self.assertIn("vertical-align: middle", rules)
         self.assertIn("mobile-polish-safari-details-20260805", ROUTE_LOADER)
 
-    def test_all_route_entries_refresh_the_safari_details_fix(self):
-        cache_tag = "route-loader-responsive-20260801-safari-details-20260805"
+    def test_all_route_entries_use_current_route_loader_cache_tag(self):
+        cache_tag = "route-loader-responsive-20260801-safari-details-20260805-cloudflare-analytics-20260805"
         for path in ROUTE_ENTRIES:
             with self.subTest(path=path.relative_to(ROOT)):
                 source = path.read_text(encoding="utf-8")
