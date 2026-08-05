@@ -1223,10 +1223,19 @@ def load_current_holder_rows():
         return {}
 
 
+STRATEGIC_INVESTOR_CLAIMS = "0x7efd088ae500598a19a242d6d48b9f7e0d061176"
+INVESTOR_CLAIMS = "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"
+INVESTOR_INTERNAL_RECIPIENTS = {
+    "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4",  # Dolomite Gnosis Safe
+    STRATEGIC_INVESTOR_CLAIMS,
+    INVESTOR_CLAIMS,
+}
+
+
 def extract_vesting_investors(all_transfers):
     claim_contracts = {
-        ("bera", "0x7efd088ae500598a19a242d6d48b9f7e0d061176"): "strategic_investor_claims",
-        ("bera", "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"): "investor_claims",
+        ("bera", STRATEGIC_INVESTOR_CLAIMS): "strategic_investor_claims",
+        ("bera", INVESTOR_CLAIMS): "investor_claims",
     }
     source_order = ["strategic_investor_claims", "investor_claims"]
     records = {}
@@ -1236,7 +1245,11 @@ def extract_vesting_investors(all_transfers):
             from_addr = str(transfer[0] or "").lower()
             to_addr = str(transfer[1] or "").lower()
             source = claim_contracts.get((chain_key, from_addr))
-            if not source or not re.fullmatch(r"0x[a-f0-9]{40}", to_addr):
+            if (
+                not source
+                or not re.fullmatch(r"0x[a-f0-9]{40}", to_addr)
+                or to_addr in INVESTOR_INTERNAL_RECIPIENTS
+            ):
                 continue
             try:
                 amount_wei = int(transfer[2])
@@ -1268,15 +1281,21 @@ def extract_vesting_investors(all_transfers):
     for address in sorted(records):
         row = records[address]
         sources = [source for source in source_order if source in row["sources"]]
-        is_early = "strategic_investor_claims" in row["sources"]
+        is_strategic = "strategic_investor_claims" in row["sources"]
         has_long_term = "investor_claims" in row["sources"]
         wallet_rows.append({
             "address": address,
-            "label": "Early Investor" if is_early else "Investor",
+            "label": "Strategic Investor" if is_strategic else "Long-term Investor",
             "type": "investor",
             "claimSources": sources,
             "primarySource": sources[0],
-            "alsoReceivedLongTermTranche": bool(is_early and has_long_term),
+            "alsoReceivedLongTermTranche": bool(is_strategic and has_long_term),
+            "roundAttribution": {
+                "key": "2024-strategic-900k",
+                "label": "2024 strategic round · $900K",
+                "status": "high-confidence-onchain-attribution",
+            } if is_strategic else None,
+            "vestingSchedule": "3-year vesting · 1-year cliff" if has_long_term else None,
             "transferCount": row["transfer_count"],
             "firstTransferBlock": row["first_block"],
             "lastTransferBlock": row["last_block"],
@@ -1284,7 +1303,7 @@ def extract_vesting_investors(all_transfers):
             "receivedDolo": format_dolo_wei(row["received_wei"]),
         })
 
-    early_set = {
+    strategic_set = {
         row["address"] for row in wallet_rows
         if "strategic_investor_claims" in row["claimSources"]
     }
@@ -1294,17 +1313,19 @@ def extract_vesting_investors(all_transfers):
     }
 
     return {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "contracts": {
-            "strategicInvestorClaims": "0x7efd088ae500598a19a242d6d48b9f7e0d061176",
-            "investorClaims": "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07",
+            "strategicInvestorClaims": STRATEGIC_INVESTOR_CLAIMS,
+            "investorClaims": INVESTOR_CLAIMS,
         },
         "methodology": {
             "classification": "direct-dolo-transfer-from-official-claim-contract",
-            "overlapPriority": "early-investor",
+            "overlapPriority": "strategic-investor",
             "team": "not-derived-from-investor-claims",
+            "internalRecipients": "known-protocol-and-claim-controller-addresses-excluded",
         },
-        "early_investors": sorted(early_set),
+        "strategic_investors": sorted(strategic_set),
+        "early_investors": sorted(strategic_set),
         "investors": sorted(inv_set),
         "team": [],
         "wallets": wallet_rows,
@@ -1319,8 +1340,11 @@ def merge_vesting_labels(labels, vesting_data):
         if not isinstance(row, dict):
             continue
         addr_key = str(row.get("address") or "").lower()
-        label = row.get("label")
-        if not re.fullmatch(r"0x[a-f0-9]{40}", addr_key) or label not in {"Early Investor", "Investor"}:
+        label = {
+            "Early Investor": "Strategic Investor",
+            "Investor": "Long-term Investor",
+        }.get(row.get("label"), row.get("label"))
+        if not re.fullmatch(r"0x[a-f0-9]{40}", addr_key) or label not in {"Strategic Investor", "Long-term Investor"}:
             continue
         labels.setdefault(addr_key, {
             "label": label,
@@ -1333,12 +1357,17 @@ def merge_vesting_labels(labels, vesting_data):
     legacy_team_rows = set(vesting_data.get("team", []) or [])
     if investor_rows and legacy_team_rows == investor_rows:
         legacy_team_rows = set()
+    strategic_rows = vesting_data.get("strategic_investors")
+    if strategic_rows is None:
+        strategic_rows = vesting_data.get("early_investors", []) or []
     for key, label, label_type in [
-        ("early_investors", "Early Investor", "investor"),
-        ("investors", "Investor", "investor"),
+        ("strategic_investors", "Strategic Investor", "investor"),
+        ("investors", "Long-term Investor", "investor"),
         ("team", "Core Team", "protocol"),
     ]:
-        rows = legacy_team_rows if key == "team" else vesting_data.get(key, []) or []
+        rows = legacy_team_rows if key == "team" else (
+            strategic_rows if key == "strategic_investors" else vesting_data.get(key, []) or []
+        )
         for addr in rows:
             addr_key = str(addr or "").lower()
             if not re.fullmatch(r"0x[a-f0-9]{40}", addr_key):
@@ -2957,8 +2986,8 @@ def main():
     with open(os.path.join(DATA_DIR, "vesting_investors.json"), "w") as f:
         json.dump(vesting_investors, f, indent=2)
     print(
-        f"  🧑‍💼 Saved {len(vesting_investors.get('early_investors', []))} early investors "
-        f"and {len(vesting_investors.get('investors', []))} investors to vesting_investors.json"
+        f"  🧑‍💼 Saved {len(vesting_investors.get('strategic_investors', []))} strategic investors "
+        f"and {len(vesting_investors.get('investors', []))} long-term investors to vesting_investors.json"
     )
 
     with open(OUTPUT_JSON, "w") as f:
