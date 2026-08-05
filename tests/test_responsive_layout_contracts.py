@@ -11,6 +11,10 @@ SUPPLY_HEALTH = (ROOT / "tvl" / "supply-health.css").read_text(encoding="utf-8")
 EARN_CSS = (ROOT / "dashboard-core.css").read_text(encoding="utf-8")
 VEDOLO = (ROOT / "vedolo-preview.html").read_text(encoding="utf-8")
 HISTORY_ENTRY = (ROOT / "history" / "index.html").read_text(encoding="utf-8")
+ROUTE_ENTRIES = [
+    ROOT / "index.html",
+    *sorted(path for path in ROOT.glob("*/index.html") if path.parent.name != "history"),
+]
 
 
 class ResponsiveLayoutContractsTest(unittest.TestCase):
@@ -31,7 +35,42 @@ class ResponsiveLayoutContractsTest(unittest.TestCase):
         self.assertIn("overflow-y: auto", panel)
         self.assertIn("responsive-20260801", ROUTE_LOADER)
         self.assertIn("mobile-nav-responsive-20260801", HISTORY_ENTRY)
-        self.assertIn("mobile-polish-touch-20260801", HISTORY_ENTRY)
+        self.assertIn("mobile-polish-safari-details-20260805", HISTORY_ENTRY)
+
+    def test_shared_details_controls_disable_webkit_native_clipping(self):
+        compatibility = re.search(
+            r"/\* Safari/WebKit table disclosure controls \*/(?P<selectors>.*?)\{(?P<rules>.*?)\}",
+            MOBILE_POLISH,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(compatibility)
+        selectors = compatibility.group("selectors")
+        for selector in (
+            ".asset-toggle",
+            ".ex-toggle",
+            ".holder-toggle",
+            ".holder-details-btn",
+            ".supply-health-row-toggle",
+            ".earn-row-details-button",
+            ".history-detail-toggle",
+        ):
+            with self.subTest(selector=selector):
+                self.assertIn(selector, selectors)
+
+        rules = compatibility.group("rules")
+        self.assertIn("-webkit-appearance: none !important", rules)
+        self.assertIn("appearance: none !important", rules)
+        self.assertIn("overflow: visible !important", rules)
+        self.assertIn("box-sizing: border-box !important", rules)
+        self.assertIn("vertical-align: middle", rules)
+        self.assertIn("mobile-polish-safari-details-20260805", ROUTE_LOADER)
+
+    def test_all_route_entries_refresh_the_safari_details_fix(self):
+        cache_tag = "route-loader-responsive-20260801-safari-details-20260805"
+        for path in ROUTE_ENTRIES:
+            with self.subTest(path=path.relative_to(ROOT)):
+                source = path.read_text(encoding="utf-8")
+                self.assertIn(f"route-loader.js?v={cache_tag}", source)
 
     def test_vedolo_revenue_impact_table_has_an_internal_mobile_scroller(self):
         self.assertIn('class="exit-metric-scroll"', VEDOLO)

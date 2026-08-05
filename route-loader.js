@@ -17,7 +17,7 @@
 (function () {
   var NAV_VERSIONS = {
     nav: "mobile-nav-responsive-20260801",
-    polish: "mobile-polish-touch-20260801",
+    polish: "mobile-polish-safari-details-20260805",
     footer: "protocol-footer-20260619-links-mobile"
   };
 
