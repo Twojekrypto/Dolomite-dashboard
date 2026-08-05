@@ -37,11 +37,12 @@ function assertBefore(source, first, second, message) {
   assertBefore(liveTable, '<th data-sort="chain"', '<th data-sort="name"', 'Live Programs should put Chain before Program');
   assert(liveTable.includes('id="rwRateSwitch"'), 'Live Programs should expose an APR/APY rate switch');
   assert(liveTable.includes('class="pill-switch"'), 'Live Programs rate switch should reuse the Dolomite Assets pill UX');
-  const cardToolsCss = between(rewards, '.card-tools{', '.pulse{');
-  assert(cardToolsCss.includes('flex-direction:column'), 'Live Programs tools should stack meta above the APR/APY switch');
-  assert(cardToolsCss.includes('align-items:flex-end'), 'Live Programs tools should align the APR/APY switch under the meta on the right');
-  const liveHead = between(liveTable, '<div class="card-tools">', '</div>\n    </div>\n    <div class="tbl-wrap">');
-  assertBefore(liveHead, 'id="rwLiveMeta"', 'id="rwRateSwitch"', 'Live Programs should place the APR/APY switch under the daily rewards meta');
+  const livePrimary = between(liveTable, '<div class="live-programs-primary">', '<div class="live-programs-toolbar">');
+  assertBefore(livePrimary, 'id="rwLiveTableCount"', 'id="rwLiveMeta"', 'Live Programs should keep the count and freshness on the primary header row');
+  const liveToolbar = between(liveTable, '<div class="live-programs-toolbar">', '<div class="tbl-wrap">');
+  assert(liveToolbar.includes('id="rwRateSwitch"'), 'Live Programs should place APR/APY below the header separator');
+  assert(/\.live-programs-primary\{[^}]*border-bottom:1px solid var\(--line-1\)/s.test(rewards), 'Live Programs should separate its title and freshness from the toolbar');
+  assert(/\.live-programs-toolbar\{[^}]*justify-content:flex-end/s.test(rewards), 'Live Programs should align APR/APY to the right below the separator');
   assert(liveTable.includes('data-rate-mode="APR"'), 'Live Programs rate switch should include APR mode');
   assert(liveTable.includes('data-rate-mode="APY"'), 'Live Programs rate switch should include APY mode');
   assert(liveTable.includes('<th data-sort="apr" class="num" style="width:110px">Supply</th>'), 'Live Programs should label the APR/APY column as Supply');
