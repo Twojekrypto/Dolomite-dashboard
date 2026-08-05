@@ -993,7 +993,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 </style>
 <script src="count-up.js?v=20260427-countup"></script>
-<script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260805-investor-provenance"></script>
 </head>
 <body>
 <div class="wrap">
@@ -5651,22 +5651,9 @@ renderCexSupplyChart();
   };
   async function applyVestingLabels(){
     try{
-      const data = await fetchJson("vesting_investors.json");
-      if(!data || Array.isArray(data)) return;
-      [
-        ["early_investors","Early Investor","investor","vesting_investors"],
-        ["investors","Investor","investor","vesting_investors"],
-        ["team","Core Team","protocol","vesting_investors"],
-      ].forEach(([key,label,type,source]) => {
-        (data[key] || []).forEach(addr => {
-          const k = lower(addr);
-          if(!ADDR_LABELS[k]) ADDR_LABELS[k] = {label, type, source, confidence:"confirmed"};
-        });
-      });
+      if(window.loadDoloVestingLabels) await window.loadDoloVestingLabels(ADDR_LABELS);
     }catch(error){
-      // Was a silent `catch(_){}` — a failure here misclassifies Core Team /
-      // Investor wallets as plain EOAs and skews the allocation buckets, so log it.
-      console.warn("vesting_investors.json load failed — investor/team labels degraded", error);
+      console.warn("Investor wallet labels unavailable", error);
     }
   }
   async function boot(){

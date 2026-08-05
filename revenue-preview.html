@@ -1411,7 +1411,7 @@ h1{
   </section>
 </div>
 
-<script src="dolo-address-labels.js?v=dolo-labels-20260803-binance-deposit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260805-investor-provenance"></script>
 <script>
 (function(){
   const DATA_URL = "dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate";
@@ -1448,6 +1448,12 @@ h1{
   const VEBORROW_WALLET_LABELS = window.cloneDoloAddressLabels
     ? window.cloneDoloAddressLabels()
     : (window.DOLO_ADDRESS_LABELS || {});
+  const veBorrowLabelsPromise = window.loadDoloVestingLabels
+    ? window.loadDoloVestingLabels(VEBORROW_WALLET_LABELS).catch(error => {
+        console.warn("Investor wallet labels unavailable", error);
+        return null;
+      })
+    : Promise.resolve(null);
   const VEBORROW_WALLET_TYPE_GENERIC = {
     eoa: "Wallet",
     multisig: "Safe Multisig",
@@ -4012,7 +4018,8 @@ h1{
     fetchJson(VEBORROW_SIMULATION_URL).catch(error => {
       console.warn("veBorrow simulation data failed", error);
       return null;
-    })
+    }),
+    veBorrowLabelsPromise
   ])
     .then(([data, exercises, doloPrice, veBorrowSimulation]) => {
       revenueData = data;

@@ -37,20 +37,20 @@
     "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3": {label:"Kodiak DOLO/WBERA", type:"lp"},
     "0x8991017b74f9f8070bff5b322802dd26e05e0cc7": {label:"Bulla DOLO/HONEY LP Pool", type:"lp", chain:"berachain", source:"routescan-verified-algebra-pool", confidence:"confirmed"},
 
-    "0x185000fb4d98acea1a771db3714a431f7fe51cac": {label:"Core Team 1", type:"protocol", treasury:true},
-    "0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1": {label:"Core Team 2", type:"protocol", treasury:true},
-    "0x6c97802a1815bc459004c686560244de28a2de75": {label:"Core Team 3", type:"protocol", treasury:true},
-    "0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1": {label:"Core Team 4", type:"protocol", treasury:true},
-    "0x3f1f155949f32fa3e688093d176a1b5a72c488eb": {label:"Core Team 5", type:"protocol", treasury:true},
-    "0x871b0afcd3fd44f4c0071d4ade68ce40d0d6bbcc": {label:"Core Team 6", type:"protocol", treasury:true},
-    "0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec": {label:"Core Team 7", type:"protocol", treasury:true},
-    "0xb8ba44d5e46562ec011ade12603f353b18089a41": {label:"Core Team 8", type:"protocol", treasury:true},
+    "0x185000fb4d98acea1a771db3714a431f7fe51cac": {label:"Core Team 1", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
+    "0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1": {label:"Core Team 2", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
+    "0x6c97802a1815bc459004c686560244de28a2de75": {label:"Core Team 3", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
+    "0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1": {label:"Core Team 4", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
+    "0x3f1f155949f32fa3e688093d176a1b5a72c488eb": {label:"Core Team 5", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
+    "0x871b0afcd3fd44f4c0071d4ade68ce40d0d6bbcc": {label:"Core Team 6", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
+    "0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec": {label:"Core Team 7", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
+    "0xb8ba44d5e46562ec011ade12603f353b18089a41": {label:"Core Team 8", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
     // Distribution contract for investor allocations: funded by the Dolomite
     // Gnosis Safe, pays out vesting tranches to investor wallets (the pipeline
     // labels its recipients as Investors via extract_vesting_investors).
     "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07": {label:"Investor Distribution", type:"protocol", treasury:true, source:"flow-audit-20260612", confidence:"confirmed"},
     "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd": {label:"Investor 2", type:"investor", treasury:true},
-    "0x7efd088ae500598a19a242d6d48b9f7e0d061176": {label:"Investor 3", type:"investor", treasury:true},
+    "0x7efd088ae500598a19a242d6d48b9f7e0d061176": {label:"Strategic Investor Claims", type:"protocol", treasury:true, source:"dolomite-docs-module-dolo", confidence:"confirmed"},
 
     "0xf977814e90da44bfa03b6295a0616a897441acec": {label:"Binance Hot Wallet 20", type:"cex", source:"etherscan-public-label"},
     "0x06fd4ba7973a0d39a91734bbc35bc2bcaa99e3b0": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed"},
@@ -150,7 +150,97 @@
 
   const NORMALIZED_DOLO_ADDRESS_LABELS = normalizeDoloAddressLabels(DOLO_ADDRESS_LABELS);
   const cloneLabels = () => JSON.parse(JSON.stringify(NORMALIZED_DOLO_ADDRESS_LABELS));
+
+  function isDoloAddress(value){
+    return /^0x[a-f0-9]{40}$/.test(String(value || "").toLowerCase());
+  }
+
+  function mergeDoloVestingLabels(targetLabels, payload){
+    const labels = targetLabels && typeof targetLabels === "object" ? targetLabels : {};
+    if(!payload || typeof payload !== "object" || Array.isArray(payload)) return {labels, changed:false, added:0};
+
+    const candidates = new Map();
+    const addCandidate = (address, label, claimSources = []) => {
+      const key = String(address || "").toLowerCase();
+      if(!isDoloAddress(key) || !["Early Investor", "Investor", "Core Team"].includes(label)) return;
+      const previous = candidates.get(key);
+      const isEarly = label === "Early Investor" || previous?.label === "Early Investor";
+      const sources = new Set([...(previous?.claimSources || []), ...(claimSources || [])]);
+      candidates.set(key, {label:isEarly ? "Early Investor" : label, claimSources:Array.from(sources)});
+    };
+
+    (payload.wallets || []).forEach(row => {
+      if(!row || typeof row !== "object") return;
+      addCandidate(row.address, row.label, row.claimSources);
+    });
+    (payload.early_investors || []).forEach(address => addCandidate(address, "Early Investor", ["strategic_investor_claims"]));
+    (payload.investors || []).forEach(address => addCandidate(address, "Investor", ["investor_claims"]));
+
+    const investorSet = new Set((payload.investors || []).map(address => String(address || "").toLowerCase()));
+    const teamRows = (payload.team || []).map(address => String(address || "").toLowerCase());
+    const isLegacyInvestorDuplicate = investorSet.size > 0
+      && teamRows.length === investorSet.size
+      && teamRows.every(address => investorSet.has(address));
+    if(!isLegacyInvestorDuplicate){
+      teamRows.forEach(address => addCandidate(address, "Core Team", []));
+    }
+
+    let added = 0;
+    let changed = false;
+    candidates.forEach((candidate, address) => {
+      const existing = labels[address];
+      const canUpgradeInvestor = existing?.source === "official-claim-contract-transfer"
+        && existing?.type === "investor"
+        && candidate.label === "Early Investor";
+      if(existing && !canUpgradeInvestor) return;
+      const hasEarly = candidate.label === "Early Investor";
+      const hasLongTerm = candidate.claimSources.includes("investor_claims");
+      const description = hasEarly && hasLongTerm
+        ? "Received a strategic investor allocation and also received a long-term investor tranche."
+        : hasEarly
+          ? "Received DOLO from the official Strategic Investor Claims contract."
+          : candidate.label === "Investor"
+            ? "Received DOLO from the official Investor Claims contract."
+            : "Verified Core Team allocation wallet.";
+      labels[address] = {
+        ...(existing || {}),
+        label: candidate.label,
+        type: candidate.label === "Core Team" ? "protocol" : "investor",
+        treasury: candidate.label === "Core Team" || undefined,
+        source: candidate.label === "Core Team" ? "verified-team-allocation" : "official-claim-contract-transfer",
+        confidence: "confirmed",
+        claimSources: candidate.claimSources,
+        alsoReceivedLongTermTranche: Boolean(hasEarly && hasLongTerm),
+        description,
+      };
+      if(!existing) added += 1;
+      changed = true;
+    });
+    return {labels, changed, added};
+  }
+
+  let vestingPayloadPromise = null;
+  function loadDoloVestingLabels(targetLabels, options = {}){
+    const labels = targetLabels && typeof targetLabels === "object" ? targetLabels : window.DOLO_ADDR_LABELS || {};
+    const url = options.url || "vesting_investors.json";
+    if(!vestingPayloadPromise){
+      vestingPayloadPromise = fetch(url, {cache:"no-cache"}).then(response => {
+        if(!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+        return response.json();
+      });
+    }
+    return vestingPayloadPromise.then(payload => {
+      const result = mergeDoloVestingLabels(labels, payload);
+      if(result.changed && typeof window.dispatchEvent === "function" && typeof window.CustomEvent === "function"){
+        window.dispatchEvent(new CustomEvent("dolo:labels-updated", {detail:{added:result.added}}));
+      }
+      return result;
+    });
+  }
+
   window.DOLO_ADDRESS_LABELS = NORMALIZED_DOLO_ADDRESS_LABELS;
   window.cloneDoloAddressLabels = cloneLabels;
+  window.mergeDoloVestingLabels = mergeDoloVestingLabels;
+  window.loadDoloVestingLabels = loadDoloVestingLabels;
   if(!window.DOLO_ADDR_LABELS) window.DOLO_ADDR_LABELS = cloneLabels();
 })();

@@ -103,11 +103,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
             "            fetch('vedolo_expiry.json'",
             self.source,
         )
-        self.assertIn(
-            "if (!earn_isDedicatedRoutePage()) {\n"
-            "            fetch('vesting_investors.json'",
-            self.source,
-        )
+        self.assertIn("window.loadDoloVestingLabels(DOLO_ADDR_LABELS)", self.source)
         self.assertIn(
             "if (!earn_isDedicatedRoutePage()) {\n"
             "                assets_setupWarmupTriggers();",

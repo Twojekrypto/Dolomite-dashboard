@@ -4277,30 +4277,13 @@
         const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : {};
         window.DOLO_ADDR_LABELS = DOLO_ADDR_LABELS;
 
-        // --- DYNAMIC LABELS (Fetched from Backend Pipeline) ---
-        // --- DYNAMIC LABELS (Fetched from Backend Pipeline) ---
-        if (!earn_isDedicatedRoutePage()) {
-            fetch('vesting_investors.json').then(r => r.json()).then(data => {
-                if (Array.isArray(data)) return; // skip if old format cached
-                if (data.early_investors) {
-                    data.early_investors.forEach(addr => {
-                        const lower = addr.toLowerCase();
-                        if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Early Investor', type: 'investor', source: 'vesting_investors', confidence: 'confirmed' };
-                    });
-                }
-                if (data.investors) {
-                    data.investors.forEach(addr => {
-                        const lower = addr.toLowerCase();
-                        if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Investor', type: 'investor', source: 'vesting_investors', confidence: 'confirmed' };
-                    });
-                }
-                if (data.team) {
-                    data.team.forEach(addr => {
-                        const lower = addr.toLowerCase();
-                        if (!DOLO_ADDR_LABELS[lower]) DOLO_ADDR_LABELS[lower] = { label: 'Core Team', type: 'protocol', treasury: true, source: 'vesting_investors', confidence: 'confirmed' };
-                    });
-                }
-            }).catch(e => console.log('vesting_investors.json load skipped or missing'));
+        // Investor labels are small and directly relevant to EARN wallet rows, so
+        // the dedicated route loads them too. The shared helper caches the fetch,
+        // preserves higher-priority static labels, and rejects the legacy case in
+        // which every Investor Claims recipient was duplicated into `team`.
+        if (window.loadDoloVestingLabels) {
+            window.loadDoloVestingLabels(DOLO_ADDR_LABELS)
+                .catch(error => console.warn('Investor wallet labels unavailable', error));
         }
 
         function dolo_labelBadge(addr) {
@@ -4329,7 +4312,7 @@
                 investor: 'Known Investor — early investor or fund allocation',
                 liquidator: 'Liquidator Bot — automated system that closes unhealthy positions to protect the protocol',
             };
-            const desc = typeDescs[info.type] || 'Known Address';
+            const desc = info.description || typeDescs[info.type] || 'Known Address';
             const style = colors[info.type] || colors.protocol;
             return `<span class="badge-tooltip-wrap"><span style="display:inline-block;font-size:9px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:5px;letter-spacing:0.3px;white-space:nowrap;${style}">${info.label}</span><span class="badge-tooltip">${desc}</span></span>`;
         }
