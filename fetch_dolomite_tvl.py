@@ -15,7 +15,7 @@ OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_tvl.json")
 STALE_CHAIN_SECONDS = 6 * 60 * 60
 TOKEN_API_RETRY_DELAYS = (2, 4, 8)
 SUBGRAPH_RETRY_DELAYS = (2, 4, 8)
-RETRYABLE_TOKEN_API_STATUS_CODES = {408, 429, 500, 502, 503, 504}
+RETRYABLE_TOKEN_API_STATUS_CODES = {403, 408, 429, 500, 502, 503, 504}
 
 ASSETS_CHAINS = {
     "Berachain": "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn",
