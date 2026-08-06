@@ -31,6 +31,28 @@ class FetchDolomiteTvlTest(unittest.TestCase):
         self.assertEqual(3, request_get.call_count)
         self.assertEqual([call(2), call(4)], time_mock.sleep.call_args_list)
 
+    def test_token_api_retries_transient_forbidden_response(self):
+        transient_failure = Mock()
+        transient_failure.status_code = 403
+        transient_failure.raise_for_status.side_effect = fetch_dolomite_tvl.requests.HTTPError(
+            "temporary upstream access denial",
+            response=transient_failure,
+        )
+        success = Mock()
+        success.raise_for_status.return_value = None
+        success.json.return_value = {"tokens": [{"symbol": "DOLO"}]}
+
+        with patch.object(
+            fetch_dolomite_tvl.requests,
+            "get",
+            side_effect=[transient_failure, success],
+        ) as request_get, patch.object(fetch_dolomite_tvl.time, "sleep") as sleep_mock:
+            result = fetch_dolomite_tvl.fetch_token_liquidity_payload("Ethereum")
+
+        self.assertEqual([{"symbol": "DOLO"}], result)
+        self.assertEqual(2, request_get.call_count)
+        self.assertEqual([call(2)], sleep_mock.call_args_list)
+
     def test_subgraph_payload_retries_incomplete_metadata(self):
         incomplete = Mock()
         incomplete.raise_for_status.return_value = None
