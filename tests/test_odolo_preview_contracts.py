@@ -117,6 +117,7 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('data.redeemedAndBurned', self.html)
         self.assertIn('centerLDefault:"Allocation"', self.html)
         self.assertIn('`${fmtNum(allocationSupply)} allocation`', self.html)
+        self.assertIn("odolo-allocation-reconciliation-20260807", self.route)
 
     def test_claimer_behavior_displays_allocation_context(self):
         self.assertIn(
