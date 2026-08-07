@@ -41,6 +41,9 @@ EXPECTED_TVL_CHAINS = ALL_TVL_CHAINS - RETIRED_TVL_CHAINS
 EXPECTED_ASSETS_LIVE_CHAIN_COUNT = 5
 RETIRED_ASSETS_LIVE_CHAINS = {"botanix", "polygonzkevm"}
 ODOLO_FUTURE_REWARDS_WALLET = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
+ODOLO_ALLOCATION = 200_000_000.0
+ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543"
+ODOLO_CLAIMS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
 NON_CHAIN_TVL_KEYS = {
     "borrowed",
     "staking",
@@ -183,6 +186,28 @@ def _odolo_circulating_reconciles(data):
     return _nearly_equal(in_circulation, expected, abs_tol=2.0)
 
 
+def _odolo_allocation_reconciles(data):
+    try:
+        allocation = float(data.get("allocationSupply"))
+        current = float(data.get("totalSupply"))
+        components = sum(float(data.get(key)) for key in (
+            "futureRewardsReserve",
+            "inVesterBalance",
+            "inCirculation",
+            "redeemedAndBurned",
+        ))
+        burned = float(data.get("redeemedAndBurned"))
+    except (TypeError, ValueError):
+        return False
+    return (
+        _nearly_equal(allocation, ODOLO_ALLOCATION, abs_tol=0.01)
+        and current <= allocation
+        and burned >= 0
+        and _nearly_equal(components, allocation, abs_tol=2.0)
+        and _nearly_equal(current + burned, allocation, abs_tol=2.0)
+    )
+
+
 ODOLO_FLOW_PERIOD_ORDER = ["1d", "7d", "30d", "90d", "180d", "all"]
 
 
@@ -285,6 +310,14 @@ def _odolo_claimer_partitions_reconcile(data):
             if not _nearly_equal(expected_claimed, row_total, rel=1e-8, abs_tol=max(0.05, len(rows) * 0.03)):
                 return False
     return True
+
+
+def _odolo_claim_total_within_allocation(data):
+    try:
+        claimed = float((data.get("claimer_behavior") or {}).get("total_claimed"))
+    except (TypeError, ValueError):
+        return False
+    return 0 <= claimed <= ODOLO_ALLOCATION
 
 
 def _odolo_flow_components_reconcile(data):
@@ -859,6 +892,15 @@ def _odolo_claim_events_use_odolo_token(data):
     )
 
 
+def _odolo_claim_events_are_canonical(data):
+    events = data.get("events") or []
+    return bool(events) and all(
+        str(event.get("distributor") or "").lower() == ODOLO_CLAIMS_DISTRIBUTOR
+        and str(event.get("tokenAddress") or "").lower() == ODOLO_TOKEN_ADDRESS
+        for event in events
+    )
+
+
 def _reward_claim_events_have_known_chains(data):
     chains = data.get("chains", {})
     events = data.get("events", [])
@@ -996,6 +1038,7 @@ RULES = {
             ("period windows must not collapse to all-time", _odolo_flow_windows_are_not_collapsed),
             ("block metadata must prove full all-time coverage", _odolo_flow_block_metadata_is_valid),
             ("claimer lifecycle partitions must reconcile", _odolo_claimer_partitions_reconcile),
+            ("claimer total must not exceed the 200M allocation", _odolo_claim_total_within_allocation),
             ("gross and net oDOLO flows must reconcile", _odolo_flow_components_reconcile),
         ],
         "min_bytes": 50_000,
@@ -1007,8 +1050,7 @@ RULES = {
             ("chain must be Berachain", lambda d: d.get("chainKey") == "berachain"),
             ("block range must be valid", lambda d: isinstance(d.get("fromBlock"), int) and isinstance(d.get("toBlock"), int) and d.get("fromBlock") <= d.get("toBlock")),
             ("timestamp range must be valid", lambda d: isinstance(d.get("fromTimestamp"), int) and isinstance(d.get("toTimestamp"), int) and d.get("fromTimestamp") <= d.get("toTimestamp")),
-            ("distributors must be tracked", _odolo_claim_events_have_known_distributors),
-            ("events must use oDOLO token", _odolo_claim_events_use_odolo_token),
+            ("events must use the canonical oDOLO distributor and token", _odolo_claim_events_are_canonical),
             ("events must have transaction evidence", lambda d: all(row.get("txHash") and row.get("timestamp") and row.get("user") and row.get("amount") for row in d.get("events", []))),
         ],
         "min_bytes": 500,
@@ -1184,6 +1226,9 @@ RULES = {
     "odolo_contract_data.json": {
         "required_keys": [
             "totalSupply",
+            "allocationSupply",
+            "redeemedAndBurned",
+            "allocationMethodology",
             "decimals",
             "futureRewardsWallet",
             "futureRewardsReserve",
@@ -1203,6 +1248,10 @@ RULES = {
             (
                 "circulating supply must be within total supply",
                 lambda d: 0 <= float(d.get("inCirculation", -1)) <= float(d.get("totalSupply", 0)),
+            ),
+            (
+                "allocation components must reconcile to 200M",
+                _odolo_allocation_reconciles,
             ),
         ],
         "min_bytes": 50,
