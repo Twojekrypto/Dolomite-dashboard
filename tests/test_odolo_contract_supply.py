@@ -62,6 +62,20 @@ class TestOdoloContractSupply(unittest.TestCase):
                 18,
             )
 
+    def test_allocation_components_must_reconcile_to_200m(self):
+        payload = {
+            "allocationSupply": 200_000_000,
+            "totalSupply": 147_000_000,
+            "futureRewardsReserve": 126_000_000,
+            "inVesterBalance": 3_000_000,
+            "inCirculation": 18_000_000,
+            "redeemedAndBurned": 53_000_000,
+        }
+        self.assertTrue(validate_data._odolo_allocation_reconciles(payload))
+
+        payload["redeemedAndBurned"] = 52_000_000
+        self.assertFalse(validate_data._odolo_allocation_reconciles(payload))
+
 
 if __name__ == "__main__":
     unittest.main()

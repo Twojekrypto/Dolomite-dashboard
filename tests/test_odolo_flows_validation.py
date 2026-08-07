@@ -108,6 +108,26 @@ class OdoloFlowsValidationTests(unittest.TestCase):
         payload["claimer_behavior"]["all_claimers"][0]["claim_remaining"] = 40
         self.assertFalse(validate_data._odolo_claimer_partitions_reconcile(payload))
 
+    def test_claimer_total_must_not_exceed_allocation(self):
+        self.assertTrue(validate_data._odolo_claim_total_within_allocation({
+            "claimer_behavior": {"total_claimed": 53_911_566}
+        }))
+        self.assertFalse(validate_data._odolo_claim_total_within_allocation({
+            "claimer_behavior": {"total_claimed": 200_000_001}
+        }))
+
+    def test_legacy_odolo_events_require_canonical_identity(self):
+        valid = {
+            "events": [{
+                "distributor": validate_data.ODOLO_CLAIMS_DISTRIBUTOR,
+                "tokenAddress": validate_data.ODOLO_TOKEN_ADDRESS,
+            }]
+        }
+        self.assertTrue(validate_data._odolo_claim_events_are_canonical(valid))
+
+        valid["events"][0]["distributor"] = "0x" + "1" * 40
+        self.assertFalse(validate_data._odolo_claim_events_are_canonical(valid))
+
     def test_flow_components_must_reconcile_gross_and_net(self):
         row = {
             "address": "0x" + "2" * 40,
