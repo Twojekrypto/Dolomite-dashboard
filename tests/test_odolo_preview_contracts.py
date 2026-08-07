@@ -125,6 +125,16 @@ class OdoloPreviewContractsTest(unittest.TestCase):
             self.html,
         )
 
+    def test_claimer_breakdown_uses_shared_labels_with_badge_and_provenance(self):
+        self.assertIn('<script src="odolo-address-meta.js?v=odolo-label-parity-20260807"></script>', self.html)
+        self.assertIn("window.buildOdoloAddressMeta", self.html)
+        self.assertNotIn("const ODOLO_SHARED_TYPE_MAP", self.html)
+        self.assertIn("badgeLabel: meta.badgeLabel", self.html)
+        self.assertIn("labelTooltip: meta.tooltip", self.html)
+        self.assertIn('<span class="addr-name">${esc(r.label)}</span>', self.html)
+        self.assertIn('data-tooltip="${esc(r.labelTooltip || TYPE_TIPS[r.type] || "")}"', self.html)
+        self.assertIn("odolo-claimer-label-parity-20260807", self.route)
+
     def test_donut_center_is_initialized_from_live_segment_values(self):
         draw_donut = re.search(
             r'function drawDonut\(opts\)\{(?P<body>.*?)\n\}\n\n\n/\* ={20,}',
