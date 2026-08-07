@@ -17,10 +17,37 @@ import requests
 SCHEMA_VERSION = 2
 REWARD_CLAIMED_TOPIC = "0x7a84a08b02c91f3c62d572853f966fc799bbd121e8ad7833a4494ab8dcfcb404"
 GRAPH_BASE = "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs"
+DOLO_CONTRACT = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654"
 ODOLO_CONTRACT = "0x02e513b5b54ee216bf836ceb471507488fc89543"
-BERA_ODOLO_DISTRIBUTORS = {
-    "0x79e6e932bf6686a4d357d7821e6e08835ba8a026",
-    "0xd88f473832b0403c7736ef237af5aff8759b99ef",
+ODOLO_CLAIMS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
+OPTION_AIRDROP_DISTRIBUTOR = "0xd88f473832b0403c7736ef237af5aff8759b99ef"
+REGULAR_AIRDROP_DISTRIBUTOR = "0xa3f079292cc35ba64996fe0bce3049928a838bc9"
+INVESTOR_CLAIMS_DISTRIBUTOR = "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"
+STRATEGIC_INVESTOR_CLAIMS_DISTRIBUTOR = "0x7efd088ae500598a19a242d6d48b9f7e0d061176"
+ADVISOR_CLAIMS_DISTRIBUTOR = "0xbd225c09e4b032e41d5e8aea5f81efff45f20f7b"
+
+BERA_ODOLO_DISTRIBUTORS = {ODOLO_CLAIMS_DISTRIBUTOR}
+BERA_DOLO_DISTRIBUTORS = {
+    OPTION_AIRDROP_DISTRIBUTOR,
+    REGULAR_AIRDROP_DISTRIBUTOR,
+    INVESTOR_CLAIMS_DISTRIBUTOR,
+    STRATEGIC_INVESTOR_CLAIMS_DISTRIBUTOR,
+    ADVISOR_CLAIMS_DISTRIBUTOR,
+}
+BERA_KNOWN_DISTRIBUTOR_TOKENS = {
+    ODOLO_CLAIMS_DISTRIBUTOR: {
+        "symbol": "oDOLO",
+        "address": ODOLO_CONTRACT,
+        "decimals": 18,
+    },
+    **{
+        distributor: {
+            "symbol": "DOLO",
+            "address": DOLO_CONTRACT,
+            "decimals": 18,
+        }
+        for distributor in BERA_DOLO_DISTRIBUTORS
+    },
 }
 ARB_MIN_DISTRIBUTOR = "0x2e3d10cc42227af0ce908f00c76ffe1de1728b4b"
 ARB_OARB_DISTRIBUTOR = "0x66cd7d0cc677f42f6662622c60a5e60ef573db67"
@@ -61,10 +88,7 @@ CHAIN_CONFIGS = {
         "chunkSize": 50_000,
         "fallbackDistributors": BERA_ODOLO_DISTRIBUTORS,
         "token": {"symbol": "oDOLO", "address": ODOLO_CONTRACT, "decimals": 18},
-        "knownDistributorTokens": {
-            distributor: {"symbol": "oDOLO", "address": ODOLO_CONTRACT, "decimals": 18}
-            for distributor in BERA_ODOLO_DISTRIBUTORS
-        },
+        "knownDistributorTokens": BERA_KNOWN_DISTRIBUTOR_TOKENS,
         "rpcUrls": [
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC") else [os.environ["ALCHEMY_BERACHAIN_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_2") else [os.environ["ALCHEMY_BERACHAIN_RPC_2"]]),
@@ -896,25 +920,24 @@ def build_legacy_odolo_payload(payload):
         {key: value for key, value in event.items() if key not in {"chainKey", "chainName", "tokenDecimals"}}
         for event in payload.get("events", [])
         if event.get("chainKey") == "berachain"
+        and normalize_address(event.get("distributor")) == ODOLO_CLAIMS_DISTRIBUTOR
+        and normalize_address(event.get("tokenAddress")) == ODOLO_CONTRACT
     ]
-    distributors = chain.get("distributors") or sorted({
-        normalize_address(event.get("distributor"))
-        for event in events
-        if is_address(event.get("distributor"))
-    })
-    token = chain.get("token") or {"symbol": "oDOLO", "address": ODOLO_CONTRACT, "decimals": 18}
+    blocks = [int(event.get("blockNumber") or 0) for event in events if int(event.get("blockNumber") or 0) > 0]
+    timestamps = [int(event.get("timestamp") or 0) for event in events if int(event.get("timestamp") or 0) > 0]
+    token = {"symbol": "oDOLO", "address": ODOLO_CONTRACT, "decimals": 18}
     return {
         "schemaVersion": 1,
         "generatedAt": payload.get("generatedAt") or utc_now_iso(),
         "chainKey": "berachain",
         "source": "Berachain RewardClaimed logs for Dolomite oDOLO rewards",
-        "fromBlock": chain.get("fromBlock") or 0,
-        "toBlock": chain.get("toBlock") or 0,
-        "fromTimestamp": chain.get("fromTimestamp") or 0,
-        "toTimestamp": chain.get("toTimestamp") or 0,
+        "fromBlock": min(blocks) if blocks else 0,
+        "toBlock": max(blocks) if blocks else 0,
+        "fromTimestamp": min(timestamps) if timestamps else 0,
+        "toTimestamp": max(timestamps) if timestamps else 0,
         "eventEmitter": chain.get("eventEmitter") or CHAIN_CONFIGS["berachain"]["eventEmitter"],
-        "distributor": distributors[0] if len(distributors) == 1 else "",
-        "distributors": distributors,
+        "distributor": ODOLO_CLAIMS_DISTRIBUTOR,
+        "distributors": [ODOLO_CLAIMS_DISTRIBUTOR],
         "token": token,
         "events": events,
     }

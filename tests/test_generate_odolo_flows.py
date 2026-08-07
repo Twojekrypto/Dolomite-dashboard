@@ -174,6 +174,7 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
             "events": [
                 {
                     "user": wallet,
+                    "distributor": odolo_flows.REWARDS_CONTRACT,
                     "tokenAddress": odolo_flows.ODOLO_CONTRACT,
                     "amountWei": str(42 * 10**18),
                 }
@@ -201,12 +202,14 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
             "events": [
                 {
                     "user": old_wallet,
+                    "distributor": odolo_flows.REWARDS_CONTRACT,
                     "tokenAddress": odolo_flows.ODOLO_CONTRACT,
                     "amountWei": str(10 * 10**18),
                     "blockNumber": 100,
                 },
                 {
                     "user": recent_wallet,
+                    "distributor": odolo_flows.REWARDS_CONTRACT,
                     "tokenAddress": odolo_flows.ODOLO_CONTRACT,
                     "amountWei": str(20 * 10**18),
                     "blockNumber": 200,
@@ -222,6 +225,43 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
             os.unlink(path)
 
         self.assertEqual(recent, {recent_wallet: 20.0})
+
+    def test_reward_claim_loader_requires_official_distributor_and_token(self):
+        wallet = "0x" + "3" * 40
+        payload = {
+            "events": [
+                {
+                    "user": wallet,
+                    "distributor": "0x" + "4" * 40,
+                    "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                    "tokenSymbol": "oDOLO",
+                    "amountWei": str(100 * 10**18),
+                },
+                {
+                    "user": wallet,
+                    "distributor": odolo_flows.REWARDS_CONTRACT,
+                    "tokenAddress": "0x" + "5" * 40,
+                    "tokenSymbol": "oDOLO",
+                    "amountWei": str(200 * 10**18),
+                },
+                {
+                    "user": wallet,
+                    "distributor": odolo_flows.REWARDS_CONTRACT,
+                    "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                    "tokenSymbol": "oDOLO",
+                    "amountWei": str(30 * 10**18),
+                },
+            ]
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump(payload, f)
+            path = f.name
+        try:
+            claims = odolo_flows.load_reward_claims(path)
+        finally:
+            os.unlink(path)
+
+        self.assertEqual(claims, {wallet: 30.0})
 
     def test_flow_components_keep_gross_outflow_separate_from_net_flow(self):
         wallet = "0x" + "8" * 40

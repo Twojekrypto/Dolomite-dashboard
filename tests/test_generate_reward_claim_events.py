@@ -83,6 +83,51 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
         self.assertEqual(fetch_calls, [[300]])
         self.assertEqual(events[0]["timestamp"], 7300)
 
+    def test_legacy_odolo_payload_excludes_non_odolo_distributors(self):
+        official = rce.ODOLO_CLAIMS_DISTRIBUTOR
+        option_airdrop = rce.OPTION_AIRDROP_DISTRIBUTOR
+        payload = {
+            "generatedAt": "2026-08-07T00:00:00Z",
+            "chains": {"berachain": {"eventEmitter": "0x" + "9" * 40}},
+            "events": [
+                {
+                    "chainKey": "berachain",
+                    "distributor": official,
+                    "tokenAddress": rce.ODOLO_CONTRACT,
+                    "tokenSymbol": "oDOLO",
+                    "blockNumber": 100,
+                    "timestamp": 1000,
+                    "user": "0x" + "1" * 40,
+                    "amountWei": str(10 * 10**18),
+                },
+                {
+                    "chainKey": "berachain",
+                    "distributor": option_airdrop,
+                    "tokenAddress": rce.DOLO_CONTRACT,
+                    "tokenSymbol": "DOLO",
+                    "blockNumber": 101,
+                    "timestamp": 1001,
+                    "user": "0x" + "2" * 40,
+                    "amountWei": str(20 * 10**18),
+                },
+            ],
+        }
+
+        legacy = rce.build_legacy_odolo_payload(payload)
+
+        self.assertEqual(legacy["distributor"], official)
+        self.assertEqual(legacy["distributors"], [official])
+        self.assertEqual(len(legacy["events"]), 1)
+        self.assertEqual(legacy["events"][0]["user"], "0x" + "1" * 40)
+        self.assertEqual(legacy["token"]["address"], rce.ODOLO_CONTRACT)
+
+    def test_documented_dolo_claim_contracts_are_not_odolo(self):
+        known = rce.CHAIN_CONFIGS["berachain"]["knownDistributorTokens"]
+        for distributor in rce.BERA_DOLO_DISTRIBUTORS:
+            with self.subTest(distributor=distributor):
+                self.assertEqual(known[distributor]["symbol"], "DOLO")
+                self.assertEqual(known[distributor]["address"], rce.DOLO_CONTRACT)
+
     def test_reward_claim_scanner_reads_all_dedicated_arbitrum_rpc_secrets(self):
         source = (ROOT / "generate_reward_claim_events.py").read_text(encoding="utf-8")
 

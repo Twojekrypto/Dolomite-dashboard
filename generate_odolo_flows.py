@@ -218,11 +218,9 @@ def load_reward_claims(path, min_block=None):
         block_number = int(event.get("blockNumber") or 0)
         if min_block is not None and block_number < min_block:
             continue
+        distributor = normalize_address(event.get("distributor") or payload.get("distributor"))
         token = normalize_address(event.get("tokenAddress"))
-        symbol = str(event.get("tokenSymbol") or payload.get("token", {}).get("symbol") or "").lower()
-        if token and token != ODOLO_CONTRACT:
-            continue
-        if token is None and symbol != "odolo":
+        if distributor != REWARDS_CONTRACT or token != ODOLO_CONTRACT:
             continue
         wallet = normalize_address(event.get("user"))
         if not wallet or wallet in EXCLUDED_ADDRS:
