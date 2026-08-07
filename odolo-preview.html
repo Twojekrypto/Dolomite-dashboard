@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260804-address-strong-final">
 <script defer src="shared-hover-tooltips.js?v=20260804-address-strong-final"></script>
 <script src="dolo-address-labels.js?v=dolo-labels-20260805-strategic-round"></script>
+<script src="odolo-address-meta.js?v=odolo-label-parity-20260807"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <style>
 /* ==========================================================================
@@ -1970,9 +1971,8 @@ const EXTERNAL_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const LIVE = { contract:null, usd:null, lock:null, exercisers:null, flows:null, loaded:false };
 const DATA_VERSION = "odolo-integrity-20260710b";
 // Address labels come from the shared single source of truth
-// (dolo-address-labels.js, per lessons.md); shared types are mapped onto this
-// page's TYPE_LABELS vocabulary. Inline fallback covers file-load failure.
-const ODOLO_SHARED_TYPE_MAP = { protocol:"ca", contract:"ca", dead:"ca", cex:"cex", bot:"bot", mm:"mm", investor:"investor" };
+// (dolo-address-labels.js, per lessons.md). The adapter preserves provenance
+// while mapping shared types onto this page's existing visual vocabulary.
 const ADDRESS_META_FALLBACK = {
   "0x3e9b9a16743551da49b5e136c716bba7932d2cec": { label:"oDOLO Pair Vester", type:"ca" },
   "0x02e513b5b54ee216bf836ceb471507488fc89543": { label:"oDOLO Token", type:"ca" },
@@ -2006,16 +2006,10 @@ const ADDRESS_META_FALLBACK = {
   "0xb8001c3ec9aa1985f6c747e25c28324e4a361ec1": { label:"Cobo Custody", type:"cex" },
   "0x2b3bf74b29f59fb8dda41cf3d6a8da28cf8e7921": { label:"BingX 29", type:"cex" },
 };
-const ADDRESS_META = (() => {
-  const shared = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : null;
-  if(!shared) return ADDRESS_META_FALLBACK;
-  const out = {};
-  for(const [addr, meta] of Object.entries(shared)){
-    const type = ODOLO_SHARED_TYPE_MAP[meta?.type];
-    if(type && meta?.label) out[addr.toLowerCase()] = { label: meta.label, type };
-  }
-  return out;
-})();
+const sharedAddressMeta = window.cloneDoloAddressLabels ? window.cloneDoloAddressLabels() : ADDRESS_META_FALLBACK;
+const ADDRESS_META = window.buildOdoloAddressMeta
+  ? window.buildOdoloAddressMeta(sharedAddressMeta)
+  : sharedAddressMeta;
 const odoloVestingLabelsPromise = window.loadDoloVestingLabels
   ? window.loadDoloVestingLabels(ADDRESS_META).catch(error => {
       console.warn("Investor wallet labels unavailable", error);
@@ -2067,7 +2061,10 @@ function applyRows(target, rows){
 function addressMeta(addr){
   const key = (addr || "").toLowerCase();
   const meta = ADDRESS_META[key];
-  return meta && TYPE_LABELS[meta.type] ? meta : { label:null, type:"eoa" };
+  const normalized = window.normalizeOdoloAddressMeta ? window.normalizeOdoloAddressMeta(meta) : meta;
+  return normalized && TYPE_LABELS[normalized.type]
+    ? normalized
+    : { label:null, type:"eoa", sharedType:"eoa", badgeLabel:"EOA", tooltip:"" };
 }
 function periodCutoff(period){
   const days = { "1d":1, "7d":7, "30d":30, "90d":90, "180d":180 }[period];
@@ -2777,7 +2774,9 @@ function renderClaimerBreakdown(){
 
   const claimerRowsHtml = pageRows.map((r,i)=>{
     const rank = rankMap.get(r.addr.toLowerCase()) || start + i + 1;
-    const typeChip = r.label ? `<span class="addr-name">${r.label}</span>` : `<span class="addr-name addr-generic">Wallet</span>`;
+    const typeChip = r.label
+      ? `<span class="addr-name">${esc(r.label)}</span><span class="type-tag type-${esc(r.type)}" data-tooltip="${esc(r.labelTooltip || TYPE_TIPS[r.type] || "")}">${esc(r.badgeLabel || TYPE_LABELS[r.type] || "Known")}</span>`
+      : `<span class="addr-name addr-generic">Wallet</span>`;
     const actions = `
       <button class="addr-copy" data-copy="${r.addr}" aria-label="Copy address">${COPY_ICO}</button>
       <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
@@ -4021,6 +4020,8 @@ function syncLiveClaimersForPeriod(){
       addr: row.address,
       label: meta.label,
       type: meta.type,
+      badgeLabel: meta.badgeLabel,
+      labelTooltip: meta.tooltip,
       claimed: Number(row.claimed) || 0,
       exercised: Number(row.exercised) || 0,
       outflow: Number(row.outflow) || 0,

@@ -20,4 +20,3 @@ Make known wallets in **oDOLO Claimer Breakdown** use the same trusted shared id
 - Confirm the two currently dropped ENS labels (`7bfee.eth`, `atheon.eth`) appear in Claimer Breakdown.
 - Confirm known investor labels retain their classification and provenance.
 - Check desktop and mobile table rendering, tooltip behavior, and horizontal overflow in a real browser.
-

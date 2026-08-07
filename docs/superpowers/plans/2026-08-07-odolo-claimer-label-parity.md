@@ -22,4 +22,3 @@
 - Run focused JavaScript/Python tests and repository validation.
 - Verify known, potential, and unknown address states on desktop and mobile through a local HTTP server.
 - Rebase onto current production, push to `master`, and confirm the GitHub Pages deployment succeeds.
-
