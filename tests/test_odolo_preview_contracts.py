@@ -111,6 +111,19 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('setCardMeta("flows-meta", flowUpdated)', metadata_sync)
         self.assertIn("odolo-table-update-metadata-20260717", self.route)
 
+    def test_distribution_reconciles_full_allocation_with_burned_segment(self):
+        self.assertIn('label:"Redeemed & burned"', self.html)
+        self.assertIn('finiteNum(data.allocationSupply, 200e6)', self.html)
+        self.assertIn('data.redeemedAndBurned', self.html)
+        self.assertIn('centerLDefault:"Allocation"', self.html)
+        self.assertIn('`${fmtNum(allocationSupply)} allocation`', self.html)
+
+    def test_claimer_behavior_displays_allocation_context(self):
+        self.assertIn(
+            'oDOLO claimed of ${fmtNum(allocationSupply)} allocation',
+            self.html,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
