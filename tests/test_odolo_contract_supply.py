@@ -42,6 +42,26 @@ class TestOdoloContractSupply(unittest.TestCase):
             "inCirculation": 136_000_000,
         }))
 
+    def test_allocation_metrics_derive_burned_supply_from_integer_units(self):
+        metrics = fetch_odolo_contract.derive_allocation_metrics(
+            147_113_292 * 10**18,
+            18,
+        )
+
+        self.assertEqual(metrics["allocationSupply"], 200_000_000)
+        self.assertEqual(metrics["redeemedAndBurned"], 52_886_708)
+        self.assertIn(
+            "allocationSupply - totalSupply",
+            metrics["allocationMethodology"],
+        )
+
+    def test_allocation_metrics_reject_total_supply_above_allocation(self):
+        with self.assertRaises(ValueError):
+            fetch_odolo_contract.derive_allocation_metrics(
+                200_000_001 * 10**18,
+                18,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
