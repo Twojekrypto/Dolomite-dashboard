@@ -124,6 +124,15 @@ class OdoloPreviewContractsTest(unittest.TestCase):
             self.html,
         )
 
+    def test_donut_center_is_initialized_from_live_segment_values(self):
+        draw_donut = re.search(
+            r'function drawDonut\(opts\)\{(?P<body>.*?)\n\}\n\n\n/\* ={20,}',
+            self.html,
+            re.S,
+        ).group("body")
+
+        self.assertIn("setHover(-1);", draw_donut)
+
 
 if __name__ == "__main__":
     unittest.main()
