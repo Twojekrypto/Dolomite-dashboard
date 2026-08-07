@@ -1295,7 +1295,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <div class="donut-head">
         <div class="donut-title">
           <h2>oDOLO Distribution</h2>
-          <span class="count-badge" id="dist-count">154.53M total</span>
+          <span class="count-badge" id="dist-count">200.00M allocation</span>
         </div>
         <div class="donut-meta"><span class="pulse"></span>Live · contract data</div>
       </div>
@@ -1303,8 +1303,8 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
         <div class="donut-wrap-v2">
           <svg class="donut-svg" id="dist-donut" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
           <div class="donut-center-v2">
-            <div class="v" id="dist-center-v">154.53M</div>
-            <div class="l" id="dist-center-l">Total supply</div>
+            <div class="v" id="dist-center-v">200.00M</div>
+            <div class="l" id="dist-center-l">Allocation</div>
           </div>
         </div>
         <div class="donut-legend" id="dist-legend"></div>
@@ -1318,7 +1318,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
           <h2>Claimer Behavior</h2>
           <span class="count-badge" id="behav-count">2,357 claimers</span>
         </div>
-        <div class="donut-meta" id="behav-meta"><span class="pulse"></span>41.46M oDOLO claimed</div>
+        <div class="donut-meta" id="behav-meta"><span class="pulse"></span>53.91M oDOLO claimed of 200.00M allocation</div>
       </div>
       <div class="donut-body-v2">
         <div class="donut-wrap-v2">
@@ -2259,9 +2259,10 @@ function drawDonut(opts){
    oDOLO DISTRIBUTION DONUT
 ============================================================ */
 const DIST_SEGMENTS = [
-  {label:"Future rewards reserve", value:131.31e6, color:"#e4c15a", desc:"Held for future oDOLO distributions", fmt:"131.31M"},
-  {label:"Circulating",            value: 16.60e6, color:"#a8c499", desc:"Total supply minus reserves and vester balance", fmt:"16.60M"},
-  {label:"Vester balance",         value:  2.76e6, color:"#a78bfa", desc:"oDOLO currently held by the vester contract", fmt:"2.76M"},
+  {label:"Future rewards reserve", value:126.92e6, color:"#e4c15a", desc:"Held by the official oDOLO Claims contract for future rewards", fmt:"126.92M"},
+  {label:"Circulating",             value: 16.79e6, color:"#a8c499", desc:"Current supply outside the rewards reserve and vester", fmt:"16.79M"},
+  {label:"Vester balance",          value:  3.40e6, color:"#a78bfa", desc:"oDOLO currently held by the Pair Vester", fmt:"3.40M"},
+  {label:"Redeemed & burned",       value: 52.89e6, color:"#a86f5d", desc:"Exercised oDOLO removed from current ERC-20 supply", fmt:"52.89M"},
 ];
 
 /* ============================================================
@@ -2282,7 +2283,7 @@ function renderDonuts(){
     totalLabel:fmtNum(distTotal),
     centerVId:"dist-center-v",
     centerLId:"dist-center-l",
-    centerLDefault:"Total supply",
+    centerLDefault:"Allocation",
     legendId:"dist-legend",
   });
   drawDonut({
@@ -3922,6 +3923,7 @@ function syncLiveMetrics(){
   const lock = LIVE.lock || {};
   const exercisers = LIVE.exercisers || {};
   const totalSupply = finiteNum(data.totalSupply);
+  const allocationSupply = finiteNum(data.allocationSupply, 200e6);
   const futureRewardsReserve = finiteNum(data.futureRewardsReserve);
   const inVesterBalance = finiteNum(data.inVesterBalance, finiteNum(data.promisedTokens));
   const circulatingRaw = Number(data.inCirculation);
@@ -3935,8 +3937,8 @@ function syncLiveMetrics(){
 
   if(totalSupply){
     setMetricHtml("hero-supply", fmtNum(totalSupply), "", `<span class="unit">oDOLO</span>`);
-    setMetricText("dist-count", `${fmtNum(totalSupply)} total`);
   }
+  if(allocationSupply) setMetricText("dist-count", `${fmtNum(allocationSupply)} allocation`);
   if(avgDiscount){
     setMetricHtml("hero-discount", `${avgDiscount.toFixed(1)}%`, `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19l14-14"/><circle cx="7.5" cy="6.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/></svg>`, `<span class="lbl">avg discount</span>`);
   }
@@ -3973,16 +3975,22 @@ function syncLiveDistribution(){
   const data = LIVE.contract;
   if(!data) return;
   const totalSupply = finiteNum(data.totalSupply);
+  const allocationSupply = finiteNum(data.allocationSupply, 200e6);
   const futureRewardsReserve = finiteNum(data.futureRewardsReserve);
   const inVesterBalance = finiteNum(data.inVesterBalance, finiteNum(data.promisedTokens));
   const circulatingRaw = Number(data.inCirculation);
   const circulating = Number.isFinite(circulatingRaw)
     ? circulatingRaw
     : Math.max(0, totalSupply - futureRewardsReserve - inVesterBalance);
+  const redeemedAndBurned = finiteNum(
+    data.redeemedAndBurned,
+    Math.max(0, allocationSupply - totalSupply),
+  );
   applyRows(DIST_SEGMENTS, [
-    {label:"Future rewards reserve", value:futureRewardsReserve, color:"#e4c15a", desc:"Held for future oDOLO distributions", fmt:fmtNum(futureRewardsReserve)},
-    {label:"Circulating", value:circulating, color:"#a8c499", desc:"Total supply minus reserves and vester balance", fmt:fmtNum(circulating)},
-    {label:"Vester balance", value:inVesterBalance, color:"#a78bfa", desc:"oDOLO currently held by the vester contract", fmt:fmtNum(inVesterBalance)},
+    {label:"Future rewards reserve", value:futureRewardsReserve, color:"#e4c15a", desc:"Held by the official oDOLO Claims contract for future rewards", fmt:fmtNum(futureRewardsReserve)},
+    {label:"Circulating", value:circulating, color:"#a8c499", desc:"Current supply outside the rewards reserve and vester", fmt:fmtNum(circulating)},
+    {label:"Vester balance", value:inVesterBalance, color:"#a78bfa", desc:"oDOLO currently held by the Pair Vester", fmt:fmtNum(inVesterBalance)},
+    {label:"Redeemed & burned", value:redeemedAndBurned, color:"#a86f5d", desc:"Exercised oDOLO removed from current ERC-20 supply", fmt:fmtNum(redeemedAndBurned)},
   ]);
 }
 
@@ -3990,13 +3998,14 @@ function syncLiveBehavior(){
   const cb = LIVE.flows?.claimer_behavior;
   if(!cb) return;
   const claimed = Number(cb.total_claimed) || 0;
+  const allocationSupply = finiteNum(LIVE.contract?.allocationSupply, 200e6);
   applyRows(BEHAV_SEGMENTS, [
     {label:"Claim exercised", value:Number(cb.pct_exercised) || 0, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO", fmt:fmtNum(claimed * (Number(cb.pct_exercised) || 0) / 100) + " oDOLO"},
     {label:"Sold or sent away", value:Number(cb.pct_outflow) || 0, color:"#b4796b", desc:"Moved out without exercising", fmt:fmtNum(claimed * (Number(cb.pct_outflow) || 0) / 100) + " oDOLO"},
     {label:"Claim remaining", value:Number(cb.pct_claim_remaining) || 0, color:"#22d3ee", desc:"Claimed allocation not attributed to exercise or outflow", fmt:fmtNum(claimed * (Number(cb.pct_claim_remaining) || 0) / 100) + " oDOLO"},
   ]);
   setText("behav-count", `${Number(cb.total_claimers || 0).toLocaleString("en-US")} claimers`);
-  setHtml("behav-meta", `<span class="pulse"></span>${fmtNum(claimed)} oDOLO claimed`);
+  setHtml("behav-meta", `<span class="pulse"></span>${fmtNum(claimed)} oDOLO claimed of ${fmtNum(allocationSupply)} allocation`);
 }
 
 function syncLiveClaimersForPeriod(){
