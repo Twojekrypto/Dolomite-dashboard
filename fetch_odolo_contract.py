@@ -18,6 +18,7 @@ OUTPUT_FILE = os.path.join(DATA_DIR, "odolo_contract_data.json")
 ODOLO_TOKEN = "0x02E513b5B54eE216Bf836ceb471507488fC89543"
 ODOLO_VESTER = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
 FUTURE_REWARDS_WALLET = "0x79E6E932bf6686a4D357D7821E6e08835Ba8A026"
+ODOLO_ALLOCATION_TOKENS = 200_000_000
 
 # Function selectors
 SEL = {
@@ -52,6 +53,22 @@ def derive_supply_metrics(total_supply, in_vester_balance, future_rewards_reserv
         },
         "circulatingMethodology": "totalSupply - futureRewardsReserve - inVesterBalance",
         "inCirculation": in_circulation,
+    }
+
+
+def derive_allocation_metrics(total_supply_wei, decimals):
+    """Reconcile current ERC-20 supply against the immutable 200M allocation."""
+    unit = 10 ** int(decimals)
+    allocation_wei = ODOLO_ALLOCATION_TOKENS * unit
+    if total_supply_wei > allocation_wei:
+        raise ValueError("oDOLO totalSupply exceeds the immutable 200M allocation")
+    burned_wei = allocation_wei - total_supply_wei
+    return {
+        "allocationSupply": ODOLO_ALLOCATION_TOKENS,
+        "redeemedAndBurned": burned_wei / unit,
+        "allocationMethodology": (
+            "allocationSupply - totalSupply; exercised oDOLO is burned"
+        ),
     }
 
 
@@ -99,11 +116,12 @@ def main():
             print(f"   No existing file — cannot create placeholder")
         return
 
+    total_supply_wei = decode_uint256(batch1[0])
     decimals = decode_uint256(batch1[1]) or 18
     divisor = 10 ** decimals
 
     data = {
-        "totalSupply": decode_uint256(batch1[0]) / divisor,
+        "totalSupply": total_supply_wei / divisor,
         "inVesterBalance": decode_uint256(batch1[2]) / divisor,
         "futureRewardsReserve": decode_uint256(batch1[3]) / divisor,
         "promisedTokens": decode_uint256(batch2[0]) / divisor,
@@ -120,6 +138,7 @@ def main():
         data["inVesterBalance"],
         data["futureRewardsReserve"],
     ))
+    data.update(derive_allocation_metrics(total_supply_wei, decimals))
 
     # Fetch holder count from Routescan
     holders = get_holder_count()
