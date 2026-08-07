@@ -75,6 +75,16 @@ EXCLUDED_ADDRS = {
     "0x74d09665900a5f29bac25befd30c73a5962d44e7",
 }
 
+# Flow tables exclude protocol infrastructure, routers, and other contracts.
+# Official RewardClaimed recipients must still count toward the claimed
+# allocation even when the recipient is one of those contracts.
+CLAIM_SKIP_ADDRS = {
+    ZERO,
+    ODOLO_CONTRACT,
+    REWARDS_CONTRACT,
+    "0x0000000000000000000000000000000000000001",
+}
+
 # Single source of truth for endpoints (env-injected Alchemy keys first).
 from rpc_client import (
     RpcError,
@@ -223,7 +233,7 @@ def load_reward_claims(path, min_block=None):
         if distributor != REWARDS_CONTRACT or token != ODOLO_CONTRACT:
             continue
         wallet = normalize_address(event.get("user"))
-        if not wallet or wallet in EXCLUDED_ADDRS:
+        if not wallet or wallet in CLAIM_SKIP_ADDRS:
             continue
         if event.get("amountWei") is not None:
             amount = amount_to_float(event.get("amountWei"))
@@ -886,10 +896,10 @@ def main():
     )
 
     # ── Identify claimer wallets first (needed for per-period filtering) ──
-    SKIP_ADDRS_CB = {ZERO, ODOLO_CONTRACT, "0x0000000000000000000000000000000000000001"}
+    SKIP_ADDRS_CB = CLAIM_SKIP_ADDRS - {REWARDS_CONTRACT}
     claims_by_wallet = {}
     for from_addr, to_addr, value_wei, _ in all_transfers:
-        if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS_CB and to_addr not in EXCLUDED_ADDRS:
+        if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS_CB:
             val = value_wei / (10 ** 18)
             claims_by_wallet[to_addr] = claims_by_wallet.get(to_addr, 0) + val
 
@@ -1101,7 +1111,7 @@ def main():
         else:
             p_claims = {}
             for from_addr, to_addr, value_wei, _ in p_transfers:
-                if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS and to_addr not in EXCLUDED_ADDRS:
+                if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS:
                     p_claims[to_addr] = p_claims.get(to_addr, 0) + value_wei / (10 ** 18)
             period_event_claims = load_reward_claims_from_sources(claim_paths, min_block=cutoff)
             p_claims, _ = merge_claim_sources(p_claims, period_event_claims)

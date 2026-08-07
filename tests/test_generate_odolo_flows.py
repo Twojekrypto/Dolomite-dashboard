@@ -194,6 +194,29 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
         self.assertEqual(stats["added"], 1)
         self.assertEqual(stats["updated"], 0)
 
+    def test_official_claim_to_flow_excluded_contract_still_counts_as_claimed(self):
+        wallet = "0x089b95152253b6af73e7f7267d749058d56ce231"
+        self.assertIn(wallet, odolo_flows.EXCLUDED_ADDRS)
+        payload = {
+            "events": [
+                {
+                    "user": wallet,
+                    "distributor": odolo_flows.REWARDS_CONTRACT,
+                    "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                    "amountWei": str(42 * 10**18),
+                }
+            ],
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump(payload, f)
+            path = f.name
+        try:
+            event_claims = odolo_flows.load_reward_claims(path)
+        finally:
+            os.unlink(path)
+
+        self.assertEqual(event_claims, {wallet: 42.0})
+
     def test_reward_claim_events_can_be_filtered_by_period_block(self):
         old_wallet = "0x" + "6" * 40
         recent_wallet = "0x" + "7" * 40
