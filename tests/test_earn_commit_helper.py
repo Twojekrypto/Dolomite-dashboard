@@ -267,6 +267,64 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
                 ],
             )
 
+    def test_failed_freshness_dispatch_warns_after_successful_push(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, work = self._prepare_repo(Path(tmp))
+            status = work / "data" / "earn-freshness" / "status.json"
+            status.write_text('{"status":"changed"}\n', encoding="utf-8")
+            _run(["git", "add", "data/earn-freshness/status.json"], cwd=work)
+
+            fake_bin = work / "fake-bin"
+            fake_bin.mkdir()
+            fake_gh = fake_bin / "gh"
+            fake_gh.write_text(
+                textwrap.dedent(
+                    """\
+                    #!/usr/bin/env bash
+                    if [[ "$1 $2" == "run list" ]]; then
+                      echo 0
+                      exit 0
+                    fi
+                    if [[ "$1 $2" == "workflow run" ]]; then
+                      echo "simulated Actions outage" >&2
+                      exit 1
+                    fi
+                    exit 2
+                    """
+                ),
+                encoding="utf-8",
+            )
+            fake_gh.chmod(0o755)
+
+            env = {
+                **dict(os.environ),
+                "EARN_PUSH_ATTEMPTS": "1",
+                "EARN_GIT_REMOTE": "origin",
+                "EARN_GIT_BRANCH": "master",
+                "EARN_DISPATCH_FRESHNESS_AFTER_PUSH": "true",
+                "EARN_FRESHNESS_ALLOW_REMEDIATION_AFTER_PUSH": "false",
+                "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
+                "GH_TOKEN": "test-token",
+                "PATH": f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}",
+            }
+            result = subprocess.run(
+                ["bash", "scripts/commit_with_fresh_earn_status.sh", "producer update"],
+                cwd=str(work),
+                env=env,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+            remote_subject = _run(
+                ["git", f"--git-dir={remote}", "log", "-1", "--pretty=%s"],
+                cwd=work,
+            ).stdout.strip()
+            self.assertEqual("producer update", remote_subject)
+            self.assertIn("warning", result.stdout.lower())
+            self.assertIn("freshness", result.stdout.lower())
+
     def test_queued_freshness_monitor_suppresses_duplicate_dispatch(self):
         with tempfile.TemporaryDirectory() as tmp:
             _remote, work = self._prepare_repo(Path(tmp))

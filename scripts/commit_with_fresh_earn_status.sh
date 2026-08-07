@@ -322,9 +322,11 @@ if [ "${EARN_DISPATCH_FRESHNESS_AFTER_PUSH:-false}" = "true" ]; then
     echo "Skipping EARN freshness monitor dispatch because a run is already queued."
   else
     echo "Dispatching EARN freshness monitor for $git_branch after producer push."
-    gh workflow run monitor-earn-freshness.yml \
+    if ! gh workflow run monitor-earn-freshness.yml \
       --ref "$git_branch" \
-      -f "allow_remediation=$allow_remediation"
+      -f "allow_remediation=$allow_remediation"; then
+      echo "::warning::Failed to dispatch EARN freshness monitor after producer push."
+    fi
   fi
 fi
 
