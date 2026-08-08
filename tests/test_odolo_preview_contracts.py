@@ -86,6 +86,43 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('#latest-exercises-section #dd-latest-period .dd-opt.active .dd-opt-check', self.html)
         self.assertIn('odolo-exercise-green-controls-20260711', self.route)
 
+    def test_latest_exercises_offers_fourteen_day_period_without_changing_default(self):
+        latest_section = re.search(
+            r'<section class="card latest-activity-section" id="latest-exercises-section">(?P<body>.*?)</section>',
+            self.html,
+            re.S,
+        ).group("body")
+
+        self.assertIsNotNone(
+            re.search(r'data-period="7d".*data-period="14d".*data-period="30d"', latest_section, re.S)
+        )
+        self.assertIn('{key:"14d",  short:"14D",  label:"Last 14 days"}', self.html)
+        self.assertIn('"14d":14', self.html)
+        self.assertIn('latestPeriod: "7d"', self.html)
+
+    def test_latest_exercise_summary_precedes_toolbar_and_uses_period_rows(self):
+        latest_section = re.search(
+            r'<section class="card latest-activity-section" id="latest-exercises-section">(?P<body>.*?)</section>',
+            self.html,
+            re.S,
+        ).group("body")
+
+        self.assertIn('id="latest-exercise-stats"', latest_section)
+        self.assertLess(latest_section.index('id="latest-exercise-stats"'), latest_section.index('class="toolbar"'))
+        for label in ("Exercises", "veDOLO Received", "USDC Paid", "Avg Exercise Price", "Avg Lock"):
+            self.assertIn(label, self.html)
+        self.assertIn('const periodRows = getLatestExerciseRows();', self.latest_render)
+        self.assertIn('renderLatestExerciseSummary(periodRows);', self.latest_render)
+        self.assertIn('const rows = filterLatestExerciseRowsBySearch(periodRows, state.qLatest);', self.latest_render)
+        self.assertIn('`${periodRows.length.toLocaleString("en-US")} · ${periodLabel}`', self.latest_render)
+
+    def test_latest_exercise_summary_helper_and_route_are_cache_busted(self):
+        self.assertIn(
+            '<script src="odolo-exercise-summary.js?v=odolo-latest-summary-20260808"></script>',
+            self.html,
+        )
+        self.assertIn('odolo-latest-exercise-summary-20260808', self.route)
+
     def test_odolo_tables_show_source_specific_data_update_metadata(self):
         for meta_id in (
             "claimer-breakdown-meta",

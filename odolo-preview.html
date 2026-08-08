@@ -12,6 +12,7 @@
 <script defer src="shared-hover-tooltips.js?v=20260804-address-strong-final"></script>
 <script src="dolo-address-labels.js?v=dolo-labels-20260805-strategic-round"></script>
 <script src="odolo-address-meta.js?v=odolo-label-parity-20260807"></script>
+<script src="odolo-exercise-summary.js?v=odolo-latest-summary-20260808"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <style>
 /* ==========================================================================
@@ -296,6 +297,28 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:var(--latest-exercise-accent);
   border-color:var(--latest-exercise-accent);
 }
+.latest-exercise-stats{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  border-bottom:1px solid rgba(117,184,123,.12);
+  background:linear-gradient(90deg,rgba(117,184,123,.045),rgba(117,184,123,.012) 58%,transparent);
+}
+.latest-exercise-stat{min-width:0;padding:18px 20px;border-left:1px solid var(--line-1)}
+.latest-exercise-stat:first-child{border-left:0}
+.latest-exercise-stat .label{
+  display:flex;align-items:center;gap:7px;min-width:0;
+  font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.latest-exercise-stat .label svg{width:13px;height:13px;flex:0 0 13px;color:var(--latest-exercise-accent)}
+.latest-exercise-stat .value{
+  margin-top:10px;font-family:var(--mono);font-size:22px;font-weight:600;line-height:1;color:var(--fg-1);
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.latest-exercise-stat .sub{
+  margin-top:7px;font-family:var(--mono);font-size:10.5px;color:var(--fg-3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.latest-exercise-stats.is-loading .value{color:var(--fg-4)}
 #latest-pairs-section{
   --latest-pair-accent:#75b87b;
   --latest-pair-line:rgba(117,184,123,.30);
@@ -1165,6 +1188,10 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
   .behav-grid{grid-template-columns:1fr}
   .flows-grid{grid-template-columns:1fr}
   .flows-tbl{min-width:500px}
+  .latest-exercise-stats{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .latest-exercise-stat{grid-column:span 2}
+  .latest-exercise-stat:nth-child(n+4){grid-column:span 3;border-top:1px solid var(--line-1)}
+  .latest-exercise-stat:nth-child(4){border-left:0}
 }
 @media (max-width:640px){
   .wrap{padding:24px 16px 48px}
@@ -1175,6 +1202,9 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
   .hero-token-name{font-size:20px}
   .hero-meta{margin-left:0;width:100%}
   .life-stack{grid-template-columns:1fr}
+  .latest-exercise-stat,
+  .latest-exercise-stat:nth-child(n+4){grid-column:1/-1;border-left:0;border-top:1px solid var(--line-1);padding:14px 16px}
+  .latest-exercise-stat:first-child{border-top:0}
   .tbl-foot,.flow-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
   .tbl-foot-info{grid-column:1;text-align:center}
   .pager{grid-column:1}
@@ -1433,6 +1463,8 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
       <div class="card-meta" id="latest-ex-meta"><span class="pulse"></span>Loading data update…</div>
     </div>
 
+    <div class="latest-exercise-stats selected-market-rail" id="latest-exercise-stats" aria-live="polite"></div>
+
     <div class="toolbar">
       <div class="tb-left">
         <label class="search">
@@ -1453,6 +1485,7 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
             <div class="dd-list">
               <div class="dd-opt" data-period="1d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">24 hours</span></div>
               <div class="dd-opt active" data-period="7d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-period="14d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">14 days</span></div>
               <div class="dd-opt" data-period="30d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">30 days</span></div>
               <div class="dd-opt" data-period="90d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">90 days</span></div>
               <div class="dd-opt" data-period="180d"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">180 days</span></div>
@@ -1804,6 +1837,7 @@ const TYPE_GENERIC = {eoa:"Wallet", ca:"Smart contract", cex:"Exchange", bot:"Tr
 const PERIODS = [
   {key:"1d",   short:"24H",  label:"Last 24 hours"},
   {key:"7d",   short:"7D",   label:"Last 7 days"},
+  {key:"14d",  short:"14D",  label:"Last 14 days"},
   {key:"30d",  short:"30D",  label:"Last 30 days"},
   {key:"90d",  short:"90D",  label:"Last 90 days"},
   {key:"180d", short:"180D", label:"Last 180 days"},
@@ -2067,7 +2101,7 @@ function addressMeta(addr){
     : { label:null, type:"eoa", sharedType:"eoa", badgeLabel:"EOA", tooltip:"" };
 }
 function periodCutoff(period){
-  const days = { "1d":1, "7d":7, "30d":30, "90d":90, "180d":180 }[period];
+  const days = { "1d":1, "7d":7, "14d":14, "30d":30, "90d":90, "180d":180 }[period];
   if(!days) return null;
   return Date.now() - days * 86400000;
 }
@@ -2941,14 +2975,12 @@ function detailSortHeader(key, label, cls=""){
 function getLatestExerciseRows(){
   const source = LIVE.exercisers?.exercisers || [];
   const cutoff = periodCutoff(state.latestPeriod);
-  const q = state.qLatest.trim().toLowerCase();
   const rows = [];
   source.forEach(item => {
     const addr = item.address || item.addr || "";
     if(!addr) return;
     const meta = addressMeta(addr);
     const label = item.label || meta.label || "";
-    if(q && !addr.toLowerCase().includes(q) && !label.toLowerCase().includes(q)) return;
     (item.txs || []).forEach(tx => {
       if(!tx || !isUsdcExerciseTx(tx) || !tx.date) return;
       if(cutoff && exerciseTimeMs(tx) < cutoff) return;
@@ -2970,6 +3002,48 @@ function getLatestExerciseRows(){
     });
   });
   return sortLatestExerciseRows(rows);
+}
+function filterLatestExerciseRowsBySearch(rows, query){
+  const q = String(query || "").trim().toLowerCase();
+  if(!q) return rows;
+  return rows.filter(row => String(row.addr || "").toLowerCase().includes(q)
+    || String(row.label || "").toLowerCase().includes(q));
+}
+function renderLatestExerciseSummary(rows){
+  const box = document.getElementById("latest-exercise-stats");
+  if(!box) return;
+  const icons = {
+    exercises:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l2-6 4 12 2-6h4"/></svg>',
+    received:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
+    paid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M16 8h-5a2 2 0 0 0 0 4h2a2 2 0 0 1 0 4H8"/><path d="M12 6v12"/></svg>',
+    price:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-8"/><path d="M15 7h5v5"/></svg>',
+    lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  };
+
+  if(!LIVE.exercisers){
+    box.classList.add("is-loading");
+    box.innerHTML = [
+      [icons.exercises,"Exercises"],
+      [icons.received,"veDOLO Received"],
+      [icons.paid,"USDC Paid"],
+      [icons.price,"Avg Exercise Price"],
+      [icons.lock,"Avg Lock"],
+    ].map(([icon,label]) => `<div class="latest-exercise-stat selected-market-metric"><div class="label">${icon}${label}</div><div class="value">—</div><div class="sub">Loading period activity</div></div>`).join("");
+    return;
+  }
+
+  box.classList.remove("is-loading");
+  const summary = window.summarizeLatestOdoloExercises(rows);
+  const walletLabel = summary.uniqueWallets === 1 ? "unique wallet" : "unique wallets";
+  const avgPrice = summary.avgExercisePrice == null ? "—" : fmtPrice(summary.avgExercisePrice);
+  const avgLock = summary.avgLockDays == null ? "—" : summary.avgLockDays === 0 ? "0d" : fmtLock(summary.avgLockDays);
+  box.innerHTML = `
+    <div class="latest-exercise-stat selected-market-metric primary"><div class="label">${icons.exercises}Exercises</div><div class="value">${summary.exercises.toLocaleString("en-US")}</div><div class="sub">${summary.uniqueWallets.toLocaleString("en-US")} ${walletLabel}</div></div>
+    <div class="latest-exercise-stat selected-market-metric"><div class="label">${icons.received}veDOLO Received</div><div class="value">${fmtNum(summary.vedoloReceived)}</div><div class="sub">USDC-paid exercises</div></div>
+    <div class="latest-exercise-stat selected-market-metric"><div class="label">${icons.paid}USDC Paid</div><div class="value">${fmtUsd(summary.usdcPaid)}</div><div class="sub">total paid</div></div>
+    <div class="latest-exercise-stat selected-market-metric"><div class="label">${icons.price}Avg Exercise Price</div><div class="value">${avgPrice}</div><div class="sub">USDC per veDOLO</div></div>
+    <div class="latest-exercise-stat selected-market-metric"><div class="label">${icons.lock}Avg Lock</div><div class="value">${avgLock}</div><div class="sub">veDOLO weighted</div></div>
+  `;
 }
 function latestSortValue(row, key){
   if(key === "date"){
@@ -3008,7 +3082,9 @@ function renderLatestExercises(){
   const pager = document.getElementById("latest-ex-pager");
   const period = PERIODS.find(p=>p.key===state.latestPeriod);
   const periodLabel = period ? period.short : state.latestPeriod.toUpperCase();
-  const rows = getLatestExerciseRows();
+  const periodRows = getLatestExerciseRows();
+  renderLatestExerciseSummary(periodRows);
+  const rows = filterLatestExerciseRowsBySearch(periodRows, state.qLatest);
   document.querySelectorAll("#tbl-latest-ex thead th[data-latest-sort]").forEach(th=>{
     const k = th.dataset.latestSort;
     th.classList.toggle("sorted", k === state.latestSort.key);
@@ -3028,7 +3104,7 @@ function renderLatestExercises(){
   const showStart = total > 0 ? start + 1 : 0;
   const showEnd = Math.min(start + state.latestPageSize, total);
 
-  if(countEl) countEl.textContent = LIVE.exercisers ? `${rows.length.toLocaleString("en-US")} · ${periodLabel}` : "Loading";
+  if(countEl) countEl.textContent = LIVE.exercisers ? `${periodRows.length.toLocaleString("en-US")} · ${periodLabel}` : "Loading";
   if(metaEl) setCardMeta("latest-ex-meta", LIVE.exercisers?.updated);
   if(infoEl) infoEl.textContent = LIVE.exercisers ? `${showStart}–${showEnd} of ${total.toLocaleString("en-US")}` : "Loading";
 
