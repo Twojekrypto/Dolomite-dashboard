@@ -72,9 +72,16 @@ Create `tests/odolo-exercise-summary.test.js` with hand-derived fixtures:
 ```js
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { summarizeLatestOdoloExercises } = require('../odolo-exercise-summary.js');
+let summaryModule = {};
+try {
+  summaryModule = require('../odolo-exercise-summary.js');
+} catch(error) {
+  if(error.code !== 'MODULE_NOT_FOUND') throw error;
+}
+const { summarizeLatestOdoloExercises } = summaryModule;
 
 test('summarizes volume and normalizes duplicate wallet casing', () => {
+  assert.equal(typeof summarizeLatestOdoloExercises, 'function');
   const result = summarizeLatestOdoloExercises([
     {addr:'0xAbC', vedolo:100, usdc:4, lockDays:30},
     {addr:'0xabc', vedolo:300, usdc:18, lockDays:90},
@@ -109,7 +116,7 @@ The first test catches wrong wallet normalization, arithmetic price averaging an
 
 Run: `node --test tests/odolo-exercise-summary.test.js`
 
-Expected: FAIL because `odolo-exercise-summary.js` does not exist.
+Expected: FAIL on the `typeof` assertion because `odolo-exercise-summary.js` does not exist; the test process itself must not error.
 
 - [ ] **Step 3: Implement the smallest pure calculator**
 
