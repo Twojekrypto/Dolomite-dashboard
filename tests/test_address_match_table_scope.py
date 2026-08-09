@@ -90,7 +90,7 @@ class AddressMatchTableScopeTest(unittest.TestCase):
         self.assertGreaterEqual(liquidation.count("data-full-addr"), 2)
 
     def test_opted_in_pages_load_the_shared_assets_with_fresh_cache_keys(self):
-        version = "20260804-address-strong-final"
+        version = "20260809-row-address-peers"
         for preview_name in (
             "assets-preview.html",
             "dolo-preview.html",
@@ -136,7 +136,7 @@ class AddressMatchTableScopeTest(unittest.TestCase):
             "supply/index.html",
         ):
             route = (ROOT / route_name).read_text(encoding="utf-8")
-            self.assertIn("address-strong-final-20260804", route, route_name)
+            self.assertIn("row-address-peers-20260809", route, route_name)
 
 if __name__ == "__main__":
     unittest.main()
