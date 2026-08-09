@@ -63,11 +63,35 @@
     return /^0x[a-f0-9]{40}$/.test(text) || /^0x[a-f0-9]{4,}(?:\.{3}|…)[a-f0-9]{4}$/.test(text);
   }
 
+  function isRenderedAddressTrigger(trigger) {
+    if (!isDisplayedAddressTrigger(trigger)) return false;
+    if (typeof trigger.getClientRects === 'function' && trigger.getClientRects().length === 0) return false;
+    return true;
+  }
+
   function addressMatchTrigger(target) {
     var trigger = target.closest && target.closest('.addr-tooltip-wrap[data-full-addr]');
     var table = trigger && trigger.closest('table[data-address-match-cells]');
     var address = trigger && normalizeMatchAddress(trigger.getAttribute('data-full-addr'));
-    return table && address && isDisplayedAddressTrigger(trigger) ? { trigger: trigger, table: table, address: address } : null;
+    return table && address && isRenderedAddressTrigger(trigger) ? { mode: 'address', trigger: trigger, table: table, address: address } : null;
+  }
+
+  function rowAddressMatchData(target) {
+    var row = target.closest && target.closest('tr');
+    var table = row && row.closest('table[data-address-match-cells]');
+    if (!row || !table || !row.parentElement || row.parentElement.tagName !== 'TBODY') return null;
+
+    var addresses = [];
+    row.querySelectorAll('.addr-tooltip-wrap[data-full-addr]').forEach(function (trigger) {
+      var address = normalizeMatchAddress(trigger.getAttribute('data-full-addr'));
+      if (!address || !isRenderedAddressTrigger(trigger) || addresses.indexOf(address) !== -1) return;
+      addresses.push(address);
+    });
+    return addresses.length ? { mode: 'row', row: row, table: table, addresses: addresses } : null;
+  }
+
+  function matchDataForTarget(target) {
+    return addressMatchTrigger(target) || rowAddressMatchData(target);
   }
 
   function isAddress(value) {
@@ -169,13 +193,13 @@
   }
 
   function showAddressMatches(data) {
-    if (activeAddressMatch && activeAddressMatch.table === data.table && activeAddressMatch.trigger === data.trigger && activeAddressMatch.address === data.address) return;
+    if (activeAddressMatch && activeAddressMatch.mode === 'address' && activeAddressMatch.table === data.table && activeAddressMatch.trigger === data.trigger && activeAddressMatch.address === data.address) return;
     clearAddressMatches();
 
     var elements = [];
     data.table.querySelectorAll('.addr-tooltip-wrap[data-full-addr]').forEach(function (trigger) {
       if (normalizeMatchAddress(trigger.getAttribute('data-full-addr')) !== data.address) return;
-      if (!isDisplayedAddressTrigger(trigger)) return;
+      if (!isRenderedAddressTrigger(trigger)) return;
       elements.push(trigger);
     });
 
@@ -185,7 +209,26 @@
       element.classList.add('address-match-active');
       element.classList.add(element === data.trigger ? 'address-match-source' : 'address-match-peer');
     });
-    activeAddressMatch = { table: data.table, trigger: data.trigger, address: data.address, elements: elements };
+    activeAddressMatch = { mode: 'address', table: data.table, trigger: data.trigger, address: data.address, elements: elements };
+  }
+
+  function showRowAddressMatches(data) {
+    if (activeAddressMatch && activeAddressMatch.mode === 'row' && activeAddressMatch.row === data.row) return;
+    clearAddressMatches();
+
+    var elements = [];
+    data.table.querySelectorAll('.addr-tooltip-wrap[data-full-addr]').forEach(function (trigger) {
+      if (data.row.contains(trigger) || !isRenderedAddressTrigger(trigger)) return;
+      var address = normalizeMatchAddress(trigger.getAttribute('data-full-addr'));
+      if (!address || data.addresses.indexOf(address) === -1) return;
+      elements.push(trigger);
+    });
+    if (!elements.length) return;
+
+    elements.forEach(function (element) {
+      element.classList.add('address-match-active', 'address-match-peer');
+    });
+    activeAddressMatch = { mode: 'row', table: data.table, row: data.row, elements: elements };
   }
 
   function hideTooltip() {
@@ -226,8 +269,8 @@
   function reconcileAddressMatchAfterViewportChange() {
     if (!activeAddressMatch) return;
     var elementAtPointer = document.elementFromPoint(lastPointer.x, lastPointer.y);
-    if (elementAtPointer && activeAddressMatch.trigger.contains(elementAtPointer)) return;
-    clearAddressMatches();
+    if (elementAtPointer) showMatchForTarget(elementAtPointer);
+    else clearAddressMatches();
   }
 
   var hasInlineTooltipSystem = !!window.__DOLO_INLINE_TOOLTIP_ACTIVE;
@@ -293,22 +336,37 @@
     window.addEventListener('resize', reconcileAddressMatchAfterViewportChange);
   }
 
+  function showMatchForTarget(target) {
+    var data = matchDataForTarget(target);
+    if (!data) {
+      clearAddressMatches();
+    } else if (data.mode === 'address') {
+      showAddressMatches(data);
+    } else {
+      showRowAddressMatches(data);
+    }
+  }
+
   function handleAddressMatchOver(event) {
     lastPointer = { x: event.clientX, y: event.clientY };
-    var data = addressMatchTrigger(event.target);
-    if (data) showAddressMatches(data);
+    showMatchForTarget(event.target);
   }
 
   function handleAddressMatchOut(event) {
-    if (!activeAddressMatch || !activeAddressMatch.trigger.contains(event.target)) return;
-    if (event.relatedTarget && activeAddressMatch.trigger.contains(event.relatedTarget)) return;
-    clearAddressMatches();
+    lastPointer = { x: event.clientX, y: event.clientY };
+    if (event.relatedTarget) showMatchForTarget(event.relatedTarget);
+    else clearAddressMatches();
   }
 
   document.addEventListener('pointerover', handleAddressMatchOver);
   document.addEventListener('mouseover', handleAddressMatchOver);
   document.addEventListener('pointerout', handleAddressMatchOut);
   document.addEventListener('mouseout', handleAddressMatchOut);
+  document.addEventListener('pointerdown', function (event) {
+    if (event.pointerType && event.pointerType !== 'mouse' && activeAddressMatch && activeAddressMatch.mode === 'row') {
+      clearAddressMatches();
+    }
+  });
 
   document.addEventListener('focusin', function (event) {
     var addressData = addressMatchTrigger(event.target);
