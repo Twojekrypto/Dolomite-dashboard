@@ -49,6 +49,7 @@ class FakeElement {
     this.offsetWidth = 120;
     this.offsetHeight = 28;
     this.id = '';
+    this.hiddenFromLayout = Boolean(options.hiddenFromLayout);
     Object.entries(options.attributes || {}).forEach(([name, value]) => this.setAttribute(name, value));
   }
 
@@ -72,6 +73,8 @@ class FakeElement {
 
   matches(selector) {
     if (selector === 'td') return this.tagName === 'TD';
+    if (selector === 'tr') return this.tagName === 'TR';
+    if (selector === 'tbody') return this.tagName === 'TBODY';
     if (selector === 'table[data-address-match-cells]') {
       return this.tagName === 'TABLE' && this.attributes.has('data-address-match-cells');
     }
@@ -118,6 +121,10 @@ class FakeElement {
   getBoundingClientRect() {
     return { left: 100, right: 220, top: 100, bottom: 128, width: 120, height: 28 };
   }
+
+  getClientRects() {
+    return this.hiddenFromLayout ? [] : [this.getBoundingClientRect()];
+  }
 }
 
 class FakeDocument {
@@ -141,8 +148,8 @@ class FakeDocument {
     this.listeners.get(type).push(handler);
   }
 
-  dispatch(type, target, relatedTarget = null) {
-    const event = { type, target, relatedTarget, clientX: 110, clientY: 110 };
+  dispatch(type, target, relatedTarget = null, extra = {}) {
+    const event = { type, target, relatedTarget, clientX: 110, clientY: 110, ...extra };
     (this.listeners.get(type) || []).forEach((handler) => handler(event));
   }
 
@@ -170,8 +177,7 @@ class FakeDocument {
   }
 }
 
-function appendAddressCell(table, address, options = {}) {
-  const row = table.appendChild(new FakeElement('tr'));
+function appendAddressToRow(row, address, options = {}) {
   const cell = row.appendChild(new FakeElement('td'));
   let labelTrigger = null;
   if (options.knownLabel) {
@@ -184,11 +190,22 @@ function appendAddressCell(table, address, options = {}) {
   const addressTrigger = cell.appendChild(new FakeElement('span', {
     classes: ['addr-tooltip-wrap'],
     attributes: { 'data-full-addr': address },
+    hiddenFromLayout: options.hiddenFromLayout,
   }));
   addressTrigger.textContent = /^0x[a-f0-9]{40}$/i.test(address)
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : address;
-  return { cell, labelTrigger, addressTrigger };
+  return { row, cell, labelTrigger, addressTrigger };
+}
+
+function appendAddressRow(tbody, addresses, options = []) {
+  const row = tbody.appendChild(new FakeElement('tr'));
+  const cells = addresses.map((address, index) => appendAddressToRow(row, address, options[index] || {}));
+  return { row, cells };
+}
+
+function appendAddressCell(tbody, address, options = {}) {
+  return appendAddressRow(tbody, [address], [options]).cells[0];
 }
 
 function buildFixture(options = {}) {
@@ -218,17 +235,34 @@ function buildFixture(options = {}) {
   const address = '0x1111111111111111111111111111111111111111';
   const otherAddress = '0x2222222222222222222222222222222222222222';
   const table = new FakeElement('table', { attributes: { 'data-address-match-cells': '' } });
-  const source = appendAddressCell(table, address, { knownLabel: true });
-  const peer = appendAddressCell(table, address, { knownLabel: true });
-  const duplicateWrapperPeer = appendAddressCell(table, address.toUpperCase().replace('0X', '0x'), { knownLabel: true });
-  const other = appendAddressCell(table, otherAddress);
-  const malformed = appendAddressCell(table, '0x1234');
+  const tableBody = table.appendChild(new FakeElement('tbody'));
+  const source = appendAddressCell(tableBody, address, { knownLabel: true });
+  const peer = appendAddressCell(tableBody, address, { knownLabel: true });
+  const duplicateWrapperPeer = appendAddressCell(tableBody, address.toUpperCase().replace('0X', '0x'), { knownLabel: true });
+  const other = appendAddressCell(tableBody, otherAddress);
+  const malformed = appendAddressCell(tableBody, '0x1234');
+  const hidden = appendAddressCell(tableBody, address, { hiddenFromLayout: true });
+
+  let multiSource = null;
+  if (options.multiAddressRow) {
+    const multi = appendAddressRow(tableBody, [address, otherAddress]);
+    const cellOutsideAddress = multi.row.appendChild(new FakeElement('td'));
+    cellOutsideAddress.textContent = 'metrics';
+    multiSource = {
+      row: multi.row,
+      primary: multi.cells[0],
+      secondary: multi.cells[1],
+      cellOutsideAddress,
+    };
+  }
 
   const secondTable = new FakeElement('table', { attributes: { 'data-address-match-cells': '' } });
-  const crossTable = appendAddressCell(secondTable, address);
+  const secondTableBody = secondTable.appendChild(new FakeElement('tbody'));
+  const crossTable = appendAddressCell(secondTableBody, address);
 
   const unscopedTable = new FakeElement('table');
-  const unscoped = appendAddressCell(unscopedTable, address);
+  const unscopedTableBody = unscopedTable.appendChild(new FakeElement('tbody'));
+  const unscoped = appendAddressCell(unscopedTableBody, address);
 
   if (options.hoveredAtLoad) document.hoveredAddressTrigger = source.addressTrigger;
   for (let execution = 0; execution < (options.executions || 1); execution += 1) {
@@ -245,8 +279,14 @@ function buildFixture(options = {}) {
     duplicateWrapperPeer,
     other,
     malformed,
+    hidden,
+    multiSource,
     crossTable,
     unscoped,
+    tableBody,
+    appendVisibleRow(addresses) {
+      return appendAddressRow(tableBody, addresses);
+    },
   };
 }
 
@@ -260,6 +300,7 @@ test('highlights only exact repeated address text within the opted-in table', ()
   assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
   assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-active'), true);
   assert.equal(fixture.duplicateWrapperPeer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.hidden.addressTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.source.labelTrigger.classList.contains('address-match-source'), false);
   assert.equal(fixture.peer.labelTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.source.cell.classList.contains('address-match-source'), false);
@@ -267,6 +308,67 @@ test('highlights only exact repeated address text within the opted-in table', ()
   assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.crossTable.addressTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.unscoped.addressTrigger.classList.contains('address-match-peer'), false);
+});
+
+test('row hover quietly highlights exact peer addresses in other rows only', () => {
+  const fixture = buildFixture();
+
+  fixture.document.dispatch('pointerover', fixture.source.cell);
+
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-active'), false);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.duplicateWrapperPeer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.hidden.addressTrigger.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.crossTable.addressTrigger.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.peer.row.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.peer.cell.classList.contains('address-match-peer'), false);
+});
+
+test('row hover matches every canonical wallet in the row and direct address hover takes priority', () => {
+  const fixture = buildFixture({ multiAddressRow: true });
+
+  fixture.document.dispatch('mouseover', fixture.multiSource.cellOutsideAddress);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), true);
+
+  fixture.document.dispatch('mouseover', fixture.multiSource.primary.addressTrigger);
+  assert.equal(fixture.multiSource.primary.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
+});
+
+test('moving within a row preserves row-derived peers and leaving clears them', () => {
+  const fixture = buildFixture();
+
+  fixture.document.dispatch('mouseover', fixture.source.cell);
+  fixture.document.dispatch('mouseout', fixture.source.cell, fixture.source.labelTrigger);
+
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+
+  fixture.document.dispatch('mouseout', fixture.source.labelTrigger);
+
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), false);
+  assert.equal(fixture.duplicateWrapperPeer.addressTrigger.classList.contains('address-match-peer'), false);
+});
+
+test('delegated row matching includes rows rendered after controller installation', () => {
+  const fixture = buildFixture();
+  const latePeer = fixture.appendVisibleRow(['0x1111111111111111111111111111111111111111']).cells[0];
+
+  fixture.document.dispatch('mouseover', fixture.source.cell);
+
+  assert.equal(latePeer.addressTrigger.classList.contains('address-match-peer'), true);
+});
+
+test('touch pointerdown clears row-derived cosmetic matching without intercepting the event', () => {
+  const fixture = buildFixture();
+  fixture.document.dispatch('mouseover', fixture.source.cell);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+
+  fixture.document.dispatch('pointerdown', fixture.source.cell, null, { pointerType: 'touch' });
+
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
 test('supports mouse hover events when pointer events are not emitted', () => {
