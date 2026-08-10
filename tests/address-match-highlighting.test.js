@@ -435,6 +435,16 @@ test('does not emphasize an address that has no visible peer in its table', () =
   assert.equal(fixture.other.addressTrigger.classList.contains('address-match-active'), false);
 });
 
+test('row hover does not emphasize an address that has no visible peer in its table', () => {
+  const fixture = buildFixture();
+
+  fixture.document.dispatch('pointerover', fixture.other.cell);
+
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-active'), false);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-source'), false);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
+});
+
 test('uses the same address-text-only state when an address trigger receives focus', () => {
   const fixture = buildFixture();
 
