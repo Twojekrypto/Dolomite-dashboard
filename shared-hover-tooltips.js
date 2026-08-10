@@ -216,12 +216,27 @@
     if (activeAddressMatch && activeAddressMatch.mode === 'row' && activeAddressMatch.row === data.row) return;
     clearAddressMatches();
 
-    var elements = [];
+    var candidatesByAddress = {};
+    data.addresses.forEach(function (address) {
+      candidatesByAddress[address] = [];
+    });
     data.table.querySelectorAll('.addr-tooltip-wrap[data-full-addr]').forEach(function (trigger) {
-      if (data.row.contains(trigger) || !isRenderedAddressTrigger(trigger)) return;
+      if (!isRenderedAddressTrigger(trigger)) return;
       var address = normalizeMatchAddress(trigger.getAttribute('data-full-addr'));
-      if (!address || data.addresses.indexOf(address) === -1) return;
-      elements.push(trigger);
+      if (!address || !candidatesByAddress[address]) return;
+      candidatesByAddress[address].push(trigger);
+    });
+
+    var elements = [];
+    Object.keys(candidatesByAddress).forEach(function (address) {
+      var candidates = candidatesByAddress[address];
+      var hasPeerRow = candidates.some(function (trigger) {
+        return !data.row.contains(trigger);
+      });
+      if (!hasPeerRow) return;
+      candidates.forEach(function (trigger) {
+        if (elements.indexOf(trigger) === -1) elements.push(trigger);
+      });
     });
     if (!elements.length) return;
 
