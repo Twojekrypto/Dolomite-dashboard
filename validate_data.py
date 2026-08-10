@@ -95,6 +95,10 @@ def _finite_real_json_number(value):
     return isinstance(value, float) and math.isfinite(value)
 
 
+def _finite_json_integer_number(value):
+    return _finite_real_json_number(value) and value == int(value)
+
+
 def _nonnegative_integer(value):
     if not isinstance(value, str) or not value.isdigit():
         return None
@@ -739,80 +743,82 @@ def _dolomite_revenue_chain_windows_valid(data):
 
 
 def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
-    rebates = data.get("borrowFeeRebates")
-    if rebates is None:
+    if "borrowFeeRebates" not in data:
         return True
+    rebates = data.get("borrowFeeRebates")
     if not isinstance(rebates, dict):
         return False
     chains = rebates.get("chains")
     if not isinstance(chains, dict):
         return False
-    if "Berachain" not in chains:
-        return True
-    chain = chains.get("Berachain")
-    if not isinstance(chain, dict):
-        return False
-    rows = chain.get("epochRebates")
-    unsupported_corrections = chain.get("unsupportedCorrections")
-    if unsupported_corrections is not None and (
-        not isinstance(unsupported_corrections, list)
-        or any(
-            not isinstance(item, dict)
-            or item.get("reason") != "unsupported_aggregate_correction"
-            for item in unsupported_corrections
-        )
-    ):
-        return False
-    if not isinstance(rows, list):
-        return False
-
-    for row in rows:
-        if not isinstance(row, dict):
+    for chain_name, chain in chains.items():
+        if not isinstance(chain_name, str) or not chain_name or not isinstance(chain, dict):
             return False
-        rebate_usd = row.get("rebateUSD")
-        if not _finite_real_json_number(rebate_usd):
-            return False
-        calculation_mode = row.get("calculationMode")
-        if calculation_mode is None:
-            calculation_mode = ""
-        if (
-            not isinstance(calculation_mode, str)
-            or calculation_mode not in {"", "cumulative_delta", "known_epoch_snapshot_reset"}
+        rows = chain.get("epochRebates")
+        unsupported_corrections = chain.get("unsupportedCorrections")
+        if unsupported_corrections is not None and (
+            not isinstance(unsupported_corrections, list)
+            or any(
+                not isinstance(item, dict)
+                or item.get("reason") != "unsupported_aggregate_correction"
+                for item in unsupported_corrections
+            )
         ):
             return False
-        if calculation_mode == "known_epoch_snapshot_reset":
-            try:
-                event_block = int(row.get("eventBlock") or 0)
-                reset_market_count = int(row.get("resetMarketCount") or 0)
-            except (TypeError, ValueError):
+        if not isinstance(rows, list):
+            return False
+
+        for row in rows:
+            if not isinstance(row, dict):
                 return False
+            rebate_usd = row.get("rebateUSD")
+            if not _finite_real_json_number(rebate_usd):
+                return False
+            calculation_mode = row.get("calculationMode")
+            if calculation_mode is None:
+                calculation_mode = ""
             if (
-                row.get("epoch") != 9
-                or str(row.get("transactionHash") or "").lower() != "0x6d85363b5942efbaff9ed80943e4e415edc5e578a3f1e8f1b0c9207c2bec8a7c"
-                or event_block != 24055329
-                or reset_market_count < 2
-                or _safe_number(row.get("aggregateAdjustmentRaw")) >= 0
-                or row.get("sourceLabel") != "Published epoch snapshot reset"
+                not isinstance(calculation_mode, str)
+                or calculation_mode not in {"", "cumulative_delta", "known_epoch_snapshot_reset"}
             ):
                 return False
-        if rebate_usd <= 0:
-            continue
-        market_ids = row.get("maxRebateEligibleMarketIds")
-        try:
-            max_rebate_market_count = int(row.get("maxRebateMarketCount") or 0)
-            max_rebate_day_count = int(row.get("maxRebateDayCount") or 0)
-        except (TypeError, ValueError):
-            return False
-        if (
-            _safe_number(row.get("maxRebateUSD")) <= 0
-            or row.get("maxRebateMethod") != "eligible_market_daily_current_index"
-            or row.get("maxRebateSource") != "onchain-current-index-audit"
-            or not isinstance(market_ids, list)
-            or not market_ids
-            or max_rebate_market_count != len(market_ids)
-            or max_rebate_day_count <= 0
-        ):
-            return False
+            if calculation_mode == "known_epoch_snapshot_reset":
+                event_block = row.get("eventBlock")
+                reset_market_count = row.get("resetMarketCount")
+                aggregate_adjustment = row.get("aggregateAdjustmentRaw")
+                if (
+                    chain_name != "Berachain"
+                    or not _finite_json_integer_number(row.get("epoch"))
+                    or row.get("epoch") != 9
+                    or str(row.get("transactionHash") or "").lower() != "0x6d85363b5942efbaff9ed80943e4e415edc5e578a3f1e8f1b0c9207c2bec8a7c"
+                    or not _finite_json_integer_number(event_block)
+                    or event_block != 24055329
+                    or not _finite_json_integer_number(reset_market_count)
+                    or reset_market_count < 2
+                    or not _finite_real_json_number(aggregate_adjustment)
+                    or aggregate_adjustment >= 0
+                    or row.get("sourceLabel") != "Published epoch snapshot reset"
+                ):
+                    return False
+            if rebate_usd <= 0:
+                continue
+            market_ids = row.get("maxRebateEligibleMarketIds")
+            max_rebate_usd = row.get("maxRebateUSD")
+            max_rebate_market_count = row.get("maxRebateMarketCount")
+            max_rebate_day_count = row.get("maxRebateDayCount")
+            if (
+                not _finite_real_json_number(max_rebate_usd)
+                or max_rebate_usd <= 0
+                or row.get("maxRebateMethod") != "eligible_market_daily_current_index"
+                or row.get("maxRebateSource") != "onchain-current-index-audit"
+                or not isinstance(market_ids, list)
+                or not market_ids
+                or not _finite_json_integer_number(max_rebate_market_count)
+                or max_rebate_market_count != len(market_ids)
+                or not _finite_json_integer_number(max_rebate_day_count)
+                or max_rebate_day_count <= 0
+            ):
+                return False
     return True
 
 

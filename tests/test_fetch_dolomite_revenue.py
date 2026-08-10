@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import tempfile
+from decimal import Decimal
 from unittest import mock
 from datetime import datetime, timezone
 from pathlib import Path
@@ -1056,6 +1057,114 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             series[0]["chains"]["Berachain"],
         )
 
+    def test_rebate_accounting_requires_object_root_and_empty_object_means_no_rebate(self):
+        for metadata in (None, [], "not-an-object"):
+            with self.subTest(metadata=metadata):
+                with self.assertRaisesRegex(ValueError, "root must be an object"):
+                    apply_borrow_fee_rebates(
+                        rebate_allocation_series([(100, 100)]),
+                        metadata,
+                    )
+
+        output = apply_borrow_fee_rebates(
+            rebate_allocation_series([(100, 100)]),
+            {},
+        )
+        self.assertEqual(output[0]["grossRevenueUSD"], 100)
+        self.assertEqual(output[0]["borrowFeeRebateUSD"], 0)
+        self.assertEqual(output[0]["revenueUSD"], 100)
+
+    def test_top_level_rebate_uses_exact_sum_of_chain_micro_units(self):
+        chain_values = [("Berachain", 1_000_000_000.0)] + [
+            (f"Chain-{index}", 0.000001)
+            for index in range(1, 12)
+        ]
+        series = [{
+            "timestamp": 1,
+            "date": "day-1",
+            "feesUSD": 1_000_000_001.0,
+            "revenueUSD": 1_000_000_001.0,
+            "supplySideRevenueUSD": 0,
+            "chains": {
+                chain: {
+                    "feesUSD": gross,
+                    "revenueUSD": gross,
+                    "supplySideRevenueUSD": 0,
+                }
+                for chain, gross in chain_values
+            },
+        }]
+        metadata = {
+            "chains": {
+                chain: {
+                    "epochRebates": [{
+                        "periodStartTimestamp": 1,
+                        "periodEndTimestamp": 2,
+                        "rebateUSD": gross,
+                    }]
+                }
+                for chain, gross in chain_values
+            }
+        }
+
+        output = apply_borrow_fee_rebates(series, metadata)
+
+        expected_units = 1_000_000_000_000_011
+        chain_units = sum(
+            int(Decimal(str(payload["borrowFeeRebateUSD"])) * 1_000_000)
+            for payload in output[0]["chains"].values()
+        )
+        top_units = int(
+            Decimal(str(output[0]["borrowFeeRebateUSD"])) * 1_000_000
+        )
+        self.assertEqual(chain_units, expected_units)
+        self.assertEqual(top_units, expected_units)
+        self.assertEqual(output[0]["grossRevenueUSD"], 1_000_000_001.0)
+        self.assertEqual(output[0]["revenueUSD"], 0.999989)
+
+    def test_build_output_rejects_chain_rebate_above_top_level_gross(self):
+        revenue_data = metric_payload_with_berachain(
+            total24h=100,
+            latest_value=100,
+            step=2,
+            latest_berachain_value=20,
+        )
+        fees_data = metric_payload_with_berachain(
+            total24h=500,
+            latest_value=500,
+            step=10,
+            latest_berachain_value=100,
+        )
+        revenue_data["totalDataChart"][0][1] = 5
+        revenue_data["totalDataChartBreakdown"][0][1] = {
+            "Berachain": {"interest": 10},
+        }
+        fees_data["totalDataChart"][0][1] = 100
+        fees_data["totalDataChartBreakdown"][0][1] = {
+            "Berachain": {"interest": 100},
+        }
+
+        with self.assertRaisesRegex(ValueError, "top-level gross revenue capacity"):
+            build_output(
+                revenue_data,
+                fees_data,
+                onchain_audit={},
+                borrow_fee_rebate_metadata=borrow_fee_rebate_metadata(),
+                borrow_fee_rebate_data={
+                    "status": "ok",
+                    "chains": {
+                        "Berachain": {
+                            "status": "ok",
+                            "epochRebates": [{
+                                "periodStartTimestamp": START_TS,
+                                "periodEndTimestamp": START_TS + DAY_SECONDS,
+                                "rebateUSD": 6,
+                            }],
+                        }
+                    },
+                },
+            )
+
     def test_build_output_rejects_non_list_epoch_rebates(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
         fees_data = metric_payload(total24h=500, latest_value=500, step=10)
@@ -1260,6 +1369,103 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
                         }
                     })
                 )
+
+    def test_rebate_validator_distinguishes_absent_root_and_validates_all_chains(self):
+        self.assertTrue(_dolomite_revenue_borrow_fee_rebate_max_audits_valid({}))
+        self.assertFalse(
+            _dolomite_revenue_borrow_fee_rebate_max_audits_valid({
+                "borrowFeeRebates": None,
+            })
+        )
+
+        for chain_payload in (
+            None,
+            [],
+            {},
+            {"epochRebates": None},
+            {"epochRebates": [None]},
+            {"epochRebates": [{"rebateUSD": 0, "calculationMode": "unknown"}]},
+            {
+                "epochRebates": [],
+                "unsupportedCorrections": [{"reason": "unknown"}],
+            },
+        ):
+            with self.subTest(chain_payload=chain_payload):
+                self.assertFalse(
+                    _dolomite_revenue_borrow_fee_rebate_max_audits_valid({
+                        "borrowFeeRebates": {
+                            "chains": {"Ethereum": chain_payload},
+                        }
+                    })
+                )
+
+        self.assertTrue(
+            _dolomite_revenue_borrow_fee_rebate_max_audits_valid({
+                "borrowFeeRebates": {
+                    "chains": {"Ethereum": {"epochRebates": []}},
+                }
+            })
+        )
+        self.assertFalse(
+            _dolomite_revenue_borrow_fee_rebate_max_audits_valid({
+                "borrowFeeRebates": {
+                    "chains": {
+                        "Ethereum": {"epochRebates": [{
+                            "epoch": 9,
+                            "eventBlock": 24_055_329,
+                            "rebateUSD": 0,
+                            "calculationMode": "known_epoch_snapshot_reset",
+                            "sourceLabel": "Published epoch snapshot reset",
+                            "transactionHash": KNOWN_RESET_TX_HASH,
+                            "resetMarketCount": 2,
+                            "aggregateAdjustmentRaw": -170,
+                        }]},
+                    },
+                }
+            })
+        )
+
+    def test_rebate_validator_requires_finite_real_audit_numbers(self):
+        valid_epoch = {
+            "epoch": 9,
+            "eventBlock": 24_055_329,
+            "rebateUSD": 70,
+            "calculationMode": "known_epoch_snapshot_reset",
+            "sourceLabel": "Published epoch snapshot reset",
+            "transactionHash": KNOWN_RESET_TX_HASH,
+            "resetMarketCount": 2,
+            "aggregateAdjustmentRaw": -170,
+            "maxRebateUSD": 90,
+            "maxRebateMethod": "eligible_market_daily_current_index",
+            "maxRebateSource": "onchain-current-index-audit",
+            "maxRebateMarketCount": 2,
+            "maxRebateEligibleMarketIds": ["1", "2"],
+            "maxRebateDayCount": 7,
+        }
+
+        invalid_values = {
+            "eventBlock": ("24055329", True, float("nan"), float("inf")),
+            "resetMarketCount": ("2", True, float("nan"), float("inf")),
+            "aggregateAdjustmentRaw": ("-170", True, float("nan"), float("inf"), float("-inf")),
+            "maxRebateUSD": ("90", True, float("nan"), float("inf"), float("-inf")),
+            "maxRebateMarketCount": ("2", True, float("nan"), float("inf")),
+            "maxRebateDayCount": ("7", True, float("nan"), float("inf")),
+        }
+        for field, values in invalid_values.items():
+            for value in values:
+                with self.subTest(field=field, value=value):
+                    invalid_epoch = dict(valid_epoch, **{field: value})
+                    self.assertFalse(
+                        _dolomite_revenue_borrow_fee_rebate_max_audits_valid({
+                            "borrowFeeRebates": {
+                                "chains": {
+                                    "Berachain": {
+                                        "epochRebates": [invalid_epoch],
+                                    }
+                                },
+                            }
+                        })
+                    )
 
     def test_missing_rebate_fetch_preserves_previous_closed_epochs(self):
         revenue_data = metric_payload_with_berachain(
