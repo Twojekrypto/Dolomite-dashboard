@@ -441,6 +441,6 @@ git add revenue-preview.html
 git commit -m "chore: refresh audited revenue dataset cache"
 ```
 
-- [ ] **Step 5: Publish through `master`**
+- [ ] **Step 5: Prepare the reviewed production handoff**
 
-Push the feature branch, open a pull request targeting `master`, wait for required checks, merge only after they pass, wait for the GitHub Pages workflow, and verify the deployed page with `?verify=20260810-epoch9-reset` so no stale browser cache is reused.
+Record the local verification evidence and leave the worktree clean. The controller publishes only after the required whole-branch review: push the feature branch, open a pull request targeting `master`, wait for required checks, merge only after they pass, wait for the GitHub Pages workflow, and verify the deployed page with `?verify=20260810-epoch9-reset` so no stale browser cache is reused.
