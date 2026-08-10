@@ -20,14 +20,15 @@
 
 ---
 
-### Task 1: Prove the source-row behavior with failing tests
+### Task 1: Prove and implement source-row address matching
 
 **Files:**
 - Modify: `tests/address-match-highlighting.test.js:313-340`
+- Modify: `shared-hover-tooltips.js:215-232`
 
 **Interfaces:**
 - Consumes: the existing fake DOM fixture and delegated event controller loaded from `shared-hover-tooltips.js`.
-- Produces: regression assertions for source-row quiet state, multi-address rows, unique addresses, and direct-address priority.
+- Produces: regression assertions for source-row quiet state, multi-address rows, unique addresses, and direct-address priority; `showRowAddressMatches(data)` covers source and peer wrappers only for addresses repeated in another visible row.
 
 - [ ] **Step 1: Change the row-hover test to require a quiet source address**
 
@@ -78,26 +79,7 @@ Run: `node --test --test-name-pattern="row hover|row matches every" tests/addres
 
 Expected: FAIL because `fixture.source.addressTrigger` and both displayed multi-source wrappers do not yet receive `address-match-peer` in row mode.
 
-- [ ] **Step 4: Commit the failing tests**
-
-```bash
-git add tests/address-match-highlighting.test.js
-git commit -m "test: require quiet source-row address matches"
-```
-
----
-
-### Task 2: Implement quiet matching for the source row
-
-**Files:**
-- Modify: `shared-hover-tooltips.js:215-232`
-- Test: `tests/address-match-highlighting.test.js`
-
-**Interfaces:**
-- Consumes: `data.table`, `data.row`, `data.addresses`, `normalizeMatchAddress()`, and `isRenderedAddressTrigger()`.
-- Produces: `showRowAddressMatches(data)` with `activeAddressMatch = { mode: "row", table, row, elements }` covering source and peer wrappers only for addresses repeated in another visible row.
-
-- [ ] **Step 1: Implement a two-pass repeated-address selection**
+- [ ] **Step 4: Implement a two-pass repeated-address selection**
 
 Replace the row exclusion loop with a candidate map and peer proof:
 
@@ -137,28 +119,28 @@ function showRowAddressMatches(data) {
 }
 ```
 
-- [ ] **Step 2: Run the focused tests and verify GREEN**
+- [ ] **Step 5: Run the focused tests and verify GREEN**
 
 Run: `node --test --test-name-pattern="row hover|row matches every|does not emphasize" tests/address-match-highlighting.test.js`
 
 Expected: all selected tests PASS, including the unique-address guard.
 
-- [ ] **Step 3: Run the complete controller suite**
+- [ ] **Step 6: Run the complete controller suite**
 
 Run: `node --test tests/address-match-highlighting.test.js`
 
 Expected: all tests PASS, including dynamic rows, focus, touch cleanup, scroll reconciliation, table isolation, and single-install behavior.
 
-- [ ] **Step 4: Commit the implementation**
+- [ ] **Step 7: Commit the passing test and implementation together**
 
 ```bash
-git add shared-hover-tooltips.js
+git add shared-hover-tooltips.js tests/address-match-highlighting.test.js
 git commit -m "fix: highlight repeated address in source row"
 ```
 
 ---
 
-### Task 3: Publish the shared asset and verify geometry
+### Task 2: Publish the shared asset and verify geometry
 
 **Files:**
 - Modify: `assets-preview.html:11-12`
