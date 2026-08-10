@@ -3740,6 +3740,9 @@ h1{
       const value = pending ? 0 : n(row[field]);
       const tooltipMaxRebate = veBorrowRowMaxRebate(row);
       const isVeBorrowCumulative = veBorrowChartMode === "cumulative";
+      const rebateSourceRow = !pending && row.borrowFeeRebateCalculationMode === "known_epoch_snapshot_reset"
+  ? `<div class="tt-row"><span>Source</span><b>Published epoch snapshot reset</b></div>`
+  : "";
       const x = centerAt(nearestIndex);
       const y = pending ? yAt(0) - 12 : yAt(value);
       bars.forEach((bar, index) => {
@@ -3759,6 +3762,7 @@ h1{
           <div class="tt-row"><span>Max rebate</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
           <div class="tt-row"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
           <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
+          ${rebateSourceRow}
         `;
       const cumulativeRows = pending
         ? `
@@ -3770,6 +3774,7 @@ h1{
           <div class="tt-row active"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
           <div class="tt-row"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
           <div class="tt-row"><span>Max rebate</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
+          ${rebateSourceRow}
         `;
       const tooltipRows = isVeBorrowCumulative ? cumulativeRows : dailyRows;
       tip.innerHTML = `
