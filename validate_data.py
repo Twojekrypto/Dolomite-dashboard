@@ -87,6 +87,14 @@ def _safe_number(value):
     return 0.0
 
 
+def _finite_real_json_number(value):
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    return isinstance(value, float) and math.isfinite(value)
+
+
 def _nonnegative_integer(value):
     if not isinstance(value, str) or not value.isdigit():
         return None
@@ -731,13 +739,21 @@ def _dolomite_revenue_chain_windows_valid(data):
 
 
 def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
-    chain = (
-        (data.get("borrowFeeRebates") or {})
-        .get("chains", {})
-        .get("Berachain", {})
-    )
-    rows = chain.get("epochRebates") if isinstance(chain, dict) else None
-    unsupported_corrections = chain.get("unsupportedCorrections") if isinstance(chain, dict) else None
+    rebates = data.get("borrowFeeRebates")
+    if rebates is None:
+        return True
+    if not isinstance(rebates, dict):
+        return False
+    chains = rebates.get("chains")
+    if not isinstance(chains, dict):
+        return False
+    if "Berachain" not in chains:
+        return True
+    chain = chains.get("Berachain")
+    if not isinstance(chain, dict):
+        return False
+    rows = chain.get("epochRebates")
+    unsupported_corrections = chain.get("unsupportedCorrections")
     if unsupported_corrections is not None and (
         not isinstance(unsupported_corrections, list)
         or any(
@@ -748,26 +764,20 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
     ):
         return False
     if not isinstance(rows, list):
-        return True
+        return False
 
     for row in rows:
-        if not isinstance(row, dict) or _safe_number(row.get("rebateUSD")) <= 0:
-            continue
-        market_ids = row.get("maxRebateEligibleMarketIds")
-        calculation_mode = str(row.get("calculationMode") or "").strip()
-        try:
-            max_rebate_market_count = int(row.get("maxRebateMarketCount") or 0)
-            max_rebate_day_count = int(row.get("maxRebateDayCount") or 0)
-        except (TypeError, ValueError):
+        if not isinstance(row, dict):
             return False
+        rebate_usd = row.get("rebateUSD")
+        if not _finite_real_json_number(rebate_usd):
+            return False
+        calculation_mode = row.get("calculationMode")
+        if calculation_mode is None:
+            calculation_mode = ""
         if (
-            _safe_number(row.get("maxRebateUSD")) <= 0
-            or row.get("maxRebateMethod") != "eligible_market_daily_current_index"
-            or row.get("maxRebateSource") != "onchain-current-index-audit"
-            or not isinstance(market_ids, list)
-            or not market_ids
-            or max_rebate_market_count != len(market_ids)
-            or max_rebate_day_count <= 0
+            not isinstance(calculation_mode, str)
+            or calculation_mode not in {"", "cumulative_delta", "known_epoch_snapshot_reset"}
         ):
             return False
         if calculation_mode == "known_epoch_snapshot_reset":
@@ -785,7 +795,23 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
                 or row.get("sourceLabel") != "Published epoch snapshot reset"
             ):
                 return False
-        elif calculation_mode and calculation_mode != "cumulative_delta":
+        if rebate_usd <= 0:
+            continue
+        market_ids = row.get("maxRebateEligibleMarketIds")
+        try:
+            max_rebate_market_count = int(row.get("maxRebateMarketCount") or 0)
+            max_rebate_day_count = int(row.get("maxRebateDayCount") or 0)
+        except (TypeError, ValueError):
+            return False
+        if (
+            _safe_number(row.get("maxRebateUSD")) <= 0
+            or row.get("maxRebateMethod") != "eligible_market_daily_current_index"
+            or row.get("maxRebateSource") != "onchain-current-index-audit"
+            or not isinstance(market_ids, list)
+            or not market_ids
+            or max_rebate_market_count != len(market_ids)
+            or max_rebate_day_count <= 0
+        ):
             return False
     return True
 

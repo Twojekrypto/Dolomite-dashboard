@@ -11,6 +11,7 @@ from pathlib import Path
 
 from fetch_dolomite_revenue import (
     FEE_REBATE_ROLLING_CLAIMS_ABI,
+    apply_borrow_fee_rebates,
     build_output,
     classify_known_rebate_snapshot_reset,
     expected_onchain_audit_target_date,
@@ -103,6 +104,38 @@ def borrow_fee_rebate_metadata():
             }
         },
     }
+
+
+def rebate_allocation_series(day_values):
+    rows = []
+    for index, (fees_usd, gross_revenue_usd) in enumerate(day_values, start=1):
+        supply_side_revenue_usd = max(fees_usd - gross_revenue_usd, 0)
+        rows.append({
+            "timestamp": index,
+            "date": f"day-{index}",
+            "feesUSD": fees_usd,
+            "revenueUSD": gross_revenue_usd,
+            "supplySideRevenueUSD": supply_side_revenue_usd,
+            "chains": {
+                "Berachain": {
+                    "feesUSD": fees_usd,
+                    "revenueUSD": gross_revenue_usd,
+                    "supplySideRevenueUSD": supply_side_revenue_usd,
+                }
+            },
+        })
+    return rows
+
+
+def rebate_allocation_metadata(rebate_usd, day_count, calculation_mode=None):
+    epoch = {
+        "periodStartTimestamp": 1,
+        "periodEndTimestamp": day_count + 1,
+        "rebateUSD": rebate_usd,
+    }
+    if calculation_mode is not None:
+        epoch["calculationMode"] = calculation_mode
+    return {"chains": {"Berachain": {"epochRebates": [epoch]}}}
 
 
 class FetchDolomiteRevenueTest(unittest.TestCase):
@@ -926,6 +959,124 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
+    def test_rebate_allocation_redistributes_capped_day_without_losing_value(self):
+        series = rebate_allocation_series([(1000, 1), (100, 100)])
+
+        output = apply_borrow_fee_rebates(
+            series,
+            rebate_allocation_metadata(50, day_count=2),
+        )
+
+        chain_rows = [row["chains"]["Berachain"] for row in output]
+        self.assertEqual([row["borrowFeeRebateUSD"] for row in chain_rows], [1.0, 49.0])
+        self.assertEqual([row["grossRevenueUSD"] for row in chain_rows], [1.0, 100.0])
+        self.assertEqual([row["revenueUSD"] for row in chain_rows], [0.0, 51.0])
+        self.assertEqual(sum(row["borrowFeeRebateUSD"] for row in chain_rows), 50.0)
+        self.assertTrue(all(
+            row["borrowFeeRebateUSD"] <= row["grossRevenueUSD"]
+            for row in chain_rows
+        ))
+
+    def test_rebate_allocation_assigns_fractional_micro_unit_remainder_deterministically(self):
+        series = rebate_allocation_series([(1, 1), (1, 1), (1, 1)])
+
+        output = apply_borrow_fee_rebates(
+            series,
+            rebate_allocation_metadata(1, day_count=3),
+        )
+
+        rebates = [
+            row["chains"]["Berachain"]["borrowFeeRebateUSD"]
+            for row in output
+        ]
+        self.assertEqual(rebates, [0.333334, 0.333333, 0.333333])
+        self.assertEqual(sum(rebates), 1.0)
+
+    def test_rebate_allocation_rejects_insufficient_period_gross_capacity(self):
+        series = rebate_allocation_series([(10, 1), (20, 2)])
+
+        with self.assertRaisesRegex(ValueError, "exceeds gross revenue capacity"):
+            apply_borrow_fee_rebates(
+                series,
+                rebate_allocation_metadata(4, day_count=2),
+            )
+
+        self.assertEqual(
+            [row["chains"]["Berachain"]["borrowFeeRebateUSD"] for row in series],
+            [0.0, 0.0],
+        )
+
+    def test_rebate_accounting_rejects_malformed_epoch_rows(self):
+        valid_period = {
+            "periodStartTimestamp": 1,
+            "periodEndTimestamp": 2,
+        }
+        for metadata in (
+            {"chains": []},
+            {"chains": {"Berachain": []}},
+        ):
+            with self.subTest(metadata=metadata):
+                with self.assertRaises(ValueError):
+                    apply_borrow_fee_rebates(
+                        rebate_allocation_series([(100, 100)]),
+                        metadata,
+                    )
+
+        malformed_epoch_lists = (
+            {},
+            [None],
+            [{**valid_period, "rebateUSD": "70"}],
+            [{**valid_period, "rebateUSD": "70", "calculationMode": "unknown_mode"}],
+            [{**valid_period, "rebateUSD": True}],
+            [{**valid_period, "rebateUSD": float("nan")}],
+            [{**valid_period, "rebateUSD": float("inf")}],
+            [{**valid_period, "rebateUSD": 70, "calculationMode": "unknown_mode"}],
+        )
+
+        for epoch_rows in malformed_epoch_lists:
+            with self.subTest(epoch_rows=epoch_rows):
+                with self.assertRaises(ValueError):
+                    apply_borrow_fee_rebates(
+                        rebate_allocation_series([(100, 100)]),
+                        {"chains": {"Berachain": {"epochRebates": epoch_rows}}},
+                    )
+
+        series = rebate_allocation_series([(100, 100)])
+        with self.assertRaises(ValueError):
+            apply_borrow_fee_rebates(
+                series,
+                {"chains": {"Berachain": {"epochRebates": [
+                    {**valid_period, "rebateUSD": 70},
+                    None,
+                ]}}},
+            )
+        self.assertEqual(series[0]["chains"]["Berachain"]["revenueUSD"], 100)
+        self.assertNotIn(
+            "borrowFeeRebateUSD",
+            series[0]["chains"]["Berachain"],
+        )
+
+    def test_build_output_rejects_non_list_epoch_rebates(self):
+        revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
+        fees_data = metric_payload(total24h=500, latest_value=500, step=10)
+
+        with self.assertRaises(ValueError):
+            build_output(
+                revenue_data,
+                fees_data,
+                onchain_audit={},
+                borrow_fee_rebate_metadata=borrow_fee_rebate_metadata(),
+                borrow_fee_rebate_data={
+                    "status": "ok",
+                    "chains": {
+                        "Berachain": {
+                            "status": "ok",
+                            "epochRebates": {},
+                        }
+                    },
+                },
+            )
+
     def test_known_reset_is_allocated_and_netted_exactly_once(self):
         revenue_data = metric_payload_with_berachain(
             total24h=140,
@@ -1075,6 +1226,40 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
                 validator_payload(corrections=[{"reason": "cumulative_delta"}])
             )
         )
+
+    def test_rebate_validator_rejects_malformed_epoch_rows(self):
+        for payload in (
+            {"borrowFeeRebates": []},
+            {"borrowFeeRebates": {"chains": []}},
+        ):
+            with self.subTest(payload=payload):
+                self.assertFalse(
+                    _dolomite_revenue_borrow_fee_rebate_max_audits_valid(payload)
+                )
+
+        malformed_chains = (
+            {},
+            {"epochRebates": None},
+            {"epochRebates": {}},
+            {"epochRebates": [None]},
+            {"epochRebates": [[]]},
+            {"epochRebates": [{"rebateUSD": "70"}]},
+            {"epochRebates": [{"rebateUSD": "70", "calculationMode": "unknown_mode"}]},
+            {"epochRebates": [{"rebateUSD": True}]},
+            {"epochRebates": [{"rebateUSD": float("nan")}]},
+            {"epochRebates": [{"rebateUSD": float("inf")}]},
+            {"epochRebates": [{"rebateUSD": 0, "calculationMode": "unknown_mode"}]},
+        )
+
+        for chain in malformed_chains:
+            with self.subTest(chain=chain):
+                self.assertFalse(
+                    _dolomite_revenue_borrow_fee_rebate_max_audits_valid({
+                        "borrowFeeRebates": {
+                            "chains": {"Berachain": chain},
+                        }
+                    })
+                )
 
     def test_missing_rebate_fetch_preserves_previous_closed_epochs(self):
         revenue_data = metric_payload_with_berachain(
