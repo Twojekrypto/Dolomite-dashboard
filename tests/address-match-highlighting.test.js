@@ -310,14 +310,17 @@ test('highlights only exact repeated address text within the opted-in table', ()
   assert.equal(fixture.unscoped.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
-test('row hover quietly highlights exact peer addresses in other rows only', () => {
+test('row hover quietly highlights the source address and exact peers in other rows', () => {
   const fixture = buildFixture();
 
   fixture.document.dispatch('pointerover', fixture.source.cell);
 
-  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-active'), false);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-active'), true);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.source.addressTrigger.classList.contains('address-match-source'), false);
   assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
   assert.equal(fixture.duplicateWrapperPeer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.source.labelTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.hidden.addressTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.crossTable.addressTrigger.classList.contains('address-match-peer'), false);
@@ -329,12 +332,16 @@ test('row hover matches every canonical wallet in the row and direct address hov
   const fixture = buildFixture({ multiAddressRow: true });
 
   fixture.document.dispatch('mouseover', fixture.multiSource.cellOutsideAddress);
+  assert.equal(fixture.multiSource.primary.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.multiSource.secondary.addressTrigger.classList.contains('address-match-peer'), true);
   assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
   assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), true);
 
   fixture.document.dispatch('mouseover', fixture.multiSource.primary.addressTrigger);
   assert.equal(fixture.multiSource.primary.addressTrigger.classList.contains('address-match-source'), true);
+  assert.equal(fixture.multiSource.primary.addressTrigger.classList.contains('address-match-peer'), false);
   assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+  assert.equal(fixture.multiSource.secondary.addressTrigger.classList.contains('address-match-active'), false);
   assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
@@ -426,6 +433,16 @@ test('does not emphasize an address that has no visible peer in its table', () =
 
   assert.equal(fixture.other.addressTrigger.classList.contains('address-match-source'), false);
   assert.equal(fixture.other.addressTrigger.classList.contains('address-match-active'), false);
+});
+
+test('row hover does not emphasize an address that has no visible peer in its table', () => {
+  const fixture = buildFixture();
+
+  fixture.document.dispatch('pointerover', fixture.other.cell);
+
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-active'), false);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-source'), false);
+  assert.equal(fixture.other.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
 test('uses the same address-text-only state when an address trigger receives focus', () => {
