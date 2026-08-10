@@ -352,16 +352,31 @@ def token_metadata_rpc_value(call, field, token):
     raise RuntimeError(f"ERC-20 {field} unavailable for {token}: {error}")
 
 
+def valid_token_symbol(symbol, token):
+    if not isinstance(symbol, str) or not symbol.strip():
+        return False
+    normalized = symbol.strip()
+    lowered = normalized.lower()
+    token_lowered = str(token or "").lower()
+    is_address_prefix = (
+        lowered.startswith("0x")
+        and len(lowered) > 2
+        and all(character in "0123456789abcdef" for character in lowered[2:])
+        and token_lowered.startswith(lowered)
+    )
+    return not is_address_prefix
+
+
 def token_metadata(w3, token, canonical_metadata=None):
     contract = w3.eth.contract(address=Web3.to_checksum_address(token), abi=ERC20_ABI)
     try:
         symbol = token_metadata_rpc_value(contract.functions.symbol().call, "symbol", token)
-        if not isinstance(symbol, str) or not symbol.strip():
+        if not valid_token_symbol(symbol, token):
             raise ValueError("ERC-20 symbol is empty or malformed")
         symbol = symbol.strip()
     except Exception:
         canonical_symbol = canonical_metadata.get("symbol") if isinstance(canonical_metadata, dict) else None
-        if not isinstance(canonical_symbol, str) or not canonical_symbol.strip():
+        if not valid_token_symbol(canonical_symbol, token):
             raise
         symbol = canonical_symbol.strip()
     try:
@@ -1137,8 +1152,7 @@ def previous_borrow_fee_rebate_market_metadata(previous_output):
                 or not isinstance(market_id, int)
                 or not isinstance(token, str)
                 or not Web3.is_address(token)
-                or not isinstance(symbol, str)
-                or not symbol.strip()
+                or not valid_token_symbol(symbol, token)
                 or not isinstance(decimals, int)
                 or not 0 <= decimals <= 255
             ):
@@ -1207,21 +1221,34 @@ def preserve_previous_borrow_fee_rebate_epoch_audits(current_rebate_data, previo
                     row[field] = previous_row[field]
 
         current_epoch_numbers = {
-            int_or_none(row.get("epoch"))
+            row.get("epoch")
             for row in current_rows
             if isinstance(row, dict)
+            and type(row.get("epoch")) is int
+            and row.get("epoch") > 0
         }
-        current_period_end = max(
-            (int_or_none(row.get("periodEndTimestamp")) or 0)
-            for row in current_rows
-            if isinstance(row, dict)
-        )
-        preserved_rows = [
-            json.loads(json.dumps(row))
-            for row in borrow_fee_rebate_epoch_rows({"chains": {chain: previous_payload}}, chain)
-            if int_or_none(row.get("epoch")) not in current_epoch_numbers
-            and 0 < (int_or_none(row.get("periodEndTimestamp")) or 0) <= current_period_end
-        ]
+        current_max_epoch = max(current_epoch_numbers, default=0)
+        previous_candidates_by_epoch = {}
+        for row in borrow_fee_rebate_epoch_rows({"chains": {chain: previous_payload}}, chain):
+            epoch = row.get("epoch")
+            if type(epoch) is not int or epoch <= 0:
+                continue
+            previous_candidates_by_epoch.setdefault(epoch, []).append(row)
+
+        preserved_rows = []
+        for epoch, candidates in previous_candidates_by_epoch.items():
+            if epoch in current_epoch_numbers or epoch > current_max_epoch or len(candidates) != 1:
+                continue
+            row = candidates[0]
+            canonical_start, canonical_end = rebate_epoch_window(epoch)
+            if (
+                type(row.get("periodStartTimestamp")) is not int
+                or type(row.get("periodEndTimestamp")) is not int
+                or row.get("periodStartTimestamp") != canonical_start
+                or row.get("periodEndTimestamp") != canonical_end
+            ):
+                continue
+            preserved_rows.append(json.loads(json.dumps(row)))
         if preserved_rows:
             current_rows.extend(preserved_rows)
             current_rows.sort(key=lambda row: (
