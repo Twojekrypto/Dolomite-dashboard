@@ -19,8 +19,11 @@ from fetch_dolomite_revenue import (
     fee_rebate_epoch_from_transaction_input,
     fee_rebate_transaction_context_from_input,
     fetch_borrow_fee_rebate_data,
+    get_market_token_metadata,
     onchain_audit_assurance,
     preserve_previous_borrow_fee_rebate_data,
+    previous_borrow_fee_rebate_market_metadata,
+    token_metadata,
 )
 from hexbytes import HexBytes
 from web3 import Web3
@@ -282,9 +285,10 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         actual_w3 = Web3()
         handler = actual_w3.eth.contract(abi=FEE_REBATE_ROLLING_CLAIMS_ABI)
         initial_tx = "0x" + "11" * 32
-        unknown_reset_tx = "0x" + "22" * 32
+        normal_epoch10_tx = "0x" + "22" * 32
+        unknown_reset_tx = "0x" + "23" * 32
 
-        def transaction_input(epoch, totals):
+        def transaction_input(epoch, totals, increment_epoch=True):
             return handler.encode_abi(
                 "handlerSetMerkleRoots",
                 args=[
@@ -292,14 +296,15 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
                     [b"\x11" * 32, b"\x22" * 32],
                     totals,
                     epoch,
-                    True,
+                    increment_epoch,
                 ],
             )
 
         transaction_inputs = {
             initial_tx: transaction_input(8, [140, 85]),
             KNOWN_RESET_TX_HASH: transaction_input(9, [40, 15]),
-            unknown_reset_tx: transaction_input(10, [50, 5]),
+            normal_epoch10_tx: transaction_input(10, [50, 15]),
+            unknown_reset_tx: transaction_input(10, [40, 15], increment_epoch=False),
         }
 
         def rebate_log(tx_hash, block_number, transaction_index, log_index, market_id, total_raw):
@@ -319,13 +324,16 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             rebate_log(initial_tx, 24_055_328, 0, 1, 2, 85),
             rebate_log(KNOWN_RESET_TX_HASH, 24_055_329, 0, 0, 1, 40),
             rebate_log(KNOWN_RESET_TX_HASH, 24_055_329, 0, 1, 2, 15),
-            rebate_log(unknown_reset_tx, 24_055_330, 0, 0, 1, 50),
-            rebate_log(unknown_reset_tx, 24_055_330, 0, 1, 2, 5),
+            rebate_log(normal_epoch10_tx, 24_055_330, 0, 0, 1, 50),
+            rebate_log(normal_epoch10_tx, 24_055_330, 0, 1, 2, 15),
+            rebate_log(unknown_reset_tx, 24_055_331, 0, 0, 1, 40),
+            rebate_log(unknown_reset_tx, 24_055_331, 0, 1, 2, 15),
         ]
         block_timestamps = {
             24_055_328: 1_784_160_000,
             24_055_329: 1_784_160_012,
             24_055_330: 1_784_160_024,
+            24_055_331: 1_784_160_036,
         }
         token_metadata = {
             1: {
@@ -342,7 +350,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
 
         fake_w3 = mock.MagicMock()
         fake_w3.codec = actual_w3.codec
-        fake_w3.eth.block_number = 24_055_330
+        fake_w3.eth.block_number = 24_055_331
         fake_w3.eth.contract.side_effect = actual_w3.eth.contract
         fake_w3.eth.get_transaction_receipt.return_value = {"blockNumber": 22_269_000}
         fake_w3.eth.get_block.side_effect = lambda block_number: {
@@ -361,7 +369,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             mock.patch("fetch_dolomite_revenue.get_logs_chunked", return_value=logs),
             mock.patch(
                 "fetch_dolomite_revenue.get_market_token_metadata",
-                side_effect=lambda _w3, market_id, _cache: token_metadata[market_id],
+                side_effect=lambda _w3, market_id, _cache, _canonical: token_metadata[market_id],
             ),
             mock.patch(
                 "fetch_dolomite_revenue.fetch_historical_prices",
@@ -415,15 +423,102 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
                 },
             ],
         )
-        self.assertNotIn(10, epochs)
-        self.assertEqual(chain["pricedEventCount"], 4)
-        self.assertEqual(chain["totalRebateUSD"], 56)
+        self.assertEqual(epochs[10]["rebateUSD"], 2)
+        self.assertEqual(epochs[10]["marketCount"], 1)
+        self.assertEqual(epochs[10]["markets"][0]["marketId"], 1)
+        self.assertEqual(epochs[10]["markets"][0]["amount"], "1")
+        self.assertEqual(chain["pricedEventCount"], 5)
+        self.assertEqual(chain["totalRebateUSD"], 58)
         self.assertEqual(chain["unsupportedCorrections"], [{
             "transactionHash": unknown_reset_tx,
-            "eventBlock": 24_055_330,
+            "eventBlock": 24_055_331,
             "marketCount": 2,
             "reason": "unsupported_aggregate_correction",
         }])
+
+    def test_token_metadata_retries_and_fails_closed_without_canonical_values(self):
+        token = "0x" + "01" * 20
+        w3 = mock.MagicMock()
+        contract = w3.eth.contract.return_value
+        contract.functions.symbol.return_value.call.side_effect = RuntimeError("symbol unavailable")
+        contract.functions.decimals.return_value.call.return_value = 6
+
+        with mock.patch("fetch_dolomite_revenue.time.sleep"):
+            with self.assertRaises(RuntimeError):
+                token_metadata(w3, token)
+        self.assertEqual(contract.functions.symbol.return_value.call.call_count, 3)
+
+        contract.functions.symbol.return_value.call.side_effect = None
+        contract.functions.symbol.return_value.call.return_value = "USDC.e"
+        contract.functions.decimals.return_value.call.side_effect = RuntimeError("decimals unavailable")
+        with mock.patch("fetch_dolomite_revenue.time.sleep"):
+            with self.assertRaises(RuntimeError):
+                token_metadata(w3, token)
+        self.assertEqual(contract.functions.decimals.return_value.call.call_count, 3)
+
+    def test_token_metadata_preserves_canonical_prior_values_on_rpc_failure(self):
+        token = "0x" + "01" * 20
+        canonical = {"token": token, "symbol": "USDC.e", "decimals": 6}
+        w3 = mock.MagicMock()
+        contract = w3.eth.contract.return_value
+        contract.functions.symbol.return_value.call.side_effect = RuntimeError("symbol unavailable")
+        contract.functions.decimals.return_value.call.side_effect = RuntimeError("decimals unavailable")
+
+        with mock.patch("fetch_dolomite_revenue.time.sleep"):
+            self.assertEqual(token_metadata(w3, token, canonical), ("USDC.e", 6))
+        self.assertEqual(contract.functions.symbol.return_value.call.call_count, 3)
+        self.assertEqual(contract.functions.decimals.return_value.call.call_count, 3)
+
+    def test_market_metadata_uses_only_matching_canonical_prior_token(self):
+        token = Web3.to_checksum_address("0x" + "01" * 20)
+        w3 = mock.MagicMock()
+        w3.eth.contract.return_value.functions.getMarketTokenAddress.return_value.call.return_value = token
+        canonical = {1: {"token": token, "symbol": "USDC.e", "decimals": 6}}
+
+        with mock.patch(
+            "fetch_dolomite_revenue.token_metadata",
+            side_effect=lambda _w3, _token, prior: (prior["symbol"], prior["decimals"]),
+        ) as metadata_call:
+            result = get_market_token_metadata(w3, 1, {}, canonical)
+
+        self.assertEqual(result, canonical[1])
+        metadata_call.assert_called_once_with(w3, token, canonical[1])
+
+        mismatched = {1: {"token": "0x" + "02" * 20, "symbol": "WRONG", "decimals": 18}}
+        with mock.patch(
+            "fetch_dolomite_revenue.token_metadata",
+            side_effect=RuntimeError("metadata unavailable"),
+        ):
+            with self.assertRaises(RuntimeError):
+                get_market_token_metadata(w3, 1, {}, mismatched)
+
+    def test_previous_artifact_exposes_canonical_market_metadata(self):
+        token = Web3.to_checksum_address("0x" + "01" * 20)
+        previous_output = {
+            "borrowFeeRebates": {
+                "chains": {
+                    "Berachain": {
+                        "epochRebates": [{
+                            "epoch": 10,
+                            "markets": [{
+                                "marketId": 1,
+                                "token": token,
+                                "symbol": "USDC.e",
+                                "publishedTotalRaw": 123_000_000,
+                                "amount": "123",
+                            }],
+                        }],
+                    }
+                }
+            }
+        }
+
+        expected = {1: {"token": token, "symbol": "USDC.e", "decimals": 6}}
+        self.assertEqual(previous_borrow_fee_rebate_market_metadata(previous_output), expected)
+        self.assertEqual(
+            previous_borrow_fee_rebate_market_metadata(previous_output["borrowFeeRebates"]),
+            expected,
+        )
 
     def test_fetch_rebate_data_rejects_ordinary_duplicate_market_group(self):
         actual_w3 = Web3()
@@ -1614,6 +1709,71 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(epoch["resetMarketCount"], 2)
         self.assertEqual(epoch["aggregateAdjustmentRaw"], -170)
 
+    def test_partial_success_restores_missing_recovered_epoch_without_overwriting_current_rows(self):
+        epoch8 = {
+            "epoch": 8,
+            "periodStartTimestamp": 1_783_555_200,
+            "periodEndTimestamp": 1_784_160_000,
+            "eventBlock": 23_572_770,
+            "rebateUSD": 195.0,
+            "markets": [],
+        }
+        epoch9 = {
+            "epoch": 9,
+            "periodStartTimestamp": 1_784_160_000,
+            "periodEndTimestamp": 1_784_764_800,
+            "eventBlock": 24_055_329,
+            "rebateUSD": 211.0,
+            "markets": [],
+            "calculationMode": "known_epoch_snapshot_reset",
+            "sourceLabel": "Published epoch snapshot reset",
+            "transactionHash": KNOWN_RESET_TX_HASH,
+            "resetMarketCount": 2,
+            "aggregateAdjustmentRaw": -170,
+            "maxRebateUSD": 250.0,
+            "maxRebateMethod": "eligible_market_daily_current_index",
+        }
+        epoch10 = {
+            "epoch": 10,
+            "periodStartTimestamp": 1_784_764_800,
+            "periodEndTimestamp": 1_785_369_600,
+            "eventBlock": 24_177_572,
+            "rebateUSD": 17.0,
+            "markets": [{"marketId": 1, "amount": "1"}],
+        }
+        current = {
+            "status": "ok",
+            "chains": {
+                "Berachain": {
+                    "status": "ok",
+                    "latestRebateDate": "2026-07-30",
+                    "totalRebateUSD": 212.0,
+                    "epochRebates": [epoch8, epoch10],
+                }
+            },
+        }
+        previous_output = {
+            "borrowFeeRebates": {
+                "chains": {
+                    "Berachain": {
+                        "epochRebates": [epoch8, epoch9],
+                    }
+                }
+            }
+        }
+
+        merged = preserve_previous_borrow_fee_rebate_data(current, previous_output)
+        chain = merged["chains"]["Berachain"]
+        rows = chain["epochRebates"]
+
+        self.assertEqual([row["epoch"] for row in rows], [8, 9, 10])
+        self.assertEqual(sum(row["rebateUSD"] for row in rows), 423.0)
+        self.assertEqual(chain["totalRebateUSD"], 423.0)
+        self.assertEqual(chain["latestRebateDate"], "2026-07-30")
+        self.assertEqual(rows[2], epoch10)
+        self.assertEqual(rows[1]["transactionHash"], KNOWN_RESET_TX_HASH)
+        self.assertEqual(rows[1]["maxRebateUSD"], 250.0)
+
     def test_revenue_page_exposes_known_reset_provenance(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
 
@@ -1646,6 +1806,68 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         ]
 
         self.assertEqual(missing, [])
+
+    def test_current_revenue_file_preserves_epoch9_and_publishes_epoch10_boundary(self):
+        data = json.loads((ROOT / "dolomite_revenue.json").read_text())
+        chain = data["borrowFeeRebates"]["chains"]["Berachain"]
+        epochs = chain["epochRebates"]
+        rows_by_date = {row["date"]: row for row in data["series"]}
+
+        self.assertEqual([row["epoch"] for row in epochs], list(range(1, 11)))
+        self.assertEqual(chain["latestRebateDate"], "2026-07-30")
+        epoch9 = epochs[8]
+        epoch10 = epochs[9]
+        self.assertEqual(epoch9["calculationMode"], "known_epoch_snapshot_reset")
+        self.assertEqual(epoch9["sourceLabel"], "Published epoch snapshot reset")
+        self.assertEqual(epoch9["transactionHash"].lower(), KNOWN_RESET_TX_HASH)
+        self.assertEqual(epoch9["eventBlock"], 24_055_329)
+        self.assertEqual(epoch9["resetMarketCount"], 10)
+        self.assertEqual(epoch9["aggregateAdjustmentRaw"], -1_263_775_008_033_249_832_439)
+        self.assertEqual(Decimal(str(epoch9["rebateUSD"])), Decimal("211.228479"))
+        self.assertEqual(epoch10["eventBlock"], 24_177_572)
+        self.assertEqual(epoch10["marketCount"], 9)
+        self.assertEqual(Decimal(str(epoch10["rebateUSD"])), Decimal("17.717359"))
+
+        for epoch in epochs:
+            daily = [
+                row for row in data["series"]
+                if epoch["periodStartTimestamp"] <= row["timestamp"] < epoch["periodEndTimestamp"]
+            ]
+            self.assertEqual(len(daily), 7)
+            self.assertEqual(
+                sum(Decimal(str(row["borrowFeeRebateUSD"])) for row in daily),
+                Decimal(str(epoch["rebateUSD"])),
+            )
+
+        for day in range(16, 23):
+            row = rows_by_date[f"2026-07-{day:02d}"]
+            self.assertGreater(row["borrowFeeRebateUSD"], 0)
+            self.assertEqual(row["borrowFeeRebateCalculationMode"], "known_epoch_snapshot_reset")
+        for day in range(23, 30):
+            row = rows_by_date[f"2026-07-{day:02d}"]
+            self.assertGreater(row["borrowFeeRebateUSD"], 0)
+            self.assertNotIn("borrowFeeRebateCalculationMode", row)
+        for row in data["series"]:
+            if row["date"] >= "2026-07-30":
+                self.assertEqual(row["borrowFeeRebateUSD"], 0)
+
+        for row in data["series"]:
+            self.assertLessEqual(
+                abs(Decimal(str(row["grossRevenueUSD"]))
+                    - Decimal(str(row["revenueUSD"]))
+                    - Decimal(str(row["borrowFeeRebateUSD"]))),
+                Decimal("0.000001"),
+            )
+        for epoch in epochs:
+            for market in epoch["markets"]:
+                self.assertFalse(market["symbol"].lower().startswith("0x"))
+                self.assertIs(type(market["decimals"]), int)
+                self.assertGreaterEqual(market["decimals"], 0)
+
+        self.assertTrue(_dolomite_revenue_totals_valid(data))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(data))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(data))
+        self.assertTrue(_dolomite_revenue_borrow_fee_rebate_max_audits_valid(data))
 
     def test_validator_does_not_depend_on_liquidation_history_for_revenue(self):
         revenue_data = metric_payload(total24h=100, latest_value=100, step=2)
