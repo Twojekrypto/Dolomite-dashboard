@@ -396,6 +396,7 @@ git commit -m "data: publish recovered veDOLO epoch 9 rebates"
 
 **Files:**
 - Modify: `revenue-preview.html:1417`
+- Modify: `tests/test_fetch_dolomite_revenue.py:1722`
 - Verify: `dolomite_revenue.json`
 - Verify: `revenue-preview.html`
 
@@ -410,6 +411,8 @@ Change only:
 ```javascript
 const DATA_URL = "dolomite_revenue.json?v=revenue-20260810-epoch9-reset";
 ```
+
+Update the matching static contract assertion in `tests/test_fetch_dolomite_revenue.py` to require the same cache key.
 
 - [ ] **Step 2: Serve and inspect the Revenue page**
 
@@ -432,12 +435,12 @@ git diff --check
 git status --short
 ```
 
-Expected: all commands exit 0 and status contains only the intended revenue cache-key change before its commit.
+Expected: all commands exit 0 and status contains only the intended revenue cache-key and matching static-test assertion changes before commit.
 
 - [ ] **Step 4: Commit the cache key**
 
 ```bash
-git add revenue-preview.html
+git add revenue-preview.html tests/test_fetch_dolomite_revenue.py
 git commit -m "chore: refresh audited revenue dataset cache"
 ```
 
