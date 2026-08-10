@@ -771,12 +771,15 @@ def apply_epoch_rebate_to_chain(series, chain, epoch_rebate):
             payload = row["chains"][chain]
             weights.append(safe_number(payload.get("grossRevenueUSD", payload.get("revenueUSD"))))
     total_weight = sum(weights)
+    calculation_mode = str(epoch_rebate.get("calculationMode") or "").strip()
     applied = 0.0
     for index, row in enumerate(rows):
         payload = row["chains"][chain]
         share = (weights[index] / total_weight) if total_weight > 0 else (1 / len(rows))
         chain_rebate = rebate_usd * share
         payload["borrowFeeRebateUSD"] = safe_number(payload.get("borrowFeeRebateUSD")) + chain_rebate
+        if calculation_mode:
+            payload["borrowFeeRebateCalculationMode"] = calculation_mode
         applied += chain_rebate
     return applied
 
@@ -792,6 +795,7 @@ def apply_borrow_fee_rebates(series, rebate_metadata):
 
     for row in series:
         total_rebate = 0.0
+        calculation_modes = set()
         for payload in (row.get("chains") or {}).values():
             chain_fees = safe_number(payload.get("feesUSD"))
             chain_gross = safe_number(payload.get("grossRevenueUSD", payload.get("revenueUSD")))
@@ -803,6 +807,9 @@ def apply_borrow_fee_rebates(series, rebate_metadata):
             payload["protocolCut"] = round(chain_net / chain_fees, 8) if chain_fees > 0 else 0
             payload["grossProtocolCut"] = round(chain_gross / chain_fees, 8) if chain_fees > 0 else 0
             total_rebate += chain_rebate
+            calculation_mode = str(payload.get("borrowFeeRebateCalculationMode") or "").strip()
+            if calculation_mode:
+                calculation_modes.add(calculation_mode)
 
         fees = safe_number(row.get("feesUSD"))
         gross_revenue = safe_number(row.get("grossRevenueUSD", row.get("revenueUSD")))
@@ -813,6 +820,10 @@ def apply_borrow_fee_rebates(series, rebate_metadata):
         row["supplySideRevenueUSD"] = round(max(fees - gross_revenue, 0.0), 6)
         row["protocolCut"] = round(net_revenue / fees, 8) if fees > 0 else 0
         row["grossProtocolCut"] = round(gross_revenue / fees, 8) if fees > 0 else 0
+        if len(calculation_modes) == 1:
+            row["borrowFeeRebateCalculationMode"] = next(iter(calculation_modes))
+        else:
+            row.pop("borrowFeeRebateCalculationMode", None)
     return series
 
 
@@ -906,6 +917,7 @@ def previous_borrow_fee_rebate_data(previous_output):
         "priceFallbackCount": int(chain_payload.get("priceFallbackCount") or 0),
         "latestRebateDate": chain_payload.get("latestRebateDate"),
         "epochRebates": epoch_rebates,
+        "unsupportedCorrections": json.loads(json.dumps(chain_payload.get("unsupportedCorrections") or [])),
         "fallbackFromGeneratedAt": previous_generated_at,
     }
     return {
@@ -919,6 +931,11 @@ def previous_borrow_fee_rebate_data(previous_output):
 
 
 PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS = (
+    "calculationMode",
+    "sourceLabel",
+    "transactionHash",
+    "resetMarketCount",
+    "aggregateAdjustmentRaw",
     "maxRebateUSD",
     "maxRebateMethod",
     "maxRebateSource",
@@ -1511,6 +1528,9 @@ def normalized_borrow_fee_rebate_metadata(metadata, rebate_data=None):
             "missingPriceCount": missing_price_count,
             "priceFallbackCount": int(rebate_chain_data.get("priceFallbackCount") or 0),
             "epochRebates": epoch_rebates,
+            "unsupportedCorrections": rebate_chain_data.get("unsupportedCorrections")
+            if isinstance(rebate_chain_data.get("unsupportedCorrections"), list)
+            else [],
         }
 
     status = "active" if any(chain.get("status") == "active" for chain in chains.values()) else "inactive"

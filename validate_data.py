@@ -737,6 +737,16 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
         .get("Berachain", {})
     )
     rows = chain.get("epochRebates") if isinstance(chain, dict) else None
+    unsupported_corrections = chain.get("unsupportedCorrections") if isinstance(chain, dict) else None
+    if unsupported_corrections is not None and (
+        not isinstance(unsupported_corrections, list)
+        or any(
+            not isinstance(item, dict)
+            or item.get("reason") != "unsupported_aggregate_correction"
+            for item in unsupported_corrections
+        )
+    ):
+        return False
     if not isinstance(rows, list):
         return True
 
@@ -744,15 +754,38 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
         if not isinstance(row, dict) or _safe_number(row.get("rebateUSD")) <= 0:
             continue
         market_ids = row.get("maxRebateEligibleMarketIds")
+        calculation_mode = str(row.get("calculationMode") or "").strip()
+        try:
+            max_rebate_market_count = int(row.get("maxRebateMarketCount") or 0)
+            max_rebate_day_count = int(row.get("maxRebateDayCount") or 0)
+        except (TypeError, ValueError):
+            return False
         if (
             _safe_number(row.get("maxRebateUSD")) <= 0
             or row.get("maxRebateMethod") != "eligible_market_daily_current_index"
             or row.get("maxRebateSource") != "onchain-current-index-audit"
             or not isinstance(market_ids, list)
             or not market_ids
-            or int(row.get("maxRebateMarketCount") or 0) != len(market_ids)
-            or int(row.get("maxRebateDayCount") or 0) <= 0
+            or max_rebate_market_count != len(market_ids)
+            or max_rebate_day_count <= 0
         ):
+            return False
+        if calculation_mode == "known_epoch_snapshot_reset":
+            try:
+                event_block = int(row.get("eventBlock") or 0)
+                reset_market_count = int(row.get("resetMarketCount") or 0)
+            except (TypeError, ValueError):
+                return False
+            if (
+                row.get("epoch") != 9
+                or str(row.get("transactionHash") or "").lower() != "0x6d85363b5942efbaff9ed80943e4e415edc5e578a3f1e8f1b0c9207c2bec8a7c"
+                or event_block != 24055329
+                or reset_market_count < 2
+                or _safe_number(row.get("aggregateAdjustmentRaw")) >= 0
+                or row.get("sourceLabel") != "Published epoch snapshot reset"
+            ):
+                return False
+        elif calculation_mode and calculation_mode != "cumulative_delta":
             return False
     return True
 

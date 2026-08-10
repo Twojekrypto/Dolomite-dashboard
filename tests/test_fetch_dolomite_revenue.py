@@ -25,6 +25,7 @@ from web3 import Web3
 from validate_data import (
     RULES,
     ValidationResult,
+    _dolomite_revenue_borrow_fee_rebate_max_audits_valid,
     _dolomite_revenue_chain_windows_valid,
     _dolomite_revenue_totals_valid,
     _dolomite_revenue_window_totals_valid,
@@ -243,7 +244,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             "80094", KNOWN_RESET_TX_HASH, context, events, {1: "140", 2: 85},
         ))
 
-    def test_fetch_rebate_data_recovers_only_known_epoch9_reset(self):
+    def test_fetch_rebate_data_recovers_only_known_epoch9_reset_and_rejects_unknown_mixed_correction(self):
         actual_w3 = Web3()
         handler = actual_w3.eth.contract(abi=FEE_REBATE_ROLLING_CLAIMS_ABI)
         initial_tx = "0x" + "11" * 32
@@ -264,7 +265,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         transaction_inputs = {
             initial_tx: transaction_input(8, [140, 85]),
             KNOWN_RESET_TX_HASH: transaction_input(9, [40, 15]),
-            unknown_reset_tx: transaction_input(10, [10, 5]),
+            unknown_reset_tx: transaction_input(10, [50, 5]),
         }
 
         def rebate_log(tx_hash, block_number, transaction_index, log_index, market_id, total_raw):
@@ -284,7 +285,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             rebate_log(initial_tx, 24_055_328, 0, 1, 2, 85),
             rebate_log(KNOWN_RESET_TX_HASH, 24_055_329, 0, 0, 1, 40),
             rebate_log(KNOWN_RESET_TX_HASH, 24_055_329, 0, 1, 2, 15),
-            rebate_log(unknown_reset_tx, 24_055_330, 0, 0, 1, 10),
+            rebate_log(unknown_reset_tx, 24_055_330, 0, 0, 1, 50),
             rebate_log(unknown_reset_tx, 24_055_330, 0, 1, 2, 5),
         ]
         block_timestamps = {
@@ -925,6 +926,156 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
 
+    def test_known_reset_is_allocated_and_netted_exactly_once(self):
+        revenue_data = metric_payload_with_berachain(
+            total24h=140,
+            latest_value=140,
+            step=5,
+            latest_berachain_value=100,
+        )
+        fees_data = metric_payload_with_berachain(
+            total24h=500,
+            latest_value=500,
+            step=10,
+            latest_berachain_value=500,
+        )
+        period_start = START_TS + 24 * DAY_SECONDS
+        period_end = START_TS + 31 * DAY_SECONDS
+        unsupported_correction = {
+            "transactionHash": "0x" + "44" * 32,
+            "eventBlock": 24_055_330,
+            "marketCount": 2,
+            "reason": "unsupported_aggregate_correction",
+        }
+
+        output = build_output(
+            revenue_data,
+            fees_data,
+            onchain_audit={},
+            borrow_fee_rebate_metadata=borrow_fee_rebate_metadata(),
+            borrow_fee_rebate_data={
+                "status": "ok",
+                "chains": {
+                    "Berachain": {
+                        "status": "ok",
+                        "source": "FeeRebateRollingClaims.MarketIdToMerkleRootSet",
+                        "epochRebates": [{
+                            "epoch": 9,
+                            "periodStartTimestamp": period_start,
+                            "periodEndTimestamp": period_end,
+                            "eventBlock": 24_055_329,
+                            "rebateUSD": 70,
+                            "marketCount": 2,
+                            "calculationMode": "known_epoch_snapshot_reset",
+                            "sourceLabel": "Published epoch snapshot reset",
+                            "transactionHash": KNOWN_RESET_TX_HASH,
+                            "resetMarketCount": 2,
+                            "aggregateAdjustmentRaw": -170,
+                            "maxRebateUSD": 90,
+                            "maxRebateMethod": "eligible_market_daily_current_index",
+                            "maxRebateSource": "onchain-current-index-audit",
+                            "maxRebateMarketCount": 2,
+                            "maxRebateEligibleMarketIds": ["1", "2"],
+                            "maxRebateDayCount": 7,
+                        }],
+                        "unsupportedCorrections": [unsupported_correction],
+                    }
+                },
+            },
+        )
+
+        affected_rows = output["series"][24:31]
+        self.assertAlmostEqual(
+            sum(row["borrowFeeRebateUSD"] for row in affected_rows),
+            70,
+            places=6,
+        )
+        self.assertAlmostEqual(
+            sum(row["chains"]["Berachain"]["borrowFeeRebateUSD"] for row in affected_rows),
+            70,
+            places=6,
+        )
+        for row in affected_rows:
+            chain = row["chains"]["Berachain"]
+            self.assertAlmostEqual(row["revenueUSD"], row["grossRevenueUSD"] - row["borrowFeeRebateUSD"], places=6)
+            self.assertAlmostEqual(chain["revenueUSD"], chain["grossRevenueUSD"] - chain["borrowFeeRebateUSD"], places=6)
+            self.assertEqual(row["borrowFeeRebateCalculationMode"], "known_epoch_snapshot_reset")
+            self.assertEqual(chain["borrowFeeRebateCalculationMode"], "known_epoch_snapshot_reset")
+
+        self.assertEqual(
+            output["borrowFeeRebates"]["chains"]["Berachain"]["unsupportedCorrections"],
+            [unsupported_correction],
+        )
+        self.assertTrue(_dolomite_revenue_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_window_totals_valid(output))
+        self.assertTrue(_dolomite_revenue_chain_windows_valid(output))
+        self.assertTrue(_dolomite_revenue_borrow_fee_rebate_max_audits_valid(output))
+
+    def test_known_reset_validator_enforces_exact_audited_contract(self):
+        valid_epoch = {
+            "epoch": 9,
+            "eventBlock": 24_055_329,
+            "rebateUSD": 70,
+            "calculationMode": "known_epoch_snapshot_reset",
+            "sourceLabel": "Published epoch snapshot reset",
+            "transactionHash": KNOWN_RESET_TX_HASH,
+            "resetMarketCount": 2,
+            "aggregateAdjustmentRaw": -170,
+            "maxRebateUSD": 90,
+            "maxRebateMethod": "eligible_market_daily_current_index",
+            "maxRebateSource": "onchain-current-index-audit",
+            "maxRebateMarketCount": 2,
+            "maxRebateEligibleMarketIds": ["1", "2"],
+            "maxRebateDayCount": 7,
+        }
+
+        def validator_payload(epoch=None, corrections=None):
+            return {
+                "borrowFeeRebates": {
+                    "chains": {
+                        "Berachain": {
+                            "epochRebates": [dict(valid_epoch if epoch is None else epoch)],
+                            "unsupportedCorrections": [] if corrections is None else corrections,
+                        }
+                    }
+                }
+            }
+
+        self.assertTrue(_dolomite_revenue_borrow_fee_rebate_max_audits_valid(validator_payload()))
+        for field, invalid_value in (
+            ("epoch", 8),
+            ("transactionHash", "0x" + "00" * 32),
+            ("eventBlock", 24_055_328),
+            ("resetMarketCount", 1),
+            ("aggregateAdjustmentRaw", 0),
+            ("sourceLabel", "Unpublished reset"),
+            ("calculationMode", "unknown_snapshot_reset"),
+        ):
+            invalid_epoch = dict(valid_epoch, **{field: invalid_value})
+            with self.subTest(field=field):
+                self.assertFalse(
+                    _dolomite_revenue_borrow_fee_rebate_max_audits_valid(
+                        validator_payload(epoch=invalid_epoch)
+                    )
+                )
+
+        cumulative_epoch = dict(valid_epoch, calculationMode="cumulative_delta")
+        self.assertTrue(
+            _dolomite_revenue_borrow_fee_rebate_max_audits_valid(
+                validator_payload(epoch=cumulative_epoch)
+            )
+        )
+        self.assertTrue(
+            _dolomite_revenue_borrow_fee_rebate_max_audits_valid(
+                validator_payload(corrections=[{"reason": "unsupported_aggregate_correction"}])
+            )
+        )
+        self.assertFalse(
+            _dolomite_revenue_borrow_fee_rebate_max_audits_valid(
+                validator_payload(corrections=[{"reason": "cumulative_delta"}])
+            )
+        )
+
     def test_missing_rebate_fetch_preserves_previous_closed_epochs(self):
         revenue_data = metric_payload_with_berachain(
             total24h=100,
@@ -955,11 +1106,23 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
                         "priceFallbackCount": 0,
                         "latestRebateDate": datetime.fromtimestamp(latest_ts + DAY_SECONDS, tz=timezone.utc).strftime("%Y-%m-%d"),
                         "epochRebates": [{
-                            "epoch": 1,
+                            "epoch": 9,
                             "periodStartTimestamp": latest_ts,
                             "periodEndTimestamp": latest_ts + DAY_SECONDS,
+                            "eventBlock": 24_055_329,
                             "rebateUSD": 5.0,
                             "marketCount": 2,
+                            "calculationMode": "known_epoch_snapshot_reset",
+                            "sourceLabel": "Published epoch snapshot reset",
+                            "transactionHash": KNOWN_RESET_TX_HASH,
+                            "resetMarketCount": 2,
+                            "aggregateAdjustmentRaw": -170,
+                        }],
+                        "unsupportedCorrections": [{
+                            "transactionHash": "0x" + "44" * 32,
+                            "eventBlock": 24_055_330,
+                            "marketCount": 2,
+                            "reason": "unsupported_aggregate_correction",
                         }],
                     }
                 },
@@ -986,6 +1149,22 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(output["borrowFeeRebates"]["chains"]["Berachain"]["totalRebateUSD"], 5)
         self.assertEqual(output["latest"]["borrowFeeRebateUSD"], 5)
         self.assertEqual(output["latest"]["revenueUSD"], 95)
+        fallback_chain = output["borrowFeeRebates"]["chains"]["Berachain"]
+        fallback_epoch = fallback_chain["epochRebates"][0]
+        self.assertEqual(fallback_epoch["calculationMode"], "known_epoch_snapshot_reset")
+        self.assertEqual(fallback_epoch["sourceLabel"], "Published epoch snapshot reset")
+        self.assertEqual(fallback_epoch["transactionHash"], KNOWN_RESET_TX_HASH)
+        self.assertEqual(fallback_epoch["resetMarketCount"], 2)
+        self.assertEqual(fallback_epoch["aggregateAdjustmentRaw"], -170)
+        self.assertEqual(
+            fallback_chain["unsupportedCorrections"],
+            [{
+                "transactionHash": "0x" + "44" * 32,
+                "eventBlock": 24_055_330,
+                "marketCount": 2,
+                "reason": "unsupported_aggregate_correction",
+            }],
+        )
         self.assertEqual(output["assurance"]["borrowFeeRebateStatus"], "active_netted_closed_epochs")
         self.assertTrue(_dolomite_revenue_totals_valid(output))
         self.assertTrue(_dolomite_revenue_window_totals_valid(output))
@@ -1005,6 +1184,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
                         "periodEndTimestamp": latest_ts + DAY_SECONDS,
                         "rebateUSD": 5.0,
                         "marketCount": 2,
+                        "sourceLabel": "Current authoritative source",
                     }],
                 }
             },
@@ -1021,6 +1201,11 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
                             "marketCount": 2,
                             "maxRebateUSD": 9.75,
                             "maxRebateMethod": "eligible_market_daily_current_index",
+                            "calculationMode": "known_epoch_snapshot_reset",
+                            "sourceLabel": "Published epoch snapshot reset",
+                            "transactionHash": KNOWN_RESET_TX_HASH,
+                            "resetMarketCount": 2,
+                            "aggregateAdjustmentRaw": -170,
                         }],
                     }
                 },
@@ -1032,6 +1217,22 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         epoch = rebate_data["chains"]["Berachain"]["epochRebates"][0]
         self.assertEqual(epoch["maxRebateUSD"], 9.75)
         self.assertEqual(epoch["maxRebateMethod"], "eligible_market_daily_current_index")
+        self.assertEqual(epoch["calculationMode"], "known_epoch_snapshot_reset")
+        self.assertEqual(epoch["sourceLabel"], "Current authoritative source")
+        self.assertEqual(epoch["transactionHash"], KNOWN_RESET_TX_HASH)
+        self.assertEqual(epoch["resetMarketCount"], 2)
+        self.assertEqual(epoch["aggregateAdjustmentRaw"], -170)
+
+    def test_revenue_page_exposes_known_reset_provenance(self):
+        html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
+
+        self.assertIn(
+            '''const rebateSourceRow = !pending && row.borrowFeeRebateCalculationMode === "known_epoch_snapshot_reset"
+  ? `<div class="tt-row"><span>Source</span><b>Published epoch snapshot reset</b></div>`
+  : "";''',
+            html,
+        )
+        self.assertEqual(html.count("${rebateSourceRow}"), 2)
 
     def test_current_revenue_file_has_audited_max_rebate_for_every_closed_epoch(self):
         data = json.loads((ROOT / "dolomite_revenue.json").read_text())
