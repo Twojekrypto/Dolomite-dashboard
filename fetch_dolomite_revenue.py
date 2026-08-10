@@ -299,11 +299,17 @@ def classify_known_rebate_snapshot_reset(chain_id, tx_hash, context, events, pre
         return None
     if context.get("expectedEpoch") != spec["epoch"] or context.get("incrementEpoch") is not True:
         return None
-    if not isinstance(events, list) or not events or not isinstance(previous_totals, dict):
+    if not isinstance(events, list) or len(events) < 2 or not isinstance(previous_totals, dict):
         return None
 
     try:
         market_ids = [event["marketId"] for event in events]
+        previous_market_ids = list(previous_totals)
+        if any(
+            type(market_id) is not int or not 0 <= market_id < 2 ** 256
+            for market_id in market_ids + previous_market_ids
+        ):
+            return None
         if len(market_ids) != len(set(market_ids)) or set(market_ids) != set(previous_totals):
             return None
         for event in events:
