@@ -893,9 +893,9 @@ def apply_epoch_rebate_to_chain(series, chain, epoch_rebate):
 
 
 def apply_borrow_fee_rebates(series, rebate_metadata):
+    """Apply normalized rebate metadata; an empty object means no rebates."""
     if not isinstance(rebate_metadata, dict):
-        initialize_rebate_fields(series)
-        return series
+        raise ValueError("borrow fee rebate root must be an object")
 
     chains = rebate_metadata.get("chains", {})
     if not isinstance(chains, dict):
@@ -916,29 +916,40 @@ def apply_borrow_fee_rebates(series, rebate_metadata):
         apply_epoch_rebate_to_chain(series, chain, epoch_rebate)
 
     for row in series:
-        total_rebate = 0.0
+        total_rebate_units = 0
         calculation_modes = set()
         for payload in (row.get("chains") or {}).values():
             chain_fees = safe_number(payload.get("feesUSD"))
             chain_gross = safe_number(payload.get("grossRevenueUSD", payload.get("revenueUSD")))
-            chain_rebate = min(safe_number(payload.get("borrowFeeRebateUSD")), chain_gross)
-            chain_net = max(chain_gross - chain_rebate, 0.0)
-            payload["borrowFeeRebateUSD"] = round(chain_rebate, 6)
-            payload["revenueUSD"] = round(chain_net, 6)
+            chain_gross_units = rebate_usd_micro_units(chain_gross)
+            chain_rebate_units = rebate_usd_micro_units(payload.get("borrowFeeRebateUSD"))
+            if chain_rebate_units < 0 or chain_rebate_units > chain_gross_units:
+                raise ValueError("borrow fee rebate exceeds chain gross revenue capacity")
+            chain_rebate = chain_rebate_units / BORROW_FEE_REBATE_USD_SCALE
+            chain_net = (
+                chain_gross_units - chain_rebate_units
+            ) / BORROW_FEE_REBATE_USD_SCALE
+            payload["borrowFeeRebateUSD"] = chain_rebate
+            payload["revenueUSD"] = chain_net
             payload["supplySideRevenueUSD"] = round(max(chain_fees - chain_gross, 0.0), 6)
             payload["protocolCut"] = round(chain_net / chain_fees, 8) if chain_fees > 0 else 0
             payload["grossProtocolCut"] = round(chain_gross / chain_fees, 8) if chain_fees > 0 else 0
-            total_rebate += chain_rebate
+            total_rebate_units += chain_rebate_units
             calculation_mode = str(payload.get("borrowFeeRebateCalculationMode") or "").strip()
             if calculation_mode:
                 calculation_modes.add(calculation_mode)
 
         fees = safe_number(row.get("feesUSD"))
         gross_revenue = safe_number(row.get("grossRevenueUSD", row.get("revenueUSD")))
-        total_rebate = min(total_rebate, gross_revenue)
-        net_revenue = max(gross_revenue - total_rebate, 0.0)
-        row["borrowFeeRebateUSD"] = round(total_rebate, 6)
-        row["revenueUSD"] = round(net_revenue, 6)
+        gross_revenue_units = rebate_usd_micro_units(gross_revenue)
+        if total_rebate_units > gross_revenue_units:
+            raise ValueError("borrow fee rebate exceeds top-level gross revenue capacity")
+        total_rebate = total_rebate_units / BORROW_FEE_REBATE_USD_SCALE
+        net_revenue = (
+            gross_revenue_units - total_rebate_units
+        ) / BORROW_FEE_REBATE_USD_SCALE
+        row["borrowFeeRebateUSD"] = total_rebate
+        row["revenueUSD"] = net_revenue
         row["supplySideRevenueUSD"] = round(max(fees - gross_revenue, 0.0), 6)
         row["protocolCut"] = round(net_revenue / fees, 8) if fees > 0 else 0
         row["grossProtocolCut"] = round(gross_revenue / fees, 8) if fees > 0 else 0
