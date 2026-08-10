@@ -5,18 +5,22 @@ import json
 import os
 import subprocess
 import tempfile
+from unittest import mock
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fetch_dolomite_revenue import (
+    FEE_REBATE_ROLLING_CLAIMS_ABI,
     build_output,
     classify_known_rebate_snapshot_reset,
     expected_onchain_audit_target_date,
     fee_rebate_epoch_from_transaction_input,
     fee_rebate_transaction_context_from_input,
+    fetch_borrow_fee_rebate_data,
     onchain_audit_assurance,
     preserve_previous_borrow_fee_rebate_data,
 )
+from hexbytes import HexBytes
 from web3 import Web3
 from validate_data import (
     RULES,
@@ -238,6 +242,153 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIsNone(classify_known_rebate_snapshot_reset(
             "80094", KNOWN_RESET_TX_HASH, context, events, {1: "140", 2: 85},
         ))
+
+    def test_fetch_rebate_data_recovers_only_known_epoch9_reset(self):
+        actual_w3 = Web3()
+        handler = actual_w3.eth.contract(abi=FEE_REBATE_ROLLING_CLAIMS_ABI)
+        initial_tx = "0x" + "11" * 32
+        unknown_reset_tx = "0x" + "22" * 32
+
+        def transaction_input(epoch, totals):
+            return handler.encode_abi(
+                "handlerSetMerkleRoots",
+                args=[
+                    [1, 2],
+                    [b"\x11" * 32, b"\x22" * 32],
+                    totals,
+                    epoch,
+                    True,
+                ],
+            )
+
+        transaction_inputs = {
+            initial_tx: transaction_input(8, [140, 85]),
+            KNOWN_RESET_TX_HASH: transaction_input(9, [40, 15]),
+            unknown_reset_tx: transaction_input(10, [10, 5]),
+        }
+
+        def rebate_log(tx_hash, block_number, transaction_index, log_index, market_id, total_raw):
+            return {
+                "transactionHash": HexBytes(tx_hash),
+                "blockNumber": block_number,
+                "transactionIndex": transaction_index,
+                "logIndex": log_index,
+                "data": actual_w3.codec.encode(
+                    ["uint256", "bytes32", "uint256"],
+                    [market_id, b"\x33" * 32, total_raw],
+                ),
+            }
+
+        logs = [
+            rebate_log(initial_tx, 24_055_328, 0, 0, 1, 140),
+            rebate_log(initial_tx, 24_055_328, 0, 1, 2, 85),
+            rebate_log(KNOWN_RESET_TX_HASH, 24_055_329, 0, 0, 1, 40),
+            rebate_log(KNOWN_RESET_TX_HASH, 24_055_329, 0, 1, 2, 15),
+            rebate_log(unknown_reset_tx, 24_055_330, 0, 0, 1, 10),
+            rebate_log(unknown_reset_tx, 24_055_330, 0, 1, 2, 5),
+        ]
+        block_timestamps = {
+            24_055_328: 1_784_160_000,
+            24_055_329: 1_784_160_012,
+            24_055_330: 1_784_160_024,
+        }
+        token_metadata = {
+            1: {
+                "token": "0x" + "01" * 20,
+                "symbol": "TOKEN1",
+                "decimals": 1,
+            },
+            2: {
+                "token": "0x" + "02" * 20,
+                "symbol": "TOKEN2",
+                "decimals": 1,
+            },
+        }
+
+        fake_w3 = mock.MagicMock()
+        fake_w3.codec = actual_w3.codec
+        fake_w3.eth.block_number = 24_055_330
+        fake_w3.eth.contract.side_effect = actual_w3.eth.contract
+        fake_w3.eth.get_transaction_receipt.return_value = {"blockNumber": 22_269_000}
+        fake_w3.eth.get_block.side_effect = lambda block_number: {
+            "timestamp": block_timestamps[block_number],
+        }
+        def get_transaction(tx_hash):
+            normalized_hash = tx_hash.hex().lower()
+            if not normalized_hash.startswith("0x"):
+                normalized_hash = "0x" + normalized_hash
+            return {"input": transaction_inputs[normalized_hash]}
+
+        fake_w3.eth.get_transaction.side_effect = get_transaction
+
+        with (
+            mock.patch("fetch_dolomite_revenue.rpc_client.get_endpoints", return_value=["https://rpc.example"]),
+            mock.patch("fetch_dolomite_revenue.get_logs_chunked", return_value=logs),
+            mock.patch(
+                "fetch_dolomite_revenue.get_market_token_metadata",
+                side_effect=lambda _w3, market_id, _cache: token_metadata[market_id],
+            ),
+            mock.patch(
+                "fetch_dolomite_revenue.fetch_historical_prices",
+                side_effect=lambda _timestamp, coin_ids: {coin_id: 2 for coin_id in coin_ids},
+            ),
+            mock.patch("fetch_dolomite_revenue.Web3") as web3_class,
+        ):
+            web3_class.return_value = fake_w3
+            web3_class.HTTPProvider.return_value = object()
+            web3_class.keccak.side_effect = Web3.keccak
+            web3_class.to_checksum_address.side_effect = Web3.to_checksum_address
+            result = fetch_borrow_fee_rebate_data()
+
+        chain = result["chains"]["Berachain"]
+        epochs = {row["epoch"]: row for row in chain["epochRebates"]}
+        self.assertEqual(epochs[8]["rebateUSD"], 45)
+        self.assertIn(9, epochs)
+        epoch9 = epochs[9]
+        self.assertGreater(epoch9["rebateUSD"], 0)
+        self.assertEqual(epoch9["calculationMode"], "known_epoch_snapshot_reset")
+        self.assertEqual(epoch9["sourceLabel"], "Published epoch snapshot reset")
+        self.assertEqual(epoch9["transactionHash"], KNOWN_RESET_TX_HASH)
+        self.assertEqual(epoch9["resetMarketCount"], 2)
+        self.assertEqual(epoch9["aggregateAdjustmentRaw"], -170)
+        self.assertTrue(all(float(market["amount"]) > 0 for market in epoch9["markets"]))
+        self.assertEqual(
+            [
+                {
+                    "calculationMode": market["calculationMode"],
+                    "transactionHash": market["transactionHash"],
+                    "previousTotalRaw": market["previousTotalRaw"],
+                    "publishedTotalRaw": market["publishedTotalRaw"],
+                    "amount": market["amount"],
+                }
+                for market in epoch9["markets"]
+            ],
+            [
+                {
+                    "calculationMode": "known_epoch_snapshot_reset",
+                    "transactionHash": KNOWN_RESET_TX_HASH,
+                    "previousTotalRaw": 140,
+                    "publishedTotalRaw": 40,
+                    "amount": "4",
+                },
+                {
+                    "calculationMode": "known_epoch_snapshot_reset",
+                    "transactionHash": KNOWN_RESET_TX_HASH,
+                    "previousTotalRaw": 85,
+                    "publishedTotalRaw": 15,
+                    "amount": "1.5",
+                },
+            ],
+        )
+        self.assertNotIn(10, epochs)
+        self.assertEqual(chain["pricedEventCount"], 4)
+        self.assertEqual(chain["totalRebateUSD"], 56)
+        self.assertEqual(chain["unsupportedCorrections"], [{
+            "transactionHash": unknown_reset_tx,
+            "eventBlock": 24_055_330,
+            "marketCount": 2,
+            "reason": "unsupported_aggregate_correction",
+        }])
 
     def test_daily_totals_follow_latest_series_when_total24h_lags(self):
         revenue_data = metric_payload(total24h=9_999, latest_value=100, step=2)
