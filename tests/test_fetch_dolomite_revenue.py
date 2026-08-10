@@ -191,6 +191,54 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             [events[0], dict(events[1], totalRaw=95)], previous_totals,
         ))
 
+    def test_known_epoch_snapshot_reset_requires_at_least_two_markets(self):
+        events = known_reset_events()
+
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH,
+            {"expectedEpoch": 9, "incrementEpoch": True},
+            [events[0]], {1: 140},
+        ))
+
+    def test_known_epoch_snapshot_reset_requires_uint256_market_ids(self):
+        events = known_reset_events()
+        context = {"expectedEpoch": 9, "incrementEpoch": True}
+
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context,
+            [dict(events[0], marketId=True), events[1]], {1: 140, 2: 85},
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context,
+            events, {True: 140, 2: 85},
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context,
+            [dict(events[0], marketId="1"), events[1]], {"1": 140, 2: 85},
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context,
+            [dict(events[0], marketId=-1), events[1]], {-1: 140, 2: 85},
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context,
+            [dict(events[0], marketId=2 ** 256), events[1]], {2 ** 256: 140, 2: 85},
+        ))
+
+    def test_known_epoch_snapshot_reset_requires_exact_positive_integer_previous_totals(self):
+        events = known_reset_events()
+        context = {"expectedEpoch": 9, "incrementEpoch": True}
+
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context, events, {1: 140, 2: 85, 3: 10},
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context, events, {1: 0, 2: 85},
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context, events, {1: "140", 2: 85},
+        ))
+
     def test_daily_totals_follow_latest_series_when_total24h_lags(self):
         revenue_data = metric_payload(total24h=9_999, latest_value=100, step=2)
         fees_data = metric_payload(total24h=8_888, latest_value=500, step=10)
