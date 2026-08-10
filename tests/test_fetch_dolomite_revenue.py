@@ -1719,7 +1719,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn('setText("revenue30d"', html)
         self.assertNotIn("rolling net protocol revenue", html)
         self.assertNotIn("net retained by protocol", html)
-        self.assertIn('dolomite_revenue.json?v=revenue-20260708-veborrow-max-rebate', html)
+        self.assertIn('dolomite_revenue.json?v=revenue-20260810-epoch9-reset', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
         self.assertIn("network-filter-20260805-fast-wallet-sort-20260805-strategic-round-20260805", route_html)
