@@ -7,10 +7,11 @@ Revenue tab instead of calling the API from every visitor's browser.
 """
 
 import json
+import math
 import os
 import time
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal, InvalidOperation, getcontext
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR, ROUND_HALF_UP, getcontext
 
 import requests
 from web3 import Web3
@@ -65,6 +66,12 @@ SECONDS_PER_WEEK = 7 * 24 * 60 * 60
 SECONDS_PER_DAY = 24 * 60 * 60
 BORROW_FEE_REBATE_MAX_REBATE_METHOD = "eligible_market_daily_current_index"
 BORROW_FEE_REBATE_PROTOCOL_RESERVE_FACTOR = Decimal("0.20")
+BORROW_FEE_REBATE_USD_SCALE = 1_000_000
+BORROW_FEE_REBATE_CALCULATION_MODES = {
+    "",
+    "cumulative_delta",
+    "known_epoch_snapshot_reset",
+}
 BORROW_FEE_REBATE_MAX_AUDIT_PUBLIC_DAY_DELAY_SECONDS = 8.0
 LOG_CHUNK_SIZE = 10_000
 STABLE_PRICE_SYMBOL_KEYS = {
@@ -135,6 +142,94 @@ def safe_decimal_number(value):
         return float(str(value))
     except (TypeError, ValueError):
         return 0.0
+
+
+def is_finite_real_json_number(value):
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    return isinstance(value, float) and math.isfinite(value)
+
+
+def validated_borrow_fee_rebate_epoch(epoch_rebate):
+    if not isinstance(epoch_rebate, dict):
+        raise ValueError("borrow fee rebate epoch row must be an object")
+    rebate_usd = epoch_rebate.get("rebateUSD")
+    if not is_finite_real_json_number(rebate_usd):
+        raise ValueError("borrow fee rebateUSD must be a finite JSON number")
+    calculation_mode = epoch_rebate.get("calculationMode")
+    if calculation_mode is None:
+        calculation_mode = ""
+    if (
+        not isinstance(calculation_mode, str)
+        or calculation_mode not in BORROW_FEE_REBATE_CALCULATION_MODES
+    ):
+        raise ValueError("unsupported borrow fee rebate calculationMode")
+    return rebate_usd, calculation_mode
+
+
+def rebate_usd_micro_units(value):
+    scaled = Decimal(str(value)) * BORROW_FEE_REBATE_USD_SCALE
+    return int(scaled.to_integral_value(rounding=ROUND_HALF_UP))
+
+
+def allocate_weighted_rebate_micro_units(target_units, weights, capacities):
+    if sum(capacities) < target_units:
+        raise ValueError("borrow fee rebate exceeds gross revenue capacity")
+
+    allocations = [0] * len(capacities)
+    remaining_units = target_units
+    while remaining_units > 0:
+        active = [
+            index for index, capacity in enumerate(capacities)
+            if allocations[index] < capacity
+        ]
+        if not active:
+            raise ValueError("borrow fee rebate exceeds gross revenue capacity")
+
+        active_weights = {index: weights[index] for index in active}
+        total_weight = sum(active_weights.values(), Decimal(0))
+        if total_weight <= 0:
+            active_weights = {index: Decimal(1) for index in active}
+            total_weight = Decimal(len(active))
+        quotas = {
+            index: Decimal(remaining_units) * active_weights[index] / total_weight
+            for index in active
+        }
+        capped = [
+            index for index in active
+            if quotas[index] >= capacities[index] - allocations[index]
+        ]
+        if capped:
+            for index in capped:
+                awarded = capacities[index] - allocations[index]
+                allocations[index] += awarded
+                remaining_units -= awarded
+            continue
+
+        floors = {
+            index: int(quotas[index].to_integral_value(rounding=ROUND_FLOOR))
+            for index in active
+        }
+        for index, awarded in floors.items():
+            allocations[index] += awarded
+            remaining_units -= awarded
+        if remaining_units <= 0:
+            break
+
+        remainder_order = sorted(
+            active,
+            key=lambda index: (-(quotas[index] - floors[index]), index),
+        )
+        for index in remainder_order:
+            if remaining_units <= 0:
+                break
+            if allocations[index] < capacities[index]:
+                allocations[index] += 1
+                remaining_units -= 1
+
+    return allocations
 
 
 def chain_value(breakdown, chain):
@@ -744,54 +839,81 @@ def apply_onchain_revenue_overrides(series, onchain_audit, overrides_payload=Non
 
 
 def apply_epoch_rebate_to_chain(series, chain, epoch_rebate):
-    rebate_usd = safe_decimal_number(epoch_rebate.get("rebateUSD"))
-    if rebate_usd <= 0:
+    rebate_usd, calculation_mode = validated_borrow_fee_rebate_epoch(epoch_rebate)
+    target_units = rebate_usd_micro_units(rebate_usd)
+    if target_units <= 0:
         return 0.0
 
     period_start = int_or_none(epoch_rebate.get("periodStartTimestamp"))
     period_end = int_or_none(epoch_rebate.get("periodEndTimestamp"))
     if period_start is None or period_end is None or period_end <= period_start:
-        return 0.0
+        raise ValueError("positive borrow fee rebate epoch has an invalid period")
 
     rows = [
         row for row in series
         if period_start <= int(row.get("timestamp") or 0) < period_end
         and isinstance((row.get("chains") or {}).get(chain), dict)
     ]
-    if not rows:
-        return 0.0
+    weights = [
+        Decimal(str(max(safe_number(row["chains"][chain].get("feesUSD")), 0)))
+        for row in rows
+    ]
+    if sum(weights, Decimal(0)) <= 0:
+        weights = [
+            Decimal(str(max(safe_number(
+                row["chains"][chain].get("grossRevenueUSD", row["chains"][chain].get("revenueUSD"))
+            ), 0)))
+            for row in rows
+        ]
 
-    weights = []
+    existing_units = []
+    capacities = []
     for row in rows:
         payload = row["chains"][chain]
-        weights.append(safe_number(payload.get("feesUSD")))
-    if sum(weights) <= 0:
-        weights = []
-        for row in rows:
-            payload = row["chains"][chain]
-            weights.append(safe_number(payload.get("grossRevenueUSD", payload.get("revenueUSD"))))
-    total_weight = sum(weights)
-    calculation_mode = str(epoch_rebate.get("calculationMode") or "").strip()
-    applied = 0.0
+        gross_revenue = payload.get("grossRevenueUSD", payload.get("revenueUSD"))
+        current_rebate = payload.get("borrowFeeRebateUSD", 0)
+        if not is_finite_real_json_number(gross_revenue) or not is_finite_real_json_number(current_rebate):
+            raise ValueError("daily borrow fee rebate capacity must use finite JSON numbers")
+        gross_units = max(0, int(
+            (Decimal(str(gross_revenue)) * BORROW_FEE_REBATE_USD_SCALE)
+            .to_integral_value(rounding=ROUND_FLOOR)
+        ))
+        current_units = max(0, rebate_usd_micro_units(current_rebate))
+        existing_units.append(current_units)
+        capacities.append(max(gross_units - current_units, 0))
+
+    allocations = allocate_weighted_rebate_micro_units(target_units, weights, capacities)
     for index, row in enumerate(rows):
         payload = row["chains"][chain]
-        share = (weights[index] / total_weight) if total_weight > 0 else (1 / len(rows))
-        chain_rebate = rebate_usd * share
-        payload["borrowFeeRebateUSD"] = safe_number(payload.get("borrowFeeRebateUSD")) + chain_rebate
+        total_units = existing_units[index] + allocations[index]
+        payload["borrowFeeRebateUSD"] = total_units / BORROW_FEE_REBATE_USD_SCALE
         if calculation_mode:
             payload["borrowFeeRebateCalculationMode"] = calculation_mode
-        applied += chain_rebate
-    return applied
+    return target_units / BORROW_FEE_REBATE_USD_SCALE
 
 
 def apply_borrow_fee_rebates(series, rebate_metadata):
-    initialize_rebate_fields(series)
     if not isinstance(rebate_metadata, dict):
+        initialize_rebate_fields(series)
         return series
 
-    for chain, chain_payload in (rebate_metadata.get("chains") or {}).items():
-        for epoch_rebate in chain_payload.get("epochRebates") or []:
-            apply_epoch_rebate_to_chain(series, chain, epoch_rebate if isinstance(epoch_rebate, dict) else {})
+    chains = rebate_metadata.get("chains", {})
+    if not isinstance(chains, dict):
+        raise ValueError("borrow fee rebate chains must be an object")
+    epoch_rows = []
+    for chain, chain_payload in chains.items():
+        if not isinstance(chain_payload, dict):
+            raise ValueError("borrow fee rebate chain payload must be an object")
+        chain_epoch_rows = chain_payload.get("epochRebates")
+        if not isinstance(chain_epoch_rows, list):
+            raise ValueError("borrow fee rebate epochRebates must be a list")
+        for epoch_rebate in chain_epoch_rows:
+            validated_borrow_fee_rebate_epoch(epoch_rebate)
+            epoch_rows.append((chain, epoch_rebate))
+
+    initialize_rebate_fields(series)
+    for chain, epoch_rebate in epoch_rows:
+        apply_epoch_rebate_to_chain(series, chain, epoch_rebate)
 
     for row in series:
         total_rebate = 0.0
@@ -1497,7 +1619,9 @@ def normalized_borrow_fee_rebate_metadata(metadata, rebate_data=None):
         market_info = berachain_info.get("marketToRebateInfo") or {}
         rebate_percentage = round(safe_decimal_number(berachain_info.get("rebatePercentage")), 8)
         rebate_chain_data = rebate_data_chains.get(BERACHAIN_CHAIN_NAME) if isinstance(rebate_data_chains.get(BERACHAIN_CHAIN_NAME), dict) else {}
-        epoch_rebates = rebate_chain_data.get("epochRebates") if isinstance(rebate_chain_data.get("epochRebates"), list) else []
+        epoch_rebates = rebate_chain_data.get("epochRebates", [])
+        if not isinstance(epoch_rebates, list):
+            raise ValueError("borrow fee rebate epochRebates must be a list")
         total_rebate_usd = round(sum(safe_number(item.get("rebateUSD")) for item in epoch_rebates if isinstance(item, dict)), 6)
         missing_price_count = int(rebate_chain_data.get("missingPriceCount") or 0)
         if total_rebate_usd > 0 and missing_price_count:
