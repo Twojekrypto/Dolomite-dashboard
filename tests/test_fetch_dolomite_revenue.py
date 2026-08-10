@@ -10,8 +10,10 @@ from pathlib import Path
 
 from fetch_dolomite_revenue import (
     build_output,
+    classify_known_rebate_snapshot_reset,
     expected_onchain_audit_target_date,
     fee_rebate_epoch_from_transaction_input,
+    fee_rebate_transaction_context_from_input,
     onchain_audit_assurance,
     preserve_previous_borrow_fee_rebate_data,
 )
@@ -29,6 +31,18 @@ from validate_data import (
 START_TS = 1_700_000_000
 DAY_SECONDS = 86_400
 ROOT = Path(__file__).resolve().parents[1]
+KNOWN_RESET_TX_HASH = "0x6d85363b5942efbaff9ed80943e4e415edc5e578a3f1e8f1b0c9207c2bec8a7c"
+
+
+def known_reset_events():
+    return [
+        {"marketId": 1, "totalRaw": 40, "blockNumber": 24_055_329},
+        {"marketId": 2, "totalRaw": 15, "blockNumber": 24_055_329},
+    ]
+
+
+def known_reset_previous_totals():
+    return {1: 140, 2: 85}
 
 
 def metric_payload(total24h, latest_value, step):
@@ -113,7 +127,69 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             ],
         )
 
+        self.assertEqual(
+            fee_rebate_transaction_context_from_input(w3, calldata),
+            {"expectedEpoch": 5, "incrementEpoch": True},
+        )
         self.assertEqual(fee_rebate_epoch_from_transaction_input(w3, calldata), 5)
+
+    def test_known_epoch_snapshot_reset_requires_full_audited_transaction(self):
+        result = classify_known_rebate_snapshot_reset(
+            "80094",
+            "0x6d85363b5942efbaff9ed80943e4e415edc5e578a3f1e8f1b0c9207c2bec8a7c",
+            {"expectedEpoch": 9, "incrementEpoch": True},
+            [
+                {"marketId": 1, "totalRaw": 40, "blockNumber": 24055329},
+                {"marketId": 2, "totalRaw": 15, "blockNumber": 24055329},
+            ],
+            {1: 140, 2: 85},
+        )
+
+        self.assertEqual(result["calculationMode"], "known_epoch_snapshot_reset")
+        self.assertEqual(result["rebateRawByMarket"], {1: 40, 2: 15})
+        self.assertEqual(result["resetMarketCount"], 2)
+        self.assertEqual(result["aggregateAdjustmentRaw"], -170)
+        self.assertIsNotNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH.upper(),
+            {"expectedEpoch": 9, "incrementEpoch": True},
+            known_reset_events(), known_reset_previous_totals(),
+        ))
+
+        context = {"expectedEpoch": 9, "incrementEpoch": True}
+        events = known_reset_events()
+        previous_totals = known_reset_previous_totals()
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", "0x" + "00" * 32, context, events, previous_totals,
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "1", KNOWN_RESET_TX_HASH, context, events, previous_totals,
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH,
+            {"expectedEpoch": 8, "incrementEpoch": True}, events, previous_totals,
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH,
+            {"expectedEpoch": 9, "incrementEpoch": False}, events, previous_totals,
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context,
+            [dict(events[0], blockNumber=24_055_328), events[1]], previous_totals,
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context, events, {1: 140},
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context, [events[0], events[0]], {1: 140},
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context,
+            [dict(events[0], totalRaw=0), events[1]], previous_totals,
+        ))
+        self.assertIsNone(classify_known_rebate_snapshot_reset(
+            "80094", KNOWN_RESET_TX_HASH, context,
+            [events[0], dict(events[1], totalRaw=95)], previous_totals,
+        ))
 
     def test_daily_totals_follow_latest_series_when_total24h_lags(self):
         revenue_data = metric_payload(total24h=9_999, latest_value=100, step=2)
