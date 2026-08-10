@@ -74,6 +74,8 @@ BORROW_FEE_REBATE_CALCULATION_MODES = {
 }
 BORROW_FEE_REBATE_MAX_AUDIT_PUBLIC_DAY_DELAY_SECONDS = 8.0
 LOG_CHUNK_SIZE = 10_000
+TOKEN_METADATA_RPC_ATTEMPTS = 3
+TOKEN_METADATA_RETRY_DELAY_SECONDS = 0.25
 STABLE_PRICE_SYMBOL_KEYS = {
     "HONEY",
     "NECT",
@@ -337,27 +339,60 @@ def normalized_transaction_hash(tx_hash):
     return text.lower()
 
 
-def token_metadata(w3, token):
+def token_metadata_rpc_value(call, field, token):
+    last_error = None
+    for attempt in range(1, TOKEN_METADATA_RPC_ATTEMPTS + 1):
+        try:
+            return call()
+        except Exception as exc:
+            last_error = exc
+            if attempt < TOKEN_METADATA_RPC_ATTEMPTS:
+                time.sleep(TOKEN_METADATA_RETRY_DELAY_SECONDS * attempt)
+    error = rpc_client.sanitize_error(last_error) if last_error else "unknown error"
+    raise RuntimeError(f"ERC-20 {field} unavailable for {token}: {error}")
+
+
+def token_metadata(w3, token, canonical_metadata=None):
     contract = w3.eth.contract(address=Web3.to_checksum_address(token), abi=ERC20_ABI)
     try:
-        symbol = contract.functions.symbol().call()
+        symbol = token_metadata_rpc_value(contract.functions.symbol().call, "symbol", token)
+        if not isinstance(symbol, str) or not symbol.strip():
+            raise ValueError("ERC-20 symbol is empty or malformed")
+        symbol = symbol.strip()
     except Exception:
-        symbol = token[:10]
+        canonical_symbol = canonical_metadata.get("symbol") if isinstance(canonical_metadata, dict) else None
+        if not isinstance(canonical_symbol, str) or not canonical_symbol.strip():
+            raise
+        symbol = canonical_symbol.strip()
     try:
-        decimals = int(contract.functions.decimals().call())
+        raw_decimals = token_metadata_rpc_value(contract.functions.decimals().call, "decimals", token)
+        if isinstance(raw_decimals, bool):
+            raise ValueError("ERC-20 decimals is malformed")
+        decimals = int(raw_decimals)
+        if not 0 <= decimals <= 255:
+            raise ValueError("ERC-20 decimals is out of range")
     except Exception:
-        decimals = 18
-    return str(symbol), decimals
+        canonical_decimals = canonical_metadata.get("decimals") if isinstance(canonical_metadata, dict) else None
+        if isinstance(canonical_decimals, bool) or not isinstance(canonical_decimals, int) or not 0 <= canonical_decimals <= 255:
+            raise
+        decimals = canonical_decimals
+    return symbol, decimals
 
 
-def get_market_token_metadata(w3, market_id, cache):
+def get_market_token_metadata(w3, market_id, cache, canonical_market_metadata=None):
     if market_id in cache:
         return cache[market_id]
     margin = w3.eth.contract(address=Web3.to_checksum_address(BERACHAIN_MARGIN_ADDRESS), abi=DOLOMITE_MARGIN_ABI)
-    token = margin.functions.getMarketTokenAddress(int(market_id)).call()
-    symbol, decimals = token_metadata(w3, token)
+    token = Web3.to_checksum_address(margin.functions.getMarketTokenAddress(int(market_id)).call())
+    canonical = canonical_market_metadata.get(market_id) if isinstance(canonical_market_metadata, dict) else None
+    if (
+        not isinstance(canonical, dict)
+        or str(canonical.get("token") or "").lower() != token.lower()
+    ):
+        canonical = None
+    symbol, decimals = token_metadata(w3, token, canonical)
     cache[market_id] = {
-        "token": Web3.to_checksum_address(token),
+        "token": token,
         "symbol": symbol,
         "decimals": decimals,
     }
@@ -473,7 +508,7 @@ def get_logs_chunked(w3, address, from_block, to_block, topic):
     return logs
 
 
-def fetch_borrow_fee_rebate_data():
+def fetch_borrow_fee_rebate_data(canonical_market_metadata=None):
     """Read realized borrow-fee rebate liability from Berachain onchain events.
 
     The metadata endpoint tells us where rebates are enabled. The rolling-claims
@@ -545,7 +580,7 @@ def fetch_borrow_fee_rebate_data():
                 unsupported_correction = duplicate_market_ids or (
                     reset_result is None
                     and any(
-                        event["totalRaw"] <= int(previous_totals.get(event["marketId"], 0))
+                        event["totalRaw"] < int(previous_totals.get(event["marketId"], 0))
                         for event in decoded_events
                     )
                 )
@@ -586,7 +621,12 @@ def fetch_borrow_fee_rebate_data():
                         else rebate_epoch_for_timestamp(timestamp)
                     )
                     period_start, period_end = rebate_epoch_window(epoch)
-                    metadata = get_market_token_metadata(w3, market_id, market_cache)
+                    metadata = get_market_token_metadata(
+                        w3,
+                        market_id,
+                        market_cache,
+                        canonical_market_metadata,
+                    )
                     coin_id = f"{BERACHAIN_COIN_CHAIN}:{metadata['token'].lower()}"
                     prices = fetch_historical_prices(timestamp, [coin_id])
                     price, price_source = resolve_rebate_token_price(metadata["symbol"], prices.get(coin_id))
@@ -624,6 +664,7 @@ def fetch_borrow_fee_rebate_data():
                         "marketId": market_id,
                         "token": metadata["token"],
                         "symbol": metadata["symbol"],
+                        "decimals": metadata["decimals"],
                         "amount": str(amount),
                         "rebateUSD": float(rebate_usd),
                         "priceUSD": float(price) if price is not None else None,
@@ -1063,6 +1104,53 @@ def previous_borrow_fee_rebate_data(previous_output):
     }
 
 
+def previous_borrow_fee_rebate_market_metadata(previous_output):
+    rebates = previous_output.get("borrowFeeRebates") if isinstance(previous_output, dict) else None
+    if not isinstance(rebates, dict) and isinstance(previous_output, dict) and isinstance(previous_output.get("chains"), dict):
+        rebates = previous_output
+    metadata_by_market = {}
+    for row in borrow_fee_rebate_epoch_rows(rebates or {}):
+        markets = row.get("markets")
+        if not isinstance(markets, list):
+            continue
+        for market in markets:
+            if not isinstance(market, dict):
+                continue
+            market_id = market.get("marketId")
+            token = market.get("token")
+            symbol = market.get("symbol")
+            decimals = market.get("decimals")
+            if isinstance(decimals, bool) or not isinstance(decimals, int) or not 0 <= decimals <= 255:
+                published_raw = market.get("publishedTotalRaw")
+                amount = decimal_from_value(market.get("amount"))
+                decimals = None
+                if type(published_raw) is int and published_raw > 0 and amount > 0:
+                    for candidate in range(256):
+                        scaled_amount = amount * (Decimal(10) ** candidate)
+                        if scaled_amount == published_raw:
+                            decimals = candidate
+                            break
+                        if scaled_amount > published_raw:
+                            break
+            if (
+                isinstance(market_id, bool)
+                or not isinstance(market_id, int)
+                or not isinstance(token, str)
+                or not Web3.is_address(token)
+                or not isinstance(symbol, str)
+                or not symbol.strip()
+                or not isinstance(decimals, int)
+                or not 0 <= decimals <= 255
+            ):
+                continue
+            metadata_by_market[market_id] = {
+                "token": Web3.to_checksum_address(token),
+                "symbol": symbol.strip(),
+                "decimals": decimals,
+            }
+    return metadata_by_market
+
+
 PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS = (
     "calculationMode",
     "sourceLabel",
@@ -1107,7 +1195,8 @@ def preserve_previous_borrow_fee_rebate_epoch_audits(current_rebate_data, previo
             rebate_epoch_identity(row): row
             for row in borrow_fee_rebate_epoch_rows({"chains": {chain: previous_payload}}, chain)
         }
-        for row in chain_payload.get("epochRebates") or []:
+        current_rows = chain_payload.get("epochRebates") or []
+        for row in current_rows:
             if not isinstance(row, dict):
                 continue
             previous_row = previous_by_epoch.get(rebate_epoch_identity(row))
@@ -1116,6 +1205,39 @@ def preserve_previous_borrow_fee_rebate_epoch_audits(current_rebate_data, previo
             for field in PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS:
                 if field not in row and field in previous_row:
                     row[field] = previous_row[field]
+
+        current_epoch_numbers = {
+            int_or_none(row.get("epoch"))
+            for row in current_rows
+            if isinstance(row, dict)
+        }
+        current_period_end = max(
+            (int_or_none(row.get("periodEndTimestamp")) or 0)
+            for row in current_rows
+            if isinstance(row, dict)
+        )
+        preserved_rows = [
+            json.loads(json.dumps(row))
+            for row in borrow_fee_rebate_epoch_rows({"chains": {chain: previous_payload}}, chain)
+            if int_or_none(row.get("epoch")) not in current_epoch_numbers
+            and 0 < (int_or_none(row.get("periodEndTimestamp")) or 0) <= current_period_end
+        ]
+        if preserved_rows:
+            current_rows.extend(preserved_rows)
+            current_rows.sort(key=lambda row: (
+                int_or_none(row.get("periodStartTimestamp")) or 0,
+                int_or_none(row.get("epoch")) or 0,
+            ))
+            chain_payload["totalRebateUSD"] = round(sum(
+                safe_number(row.get("rebateUSD"))
+                for row in current_rows
+                if isinstance(row, dict)
+            ), 6)
+            chain_payload["latestRebateDate"] = day_from_timestamp(max(
+                int_or_none(row.get("periodEndTimestamp")) or 0
+                for row in current_rows
+                if isinstance(row, dict)
+            ))
     return current
 
 
@@ -1398,7 +1520,10 @@ def audit_borrow_fee_rebate_max_rebates(rebate_metadata, rebate_data):
             print(f"   Auditing borrow fee rebate max values on {rpc_client.safe_host(endpoint)}")
             w3 = make_revenue_audit_web3(endpoint, config)
             block_cache = {}
-            token_cache = {}
+            token_cache = {
+                metadata["token"]: (metadata["symbol"], metadata["decimals"])
+                for metadata in previous_borrow_fee_rebate_market_metadata(current).values()
+            }
             public_day_delay = public_berachain_rebate_audit_delay(endpoint)
             generated_at = utc_now_iso()
             for row in rows_needing_audit:
@@ -1859,7 +1984,9 @@ def main():
         fees_data = fetch_metric("dailyFees")
         rebate_metadata = fetch_borrow_fee_rebate_metadata()
         rebate_data = preserve_previous_borrow_fee_rebate_data(
-            fetch_borrow_fee_rebate_data(),
+            fetch_borrow_fee_rebate_data(
+                previous_borrow_fee_rebate_market_metadata(previous_output),
+            ),
             previous_output,
         )
         rebate_data = audit_borrow_fee_rebate_max_rebates(rebate_metadata, rebate_data)
