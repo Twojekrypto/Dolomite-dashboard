@@ -53,6 +53,14 @@ FEE_REBATE_FIRST_MARKET_ROOT_BLOCK = 22_269_000
 FEE_REBATE_DEPLOYMENTS_URL = "https://raw.githubusercontent.com/dolomite-exchange/dolomite-margin-modules/master/packages/deployment/src/deploy/deployments.json"
 FEE_REBATE_EVENT_SOURCE = "FeeRebateRollingClaims.MarketIdToMerkleRootSet"
 FEE_REBATE_START_TIMESTAMP = 1779321600
+KNOWN_FEE_REBATE_SNAPSHOT_RESETS = {
+    (BERACHAIN_CHAIN_ID, "0x6d85363b5942efbaff9ed80943e4e415edc5e578a3f1e8f1b0c9207c2bec8a7c"): {
+        "epoch": 9,
+        "blockNumber": 24_055_329,
+        "calculationMode": "known_epoch_snapshot_reset",
+        "sourceLabel": "Published epoch snapshot reset",
+    },
+}
 SECONDS_PER_WEEK = 7 * 24 * 60 * 60
 SECONDS_PER_DAY = 24 * 60 * 60
 BORROW_FEE_REBATE_MAX_REBATE_METHOD = "eligible_market_daily_current_index"
@@ -260,7 +268,7 @@ def rebate_epoch_for_timestamp(timestamp):
     return max(1, int((int(timestamp) - FEE_REBATE_START_TIMESTAMP) // SECONDS_PER_WEEK))
 
 
-def fee_rebate_epoch_from_transaction_input(w3, transaction_input):
+def fee_rebate_transaction_context_from_input(w3, transaction_input):
     if not transaction_input:
         return None
     try:
@@ -270,9 +278,56 @@ def fee_rebate_epoch_from_transaction_input(w3, transaction_input):
         )
         _function, args = contract.decode_function_input(transaction_input)
         epoch = int(args.get("_expectedEpoch") or 0)
-        return epoch if epoch > 0 else None
+        if epoch <= 0:
+            return None
+        return {
+            "expectedEpoch": epoch,
+            "incrementEpoch": bool(args.get("_incrementEpoch")),
+        }
     except Exception:
         return None
+
+
+def fee_rebate_epoch_from_transaction_input(w3, transaction_input):
+    context = fee_rebate_transaction_context_from_input(w3, transaction_input)
+    return context.get("expectedEpoch") if context else None
+
+
+def classify_known_rebate_snapshot_reset(chain_id, tx_hash, context, events, previous_totals):
+    spec = KNOWN_FEE_REBATE_SNAPSHOT_RESETS.get((chain_id, str(tx_hash).lower()))
+    if not spec or not isinstance(context, dict):
+        return None
+    if context.get("expectedEpoch") != spec["epoch"] or context.get("incrementEpoch") is not True:
+        return None
+    if not isinstance(events, list) or not events or not isinstance(previous_totals, dict):
+        return None
+
+    try:
+        market_ids = [event["marketId"] for event in events]
+        if len(market_ids) != len(set(market_ids)) or set(market_ids) != set(previous_totals):
+            return None
+        for event in events:
+            total_raw = event["totalRaw"]
+            previous_raw = previous_totals[event["marketId"]]
+            if event["blockNumber"] != spec["blockNumber"]:
+                return None
+            if type(total_raw) is not int or type(previous_raw) is not int:
+                return None
+            if previous_raw <= 0 or not 0 < total_raw < previous_raw:
+                return None
+    except (KeyError, TypeError):
+        return None
+
+    return {
+        "calculationMode": spec["calculationMode"],
+        "sourceLabel": spec["sourceLabel"],
+        "rebateRawByMarket": {event["marketId"]: event["totalRaw"] for event in events},
+        "resetMarketCount": len(events),
+        "aggregateAdjustmentRaw": sum(
+            event["totalRaw"] - int(previous_totals[event["marketId"]])
+            for event in events
+        ),
+    }
 
 
 def fee_rebate_epoch_for_log(w3, log, timestamp, transaction_epoch_cache):
