@@ -235,6 +235,13 @@ def hex_to_bytes(data):
     return bytes.fromhex(text)
 
 
+def normalized_transaction_hash(tx_hash):
+    text = tx_hash.hex() if hasattr(tx_hash, "hex") else str(tx_hash)
+    if not text.startswith("0x"):
+        text = "0x" + text
+    return text.lower()
+
+
 def token_metadata(w3, token):
     contract = w3.eth.contract(address=Web3.to_checksum_address(token), abi=ERC20_ABI)
     try:
@@ -337,7 +344,7 @@ def classify_known_rebate_snapshot_reset(chain_id, tx_hash, context, events, pre
 
 
 def fee_rebate_epoch_for_log(w3, log, timestamp, transaction_epoch_cache):
-    tx_hash = log["transactionHash"].hex() if hasattr(log["transactionHash"], "hex") else str(log["transactionHash"])
+    tx_hash = normalized_transaction_hash(log["transactionHash"])
     if tx_hash not in transaction_epoch_cache:
         epoch = None
         try:
@@ -400,69 +407,145 @@ def fetch_borrow_fee_rebate_data():
             block_timestamps = {}
             market_cache = {}
             market_totals = {}
-            transaction_epoch_cache = {}
             epoch_rebates = {}
+            unsupported_corrections = []
+            unsupported_correction_hashes = set()
             missing_price_count = 0
             price_fallback_count = 0
             priced_event_count = 0
 
+            transaction_groups = []
             for log in logs:
-                market_id, _merkle_root, total_raw = w3.codec.decode(["uint256", "bytes32", "uint256"], hex_to_bytes(log["data"]))
-                market_id = int(market_id)
-                total_raw = int(total_raw)
-                previous_raw = int(market_totals.get(market_id, 0))
-                market_totals[market_id] = total_raw
-                delta_raw = total_raw - previous_raw
-                if delta_raw <= 0:
+                tx_hash = normalized_transaction_hash(log["transactionHash"])
+                if not transaction_groups or transaction_groups[-1][0] != tx_hash:
+                    transaction_groups.append((tx_hash, []))
+                transaction_groups[-1][1].append(log)
+
+            for tx_hash, transaction_logs in transaction_groups:
+                decoded_events = []
+                for log in transaction_logs:
+                    market_id, _merkle_root, total_raw = w3.codec.decode(["uint256", "bytes32", "uint256"], hex_to_bytes(log["data"]))
+                    decoded_events.append({
+                        "marketId": int(market_id),
+                        "totalRaw": int(total_raw),
+                        "blockNumber": int(log["blockNumber"]),
+                    })
+
+                previous_totals = dict(market_totals)
+                transaction_context = None
+                try:
+                    transaction = w3.eth.get_transaction(transaction_logs[0]["transactionHash"])
+                    transaction_context = fee_rebate_transaction_context_from_input(w3, transaction.get("input"))
+                except Exception:
+                    transaction_context = None
+                reset_result = classify_known_rebate_snapshot_reset(
+                    BERACHAIN_CHAIN_ID,
+                    tx_hash,
+                    transaction_context,
+                    decoded_events,
+                    previous_totals,
+                )
+                unsupported_correction = reset_result is None and any(
+                    event["totalRaw"] <= int(previous_totals.get(event["marketId"], 0))
+                    for event in decoded_events
+                )
+                if unsupported_correction and tx_hash not in unsupported_correction_hashes:
+                    unsupported_corrections.append({
+                        "transactionHash": tx_hash,
+                        "eventBlock": max(event["blockNumber"] for event in decoded_events),
+                        "marketCount": len(decoded_events),
+                        "reason": "unsupported_aggregate_correction",
+                    })
+                    unsupported_correction_hashes.add(tx_hash)
+
+                if unsupported_correction:
+                    for event in decoded_events:
+                        market_totals[event["marketId"]] = event["totalRaw"]
                     continue
 
-                block_number = int(log["blockNumber"])
-                if block_number not in block_timestamps:
-                    block_timestamps[block_number] = int(w3.eth.get_block(block_number)["timestamp"])
-                timestamp = block_timestamps[block_number]
-                epoch = fee_rebate_epoch_for_log(w3, log, timestamp, transaction_epoch_cache)
-                period_start, period_end = rebate_epoch_window(epoch)
-                metadata = get_market_token_metadata(w3, market_id, market_cache)
-                coin_id = f"{BERACHAIN_COIN_CHAIN}:{metadata['token'].lower()}"
-                prices = fetch_historical_prices(timestamp, [coin_id])
-                price, price_source = resolve_rebate_token_price(metadata["symbol"], prices.get(coin_id))
-                amount = Decimal(delta_raw) / (Decimal(10) ** int(metadata["decimals"]))
-                rebate_usd = Decimal(0)
-                if price is None:
-                    missing_price_count += 1
-                else:
-                    priced_event_count += 1
-                    rebate_usd = amount * price
-                    if price_source != "coins-llama":
-                        price_fallback_count += 1
+                for event in decoded_events:
+                    market_id = event["marketId"]
+                    total_raw = event["totalRaw"]
+                    previous_raw = int(previous_totals.get(market_id, 0))
+                    if reset_result is not None:
+                        effective_raw = reset_result["rebateRawByMarket"][market_id]
+                        calculation_mode = reset_result["calculationMode"]
+                    else:
+                        effective_raw = total_raw - previous_raw
+                        calculation_mode = "cumulative_delta"
+                        if effective_raw <= 0:
+                            continue
 
-                entry = epoch_rebates.setdefault(epoch, {
-                    "epoch": epoch,
-                    "periodStartTimestamp": period_start,
-                    "periodEndTimestamp": period_end,
-                    "eventTimestamp": timestamp,
-                    "eventBlock": block_number,
-                    "rebateUSD": Decimal(0),
-                    "markets": [],
-                })
-                entry["eventTimestamp"] = max(int(entry["eventTimestamp"]), timestamp)
-                entry["eventBlock"] = max(int(entry["eventBlock"]), block_number)
-                entry["rebateUSD"] += rebate_usd
-                entry["markets"].append({
-                    "marketId": market_id,
-                    "token": metadata["token"],
-                    "symbol": metadata["symbol"],
-                    "amount": str(amount),
-                    "rebateUSD": float(rebate_usd),
-                    "priceUSD": float(price) if price is not None else None,
-                    "priceSource": price_source,
-                })
+                    block_number = event["blockNumber"]
+                    if block_number not in block_timestamps:
+                        block_timestamps[block_number] = int(w3.eth.get_block(block_number)["timestamp"])
+                    timestamp = block_timestamps[block_number]
+                    epoch = (
+                        transaction_context.get("expectedEpoch")
+                        if transaction_context
+                        else rebate_epoch_for_timestamp(timestamp)
+                    )
+                    period_start, period_end = rebate_epoch_window(epoch)
+                    metadata = get_market_token_metadata(w3, market_id, market_cache)
+                    coin_id = f"{BERACHAIN_COIN_CHAIN}:{metadata['token'].lower()}"
+                    prices = fetch_historical_prices(timestamp, [coin_id])
+                    price, price_source = resolve_rebate_token_price(metadata["symbol"], prices.get(coin_id))
+                    amount = Decimal(effective_raw) / (Decimal(10) ** int(metadata["decimals"]))
+                    rebate_usd = Decimal(0)
+                    if price is None:
+                        missing_price_count += 1
+                    else:
+                        priced_event_count += 1
+                        rebate_usd = amount * price
+                        if price_source != "coins-llama":
+                            price_fallback_count += 1
+
+                    entry = epoch_rebates.setdefault(epoch, {
+                        "epoch": epoch,
+                        "periodStartTimestamp": period_start,
+                        "periodEndTimestamp": period_end,
+                        "eventTimestamp": timestamp,
+                        "eventBlock": block_number,
+                        "rebateUSD": Decimal(0),
+                        "markets": [],
+                    })
+                    entry["eventTimestamp"] = max(int(entry["eventTimestamp"]), timestamp)
+                    entry["eventBlock"] = max(int(entry["eventBlock"]), block_number)
+                    entry["rebateUSD"] += rebate_usd
+                    if reset_result is not None:
+                        entry.update({
+                            "calculationMode": reset_result["calculationMode"],
+                            "sourceLabel": reset_result["sourceLabel"],
+                            "transactionHash": tx_hash,
+                            "resetMarketCount": reset_result["resetMarketCount"],
+                            "aggregateAdjustmentRaw": reset_result["aggregateAdjustmentRaw"],
+                        })
+                    market_row = {
+                        "marketId": market_id,
+                        "token": metadata["token"],
+                        "symbol": metadata["symbol"],
+                        "amount": str(amount),
+                        "rebateUSD": float(rebate_usd),
+                        "priceUSD": float(price) if price is not None else None,
+                        "priceSource": price_source,
+                    }
+                    if reset_result is not None:
+                        market_row.update({
+                            "calculationMode": calculation_mode,
+                            "transactionHash": tx_hash,
+                            "previousTotalRaw": previous_raw,
+                            "publishedTotalRaw": total_raw,
+                        })
+                    entry["markets"].append(market_row)
+
+                for event in decoded_events:
+                    market_totals[event["marketId"]] = event["totalRaw"]
 
             epoch_rows = []
             total_rebate_usd = Decimal(0)
             for epoch, entry in sorted(epoch_rebates.items()):
                 total_rebate_usd += entry["rebateUSD"]
-                epoch_rows.append({
+                epoch_row = {
                     "epoch": int(epoch),
                     "periodStartTimestamp": int(entry["periodStartTimestamp"]),
                     "periodEndTimestamp": int(entry["periodEndTimestamp"]),
@@ -471,7 +554,17 @@ def fetch_borrow_fee_rebate_data():
                     "rebateUSD": round(float(entry["rebateUSD"]), 6),
                     "marketCount": len(entry["markets"]),
                     "markets": entry["markets"],
-                })
+                }
+                for key in (
+                    "calculationMode",
+                    "sourceLabel",
+                    "transactionHash",
+                    "resetMarketCount",
+                    "aggregateAdjustmentRaw",
+                ):
+                    if key in entry:
+                        epoch_row[key] = entry[key]
+                epoch_rows.append(epoch_row)
 
             chain_status = "partial" if missing_price_count else "ok"
             return {
@@ -495,6 +588,7 @@ def fetch_borrow_fee_rebate_data():
                         "totalRebateUSD": round(float(total_rebate_usd), 6),
                         "latestRebateDate": day_from_timestamp(max((row["periodEndTimestamp"] for row in epoch_rows), default=0)) if epoch_rows else None,
                         "epochRebates": epoch_rows,
+                        "unsupportedCorrections": unsupported_corrections,
                         "rpcHost": rpc_client.safe_host(endpoint),
                     }
                 },
