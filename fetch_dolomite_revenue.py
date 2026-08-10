@@ -445,9 +445,14 @@ def fetch_borrow_fee_rebate_data():
                     decoded_events,
                     previous_totals,
                 )
-                unsupported_correction = reset_result is None and any(
-                    event["totalRaw"] <= int(previous_totals.get(event["marketId"], 0))
-                    for event in decoded_events
+                market_ids = [event["marketId"] for event in decoded_events]
+                duplicate_market_ids = len(market_ids) != len(set(market_ids))
+                unsupported_correction = duplicate_market_ids or (
+                    reset_result is None
+                    and any(
+                        event["totalRaw"] <= int(previous_totals.get(event["marketId"], 0))
+                        for event in decoded_events
+                    )
                 )
                 if unsupported_correction and tx_hash not in unsupported_correction_hashes:
                     unsupported_corrections.append({
