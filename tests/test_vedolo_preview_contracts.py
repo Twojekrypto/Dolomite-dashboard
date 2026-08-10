@@ -308,6 +308,32 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('setText("duration-meta",', metadata_sync)
         self.assertIn("vedolo-table-update-metadata-20260717", self.route)
 
+    def test_flow_wallet_cell_uses_shared_two_line_identity_hierarchy(self):
+        flow_cell = re.search(
+            r'function flowAddressCell\(addr, date, txHash, timestamp\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        ).group("body")
+        required = (
+            'class="flow-wallet-top"',
+            'class="addr-name ${info ? "" : "addr-generic"}"',
+            'class="flow-tx-line flow-address-main"',
+            'class="addr-mono addr-tooltip-wrap"',
+            'class="copy-btn addr-copy"',
+            'class="addr-debank"',
+            '${flowDateLine(date, txHash, timestamp)}',
+        )
+        for item in required:
+            self.assertIn(item, flow_cell)
+        positions = [flow_cell.index(item) for item in required]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('class="addr addr-tooltip-wrap"', flow_cell)
+        self.assertIn('.flow-wallet-top .addr-name{', self.html)
+        self.assertIn('.flow-address-main .addr-mono{', self.html)
+        self.assertIn('color:var(--fg-1)', self.html)
+        self.assertIn('color:var(--fg-3)', self.html)
+        self.assertIn('vedolo-flow-wallet-hierarchy-20260810', self.route)
+
 
 if __name__ == "__main__":
     unittest.main()
