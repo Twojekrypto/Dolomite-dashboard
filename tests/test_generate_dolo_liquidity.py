@@ -860,5 +860,223 @@ class V3AdapterTests(unittest.TestCase):
         self.assertNotEqual(fixture["positionManager"], self.ETH_NPM)
 
 
+class V4AdapterTests(unittest.TestCase):
+    ZERO = "0x" + "00" * 20
+    ALICE = "0x" + "aa" * 20
+    BOB = "0x" + "bb" * 20
+    OTHER_SENDER = "0x" + "cc" * 20
+    USD1 = "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
+    POOL_ID = "0x2d97d14362ae5a19a15adb230cf8840ee7e133bf942fd8efd754ae4d078727ea"
+    OTHER_POOL_ID = "0x" + "77" * 32
+    POOL_MANAGER = "0x000000000004444c5dc75cb358380d2e3de08a90"
+    POSITION_MANAGER = "0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e"
+
+    @staticmethod
+    def _topic_address(address):
+        return "0x" + address[2:].lower().rjust(64, "0")
+
+    @staticmethod
+    def _topic_uint(value):
+        return "0x" + f"{value:064x}"
+
+    def _log(self, address, signature, indexed, abi_types, values, block, log_index, tx_byte):
+        return {
+            "address": address,
+            "blockNumber": block,
+            "transactionIndex": 0,
+            "logIndex": log_index,
+            "transactionHash": "0x" + tx_byte * 64,
+            "blockHash": "0x" + f"{block:064x}",
+            "data": "0x" + encode(abi_types, values).hex(),
+            "topics": [liquidity.event_topic(signature)] + indexed,
+            "removed": False,
+            "timestamp": 1_700_100_000 + block,
+        }
+
+    def _initialize(self, pool_id, currency0, currency1, block, log_index, tx_byte="1"):
+        return self._log(
+            self.POOL_MANAGER,
+            "Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)",
+            [pool_id, self._topic_address(currency0), self._topic_address(currency1)],
+            ["uint24", "int24", "address", "uint160", "int24"],
+            [3000, 60, self.ZERO, 1 << 96, 0],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def _pool_modify(self, token_id, delta, block, log_index, tx_byte, sender=None):
+        return self._log(
+            self.POOL_MANAGER,
+            "ModifyLiquidity(bytes32,address,int24,int24,int256,bytes32)",
+            [self.POOL_ID, self._topic_address(sender or self.POSITION_MANAGER)],
+            ["int24", "int24", "int256", "bytes32"],
+            [-100, 100, delta, bytes.fromhex(f"{token_id:064x}")],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def _position_modify(self, token_id, delta, block, log_index, tx_byte):
+        return self._log(
+            self.POSITION_MANAGER,
+            "ModifyPosition(bytes32,address,int24,int24,int256,bytes32)",
+            [self.POOL_ID, self._topic_address(self.ALICE)],
+            ["int24", "int24", "int256", "bytes32"],
+            [-100, 100, delta, bytes.fromhex(f"{token_id:064x}")],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def _transfer(self, sender, recipient, token_id, block, log_index, tx_byte):
+        return self._log(
+            self.POSITION_MANAGER,
+            "Transfer(address,address,uint256)",
+            [self._topic_address(sender), self._topic_address(recipient), self._topic_uint(token_id)],
+            [],
+            [],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def test_v4_initialize_discovers_dolo_and_keeps_pool_id_typed(self):
+        logs = [
+            self._initialize(self.POOL_ID, DOLO, self.USD1, 200, 0),
+            self._initialize(self.OTHER_POOL_ID, self.OTHER_SENDER, self.USD1, 201, 0),
+        ]
+
+        pools = liquidity.discover_v4_dolo_pools(logs, DOLO)
+
+        self.assertEqual(len(pools), 1)
+        self.assertEqual(pools[0]["poolId"], self.POOL_ID)
+        self.assertEqual(pools[0]["identifierType"], "poolId")
+        self.assertEqual(pools[0]["sqrtPriceX96"], 1 << 96)
+        self.assertEqual(pools[0]["tickSpacing"], 60)
+
+    def test_v4_build_requires_canonical_sender_and_exact_modify_pair(self):
+        pool_logs = [
+            self._initialize(self.POOL_ID, DOLO, self.USD1, 210, 0),
+            self._pool_modify(1, 1000, 211, 1, "2"),
+            self._pool_modify(1, 200, 212, 0, "3"),
+            self._pool_modify(1, -500, 214, 0, "5"),
+            self._pool_modify(1, -700, 215, 0, "6"),
+            self._pool_modify(2, 1000, 216, 1, "7"),
+            self._pool_modify(3, 500, 216, 2, "7"),
+            self._pool_modify(4, 100, 217, 0, "8", sender=self.OTHER_SENDER),
+        ]
+        position_logs = [
+            self._transfer(self.ZERO, self.ALICE, 1, 211, 0, "2"),
+            self._position_modify(1, 1000, 211, 2, "2"),
+            self._position_modify(1, 200, 212, 1, "3"),
+            self._transfer(self.ALICE, self.BOB, 1, 213, 0, "4"),
+            self._position_modify(1, -500, 214, 1, "5"),
+            self._position_modify(1, -700, 215, 1, "6"),
+            self._transfer(self.BOB, self.ZERO, 1, 215, 2, "6"),
+            self._transfer(self.ZERO, self.ALICE, 2, 216, 0, "7"),
+            self._transfer(self.ZERO, self.BOB, 3, 216, 3, "7"),
+        ]
+        pool = {
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v4",
+            "identifier": self.POOL_ID,
+            "identifierType": "poolId",
+            "pair": "DOLO/USD1",
+            "sourceUrl": "https://dexscreener.com/ethereum/" + self.POOL_ID,
+        }
+        latest = {
+            2: {
+                "poolId": self.POOL_ID,
+                "currency0": DOLO,
+                "currency1": self.USD1,
+                "fee": 3000,
+                "tickSpacing": 60,
+                "hooks": self.ZERO,
+                "tickLower": -100,
+                "tickUpper": 100,
+                "liquidity": 1000,
+                "owner": self.ALICE,
+            },
+            3: {
+                "poolId": self.POOL_ID,
+                "currency0": DOLO,
+                "currency1": self.USD1,
+                "fee": 3000,
+                "tickSpacing": 60,
+                "hooks": self.ZERO,
+                "tickLower": -100,
+                "tickUpper": 100,
+                "liquidity": 500,
+                "owner": self.BOB,
+            },
+        }
+
+        result = liquidity.build_v4_rows(
+            pool,
+            pool_logs,
+            position_logs,
+            latest,
+            {
+                "sqrtPriceX96": 1 << 96,
+                "currentTick": 0,
+                "decimals0": 18,
+                "decimals1": 18,
+            },
+            pool_manager=self.POOL_MANAGER,
+            position_manager=self.POSITION_MANAGER,
+        )
+
+        self.assertEqual(
+            [row["action"] for row in result["history"]],
+            ["Added", "Increased", "Removed", "Closed", "Added", "Added"],
+        )
+        self.assertEqual(result["history"][2]["beneficialOwner"], self.BOB)
+        self.assertEqual(result["history"][3]["beneficialOwner"], self.BOB)
+        self.assertTrue(all(row["amountStatus"] == "verified" for row in result["history"][:4]))
+        self.assertTrue(all(row["amountStatus"] == "unavailable" for row in result["history"][4:]))
+        self.assertTrue(all(row["doloRaw"] is None for row in result["history"][4:]))
+        self.assertTrue(all(row["quality"] == "partial" for row in result["history"][4:]))
+        self.assertEqual(len(result["unresolved"]), 1)
+        self.assertIn("non-canonical sender", result["unresolved"][0]["reason"])
+        self.assertEqual(len(result["activePositions"]), 2)
+        self.assertTrue(all(row["poolIdentifierType"] == "poolId" for row in result["activePositions"]))
+        self.assertTrue(all(row["poolExplorerUrl"] is None for row in result["activePositions"]))
+        self.assertTrue(all(row["dexscreenerUrl"].endswith(self.POOL_ID) for row in result["activePositions"]))
+
+    def test_v4_archive_price_can_prove_action_when_no_prior_swap_or_initialize(self):
+        pool = {
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v4",
+            "identifier": self.POOL_ID,
+            "identifierType": "poolId",
+            "pair": "DOLO/USD1",
+        }
+        result = liquidity.build_v4_rows(
+            pool,
+            [self._pool_modify(5, 1000, 220, 1, "9")],
+            [
+                self._transfer(self.ZERO, self.ALICE, 5, 220, 0, "9"),
+                self._position_modify(5, 1000, 220, 2, "9"),
+            ],
+            {},
+            {
+                "sqrtPriceX96": 1 << 96,
+                "currentTick": 0,
+                "decimals0": 18,
+                "decimals1": 18,
+                "currency0": DOLO,
+                "currency1": self.USD1,
+            },
+            pool_manager=self.POOL_MANAGER,
+            position_manager=self.POSITION_MANAGER,
+            archive_sqrt_prices={(220, 0): 1 << 96},
+        )
+
+        self.assertEqual(result["history"][0]["amountStatus"], "verified")
+        self.assertIsNotNone(result["history"][0]["doloRaw"])
+        self.assertEqual(result["history"][0]["priceEvidence"], "archive_state")
+
+
 if __name__ == "__main__":
     unittest.main()
