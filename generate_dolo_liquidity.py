@@ -56,6 +56,13 @@ V3_EVENT_SIGNATURES = {
     "decrease": "DecreaseLiquidity(uint256,uint128,uint256,uint256)",
     "transfer": "Transfer(address,address,uint256)",
 }
+V4_EVENT_SIGNATURES = {
+    "initialize": "Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)",
+    "modify_liquidity": "ModifyLiquidity(bytes32,address,int24,int24,int256,bytes32)",
+    "swap": "Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)",
+    "modify_position": "ModifyPosition(bytes32,address,int24,int24,int256,bytes32)",
+    "transfer": "Transfer(address,address,uint256)",
+}
 
 
 def _exact_int(value: Any, label: str) -> int:
@@ -1041,6 +1048,427 @@ def build_v3_rows(
         "sourceStatus": "complete",
         "activePositions": active_positions,
         "history": history,
+    }
+
+
+def _pool_id_from_topic(topic: Any, label: str) -> str:
+    normalized = str(topic or "").strip().lower()
+    if not POOL_ID_RE.fullmatch(normalized):
+        raise ValueError(f"{label} must be a bytes32 pool ID")
+    return normalized
+
+
+def decode_v4_pool_manager_log(log: dict[str, Any]) -> dict[str, Any] | None:
+    """Decode the v4 PoolManager events used by position reconstruction."""
+    topics = log.get("topics") if isinstance(log, dict) else None
+    if not isinstance(topics, list) or not topics:
+        raise ValueError("V4 PoolManager log topics are required")
+    signature_topic = str(topics[0]).lower()
+    data_hex = str(log.get("data") or "").strip().lower()
+    if not re.fullmatch(r"0x(?:[0-9a-f]{2})*", data_hex):
+        raise ValueError("V4 PoolManager log data must be even-length hex")
+    data = bytes.fromhex(data_hex[2:])
+    base = _decoded_log_base(log)
+    if signature_topic == event_topic(V4_EVENT_SIGNATURES["initialize"]):
+        if len(topics) != 4:
+            raise ValueError("V4 Initialize must index pool ID and both currencies")
+        fee, tick_spacing, hooks, sqrt_price_x96, tick = decode(
+            ["uint24", "int24", "address", "uint160", "int24"], data
+        )
+        return {
+            **base,
+            "kind": "initialize",
+            "poolId": _pool_id_from_topic(topics[1], "V4 Initialize pool ID"),
+            "currency0": _address_from_topic(topics[2], "V4 currency0"),
+            "currency1": _address_from_topic(topics[3], "V4 currency1"),
+            "fee": int(fee),
+            "tickSpacing": int(tick_spacing),
+            "hooks": _normalized_address(hooks, "V4 hooks"),
+            "sqrtPriceX96": int(sqrt_price_x96),
+            "tick": int(tick),
+        }
+    if signature_topic == event_topic(V4_EVENT_SIGNATURES["modify_liquidity"]):
+        if len(topics) != 3:
+            raise ValueError("V4 ModifyLiquidity must index pool ID and sender")
+        tick_lower, tick_upper, liquidity_delta, salt = decode(
+            ["int24", "int24", "int256", "bytes32"], data
+        )
+        return {
+            **base,
+            "kind": "modify_liquidity",
+            "poolId": _pool_id_from_topic(topics[1], "V4 ModifyLiquidity pool ID"),
+            "sender": _address_from_topic(topics[2], "V4 ModifyLiquidity sender"),
+            "tickLower": int(tick_lower),
+            "tickUpper": int(tick_upper),
+            "liquidityDelta": int(liquidity_delta),
+            "salt": "0x" + bytes(salt).hex(),
+        }
+    if signature_topic == event_topic(V4_EVENT_SIGNATURES["swap"]):
+        if len(topics) != 3:
+            raise ValueError("V4 Swap must index pool ID and sender")
+        amount0, amount1, sqrt_price_x96, active_liquidity, tick, fee = decode(
+            ["int128", "int128", "uint160", "uint128", "int24", "uint24"], data
+        )
+        return {
+            **base,
+            "kind": "swap",
+            "poolId": _pool_id_from_topic(topics[1], "V4 Swap pool ID"),
+            "sender": _address_from_topic(topics[2], "V4 Swap sender"),
+            "amount0Raw": int(amount0),
+            "amount1Raw": int(amount1),
+            "sqrtPriceX96": int(sqrt_price_x96),
+            "activeLiquidityRaw": int(active_liquidity),
+            "tick": int(tick),
+            "fee": int(fee),
+        }
+    return None
+
+
+def decode_v4_position_manager_log(log: dict[str, Any]) -> dict[str, Any] | None:
+    """Decode v4 PositionManager ERC-721 and modify-position evidence."""
+    topics = log.get("topics") if isinstance(log, dict) else None
+    if not isinstance(topics, list) or not topics:
+        raise ValueError("V4 PositionManager log topics are required")
+    signature_topic = str(topics[0]).lower()
+    base = _decoded_log_base(log)
+    if signature_topic == event_topic(V4_EVENT_SIGNATURES["transfer"]):
+        if len(topics) != 4:
+            raise ValueError("V4 NFT Transfer must have three indexed values")
+        return {
+            **base,
+            "kind": "transfer",
+            "from": _address_from_topic(topics[1], "V4 NFT sender"),
+            "to": _address_from_topic(topics[2], "V4 NFT recipient"),
+            "tokenId": int(str(topics[3]), 16),
+        }
+    if signature_topic != event_topic(V4_EVENT_SIGNATURES["modify_position"]):
+        return None
+    if len(topics) != 3:
+        raise ValueError("V4 ModifyPosition must index pool ID and sender")
+    data_hex = str(log.get("data") or "").strip().lower()
+    if not re.fullmatch(r"0x(?:[0-9a-f]{2})*", data_hex):
+        raise ValueError("V4 ModifyPosition data must be even-length hex")
+    tick_lower, tick_upper, liquidity_delta, salt = decode(
+        ["int24", "int24", "int256", "bytes32"], bytes.fromhex(data_hex[2:])
+    )
+    return {
+        **base,
+        "kind": "modify_position",
+        "poolId": _pool_id_from_topic(topics[1], "V4 ModifyPosition pool ID"),
+        "sender": _address_from_topic(topics[2], "V4 ModifyPosition sender"),
+        "tickLower": int(tick_lower),
+        "tickUpper": int(tick_upper),
+        "liquidityDelta": int(liquidity_delta),
+        "salt": "0x" + bytes(salt).hex(),
+    }
+
+
+def discover_v4_dolo_pools(
+    logs: list[dict[str, Any]], dolo_address: str
+) -> list[dict[str, Any]]:
+    """Return initialized v4 pools containing DOLO, preserving bytes32 identity."""
+    dolo = _normalized_address(dolo_address, "DOLO address")
+    discovered = []
+    seen = set()
+    for log in logs:
+        event = decode_v4_pool_manager_log(log)
+        if event is None or event["kind"] != "initialize":
+            continue
+        if dolo not in {event["currency0"], event["currency1"]}:
+            continue
+        if event["poolId"] in seen:
+            continue
+        seen.add(event["poolId"])
+        discovered.append({**event, "identifierType": "poolId"})
+    return sorted(
+        discovered,
+        key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"]),
+    )
+
+
+def _v4_modify_match_key(event: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        event["txHash"],
+        event["poolId"],
+        event["tickLower"],
+        event["tickUpper"],
+        event["liquidityDelta"],
+        event["salt"],
+    )
+
+
+def build_v4_rows(
+    pool: dict[str, Any],
+    pool_manager_logs: list[dict[str, Any]],
+    position_manager_logs: list[dict[str, Any]],
+    latest_positions: dict[Any, dict[str, Any]],
+    pool_state: dict[str, Any],
+    *,
+    pool_manager: str,
+    position_manager: str,
+    archive_sqrt_prices: dict[Any, int] | None = None,
+    contract_addresses: set[str] | None = None,
+) -> dict[str, Any]:
+    """Build v4 rows with exact sender, event-pair, and price evidence."""
+    if pool.get("identifierType") != "poolId":
+        raise ValueError("V4 pool must use identifierType poolId")
+    pool_id = _pool_id_from_topic(pool.get("identifier"), "V4 pool identifier")
+    chain_key = str(pool.get("chainKey") or "").strip().lower()
+    adapter = str(pool.get("adapter") or "").strip().lower()
+    if adapter != "uniswap-v4":
+        raise ValueError("V4 rows require the uniswap-v4 adapter")
+    pool_manager_address = _normalized_address(pool_manager, "V4 PoolManager")
+    position_manager_address = _normalized_address(position_manager, "V4 PositionManager")
+    source_key = f"{chain_key}:{adapter}"
+    normalized_contracts = {
+        _normalized_address(address, "contract address")
+        for address in (contract_addresses or set())
+    }
+    archive_prices = dict(archive_sqrt_prices or {})
+
+    decoded_pool_events = []
+    for log in pool_manager_logs:
+        if _normalized_address(log.get("address"), "V4 pool log emitter") != pool_manager_address:
+            continue
+        event = decode_v4_pool_manager_log(log)
+        if event is not None and event.get("poolId") == pool_id:
+            decoded_pool_events.append(event)
+    decoded_position_events = []
+    for log in position_manager_logs:
+        if _normalized_address(log.get("address"), "V4 position log emitter") != position_manager_address:
+            continue
+        event = decode_v4_position_manager_log(log)
+        if event is not None:
+            decoded_position_events.append(event)
+
+    exact_modify_counts: defaultdict[tuple[Any, ...], int] = defaultdict(int)
+    for event in decoded_position_events:
+        if event["kind"] == "modify_position" and event["poolId"] == pool_id:
+            exact_modify_counts[_v4_modify_match_key(event)] += 1
+
+    canonical_modifications = []
+    unresolved = []
+    token_ids = set()
+    for event in decoded_pool_events:
+        if event["kind"] != "modify_liquidity":
+            continue
+        if event["sender"] != position_manager_address:
+            unresolved.append(
+                {
+                    **event,
+                    "quality": "partial",
+                    "reason": "non-canonical sender; tokenId attribution withheld",
+                }
+            )
+            continue
+        token_id = int(event["salt"], 16)
+        if token_id <= 0:
+            unresolved.append(
+                {
+                    **event,
+                    "quality": "partial",
+                    "reason": "canonical sender emitted a zero tokenId salt",
+                }
+            )
+            continue
+        token_ids.add(token_id)
+        canonical_modifications.append({**event, "tokenId": token_id})
+
+    ownership_events = [
+        event
+        for event in decoded_position_events
+        if event["kind"] == "transfer" and event["tokenId"] in token_ids
+    ]
+    timeline = sorted(
+        decoded_pool_events + ownership_events,
+        key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"]),
+    )
+    canonical_by_identity = {
+        (event["txHash"], event["logIndex"]): event for event in canonical_modifications
+    }
+    owners: dict[int, str] = {}
+    position_liquidity: defaultdict[int, int] = defaultdict(int)
+    latest_event_price: int | None = None
+    currency0 = pool_state.get("currency0")
+    currency1 = pool_state.get("currency1")
+    history = []
+    for event in timeline:
+        if event["kind"] == "initialize":
+            latest_event_price = event["sqrtPriceX96"]
+            currency0 = event["currency0"]
+            currency1 = event["currency1"]
+            continue
+        if event["kind"] == "swap":
+            latest_event_price = event["sqrtPriceX96"]
+            continue
+        if event["kind"] == "transfer":
+            recipient = event["to"]
+            if recipient == ZERO_ADDRESS:
+                owners.pop(event["tokenId"], None)
+            else:
+                owners[event["tokenId"]] = recipient
+            continue
+        canonical = canonical_by_identity.get((event["txHash"], event["logIndex"]))
+        if canonical is None:
+            continue
+        if canonical["timestamp"] is None:
+            raise ValueError("V4 liquidity history requires an exact block timestamp")
+        token_id = canonical["tokenId"]
+        delta = canonical["liquidityDelta"]
+        before = position_liquidity[token_id]
+        if delta > 0:
+            after = before + delta
+            action = "Added" if before == 0 else "Increased"
+        elif delta < 0:
+            if -delta > before:
+                raise ValueError(f"V4 token {token_id} decrease exceeds replayed liquidity")
+            after = before + delta
+            action = "Closed" if after == 0 else "Removed"
+        else:
+            continue
+        position_liquidity[token_id] = after
+        owner = owners.get(token_id)
+        attribution = _event_attribution(owner, normalized_contracts)
+        match_count = exact_modify_counts[_v4_modify_match_key(canonical)]
+        sqrt_price = latest_event_price
+        price_evidence = "event_state" if sqrt_price is not None else None
+        if sqrt_price is None:
+            archive_key = (canonical["blockNumber"], canonical["transactionIndex"])
+            sqrt_price = archive_prices.get(archive_key)
+            if sqrt_price is None:
+                sqrt_price = archive_prices.get(canonical["blockNumber"])
+            if sqrt_price is not None:
+                sqrt_price = _exact_int(sqrt_price, "V4 archive sqrt price")
+                price_evidence = "archive_state"
+        amount_status = "verified" if match_count == 1 and sqrt_price is not None else "unavailable"
+        amount0 = amount1 = None
+        if amount_status == "verified":
+            amount0, amount1 = amounts_for_liquidity(
+                abs(delta),
+                sqrt_price,
+                sqrt_ratio_at_tick(canonical["tickLower"]),
+                sqrt_ratio_at_tick(canonical["tickUpper"]),
+            )
+        row_quality = attribution["quality"]
+        if amount_status == "unavailable" and row_quality == "verified":
+            row_quality = "partial"
+        normalized_currency0 = (
+            _normalized_address(currency0, "V4 currency0") if currency0 is not None else None
+        )
+        normalized_currency1 = (
+            _normalized_address(currency1, "V4 currency1") if currency1 is not None else None
+        )
+        dolo_raw = paired_raw = None
+        if amount0 is not None and DOLO_ADDRESS in {normalized_currency0, normalized_currency1}:
+            dolo_raw = amount0 if normalized_currency0 == DOLO_ADDRESS else amount1
+            paired_raw = amount1 if normalized_currency0 == DOLO_ADDRESS else amount0
+        history.append(
+            {
+                "id": event_key(chain_key, canonical["txHash"], canonical["logIndex"]),
+                "sourceKey": source_key,
+                "poolId": pool_id,
+                "poolIdentifierType": "poolId",
+                "poolExplorerUrl": None,
+                "chainKey": chain_key,
+                "adapter": adapter,
+                "pair": pool.get("pair"),
+                "positionId": str(token_id),
+                "action": action,
+                "blockNumber": canonical["blockNumber"],
+                "timestamp": canonical["timestamp"],
+                "txHash": canonical["txHash"],
+                "logIndex": canonical["logIndex"],
+                "liquidityDeltaRaw": str(delta),
+                "amountStatus": amount_status,
+                "priceEvidence": price_evidence,
+                "amount0Raw": str(amount0) if amount0 is not None else None,
+                "amount1Raw": str(amount1) if amount1 is not None else None,
+                "doloRaw": str(dolo_raw) if dolo_raw is not None else None,
+                "pairedRaw": str(paired_raw) if paired_raw is not None else None,
+                "valueUsd": None,
+                **attribution,
+                "quality": row_quality,
+            }
+        )
+
+    current_sqrt = _exact_int(pool_state.get("sqrtPriceX96"), "current V4 sqrt price")
+    current_tick = _exact_int(pool_state.get("currentTick"), "current V4 tick")
+    decimals0 = _exact_int(pool_state.get("decimals0"), "V4 currency0 decimals")
+    decimals1 = _exact_int(pool_state.get("decimals1"), "V4 currency1 decimals")
+    active_positions = []
+    for token_key, latest in sorted(latest_positions.items(), key=lambda item: int(item[0])):
+        token_id = int(token_key)
+        if isinstance(token_key, bool) or token_id <= 0 or not isinstance(latest, dict):
+            raise ValueError("latest V4 positions must use positive token IDs")
+        latest_pool_id = _pool_id_from_topic(latest.get("poolId"), "latest V4 pool ID")
+        if latest_pool_id != pool_id:
+            continue
+        liquidity_raw = _exact_int(latest.get("liquidity"), "latest V4 liquidity")
+        if liquidity_raw <= 0:
+            continue
+        token0 = _normalized_address(latest.get("currency0"), "latest V4 currency0")
+        token1 = _normalized_address(latest.get("currency1"), "latest V4 currency1")
+        if DOLO_ADDRESS not in {token0, token1}:
+            raise ValueError(f"latest V4 token {token_id} is not a DOLO position")
+        tick_lower = _exact_int(latest.get("tickLower"), "latest V4 tick lower")
+        tick_upper = _exact_int(latest.get("tickUpper"), "latest V4 tick upper")
+        amount0, amount1 = amounts_for_liquidity(
+            liquidity_raw,
+            current_sqrt,
+            sqrt_ratio_at_tick(tick_lower),
+            sqrt_ratio_at_tick(tick_upper),
+        )
+        owner = _normalized_address(latest.get("owner"), "latest V4 owner")
+        attribution = _event_attribution(owner, normalized_contracts)
+        bound_a = tick_to_paired_per_dolo(
+            tick_lower, token0, token1, decimals0, decimals1, DOLO_ADDRESS
+        )
+        bound_b = tick_to_paired_per_dolo(
+            tick_upper, token0, token1, decimals0, decimals1, DOLO_ADDRESS
+        )
+        range_lower, range_upper = sorted((bound_a, bound_b))
+        active_positions.append(
+            {
+                "id": f"{source_key}:{pool_id}:{token_id}",
+                "sourceKey": source_key,
+                "poolId": pool_id,
+                "poolIdentifierType": "poolId",
+                "poolExplorerUrl": None,
+                "dexscreenerUrl": pool.get("sourceUrl")
+                or f"https://dexscreener.com/{chain_key}/{pool_id}",
+                "chainKey": chain_key,
+                "adapter": adapter,
+                "pair": pool.get("pair"),
+                "positionType": "concentrated_nft",
+                "positionId": str(token_id),
+                "liquidityRaw": str(liquidity_raw),
+                "tickLower": tick_lower,
+                "tickUpper": tick_upper,
+                "rangeLower": str(range_lower),
+                "rangeUpper": str(range_upper),
+                "rangeStatus": classify_range(current_tick, tick_lower, tick_upper),
+                "feeTier": _exact_int(latest.get("fee"), "latest V4 fee"),
+                "tickSpacing": _exact_int(
+                    latest.get("tickSpacing"), "latest V4 tick spacing"
+                ),
+                "hooks": _normalized_address(latest.get("hooks"), "latest V4 hooks"),
+                "amount0Raw": str(amount0),
+                "amount1Raw": str(amount1),
+                "doloRaw": str(amount0 if token0 == DOLO_ADDRESS else amount1),
+                "pairedRaw": str(amount1 if token0 == DOLO_ADDRESS else amount0),
+                "valueUsd": None,
+                **attribution,
+            }
+        )
+    source_status = "partial" if unresolved or any(
+        row["quality"] == "partial" for row in history
+    ) else "complete"
+    return {
+        "sourceKey": source_key,
+        "sourceStatus": source_status,
+        "activePositions": active_positions,
+        "history": history,
+        "unresolved": unresolved,
     }
 
 
