@@ -1078,5 +1078,224 @@ class V4AdapterTests(unittest.TestCase):
         self.assertEqual(result["history"][0]["priceEvidence"], "archive_state")
 
 
+class BeneficialOwnerTests(unittest.TestCase):
+    ZERO = "0x" + "00" * 20
+    ALICE = "0x" + "aa" * 20
+    BOB = "0x" + "bb" * 20
+    CAROL = "0x" + "cc" * 20
+    FARM = "0x" + "dd" * 20
+    UNKNOWN_VAULT = "0x" + "ee" * 20
+    MANAGER = "0x" + "12" * 20
+    IMPLEMENTATION = "0x" + "13" * 20
+    ISLAND = "0x" + "14" * 20
+    POOL = "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3"
+    WBERA = "0x6969696969696969696969696969696969696969"
+    FACTORY = "0x5261c5a5f08818c08ed0eb036d9575ba1e02c1d6"
+
+    @staticmethod
+    def _topic_address(address):
+        return "0x" + address[2:].lower().rjust(64, "0")
+
+    def test_island_created_discovery_requires_underlying_dolo_pool(self):
+        log = {
+            "address": self.FACTORY,
+            "blockNumber": 300,
+            "transactionIndex": 0,
+            "logIndex": 1,
+            "transactionHash": "0x" + "ab" * 32,
+            "blockHash": "0x" + f"{300:064x}",
+            "data": "0x" + encode(["address"], [self.IMPLEMENTATION]).hex(),
+            "topics": [
+                liquidity.event_topic("IslandCreated(address,address,address,address)"),
+                self._topic_address(self.POOL),
+                self._topic_address(self.MANAGER),
+                self._topic_address(self.ISLAND),
+            ],
+            "removed": False,
+            "timestamp": 1_700_200_300,
+        }
+
+        discovered = liquidity.discover_kodiak_islands(
+            [log],
+            {self.POOL: (DOLO, self.WBERA)},
+            DOLO,
+        )
+
+        self.assertEqual(len(discovered), 1)
+        self.assertEqual(discovered[0]["island"], self.ISLAND)
+        self.assertEqual(discovered[0]["underlyingPool"], self.POOL)
+        self.assertEqual(discovered[0]["implementation"], self.IMPLEMENTATION)
+
+        self.assertEqual(
+            liquidity.discover_kodiak_islands(
+                [log],
+                {self.POOL: ("0x" + "22" * 20, self.WBERA)},
+                DOLO,
+            ),
+            [],
+        )
+
+    def test_island_and_farm_allocation_reconciles_exact_underlying(self):
+        underlying = {
+            "id": "berachain:kodiak-v3:pool:77",
+            "sourceKey": "berachain:kodiak-v3",
+            "poolId": self.POOL,
+            "poolIdentifierType": "contract",
+            "chainKey": "berachain",
+            "adapter": "kodiak-v3",
+            "pair": "DOLO/WBERA",
+            "positionId": "77",
+            "amount0Raw": "1001",
+            "amount1Raw": "2003",
+            "doloRaw": "1001",
+            "pairedRaw": "2003",
+            "rangeStatus": "in_range",
+            "valueUsd": None,
+            "custodian": self.ISLAND,
+            "beneficialOwner": None,
+            "quality": "unavailable",
+        }
+        island = {
+            "address": self.ISLAND,
+            "totalShares": 100,
+            "balances": {
+                self.ALICE: 30,
+                self.FARM: 50,
+                self.UNKNOWN_VAULT: 20,
+            },
+        }
+        farms = [
+            {
+                "address": self.FARM,
+                "stakingToken": self.ISLAND,
+                "custodyBalance": 50,
+                "stakedBalances": {self.BOB: 30, self.CAROL: 20},
+            }
+        ]
+
+        rows = liquidity.allocate_kodiak_island_position(
+            underlying,
+            island,
+            farms,
+            contract_addresses={self.FARM, self.UNKNOWN_VAULT, self.ISLAND},
+        )
+
+        self.assertEqual(len(rows), 4)
+        self.assertNotIn(underlying["id"], [row["id"] for row in rows])
+        self.assertEqual(sum(int(row["amount0Raw"]) for row in rows), 1001)
+        self.assertEqual(sum(int(row["amount1Raw"]) for row in rows), 2003)
+        self.assertEqual(sum(int(row["shareBalanceRaw"]) for row in rows), 100)
+        by_owner = {row["beneficialOwner"]: row for row in rows}
+        self.assertEqual(by_owner[self.ALICE]["attributionPath"], "kodiak_island")
+        self.assertEqual(by_owner[self.BOB]["attributionPath"], "kodiak_island_farm")
+        self.assertEqual(by_owner[self.BOB]["custodian"], self.FARM)
+        self.assertEqual(by_owner[self.CAROL]["shareBalanceRaw"], "20")
+        unresolved = by_owner[None]
+        self.assertEqual(unresolved["custodian"], self.UNKNOWN_VAULT)
+        self.assertEqual(unresolved["positionStatus"], "custodied_unresolved")
+        self.assertEqual(unresolved["quality"], "unavailable")
+
+    def test_unsupported_or_mismatched_farm_stays_unresolved(self):
+        underlying = {
+            "id": "position-1",
+            "sourceKey": "berachain:kodiak-v3",
+            "poolId": self.POOL,
+            "poolIdentifierType": "contract",
+            "chainKey": "berachain",
+            "adapter": "kodiak-v3",
+            "pair": "DOLO/WBERA",
+            "positionId": "77",
+            "amount0Raw": "1000",
+            "amount1Raw": "2000",
+            "doloRaw": "1000",
+            "pairedRaw": "2000",
+            "rangeStatus": "in_range",
+            "valueUsd": None,
+        }
+        island = {
+            "address": self.ISLAND,
+            "totalShares": 100,
+            "balances": {self.ALICE: 50, self.FARM: 50},
+        }
+        farms = [
+            {
+                "address": self.FARM,
+                "stakingToken": "0x" + "99" * 20,
+                "custodyBalance": 50,
+                "stakedBalances": {self.BOB: 50},
+            }
+        ]
+
+        rows = liquidity.allocate_kodiak_island_position(
+            underlying,
+            island,
+            farms,
+            contract_addresses={self.FARM, self.ISLAND},
+        )
+
+        self.assertEqual(len(rows), 2)
+        self.assertNotIn(self.BOB, [row["beneficialOwner"] for row in rows])
+        unresolved = next(row for row in rows if row["beneficialOwner"] is None)
+        self.assertEqual(unresolved["custodian"], self.FARM)
+        self.assertIn("staking token mismatch", unresolved["attributionReason"])
+
+    def test_island_history_ignores_rebalances_and_staking_custody_moves(self):
+        base = {
+            "chainKey": "berachain",
+            "adapter": "kodiak-v3",
+            "identifier": self.POOL,
+            "identifierType": "contract",
+            "pair": "DOLO/WBERA",
+            "token0": DOLO,
+            "token1": self.WBERA,
+        }
+        actions = [
+            {
+                "kind": "deposit",
+                "owner": self.ALICE,
+                "shareDeltaRaw": 30,
+                "amount0Raw": 100,
+                "amount1Raw": 200,
+                "blockNumber": 400,
+                "timestamp": 1_700_300_400,
+                "txHash": "0x" + "41" * 32,
+                "logIndex": 1,
+            },
+            {"kind": "rebalance", "owner": self.MANAGER},
+            {"kind": "stake", "owner": self.ALICE, "custodian": self.FARM},
+            {"kind": "unstake", "owner": self.ALICE, "custodian": self.FARM},
+            {"kind": "share_transfer", "owner": self.ALICE, "to": self.BOB},
+            {
+                "kind": "withdraw",
+                "owner": self.ALICE,
+                "shareDeltaRaw": 10,
+                "amount0Raw": 30,
+                "amount1Raw": 60,
+                "blockNumber": 401,
+                "timestamp": 1_700_300_401,
+                "txHash": "0x" + "42" * 32,
+                "logIndex": 1,
+            },
+            {
+                "kind": "withdraw",
+                "owner": self.ALICE,
+                "shareDeltaRaw": 20,
+                "amount0Raw": 70,
+                "amount1Raw": 140,
+                "blockNumber": 402,
+                "timestamp": 1_700_300_402,
+                "txHash": "0x" + "43" * 32,
+                "logIndex": 1,
+            },
+        ]
+
+        rows = liquidity.build_kodiak_island_history(base, self.ISLAND, actions)
+
+        self.assertEqual([row["action"] for row in rows], ["Added", "Removed", "Closed"])
+        self.assertEqual([row["doloRaw"] for row in rows], ["100", "30", "70"])
+        self.assertTrue(all(row["attributionPath"] == "kodiak_island" for row in rows))
+        self.assertNotIn("rebalance", [row.get("kind") for row in rows])
+
+
 if __name__ == "__main__":
     unittest.main()
