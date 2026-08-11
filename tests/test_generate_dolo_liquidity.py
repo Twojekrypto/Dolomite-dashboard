@@ -77,6 +77,8 @@ class RegistryContractTests(unittest.TestCase):
         self.assertTrue(PRIMARY_IDENTIFIERS.issubset(actual_primary))
         self.assertTrue(SECONDARY_IDENTIFIERS.issubset(actual_secondary))
         self.assertEqual(registry["display"]["hideBelowLiquidityUsd"], 1000)
+        bulla = next(row for row in registry["pools"] if row["adapter"] == "bulla-v3")
+        self.assertEqual(bulla["version"], "Algebra Integral")
 
     def test_production_registry_uses_official_manager_and_factory_addresses(self):
         registry = liquidity.load_registry(REGISTRY)
