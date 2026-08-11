@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from decimal import Decimal, getcontext
 from pathlib import Path
+from unittest.mock import Mock
 
 import generate_dolo_liquidity as liquidity
 
@@ -234,6 +235,220 @@ class ExactLiquidityMathTests(unittest.TestCase):
         self.assertEqual(liquidity.classify_range(20, 10, 20), "out_of_range")
         self.assertEqual(liquidity.classify_range(9, 10, 20), "out_of_range")
         self.assertEqual(liquidity.classify_range(None, 10, 20), "unavailable")
+
+
+class IncrementalReplayTests(unittest.TestCase):
+    def setUp(self):
+        self.tx_a = "0x" + "aa" * 32
+        self.tx_b = "0x" + "bb" * 32
+        self.address = "0x" + "12" * 20
+        self.topic = "0x" + "34" * 32
+
+    def _rpc_log(self, block, transaction_index, log_index, tx_hash=None, **overrides):
+        row = {
+            "address": self.address,
+            "blockNumber": hex(block),
+            "transactionIndex": hex(transaction_index),
+            "logIndex": hex(log_index),
+            "transactionHash": tx_hash or self.tx_a,
+            "blockHash": "0x" + f"{block:064x}",
+            "data": "0x",
+            "topics": [self.topic],
+            "removed": False,
+        }
+        row.update(overrides)
+        return row
+
+    def test_resume_block_uses_inclusive_128_block_overlap(self):
+        self.assertEqual(
+            liquidity.resume_block({"lastScannedBlock": 1000}, 100, overlap=128),
+            873,
+        )
+        self.assertEqual(
+            liquidity.resume_block({"lastScannedBlock": 150}, 100, overlap=128),
+            100,
+        )
+        self.assertEqual(liquidity.resume_block(None, 100, overlap=128), 100)
+
+    def test_block_ranges_cover_boundaries_once(self):
+        self.assertEqual(
+            list(liquidity.block_ranges(10, 20, 4)),
+            [(10, 13), (14, 17), (18, 20)],
+        )
+        self.assertEqual(list(liquidity.block_ranges(20, 20, 4)), [(20, 20)])
+        self.assertEqual(list(liquidity.block_ranges(21, 20, 4)), [])
+
+    def test_scan_logs_sorts_provider_order_and_advances_after_all_chunks(self):
+        calls = []
+
+        def fake_rpc(_endpoints, payload, **_kwargs):
+            calls.append(payload["params"][0])
+            start = int(payload["params"][0]["fromBlock"], 16)
+            if start == 10:
+                rows = [
+                    self._rpc_log(11, 1, 4, tx_hash=self.tx_b),
+                    self._rpc_log(10, 2, 9, tx_hash=self.tx_a),
+                ]
+            else:
+                rows = [self._rpc_log(12, 0, 0, tx_hash="0x" + "cc" * 32)]
+            return {"jsonrpc": "2.0", "id": payload["id"], "result": rows}
+
+        rows, cursor = liquidity.scan_logs(
+            "ethereum",
+            self.address,
+            [self.topic],
+            10,
+            12,
+            2,
+            rpc=fake_rpc,
+            endpoints=["https://rpc.invalid"],
+        )
+
+        self.assertEqual([(row["blockNumber"], row["logIndex"]) for row in rows], [(10, 9), (11, 4), (12, 0)])
+        self.assertEqual(cursor, 12)
+        self.assertEqual(
+            [(int(call["fromBlock"], 16), int(call["toBlock"], 16)) for call in calls],
+            [(10, 11), (12, 12)],
+        )
+
+    def test_scan_failure_does_not_mutate_or_advance_previous_source(self):
+        previous = {"lastScannedBlock": 50, "status": "complete"}
+        calls = 0
+
+        def fake_rpc(_endpoints, payload, **_kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise RuntimeError("provider failed")
+            return {
+                "jsonrpc": "2.0",
+                "id": payload["id"],
+                "result": [self._rpc_log(51, 0, 0)],
+            }
+
+        with self.assertRaisesRegex(RuntimeError, "provider failed"):
+            liquidity.scan_logs(
+                "ethereum",
+                self.address,
+                [self.topic],
+                51,
+                55,
+                3,
+                rpc=fake_rpc,
+                endpoints=["https://rpc.invalid"],
+            )
+
+        self.assertEqual(previous, {"lastScannedBlock": 50, "status": "complete"})
+
+    def test_scan_rejects_removed_or_malformed_logs(self):
+        for row, message in [
+            (self._rpc_log(10, 0, 0, removed=True), "removed log"),
+            (self._rpc_log(10, 0, 0, transactionHash="0x1234"), "transaction hash"),
+        ]:
+            with self.subTest(message=message):
+                fake = Mock(return_value={"jsonrpc": "2.0", "id": 1, "result": [row]})
+                with self.assertRaisesRegex(ValueError, message):
+                    liquidity.scan_logs(
+                        "ethereum",
+                        self.address,
+                        [self.topic],
+                        10,
+                        10,
+                        1,
+                        rpc=fake,
+                        endpoints=["https://rpc.invalid"],
+                    )
+
+    def test_dedupe_accepts_exact_duplicates_and_rejects_key_collisions(self):
+        first = liquidity.normalize_rpc_log(self._rpc_log(10, 0, 1))
+        duplicate = dict(first)
+        unique = liquidity.normalize_rpc_log(self._rpc_log(10, 0, 2))
+
+        self.assertEqual(
+            liquidity.dedupe_logs("ethereum", [first, duplicate, unique]),
+            [first, unique],
+        )
+
+        collision = dict(first, address="0x" + "99" * 20)
+        with self.assertRaisesRegex(ValueError, "event-key collision"):
+            liquidity.dedupe_logs("ethereum", [first, collision])
+
+    def test_stale_fallback_preserves_only_failed_adapter_rows_and_cursor(self):
+        previous = {
+            "sources": [
+                {"key": "ethereum:uniswap-v3", "status": "complete", "lastScannedBlock": 99},
+                {"key": "berachain:kodiak-v3", "status": "complete", "lastScannedBlock": 77},
+            ],
+            "pools": [
+                {"id": "pool-a", "sourceKey": "ethereum:uniswap-v3", "quality": "verified"},
+                {"id": "pool-b", "sourceKey": "berachain:kodiak-v3", "quality": "verified"},
+            ],
+            "activePositions": [
+                {"id": "position-a", "sourceKey": "ethereum:uniswap-v3", "quality": "verified"},
+                {"id": "position-b", "sourceKey": "berachain:kodiak-v3", "quality": "verified"},
+            ],
+            "history": [
+                {"id": "history-a", "sourceKey": "ethereum:uniswap-v3", "quality": "partial"},
+                {"id": "history-b", "sourceKey": "berachain:kodiak-v3", "quality": "verified"},
+            ],
+        }
+
+        fragment = liquidity.preserve_stale_adapter(
+            previous,
+            "ethereum:uniswap-v3",
+            RuntimeError("RPC https://secret.example/v2/0123456789abcdef failed"),
+            "2026-08-11T18:00:00Z",
+        )
+
+        self.assertEqual(fragment["source"]["lastScannedBlock"], 99)
+        self.assertEqual(fragment["source"]["status"], "stale")
+        self.assertNotIn("0123456789abcdef", fragment["source"]["errors"][0])
+        self.assertEqual([row["id"] for row in fragment["pools"]], ["pool-a"])
+        self.assertEqual(fragment["pools"][0]["quality"], "stale")
+        self.assertEqual(fragment["activePositions"][0]["quality"], "stale")
+        self.assertEqual(fragment["history"][0]["quality"], "partial")
+
+    def test_load_previous_artifact_accepts_missing_and_rejects_corrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "artifact.json"
+            self.assertEqual(liquidity.load_previous_artifact(path), {})
+            path.write_text("not json")
+            with self.assertRaisesRegex(ValueError, "previous artifact"):
+                liquidity.load_previous_artifact(path)
+
+    def test_block_timestamp_batch_uses_cache_and_fails_closed_on_missing(self):
+        cache = {("ethereum", 10): 1000}
+
+        def fake_batch(_endpoints, payloads, **_kwargs):
+            self.assertEqual([payload["params"][0] for payload in payloads], [hex(11)])
+            return {
+                "block:11": {
+                    "jsonrpc": "2.0",
+                    "id": "block:11",
+                    "result": {"number": hex(11), "timestamp": hex(1100)},
+                }
+            }, []
+
+        actual = liquidity.fetch_block_timestamps(
+            "ethereum",
+            [10, 11, 10],
+            endpoints=["https://rpc.invalid"],
+            rpc_batch=fake_batch,
+            cache=cache,
+        )
+        self.assertEqual(actual, {10: 1000, 11: 1100})
+
+        def missing_batch(_endpoints, payloads, **_kwargs):
+            return {}, [payloads[0]["id"]]
+
+        with self.assertRaisesRegex(RuntimeError, "timestamp"):
+            liquidity.fetch_block_timestamps(
+                "ethereum",
+                [12],
+                endpoints=["https://rpc.invalid"],
+                rpc_batch=missing_batch,
+                cache={},
+            )
 
 
 if __name__ == "__main__":
