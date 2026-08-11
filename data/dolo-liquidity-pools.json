@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "token": {
+    "symbol": "DOLO",
+    "decimals": 18,
+    "addresses": {
+      "ethereum": "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654",
+      "berachain": "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654"
+    }
+  },
+  "display": {
+    "hideBelowLiquidityUsd": 1000,
+    "pageSize": 10
+  },
+  "chains": {
+    "ethereum": {
+      "chainId": 1,
+      "name": "Ethereum",
+      "discoveryStartBlock": 21500000,
+      "logChunkSize": 25000,
+      "explorerBaseUrl": "https://etherscan.io",
+      "dexscreenerChain": "ethereum",
+      "adapters": {
+        "uniswap-v3": {
+          "factory": "0x1f98431c8ad98523631ae4a59f267346ea31f984",
+          "positionManager": "0xc36442b4a4522e871399cd717abdd847ab11fe88"
+        },
+        "uniswap-v4": {
+          "poolManager": "0x000000000004444c5dc75cb358380d2e3de08a90",
+          "positionManager": "0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e",
+          "stateView": "0x7ffe42c4a5deea5b0fec41c94c136cf115597227"
+        }
+      }
+    },
+    "berachain": {
+      "chainId": 80094,
+      "name": "Berachain",
+      "discoveryStartBlock": 2900000,
+      "logChunkSize": 50000,
+      "explorerBaseUrl": "https://berascan.com",
+      "dexscreenerChain": "berachain",
+      "adapters": {
+        "kodiak-v3": {
+          "factory": "0xd84cbf0b02636e7f53db9e5e45a616e05d710990",
+          "positionManager": "0xfe5e8c83ffe4d9627a75eaa7fee864768db989bd"
+        },
+        "kodiak-v2": {
+          "factory": "0x5e705e184d233ff2a7cb1553793464a9d0c3028f"
+        },
+        "bulla-v2": {
+          "factory": "0x79164ea9c1aa75d19ddfc71ebeaea8092d1e71ce"
+        }
+      },
+      "custody": {
+        "kodiakIslandFactory": "0x5261c5a5f08818c08ed0eb036d9575ba1e02c1d6",
+        "kodiakIslandRouter": "0x679a7c63fc83b6a4d9c1f931891d705483d4791f",
+        "kodiakFarmFactory": "0xaeaa563d9110f833fa3fb1ff9a35dfba11b0c9cf"
+      }
+    }
+  },
+  "pools": [
+    {
+      "chainKey": "ethereum",
+      "adapter": "uniswap-v4",
+      "identifier": "0x2d97d14362ae5a19a15adb230cf8840ee7e133bf942fd8efd754ae4d078727ea",
+      "identifierType": "poolId",
+      "pair": "DOLO/USD1",
+      "dex": "Uniswap",
+      "version": "v4",
+      "primary": true,
+      "priority": 1,
+      "sourceUrl": "https://dexscreener.com/ethereum/0x2d97d14362ae5a19a15adb230cf8840ee7e133bf942fd8efd754ae4d078727ea"
+    },
+    {
+      "chainKey": "ethereum",
+      "adapter": "uniswap-v3",
+      "identifier": "0x003896387666c5c11458eeb3f927b72a11b19783",
+      "identifierType": "contract",
+      "pair": "DOLO/USDC",
+      "dex": "Uniswap",
+      "version": "v3",
+      "primary": true,
+      "priority": 2,
+      "sourceUrl": "https://dexscreener.com/ethereum/0x003896387666c5c11458eeb3f927b72a11b19783"
+    },
+    {
+      "chainKey": "ethereum",
+      "adapter": "uniswap-v4",
+      "identifier": "0x6f6f24b5a1cd819382379eb032466b8bac7ea0697cfcf31b7350b55ff4f1c472",
+      "identifierType": "poolId",
+      "pair": "DOLO/ETH",
+      "dex": "Uniswap",
+      "version": "v4",
+      "primary": true,
+      "priority": 3,
+      "sourceUrl": "https://dexscreener.com/ethereum/0x6f6f24b5a1cd819382379eb032466b8bac7ea0697cfcf31b7350b55ff4f1c472"
+    },
+    {
+      "chainKey": "ethereum",
+      "adapter": "uniswap-v4",
+      "identifier": "0x728e6e3b736e28f6b52f72ecec16a056b8ac6d9e05736a84e6b6128df9b1a12a",
+      "identifierType": "poolId",
+      "pair": "DOLO/USDC",
+      "dex": "Uniswap",
+      "version": "v4",
+      "primary": true,
+      "priority": 4,
+      "sourceUrl": "https://dexscreener.com/ethereum/0x728e6e3b736e28f6b52f72ecec16a056b8ac6d9e05736a84e6b6128df9b1a12a"
+    },
+    {
+      "chainKey": "berachain",
+      "adapter": "kodiak-v3",
+      "identifier": "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3",
+      "identifierType": "contract",
+      "pair": "DOLO/WBERA",
+      "dex": "Kodiak",
+      "version": "v3",
+      "primary": true,
+      "priority": 5,
+      "sourceUrl": "https://dexscreener.com/berachain/0xd5980e98a89e2d2361b3be657e8a003c6d3514e3"
+    },
+    {
+      "chainKey": "berachain",
+      "adapter": "bulla-v2",
+      "identifier": "0x8991017b74f9f8070bff5b322802dd26e05e0cc7",
+      "identifierType": "contract",
+      "pair": "DOLO/HONEY",
+      "dex": "Bulla",
+      "version": "v2",
+      "primary": false,
+      "priority": 10,
+      "sourceUrl": "https://dexscreener.com/berachain/0x8991017b74f9f8070bff5b322802dd26e05e0cc7"
+    },
+    {
+      "chainKey": "berachain",
+      "adapter": "kodiak-v3",
+      "identifier": "0x8194ed4d6701b7a1b40e48431de37047f0248b0b",
+      "identifierType": "contract",
+      "pair": "DOLO/USDC.e",
+      "dex": "Kodiak",
+      "version": "v3",
+      "primary": false,
+      "priority": 11,
+      "sourceUrl": "https://dexscreener.com/berachain/0x8194ed4d6701b7a1b40e48431de37047f0248b0b"
+    }
+  ]
+}
