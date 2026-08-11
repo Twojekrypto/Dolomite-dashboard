@@ -15,6 +15,13 @@ from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
+from rpc_client import (
+    get_endpoints,
+    rpc_batch_requests,
+    rpc_single_request,
+    sanitize_error,
+)
+
 
 Q96 = 1 << 96
 SUPPORTED_ADAPTERS = {
@@ -279,3 +286,298 @@ def classify_range(
     if lower >= upper:
         raise ValueError("tick lower must be less than tick upper")
     return "in_range" if lower <= current < upper else "out_of_range"
+
+
+def resume_block(
+    previous_source: dict[str, Any] | None,
+    configured_start: int,
+    *,
+    overlap: int = 128,
+) -> int:
+    """Choose an inclusive replay start with the requested overlap."""
+    start = _exact_int(configured_start, "configured start block")
+    overlap_blocks = _exact_int(overlap, "overlap")
+    if start < 0:
+        raise ValueError("configured start block must be nonnegative")
+    if overlap_blocks <= 0:
+        raise ValueError("overlap must be positive")
+    if not previous_source:
+        return start
+    if not isinstance(previous_source, dict):
+        raise ValueError("previous source must be an object")
+    last_scanned = previous_source.get("lastScannedBlock")
+    if isinstance(last_scanned, bool) or not isinstance(last_scanned, int) or last_scanned < 0:
+        raise ValueError("previous source lastScannedBlock must be a nonnegative integer")
+    return max(start, last_scanned - overlap_blocks + 1)
+
+
+def block_ranges(from_block: int, to_block: int, chunk_size: int):
+    """Yield inclusive block ranges without gaps or boundary duplication."""
+    start = _exact_int(from_block, "from block")
+    end = _exact_int(to_block, "to block")
+    size = _exact_int(chunk_size, "chunk size")
+    if start < 0 or end < 0:
+        raise ValueError("block range must be nonnegative")
+    if size <= 0:
+        raise ValueError("chunk size must be positive")
+    while start <= end:
+        chunk_end = min(end, start + size - 1)
+        yield start, chunk_end
+        start = chunk_end + 1
+
+
+def _rpc_hex_int(value: Any, label: str) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{label} must be an RPC hex integer")
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str) and value.lower().startswith("0x"):
+        try:
+            parsed = int(value, 16)
+        except ValueError as exc:
+            raise ValueError(f"{label} must be an RPC hex integer") from exc
+    else:
+        raise ValueError(f"{label} must be an RPC hex integer")
+    if parsed < 0:
+        raise ValueError(f"{label} must be nonnegative")
+    return parsed
+
+
+def normalize_rpc_log(row: Any) -> dict[str, Any]:
+    """Validate and normalize one JSON-RPC log for deterministic replay."""
+    if not isinstance(row, dict):
+        raise ValueError("RPC log must be an object")
+    if row.get("removed") is True:
+        raise ValueError("removed log cannot be used for canonical replay")
+    address = _normalized_address(row.get("address"), "log address")
+    tx_hash = str(row.get("transactionHash") or "").strip().lower()
+    if not TX_HASH_RE.fullmatch(tx_hash):
+        raise ValueError("log transaction hash must be a bytes32 hex value")
+    block_hash = str(row.get("blockHash") or "").strip().lower()
+    if block_hash and not POOL_ID_RE.fullmatch(block_hash):
+        raise ValueError("log block hash must be a bytes32 hex value")
+    topics = row.get("topics")
+    if not isinstance(topics, list):
+        raise ValueError("log topics must be a list")
+    normalized_topics = []
+    for topic in topics:
+        normalized = str(topic or "").strip().lower()
+        if not POOL_ID_RE.fullmatch(normalized):
+            raise ValueError("log topic must be a bytes32 hex value")
+        normalized_topics.append(normalized)
+    data = str(row.get("data") or "").strip().lower()
+    if not re.fullmatch(r"0x(?:[0-9a-f]{2})*", data):
+        raise ValueError("log data must be even-length hex")
+    return {
+        "address": address,
+        "blockNumber": _rpc_hex_int(row.get("blockNumber"), "log block number"),
+        "transactionIndex": _rpc_hex_int(
+            row.get("transactionIndex"), "log transaction index"
+        ),
+        "logIndex": _rpc_hex_int(row.get("logIndex"), "log index"),
+        "transactionHash": tx_hash,
+        "blockHash": block_hash,
+        "data": data,
+        "topics": normalized_topics,
+        "removed": False,
+    }
+
+
+def dedupe_logs(chain_key: str, logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Deduplicate exact events while failing on conflicting event identities."""
+    by_key: dict[str, dict[str, Any]] = {}
+    for raw in logs:
+        row = normalize_rpc_log(raw) if isinstance(raw.get("blockNumber"), str) else copy.deepcopy(raw)
+        key = event_key(chain_key, row.get("transactionHash"), row.get("logIndex"))
+        previous = by_key.get(key)
+        if previous is not None and previous != row:
+            raise ValueError(f"event-key collision has conflicting payloads: {key}")
+        by_key[key] = row
+    return sorted(
+        by_key.values(),
+        key=lambda row: (
+            row["blockNumber"],
+            row["transactionIndex"],
+            row["logIndex"],
+        ),
+    )
+
+
+def scan_logs(
+    chain: str,
+    addresses: str | list[str],
+    topics: list[Any],
+    from_block: int,
+    to_block: int,
+    chunk_size: int,
+    *,
+    rpc=None,
+    endpoints: list[str] | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Scan and normalize a complete inclusive log range.
+
+    The cursor is returned only after every requested chunk has succeeded.
+    """
+    chain_key = str(chain or "").strip().lower()
+    if not chain_key:
+        raise ValueError("chain is required")
+    start = _exact_int(from_block, "from block")
+    end = _exact_int(to_block, "to block")
+    if end < start:
+        return [], end
+    rpc_call = rpc or rpc_single_request
+    rpc_endpoints = list(endpoints) if endpoints is not None else get_endpoints(chain_key)
+    if isinstance(addresses, str):
+        address_filter: str | list[str] = _normalized_address(addresses, "log address filter")
+    elif isinstance(addresses, list) and addresses:
+        address_filter = [
+            _normalized_address(address, "log address filter") for address in addresses
+        ]
+    else:
+        raise ValueError("log address filter must be an address or non-empty list")
+    if not isinstance(topics, list):
+        raise ValueError("topics filter must be a list")
+
+    collected: list[dict[str, Any]] = []
+    for chunk_start, chunk_end in block_ranges(start, end, chunk_size):
+        request_id = f"logs:{chain_key}:{chunk_start}:{chunk_end}"
+        payload = {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "eth_getLogs",
+            "params": [
+                {
+                    "address": address_filter,
+                    "topics": topics,
+                    "fromBlock": hex(chunk_start),
+                    "toBlock": hex(chunk_end),
+                }
+            ],
+        }
+        response = rpc_call(
+            rpc_endpoints,
+            payload,
+            describe=f"{chain_key} logs {chunk_start}-{chunk_end}",
+        )
+        if not isinstance(response, dict):
+            raise RuntimeError(f"{chain_key} log response was not an object")
+        if response.get("error"):
+            raise RuntimeError(
+                f"{chain_key} log response error: {sanitize_error(response['error'])}"
+            )
+        rows = response.get("result")
+        if not isinstance(rows, list):
+            raise RuntimeError(f"{chain_key} log response result was not a list")
+        collected.extend(normalize_rpc_log(row) for row in rows)
+    return dedupe_logs(chain_key, collected), end
+
+
+def load_previous_artifact(path: str | Path) -> dict[str, Any]:
+    """Load a checked-in last-known-good artifact, or empty state if absent."""
+    artifact_path = Path(path)
+    if not artifact_path.exists():
+        return {}
+    try:
+        data = json.loads(artifact_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid previous artifact {artifact_path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("previous artifact must be an object")
+    return data
+
+
+def preserve_stale_adapter(
+    previous: dict[str, Any],
+    adapter_key: str,
+    error: Exception,
+    generated_at: str,
+) -> dict[str, Any]:
+    """Extract last-known-good rows for one failed adapter and mark them stale."""
+    if not isinstance(previous, dict):
+        raise ValueError("previous artifact must be an object")
+    source = next(
+        (
+            copy.deepcopy(row)
+            for row in previous.get("sources", [])
+            if isinstance(row, dict) and row.get("key") == adapter_key
+        ),
+        None,
+    )
+    if source is None:
+        raise ValueError(f"previous artifact has no source {adapter_key}")
+    source["status"] = "stale"
+    source["staleSince"] = generated_at
+    source["errors"] = [sanitize_error(error)]
+
+    def rows_for(field: str) -> list[dict[str, Any]]:
+        rows = []
+        for row in previous.get(field, []):
+            if not isinstance(row, dict) or row.get("sourceKey") != adapter_key:
+                continue
+            preserved = copy.deepcopy(row)
+            if preserved.get("quality") == "verified":
+                preserved["quality"] = "stale"
+            preserved["staleSince"] = generated_at
+            rows.append(preserved)
+        return rows
+
+    return {
+        "source": source,
+        "pools": rows_for("pools"),
+        "activePositions": rows_for("activePositions"),
+        "history": rows_for("history"),
+    }
+
+
+def fetch_block_timestamps(
+    chain: str,
+    block_numbers: list[int],
+    *,
+    endpoints: list[str] | None = None,
+    rpc_batch=None,
+    cache: dict[tuple[str, int], int] | None = None,
+) -> dict[int, int]:
+    """Fetch exact block timestamps in one batch and fail on any missing block."""
+    chain_key = str(chain or "").strip().lower()
+    if not chain_key:
+        raise ValueError("chain is required")
+    timestamp_cache = cache if cache is not None else {}
+    requested = sorted({_exact_int(block, "block number") for block in block_numbers})
+    if any(block < 0 for block in requested):
+        raise ValueError("block number must be nonnegative")
+    missing_blocks = [
+        block for block in requested if (chain_key, block) not in timestamp_cache
+    ]
+    if missing_blocks:
+        payloads = [
+            {
+                "jsonrpc": "2.0",
+                "id": f"block:{block}",
+                "method": "eth_getBlockByNumber",
+                "params": [hex(block), False],
+            }
+            for block in missing_blocks
+        ]
+        batch_call = rpc_batch or rpc_batch_requests
+        rpc_endpoints = list(endpoints) if endpoints is not None else get_endpoints(chain_key)
+        responses, missing_ids = batch_call(
+            rpc_endpoints,
+            payloads,
+            describe=f"{chain_key} block timestamps",
+        )
+        missing_id_set = set(missing_ids or [])
+        for block in missing_blocks:
+            request_id = f"block:{block}"
+            response = responses.get(request_id) if isinstance(responses, dict) else None
+            result = response.get("result") if isinstance(response, dict) else None
+            if request_id in missing_id_set or not isinstance(result, dict):
+                raise RuntimeError(f"missing exact timestamp for {chain_key} block {block}")
+            timestamp = _rpc_hex_int(result.get("timestamp"), "block timestamp")
+            returned_block = _rpc_hex_int(result.get("number"), "returned block number")
+            if returned_block != block:
+                raise RuntimeError(
+                    f"timestamp response block mismatch for {chain_key}: "
+                    f"requested {block}, received {returned_block}"
+                )
+            timestamp_cache[(chain_key, block)] = timestamp
+    return {block: timestamp_cache[(chain_key, block)] for block in requested}
