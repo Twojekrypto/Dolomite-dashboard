@@ -9,11 +9,16 @@ functions so event replay can be tested without network access.
 from __future__ import annotations
 
 import copy
+import itertools
 import json
 import re
+from collections import defaultdict
 from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any
+
+from eth_abi import decode
+from web3 import Web3
 
 from rpc_client import (
     get_endpoints,
@@ -24,6 +29,7 @@ from rpc_client import (
 
 
 Q96 = 1 << 96
+DOLO_ADDRESS = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654"
 SUPPORTED_ADAPTERS = {
     "uniswap-v3",
     "uniswap-v4",
@@ -36,6 +42,14 @@ SUPPORTED_ADAPTERS = {
 ADDRESS_RE = re.compile(r"^0x[0-9a-f]{40}$")
 POOL_ID_RE = re.compile(r"^0x[0-9a-f]{64}$")
 TX_HASH_RE = POOL_ID_RE
+ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
+
+V2_EVENT_SIGNATURES = {
+    "transfer": "Transfer(address,address,uint256)",
+    "mint": "Mint(address,uint256,uint256)",
+    "burn": "Burn(address,uint256,uint256,address)",
+    "sync": "Sync(uint112,uint112)",
+}
 
 
 def _exact_int(value: Any, label: str) -> int:
@@ -189,6 +203,15 @@ def event_key(chain_key: Any, tx_hash: Any, log_index: Any) -> str:
     if index < 0:
         raise ValueError("log index must be a nonnegative integer")
     return f"{chain}:{tx}:{index}"
+
+
+def event_topic(signature: str) -> str:
+    """Return the canonical Keccak event signature topic."""
+    normalized = str(signature or "").strip()
+    if not normalized or "(" not in normalized or not normalized.endswith(")"):
+        raise ValueError("event signature must be a canonical Solidity signature")
+    topic = Web3.keccak(text=normalized).hex().lower()
+    return topic if topic.startswith("0x") else "0x" + topic
 
 
 def tick_to_paired_per_dolo(
@@ -581,3 +604,292 @@ def fetch_block_timestamps(
                 )
             timestamp_cache[(chain_key, block)] = timestamp
     return {block: timestamp_cache[(chain_key, block)] for block in requested}
+
+
+def _address_from_topic(topic: Any, label: str) -> str:
+    normalized = str(topic or "").strip().lower()
+    if not POOL_ID_RE.fullmatch(normalized):
+        raise ValueError(f"{label} topic must be bytes32")
+    return _normalized_address("0x" + normalized[-40:], label)
+
+
+def _decoded_log_base(log: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(log, dict):
+        raise ValueError("event log must be an object")
+    timestamp = log.get("timestamp")
+    if timestamp is not None:
+        timestamp = _exact_int(timestamp, "event timestamp")
+        if timestamp <= 0:
+            raise ValueError("event timestamp must be positive")
+    tx_hash = str(log.get("transactionHash") or "").strip().lower()
+    if not TX_HASH_RE.fullmatch(tx_hash):
+        raise ValueError("event transaction hash must be a bytes32 hex value")
+    return {
+        "blockNumber": _rpc_hex_int(log.get("blockNumber"), "event block number"),
+        "transactionIndex": _rpc_hex_int(
+            log.get("transactionIndex"), "event transaction index"
+        ),
+        "logIndex": _rpc_hex_int(log.get("logIndex"), "event log index"),
+        "txHash": tx_hash,
+        "timestamp": timestamp,
+    }
+
+
+def decode_v2_log(log: dict[str, Any]) -> dict[str, Any] | None:
+    """Decode one exact Uniswap-v2-compatible pool event."""
+    topics = log.get("topics") if isinstance(log, dict) else None
+    if not isinstance(topics, list) or not topics:
+        raise ValueError("V2 log topics are required")
+    signature_topic = str(topics[0]).strip().lower()
+    data_hex = str(log.get("data") or "").strip().lower()
+    if not re.fullmatch(r"0x(?:[0-9a-f]{2})*", data_hex):
+        raise ValueError("V2 log data must be even-length hex")
+    data = bytes.fromhex(data_hex[2:])
+    base = _decoded_log_base(log)
+
+    if signature_topic == event_topic(V2_EVENT_SIGNATURES["transfer"]):
+        if len(topics) != 3:
+            raise ValueError("V2 Transfer must have exactly two indexed addresses")
+        (value,) = decode(["uint256"], data)
+        return {
+            **base,
+            "kind": "transfer",
+            "from": _address_from_topic(topics[1], "transfer sender"),
+            "to": _address_from_topic(topics[2], "transfer recipient"),
+            "valueRaw": int(value),
+        }
+    if signature_topic == event_topic(V2_EVENT_SIGNATURES["mint"]):
+        if len(topics) != 2:
+            raise ValueError("V2 Mint must have exactly one indexed sender")
+        amount0, amount1 = decode(["uint256", "uint256"], data)
+        return {
+            **base,
+            "kind": "mint",
+            "sender": _address_from_topic(topics[1], "mint sender"),
+            "amount0Raw": int(amount0),
+            "amount1Raw": int(amount1),
+        }
+    if signature_topic == event_topic(V2_EVENT_SIGNATURES["burn"]):
+        if len(topics) != 3:
+            raise ValueError("V2 Burn must have indexed sender and recipient")
+        amount0, amount1 = decode(["uint256", "uint256"], data)
+        return {
+            **base,
+            "kind": "burn",
+            "sender": _address_from_topic(topics[1], "burn sender"),
+            "to": _address_from_topic(topics[2], "burn recipient"),
+            "amount0Raw": int(amount0),
+            "amount1Raw": int(amount1),
+        }
+    if signature_topic == event_topic(V2_EVENT_SIGNATURES["sync"]):
+        if len(topics) != 1:
+            raise ValueError("V2 Sync cannot have indexed values")
+        reserve0, reserve1 = decode(["uint112", "uint112"], data)
+        return {
+            **base,
+            "kind": "sync",
+            "reserve0Raw": int(reserve0),
+            "reserve1Raw": int(reserve1),
+        }
+    return None
+
+
+def _event_attribution(
+    owner: str | None,
+    contract_addresses: set[str],
+) -> dict[str, Any]:
+    if owner is None:
+        return {
+            "custodian": None,
+            "beneficialOwner": None,
+            "attributionPath": "unresolved",
+            "positionStatus": "custodied_unresolved",
+            "quality": "partial",
+        }
+    if owner in contract_addresses:
+        return {
+            "custodian": owner,
+            "beneficialOwner": None,
+            "attributionPath": "unresolved_contract",
+            "positionStatus": "custodied_unresolved",
+            "quality": "unavailable",
+        }
+    return {
+        "custodian": owner,
+        "beneficialOwner": owner,
+        "attributionPath": "direct",
+        "positionStatus": "active",
+        "quality": "verified",
+    }
+
+
+def replay_v2_pool(
+    pool: dict[str, Any],
+    logs: list[dict[str, Any]],
+    latest_state: dict[str, Any],
+    *,
+    contract_addresses: set[str] | None = None,
+) -> dict[str, Any]:
+    """Replay one V2-style LP token and return exact current/history rows."""
+    if not isinstance(pool, dict) or pool.get("identifierType") != "contract":
+        raise ValueError("V2 pool must use a contract identifier")
+    chain_key = str(pool.get("chainKey") or "").strip().lower()
+    adapter = str(pool.get("adapter") or "").strip().lower()
+    if adapter not in {"kodiak-v2", "bulla-v2", "beraswap-v2"}:
+        raise ValueError("V2 replay requires a supported V2 adapter")
+    pool_address = _normalized_address(pool.get("identifier"), "V2 pool")
+    source_key = f"{chain_key}:{adapter}"
+    normalized_contracts = {
+        _normalized_address(address, "contract address")
+        for address in (contract_addresses or set())
+    }
+
+    token0 = _normalized_address(latest_state.get("token0"), "V2 token0")
+    token1 = _normalized_address(latest_state.get("token1"), "V2 token1")
+    dolo = DOLO_ADDRESS
+    if dolo not in {token0, token1}:
+        raise ValueError("V2 pool does not contain DOLO")
+    total_supply = _exact_int(latest_state.get("totalSupply"), "V2 total supply")
+    reserve0 = _exact_int(latest_state.get("reserve0"), "V2 reserve0")
+    reserve1 = _exact_int(latest_state.get("reserve1"), "V2 reserve1")
+
+    decoded_events = []
+    for raw_log in logs:
+        log_address = _normalized_address(raw_log.get("address"), "V2 log address")
+        if log_address != pool_address:
+            continue
+        decoded = decode_v2_log(raw_log)
+        if decoded is not None:
+            decoded_events.append(decoded)
+    decoded_events.sort(
+        key=lambda row: (
+            row["blockNumber"],
+            row["transactionIndex"],
+            row["logIndex"],
+        )
+    )
+
+    balances: defaultdict[str, int] = defaultdict(int)
+    history: list[dict[str, Any]] = []
+    for _tx_hash, group_iter in itertools.groupby(decoded_events, key=lambda row: row["txHash"]):
+        group = list(group_iter)
+        starting_balances = dict(balances)
+        transfers = [event for event in group if event["kind"] == "transfer"]
+        for transfer in transfers:
+            sender = transfer["from"]
+            recipient = transfer["to"]
+            value = transfer["valueRaw"]
+            if sender != ZERO_ADDRESS:
+                balances[sender] -= value
+                if balances[sender] < 0:
+                    raise ValueError(
+                        f"V2 transfer replay produced a negative LP balance for {sender}"
+                    )
+            if recipient != ZERO_ADDRESS:
+                balances[recipient] += value
+
+        mint_recipients = {
+            transfer["to"]
+            for transfer in transfers
+            if transfer["from"] == ZERO_ADDRESS
+            and transfer["to"] not in {ZERO_ADDRESS, pool_address}
+            and transfer["valueRaw"] > 0
+        }
+        burn_owners = {
+            transfer["from"]
+            for transfer in transfers
+            if transfer["to"] == pool_address
+            and transfer["from"] not in {ZERO_ADDRESS, pool_address}
+            and transfer["valueRaw"] > 0
+        }
+
+        for event in group:
+            if event["kind"] not in {"mint", "burn"}:
+                continue
+            if event["timestamp"] is None:
+                raise ValueError("V2 liquidity history requires an exact block timestamp")
+            if event["kind"] == "mint":
+                owner = next(iter(mint_recipients)) if len(mint_recipients) == 1 else None
+                action = "Added" if owner is None or starting_balances.get(owner, 0) == 0 else "Increased"
+            else:
+                owner = next(iter(burn_owners)) if len(burn_owners) == 1 else None
+                action = "Closed" if owner is not None and balances.get(owner, 0) == 0 else "Removed"
+            attribution = _event_attribution(owner, normalized_contracts)
+            amount0 = event["amount0Raw"]
+            amount1 = event["amount1Raw"]
+            history.append(
+                {
+                    "id": event_key(chain_key, event["txHash"], event["logIndex"]),
+                    "sourceKey": source_key,
+                    "poolId": pool_address,
+                    "poolIdentifierType": "contract",
+                    "chainKey": chain_key,
+                    "adapter": adapter,
+                    "pair": pool.get("pair"),
+                    "action": action,
+                    "blockNumber": event["blockNumber"],
+                    "timestamp": event["timestamp"],
+                    "txHash": event["txHash"],
+                    "logIndex": event["logIndex"],
+                    "amount0Raw": str(amount0),
+                    "amount1Raw": str(amount1),
+                    "doloRaw": str(amount0 if token0 == dolo else amount1),
+                    "pairedRaw": str(amount1 if token0 == dolo else amount0),
+                    "valueUsd": None,
+                    **attribution,
+                }
+            )
+
+    onchain_balances = {
+        _normalized_address(address, "onchain LP holder"): _exact_int(value, "onchain LP balance")
+        for address, value in (latest_state.get("balances") or {}).items()
+    }
+    mismatches = []
+    active_positions = []
+    excluded = {ZERO_ADDRESS, pool_address}
+    for owner, balance in sorted(balances.items()):
+        if balance <= 0 or owner in excluded:
+            continue
+        amount0, amount1 = v2_underlying(balance, total_supply, reserve0, reserve1)
+        attribution = _event_attribution(owner, normalized_contracts)
+        onchain_balance = onchain_balances.get(owner)
+        if onchain_balance is not None and onchain_balance != balance:
+            mismatches.append(
+                {
+                    "address": owner,
+                    "replayedBalanceRaw": str(balance),
+                    "onchainBalanceRaw": str(onchain_balance),
+                }
+            )
+            if attribution["quality"] == "verified":
+                attribution["quality"] = "partial"
+        active_positions.append(
+            {
+                "id": f"{source_key}:{pool_address}:{owner}",
+                "sourceKey": source_key,
+                "poolId": pool_address,
+                "poolIdentifierType": "contract",
+                "chainKey": chain_key,
+                "adapter": adapter,
+                "pair": pool.get("pair"),
+                "positionType": "v2_full_range",
+                "lpBalanceRaw": str(balance),
+                "onchainLpBalanceRaw": str(onchain_balance) if onchain_balance is not None else None,
+                "amount0Raw": str(amount0),
+                "amount1Raw": str(amount1),
+                "doloRaw": str(amount0 if token0 == dolo else amount1),
+                "pairedRaw": str(amount1 if token0 == dolo else amount0),
+                "rangeStatus": "full_range",
+                "valueUsd": None,
+                **attribution,
+            }
+        )
+
+    return {
+        "sourceKey": source_key,
+        "sourceStatus": "partial" if mismatches else "complete",
+        "activePositions": active_positions,
+        "history": history,
+        "mismatches": mismatches,
+        "ledger": {address: str(value) for address, value in balances.items()},
+    }
