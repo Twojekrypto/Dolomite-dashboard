@@ -50,6 +50,12 @@ V2_EVENT_SIGNATURES = {
     "burn": "Burn(address,uint256,uint256,address)",
     "sync": "Sync(uint112,uint112)",
 }
+V3_EVENT_SIGNATURES = {
+    "pool_created": "PoolCreated(address,address,uint24,int24,address)",
+    "increase": "IncreaseLiquidity(uint256,uint128,uint256,uint256)",
+    "decrease": "DecreaseLiquidity(uint256,uint128,uint256,uint256)",
+    "transfer": "Transfer(address,address,uint256)",
+}
 
 
 def _exact_int(value: Any, label: str) -> int:
@@ -272,6 +278,47 @@ def amounts_for_liquidity(
     amount0 = liquidity_value * (upper - current) * Q96 // (current * upper)
     amount1 = liquidity_value * (current - lower) // Q96
     return amount0, amount1
+
+
+def sqrt_ratio_at_tick(tick: int) -> int:
+    """Port of Uniswap TickMath.getSqrtRatioAtTick with identical rounding."""
+    tick_value = _exact_int(tick, "tick")
+    absolute_tick = abs(tick_value)
+    if absolute_tick > 887272:
+        raise ValueError("tick must be within Uniswap TickMath bounds")
+    ratio = (
+        0xFFFcb933BD6fAD37AA2d162D1A594001
+        if absolute_tick & 0x1
+        else 0x100000000000000000000000000000000
+    )
+    multipliers = (
+        (0x2, 0xFFF97272373D413259A46990580E213A),
+        (0x4, 0xFFF2E50F5F656932EF12357CF3C7FDCC),
+        (0x8, 0xFFE5CACA7E10E4E61C3624EAA0941CD0),
+        (0x10, 0xFFCB9843D60F6159C9DB58835C926644),
+        (0x20, 0xFF973B41FA98C081472E6896DFB254C0),
+        (0x40, 0xFF2EA16466C96A3843EC78B326B52861),
+        (0x80, 0xFE5DEE046A99A2A811C461F1969C3053),
+        (0x100, 0xFCBE86C7900A88AEDCFFC83B479AA3A4),
+        (0x200, 0xF987A7253AC413176F2B074CF7815E54),
+        (0x400, 0xF3392B0822B70005940C7A398E4B70F3),
+        (0x800, 0xE7159475A2C29B7443B29C7FA6E889D9),
+        (0x1000, 0xD097F3BDFD2022B8845AD8F792AA5825),
+        (0x2000, 0xA9F746462D870FDF8A65DC1F90E061E5),
+        (0x4000, 0x70D869A156D2A1B890BB3DF62BAF32F7),
+        (0x8000, 0x31BE135F97D08FD981231505542FCFA6),
+        (0x10000, 0x9AA508B5B7A84E1C677DE54F3E99BC9),
+        (0x20000, 0x5D6AF8DEDB81196699C329225EE604),
+        (0x40000, 0x2216E584F5FA1EA926041BEDFE98),
+        (0x80000, 0x48A170391F7DC42444E8FA2),
+    )
+    for bit, multiplier in multipliers:
+        if absolute_tick & bit:
+            ratio = (ratio * multiplier) >> 128
+    if tick_value > 0:
+        ratio = ((1 << 256) - 1) // ratio
+    remainder_mask = (1 << 32) - 1
+    return (ratio >> 32) + (1 if ratio & remainder_mask else 0)
 
 
 def v2_underlying(
@@ -692,6 +739,309 @@ def decode_v2_log(log: dict[str, Any]) -> dict[str, Any] | None:
             "reserve1Raw": int(reserve1),
         }
     return None
+
+
+def decode_v3_pool_created(log: dict[str, Any]) -> dict[str, Any] | None:
+    """Decode a Uniswap-v3-compatible Factory PoolCreated event."""
+    topics = log.get("topics") if isinstance(log, dict) else None
+    if not isinstance(topics, list) or not topics:
+        raise ValueError("V3 factory log topics are required")
+    if str(topics[0]).lower() != event_topic(V3_EVENT_SIGNATURES["pool_created"]):
+        return None
+    if len(topics) != 4:
+        raise ValueError("V3 PoolCreated must have token0, token1, and fee topics")
+    data_hex = str(log.get("data") or "").strip().lower()
+    if not re.fullmatch(r"0x(?:[0-9a-f]{2})*", data_hex):
+        raise ValueError("V3 PoolCreated data must be even-length hex")
+    tick_spacing, pool_address = decode(
+        ["int24", "address"], bytes.fromhex(data_hex[2:])
+    )
+    base = _decoded_log_base(log)
+    return {
+        **base,
+        "kind": "pool_created",
+        "token0": _address_from_topic(topics[1], "V3 token0"),
+        "token1": _address_from_topic(topics[2], "V3 token1"),
+        "fee": int(str(topics[3]), 16),
+        "tickSpacing": int(tick_spacing),
+        "pool": _normalized_address(pool_address, "V3 pool"),
+    }
+
+
+def discover_v3_dolo_pools(
+    logs: list[dict[str, Any]], dolo_address: str
+) -> list[dict[str, Any]]:
+    """Return Factory pools containing DOLO in deterministic creation order."""
+    dolo = _normalized_address(dolo_address, "DOLO address")
+    discovered = []
+    seen = set()
+    for log in logs:
+        event = decode_v3_pool_created(log)
+        if event is None or dolo not in {event["token0"], event["token1"]}:
+            continue
+        if event["pool"] in seen:
+            continue
+        seen.add(event["pool"])
+        discovered.append(event)
+    return sorted(
+        discovered,
+        key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"]),
+    )
+
+
+def decode_v3_npm_log(log: dict[str, Any]) -> dict[str, Any] | None:
+    """Decode canonical v3 NPM ownership and liquidity events."""
+    topics = log.get("topics") if isinstance(log, dict) else None
+    if not isinstance(topics, list) or not topics:
+        raise ValueError("V3 NPM log topics are required")
+    signature_topic = str(topics[0]).lower()
+    base = _decoded_log_base(log)
+    if signature_topic == event_topic(V3_EVENT_SIGNATURES["transfer"]):
+        if len(topics) != 4:
+            raise ValueError("V3 NFT Transfer must have three indexed values")
+        return {
+            **base,
+            "kind": "transfer",
+            "from": _address_from_topic(topics[1], "V3 NFT sender"),
+            "to": _address_from_topic(topics[2], "V3 NFT recipient"),
+            "tokenId": int(str(topics[3]), 16),
+        }
+    if signature_topic not in {
+        event_topic(V3_EVENT_SIGNATURES["increase"]),
+        event_topic(V3_EVENT_SIGNATURES["decrease"]),
+    }:
+        return None
+    if len(topics) != 2:
+        raise ValueError("V3 liquidity event must have an indexed tokenId")
+    data_hex = str(log.get("data") or "").strip().lower()
+    if not re.fullmatch(r"0x(?:[0-9a-f]{2})*", data_hex):
+        raise ValueError("V3 liquidity event data must be even-length hex")
+    liquidity_raw, amount0, amount1 = decode(
+        ["uint128", "uint256", "uint256"], bytes.fromhex(data_hex[2:])
+    )
+    return {
+        **base,
+        "kind": (
+            "increase"
+            if signature_topic == event_topic(V3_EVENT_SIGNATURES["increase"])
+            else "decrease"
+        ),
+        "tokenId": int(str(topics[1]), 16),
+        "liquidityRaw": int(liquidity_raw),
+        "amount0Raw": int(amount0),
+        "amount1Raw": int(amount1),
+    }
+
+
+def map_v3_events_to_pools(
+    logs: list[dict[str, Any]],
+    position_snapshots: dict[Any, dict[str, Any]],
+    known_pool_ids: set[str],
+    dolo_address: str,
+) -> dict[str, Any]:
+    """Map NPM token IDs to pools only with an exact historical snapshot."""
+    dolo = _normalized_address(dolo_address, "DOLO address")
+    known_pools = {
+        _normalized_address(pool_address, "known V3 pool")
+        for pool_address in known_pool_ids
+    }
+    snapshots = {}
+    for key, value in position_snapshots.items():
+        token_id = int(key)
+        if isinstance(key, bool) or token_id < 0 or not isinstance(value, dict):
+            raise ValueError("V3 position snapshots must use nonnegative token IDs")
+        snapshots[token_id] = value
+    events_by_pool: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+    unresolved = []
+    decoded_events = [decode_v3_npm_log(log) for log in logs]
+    decoded_events = [event for event in decoded_events if event is not None]
+    decoded_events.sort(
+        key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"])
+    )
+    for event in decoded_events:
+        token_id = event["tokenId"]
+        snapshot = snapshots.get(token_id)
+        if snapshot is None:
+            if event["kind"] != "transfer":
+                unresolved.append(
+                    {
+                        **event,
+                        "pool": None,
+                        "quality": "partial",
+                        "reason": "archive position snapshot unavailable; pool attribution withheld",
+                    }
+                )
+            continue
+        pool_address = _normalized_address(snapshot.get("pool"), "V3 snapshot pool")
+        token0 = _normalized_address(snapshot.get("token0"), "V3 snapshot token0")
+        token1 = _normalized_address(snapshot.get("token1"), "V3 snapshot token1")
+        if dolo not in {token0, token1} or pool_address not in known_pools:
+            continue
+        events_by_pool[pool_address].append(
+            {
+                **event,
+                "pool": pool_address,
+                "token0": token0,
+                "token1": token1,
+                "fee": _exact_int(snapshot.get("fee"), "V3 snapshot fee"),
+                "tickLower": _exact_int(snapshot.get("tickLower"), "V3 tick lower"),
+                "tickUpper": _exact_int(snapshot.get("tickUpper"), "V3 tick upper"),
+                "snapshotBlock": _exact_int(
+                    snapshot.get("snapshotBlock"), "V3 snapshot block"
+                ),
+            }
+        )
+    return {"eventsByPool": dict(events_by_pool), "unresolved": unresolved}
+
+
+def build_v3_rows(
+    pool: dict[str, Any],
+    mapped_events: list[dict[str, Any]],
+    latest_positions: dict[Any, dict[str, Any]],
+    pool_state: dict[str, Any],
+    *,
+    contract_addresses: set[str] | None = None,
+) -> dict[str, Any]:
+    """Build exact v3 active and history rows from mapped NPM evidence."""
+    chain_key = str(pool.get("chainKey") or "").strip().lower()
+    adapter = str(pool.get("adapter") or "").strip().lower()
+    if adapter not in {"uniswap-v3", "kodiak-v3"}:
+        raise ValueError("V3 rows require a v3 adapter")
+    pool_address = _normalized_address(pool.get("identifier"), "V3 pool")
+    source_key = f"{chain_key}:{adapter}"
+    normalized_contracts = {
+        _normalized_address(address, "contract address")
+        for address in (contract_addresses or set())
+    }
+    current_sqrt = _exact_int(pool_state.get("sqrtPriceX96"), "V3 sqrt price")
+    current_tick = _exact_int(pool_state.get("currentTick"), "V3 current tick")
+    decimals0 = _exact_int(pool_state.get("decimals0"), "V3 token0 decimals")
+    decimals1 = _exact_int(pool_state.get("decimals1"), "V3 token1 decimals")
+
+    owners: dict[int, str] = {}
+    position_liquidity: defaultdict[int, int] = defaultdict(int)
+    history = []
+    ordered_events = sorted(
+        mapped_events,
+        key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"]),
+    )
+    for event in ordered_events:
+        token_id = _exact_int(event.get("tokenId"), "V3 tokenId")
+        if event["kind"] == "transfer":
+            recipient = _normalized_address(event.get("to"), "V3 NFT recipient")
+            if recipient == ZERO_ADDRESS:
+                owners.pop(token_id, None)
+            else:
+                owners[token_id] = recipient
+            continue
+        if event["timestamp"] is None:
+            raise ValueError("V3 liquidity history requires an exact block timestamp")
+        delta = _exact_int(event.get("liquidityRaw"), "V3 liquidity delta")
+        before = position_liquidity[token_id]
+        if event["kind"] == "increase":
+            after = before + delta
+            action = "Added" if before == 0 else "Increased"
+        elif event["kind"] == "decrease":
+            if delta > before:
+                raise ValueError(f"V3 token {token_id} decrease exceeds replayed liquidity")
+            after = before - delta
+            action = "Closed" if after == 0 else "Removed"
+        else:
+            raise ValueError(f"unsupported V3 event kind {event['kind']!r}")
+        position_liquidity[token_id] = after
+        owner = owners.get(token_id)
+        attribution = _event_attribution(owner, normalized_contracts)
+        amount0 = _exact_int(event.get("amount0Raw"), "V3 amount0")
+        amount1 = _exact_int(event.get("amount1Raw"), "V3 amount1")
+        token0 = _normalized_address(event.get("token0"), "V3 event token0")
+        history.append(
+            {
+                "id": event_key(chain_key, event["txHash"], event["logIndex"]),
+                "sourceKey": source_key,
+                "poolId": pool_address,
+                "poolIdentifierType": "contract",
+                "chainKey": chain_key,
+                "adapter": adapter,
+                "pair": pool.get("pair"),
+                "positionId": str(token_id),
+                "action": action,
+                "blockNumber": event["blockNumber"],
+                "timestamp": event["timestamp"],
+                "txHash": event["txHash"],
+                "logIndex": event["logIndex"],
+                "amount0Raw": str(amount0),
+                "amount1Raw": str(amount1),
+                "doloRaw": str(amount0 if token0 == DOLO_ADDRESS else amount1),
+                "pairedRaw": str(amount1 if token0 == DOLO_ADDRESS else amount0),
+                "valueUsd": None,
+                **attribution,
+            }
+        )
+
+    active_positions = []
+    for token_key, latest in sorted(latest_positions.items(), key=lambda item: int(item[0])):
+        token_id = int(token_key)
+        if isinstance(token_key, bool) or token_id < 0 or not isinstance(latest, dict):
+            raise ValueError("latest V3 positions must use nonnegative token IDs")
+        latest_pool = _normalized_address(latest.get("pool"), "latest V3 pool")
+        if latest_pool != pool_address:
+            continue
+        liquidity_raw = _exact_int(latest.get("liquidity"), "latest V3 liquidity")
+        if liquidity_raw <= 0:
+            continue
+        token0 = _normalized_address(latest.get("token0"), "latest V3 token0")
+        token1 = _normalized_address(latest.get("token1"), "latest V3 token1")
+        if DOLO_ADDRESS not in {token0, token1}:
+            raise ValueError(f"latest V3 token {token_id} is not a DOLO position")
+        tick_lower = _exact_int(latest.get("tickLower"), "latest V3 tick lower")
+        tick_upper = _exact_int(latest.get("tickUpper"), "latest V3 tick upper")
+        amount0, amount1 = amounts_for_liquidity(
+            liquidity_raw,
+            current_sqrt,
+            sqrt_ratio_at_tick(tick_lower),
+            sqrt_ratio_at_tick(tick_upper),
+        )
+        owner = _normalized_address(latest.get("owner"), "latest V3 owner")
+        attribution = _event_attribution(owner, normalized_contracts)
+        bound_a = tick_to_paired_per_dolo(
+            tick_lower, token0, token1, decimals0, decimals1, DOLO_ADDRESS
+        )
+        bound_b = tick_to_paired_per_dolo(
+            tick_upper, token0, token1, decimals0, decimals1, DOLO_ADDRESS
+        )
+        range_lower, range_upper = sorted((bound_a, bound_b))
+        active_positions.append(
+            {
+                "id": f"{source_key}:{pool_address}:{token_id}",
+                "sourceKey": source_key,
+                "poolId": pool_address,
+                "poolIdentifierType": "contract",
+                "chainKey": chain_key,
+                "adapter": adapter,
+                "pair": pool.get("pair"),
+                "positionType": "concentrated_nft",
+                "positionId": str(token_id),
+                "liquidityRaw": str(liquidity_raw),
+                "tickLower": tick_lower,
+                "tickUpper": tick_upper,
+                "rangeLower": str(range_lower),
+                "rangeUpper": str(range_upper),
+                "rangeStatus": classify_range(current_tick, tick_lower, tick_upper),
+                "feeTier": _exact_int(latest.get("fee"), "latest V3 fee"),
+                "amount0Raw": str(amount0),
+                "amount1Raw": str(amount1),
+                "doloRaw": str(amount0 if token0 == DOLO_ADDRESS else amount1),
+                "pairedRaw": str(amount1 if token0 == DOLO_ADDRESS else amount0),
+                "valueUsd": None,
+                **attribution,
+            }
+        )
+    return {
+        "sourceKey": source_key,
+        "sourceStatus": "complete",
+        "activePositions": active_positions,
+        "history": history,
+    }
 
 
 def _event_attribution(

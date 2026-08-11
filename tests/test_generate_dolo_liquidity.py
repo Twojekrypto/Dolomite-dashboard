@@ -637,5 +637,228 @@ class V2AdapterTests(unittest.TestCase):
         self.assertEqual(result["mismatches"][0]["address"], self.ALICE)
 
 
+class V3AdapterTests(unittest.TestCase):
+    ZERO = "0x" + "00" * 20
+    ALICE = "0x" + "aa" * 20
+    BOB = "0x" + "bb" * 20
+    ROUTER = "0x" + "dd" * 20
+    USDC = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
+    OTHER0 = "0x" + "11" * 20
+    OTHER1 = "0x" + "22" * 20
+    ETH_POOL = "0x003896387666c5c11458eeb3f927b72a11b19783"
+    OTHER_POOL = "0x" + "33" * 20
+    ETH_NPM = "0xc36442b4a4522e871399cd717abdd847ab11fe88"
+    ETH_FACTORY = "0x1f98431c8ad98523631ae4a59f267346ea31f984"
+
+    @staticmethod
+    def _topic_address(address):
+        return "0x" + address[2:].lower().rjust(64, "0")
+
+    @staticmethod
+    def _topic_uint(value):
+        return "0x" + f"{value:064x}"
+
+    def _log(self, address, signature, indexed, abi_types, values, block, log_index, tx_byte):
+        return {
+            "address": address,
+            "blockNumber": block,
+            "transactionIndex": 0,
+            "logIndex": log_index,
+            "transactionHash": "0x" + tx_byte * 64,
+            "blockHash": "0x" + f"{block:064x}",
+            "data": "0x" + encode(abi_types, values).hex(),
+            "topics": [liquidity.event_topic(signature)] + indexed,
+            "removed": False,
+            "timestamp": 1_700_000_000 + block,
+        }
+
+    def _pool_created(self, token0, token1, fee, tick_spacing, pool, block, log_index):
+        return self._log(
+            self.ETH_FACTORY,
+            "PoolCreated(address,address,uint24,int24,address)",
+            [self._topic_address(token0), self._topic_address(token1), self._topic_uint(fee)],
+            ["int24", "address"],
+            [tick_spacing, pool],
+            block,
+            log_index,
+            "1",
+        )
+
+    def _npm_transfer(self, sender, recipient, token_id, block, log_index, tx_byte):
+        return self._log(
+            self.ETH_NPM,
+            "Transfer(address,address,uint256)",
+            [self._topic_address(sender), self._topic_address(recipient), self._topic_uint(token_id)],
+            [],
+            [],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def _npm_liquidity(self, kind, token_id, amount, amount0, amount1, block, log_index, tx_byte):
+        signature = (
+            "IncreaseLiquidity(uint256,uint128,uint256,uint256)"
+            if kind == "increase"
+            else "DecreaseLiquidity(uint256,uint128,uint256,uint256)"
+        )
+        return self._log(
+            self.ETH_NPM,
+            signature,
+            [self._topic_uint(token_id)],
+            ["uint128", "uint256", "uint256"],
+            [amount, amount0, amount1],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def test_v3_tick_math_matches_canonical_extremes(self):
+        self.assertEqual(liquidity.sqrt_ratio_at_tick(0), 1 << 96)
+        self.assertEqual(liquidity.sqrt_ratio_at_tick(-887272), 4295128739)
+        self.assertEqual(
+            liquidity.sqrt_ratio_at_tick(887272),
+            1461446703485210103287273052203988822378723970342,
+        )
+        with self.assertRaisesRegex(ValueError, "tick"):
+            liquidity.sqrt_ratio_at_tick(887273)
+
+    def test_v3_factory_discovery_filters_both_token_orders_for_dolo(self):
+        logs = [
+            self._pool_created(DOLO, self.USDC, 3000, 60, self.ETH_POOL, 100, 0),
+            self._pool_created(self.OTHER0, self.OTHER1, 500, 10, self.OTHER_POOL, 101, 0),
+            self._pool_created(self.USDC, DOLO, 10000, 200, "0x" + "44" * 20, 102, 0),
+        ]
+
+        pools = liquidity.discover_v3_dolo_pools(logs, DOLO)
+
+        self.assertEqual([row["pool"] for row in pools], [self.ETH_POOL, "0x" + "44" * 20])
+        self.assertEqual(pools[0]["fee"], 3000)
+        self.assertEqual(pools[0]["tickSpacing"], 60)
+        self.assertEqual(pools[1]["token1"], DOLO)
+
+    def test_v3_decoder_and_archive_mapping_fail_closed(self):
+        logs = [
+            self._npm_transfer(self.ZERO, self.ALICE, 1, 110, 0, "2"),
+            self._npm_liquidity("increase", 1, 1000, 100, 200, 110, 1, "2"),
+            self._npm_liquidity("increase", 99, 500, 50, 100, 111, 0, "3"),
+        ]
+        snapshots = {
+            1: {
+                "pool": self.ETH_POOL,
+                "token0": DOLO,
+                "token1": self.USDC,
+                "fee": 3000,
+                "tickLower": -100,
+                "tickUpper": 100,
+                "snapshotBlock": 110,
+            }
+        }
+
+        mapped = liquidity.map_v3_events_to_pools(
+            logs,
+            snapshots,
+            {self.ETH_POOL},
+            DOLO,
+        )
+
+        self.assertEqual(len(mapped["eventsByPool"][self.ETH_POOL]), 2)
+        increase = mapped["eventsByPool"][self.ETH_POOL][1]
+        self.assertEqual(
+            (increase["kind"], increase["tokenId"], increase["liquidityRaw"], increase["amount0Raw"]),
+            ("increase", 1, 1000, 100),
+        )
+        self.assertEqual(len(mapped["unresolved"]), 1)
+        self.assertEqual(mapped["unresolved"][0]["tokenId"], 99)
+        self.assertEqual(mapped["unresolved"][0]["quality"], "partial")
+        self.assertIn("archive position snapshot unavailable", mapped["unresolved"][0]["reason"])
+
+    def test_v3_lifecycle_preserves_closed_history_and_uses_current_principal_only(self):
+        logs = [
+            self._npm_transfer(self.ZERO, self.ALICE, 1, 120, 0, "4"),
+            self._npm_liquidity("increase", 1, 1000, 100, 200, 120, 1, "4"),
+            self._npm_liquidity("increase", 1, 200, 20, 40, 121, 0, "5"),
+            self._npm_transfer(self.ALICE, self.BOB, 1, 122, 0, "6"),
+            self._npm_liquidity("decrease", 1, 500, 50, 100, 123, 0, "7"),
+            self._npm_liquidity("decrease", 1, 700, 70, 140, 124, 0, "8"),
+            self._npm_transfer(self.BOB, self.ZERO, 1, 124, 1, "8"),
+            self._npm_transfer(self.ZERO, self.ALICE, 2, 125, 0, "9"),
+            self._npm_liquidity("increase", 2, 1_000_000, 1000, 2000, 125, 1, "9"),
+            self._npm_transfer(self.ALICE, self.BOB, 2, 126, 0, "a"),
+        ]
+        snapshot = {
+            "pool": self.ETH_POOL,
+            "token0": DOLO,
+            "token1": self.USDC,
+            "fee": 3000,
+            "tickLower": -100,
+            "tickUpper": 100,
+            "snapshotBlock": 120,
+        }
+        mapped = liquidity.map_v3_events_to_pools(
+            logs,
+            {1: snapshot, 2: dict(snapshot, snapshotBlock=125)},
+            {self.ETH_POOL},
+            DOLO,
+        )
+        pool = {
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v3",
+            "identifier": self.ETH_POOL,
+            "identifierType": "contract",
+            "pair": "DOLO/USDC",
+        }
+        latest = {
+            2: {
+                **snapshot,
+                "liquidity": 1_000_000,
+                "owner": self.BOB,
+                "tokensOwed0": 999_999_999,
+                "tokensOwed1": 888_888_888,
+            }
+        }
+        pool_state = {
+            "sqrtPriceX96": 1 << 96,
+            "currentTick": 0,
+            "decimals0": 18,
+            "decimals1": 6,
+        }
+
+        result = liquidity.build_v3_rows(
+            pool,
+            mapped["eventsByPool"][self.ETH_POOL],
+            latest,
+            pool_state,
+        )
+
+        self.assertEqual(
+            [row["action"] for row in result["history"]],
+            ["Added", "Increased", "Removed", "Closed", "Added"],
+        )
+        self.assertEqual(result["history"][2]["beneficialOwner"], self.BOB)
+        self.assertEqual(result["history"][3]["beneficialOwner"], self.BOB)
+        self.assertEqual(result["history"][3]["doloRaw"], "70")
+        self.assertEqual(len(result["activePositions"]), 1)
+        row = result["activePositions"][0]
+        self.assertEqual(row["positionId"], "2")
+        self.assertEqual(row["beneficialOwner"], self.BOB)
+        self.assertEqual(row["rangeStatus"], "in_range")
+        expected_amounts = liquidity.amounts_for_liquidity(
+            1_000_000,
+            1 << 96,
+            liquidity.sqrt_ratio_at_tick(-100),
+            liquidity.sqrt_ratio_at_tick(100),
+        )
+        self.assertEqual((row["amount0Raw"], row["amount1Raw"]), tuple(map(str, expected_amounts)))
+        self.assertNotEqual(row["amount0Raw"], str(latest[2]["tokensOwed0"]))
+        self.assertNotEqual(row["amount1Raw"], str(latest[2]["tokensOwed1"]))
+
+    def test_kodiak_v3_uses_separate_adapter_identity(self):
+        fixture = json.loads((FIXTURES / "v3-kodiak.json").read_text())
+        self.assertEqual(fixture["factory"], "0xd84cbf0b02636e7f53db9e5e45a616e05d710990")
+        self.assertEqual(fixture["positionManager"], "0xfe5e8c83ffe4d9627a75eaa7fee864768db989bd")
+        self.assertNotEqual(fixture["positionManager"], self.ETH_NPM)
+
+
 if __name__ == "__main__":
     unittest.main()
