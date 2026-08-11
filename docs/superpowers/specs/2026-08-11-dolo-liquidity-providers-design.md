@@ -32,7 +32,7 @@ The feature must preserve the dashboard's existing Graphite + Gold identity, tab
 - Ethereum Uniswap v4 concentrated-liquidity positions.
 - Berachain Kodiak v3 concentrated-liquidity positions.
 - Kodiak Island share ownership and supported farm/reward-vault custody paths.
-- Berachain V2-style pools discovered on Bulla and BeraSwap.
+- Berachain Bulla concentrated-liquidity positions using verified Algebra Integral semantics.
 - Current principal token amounts, normalized price ranges, USD value, and in-range status.
 - Add/increase/remove/close history with transaction provenance.
 - Pool discovery, freshness, completeness, and stale-source reporting.
@@ -288,11 +288,11 @@ The generator reads the last valid checked-in artifact and resumes each adapter 
 - Resolve only explicitly supported farm/reward-vault staking contracts.
 - Preserve the full custody path.
 
-**Bulla/BeraSwap V2-style pools**
+**Bulla Algebra Integral pools**
 
-- Replay Mint/Burn and LP-token Transfer events.
-- Calculate current wallet underlying amounts from verified LP balance / total supply × current reserves.
-- Render `Full range`.
+- Replay pool Mint/Burn events with Bulla NonfungiblePositionManager ownership and liquidity events.
+- Read exact current position liquidity, owner, ticks, and pool state.
+- Apply the same strict concentrated-liquidity attribution and range rules as other NFT positions.
 
 ### 8.5 Pricing and enrichment
 

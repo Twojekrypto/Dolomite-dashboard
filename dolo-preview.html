@@ -993,6 +993,85 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .nav-item{padding:8px 10px;gap:6px;font-size:12px}
   .nav-item.active::after{display:none}
 }
+
+/* DOLO LIQUIDITY PROVIDERS — one shell, two modes */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.dolo-lp-card{background:var(--bg-2);overflow:visible}
+.dolo-lp-head{gap:16px}
+.dolo-lp-head-main{display:flex;align-items:center;gap:14px;min-width:0;flex-wrap:wrap}
+.dolo-lp-mode{display:inline-grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px;border:1px solid var(--line-2);border-radius:9px;background:rgba(9,9,11,.48)}
+.dolo-lp-mode button{height:30px;padding:0 12px;border-radius:6px;color:var(--fg-3);font-size:11px;font-weight:600;white-space:nowrap;transition:all .15s var(--ease)}
+.dolo-lp-mode button:hover{color:var(--fg-1);background:rgba(255,255,255,.025)}
+.dolo-lp-mode button[aria-pressed="true"]{color:var(--gold-hi);background:var(--gold-wash);box-shadow:inset 0 0 0 1px var(--gold-line)}
+.dolo-lp-warning{display:none;color:#d4b56f;border:1px solid rgba(212,181,111,.25);background:rgba(212,181,111,.07);border-radius:999px;padding:3px 8px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}
+.dolo-lp-warning.visible{display:inline-flex}
+.dolo-lp-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line-1);background:linear-gradient(90deg,rgba(201,162,39,.018),transparent 60%)}
+.dolo-lp-stat{min-width:0;padding:16px 20px;border-right:1px solid var(--line-1)}
+.dolo-lp-stat:last-child{border-right:0}
+.dolo-lp-stat-label{font-size:9px;font-weight:700;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dolo-lp-stat-value{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dolo-lp-toolbar{align-items:flex-start}
+.dolo-lp-toolbar .tb-left{flex:1;min-width:0;flex-wrap:wrap}
+.dolo-lp-toolbar .search{width:min(300px,100%)}
+.dolo-lp-select{height:38px;min-width:132px;padding:0 30px 0 12px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-3);color:var(--fg-2);font-size:11px;font-weight:600;outline:none;cursor:pointer;color-scheme:dark}
+.dolo-lp-select:hover,.dolo-lp-select:focus{border-color:var(--line-3);color:var(--fg-1)}
+.dolo-lp-filter-menu{position:relative}
+.dolo-lp-filter-menu summary{list-style:none;height:38px;min-width:136px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 12px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-3);color:var(--fg-2);font-size:11px;font-weight:600;cursor:pointer;user-select:none}
+.dolo-lp-filter-menu summary::-webkit-details-marker{display:none}
+.dolo-lp-filter-menu summary::after{content:"⌄";font-size:13px;color:var(--fg-4);transform:translateY(-1px)}
+.dolo-lp-filter-menu[open] summary{border-color:var(--gold-line);color:var(--fg-1)}
+.dolo-lp-filter-options{position:absolute;z-index:36;left:0;top:44px;min-width:210px;padding:7px;border:1px solid var(--line-2);border-radius:10px;background:rgba(19,19,22,.98);box-shadow:0 18px 44px rgba(0,0,0,.5)}
+.dolo-lp-filter-option{display:flex;align-items:center;gap:9px;padding:8px;border-radius:7px;font-size:11px;color:var(--fg-2);cursor:pointer;white-space:nowrap}
+.dolo-lp-filter-option:hover{background:rgba(255,255,255,.035);color:var(--fg-1)}
+.dolo-lp-filter-option input{accent-color:var(--gold)}
+.dolo-lp-toggle{height:38px;display:inline-flex;align-items:center;gap:9px;padding:0 12px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-3);font-size:11px;color:var(--fg-2);cursor:pointer;white-space:nowrap}
+.dolo-lp-toggle input{accent-color:var(--gold)}
+.dolo-lp-history-controls[hidden]{display:flex!important;visibility:hidden;pointer-events:none}
+.dolo-lp-table{min-width:1140px;table-layout:auto}
+.dolo-lp-table th{white-space:nowrap}
+.dolo-lp-table td{height:68px}
+.dolo-lp-table .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.dolo-lp-table th[data-dolo-lp-sort]{cursor:pointer}
+.dolo-lp-table th[data-dolo-lp-sort]:hover,.dolo-lp-table th.sorted{color:var(--fg-1)}
+.dolo-lp-pair{display:flex;flex-direction:column;gap:3px}
+.dolo-lp-pair strong{font-size:12px;color:var(--fg-1);font-weight:600}
+.dolo-lp-pair span{font-size:10px;color:var(--fg-4)}
+.dolo-lp-range{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;color:var(--fg-2)}
+.dolo-lp-range small{font-family:var(--sans);font-size:9px;color:var(--fg-4);text-transform:uppercase;letter-spacing:.7px}
+.dolo-lp-chip{display:inline-flex;align-items:center;justify-content:center;min-height:23px;padding:3px 8px;border:1px solid var(--line-2);border-radius:999px;background:rgba(255,255,255,.025);font-size:9px;font-weight:700;letter-spacing:.65px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap}
+.dolo-lp-chip.verified,.dolo-lp-chip.in-range{color:var(--up);border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.07)}
+.dolo-lp-chip.partial,.dolo-lp-chip.stale{color:#d4b56f;border-color:rgba(212,181,111,.25);background:rgba(212,181,111,.07)}
+.dolo-lp-chip.out-of-range,.dolo-lp-chip.unavailable{color:var(--down);border-color:rgba(180,121,107,.25);background:rgba(180,121,107,.07)}
+.dolo-lp-details-btn{-webkit-appearance:none;appearance:none;overflow:visible;box-sizing:border-box;vertical-align:middle;height:28px;padding:0 10px;border:1px solid var(--line-2);border-radius:7px;background:var(--bg-3);font-size:10px;font-weight:600;color:var(--fg-2);white-space:nowrap}
+.dolo-lp-details-btn:hover,.dolo-lp-details-btn[aria-expanded="true"]{color:var(--gold-hi);border-color:var(--gold-line);background:var(--gold-wash)}
+.dolo-lp-detail-row td{height:auto!important;padding:0!important;background:linear-gradient(90deg,rgba(201,162,39,.055),rgba(201,162,39,.012) 55%,transparent)!important}
+.dolo-lp-details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:15px 20px 17px;border-left:2px solid var(--gold)}
+.dolo-lp-detail{min-width:0;padding:0 16px;border-left:1px solid var(--line-1)}
+.dolo-lp-detail:first-child{padding-left:0;border-left:0}
+.dolo-lp-detail-label{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--fg-4);margin-bottom:5px}
+.dolo-lp-detail-value{font-size:11px;color:var(--fg-2);overflow-wrap:anywhere}
+.dolo-lp-detail-value a{color:var(--gold);text-decoration:none}
+.dolo-lp-empty td{color:var(--fg-4);font-size:11px}
+.tbl tbody tr.tbl-spacer-row.dolo-lp-empty:first-child td{color:var(--fg-4);font-size:11px;text-align:center}
+.dolo-lp-card .tbl-foot{background:var(--bg-2);border-radius:0 0 var(--r-xl) var(--r-xl)}
+@media (max-width:900px){
+  .dolo-lp-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dolo-lp-stat:nth-child(2){border-right:0}
+  .dolo-lp-stat:nth-child(-n+2){border-bottom:1px solid var(--line-1)}
+  .dolo-lp-details-grid{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:16px}
+  .dolo-lp-detail:nth-child(3){border-left:0;padding-left:0}
+}
+@media (max-width:640px){
+  .dolo-lp-head-main,.dolo-lp-mode{width:100%}
+  .dolo-lp-mode button{width:100%}
+  .dolo-lp-toolbar .tb-left,.dolo-lp-toolbar .tb-right{display:grid;grid-template-columns:1fr;width:100%}
+  .dolo-lp-history-controls[hidden]{display:grid!important}
+  .dolo-lp-select,.dolo-lp-filter-menu,.dolo-lp-filter-menu summary,.dolo-lp-toggle{width:100%}
+  .dolo-lp-filter-options{left:0;right:0;min-width:0}
+  .dolo-lp-details-btn{min-width:44px;min-height:44px}
+  .dolo-lp-details-grid{grid-template-columns:1fr;gap:13px}
+  .dolo-lp-detail,.dolo-lp-detail:nth-child(3){padding:0;border-left:0}
+}
 </style>
 <script src="count-up.js?v=20260427-countup"></script>
 <script src="dolo-address-labels.js?v=dolo-labels-20260805-strategic-round"></script>
@@ -1386,6 +1465,60 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <div class="pager" id="flows-out-pager"></div>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- DOLO LIQUIDITY PROVIDERS -->
+  <section class="card dolo-lp-card" id="dolo-lp-card">
+    <div class="card-head dolo-lp-head">
+      <div class="dolo-lp-head-main">
+        <div class="card-title">
+          <h2>DOLO Liquidity Providers</h2>
+          <span class="count-badge" id="dolo-lp-count">— wallets · — positions</span>
+        </div>
+        <span class="dolo-lp-warning" id="dolo-lp-warning" data-tooltip="Some liquidity adapters are incomplete. Open Details for source-level provenance.">Partial sources</span>
+        <div class="dolo-lp-mode" role="group" aria-label="Liquidity table mode">
+          <button type="button" data-dolo-lp-mode="active" aria-pressed="true">Active positions</button>
+          <button type="button" data-dolo-lp-mode="history" aria-pressed="false">History</button>
+        </div>
+      </div>
+      <div class="card-meta" id="dolo-lp-meta"><span class="pulse pulse-loading"></span>Loading…</div>
+    </div>
+
+    <div class="dolo-lp-summary" id="dolo-lp-summary" aria-label="Liquidity summary">
+      <div class="dolo-lp-stat"><div class="dolo-lp-stat-label">Active Liquidity</div><div class="dolo-lp-stat-value">—</div></div>
+      <div class="dolo-lp-stat"><div class="dolo-lp-stat-label">LP Wallets</div><div class="dolo-lp-stat-value">—</div></div>
+      <div class="dolo-lp-stat"><div class="dolo-lp-stat-label">Active Positions</div><div class="dolo-lp-stat-value">—</div></div>
+      <div class="dolo-lp-stat"><div class="dolo-lp-stat-label">Out of Range</div><div class="dolo-lp-stat-value">—</div></div>
+    </div>
+
+    <div class="toolbar dolo-lp-toolbar">
+      <div class="tb-left">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="dolo-lp-search" type="text" placeholder="Search wallet, label or pair…" spellcheck="false" autocomplete="off">
+          <button class="search-clear" id="dolo-lp-search-clear" type="button" aria-label="Clear liquidity search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+        </label>
+        <label><span class="sr-only">Chain</span><select class="dolo-lp-select" id="dolo-lp-chain"><option value="all">All chains</option><option value="ethereum">Ethereum</option><option value="berachain">Berachain</option></select></label>
+        <details class="dolo-lp-filter-menu" id="dolo-lp-pairs"><summary>All pairs</summary><div class="dolo-lp-filter-options"></div></details>
+        <details class="dolo-lp-filter-menu" id="dolo-lp-dexes"><summary>All DEXes</summary><div class="dolo-lp-filter-options"></div></details>
+        <label class="dolo-lp-toggle"><input id="dolo-lp-low-liquidity" type="checkbox">Include low liquidity</label>
+      </div>
+      <div class="tb-right dolo-lp-history-controls" id="dolo-lp-history-controls" hidden>
+        <label><span class="sr-only">History period</span><select class="dolo-lp-select" id="dolo-lp-history-period"><option value="24h">24H</option><option value="7d">7D</option><option value="30d" selected>30D</option><option value="90d">90D</option><option value="all">All</option></select></label>
+        <label><span class="sr-only">History action</span><select class="dolo-lp-select" id="dolo-lp-history-action"><option value="all">All actions</option><option value="added">Added</option><option value="removed">Removed</option></select></label>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl dolo-lp-table" id="dolo-lp-table" data-address-match-cells>
+        <thead id="dolo-lp-head"></thead>
+        <tbody id="dolo-lp-body"></tbody>
+      </table>
+    </div>
+    <div class="tbl-foot">
+      <div class="tbl-foot-info" id="dolo-lp-info">0–0 of 0</div>
+      <div class="pager" id="dolo-lp-pager"></div>
     </div>
   </section>
 
@@ -5442,7 +5575,7 @@ renderCexSupplyChart();
   function syncLiveMeta(timestamp){
     const label = "Data updated · " + ago(timestamp);
     document.querySelectorAll(".card-meta").forEach(el => {
-      if(el.id === "flows-meta") return;
+      if(el.id === "flows-meta" || el.id === "dolo-lp-meta") return;
       const freshMeta = el.querySelector("#fresh-wallets-meta");
       if(freshMeta){ freshMeta.textContent = label; return; }
       if(el.id === "holders-meta" || el.textContent.includes("Live") || el.textContent.includes("updated") || el.textContent.includes("Loading")) el.innerHTML = '<span class="pulse"></span>' + label;
@@ -5729,6 +5862,294 @@ renderCexSupplyChart();
     }
   }
   boot();
+})();
+</script>
+<script>
+(()=>{
+  "use strict";
+  const DATA_URL = "data/dolo-liquidity.json?v=20260811-dolo-liquidity-v1";
+  const LOW_LIQUIDITY_USD = 1000;
+  const ACTIVE_HEADERS = [
+    ["chainKey","Chain"],["pair","Pair"],["wallet","Wallet"],["rangeStatus","Price Range"],
+    ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["quality","Status"],["details","Details"],
+  ];
+  const HISTORY_HEADERS = [
+    ["timestamp","Date"],["chainKey","Chain"],["pair","Pair"],["wallet","Wallet"],["action","Action"],
+    ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["details","Details"],
+  ];
+  const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const doloLpState = {
+    mode: "active",
+    query: "",
+    chain: "all",
+    pairs: new Set(),
+    dexes: new Set(),
+    includeLowLiquidity: false,
+    historyPeriod: "30d",
+    historyAction: "all",
+    activeSort: {key:"valueUsd", dir:"desc"},
+    historySort: {key:"timestamp", dir:"desc"},
+    page: 0,
+    pageSize: 10,
+    expandedId: null,
+    data: null,
+    error: null,
+  };
+  window.doloLpState = doloLpState;
+
+  const byId = id => document.getElementById(id);
+  const esc = value => String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+  const normalized = value => String(value || "").toLowerCase();
+  const finite = value => typeof value === "number" && Number.isFinite(value);
+  const shortAddress = value => value ? `${value.slice(0,6)}…${value.slice(-4)}` : "Unavailable";
+  const money = value => {
+    if(!finite(value)) return "Unavailable";
+    if(value >= 1e9) return `$${(value/1e9).toFixed(2)}B`;
+    if(value >= 1e6) return `$${(value/1e6).toFixed(2)}M`;
+    if(value >= 1e3) return `$${(value/1e3).toFixed(1)}K`;
+    return `$${value.toFixed(2)}`;
+  };
+  const number = value => Number(value || 0).toLocaleString("en-US", {maximumFractionDigits:2});
+  const agoLabel = iso => {
+    const timestamp = Date.parse(iso || "");
+    if(!Number.isFinite(timestamp)) return "update unavailable";
+    const minutes = Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+    if(minutes < 1) return "now";
+    if(minutes < 60) return `${minutes}m ago`;
+    const hours = Math.round(minutes / 60);
+    return hours < 48 ? `${hours}h ago` : `${Math.round(hours/24)}d ago`;
+  };
+  const sourceFor = row => doloLpState.data?.sources?.find(source => source.key === row.sourceKey) || null;
+  const poolFor = row => doloLpState.data?.pools?.find(pool => pool.identifier === row.poolId) || null;
+  const poolDexKey = pool => pool ? `${pool.dex} ${pool.version}` : "Unavailable";
+  function poolPassesLowLiquidity(row){
+    if(row.liquidityUsd === null) return true;
+    return doloLpState.includeLowLiquidity || row.liquidityUsd >= LOW_LIQUIDITY_USD;
+  }
+  function walletAddress(row){ return normalized(row.beneficialOwner || row.custodian); }
+  function walletLabel(row){
+    if(!row.beneficialOwner) return "Custodied / unresolved";
+    const info = window.DOLO_ADDR_LABELS?.[walletAddress(row)];
+    return info?.label || "Wallet";
+  }
+  function rowMatchesFilters(row){
+    const pool = poolFor(row);
+    if(!pool || !poolPassesLowLiquidity(pool)) return false;
+    if(doloLpState.chain !== "all" && row.chainKey !== doloLpState.chain) return false;
+    if(doloLpState.pairs.size && !doloLpState.pairs.has(pool.pair)) return false;
+    if(doloLpState.dexes.size && !doloLpState.dexes.has(poolDexKey(pool))) return false;
+    const query = doloLpState.query.trim().toLowerCase();
+    if(query && ![walletAddress(row),walletLabel(row),pool.pair,pool.dex,row.positionId].some(value => String(value || "").toLowerCase().includes(query))) return false;
+    return true;
+  }
+  function historyMatches(row){
+    if(!rowMatchesFilters(row)) return false;
+    if(doloLpState.historyAction === "added" && !["Added","Increased"].includes(row.action)) return false;
+    if(doloLpState.historyAction === "removed" && !["Removed","Closed"].includes(row.action)) return false;
+    if(doloLpState.historyPeriod === "all") return true;
+    const seconds = {"24h":86400,"7d":604800,"30d":2592000,"90d":7776000}[doloLpState.historyPeriod];
+    return Number(row.timestamp || 0) >= Date.now()/1000 - seconds;
+  }
+  function compareRows(a,b,key,dir){
+    const av = key === "wallet" ? walletLabel(a) : a[key];
+    const bv = key === "wallet" ? walletLabel(b) : b[key];
+    const aMissing = av === null || av === undefined;
+    const bMissing = bv === null || bv === undefined;
+    if(aMissing !== bMissing) return aMissing ? 1 : -1;
+    const comparison = typeof av === "number" && typeof bv === "number"
+      ? av - bv
+      : String(av ?? "").localeCompare(String(bv ?? ""), "en", {numeric:true});
+    return dir === "asc" ? comparison : -comparison;
+  }
+  function filteredRows(){
+    if(!doloLpState.data) return [];
+    const rows = doloLpState.mode === "active"
+      ? doloLpState.data.activePositions.filter(rowMatchesFilters)
+      : doloLpState.data.history.filter(historyMatches);
+    const sort = doloLpState.mode === "active" ? doloLpState.activeSort : doloLpState.historySort;
+    return [...rows].sort((a,b) => compareRows(a,b,sort.key,sort.dir) || String(a.id).localeCompare(String(b.id)));
+  }
+  function rawAmount(raw, decimals){
+    if(raw === null || raw === undefined || !/^\d+$/.test(String(raw))) return "Unavailable";
+    const value = String(raw).padStart(decimals + 1, "0");
+    const whole = value.slice(0, -decimals) || "0";
+    const fraction = value.slice(-decimals).replace(/0+$/, "").slice(0, 4);
+    return Number(whole).toLocaleString("en-US") + (fraction ? `.${fraction}` : "");
+  }
+  function pairDecimals(pool){ return ["USDC","USDC.e","USD1"].includes(pool?.pairedSymbol) ? 6 : 18; }
+  function chainCell(chain){
+    const label = chain === "ethereum" ? "Ethereum" : "Berachain";
+    return `<span class="chain-chip"><span class="dot dot-${esc(chain)}"></span>${label}</span>`;
+  }
+  function pairCell(pool){
+    if(!pool) return "Unavailable";
+    return `<div class="dolo-lp-pair"><strong>${esc(pool.pair)}</strong><span>${esc(pool.dex)} · ${esc(pool.version)}</span></div>`;
+  }
+  function walletCell(row){
+    const address = walletAddress(row);
+    const label = walletLabel(row);
+    if(!address) return `<div class="addr-cell"><span class="addr-name">${esc(label)}</span><span class="addr-mono">No beneficiary proof</span></div>`;
+    return `<div class="addr-cell">
+      <div class="addr-line top"><span class="addr-name">${esc(label)}</span></div>
+      <div class="addr-line bot">
+        <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(address)}">${esc(shortAddress(address))}</span>
+        <button class="addr-copy" type="button" data-dolo-lp-copy="${esc(address)}" aria-label="Copy address">${COPY_ICON}</button>
+        <a class="addr-debank" href="https://debank.com/profile/${esc(address)}" target="_blank" rel="noopener" aria-label="View on DeBank"><img src="https://debank.com/favicon.ico" alt="" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'"></a>
+      </div>
+    </div>`;
+  }
+  function rangeCell(row){
+    if(row.rangeStatus === "full_range") return `<div class="dolo-lp-range"><span>Full range</span><small>Always active</small></div>`;
+    const range = row.rangeLower != null && row.rangeUpper != null ? `${number(Number(row.rangeLower))}–${number(Number(row.rangeUpper))}` : "Unavailable";
+    return `<div class="dolo-lp-range"><span>${esc(range)}</span><small>${esc(String(row.rangeStatus || "unavailable").replaceAll("_"," "))}</small></div>`;
+  }
+  function chip(value){
+    const normalizedValue = String(value || "unavailable").replaceAll("_","-");
+    return `<span class="dolo-lp-chip ${esc(normalizedValue)}">${esc(String(value || "Unavailable").replaceAll("_"," "))}</span>`;
+  }
+  function poolLink(row,pool){
+    if(!pool) return null;
+    if(row.poolIdentifierType === "contract"){
+      const base = row.chainKey === "ethereum" ? "https://etherscan.io/address/" : "https://berascan.com/address/";
+      return base + pool.identifier;
+    }
+    return pool.dexscreenerUrl || pool.sourceUrl || null;
+  }
+  function detailRow(row){
+    const pool = poolFor(row);
+    const source = sourceFor(row);
+    const link = poolLink(row,pool);
+    const txBase = row.chainKey === "ethereum" ? "https://etherscan.io/tx/" : "https://berascan.com/tx/";
+    const custody = row.beneficialOwner && row.custodian && normalized(row.beneficialOwner) !== normalized(row.custodian)
+      ? `${row.attributionPath || "verified path"} via ${shortAddress(row.custodian)}`
+      : row.attributionPath || "Direct ownership";
+    return `<tr class="dolo-lp-detail-row" id="dolo-lp-details-${esc(row.id)}"><td colspan="9"><div class="dolo-lp-details-grid">
+      <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Attribution</div><div class="dolo-lp-detail-value">${esc(custody)}</div></div>
+      <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Position</div><div class="dolo-lp-detail-value">${esc(row.positionId || row.positionType || "Fungible LP")}</div></div>
+      <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Source quality</div><div class="dolo-lp-detail-value">${esc(source?.status || row.quality || "Unavailable")}${source?.errors?.length ? ` · ${esc(source.errors.join("; "))}` : ""}</div></div>
+      <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Provenance</div><div class="dolo-lp-detail-value">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Open pool ↗</a>` : "Pool link unavailable"}${row.txHash ? ` · <a href="${txBase}${esc(row.txHash)}" target="_blank" rel="noopener">Transaction ↗</a>` : ""}</div></div>
+    </div></td></tr>`;
+  }
+  function activeRow(row){
+    const pool = poolFor(row);
+    const expanded = doloLpState.expandedId === row.id;
+    const cells = `<tr data-dolo-lp-row="${esc(row.id)}">
+      <td>${chainCell(row.chainKey)}</td><td>${pairCell(pool)}</td><td>${walletCell(row)}</td><td>${rangeCell(row)}</td>
+      <td class="num">${rawAmount(row.doloRaw,18)}</td><td class="num">${rawAmount(row.pairedRaw,pairDecimals(pool))} ${esc(pool?.pairedSymbol || "")}</td>
+      <td class="num">${money(row.valueUsd)}</td><td>${chip(row.rangeStatus === "out_of_range" ? "out_of_range" : row.quality)}</td>
+      <td><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-expanded="${expanded}">Details</button></td></tr>`;
+    return cells + (expanded ? detailRow(row) : "");
+  }
+  function historyRow(row){
+    const pool = poolFor(row);
+    const expanded = doloLpState.expandedId === row.id;
+    const date = row.timestamp ? new Date(row.timestamp*1000).toLocaleDateString("en-US", {month:"short",day:"numeric",year:"numeric"}) : "Unavailable";
+    const cells = `<tr data-dolo-lp-row="${esc(row.id)}"><td>${esc(date)}</td><td>${chainCell(row.chainKey)}</td><td>${pairCell(pool)}</td><td>${walletCell(row)}</td>
+      <td>${chip(row.action)}</td><td class="num">${rawAmount(row.doloRaw,18)}</td><td class="num">${rawAmount(row.pairedRaw,pairDecimals(pool))} ${esc(pool?.pairedSymbol || "")}</td>
+      <td class="num">${money(row.valueUsd)}</td><td><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-expanded="${expanded}">Details</button></td></tr>`;
+    return cells + (expanded ? detailRow(row) : "");
+  }
+  function renderHeaders(){
+    const headers = doloLpState.mode === "active" ? ACTIVE_HEADERS : HISTORY_HEADERS;
+    const sort = doloLpState.mode === "active" ? doloLpState.activeSort : doloLpState.historySort;
+    byId("dolo-lp-head").innerHTML = `<tr>${headers.map(([key,label]) => `<th ${!["details"].includes(key) ? `data-dolo-lp-sort="${key}"` : ""} class="${["doloRaw","pairedRaw","valueUsd"].includes(key) ? "num " : ""}${sort.key === key ? "sorted" : ""}">${label}</th>`).join("")}</tr>`;
+  }
+  function renderSummary(rows){
+    const stats = byId("dolo-lp-summary");
+    if(doloLpState.mode === "active"){
+      const value = rows.reduce((sum,row) => sum + (finite(row.valueUsd) ? row.valueUsd : 0),0);
+      const wallets = new Set(rows.map(row => normalized(row.beneficialOwner)).filter(Boolean)).size;
+      const values = [["Active Liquidity",money(value)],["LP Wallets",number(wallets)],["Active Positions",number(rows.length)],["Out of Range",number(rows.filter(row=>row.rangeStatus === "out_of_range").length)]];
+      stats.innerHTML = values.map(([label,value]) => `<div class="dolo-lp-stat"><div class="dolo-lp-stat-label">${label}</div><div class="dolo-lp-stat-value">${value}</div></div>`).join("");
+      return;
+    }
+    const addedRows = rows.filter(row => ["Added","Increased"].includes(row.action));
+    const removedRows = rows.filter(row => ["Removed","Closed"].includes(row.action));
+    const added = addedRows.reduce((sum,row)=>sum+(finite(row.valueUsd)?row.valueUsd:0),0);
+    const removed = removedRows.reduce((sum,row)=>sum+(finite(row.valueUsd)?row.valueUsd:0),0);
+    const wallets = new Set(rows.map(walletAddress).filter(Boolean)).size;
+    const values = [["Added · selected period",money(added)],["Removed · selected period",money(removed)],["Net Liquidity",money(added-removed)],["Active Wallets",number(wallets)]];
+    stats.innerHTML = values.map(([label,value]) => `<div class="dolo-lp-stat"><div class="dolo-lp-stat-label">${label}</div><div class="dolo-lp-stat-value">${value}</div></div>`).join("");
+  }
+  function renderPager(total){
+    const pages = Math.max(1,Math.ceil(total/doloLpState.pageSize));
+    doloLpState.page = Math.min(doloLpState.page,pages-1);
+    byId("dolo-lp-pager").innerHTML = `<button class="pg-btn" data-dolo-lp-page="prev" ${doloLpState.page===0?"disabled":""} aria-label="Previous page">‹</button><span class="pg-current"><b>${doloLpState.page+1}</b><span>/</span><span>${pages}</span></span><button class="pg-btn" data-dolo-lp-page="next" ${doloLpState.page>=pages-1?"disabled":""} aria-label="Next page">›</button>`;
+  }
+  function render(){
+    renderHeaders();
+    const rows = filteredRows();
+    renderSummary(rows);
+    const total = rows.length;
+    const pages = Math.max(1,Math.ceil(total/doloLpState.pageSize));
+    doloLpState.page = Math.min(doloLpState.page,pages-1);
+    const start = doloLpState.page*doloLpState.pageSize;
+    const pageRows = rows.slice(start,start+doloLpState.pageSize);
+    const renderRow = doloLpState.mode === "active" ? activeRow : historyRow;
+    const spacerRows = Array.from({length: Math.max(0, doloLpState.pageSize - pageRows.length)}, (_,index) => `<tr class="tbl-spacer-row dolo-lp-empty"><td colspan="9">${index===0 && !pageRows.length ? esc(doloLpState.error || "No verified positions match these filters.") : "—"}</td></tr>`).join("");
+    byId("dolo-lp-body").innerHTML = pageRows.map(renderRow).join("") + spacerRows;
+    byId("dolo-lp-info").textContent = total ? `${start+1}–${Math.min(start+doloLpState.pageSize,total)} of ${total.toLocaleString("en-US")}` : "0–0 of 0";
+    byId("dolo-lp-count").textContent = doloLpState.data ? `${new Set(rows.map(walletAddress).filter(Boolean)).size.toLocaleString("en-US")} wallets · ${total.toLocaleString("en-US")} ${doloLpState.mode === "active" ? "positions" : "events"}` : "— wallets · — positions";
+    renderPager(total);
+  }
+  function fillMultiFilter(id,values,set){
+    const root = byId(id);
+    const options = root.querySelector(".dolo-lp-filter-options");
+    options.innerHTML = values.map(value => `<label class="dolo-lp-filter-option"><input type="checkbox" value="${esc(value)}">${esc(value)}</label>`).join("");
+    options.querySelectorAll("input").forEach(input => input.addEventListener("change",()=>{
+      input.checked ? set.add(input.value) : set.delete(input.value);
+      root.querySelector("summary").textContent = set.size ? `${set.size} selected` : (id.endsWith("pairs") ? "All pairs" : "All DEXes");
+      doloLpState.page=0; render();
+    }));
+  }
+  function bind(){
+    document.querySelectorAll("[data-dolo-lp-mode]").forEach(button => button.addEventListener("click",()=>{
+      doloLpState.mode=button.dataset.doloLpMode; doloLpState.page=0; doloLpState.expandedId=null;
+      document.querySelectorAll("[data-dolo-lp-mode]").forEach(item=>item.setAttribute("aria-pressed",String(item===button)));
+      byId("dolo-lp-history-controls").hidden=doloLpState.mode!=="history"; render();
+    }));
+    byId("dolo-lp-search").addEventListener("input",event=>{doloLpState.query=event.target.value;doloLpState.page=0;render()});
+    byId("dolo-lp-search-clear").addEventListener("click",()=>{const input=byId("dolo-lp-search");input.value="";input.dispatchEvent(new Event("input",{bubbles:true}));input.focus()});
+    byId("dolo-lp-chain").addEventListener("change",event=>{doloLpState.chain=event.target.value;doloLpState.page=0;render()});
+    byId("dolo-lp-low-liquidity").addEventListener("change",event=>{doloLpState.includeLowLiquidity=event.target.checked;doloLpState.page=0;render()});
+    byId("dolo-lp-history-period").addEventListener("change",event=>{doloLpState.historyPeriod=event.target.value;doloLpState.page=0;render()});
+    byId("dolo-lp-history-action").addEventListener("change",event=>{doloLpState.historyAction=event.target.value;doloLpState.page=0;render()});
+    byId("dolo-lp-card").addEventListener("click",async event=>{
+      const sortHeader=event.target.closest("[data-dolo-lp-sort]");
+      if(sortHeader){const sort=doloLpState.mode==="active"?doloLpState.activeSort:doloLpState.historySort;const key=sortHeader.dataset.doloLpSort;sort.dir=sort.key===key&&sort.dir==="desc"?"asc":"desc";sort.key=key;doloLpState.page=0;render();return}
+      const details=event.target.closest("[data-dolo-lp-details]");
+      if(details){doloLpState.expandedId=doloLpState.expandedId===details.dataset.doloLpDetails?null:details.dataset.doloLpDetails;render();return}
+      const page=event.target.closest("[data-dolo-lp-page]");
+      if(page&&!page.disabled){doloLpState.page+=page.dataset.doloLpPage==="next"?1:-1;render();return}
+      const copy=event.target.closest("[data-dolo-lp-copy]");
+      if(copy){event.preventDefault();event.stopPropagation();try{await navigator.clipboard.writeText(copy.dataset.doloLpCopy);copy.classList.add("copied");setTimeout(()=>copy.classList.remove("copied"),900)}catch(_error){}}
+    });
+  }
+  async function load(){
+    try{
+      const response=await fetch(DATA_URL,{cache:"no-cache"});
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data=await response.json();
+      if(!Array.isArray(data.pools)||!Array.isArray(data.activePositions)||!Array.isArray(data.history)) throw new Error("invalid artifact");
+      doloLpState.data=data;
+      fillMultiFilter("dolo-lp-pairs",[...new Set(data.pools.map(pool=>pool.pair))].sort(),doloLpState.pairs);
+      fillMultiFilter("dolo-lp-dexes",[...new Set(data.pools.map(poolDexKey))].sort(),doloLpState.dexes);
+      const affected=data.sources.filter(source=>source.status!=="complete");
+      const warning=byId("dolo-lp-warning");
+      warning.classList.toggle("visible",affected.length>0);
+      warning.dataset.tooltip=affected.length?affected.map(source=>`${source.key}: ${source.status}${source.errors?.length?` — ${source.errors.join("; ")}`:""}`).join("\n"):"All adapters complete";
+      byId("dolo-lp-meta").innerHTML=`<span class="pulse${affected.length?" pulse-loading":""}"></span>Data updated · ${agoLabel(data.generatedAt)}`;
+      render();
+    }catch(error){
+      doloLpState.error="Data unavailable — try again later";
+      byId("dolo-lp-meta").innerHTML='<span class="pulse pulse-err"></span>Data unavailable — try again later';
+      render();
+      console.warn("DOLO liquidity load failed",error);
+    }
+  }
+  bind(); render();
+  const start=()=>load();
+  if(typeof requestAnimationFrame==="function") requestAnimationFrame(()=>setTimeout(start,0)); else setTimeout(start,0);
 })();
 </script>
 <script>

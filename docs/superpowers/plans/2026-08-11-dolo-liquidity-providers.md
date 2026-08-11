@@ -689,7 +689,7 @@ Check one row from each available class against RPC evidence:
 2. Ethereum Uniswap v4 direct position.
 3. Berachain Kodiak v3 direct position.
 4. Kodiak Island/farm attributed position, or an explicit zero-count/unavailable source status if none exists.
-5. Berachain V2 direct position.
+5. Berachain Bulla Algebra Integral direct position.
 
 Record pool identifier, owner/custodian, raw liquidity/share balance, token amounts, status, source block, and transaction link. Do not promote an adapter when the evidence is incomplete.
 

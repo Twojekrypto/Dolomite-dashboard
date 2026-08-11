@@ -54,6 +54,7 @@ class AddressMatchTableScopeTest(unittest.TestCase):
                 ("vedolo-preview.html", "locks-table"),
                 ("vedolo-preview.html", "unlocks-table"),
                 ("vedolo-preview.html", "claimable-table"),
+                ("dolo-preview.html", "dolo-lp-table"),
                 ("odolo-preview.html", "tbl-latest-ex"),
                 ("odolo-preview.html", "tbl-latest-pair"),
                 ("liquidation-preview.html", "positions-table"),
@@ -70,7 +71,7 @@ class AddressMatchTableScopeTest(unittest.TestCase):
                 )
             },
         )
-        self.assertEqual(len(records), 10)
+        self.assertEqual(len(records), 11)
 
     def test_opted_in_pages_render_canonical_full_addresses(self):
         vedolo = (ROOT / "vedolo-preview.html").read_text(encoding="utf-8")
@@ -84,6 +85,8 @@ class AddressMatchTableScopeTest(unittest.TestCase):
         for renderer in ("function renderLatestExercises", "function renderLatestPairs"):
             self.assertIn(renderer, odolo)
         self.assertGreaterEqual(odolo.count("data-full-addr"), 2)
+
+        self.assertIn("function walletCell", (ROOT / "dolo-preview.html").read_text(encoding="utf-8"))
 
         for renderer in ("renderDoloAddressTools", "renderActivityAddressTools"):
             self.assertIn(renderer, liquidation)
