@@ -21,6 +21,15 @@ const mapType = new Function(
   `${preview.slice(mapTypeStart, mapTypeEnd)}\nreturn mapType;`,
 )();
 
+const holderTypeStart = preview.indexOf("function holderDistributionType(addr, source)");
+const holderTypeEnd = preview.indexOf("// Pipeline emits some timestamps", holderTypeStart);
+assert.notEqual(holderTypeStart, -1);
+assert.notEqual(holderTypeEnd, -1);
+const holderDistributionType = new Function(
+  "sharedAddressInfo",
+  `${preview.slice(holderTypeStart, holderTypeEnd)}\nreturn holderDistributionType;`,
+)(() => null);
+
 test("protocol labels stay independently filterable", () => {
   assert.equal(typeModel.ADDRESS_TYPES.includes("protocol"), true);
   assert.equal(typeModel.TYPE_LABELS.protocol, "Protocol");
@@ -28,4 +37,10 @@ test("protocol labels stay independently filterable", () => {
     mapType({ type: "protocol" }, { contract_wallet_type: "safe" }),
     "protocol",
   );
+});
+
+test("EIP-7702 delegated accounts remain user wallets despite legacy contract flags", () => {
+  const holder = { is_contract: true, contract_wallet_type: "delegated_eoa" };
+  assert.equal(mapType(null, holder), "eoa");
+  assert.equal(holderDistributionType("0xabc", holder), "eoa");
 });

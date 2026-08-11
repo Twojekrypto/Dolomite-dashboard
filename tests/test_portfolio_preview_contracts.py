@@ -57,7 +57,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn('min-height:24px', self.html)
         self.assertNotIn("EMODE_FLAME", self.html)
         self.assertNotIn('<path d="M15 8H9v8h6M9 12h5"/>', self.html)
-        self.assertIn("E-Mode applies special risk parameters", self.html)
+        self.assertIn("E-Mode allows you to borrow with a higher LTV", self.html)
         self.assertNotIn("${portfolioAddressCell(r.address)}", borrow_render)
         self.assertNotIn("function portfolioAddressCell(addr)", self.html)
         self.assertNotIn("holder-wallet", self.html)

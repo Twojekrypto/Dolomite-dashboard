@@ -526,6 +526,20 @@ class FreshWalletTests(unittest.TestCase):
             "multisig",
         )
 
+    def test_eip7702_delegated_account_is_not_classified_as_ca(self):
+        candidate = "0x1111111111111111111111111111111111111111"
+        holder_rows = {
+            candidate: {
+                "is_contract": True,
+                "contract_wallet_type": "delegated_eoa",
+            },
+        }
+
+        self.assertEqual(
+            flows.holder_distribution_type(candidate, holder_rows, {}),
+            "eoa",
+        )
+
     def test_holder_wallet_history_rows_include_safe_user_wallets(self):
         safe_wallet = "0x1111111111111111111111111111111111111111"
         cex_wallet = "0x2222222222222222222222222222222222222222"

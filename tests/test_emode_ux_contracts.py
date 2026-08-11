@@ -10,9 +10,9 @@ EARN_JS = ROOT / "dashboard-core.js"
 EARN_HTML = ROOT / "dashboard-core.html"
 
 EMODE_TIP = (
-    "E-Mode applies special risk parameters for correlated assets in the same category. "
-    "It can improve borrow efficiency, but liquidation still depends on the account's "
-    "collateral, debt, and selected E-Mode category."
+    "E-Mode allows you to borrow with a higher LTV and decreased liquidation penalty, "
+    "as long as all of the assets in your position are within the selected Asset Category. "
+    "Learn more"
 )
 FLAME_HIGHLIGHT = (
     '<path d="M12.2 11.45c.1.93-.78 1.32-.78 2.22a.78.78 0 1 0 1.56 0'
@@ -56,11 +56,11 @@ class EModeUxContractsTest(unittest.TestCase):
 
     def test_changed_pages_have_fresh_cache_versions(self):
         route_versions = {
-            "portfolio/index.html": "20260713-emode-expand",
-            "liquidation/index.html": "20260713-emode",
-            "borrow/index.html": "20260713-emode",
-            "supply/index.html": "20260713-emode",
-            "earn/index.html": "earn-core-20260724-mismatch-floor",
+            "portfolio/index.html": "emode-copy-20260811",
+            "liquidation/index.html": "emode-copy-20260811",
+            "borrow/index.html": "emode-copy-20260811",
+            "supply/index.html": "emode-copy-20260811",
+            "earn/index.html": "emode-copy-20260811",
             "rewards/index.html": "20260713-supply-copy",
         }
         for path, version in route_versions.items():
@@ -71,7 +71,7 @@ class EModeUxContractsTest(unittest.TestCase):
             self.earn_html,
         )
         self.assertIn(
-            "dashboard-core.js?v=core-split-20260724-mismatch-floor",
+            "dashboard-core.js?v=core-split-20260724-mismatch-floor-official-icons-20260803-investor-provenance-20260805-emode-copy-20260811",
             self.earn_html,
         )
 

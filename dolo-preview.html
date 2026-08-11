@@ -1843,6 +1843,9 @@ function isSafeWallet(source, info = null){
   const safeType = String(source?.contract_wallet_type || source?.contractWalletType || "").toLowerCase();
   return safeType === "safe" || safeType === "multisig" || info?.safe === true;
 }
+function isDelegatedEoa(source){
+  return String(source?.contract_wallet_type || source?.contractWalletType || "").toLowerCase() === "delegated_eoa";
+}
 function holderDistributionType(addr, source){
   const info = sharedAddressInfo(addr);
   const t = (info && info.type) || source?.type || "";
@@ -1856,6 +1859,7 @@ function holderDistributionType(addr, source){
   if(t === "bot" || t === "liquidator") return "bot";
   if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || source?.type === "ca") return "ca";
   if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
+  if(contractWalletType === "delegated_eoa") return "eoa";
   if(source?.is_contract) return "ca";
   return "eoa";
 }
@@ -5375,6 +5379,7 @@ renderCexSupplyChart();
     if(t === "protocol") return "protocol";
     if(t === "lp" || t === "contract" || t === "dead" || holder?.type === "ca") return "ca";
     if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
+    if(contractWalletType === "delegated_eoa") return "eoa";
     if(holder?.is_contract) return "ca";
     return "eoa";
   }
@@ -5391,6 +5396,7 @@ renderCexSupplyChart();
     const info = addressInfo(addr, holder);
     if(info && info.label) return info.label;
     if(holder?.contract_wallet_type === "safe" || holder?.contractWalletType === "safe" || holder?.type === "multisig") return "Safe Multisig";
+    if(isDelegatedEoa(holder)) return null;
     if(holder?.is_contract || holder?.type === "ca") return "Smart Contract / CA";
     return null;
   }
@@ -5398,7 +5404,7 @@ renderCexSupplyChart();
     const signals = {};
     const contractAddresses = new Set(
       (holdersData?.holders || [])
-        .filter(holder => holder?.is_contract)
+        .filter(holder => holder?.is_contract && !isDelegatedEoa(holder))
         .map(holder => lower(holder.address))
     );
     const touch = (item, role) => {
