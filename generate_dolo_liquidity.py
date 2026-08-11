@@ -73,6 +73,11 @@ V4_EVENT_SIGNATURES = {
 }
 KODIAK_ISLAND_CREATED_SIGNATURE = "IslandCreated(address,address,address,address)"
 BULLA_INCREASE_SIGNATURE = "IncreaseLiquidity(uint256,uint128,uint128,uint256,uint256,address)"
+KODIAK_V3_SUBGRAPH = (
+    "https://api.subgraph.ormilabs.com/api/public/"
+    "d7eed6cc-ad4a-4862-8017-89893c4095d3/subgraphs/kodiak-v3/latest/gn"
+)
+BULLA_BOUNDED_LOOKBACK_BLOCKS = 1_500_000
 
 
 def _finite_decimal(value: Any, label: str, *, allow_zero: bool = True) -> Decimal:
@@ -1935,6 +1940,28 @@ def value_position_row(
     return output
 
 
+def value_exact_history_rows(
+    rows: list[dict[str, Any]],
+    *,
+    dolo_decimals: int,
+    paired_decimals: int,
+    dolo_price_usd: Decimal | None,
+    paired_price_usd: Decimal | None,
+) -> list[dict[str, Any]]:
+    """Value only history rows whose token amounts are exactly known."""
+    return [
+        value_position_row(
+            row,
+            dolo_decimals=dolo_decimals,
+            paired_decimals=paired_decimals,
+            dolo_price_usd=dolo_price_usd,
+            paired_price_usd=paired_price_usd,
+        )
+        for row in rows
+        if row.get("doloRaw") is not None and row.get("pairedRaw") is not None
+    ]
+
+
 def assemble_artifact(
     registry: dict[str, Any],
     sources: list[dict[str, Any]],
@@ -2074,6 +2101,55 @@ def _eth_call(chain_key: str, address: str, signature: str, output_types: list[s
     return _eth_call_args(chain_key, address, signature, output_types)
 
 
+def _batch_eth_call_args(
+    chain_key: str,
+    calls: list[dict[str, Any]],
+) -> tuple[dict[str, tuple[Any, ...]], dict[str, str]]:
+    """Run bounded read-only contract calls and decode each result independently."""
+    payloads = []
+    definitions = {}
+    for call in calls:
+        call_id = str(call.get("id") or "")
+        if not call_id or call_id in definitions:
+            raise ValueError("batch eth_call IDs must be unique and non-empty")
+        address = _normalized_address(call.get("address"), "batch call contract")
+        signature = str(call.get("signature") or "")
+        selector = Web3.keccak(text=signature).hex()[:8]
+        encoded_args = encode(call.get("inputTypes") or [], call.get("args") or []).hex()
+        payloads.append(
+            {
+                "jsonrpc": "2.0",
+                "id": call_id,
+                "method": "eth_call",
+                "params": [{"to": address, "data": "0x" + selector + encoded_args}, "latest"],
+            }
+        )
+        definitions[call_id] = call
+    responses, missing = rpc_batch_requests(
+        get_endpoints(chain_key),
+        payloads,
+        timeout=45,
+        batch_size=40,
+        min_batch_interval_seconds=0.12,
+        quiet=True,
+        describe=f"{chain_key} liquidity contract calls",
+    )
+    values = {}
+    errors = {str(call_id): "RPC call unavailable" for call_id in missing}
+    for call_id, response in responses.items():
+        result = response.get("result") if isinstance(response, dict) else None
+        if not isinstance(result, str) or not re.fullmatch(r"0x(?:[0-9a-fA-F]{2})+", result):
+            errors[str(call_id)] = "invalid eth_call response"
+            continue
+        try:
+            values[str(call_id)] = tuple(
+                decode(definitions[str(call_id)]["outputTypes"], bytes.fromhex(result[2:]))
+            )
+        except Exception as exc:
+            errors[str(call_id)] = sanitize_error(exc)
+    return values, errors
+
+
 def _eth_code(chain_key: str, address: str) -> str:
     contract = _normalized_address(address, "code address")
     response = rpc_single_request(
@@ -2096,11 +2172,60 @@ def _routescan_logs(
     *,
     session: requests.Session | None = None,
     discovery_only: bool = False,
+    indexed_topics: dict[int, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Read canonical on-chain logs from Routescan's Etherscan-compatible API."""
     client = session or requests.Session()
     url = f"https://api.routescan.io/v2/network/mainnet/evm/{chain_id}/etherscan/api"
     normalized_address = _normalized_address(address, "Routescan log address")
+    filters = {}
+    previous_topic = 0
+    for topic_index, topic_value in sorted((indexed_topics or {}).items()):
+        if isinstance(topic_index, bool) or topic_index not in {1, 2, 3}:
+            raise ValueError("Routescan indexed topic must be 1, 2, or 3")
+        normalized_topic = str(topic_value or "").strip().lower()
+        if not POOL_ID_RE.fullmatch(normalized_topic):
+            raise ValueError(f"Routescan topic{topic_index} must be bytes32")
+        filters[f"topic{topic_index}"] = normalized_topic
+        filters[f"topic{previous_topic}_{topic_index}_opr"] = "and"
+        previous_topic = topic_index
+
+    def recover_incomplete_log(raw: dict[str, Any]) -> dict[str, Any] | None:
+        chain_key = {1: "ethereum", 80094: "berachain"}.get(chain_id)
+        if chain_key is None:
+            raise ValueError(f"unsupported Routescan chain {chain_id}")
+        tx_hash = str(raw.get("transactionHash") or "").lower()
+        response = rpc_single_request(
+            get_endpoints(chain_key),
+            {
+                "jsonrpc": "2.0",
+                "id": f"receipt:{tx_hash}",
+                "method": "eth_getTransactionReceipt",
+                "params": [tx_hash],
+            },
+            describe=f"{chain_key} incomplete Routescan log receipt",
+        )
+        receipt = response.get("result") if isinstance(response, dict) else None
+        receipt_logs = receipt.get("logs") if isinstance(receipt, dict) else None
+        if not isinstance(receipt_logs, list):
+            raise RuntimeError("could not recover incomplete Routescan log receipt")
+        if not receipt_logs and _rpc_hex_int(receipt.get("status"), "receipt status") == 0:
+            # Routescan occasionally indexes a phantom event row for a reverted
+            # transaction. The canonical receipt proves that no log was emitted.
+            return None
+        expected_index = _rpc_hex_int(raw.get("logIndex"), "Routescan log index")
+        matches = [
+            row for row in receipt_logs
+            if _rpc_hex_int(row.get("logIndex"), "receipt log index") == expected_index
+            and str(row.get("address") or "").lower() == normalized_address
+        ]
+        if not matches:
+            # A canonical receipt without the indexed address/logIndex proves
+            # the Routescan row is non-canonical and must be excluded.
+            return None
+        if len(matches) != 1:
+            raise RuntimeError("could not identify one exact incomplete Routescan log")
+        return {**matches[0], "timeStamp": raw.get("timeStamp")}
 
     def fetch_range(start: int, end: int, depth: int = 0) -> list[dict[str, Any]]:
         if depth > 24:
@@ -2118,6 +2243,7 @@ def _routescan_logs(
                     "topic0": topic0,
                     "page": page,
                     "offset": 1000,
+                    **filters,
                 },
                 timeout=45,
                 headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
@@ -2134,6 +2260,14 @@ def _routescan_logs(
             if not isinstance(rows, list):
                 raise RuntimeError(f"Routescan logs failed: {sanitize_error(rows or payload)}")
             for row_index, raw in enumerate(rows):
+                raw_data = raw.get("data") if isinstance(raw, dict) else None
+                if not (
+                    isinstance(raw_data, str)
+                    and re.fullmatch(r"0x(?:[0-9a-fA-F]{2})*", raw_data)
+                ):
+                    raw = recover_incomplete_log(raw)
+                    if raw is None:
+                        continue
                 if discovery_only and not (
                     isinstance(raw.get("logIndex"), str)
                     and str(raw.get("logIndex")).lower().startswith("0x")
@@ -2296,6 +2430,165 @@ def _bulla_owner(
     return _normalized_address(owner, "Bulla position owner")
 
 
+def select_bulla_pool_token_ids(
+    position_manager_logs: list[dict[str, Any]], pool_address: str
+) -> set[int]:
+    """Return token IDs proven by Bulla's pool-bearing NPM increase event."""
+    target = _normalized_address(pool_address, "Bulla pool")
+    token_ids = set()
+    for log in position_manager_logs:
+        event = decode_bulla_npm_log(log)
+        if event is not None and event["kind"] == "increase" and event.get("pool") == target:
+            token_ids.add(_exact_int(event["tokenId"], "Bulla tokenId"))
+    return token_ids
+
+
+def _topic_for_address(address: str) -> str:
+    return "0x" + _normalized_address(address, "indexed address")[2:].rjust(64, "0")
+
+
+def _topic_for_uint(value: int) -> str:
+    integer = _exact_int(value, "indexed uint")
+    if integer < 0:
+        raise ValueError("indexed uint must be nonnegative")
+    return "0x" + f"{integer:064x}"
+
+
+def _v3_position(
+    chain_key: str, position_manager: str, token_id: int, *, block: int | str = "latest"
+) -> dict[str, Any]:
+    values = _eth_call_args(
+        chain_key,
+        position_manager,
+        "positions(uint256)",
+        [
+            "uint96", "address", "address", "address", "uint24", "int24", "int24",
+            "uint128", "uint256", "uint256", "uint128", "uint128",
+        ],
+        input_types=["uint256"],
+        args=[token_id],
+        block=block,
+    )
+    return {
+        "token0": str(values[2]).lower(),
+        "token1": str(values[3]).lower(),
+        "fee": int(values[4]),
+        "tickLower": int(values[5]),
+        "tickUpper": int(values[6]),
+        "liquidity": int(values[7]),
+    }
+
+
+def _v3_owner(chain_key: str, position_manager: str, token_id: int) -> str:
+    owner, = _eth_call_args(
+        chain_key,
+        position_manager,
+        "ownerOf(uint256)",
+        ["address"],
+        input_types=["uint256"],
+        args=[token_id],
+    )
+    return _normalized_address(owner, "V3 position owner")
+
+
+def _v3_pool_state(chain_key: str, pool_address: str, adapter: str) -> dict[str, Any]:
+    token0, = _eth_call(chain_key, pool_address, "token0()", ["address"])
+    token1, = _eth_call(chain_key, pool_address, "token1()", ["address"])
+    if adapter == "kodiak-v3":
+        slot0 = _eth_call(
+            chain_key,
+            pool_address,
+            "slot0()",
+            ["uint160", "int24", "uint16", "uint16", "uint16", "uint32", "bool"],
+        )
+    else:
+        slot0 = _eth_call(
+            chain_key,
+            pool_address,
+            "slot0()",
+            ["uint160", "int24", "uint16", "uint16", "uint16", "uint8", "bool"],
+        )
+    decimals0, = _eth_call(chain_key, str(token0), "decimals()", ["uint8"])
+    decimals1, = _eth_call(chain_key, str(token1), "decimals()", ["uint8"])
+    return {
+        "token0": str(token0).lower(),
+        "token1": str(token1).lower(),
+        "sqrtPriceX96": int(slot0[0]),
+        "currentTick": int(slot0[1]),
+        "decimals0": int(decimals0),
+        "decimals1": int(decimals1),
+    }
+
+
+def _contract_owners(chain_key: str, owners: set[str]) -> set[str]:
+    contracts = set()
+    for owner in sorted(owners):
+        try:
+            if _eth_code(chain_key, owner) not in {"0x", "0x0", "0x00"}:
+                contracts.add(owner)
+        except Exception:
+            # Classification fails closed: an owner with unavailable bytecode is
+            # treated as a contract so it cannot be mislabeled as a personal LP.
+            contracts.add(owner)
+    return contracts
+
+
+def _kodiak_position_index(pool_address: str) -> dict[int, dict[str, Any]]:
+    target = _normalized_address(pool_address, "Kodiak pool")
+    query = """
+      query Positions($pool: String!, $after: ID!) {
+        positions(first: 1000, orderBy: id, orderDirection: asc,
+          where: {pool: $pool, id_gt: $after}) {
+          id owner liquidity tickLower { tickIdx } tickUpper { tickIdx }
+          pool { id feeTier tick sqrtPrice token0 { id decimals } token1 { id decimals } }
+        }
+      }
+    """
+    rows = []
+    after = ""
+    session = requests.Session()
+    while True:
+        response = session.post(
+            KODIAK_V3_SUBGRAPH,
+            json={"query": query, "variables": {"pool": target, "after": after}},
+            timeout=45,
+            headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
+        )
+        response.raise_for_status()
+        payload = response.json()
+        page = payload.get("data", {}).get("positions") if isinstance(payload, dict) else None
+        if not isinstance(page, list) or payload.get("errors"):
+            raise RuntimeError(f"Kodiak position index failed: {sanitize_error(payload)}")
+        rows.extend(page)
+        if len(page) < 1000:
+            break
+        after = str(page[-1].get("id") or "")
+        if not after:
+            raise RuntimeError("Kodiak position index returned an invalid cursor")
+    indexed = {}
+    for row in rows:
+        token_id = int(str(row.get("id") or ""))
+        pool = row.get("pool")
+        if token_id < 0 or not isinstance(pool, dict) or str(pool.get("id") or "").lower() != target:
+            raise RuntimeError("Kodiak position index returned an invalid position")
+        token0 = _normalized_address(pool.get("token0", {}).get("id"), "Kodiak token0")
+        token1 = _normalized_address(pool.get("token1", {}).get("id"), "Kodiak token1")
+        if DOLO_ADDRESS not in {token0, token1}:
+            raise RuntimeError("Kodiak index returned a non-DOLO position")
+        indexed[token_id] = {
+            "pool": target,
+            "token0": token0,
+            "token1": token1,
+            "fee": int(str(pool.get("feeTier"))),
+            "tickLower": int(str(row.get("tickLower", {}).get("tickIdx"))),
+            "tickUpper": int(str(row.get("tickUpper", {}).get("tickIdx"))),
+            "indexedLiquidity": int(str(row.get("liquidity"))),
+        }
+    if not indexed:
+        raise RuntimeError("Kodiak position index returned no positions")
+    return indexed
+
+
 def _receipt_logs_for_transactions(
     chain_key: str,
     transaction_timestamps: dict[str, int],
@@ -2373,13 +2666,61 @@ def _receipt_logs_for_transactions(
     return dedupe_logs(chain_key, logs)
 
 
-def _build_bulla_v3_live_source(
+def _build_kodiak_v3_live_source(
     registry: dict[str, Any], pool: dict[str, Any], latest_block: int
 ) -> dict[str, Any]:
+    """Build current Kodiak NFT positions from index discovery + on-chain reconciliation."""
+    chain_key = pool["chainKey"]
+    position_manager = registry["chains"][chain_key]["adapters"]["kodiak-v3"]["positionManager"]
+    indexed = _kodiak_position_index(pool["identifier"])
+    latest_positions = {}
+    unresolved = []
+    owners = set()
+    for token_id, index_row in sorted(indexed.items()):
+        try:
+            current = _v3_position(chain_key, position_manager, token_id)
+            for field in ("token0", "token1", "fee", "tickLower", "tickUpper"):
+                if current[field] != index_row[field]:
+                    raise RuntimeError(f"Kodiak position {token_id} index mismatch in {field}")
+            if current["liquidity"] <= 0:
+                continue
+            owner = _v3_owner(chain_key, position_manager, token_id)
+            owners.add(owner)
+            latest_positions[token_id] = {
+                **current,
+                "pool": pool["identifier"],
+                "owner": owner,
+            }
+        except Exception as exc:
+            unresolved.append({"tokenId": token_id, "reason": sanitize_error(exc)})
+    state = _v3_pool_state(chain_key, pool["identifier"], "kodiak-v3")
+    result = build_v3_rows(
+        pool,
+        [],
+        latest_positions,
+        state,
+        contract_addresses=_contract_owners(chain_key, owners),
+    )
+    # Current position balances and owners are on-chain verified. Kodiak's public
+    # index is used only to discover token IDs; historical ownership/action rows
+    # are withheld until an archive-complete replay can prove them.
+    result["sourceStatus"] = "partial"
+    result["unresolved"] = [
+        *unresolved,
+        {"reason": "Kodiak history withheld; current NFT positions are on-chain reconciled"},
+    ]
+    result["token0"] = state["token0"]
+    result["token1"] = state["token1"]
+    return result
+
+
+def _build_uniswap_v3_live_source(
+    registry: dict[str, Any], pool: dict[str, Any], latest_block: int
+) -> dict[str, Any]:
+    """Discover target-pool NPM tokens from pool events and reconcile live state."""
     chain_key = pool["chainKey"]
     chain = registry["chains"][chain_key]
-    config = chain["adapters"]["bulla-v3"]
-    position_manager = config["positionManager"]
+    position_manager = chain["adapters"]["uniswap-v3"]["positionManager"]
     pool_logs = []
     for signature in (
         "Mint(address,address,int24,int24,uint128,uint256,uint256)",
@@ -2387,8 +2728,11 @@ def _build_bulla_v3_live_source(
     ):
         pool_logs.extend(
             _routescan_logs(
-                chain["chainId"], pool["identifier"], event_topic(signature),
-                chain["discoveryStartBlock"], latest_block,
+                chain["chainId"],
+                pool["identifier"],
+                event_topic(signature),
+                chain["discoveryStartBlock"],
+                latest_block,
                 discovery_only=True,
             )
         )
@@ -2401,25 +2745,193 @@ def _build_bulla_v3_live_source(
             raise ValueError("one transaction cannot have conflicting timestamps")
         transaction_timestamps[tx_hash] = timestamp
     receipt_logs = _receipt_logs_for_transactions(chain_key, transaction_timestamps)
-    npm_events = []
+    npm_logs = []
+    decoded_events = []
     for log in receipt_logs:
         if log["address"] != position_manager:
             continue
-        event = decode_bulla_npm_log(log)
+        event = decode_v3_npm_log(log)
         if event is not None:
-            npm_events.append(event)
-    increases = [
-        event for event in npm_events
-        if event["kind"] == "increase" and event.get("pool") == pool["identifier"]
+            npm_logs.append(log)
+            decoded_events.append(event)
+    token_ids = {event["tokenId"] for event in decoded_events if event["kind"] == "increase"}
+    if not token_ids:
+        raise RuntimeError("Uniswap pool emitted no attributable position events")
+    first_blocks = {
+        token_id: min(
+            event["blockNumber"]
+            for event in decoded_events
+            if event.get("tokenId") == token_id and event["kind"] == "increase"
+        )
+        for token_id in token_ids
+    }
+    snapshots = {}
+    latest_positions = {}
+    unresolved = []
+    owners = set()
+    position_values, position_errors = _batch_eth_call_args(
+        chain_key,
+        [
+            {
+                "id": f"position:{token_id}",
+                "address": position_manager,
+                "signature": "positions(uint256)",
+                "inputTypes": ["uint256"],
+                "args": [token_id],
+                "outputTypes": [
+                    "uint96", "address", "address", "address", "uint24", "int24", "int24",
+                    "uint128", "uint256", "uint256", "uint128", "uint128",
+                ],
+            }
+            for token_id in sorted(token_ids)
+        ],
+    )
+    current_positions = {}
+    pool_cache = {}
+    for token_id in sorted(token_ids):
+        call_id = f"position:{token_id}"
+        try:
+            if call_id not in position_values:
+                raise RuntimeError(position_errors.get(call_id, "position unavailable"))
+            values = position_values[call_id]
+            current = {
+                "token0": str(values[2]).lower(),
+                "token1": str(values[3]).lower(),
+                "fee": int(values[4]),
+                "tickLower": int(values[5]),
+                "tickUpper": int(values[6]),
+                "liquidity": int(values[7]),
+            }
+            if current["token0"] == ZERO_ADDRESS or DOLO_ADDRESS not in {current["token0"], current["token1"]}:
+                continue
+            pool_key = (current["token0"], current["token1"], current["fee"])
+            if pool_key not in pool_cache:
+                snapshot_pool, = _eth_call_args(
+                    chain_key,
+                    chain["adapters"]["uniswap-v3"]["factory"],
+                    "getPool(address,address,uint24)",
+                    ["address"],
+                    input_types=["address", "address", "uint24"],
+                    args=list(pool_key),
+                )
+                pool_cache[pool_key] = str(snapshot_pool).lower()
+            snapshot_pool = pool_cache[pool_key]
+            if str(snapshot_pool).lower() != pool["identifier"]:
+                continue
+            snapshots[token_id] = {
+                **current,
+                "pool": pool["identifier"],
+                "snapshotBlock": first_blocks[token_id],
+            }
+            if current["liquidity"] > 0:
+                current_positions[token_id] = current
+        except Exception as exc:
+            unresolved.append({"tokenId": token_id, "reason": sanitize_error(exc)})
+    owner_values, owner_errors = _batch_eth_call_args(
+        chain_key,
+        [
+            {
+                "id": f"owner:{token_id}",
+                "address": position_manager,
+                "signature": "ownerOf(uint256)",
+                "inputTypes": ["uint256"],
+                "args": [token_id],
+                "outputTypes": ["address"],
+            }
+            for token_id in sorted(current_positions)
+        ],
+    )
+    for token_id, current in current_positions.items():
+        call_id = f"owner:{token_id}"
+        if call_id not in owner_values:
+            unresolved.append({"tokenId": token_id, "reason": owner_errors.get(call_id, "owner unavailable")})
+            continue
+        owner = _normalized_address(owner_values[call_id][0], "Uniswap v3 owner")
+        owners.add(owner)
+        latest_positions[token_id] = {
+            **current,
+            "pool": pool["identifier"],
+            "owner": owner,
+        }
+    mapped = map_v3_events_to_pools(
+        npm_logs,
+        snapshots,
+        {pool["identifier"]},
+        DOLO_ADDRESS,
+    )
+    unresolved.extend(mapped["unresolved"])
+    state = _v3_pool_state(chain_key, pool["identifier"], "uniswap-v3")
+    contract_addresses = _contract_owners(chain_key, owners)
+    try:
+        result = build_v3_rows(
+            pool,
+            mapped["eventsByPool"].get(pool["identifier"], []),
+            latest_positions,
+            state,
+            contract_addresses=contract_addresses,
+        )
+    except ValueError as exc:
+        unresolved.append({"reason": f"Uniswap v3 history withheld: {sanitize_error(exc)}"})
+        result = build_v3_rows(
+            pool,
+            [],
+            latest_positions,
+            state,
+            contract_addresses=contract_addresses,
+        )
+    # Standalone NFT transfers are not part of pool Mint/Burn receipts. Current
+    # ownerOf is exact; historical wallet attribution remains explicitly partial.
+    for row in result["history"]:
+        if row.get("quality") == "verified":
+            row["quality"] = "partial"
+    result["sourceStatus"] = "partial"
+    result["unresolved"] = [
+        *unresolved,
+        {"reason": "historical standalone NFT transfers are not attributed"},
     ]
-    token_ids = {event["tokenId"] for event in increases}
+    result["token0"] = state["token0"]
+    result["token1"] = state["token1"]
+    return result
+
+
+def _build_bulla_v3_live_source(
+    registry: dict[str, Any], pool: dict[str, Any], latest_block: int
+) -> dict[str, Any]:
+    chain_key = pool["chainKey"]
+    chain = registry["chains"][chain_key]
+    config = chain["adapters"]["bulla-v3"]
+    position_manager = config["positionManager"]
+    scan_start = max(
+        chain["discoveryStartBlock"],
+        latest_block - BULLA_BOUNDED_LOOKBACK_BLOCKS,
+    )
+    increase_logs = _routescan_logs(
+        chain["chainId"],
+        position_manager,
+        event_topic(BULLA_INCREASE_SIGNATURE),
+        scan_start,
+        latest_block,
+    )
+    token_ids = select_bulla_pool_token_ids(increase_logs, pool["identifier"])
     if not token_ids:
         raise RuntimeError("Bulla pool emitted no attributable position events")
-    # Ownership at past actions is withheld unless proven separately. Current
-    # ownership is read directly via ownerOf below.
+    decrease_logs = _routescan_logs(
+        chain["chainId"],
+        position_manager,
+        event_topic(V3_EVENT_SIGNATURES["decrease"]),
+        scan_start,
+        latest_block,
+    )
+    npm_events = [
+        event
+        for event in (decode_bulla_npm_log(log) for log in increase_logs + decrease_logs)
+        if event is not None
+    ]
     related = [
         event for event in npm_events
-        if event.get("tokenId") in token_ids and event["kind"] in {"increase", "decrease"}
+        if event.get("tokenId") in token_ids
+        and event["kind"] in {"increase", "decrease"}
+        and (event["kind"] != "increase" or event.get("pool") == pool["identifier"])
     ]
     related.sort(key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"]))
     first_blocks = {
@@ -2501,11 +3013,292 @@ def _build_bulla_v3_live_source(
         },
         contract_addresses=contract_addresses,
     )
-    result["sourceStatus"] = "partial" if unresolved else "complete"
-    result["unresolved"] = unresolved
+    for row in result["history"]:
+        if row.get("quality") == "verified":
+            row["quality"] = "partial"
+    result["sourceStatus"] = "partial"
+    result["unresolved"] = [
+        *unresolved,
+        {
+            "reason": (
+                "Bulla discovery is bounded to recent blocks and historical standalone "
+                "NFT transfers are not attributed"
+            )
+        },
+    ]
     result["token0"] = str(token0).lower()
     result["token1"] = str(token1).lower()
     return result
+
+
+def decode_v4_position_info(value: int) -> dict[str, int]:
+    """Decode Uniswap v4 PositionInfo's subscriber and signed int24 ticks."""
+    raw = _exact_int(value, "V4 position info")
+    if raw < 0 or raw >= 1 << 256:
+        raise ValueError("V4 position info must fit uint256")
+
+    def signed_int24(bits: int) -> int:
+        return bits - (1 << 24) if bits & (1 << 23) else bits
+
+    return {
+        "subscriber": raw & 0xFF,
+        "tickLower": signed_int24((raw >> 8) & 0xFFFFFF),
+        "tickUpper": signed_int24((raw >> 32) & 0xFFFFFF),
+    }
+
+
+def _v4_pool_id(pool_key: tuple[Any, ...]) -> str:
+    if len(pool_key) != 5:
+        raise ValueError("V4 PoolKey must contain five fields")
+    currency0 = _normalized_address(pool_key[0], "V4 currency0")
+    currency1 = _normalized_address(pool_key[1], "V4 currency1")
+    fee = int(pool_key[2])
+    tick_spacing = int(pool_key[3])
+    hooks = _normalized_address(pool_key[4], "V4 hooks")
+    digest = Web3.keccak(
+        encode(
+            ["address", "address", "uint24", "int24", "address"],
+            [currency0, currency1, fee, tick_spacing, hooks],
+        )
+    ).hex().lower()
+    return digest if digest.startswith("0x") else "0x" + digest
+
+
+def _build_uniswap_v4_live_source(
+    registry: dict[str, Any], pool: dict[str, Any], latest_block: int
+) -> dict[str, Any]:
+    chain_key = pool["chainKey"]
+    chain = registry["chains"][chain_key]
+    config = chain["adapters"]["uniswap-v4"]
+    pool_manager = config["poolManager"]
+    position_manager = config["positionManager"]
+    pool_logs = _routescan_logs(
+        chain["chainId"],
+        pool_manager,
+        event_topic(V4_EVENT_SIGNATURES["modify_liquidity"]),
+        chain["discoveryStartBlock"],
+        latest_block,
+        indexed_topics={
+            1: pool["identifier"],
+            2: _topic_for_address(position_manager),
+        },
+    )
+    modifications = [
+        event
+        for event in (decode_v4_pool_manager_log(log) for log in pool_logs)
+        if event is not None
+        and event.get("kind") == "modify_liquidity"
+        and event.get("sender") == position_manager
+    ]
+    token_ids = {int(event["salt"], 16) for event in modifications if int(event["salt"], 16) > 0}
+    if not token_ids:
+        raise RuntimeError("Uniswap v4 pool emitted no canonical position events")
+    latest_positions = {}
+    unresolved = []
+    owners = set()
+    info_values, info_errors = _batch_eth_call_args(
+        chain_key,
+        [
+            {
+                "id": f"info:{token_id}",
+                "address": position_manager,
+                "signature": "getPoolAndPositionInfo(uint256)",
+                "inputTypes": ["uint256"],
+                "args": [token_id],
+                "outputTypes": ["(address,address,uint24,int24,address)", "uint256"],
+            }
+            for token_id in sorted(token_ids)
+        ],
+    )
+    candidates = {}
+    for token_id in sorted(token_ids):
+        call_id = f"info:{token_id}"
+        try:
+            if call_id not in info_values:
+                raise RuntimeError(info_errors.get(call_id, "position info unavailable"))
+            pool_key, packed_info = info_values[call_id]
+            if _v4_pool_id(tuple(pool_key)) != pool["identifier"]:
+                continue
+            candidates[token_id] = (tuple(pool_key), int(packed_info))
+        except Exception as exc:
+            unresolved.append({"tokenId": token_id, "reason": sanitize_error(exc)})
+    liquidity_values, liquidity_errors = _batch_eth_call_args(
+        chain_key,
+        [
+            {
+                "id": f"liquidity:{token_id}",
+                "address": position_manager,
+                "signature": "getPositionLiquidity(uint256)",
+                "inputTypes": ["uint256"],
+                "args": [token_id],
+                "outputTypes": ["uint128"],
+            }
+            for token_id in sorted(candidates)
+        ],
+    )
+    active_candidates = {}
+    for token_id, definition in candidates.items():
+        call_id = f"liquidity:{token_id}"
+        if call_id not in liquidity_values:
+            unresolved.append({"tokenId": token_id, "reason": liquidity_errors.get(call_id, "liquidity unavailable")})
+            continue
+        liquidity_raw = int(liquidity_values[call_id][0])
+        if liquidity_raw > 0:
+            active_candidates[token_id] = (*definition, liquidity_raw)
+    owner_values, owner_errors = _batch_eth_call_args(
+        chain_key,
+        [
+            {
+                "id": f"owner:{token_id}",
+                "address": position_manager,
+                "signature": "ownerOf(uint256)",
+                "inputTypes": ["uint256"],
+                "args": [token_id],
+                "outputTypes": ["address"],
+            }
+            for token_id in sorted(active_candidates)
+        ],
+    )
+    for token_id, (pool_key, packed_info, liquidity_raw) in active_candidates.items():
+        call_id = f"owner:{token_id}"
+        if call_id not in owner_values:
+            unresolved.append({"tokenId": token_id, "reason": owner_errors.get(call_id, "owner unavailable")})
+            continue
+        owner = _normalized_address(owner_values[call_id][0], "V4 position owner")
+        owners.add(owner)
+        ticks = decode_v4_position_info(int(packed_info))
+        latest_positions[token_id] = {
+            "poolId": pool["identifier"],
+            "currency0": str(pool_key[0]).lower(),
+            "currency1": str(pool_key[1]).lower(),
+            "fee": int(pool_key[2]),
+            "tickSpacing": int(pool_key[3]),
+            "hooks": str(pool_key[4]).lower(),
+            "tickLower": ticks["tickLower"],
+            "tickUpper": ticks["tickUpper"],
+            "liquidity": liquidity_raw,
+            "owner": owner,
+        }
+    if latest_positions:
+        sample = next(iter(latest_positions.values()))
+        currency0 = sample["currency0"]
+        currency1 = sample["currency1"]
+    else:
+        pair = _dexscreener_pair(pool)
+        addresses = {
+            str(pair.get("baseToken", {}).get("address") or "").lower(),
+            str(pair.get("quoteToken", {}).get("address") or "").lower(),
+        }
+        if DOLO_ADDRESS not in addresses or len(addresses) != 2:
+            raise RuntimeError("could not resolve Uniswap v4 pool currencies")
+        currency0, currency1 = sorted(addresses)
+    slot0 = _eth_call_args(
+        chain_key,
+        config["stateView"],
+        "getSlot0(bytes32)",
+        ["uint160", "int24", "uint24", "uint24"],
+        input_types=["bytes32"],
+        args=[bytes.fromhex(pool["identifier"][2:])],
+    )
+    decimals0 = 18 if currency0 == ZERO_ADDRESS else int(
+        _eth_call(chain_key, currency0, "decimals()", ["uint8"])[0]
+    )
+    decimals1 = 18 if currency1 == ZERO_ADDRESS else int(
+        _eth_call(chain_key, currency1, "decimals()", ["uint8"])[0]
+    )
+    pool_state = {
+        "currency0": currency0,
+        "currency1": currency1,
+        "sqrtPriceX96": int(slot0[0]),
+        "currentTick": int(slot0[1]),
+        "decimals0": decimals0,
+        "decimals1": decimals1,
+    }
+    contract_addresses = _contract_owners(chain_key, owners)
+    try:
+        result = build_v4_rows(
+            pool,
+            pool_logs,
+            [],
+            latest_positions,
+            pool_state,
+            pool_manager=pool_manager,
+            position_manager=position_manager,
+            contract_addresses=contract_addresses,
+        )
+    except ValueError as exc:
+        # A history replay gap must never suppress current positions that were
+        # independently reconciled against PositionManager + StateView.
+        unresolved.append({"reason": f"v4 history withheld: {sanitize_error(exc)}"})
+        result = build_v4_rows(
+            pool,
+            [],
+            [],
+            latest_positions,
+            pool_state,
+            pool_manager=pool_manager,
+            position_manager=position_manager,
+            contract_addresses=contract_addresses,
+        )
+    result["sourceStatus"] = "partial"
+    result["unresolved"] = [
+        *result.get("unresolved", []),
+        *unresolved,
+        {"reason": "v4 historical token amounts and standalone NFT transfers are withheld"},
+    ]
+    result["token0"] = currency0
+    result["token1"] = currency1
+    return result
+
+
+def build_registered_source(
+    registry: dict[str, Any],
+    source_key: str,
+    registered: list[dict[str, Any]],
+    latest_block: int,
+    *,
+    builders: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Dispatch every configured pool through its exact live adapter."""
+    chain_key, adapter = source_key.split(":", 1)
+    if any(
+        pool.get("chainKey") != chain_key or pool.get("adapter") != adapter
+        for pool in registered
+    ):
+        raise ValueError("registered source contains a mismatched pool")
+    available = builders or {
+        "uniswap-v3": _build_uniswap_v3_live_source,
+        "uniswap-v4": _build_uniswap_v4_live_source,
+        "kodiak-v3": _build_kodiak_v3_live_source,
+        "bulla-v3": _build_bulla_v3_live_source,
+        "kodiak-v2": _build_v2_live_source,
+        "bulla-v2": _build_v2_live_source,
+        "beraswap-v2": _build_v2_live_source,
+    }
+    builder = available.get(adapter)
+    if builder is None:
+        raise RuntimeError(f"no live adapter registered for {adapter}")
+    pool_results = {}
+    active = []
+    history = []
+    statuses = []
+    unresolved = []
+    for pool in registered:
+        result = builder(registry, pool, latest_block)
+        pool_results[pool["identifier"]] = result
+        active.extend(result.get("activePositions", []))
+        history.extend(result.get("history", []))
+        statuses.append(result.get("sourceStatus", "unavailable"))
+        unresolved.extend(result.get("unresolved", []))
+    status = "complete" if statuses and all(value == "complete" for value in statuses) else "partial"
+    return {
+        "sourceKey": source_key,
+        "sourceStatus": status,
+        "poolResults": pool_results,
+        "activePositions": active,
+        "history": history,
+        "unresolved": unresolved,
+    }
 
 
 def generate_artifact(
@@ -2566,36 +3359,40 @@ def generate_artifact(
             "errors": [],
         }
         try:
-            if adapter != "bulla-v3":
-                raise RuntimeError("adapter orchestration is not yet available in this release")
+            built = build_registered_source(registry, source_key, registered, latest)
             for pool in registered:
-                result = _build_bulla_v3_live_source(registry, pool, latest)
-                active.extend(result["activePositions"])
-                history.extend(result["history"])
+                result = built["poolResults"][pool["identifier"]]
                 matching_pool = next(row for row in pool_rows if row["identifier"] == pool["identifier"])
                 matching_pool["quality"] = "verified" if result["sourceStatus"] == "complete" else "partial"
                 metadata = metadata_by_pool.get(pool["identifier"])
-                pair = metadata.get("pair") if metadata else None
                 paired = matching_pool.get("pairedToken")
-                token0 = result["token0"]
-                token1 = result["token1"]
                 paired_decimals = 18
-                if paired:
+                if paired and paired != ZERO_ADDRESS:
                     paired_decimals, = _eth_call(chain_key, paired, "decimals()", ["uint8"])
-                for index, row in enumerate(active):
-                    if row.get("sourceKey") != source_key or row.get("poolId") != pool["identifier"]:
-                        continue
-                    active[index] = value_position_row(
-                        row,
+                for row in result["activePositions"]:
+                    active.append(
+                        value_position_row(
+                            row,
+                            dolo_decimals=registry["token"]["decimals"],
+                            paired_decimals=int(paired_decimals),
+                            dolo_price_usd=dolo_price if metadata else None,
+                            paired_price_usd=Decimal(str(metadata["pairedPriceUsd"])) if metadata else None,
+                        )
+                    )
+                history.extend(
+                    value_exact_history_rows(
+                        result["history"],
                         dolo_decimals=registry["token"]["decimals"],
                         paired_decimals=int(paired_decimals),
                         dolo_price_usd=dolo_price if metadata else None,
-                        paired_price_usd=Decimal(str(metadata["pairedPriceUsd"])) if metadata else None,
+                        paired_price_usd=(
+                            Decimal(str(metadata["pairedPriceUsd"])) if metadata else None
+                        ),
                     )
-                for row in history:
-                    if row.get("sourceKey") == source_key:
-                        row["valueStatus"] = "unavailable"
-                source["status"] = result["sourceStatus"]
+                )
+            source["status"] = built["sourceStatus"]
+            if built["unresolved"]:
+                source["unresolvedCount"] = len(built["unresolved"])
             source["lastScannedBlock"] = latest
         except Exception as exc:
             source["errors"] = [sanitize_error(exc)]

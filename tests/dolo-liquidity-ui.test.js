@@ -42,7 +42,7 @@ test('mode, filters, null pricing and action groups are explicit behavior contra
   assert.match(html, /row\.liquidityUsd\s*===\s*null/);
   assert.match(html, /Added.*Increased/);
   assert.match(html, /Removed.*Closed/);
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260811-dolo-liquidity-v1/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260811-dolo-liquidity-v2/);
   assert.match(html, /Data unavailable — try again later/);
 });
 
@@ -52,14 +52,18 @@ test('wallet and provenance UX is scoped and does not confuse poolId with a cont
   assert.match(html, /poolIdentifierType\s*===\s*["']contract["']/);
   assert.match(html, /Custodied \/ unresolved/);
   assert.match(html, /dolo-lp-details-grid/);
+  assert.match(
+    html,
+    /byId\("dolo-lp-count"\)\.textContent[^;]+rows\.map\(row\s*=>\s*normalized\(row\.beneficialOwner\)\)/,
+  );
 });
 
 test('both DOLO route entry points advance the liquidity feature cache once', () => {
-  const version = 'dolo-liquidity-providers-20260811';
+  const version = 'dolo-liquidity-live-20260811';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260811-dolo-liquidity-v1/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260811-dolo-liquidity-v2/);
 });
 
 test('Details remains usable in Safari and meets the mobile touch target', () => {
@@ -75,4 +79,31 @@ test('the stable-height shell still shows one readable empty-state message', () 
 test('history-only controls reserve their footprint to prevent mode layout shift', () => {
   assert.match(html, /\.dolo-lp-history-controls\[hidden\]\{[^}]*visibility:hidden[^}]*pointer-events:none/);
   assert.doesNotMatch(html, /\.dolo-lp-history-controls\[hidden\]\{[^}]*display:none/);
+});
+
+test('liquidity controls reuse the established DOLO dropdown and holder mode patterns', () => {
+  assert.doesNotMatch(html, /id=["']dolo-lp-warning["']/);
+  assert.doesNotMatch(html, /Partial sources/);
+  assert.doesNotMatch(html, /<select[^>]+id=["']dolo-lp-chain["']/);
+
+  for (const id of ['dolo-lp-chain', 'dolo-lp-pairs', 'dolo-lp-dexes']) {
+    assert.match(html, new RegExp(`<[^>]+(?=[^>]*id=["']${id}["'])(?=[^>]*class=["'][^"']*\\bdd\\b)[^>]*>`));
+    assert.match(html, new RegExp(`<button(?=[^>]*id=["']${id}-btn["'])(?=[^>]*class=["'][^"']*\\bdd-btn\\b)[^>]*>`));
+    assert.match(html, new RegExp(`<div(?=[^>]*id=["']${id}-panel["'])(?=[^>]*class=["'][^"']*\\bdd-panel\\b)[^>]*>`));
+  }
+
+  assert.match(html, /class=["'][^"']*holder-bucket-mode[^"']*dolo-lp-mode[^"']*["']/);
+  assert.match(html, /class=["'][^"']*dust-pill[^"']*["'][^>]+id=["']dolo-lp-low-liquidity["']/);
+  assert.match(html, />Low-liq pools</);
+});
+
+test('active/history mode sits directly below the liquidity title', () => {
+  const cardStart = html.indexOf('<section class="card dolo-lp-card"');
+  const summaryStart = html.indexOf('<div class="dolo-lp-summary"', cardStart);
+  const header = html.slice(cardStart, summaryStart);
+  const title = header.indexOf('<h2>DOLO Liquidity Providers</h2>');
+  const mode = header.indexOf('class="holder-bucket-mode dolo-lp-mode"');
+  const meta = header.indexOf('id="dolo-lp-meta"');
+
+  assert.ok(title >= 0 && mode > title && meta > mode);
 });
