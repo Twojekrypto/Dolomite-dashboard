@@ -65,7 +65,7 @@ The pipeline discovers DOLO pools on-chain and maintains an explicit operational
 
 | Chain | Pair | DEX | Version | Pool contract |
 |---|---|---|---|---|
-| Berachain | DOLO/HONEY | Bulla | V2-style | `0x8991017b74f9f8070bff5b322802dd26e05e0cc7` |
+| Berachain | DOLO/HONEY | Bulla | Algebra Integral CL | `0x8991017b74f9f8070bff5b322802dd26e05e0cc7` |
 | Berachain | DOLO/USDC.e | Kodiak | v3 | `0x8194ed4d6701b7a1b40e48431de37047f0248b0b` |
 
 Every other on-chain-discovered DOLO pool is retained in the dataset. The UI hides a non-primary pool by default only when its most recent verified liquidity is below `$1,000`. `Include low liquidity` reveals it. A pool with unavailable USD liquidity is not silently hidden; it appears with `Unavailable` metadata.

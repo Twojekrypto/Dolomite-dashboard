@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from decimal import Decimal, getcontext
 from pathlib import Path
 from unittest.mock import Mock
@@ -48,7 +49,7 @@ PRIMARY_IDENTIFIERS = {
 SECONDARY_IDENTIFIERS = {
     (
         "berachain",
-        "bulla-v2",
+        "bulla-v3",
         "0x8991017b74f9f8070bff5b322802dd26e05e0cc7",
     ),
     (
@@ -1295,6 +1296,170 @@ class BeneficialOwnerTests(unittest.TestCase):
         self.assertEqual([row["doloRaw"] for row in rows], ["100", "30", "70"])
         self.assertTrue(all(row["attributionPath"] == "kodiak_island" for row in rows))
         self.assertNotIn("rebalance", [row.get("kind") for row in rows])
+
+
+class ArtifactAssemblyTests(unittest.TestCase):
+    def test_dexscreener_enrichment_derives_quote_price_without_owning_attribution(self):
+        pool = {
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v3",
+            "identifier": "0x003896387666c5c11458eeb3f927b72a11b19783",
+            "identifierType": "contract",
+            "pair": "DOLO/USDC",
+        }
+        pair = {
+            "chainId": "ethereum",
+            "pairAddress": pool["identifier"],
+            "baseToken": {"address": DOLO, "symbol": "DOLO"},
+            "quoteToken": {"address": "0x" + "11" * 20, "symbol": "USDC"},
+            "priceUsd": "0.05",
+            "priceNative": "0.04",
+            "liquidity": {"usd": 170000},
+            "volume": {"h24": 25000},
+            "url": "https://dexscreener.com/ethereum/example",
+        }
+
+        metadata = liquidity.derive_dexscreener_pool_metadata(pool, pair, Decimal("0.05"))
+
+        self.assertEqual(metadata["doloPriceUsd"], 0.05)
+        self.assertEqual(metadata["pairedPriceUsd"], 1.25)
+        self.assertEqual(metadata["liquidityUsd"], 170000.0)
+        self.assertEqual(metadata["volume24hUsd"], 25000.0)
+        self.assertNotIn("owner", metadata)
+        self.assertNotIn("beneficialOwner", metadata)
+
+    def test_position_valuation_uses_raw_decimals_and_keeps_missing_price_null(self):
+        valued = liquidity.value_position_row(
+            {
+                "doloRaw": str(10 * 10**18),
+                "pairedRaw": str(2 * 10**6),
+            },
+            dolo_decimals=18,
+            paired_decimals=6,
+            dolo_price_usd=Decimal("0.05"),
+            paired_price_usd=Decimal("1"),
+        )
+        missing = liquidity.value_position_row(
+            {"doloRaw": str(10**18), "pairedRaw": str(10**6)},
+            dolo_decimals=18,
+            paired_decimals=6,
+            dolo_price_usd=Decimal("0.05"),
+            paired_price_usd=None,
+        )
+
+        self.assertEqual(valued["valueUsd"], 2.5)
+        self.assertEqual(valued["valueStatus"], "verified")
+        self.assertIsNone(missing["valueUsd"])
+        self.assertEqual(missing["valueStatus"], "unavailable")
+
+    def test_assemble_artifact_sorts_rows_and_reconciles_summary(self):
+        registry = liquidity.load_registry(REGISTRY)
+        generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        pools = [
+            {
+                "id": row["identifier"],
+                "sourceKey": f"{row['chainKey']}:{row['adapter']}",
+                **row,
+                "liquidityUsd": None,
+                "liquidityStatus": "unavailable",
+            }
+            for row in registry["pools"]
+        ]
+        active = [
+            {
+                "id": "row-b",
+                "sourceKey": "berachain:bulla-v3",
+                "poolId": pools[-2]["identifier"],
+                "poolIdentifierType": "contract",
+                "beneficialOwner": "0x" + "bb" * 20,
+                "custodian": "0x" + "bb" * 20,
+                "quality": "verified",
+                "rangeStatus": "out_of_range",
+                "valueUsd": None,
+                "valueStatus": "unavailable",
+                "doloRaw": "10",
+                "pairedRaw": "20",
+            },
+            {
+                "id": "row-a",
+                "sourceKey": "ethereum:uniswap-v3",
+                "poolId": pools[1]["identifier"],
+                "poolIdentifierType": "contract",
+                "beneficialOwner": "0x" + "aa" * 20,
+                "custodian": "0x" + "aa" * 20,
+                "quality": "verified",
+                "rangeStatus": "in_range",
+                "valueUsd": 50.25,
+                "valueStatus": "verified",
+                "doloRaw": "10",
+                "pairedRaw": "20",
+            },
+        ]
+        history = [
+            {
+                "id": "ethereum:0x" + "12" * 32 + ":2",
+                "sourceKey": "ethereum:uniswap-v3",
+                "poolId": pools[1]["identifier"],
+                "poolIdentifierType": "contract",
+                "blockNumber": 10,
+                "logIndex": 2,
+                "timestamp": 1000,
+                "action": "Added",
+                "quality": "verified",
+                "doloRaw": "10",
+                "pairedRaw": "20",
+                "valueUsd": 1.0,
+                "valueStatus": "verified",
+            }
+        ]
+        sources = [
+            {
+                "key": "ethereum:uniswap-v3",
+                "chainKey": "ethereum",
+                "adapter": "uniswap-v3",
+                "status": "complete",
+                "lastScannedBlock": 10,
+                "latestChainBlock": 10,
+                "errors": [],
+            },
+            {
+                "key": "berachain:bulla-v3",
+                "chainKey": "berachain",
+                "adapter": "bulla-v3",
+                "status": "complete",
+                "lastScannedBlock": 20,
+                "latestChainBlock": 20,
+                "errors": [],
+            },
+        ]
+
+        artifact = liquidity.assemble_artifact(
+            registry,
+            sources,
+            pools,
+            active,
+            history,
+            generated_at,
+        )
+
+        self.assertEqual([row["id"] for row in artifact["activePositions"]], ["row-a", "row-b"])
+        self.assertEqual(artifact["summary"]["activeLiquidityUsd"], 50.25)
+        self.assertEqual(artifact["summary"]["lpWallets"], 2)
+        self.assertEqual(artifact["summary"]["activePositions"], 2)
+        self.assertEqual(artifact["summary"]["outOfRange"], 1)
+        self.assertEqual(artifact["quality"]["verifiedActivePositions"], 2)
+        self.assertEqual(artifact["quality"]["unresolvedCustody"], 0)
+
+    def test_atomic_writer_rejects_artifact_at_two_megabytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "artifact.json"
+            with self.assertRaisesRegex(ValueError, "2,000,000"):
+                liquidity.write_artifact_atomic(
+                    output,
+                    {"payload": "x" * 2_000_000},
+                    max_bytes=2_000_000,
+                )
+            self.assertFalse(output.exists())
 
 
 if __name__ == "__main__":

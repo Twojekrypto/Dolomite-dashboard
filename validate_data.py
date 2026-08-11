@@ -13,6 +13,7 @@ import math
 import sys
 import os
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from vedolo_vote_power import VEDOLO_CONTRACT
 
@@ -1050,7 +1051,212 @@ def _reward_claim_events_have_transaction_evidence(data):
     )
 
 
+DOLO_LIQUIDITY_POOLS = {
+    ("ethereum", "uniswap-v4", "0x2d97d14362ae5a19a15adb230cf8840ee7e133bf942fd8efd754ae4d078727ea"),
+    ("ethereum", "uniswap-v3", "0x003896387666c5c11458eeb3f927b72a11b19783"),
+    ("ethereum", "uniswap-v4", "0x6f6f24b5a1cd819382379eb032466b8bac7ea0697cfcf31b7350b55ff4f1c472"),
+    ("ethereum", "uniswap-v4", "0x728e6e3b736e28f6b52f72ecec16a056b8ac6d9e05736a84e6b6128df9b1a12a"),
+    ("berachain", "kodiak-v3", "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3"),
+    ("berachain", "bulla-v3", "0x8991017b74f9f8070bff5b322802dd26e05e0cc7"),
+    ("berachain", "kodiak-v3", "0x8194ed4d6701b7a1b40e48431de37047f0248b0b"),
+}
+DOLO_LIQUIDITY_QUALITIES = {"verified", "partial", "stale", "unavailable"}
+
+
+def _dolo_liquidity_raw(value):
+    return isinstance(value, str) and bool(value) and value.isdigit()
+
+
+def _dolo_liquidity_value_valid(row):
+    status = row.get("valueStatus")
+    value = row.get("valueUsd")
+    if status == "unavailable":
+        return value is None
+    return (
+        status in {"verified", "partial", "stale"}
+        and _finite_real_json_number(value)
+        and value >= 0
+    )
+
+
+def _dolo_liquidity_valid(data):
+    """Fail closed when the LP artifact cannot prove identity and reconciliation."""
+    if not isinstance(data, dict) or data.get("schemaVersion") != 1:
+        return False
+    if not _is_iso_datetime(data.get("generatedAt")):
+        return False
+    pools = data.get("pools")
+    sources = data.get("sources")
+    active = data.get("activePositions")
+    history = data.get("history")
+    summary = data.get("summary")
+    quality = data.get("quality")
+    if not all(
+        isinstance(value, expected)
+        for value, expected in (
+            (pools, list),
+            (sources, list),
+            (active, list),
+            (history, list),
+            (summary, dict),
+            (quality, dict),
+        )
+    ):
+        return False
+
+    pool_identities = set()
+    pool_ids = set()
+    for pool in pools:
+        if not isinstance(pool, dict):
+            return False
+        identity = (
+            str(pool.get("chainKey") or "").lower(),
+            str(pool.get("adapter") or "").lower(),
+            str(pool.get("identifier") or "").lower(),
+        )
+        identifier = identity[2]
+        expected_type = "poolId" if identity[1] == "uniswap-v4" else "contract"
+        expected_length = 66 if expected_type == "poolId" else 42
+        if (
+            identity in pool_identities
+            or pool.get("identifierType") != expected_type
+            or len(identifier) != expected_length
+            or not identifier.startswith("0x")
+            or any(char not in "0123456789abcdef" for char in identifier[2:])
+            or pool.get("id") != identifier
+            or pool.get("quality") not in DOLO_LIQUIDITY_QUALITIES
+        ):
+            return False
+        liquidity_status = pool.get("liquidityStatus")
+        liquidity_value = pool.get("liquidityUsd")
+        if liquidity_status == "unavailable":
+            if liquidity_value is not None:
+                return False
+        elif not (
+            liquidity_status in {"verified", "partial", "stale"}
+            and _finite_real_json_number(liquidity_value)
+            and liquidity_value >= 0
+        ):
+            return False
+        pool_identities.add(identity)
+        pool_ids.add(identifier)
+    if pool_identities != DOLO_LIQUIDITY_POOLS:
+        return False
+
+    source_keys = set()
+    for source in sources:
+        if not isinstance(source, dict):
+            return False
+        key = source.get("key")
+        last_block = source.get("lastScannedBlock")
+        latest_block = source.get("latestChainBlock")
+        if (
+            not isinstance(key, str)
+            or not key
+            or key in source_keys
+            or source.get("status") not in {"complete", "partial", "stale", "unavailable"}
+            or not _is_exact_integer(last_block)
+            or not _is_exact_integer(latest_block)
+            or not 0 <= last_block <= latest_block
+            or not isinstance(source.get("errors"), list)
+        ):
+            return False
+        source_keys.add(key)
+
+    active_ids = set()
+    allocation_groups = {}
+    for row in active:
+        if not isinstance(row, dict):
+            return False
+        row_id = row.get("id")
+        if (
+            not isinstance(row_id, str)
+            or not row_id
+            or row_id in active_ids
+            or row.get("sourceKey") not in source_keys
+            or str(row.get("poolId") or "").lower() not in pool_ids
+            or row.get("quality") not in DOLO_LIQUIDITY_QUALITIES
+            or not _dolo_liquidity_raw(row.get("doloRaw"))
+            or not _dolo_liquidity_raw(row.get("pairedRaw"))
+            or not _dolo_liquidity_value_valid(row)
+        ):
+            return False
+        active_ids.add(row_id)
+        allocation_group = row.get("allocationGroup")
+        if allocation_group is not None:
+            if row.get("positionType") != "kodiak_island_share":
+                return False
+            if not isinstance(allocation_group, str) or not allocation_group:
+                return False
+            allocation_groups.setdefault(allocation_group, []).append(row)
+
+    for rows in allocation_groups.values():
+        total_dolo = {row.get("allocationTotalDoloRaw") for row in rows}
+        total_paired = {row.get("allocationTotalPairedRaw") for row in rows}
+        if (
+            len(total_dolo) != 1
+            or len(total_paired) != 1
+            or not _dolo_liquidity_raw(next(iter(total_dolo)))
+            or not _dolo_liquidity_raw(next(iter(total_paired)))
+            or sum(int(row["doloRaw"]) for row in rows) != int(next(iter(total_dolo)))
+            or sum(int(row["pairedRaw"]) for row in rows) != int(next(iter(total_paired)))
+        ):
+            return False
+
+    history_ids = set()
+    for row in history:
+        if not isinstance(row, dict):
+            return False
+        row_id = row.get("id")
+        if (
+            not isinstance(row_id, str)
+            or not row_id
+            or row_id in history_ids
+            or row.get("sourceKey") not in source_keys
+            or str(row.get("poolId") or "").lower() not in pool_ids
+            or not _is_exact_integer(row.get("blockNumber"))
+            or not _is_exact_integer(row.get("logIndex"))
+            or row.get("action") not in {"Added", "Increased", "Removed", "Closed"}
+            or row.get("quality") not in DOLO_LIQUIDITY_QUALITIES
+            or not _dolo_liquidity_raw(row.get("doloRaw"))
+            or not _dolo_liquidity_raw(row.get("pairedRaw"))
+            or not _dolo_liquidity_value_valid(row)
+        ):
+            return False
+        history_ids.add(row_id)
+
+    valued_total = sum(
+        (Decimal(str(row["valueUsd"])) for row in active if row.get("valueUsd") is not None),
+        Decimal(0),
+    )
+    expected_summary = {
+        "activePositions": len(active),
+        "lpWallets": len({row.get("beneficialOwner") for row in active if row.get("beneficialOwner")}),
+        "outOfRange": sum(row.get("rangeStatus") == "out_of_range" for row in active),
+    }
+    if any(summary.get(key) != value for key, value in expected_summary.items()):
+        return False
+    if not _nearly_equal(summary.get("activeLiquidityUsd"), valued_total, abs_tol=0.000001):
+        return False
+    expected_quality = {
+        "verifiedActivePositions": sum(row.get("quality") == "verified" for row in active),
+        "partialActivePositions": sum(row.get("quality") == "partial" for row in active),
+        "staleActivePositions": sum(row.get("quality") == "stale" for row in active),
+        "unavailableActivePositions": sum(row.get("quality") == "unavailable" for row in active),
+        "unresolvedCustody": sum(not row.get("beneficialOwner") for row in active),
+    }
+    return all(quality.get(key) == value for key, value in expected_quality.items())
+
+
 RULES = {
+    "dolo-liquidity.json": {
+        "required_keys": ["schemaVersion", "generatedAt", "summary", "sources", "pools", "activePositions", "history", "quality"],
+        "checks": [
+            ("generatedAt must be fresh", lambda d: _fresh_timestamp(d.get("generatedAt"), 3)),
+            ("DOLO liquidity identities and totals must reconcile", _dolo_liquidity_valid),
+        ],
+        "min_bytes": 500,
+    },
     "dolo_flows.json": {
         "required_keys": ["timestamp", "dolo_price", "periods"],
         "checks": [
