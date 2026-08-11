@@ -5,6 +5,8 @@ from decimal import Decimal, getcontext
 from pathlib import Path
 from unittest.mock import Mock
 
+from eth_abi import encode
+
 import generate_dolo_liquidity as liquidity
 
 
@@ -449,6 +451,190 @@ class IncrementalReplayTests(unittest.TestCase):
                 rpc_batch=missing_batch,
                 cache={},
             )
+
+
+class V2AdapterTests(unittest.TestCase):
+    ZERO = "0x" + "00" * 20
+    ALICE = "0x" + "aa" * 20
+    BOB = "0x" + "bb" * 20
+    CAROL_CONTRACT = "0x" + "cc" * 20
+    ROUTER = "0x" + "dd" * 20
+    POOL = "0x8991017b74f9f8070bff5b322802dd26e05e0cc7"
+    HONEY = "0xfcbd14dc51f0a4d49d5e53c2e0950e0bc26d0dce"
+
+    @staticmethod
+    def _topic_address(address):
+        return "0x" + address[2:].lower().rjust(64, "0")
+
+    def _log(self, signature, indexed, abi_types, values, block, log_index, tx_byte):
+        return {
+            "address": self.POOL,
+            "blockNumber": block,
+            "transactionIndex": 0,
+            "logIndex": log_index,
+            "transactionHash": "0x" + tx_byte * 64,
+            "blockHash": "0x" + f"{block:064x}",
+            "data": "0x" + encode(abi_types, values).hex(),
+            "topics": [liquidity.event_topic(signature)] + indexed,
+            "removed": False,
+            "timestamp": 1_700_000_000 + block,
+        }
+
+    def _transfer(self, sender, recipient, value, block, log_index, tx_byte):
+        return self._log(
+            "Transfer(address,address,uint256)",
+            [self._topic_address(sender), self._topic_address(recipient)],
+            ["uint256"],
+            [value],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def _mint(self, sender, amount0, amount1, block, log_index, tx_byte):
+        return self._log(
+            "Mint(address,uint256,uint256)",
+            [self._topic_address(sender)],
+            ["uint256", "uint256"],
+            [amount0, amount1],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def _burn(self, sender, amount0, amount1, recipient, block, log_index, tx_byte):
+        return self._log(
+            "Burn(address,uint256,uint256,address)",
+            [self._topic_address(sender), self._topic_address(recipient)],
+            ["uint256", "uint256"],
+            [amount0, amount1],
+            block,
+            log_index,
+            tx_byte,
+        )
+
+    def test_decode_v2_events_uses_exact_indexed_and_data_fields(self):
+        transfer = liquidity.decode_v2_log(
+            self._transfer(self.ALICE, self.BOB, 25, 101, 3, "1")
+        )
+        mint = liquidity.decode_v2_log(
+            self._mint(self.ROUTER, 1000, 2000, 102, 4, "2")
+        )
+        burn = liquidity.decode_v2_log(
+            self._burn(self.ROUTER, 200, 400, self.BOB, 103, 5, "3")
+        )
+
+        self.assertEqual(
+            (transfer["kind"], transfer["from"], transfer["to"], transfer["valueRaw"]),
+            ("transfer", self.ALICE, self.BOB, 25),
+        )
+        self.assertEqual(
+            (mint["kind"], mint["sender"], mint["amount0Raw"], mint["amount1Raw"]),
+            ("mint", self.ROUTER, 1000, 2000),
+        )
+        self.assertEqual(
+            (burn["kind"], burn["to"], burn["amount0Raw"], burn["amount1Raw"]),
+            ("burn", self.BOB, 200, 400),
+        )
+
+    def test_replay_v2_tracks_current_wallets_and_only_liquidity_actions(self):
+        logs = [
+            self._transfer(self.ZERO, self.ZERO, 1000, 100, 0, "1"),
+            self._transfer(self.ZERO, self.ALICE, 100, 100, 1, "1"),
+            self._mint(self.ROUTER, 1000, 2000, 100, 2, "1"),
+            self._transfer(self.ALICE, self.BOB, 25, 101, 0, "2"),
+            self._transfer(self.BOB, self.POOL, 25, 102, 0, "3"),
+            self._transfer(self.POOL, self.ZERO, 25, 102, 1, "3"),
+            self._burn(self.ROUTER, 200, 400, self.BOB, 102, 2, "3"),
+            self._transfer(self.ZERO, self.BOB, 10, 103, 0, "4"),
+            self._mint(self.ROUTER, 100, 200, 103, 1, "4"),
+            self._transfer(self.ZERO, self.CAROL_CONTRACT, 20, 104, 0, "5"),
+            self._mint(self.ROUTER, 300, 600, 104, 1, "5"),
+        ]
+        latest = {
+            "token0": DOLO,
+            "token1": self.HONEY,
+            "decimals0": 18,
+            "decimals1": 18,
+            "totalSupply": 1105,
+            "reserve0": 11050,
+            "reserve1": 22100,
+            "balances": {
+                self.ALICE: 75,
+                self.BOB: 10,
+                self.CAROL_CONTRACT: 20,
+            },
+        }
+        pool = {
+            "chainKey": "berachain",
+            "adapter": "bulla-v2",
+            "identifier": self.POOL,
+            "identifierType": "contract",
+            "pair": "DOLO/HONEY",
+        }
+
+        result = liquidity.replay_v2_pool(
+            pool,
+            logs,
+            latest,
+            contract_addresses={self.CAROL_CONTRACT},
+        )
+
+        rows = {row["custodian"]: row for row in result["activePositions"]}
+        self.assertEqual(set(rows), {self.ALICE, self.BOB, self.CAROL_CONTRACT})
+        self.assertEqual(rows[self.ALICE]["lpBalanceRaw"], "75")
+        self.assertEqual(rows[self.ALICE]["amount0Raw"], "750")
+        self.assertEqual(rows[self.ALICE]["amount1Raw"], "1500")
+        self.assertEqual(rows[self.ALICE]["doloRaw"], "750")
+        self.assertEqual(rows[self.ALICE]["pairedRaw"], "1500")
+        self.assertEqual(rows[self.ALICE]["rangeStatus"], "full_range")
+        self.assertEqual(rows[self.ALICE]["beneficialOwner"], self.ALICE)
+        self.assertEqual(rows[self.ALICE]["attributionPath"], "direct")
+        self.assertIsNone(rows[self.CAROL_CONTRACT]["beneficialOwner"])
+        self.assertEqual(rows[self.CAROL_CONTRACT]["positionStatus"], "custodied_unresolved")
+        self.assertEqual(rows[self.CAROL_CONTRACT]["quality"], "unavailable")
+
+        history = result["history"]
+        self.assertEqual([row["action"] for row in history], ["Added", "Closed", "Added", "Added"])
+        self.assertEqual([row["blockNumber"] for row in history], [100, 102, 103, 104])
+        self.assertNotIn(101, [row["blockNumber"] for row in history])
+        self.assertEqual(history[1]["beneficialOwner"], self.BOB)
+        self.assertEqual(history[1]["doloRaw"], "200")
+        self.assertEqual(history[1]["pairedRaw"], "400")
+        self.assertEqual(result["sourceStatus"], "complete")
+
+    def test_replay_v2_marks_balance_mismatch_partial_without_rewriting_ledger(self):
+        logs = [
+            self._transfer(self.ZERO, self.ALICE, 100, 100, 0, "1"),
+            self._mint(self.ROUTER, 1000, 2000, 100, 1, "1"),
+        ]
+        result = liquidity.replay_v2_pool(
+            {
+                "chainKey": "berachain",
+                "adapter": "bulla-v2",
+                "identifier": self.POOL,
+                "identifierType": "contract",
+                "pair": "DOLO/HONEY",
+            },
+            logs,
+            {
+                "token0": DOLO,
+                "token1": self.HONEY,
+                "decimals0": 18,
+                "decimals1": 18,
+                "totalSupply": 100,
+                "reserve0": 1000,
+                "reserve1": 2000,
+                "balances": {self.ALICE: 99},
+            },
+        )
+
+        row = result["activePositions"][0]
+        self.assertEqual(row["lpBalanceRaw"], "100")
+        self.assertEqual(row["onchainLpBalanceRaw"], "99")
+        self.assertEqual(row["quality"], "partial")
+        self.assertEqual(result["sourceStatus"], "partial")
+        self.assertEqual(result["mismatches"][0]["address"], self.ALICE)
 
 
 if __name__ == "__main__":
