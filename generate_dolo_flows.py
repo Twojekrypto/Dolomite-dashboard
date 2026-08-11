@@ -221,6 +221,12 @@ MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
 # never committed to git. After first full scan, every run just fetches new blocks.
 MAX_CACHE_SECONDS = MAX_PERIOD_SECONDS
 
+
+def eip7702_delegation_address(code):
+    """Return the delegate for an exact EIP-7702 designator, else None."""
+    match = re.fullmatch(r"0xef0100([0-9a-fA-F]{40})", str(code or ""))
+    return "0x" + match.group(1).lower() if match else None
+
 # Global state reference for signal handler
 _global_state = {}
 
@@ -599,6 +605,8 @@ def detect_contracts_batch(addresses, chain_key):
             except RpcError:
                 continue
         code = str(response.get("result", "0x") if isinstance(response, dict) else "0x")
+        if eip7702_delegation_address(code):
+            continue
         if code and len(code) > 4:
             contracts.add(meta_by_id[request_id])
 
@@ -1440,6 +1448,8 @@ def holder_distribution_type(addr, holder_rows, labels):
         return "ca"
     if contract_wallet_type in {"safe", "multisig"}:
         return "multisig"
+    if contract_wallet_type == "delegated_eoa":
+        return "eoa"
     if holder.get("is_contract"):
         return "ca"
     if label_type in {"bot", "liquidator"}:

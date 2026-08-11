@@ -179,6 +179,30 @@ class GenerateDoloHoldersRpcBatchTests(unittest.TestCase):
         self.assertEqual(out[0]["contract_wallet_type"], "safe")
         self.assertNotIn("is_contract", out[1])
 
+    def test_detect_contracts_recognizes_eip7702_delegated_eoa(self):
+        delegate = "0x" + "1" * 40
+        designation = "0xef0100" + delegate[2:]
+        rows = [{"address": ALICE, "is_contract": True}]
+
+        def fake_batch(_rpcs, payloads, **_kwargs):
+            return {
+                payload["id"]: {
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": designation if payload["method"] == "eth_getCode" else "0x",
+                }
+                for payload in payloads
+            }, []
+
+        with patch.object(holders, "rpc_batch_requests", side_effect=fake_batch), \
+             patch.object(holders, "rpc_single_request") as single:
+            out = holders.detect_contracts(rows, max_check=1)
+
+        single.assert_not_called()
+        self.assertNotIn("is_contract", out[0])
+        self.assertEqual(out[0]["contract_wallet_type"], "delegated_eoa")
+        self.assertEqual(out[0]["delegation_address"], delegate)
+
     def test_detect_contracts_checks_every_holder_in_chart_range(self):
         rows = [
             {"address": ALICE, "balance": 1_000},

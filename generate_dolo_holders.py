@@ -68,6 +68,14 @@ HOLDER_CHART_CONTRACT_VERIFY_BATCH_SIZE = int(
 )
 RPC_BATCH_SIZE = int(os.environ.get("DOLO_HOLDERS_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_HOLDERS_RPC_RETRIES_PER_ENDPOINT", "2"))
+
+
+def eip7702_delegation_address(code):
+    """Return the delegate for an exact EIP-7702 designator, else None."""
+    match = re.fullmatch(r"0xef0100([0-9a-fA-F]{40})", str(code or ""))
+    return "0x" + match.group(1).lower() if match else None
+
+
 ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
 
 
@@ -611,6 +619,7 @@ def detect_contracts(holders, max_check=200, min_balance=None):
 
     contract_addrs = set()
     contract_wallet_types = {}
+    delegated_eoa_addrs = {}
 
     for chain, rpcs in RPC_URLS:
         code_payloads = []
@@ -657,6 +666,10 @@ def detect_contracts(holders, max_check=200, min_balance=None):
                 except RpcError:
                     continue
             code = str(response.get("result", "0x") if isinstance(response, dict) else "0x")
+            delegation_address = eip7702_delegation_address(code)
+            if delegation_address:
+                delegated_eoa_addrs[addr.lower()] = delegation_address
+                continue
             if code and len(code) > 4:
                 key = addr.lower()
                 contract_addrs.add(key)
@@ -712,6 +725,10 @@ def detect_contracts(holders, max_check=200, min_balance=None):
         key = h["address"].lower()
         if key in contract_addrs:
             h["is_contract"] = True
+        elif key in delegated_eoa_addrs:
+            h.pop("is_contract", None)
+            h["contract_wallet_type"] = "delegated_eoa"
+            h["delegation_address"] = delegated_eoa_addrs[key]
         if key in contract_wallet_types:
             h["contract_wallet_type"] = contract_wallet_types[key]
 

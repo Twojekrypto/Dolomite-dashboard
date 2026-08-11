@@ -36,6 +36,27 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
         single.assert_not_called()
         self.assertEqual(contracts, {contract})
 
+    def test_detect_contracts_batch_keeps_eip7702_account_visible(self):
+        delegate = "0x" + "1" * 40
+        designation = "0xef0100" + delegate[2:]
+
+        def fake_batch(_rpcs, payloads, **_kwargs):
+            return {
+                payload["id"]: {
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": designation,
+                }
+                for payload in payloads
+            }, []
+
+        with patch.object(flows, "rpc_batch_requests", side_effect=fake_batch), \
+             patch.object(flows, "rpc_single_request") as single:
+            contracts = flows.detect_contracts_batch([ALICE], "eth")
+
+        single.assert_not_called()
+        self.assertEqual(contracts, set())
+
     def test_fetch_dolo_balances_batches_by_chain_and_sums(self):
         def fake_batch(_rpcs, payloads, **_kwargs):
             out = {}
