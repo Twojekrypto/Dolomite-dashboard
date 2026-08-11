@@ -8,16 +8,23 @@ functions so event replay can be tested without network access.
 
 from __future__ import annotations
 
+import argparse
 import copy
 import itertools
 import json
+import math
+import os
 import re
+import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from decimal import Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
-from eth_abi import decode
+import requests
+from eth_abi import decode, encode
 from web3 import Web3
 
 from rpc_client import (
@@ -36,6 +43,7 @@ SUPPORTED_ADAPTERS = {
     "kodiak-v2",
     "kodiak-v3",
     "bulla-v2",
+    "bulla-v3",
     "beraswap-v2",
 }
 
@@ -64,6 +72,17 @@ V4_EVENT_SIGNATURES = {
     "transfer": "Transfer(address,address,uint256)",
 }
 KODIAK_ISLAND_CREATED_SIGNATURE = "IslandCreated(address,address,address,address)"
+BULLA_INCREASE_SIGNATURE = "IncreaseLiquidity(uint256,uint128,uint128,uint256,uint256,address)"
+
+
+def _finite_decimal(value: Any, label: str, *, allow_zero: bool = True) -> Decimal:
+    try:
+        parsed = Decimal(str(value))
+    except Exception as exc:
+        raise ValueError(f"{label} must be a finite decimal") from exc
+    if not parsed.is_finite() or parsed < 0 or (not allow_zero and parsed == 0):
+        raise ValueError(f"{label} must be a finite nonnegative decimal")
+    return parsed
 
 
 def _exact_int(value: Any, label: str) -> int:
@@ -913,7 +932,7 @@ def build_v3_rows(
     """Build exact v3 active and history rows from mapped NPM evidence."""
     chain_key = str(pool.get("chainKey") or "").strip().lower()
     adapter = str(pool.get("adapter") or "").strip().lower()
-    if adapter not in {"uniswap-v3", "kodiak-v3"}:
+    if adapter not in {"uniswap-v3", "kodiak-v3", "bulla-v3"}:
         raise ValueError("V3 rows require a v3 adapter")
     pool_address = _normalized_address(pool.get("identifier"), "V3 pool")
     source_key = f"{chain_key}:{adapter}"
@@ -1702,6 +1721,7 @@ def allocate_kodiak_island_position(
     }
     underlying_quality = underlying_position.get("quality")
     rows = []
+    allocation_group = f"{underlying_position.get('id')}:kodiak-island:{island}"
     for index, claim in enumerate(claims):
         quality = claim["quality"]
         if quality == "verified" and underlying_quality in {"partial", "stale"}:
@@ -1715,6 +1735,19 @@ def allocate_kodiak_island_position(
                     f"{claim['custodian']}:{identity}"
                 ),
                 "positionType": "kodiak_island_share",
+                "allocationGroup": allocation_group,
+                "allocationTotalAmount0Raw": str(
+                    _raw_integer(underlying_position.get("amount0Raw"), "underlying amount0Raw")
+                ),
+                "allocationTotalAmount1Raw": str(
+                    _raw_integer(underlying_position.get("amount1Raw"), "underlying amount1Raw")
+                ),
+                "allocationTotalDoloRaw": str(
+                    _raw_integer(underlying_position.get("doloRaw"), "underlying doloRaw")
+                ),
+                "allocationTotalPairedRaw": str(
+                    _raw_integer(underlying_position.get("pairedRaw"), "underlying pairedRaw")
+                ),
                 "island": island,
                 "shareBalanceRaw": str(claim["shares"]),
                 "shareOfIsland": str(Decimal(claim["shares"]) / Decimal(total_shares)),
@@ -1825,6 +1858,777 @@ def build_kodiak_island_history(
             }
         )
     return history
+
+
+def derive_dexscreener_pool_metadata(
+    pool: dict[str, Any], pair: dict[str, Any], dolo_price: Decimal
+) -> dict[str, Any]:
+    """Return market metadata only; Dexscreener never supplies LP ownership."""
+    chain_key = str(pool.get("chainKey") or "").lower()
+    if str(pair.get("chainId") or "").lower() != chain_key:
+        raise ValueError("Dexscreener chain does not match the registered pool")
+    identifier = str(pool.get("identifier") or "").lower()
+    pair_address = str(pair.get("pairAddress") or "").lower()
+    if pair_address != identifier:
+        raise ValueError("Dexscreener pair identity does not match the registered pool")
+    canonical_dolo_price = _finite_decimal(dolo_price, "DOLO price", allow_zero=False)
+    base_address = _normalized_address(
+        (pair.get("baseToken") or {}).get("address"), "Dexscreener base token"
+    )
+    quote_address = _normalized_address(
+        (pair.get("quoteToken") or {}).get("address"), "Dexscreener quote token"
+    )
+    if DOLO_ADDRESS not in {base_address, quote_address}:
+        raise ValueError("Dexscreener pair does not contain DOLO")
+    if base_address == DOLO_ADDRESS:
+        native_ratio = _finite_decimal(
+            pair.get("priceNative"), "Dexscreener native price", allow_zero=False
+        )
+        paired_price = canonical_dolo_price / native_ratio
+    else:
+        paired_price = _finite_decimal(
+            pair.get("priceUsd"), "Dexscreener base-token price", allow_zero=False
+        )
+    liquidity = _finite_decimal(
+        (pair.get("liquidity") or {}).get("usd"), "Dexscreener liquidity"
+    )
+    volume = _finite_decimal(
+        (pair.get("volume") or {}).get("h24"), "Dexscreener 24h volume"
+    )
+    return {
+        "doloPriceUsd": float(canonical_dolo_price),
+        "pairedPriceUsd": float(paired_price),
+        "liquidityUsd": float(liquidity),
+        "volume24hUsd": float(volume),
+        "dexscreenerUrl": str(pair.get("url") or pool.get("sourceUrl") or ""),
+        "priceStatus": "verified",
+    }
+
+
+def value_position_row(
+    row: dict[str, Any],
+    *,
+    dolo_decimals: int,
+    paired_decimals: int,
+    dolo_price_usd: Decimal | None,
+    paired_price_usd: Decimal | None,
+) -> dict[str, Any]:
+    """Value an exact raw position; missing market prices stay explicitly null."""
+    output = dict(row)
+    dolo_raw = _raw_integer(row.get("doloRaw"), "position doloRaw")
+    paired_raw = _raw_integer(row.get("pairedRaw"), "position pairedRaw")
+    for value, label in ((dolo_decimals, "DOLO decimals"), (paired_decimals, "paired decimals")):
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 255:
+            raise ValueError(f"{label} must be an integer from 0 to 255")
+    if dolo_price_usd is None or paired_price_usd is None:
+        output["valueUsd"] = None
+        output["valueStatus"] = "unavailable"
+        return output
+    dolo_price = _finite_decimal(dolo_price_usd, "DOLO price")
+    paired_price = _finite_decimal(paired_price_usd, "paired price")
+    value = (
+        Decimal(dolo_raw) * dolo_price / (Decimal(10) ** dolo_decimals)
+        + Decimal(paired_raw) * paired_price / (Decimal(10) ** paired_decimals)
+    )
+    output["valueUsd"] = float(value.quantize(Decimal("0.000001")))
+    output["valueStatus"] = "verified"
+    return output
+
+
+def assemble_artifact(
+    registry: dict[str, Any],
+    sources: list[dict[str, Any]],
+    pools: list[dict[str, Any]],
+    active_positions: list[dict[str, Any]],
+    history: list[dict[str, Any]],
+    generated_at: str,
+) -> dict[str, Any]:
+    """Build the deterministic, UI-ready liquidity artifact."""
+    pool_priority = {
+        row["identifier"]: row["priority"] for row in registry.get("pools", [])
+    }
+    sorted_pools = sorted(
+        (dict(row) for row in pools),
+        key=lambda row: (
+            pool_priority.get(row.get("identifier") or row.get("id"), 10**9),
+            str(row.get("pair") or ""),
+            str(row.get("identifier") or row.get("id") or ""),
+        ),
+    )
+
+    def active_key(row: dict[str, Any]) -> tuple[Any, ...]:
+        value = row.get("valueUsd")
+        available = isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+        return (0 if available else 1, -float(value) if available else 0, str(row.get("id") or ""))
+
+    sorted_active = sorted((dict(row) for row in active_positions), key=active_key)
+    sorted_history = sorted(
+        (dict(row) for row in history),
+        key=lambda row: (
+            -int(row.get("blockNumber") or 0),
+            -int(row.get("logIndex") or 0),
+            str(row.get("id") or ""),
+        ),
+    )
+    values = [
+        Decimal(str(row["valueUsd"]))
+        for row in sorted_active
+        if row.get("valueUsd") is not None
+    ]
+    quality_counts = {
+        quality: sum(row.get("quality") == quality for row in sorted_active)
+        for quality in ("verified", "partial", "stale", "unavailable")
+    }
+    return {
+        "schemaVersion": 1,
+        "generatedAt": generated_at,
+        "summary": {
+            "activeLiquidityUsd": float(sum(values, Decimal(0)).quantize(Decimal("0.000001"))),
+            "lpWallets": len(
+                {row.get("beneficialOwner") for row in sorted_active if row.get("beneficialOwner")}
+            ),
+            "activePositions": len(sorted_active),
+            "outOfRange": sum(row.get("rangeStatus") == "out_of_range" for row in sorted_active),
+        },
+        "sources": sorted(
+            (dict(row) for row in sources), key=lambda row: str(row.get("key") or "")
+        ),
+        "pools": sorted_pools,
+        "activePositions": sorted_active,
+        "history": sorted_history,
+        "quality": {
+            "verifiedActivePositions": quality_counts["verified"],
+            "partialActivePositions": quality_counts["partial"],
+            "staleActivePositions": quality_counts["stale"],
+            "unavailableActivePositions": quality_counts["unavailable"],
+            "unresolvedCustody": sum(not row.get("beneficialOwner") for row in sorted_active),
+        },
+    }
+
+
+def write_artifact_atomic(
+    path: str | Path, artifact: dict[str, Any], *, max_bytes: int = 2_000_000
+) -> None:
+    """Write one bounded artifact without exposing a partially written JSON file."""
+    output = Path(path)
+    encoded = (json.dumps(artifact, separators=(",", ":"), ensure_ascii=False) + "\n").encode("utf-8")
+    if len(encoded) >= max_bytes:
+        raise ValueError(
+            f"liquidity artifact is {len(encoded):,} bytes; limit is {max_bytes:,}"
+        )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_name(f".{output.name}.tmp")
+    try:
+        temporary.write_bytes(encoded)
+        os.replace(temporary, output)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def _latest_block(chain_key: str) -> int:
+    response = rpc_single_request(
+        get_endpoints(chain_key),
+        {"jsonrpc": "2.0", "id": f"latest:{chain_key}", "method": "eth_blockNumber", "params": []},
+        describe=f"{chain_key} latest block",
+    )
+    if not isinstance(response, dict) or response.get("error") or "result" not in response:
+        raise RuntimeError(f"could not read latest {chain_key} block")
+    return _rpc_hex_int(response["result"], "latest block")
+
+
+def _eth_call_args(
+    chain_key: str,
+    address: str,
+    signature: str,
+    output_types: list[str],
+    *,
+    input_types: list[str] | None = None,
+    args: list[Any] | None = None,
+    block: int | str = "latest",
+) -> tuple[Any, ...]:
+    contract = _normalized_address(address, "call contract")
+    selector = Web3.keccak(text=signature).hex()[:8]
+    encoded_args = encode(input_types or [], args or []).hex()
+    block_tag = hex(block) if isinstance(block, int) else block
+    response = rpc_single_request(
+        get_endpoints(chain_key),
+        {
+            "jsonrpc": "2.0",
+            "id": f"call:{chain_key}:{contract}:{signature}",
+            "method": "eth_call",
+            "params": [{"to": contract, "data": "0x" + selector + encoded_args}, block_tag],
+        },
+        describe=f"{chain_key} {signature}",
+    )
+    result = response.get("result") if isinstance(response, dict) else None
+    if not isinstance(result, str) or not re.fullmatch(r"0x(?:[0-9a-fA-F]{2})+", result):
+        raise RuntimeError(f"invalid {chain_key} {signature} response")
+    try:
+        return tuple(decode(output_types, bytes.fromhex(result[2:])))
+    except Exception as exc:
+        raise RuntimeError(f"could not decode {chain_key} {signature}") from exc
+
+
+def _eth_call(chain_key: str, address: str, signature: str, output_types: list[str]) -> tuple[Any, ...]:
+    return _eth_call_args(chain_key, address, signature, output_types)
+
+
+def _eth_code(chain_key: str, address: str) -> str:
+    contract = _normalized_address(address, "code address")
+    response = rpc_single_request(
+        get_endpoints(chain_key),
+        {"jsonrpc": "2.0", "id": f"code:{contract}", "method": "eth_getCode", "params": [contract, "latest"]},
+        describe=f"{chain_key} code {contract}",
+    )
+    code = response.get("result") if isinstance(response, dict) else None
+    if not isinstance(code, str) or not re.fullmatch(r"0x(?:[0-9a-fA-F]{2})*", code):
+        raise RuntimeError(f"invalid {chain_key} eth_getCode response")
+    return code.lower()
+
+
+def _routescan_logs(
+    chain_id: int,
+    address: str,
+    topic0: str,
+    from_block: int,
+    to_block: int,
+    *,
+    session: requests.Session | None = None,
+    discovery_only: bool = False,
+) -> list[dict[str, Any]]:
+    """Read canonical on-chain logs from Routescan's Etherscan-compatible API."""
+    client = session or requests.Session()
+    url = f"https://api.routescan.io/v2/network/mainnet/evm/{chain_id}/etherscan/api"
+    normalized_address = _normalized_address(address, "Routescan log address")
+
+    def fetch_range(start: int, end: int, depth: int = 0) -> list[dict[str, Any]]:
+        if depth > 24:
+            raise RuntimeError("Routescan block-range subdivision exceeded the safety limit")
+        local = []
+        for page in range(1, 11):
+            response = client.get(
+                url,
+                params={
+                    "module": "logs",
+                    "action": "getLogs",
+                    "fromBlock": start,
+                    "toBlock": end,
+                    "address": normalized_address,
+                    "topic0": topic0,
+                    "page": page,
+                    "offset": 1000,
+                },
+                timeout=45,
+                headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+            rows = payload.get("result") if isinstance(payload, dict) else None
+            if payload.get("status") == "0" and (
+                rows is None or isinstance(rows, str)
+            ):
+                if page == 1 and rows and "No records" not in rows:
+                    raise RuntimeError(f"Routescan logs failed: {sanitize_error(rows)}")
+                return local
+            if not isinstance(rows, list):
+                raise RuntimeError(f"Routescan logs failed: {sanitize_error(rows or payload)}")
+            for row_index, raw in enumerate(rows):
+                if discovery_only and not (
+                    isinstance(raw.get("logIndex"), str)
+                    and str(raw.get("logIndex")).lower().startswith("0x")
+                    and len(str(raw.get("logIndex"))) > 2
+                ):
+                    raw = {**raw, "logIndex": hex(row_index)}
+                transaction_index = raw.get("transactionIndex")
+                if not (
+                    isinstance(transaction_index, str)
+                    and transaction_index.lower().startswith("0x")
+                    and len(transaction_index) > 2
+                ):
+                    # Routescan occasionally omits this redundant field. logIndex is
+                    # canonical and globally ordered within the block, so it is an
+                    # exact ordering surrogate rather than inferred event data.
+                    raw = {**raw, "transactionIndex": raw.get("logIndex")}
+                normalized = normalize_rpc_log(raw)
+                timestamp = _rpc_hex_int(raw.get("timeStamp"), "Routescan timestamp")
+                if timestamp <= 0:
+                    raise ValueError("Routescan timestamp must be positive")
+                normalized["timestamp"] = timestamp
+                local.append(normalized)
+            if len(rows) < 1000:
+                return local
+        if start >= end:
+            raise RuntimeError("Routescan returned more than 10,000 logs in one block")
+        midpoint = (start + end) // 2
+        return fetch_range(start, midpoint, depth + 1) + fetch_range(midpoint + 1, end, depth + 1)
+
+    collected = fetch_range(from_block, to_block)
+    return collected if discovery_only else dedupe_logs(str(chain_id), collected)
+
+
+def _dexscreener_pair(pool: dict[str, Any], *, session: requests.Session | None = None) -> dict[str, Any]:
+    client = session or requests.Session()
+    chain_key = pool["chainKey"]
+    identifier = pool["identifier"]
+    response = client.get(
+        f"https://api.dexscreener.com/latest/dex/pairs/{chain_key}/{identifier}",
+        timeout=30,
+        headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
+    )
+    response.raise_for_status()
+    rows = response.json().get("pairs")
+    exact = [
+        row for row in (rows or [])
+        if str(row.get("pairAddress") or "").lower() == identifier
+    ]
+    if len(exact) != 1:
+        raise RuntimeError(f"Dexscreener returned {len(exact)} exact rows for {identifier}")
+    return exact[0]
+
+
+def _load_dolo_price(path: str | Path) -> Decimal:
+    try:
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"invalid DOLO price file {path}: {exc}") from exc
+    return _finite_decimal(payload.get("price"), "DOLO price", allow_zero=False)
+
+
+def _build_v2_live_source(
+    registry: dict[str, Any], pool: dict[str, Any], latest_block: int
+) -> dict[str, Any]:
+    chain_key = pool["chainKey"]
+    chain = registry["chains"][chain_key]
+    address = pool["identifier"]
+    logs = []
+    for signature in (V2_EVENT_SIGNATURES["transfer"], V2_EVENT_SIGNATURES["mint"], V2_EVENT_SIGNATURES["burn"]):
+        logs.extend(
+            _routescan_logs(
+                chain["chainId"],
+                address,
+                event_topic(signature),
+                chain["discoveryStartBlock"],
+                latest_block,
+            )
+        )
+    logs = dedupe_logs(chain_key, logs)
+    token0, = _eth_call(chain_key, address, "token0()", ["address"])
+    token1, = _eth_call(chain_key, address, "token1()", ["address"])
+    total_supply, = _eth_call(chain_key, address, "totalSupply()", ["uint256"])
+    reserve0, reserve1, _ = _eth_call(chain_key, address, "getReserves()", ["uint112", "uint112", "uint32"])
+    result = replay_v2_pool(
+        pool,
+        logs,
+        {
+            "token0": token0,
+            "token1": token1,
+            "totalSupply": int(total_supply),
+            "reserve0": int(reserve0),
+            "reserve1": int(reserve1),
+            "balances": {},
+        },
+    )
+    result["token0"] = str(token0).lower()
+    result["token1"] = str(token1).lower()
+    return result
+
+
+def decode_bulla_npm_log(log: dict[str, Any]) -> dict[str, Any] | None:
+    topics = log.get("topics") if isinstance(log, dict) else None
+    if not isinstance(topics, list) or not topics:
+        raise ValueError("Bulla NPM log topics are required")
+    if str(topics[0]).lower() != event_topic(BULLA_INCREASE_SIGNATURE):
+        return decode_v3_npm_log(log)
+    if len(topics) != 2:
+        raise ValueError("Bulla IncreaseLiquidity must have one indexed tokenId")
+    data_hex = str(log.get("data") or "").lower()
+    if not re.fullmatch(r"0x(?:[0-9a-f]{2})*", data_hex):
+        raise ValueError("Bulla IncreaseLiquidity data must be even-length hex")
+    desired, actual, amount0, amount1, pool = decode(
+        ["uint128", "uint128", "uint256", "uint256", "address"],
+        bytes.fromhex(data_hex[2:]),
+    )
+    return {
+        **_decoded_log_base(log),
+        "kind": "increase",
+        "tokenId": int(str(topics[1]), 16),
+        "liquidityDesiredRaw": int(desired),
+        "liquidityRaw": int(actual),
+        "amount0Raw": int(amount0),
+        "amount1Raw": int(amount1),
+        "pool": _normalized_address(pool, "Bulla event pool"),
+    }
+
+
+def _bulla_position(
+    chain_key: str, position_manager: str, token_id: int, *, block: int | str = "latest"
+) -> dict[str, Any]:
+    values = _eth_call_args(
+        chain_key,
+        position_manager,
+        "positions(uint256)",
+        ["uint88", "address", "address", "address", "int24", "int24", "uint128", "uint256", "uint256", "uint128", "uint128"],
+        input_types=["uint256"],
+        args=[token_id],
+        block=block,
+    )
+    return {
+        "token0": str(values[2]).lower(),
+        "token1": str(values[3]).lower(),
+        "tickLower": int(values[4]),
+        "tickUpper": int(values[5]),
+        "liquidity": int(values[6]),
+    }
+
+
+def _bulla_owner(
+    chain_key: str, position_manager: str, token_id: int
+) -> str:
+    owner, = _eth_call_args(
+        chain_key,
+        position_manager,
+        "ownerOf(uint256)",
+        ["address"],
+        input_types=["uint256"],
+        args=[token_id],
+    )
+    return _normalized_address(owner, "Bulla position owner")
+
+
+def _receipt_logs_for_transactions(
+    chain_key: str,
+    transaction_timestamps: dict[str, int],
+) -> list[dict[str, Any]]:
+    chain_id = {"ethereum": 1, "berachain": 80094}.get(chain_key)
+    if chain_id is None:
+        raise ValueError(f"unsupported receipt chain {chain_key}")
+    url = f"https://api.routescan.io/v2/network/mainnet/evm/{chain_id}/etherscan/api"
+
+    def fetch_receipt(tx_hash: str) -> tuple[str, dict[str, Any]]:
+        last_error = None
+        for attempt in range(5):
+            try:
+                response = requests.get(
+                    url,
+                    params={"module": "proxy", "action": "eth_getTransactionReceipt", "txhash": tx_hash},
+                    timeout=30,
+                    headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
+                )
+                response.raise_for_status()
+                payload = response.json()
+                receipt = payload.get("result") if isinstance(payload, dict) else None
+                if not isinstance(receipt, dict) or not isinstance(receipt.get("logs"), list):
+                    raise RuntimeError(f"Routescan receipt unavailable for {tx_hash}")
+                return tx_hash, {"jsonrpc": "2.0", "id": tx_hash, "result": receipt}
+            except Exception as exc:
+                last_error = exc
+                if attempt < 4:
+                    time.sleep(0.5 * (2**attempt))
+        raise RuntimeError(f"Routescan receipt failed: {sanitize_error(last_error)}")
+
+    payloads = [
+        {
+            "jsonrpc": "2.0",
+            "id": tx_hash,
+            "method": "eth_getTransactionReceipt",
+            "params": [tx_hash],
+        }
+        for tx_hash in sorted(transaction_timestamps)
+    ]
+    responses, missing = rpc_batch_requests(
+        get_endpoints(chain_key),
+        payloads,
+        timeout=30,
+        batch_size=50,
+        describe=f"{chain_key} liquidity receipts",
+    )
+    if missing:
+        failures = []
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(fetch_receipt, tx_hash): tx_hash for tx_hash in missing}
+            for future in as_completed(futures):
+                try:
+                    tx_hash, response = future.result()
+                    responses[tx_hash] = response
+                except Exception as exc:
+                    failures.append(f"{futures[future]}: {sanitize_error(exc)}")
+        if failures:
+            raise RuntimeError(
+                f"missing {len(failures)} exact liquidity receipts after Routescan fallback"
+            )
+    logs = []
+    for tx_hash in sorted(transaction_timestamps):
+        response = responses.get(tx_hash)
+        receipt = response.get("result") if isinstance(response, dict) else None
+        if not isinstance(receipt, dict) or not isinstance(receipt.get("logs"), list):
+            _, fallback = fetch_receipt(tx_hash)
+            receipt = fallback.get("result")
+            if not isinstance(receipt, dict) or not isinstance(receipt.get("logs"), list):
+                raise RuntimeError(f"invalid liquidity receipt for {tx_hash}")
+        for raw in receipt["logs"]:
+            normalized = normalize_rpc_log(raw)
+            normalized["timestamp"] = transaction_timestamps[tx_hash]
+            logs.append(normalized)
+    return dedupe_logs(chain_key, logs)
+
+
+def _build_bulla_v3_live_source(
+    registry: dict[str, Any], pool: dict[str, Any], latest_block: int
+) -> dict[str, Any]:
+    chain_key = pool["chainKey"]
+    chain = registry["chains"][chain_key]
+    config = chain["adapters"]["bulla-v3"]
+    position_manager = config["positionManager"]
+    pool_logs = []
+    for signature in (
+        "Mint(address,address,int24,int24,uint128,uint256,uint256)",
+        "Burn(address,int24,int24,uint128,uint256,uint256)",
+    ):
+        pool_logs.extend(
+            _routescan_logs(
+                chain["chainId"], pool["identifier"], event_topic(signature),
+                chain["discoveryStartBlock"], latest_block,
+                discovery_only=True,
+            )
+        )
+    transaction_timestamps = {}
+    for log in pool_logs:
+        tx_hash = log["transactionHash"]
+        timestamp = log["timestamp"]
+        previous_timestamp = transaction_timestamps.get(tx_hash)
+        if previous_timestamp is not None and previous_timestamp != timestamp:
+            raise ValueError("one transaction cannot have conflicting timestamps")
+        transaction_timestamps[tx_hash] = timestamp
+    receipt_logs = _receipt_logs_for_transactions(chain_key, transaction_timestamps)
+    npm_events = []
+    for log in receipt_logs:
+        if log["address"] != position_manager:
+            continue
+        event = decode_bulla_npm_log(log)
+        if event is not None:
+            npm_events.append(event)
+    increases = [
+        event for event in npm_events
+        if event["kind"] == "increase" and event.get("pool") == pool["identifier"]
+    ]
+    token_ids = {event["tokenId"] for event in increases}
+    if not token_ids:
+        raise RuntimeError("Bulla pool emitted no attributable position events")
+    # Ownership at past actions is withheld unless proven separately. Current
+    # ownership is read directly via ownerOf below.
+    related = [
+        event for event in npm_events
+        if event.get("tokenId") in token_ids and event["kind"] in {"increase", "decrease"}
+    ]
+    related.sort(key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"]))
+    first_blocks = {
+        token_id: min(event["blockNumber"] for event in related if event["tokenId"] == token_id)
+        for token_id in token_ids
+    }
+    snapshots = {}
+    unresolved = []
+    for token_id in sorted(token_ids):
+        try:
+            snapshot = _bulla_position(chain_key, position_manager, token_id)
+            if snapshot["token0"] == ZERO_ADDRESS:
+                snapshot = _bulla_position(
+                    chain_key, position_manager, token_id, block=first_blocks[token_id]
+                )
+            if DOLO_ADDRESS not in {snapshot["token0"], snapshot["token1"]}:
+                raise ValueError("Bulla position does not contain DOLO")
+            snapshots[token_id] = snapshot
+        except Exception as exc:
+            unresolved.append({"tokenId": token_id, "reason": sanitize_error(exc)})
+    mapped = []
+    for event in related:
+        token_id = event["tokenId"]
+        snapshot = snapshots.get(token_id)
+        if snapshot is None:
+            continue
+        mapped.append(
+            {
+                **event,
+                "pool": pool["identifier"],
+                "token0": snapshot["token0"],
+                "token1": snapshot["token1"],
+                "fee": 0,
+                "tickLower": snapshot["tickLower"],
+                "tickUpper": snapshot["tickUpper"],
+                "snapshotBlock": first_blocks[token_id],
+            }
+        )
+    latest_positions = {}
+    for token_id, snapshot in snapshots.items():
+        if snapshot["liquidity"] <= 0:
+            continue
+        try:
+            owner = _bulla_owner(chain_key, position_manager, token_id)
+        except Exception as exc:
+            unresolved.append({"tokenId": token_id, "reason": sanitize_error(exc)})
+            continue
+        latest_positions[token_id] = {
+            **snapshot,
+            "pool": pool["identifier"],
+            "owner": owner,
+            "fee": 0,
+        }
+    contract_addresses = set()
+    for latest in latest_positions.values():
+        owner = latest["owner"]
+        try:
+            if _eth_code(chain_key, owner) not in {"0x", "0x0", "0x00"}:
+                contract_addresses.add(owner)
+        except Exception:
+            contract_addresses.add(owner)
+    token0, = _eth_call(chain_key, pool["identifier"], "token0()", ["address"])
+    token1, = _eth_call(chain_key, pool["identifier"], "token1()", ["address"])
+    state = _eth_call(
+        chain_key, pool["identifier"], "globalState()",
+        ["uint160", "int24", "uint16", "uint8", "uint16", "bool"],
+    )
+    decimals0, = _eth_call(chain_key, str(token0), "decimals()", ["uint8"])
+    decimals1, = _eth_call(chain_key, str(token1), "decimals()", ["uint8"])
+    result = build_v3_rows(
+        pool,
+        mapped,
+        latest_positions,
+        {
+            "sqrtPriceX96": int(state[0]),
+            "currentTick": int(state[1]),
+            "decimals0": int(decimals0),
+            "decimals1": int(decimals1),
+        },
+        contract_addresses=contract_addresses,
+    )
+    result["sourceStatus"] = "partial" if unresolved else "complete"
+    result["unresolved"] = unresolved
+    result["token0"] = str(token0).lower()
+    result["token1"] = str(token1).lower()
+    return result
+
+
+def generate_artifact(
+    registry_path: str | Path,
+    output_path: str | Path,
+    *,
+    price_path: str | Path = "dolo_price.json",
+) -> dict[str, Any]:
+    """Run the bounded production pipeline and preserve uncertainty explicitly."""
+    registry = load_registry(registry_path)
+    generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    previous = load_previous_artifact(output_path)
+    dolo_price = _load_dolo_price(price_path)
+    latest_by_chain = {chain_key: _latest_block(chain_key) for chain_key in registry["chains"]}
+    pool_rows = []
+    metadata_by_pool = {}
+    session = requests.Session()
+    for pool in registry["pools"]:
+        row = {
+            "id": pool["identifier"],
+            "sourceKey": f"{pool['chainKey']}:{pool['adapter']}",
+            **pool,
+            "liquidityUsd": None,
+            "liquidityStatus": "unavailable",
+            "quality": "unavailable",
+        }
+        try:
+            pair = _dexscreener_pair(pool, session=session)
+            metadata = derive_dexscreener_pool_metadata(pool, pair, dolo_price)
+            metadata_by_pool[pool["identifier"]] = {"pair": pair, **metadata}
+            row.update(metadata)
+            row["liquidityStatus"] = "verified"
+            base = pair["baseToken"]
+            quote = pair["quoteToken"]
+            paired = quote if str(base.get("address") or "").lower() == DOLO_ADDRESS else base
+            row["pairedToken"] = str(paired.get("address") or "").lower()
+            row["pairedSymbol"] = str(paired.get("symbol") or "")
+        except Exception as exc:
+            row["metadataError"] = sanitize_error(exc)
+        pool_rows.append(row)
+
+    sources = []
+    active = []
+    history = []
+    source_pools: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+    for pool in registry["pools"]:
+        source_pools[f"{pool['chainKey']}:{pool['adapter']}"].append(pool)
+    for source_key, registered in sorted(source_pools.items()):
+        chain_key, adapter = source_key.split(":", 1)
+        latest = latest_by_chain[chain_key]
+        source = {
+            "key": source_key,
+            "chainKey": chain_key,
+            "adapter": adapter,
+            "status": "unavailable",
+            "lastScannedBlock": latest,
+            "latestChainBlock": latest,
+            "errors": [],
+        }
+        try:
+            if adapter != "bulla-v3":
+                raise RuntimeError("adapter orchestration is not yet available in this release")
+            for pool in registered:
+                result = _build_bulla_v3_live_source(registry, pool, latest)
+                active.extend(result["activePositions"])
+                history.extend(result["history"])
+                matching_pool = next(row for row in pool_rows if row["identifier"] == pool["identifier"])
+                matching_pool["quality"] = "verified" if result["sourceStatus"] == "complete" else "partial"
+                metadata = metadata_by_pool.get(pool["identifier"])
+                pair = metadata.get("pair") if metadata else None
+                paired = matching_pool.get("pairedToken")
+                token0 = result["token0"]
+                token1 = result["token1"]
+                paired_decimals = 18
+                if paired:
+                    paired_decimals, = _eth_call(chain_key, paired, "decimals()", ["uint8"])
+                for index, row in enumerate(active):
+                    if row.get("sourceKey") != source_key or row.get("poolId") != pool["identifier"]:
+                        continue
+                    active[index] = value_position_row(
+                        row,
+                        dolo_decimals=registry["token"]["decimals"],
+                        paired_decimals=int(paired_decimals),
+                        dolo_price_usd=dolo_price if metadata else None,
+                        paired_price_usd=Decimal(str(metadata["pairedPriceUsd"])) if metadata else None,
+                    )
+                for row in history:
+                    if row.get("sourceKey") == source_key:
+                        row["valueStatus"] = "unavailable"
+                source["status"] = result["sourceStatus"]
+            source["lastScannedBlock"] = latest
+        except Exception as exc:
+            source["errors"] = [sanitize_error(exc)]
+            try:
+                stale = preserve_stale_adapter(previous, source_key, exc, generated_at)
+            except ValueError:
+                pass
+            else:
+                source = stale["source"]
+                active.extend(stale["activePositions"])
+                history.extend(stale["history"])
+                stale_pools = {row["identifier"]: row for row in stale["pools"]}
+                pool_rows = [stale_pools.get(row["identifier"], row) for row in pool_rows]
+        sources.append(source)
+
+    artifact = assemble_artifact(registry, sources, pool_rows, active, history, generated_at)
+    write_artifact_atomic(output_path, artifact)
+    return artifact
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Generate verified DOLO liquidity providers")
+    parser.add_argument("--registry", default="data/dolo-liquidity-pools.json")
+    parser.add_argument("--output", default="data/dolo-liquidity.json")
+    parser.add_argument("--price", default="dolo_price.json")
+    args = parser.parse_args()
+    artifact = generate_artifact(args.registry, args.output, price_path=args.price)
+    print(
+        "Generated DOLO liquidity: "
+        f"{artifact['summary']['lpWallets']} wallets, "
+        f"{artifact['summary']['activePositions']} positions, "
+        f"{len(artifact['history'])} history rows"
+    )
 
 
 def _event_attribution(
@@ -2026,3 +2830,7 @@ def replay_v2_pool(
         "mismatches": mismatches,
         "ledger": {address: str(value) for address, value in balances.items()},
     }
+
+
+if __name__ == "__main__":
+    main()
