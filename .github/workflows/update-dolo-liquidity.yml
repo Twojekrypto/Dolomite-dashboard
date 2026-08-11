@@ -1,0 +1,71 @@
+name: Update DOLO Liquidity
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-dolo-liquidity
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v6
+        with:
+          ref: master
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Test liquidity contracts
+        run: python3 -m unittest tests.test_generate_dolo_liquidity tests.test_validate_dolo_liquidity
+
+      - name: Generate DOLO liquidity
+        env:
+          PYTHONUNBUFFERED: '1'
+          ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
+          ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
+          ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}
+          ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}
+          ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
+          ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+          ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+        run: python3 generate_dolo_liquidity.py --registry data/dolo-liquidity-pools.json --output data/dolo-liquidity.json
+
+      - name: Validate generated artifact
+        run: python3 validate_data.py data/dolo-liquidity.json
+
+      - name: Commit and push validated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/dolo-liquidity.json data/dolo-liquidity-pools.json
+          if git diff --cached --quiet; then
+            echo "No liquidity changes to commit"
+            exit 0
+          fi
+          git commit -m "📊 Auto-update DOLO liquidity $(date -u '+%Y-%m-%d %H:%M UTC')"
+          pushed=false
+          for i in 1 2 3; do
+            if git pull --rebase -X theirs origin master && git push origin HEAD:master; then pushed=true; break; fi
+            echo "Push attempt $i failed, retrying..."
+            sleep 5
+          done
+          if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts"; exit 1; fi
