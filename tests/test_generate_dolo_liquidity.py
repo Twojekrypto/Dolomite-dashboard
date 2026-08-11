@@ -958,6 +958,16 @@ class V4AdapterTests(unittest.TestCase):
         self.assertEqual(pools[0]["sqrtPriceX96"], 1 << 96)
         self.assertEqual(pools[0]["tickSpacing"], 60)
 
+    def test_v4_position_info_decodes_exact_signed_tick_fields(self):
+        def uint24(value):
+            return value & ((1 << 24) - 1)
+
+        raw = 7 | (uint24(-314_000) << 8) | (uint24(-313_000) << 32)
+        self.assertEqual(
+            liquidity.decode_v4_position_info(raw),
+            {"subscriber": 7, "tickLower": -314_000, "tickUpper": -313_000},
+        )
+
     def test_v4_build_requires_canonical_sender_and_exact_modify_pair(self):
         pool_logs = [
             self._initialize(self.POOL_ID, DOLO, self.USD1, 210, 0),
@@ -1300,6 +1310,82 @@ class BeneficialOwnerTests(unittest.TestCase):
         self.assertNotIn("rebalance", [row.get("kind") for row in rows])
 
 
+class LiveAdapterOrchestrationTests(unittest.TestCase):
+    def test_every_registered_production_adapter_is_dispatched(self):
+        registry = liquidity.load_registry(REGISTRY)
+        calls = []
+
+        def builder(adapter):
+            def build(_registry, pool, latest_block):
+                calls.append((adapter, pool["identifier"], latest_block))
+                return {
+                    "sourceStatus": "complete",
+                    "activePositions": [{"id": f"active:{pool['identifier']}"}],
+                    "history": [{"id": f"history:{pool['identifier']}"}],
+                    "unresolved": [],
+                    "token0": DOLO,
+                    "token1": QUOTE,
+                }
+
+            return build
+
+        builders = {
+            adapter: builder(adapter)
+            for adapter in {pool["adapter"] for pool in registry["pools"]}
+        }
+        grouped = {}
+        for pool in registry["pools"]:
+            grouped.setdefault(f"{pool['chainKey']}:{pool['adapter']}", []).append(pool)
+
+        for source_key, pools in grouped.items():
+            result = liquidity.build_registered_source(
+                registry,
+                source_key,
+                pools,
+                12345,
+                builders=builders,
+            )
+            self.assertEqual(len(result["poolResults"]), len(pools))
+            self.assertEqual(len(result["activePositions"]), len(pools))
+            self.assertEqual(len(result["history"]), len(pools))
+            self.assertEqual(result["sourceStatus"], "complete")
+
+        self.assertEqual(len(calls), len(registry["pools"]))
+        self.assertEqual({adapter for adapter, _pool, _block in calls}, set(builders))
+
+    def test_bulla_pool_token_discovery_uses_position_manager_events_directly(self):
+        position_manager = "0x" + "99" * 20
+        target_pool = "0x" + "11" * 20
+        other_pool = "0x" + "22" * 20
+
+        def increase(token_id, pool, log_index):
+            return {
+                "address": position_manager,
+                "blockNumber": 100,
+                "transactionIndex": 0,
+                "logIndex": log_index,
+                "transactionHash": "0x" + f"{log_index + 1:064x}",
+                "blockHash": "0x" + f"{100:064x}",
+                "data": "0x" + encode(
+                    ["uint128", "uint128", "uint256", "uint256", "address"],
+                    [100, 90, 10, 20, pool],
+                ).hex(),
+                "topics": [
+                    liquidity.event_topic(liquidity.BULLA_INCREASE_SIGNATURE),
+                    "0x" + f"{token_id:064x}",
+                ],
+                "removed": False,
+                "timestamp": 1_700_000_000,
+            }
+
+        token_ids = liquidity.select_bulla_pool_token_ids(
+            [increase(7, target_pool, 0), increase(8, other_pool, 1)],
+            target_pool,
+        )
+
+        self.assertEqual(token_ids, {7})
+
+
 class ArtifactAssemblyTests(unittest.TestCase):
     def test_dexscreener_enrichment_derives_quote_price_without_owning_attribution(self):
         pool = {
@@ -1353,6 +1439,21 @@ class ArtifactAssemblyTests(unittest.TestCase):
         self.assertEqual(valued["valueStatus"], "verified")
         self.assertIsNone(missing["valueUsd"])
         self.assertEqual(missing["valueStatus"], "unavailable")
+
+    def test_history_valuation_withholds_rows_without_exact_token_amounts(self):
+        rows = liquidity.value_exact_history_rows(
+            [
+                {"id": "exact", "doloRaw": "100", "pairedRaw": "200"},
+                {"id": "missing", "doloRaw": None, "pairedRaw": None},
+            ],
+            dolo_decimals=18,
+            paired_decimals=6,
+            dolo_price_usd=Decimal("0.05"),
+            paired_price_usd=Decimal("1"),
+        )
+
+        self.assertEqual([row["id"] for row in rows], ["exact"])
+        self.assertEqual(rows[0]["valueStatus"], "verified")
 
     def test_assemble_artifact_sorts_rows_and_reconciles_summary(self):
         registry = liquidity.load_registry(REGISTRY)
