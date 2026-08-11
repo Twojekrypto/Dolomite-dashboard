@@ -63,6 +63,7 @@ V4_EVENT_SIGNATURES = {
     "modify_position": "ModifyPosition(bytes32,address,int24,int24,int256,bytes32)",
     "transfer": "Transfer(address,address,uint256)",
 }
+KODIAK_ISLAND_CREATED_SIGNATURE = "IslandCreated(address,address,address,address)"
 
 
 def _exact_int(value: Any, label: str) -> int:
@@ -1470,6 +1471,360 @@ def build_v4_rows(
         "history": history,
         "unresolved": unresolved,
     }
+
+
+def decode_kodiak_island_created(log: dict[str, Any]) -> dict[str, Any] | None:
+    """Decode the official Kodiak Island Factory creation event."""
+    topics = log.get("topics") if isinstance(log, dict) else None
+    if not isinstance(topics, list) or not topics:
+        raise ValueError("Kodiak Island factory log topics are required")
+    if str(topics[0]).lower() != event_topic(KODIAK_ISLAND_CREATED_SIGNATURE):
+        return None
+    if len(topics) != 4:
+        raise ValueError("IslandCreated must index pool, manager, and island")
+    data_hex = str(log.get("data") or "").strip().lower()
+    if not re.fullmatch(r"0x(?:[0-9a-f]{2})*", data_hex):
+        raise ValueError("IslandCreated data must be even-length hex")
+    (implementation,) = decode(["address"], bytes.fromhex(data_hex[2:]))
+    return {
+        **_decoded_log_base(log),
+        "kind": "island_created",
+        "underlyingPool": _address_from_topic(topics[1], "Kodiak underlying pool"),
+        "manager": _address_from_topic(topics[2], "Kodiak Island manager"),
+        "island": _address_from_topic(topics[3], "Kodiak Island"),
+        "implementation": _normalized_address(
+            implementation, "Kodiak Island implementation"
+        ),
+    }
+
+
+def discover_kodiak_islands(
+    logs: list[dict[str, Any]],
+    pool_tokens: dict[str, tuple[str, str] | list[str]],
+    dolo_address: str,
+) -> list[dict[str, Any]]:
+    """Discover Islands only when their exact underlying V3 pool contains DOLO."""
+    dolo = _normalized_address(dolo_address, "DOLO address")
+    normalized_pool_tokens = {}
+    for pool_address, tokens in pool_tokens.items():
+        pool = _normalized_address(pool_address, "Kodiak underlying pool")
+        if not isinstance(tokens, (tuple, list)) or len(tokens) != 2:
+            raise ValueError("Kodiak pool token metadata must contain token0 and token1")
+        normalized_pool_tokens[pool] = (
+            _normalized_address(tokens[0], "Kodiak token0"),
+            _normalized_address(tokens[1], "Kodiak token1"),
+        )
+    discovered = []
+    seen = set()
+    for log in logs:
+        event = decode_kodiak_island_created(log)
+        if event is None:
+            continue
+        tokens = normalized_pool_tokens.get(event["underlyingPool"])
+        if tokens is None or dolo not in set(tokens) or event["island"] in seen:
+            continue
+        seen.add(event["island"])
+        discovered.append(event)
+    return sorted(
+        discovered,
+        key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"]),
+    )
+
+
+def _raw_integer(value: Any, label: str) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{label} must be a nonnegative integer string")
+    if isinstance(value, int):
+        parsed = value
+    elif isinstance(value, str) and re.fullmatch(r"[0-9]+", value):
+        parsed = int(value)
+    else:
+        raise ValueError(f"{label} must be a nonnegative integer string")
+    if parsed < 0:
+        raise ValueError(f"{label} must be nonnegative")
+    return parsed
+
+
+def _allocate_total_by_claims(
+    total: int, claims: list[dict[str, Any]]
+) -> list[int]:
+    """Allocate raw units by share, assigning deterministic dust to the last row."""
+    if not claims:
+        if total != 0:
+            raise ValueError("cannot allocate nonzero underlying without share claims")
+        return []
+    total_shares = sum(claim["shares"] for claim in claims)
+    if total_shares <= 0:
+        raise ValueError("allocation total shares must be positive")
+    allocated = [total * claim["shares"] // total_shares for claim in claims]
+    allocated[-1] += total - sum(allocated)
+    return allocated
+
+
+def allocate_kodiak_island_position(
+    underlying_position: dict[str, Any],
+    island_state: dict[str, Any],
+    farm_states: list[dict[str, Any]],
+    *,
+    contract_addresses: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Replace one Island-custodied V3 row with exact beneficial-owner rows."""
+    if not isinstance(underlying_position, dict):
+        raise ValueError("underlying Island position must be an object")
+    island = _normalized_address(island_state.get("address"), "Kodiak Island")
+    total_shares = _raw_integer(island_state.get("totalShares"), "Island total shares")
+    if total_shares <= 0:
+        raise ValueError("Island total shares must be positive")
+    balances = {
+        _normalized_address(address, "Island share holder"): _raw_integer(
+            value, "Island share balance"
+        )
+        for address, value in (island_state.get("balances") or {}).items()
+    }
+    balances = {address: value for address, value in balances.items() if value > 0}
+    if sum(balances.values()) != total_shares:
+        raise ValueError("Island holder balances must reconcile exactly to total shares")
+    contracts = {
+        _normalized_address(address, "contract address")
+        for address in (contract_addresses or set())
+    }
+
+    farms_by_address = {}
+    for state in farm_states:
+        if not isinstance(state, dict):
+            raise ValueError("Kodiak farm state must be an object")
+        farm = _normalized_address(state.get("address"), "Kodiak farm")
+        if farm in farms_by_address:
+            raise ValueError(f"duplicate Kodiak farm state for {farm}")
+        staking_token = _normalized_address(
+            state.get("stakingToken"), "Kodiak farm staking token"
+        )
+        custody_balance = _raw_integer(
+            state.get("custodyBalance"), "Kodiak farm custody balance"
+        )
+        staked_balances = {
+            _normalized_address(address, "Kodiak farm staker"): _raw_integer(
+                value, "Kodiak farm staked balance"
+            )
+            for address, value in (state.get("stakedBalances") or {}).items()
+        }
+        reasons = []
+        if staking_token != island:
+            reasons.append("staking token mismatch")
+        if custody_balance != balances.get(farm, 0):
+            reasons.append("farm custody balance mismatch")
+        if sum(staked_balances.values()) != custody_balance:
+            reasons.append("farm staker balances do not reconcile")
+        farms_by_address[farm] = {
+            "address": farm,
+            "stakedBalances": staked_balances,
+            "supported": not reasons,
+            "reason": "; ".join(reasons),
+        }
+
+    claims = []
+    for holder, shares in sorted(balances.items()):
+        farm = farms_by_address.get(holder)
+        if farm and farm["supported"]:
+            for staker, staked_shares in sorted(farm["stakedBalances"].items()):
+                if staked_shares <= 0:
+                    continue
+                if staker in contracts:
+                    claims.append(
+                        {
+                            "beneficialOwner": None,
+                            "custodian": staker,
+                            "shares": staked_shares,
+                            "path": "unresolved_contract",
+                            "quality": "unavailable",
+                            "status": "custodied_unresolved",
+                            "reason": "farm staker is an unsupported contract",
+                        }
+                    )
+                else:
+                    claims.append(
+                        {
+                            "beneficialOwner": staker,
+                            "custodian": holder,
+                            "shares": staked_shares,
+                            "path": "kodiak_island_farm",
+                            "quality": "verified",
+                            "status": "active",
+                            "reason": "farm staking token and per-user balances reconcile",
+                        }
+                    )
+            continue
+        if holder in contracts:
+            reason = (
+                farm["reason"]
+                if farm and farm["reason"]
+                else "Island shares are held by an unsupported custody contract"
+            )
+            claims.append(
+                {
+                    "beneficialOwner": None,
+                    "custodian": holder,
+                    "shares": shares,
+                    "path": "unresolved_contract",
+                    "quality": "unavailable",
+                    "status": "custodied_unresolved",
+                    "reason": reason,
+                }
+            )
+        else:
+            claims.append(
+                {
+                    "beneficialOwner": holder,
+                    "custodian": island,
+                    "shares": shares,
+                    "path": "kodiak_island",
+                    "quality": "verified",
+                    "status": "active",
+                    "reason": "direct Kodiak Island share balance",
+                }
+            )
+    claims.sort(
+        key=lambda claim: (
+            claim["beneficialOwner"] or "~" + claim["custodian"],
+            claim["custodian"],
+            claim["path"],
+        )
+    )
+    if sum(claim["shares"] for claim in claims) != total_shares:
+        raise ValueError("resolved Island claims must reconcile exactly to total shares")
+
+    raw_fields = ("amount0Raw", "amount1Raw", "doloRaw", "pairedRaw")
+    allocations = {
+        field: _allocate_total_by_claims(
+            _raw_integer(underlying_position.get(field), f"underlying {field}"), claims
+        )
+        for field in raw_fields
+    }
+    underlying_quality = underlying_position.get("quality")
+    rows = []
+    for index, claim in enumerate(claims):
+        quality = claim["quality"]
+        if quality == "verified" and underlying_quality in {"partial", "stale"}:
+            quality = underlying_quality
+        identity = claim["beneficialOwner"] or "unresolved-" + claim["custodian"]
+        rows.append(
+            {
+                **underlying_position,
+                "id": (
+                    f"{underlying_position.get('id')}:{claim['path']}:"
+                    f"{claim['custodian']}:{identity}"
+                ),
+                "positionType": "kodiak_island_share",
+                "island": island,
+                "shareBalanceRaw": str(claim["shares"]),
+                "shareOfIsland": str(Decimal(claim["shares"]) / Decimal(total_shares)),
+                "custodian": claim["custodian"],
+                "beneficialOwner": claim["beneficialOwner"],
+                "attributionPath": claim["path"],
+                "attributionReason": claim["reason"],
+                "positionStatus": claim["status"],
+                "quality": quality,
+                **{field: str(allocations[field][index]) for field in raw_fields},
+            }
+        )
+    return rows
+
+
+def build_kodiak_island_history(
+    pool: dict[str, Any],
+    island_address: str,
+    actions: list[dict[str, Any]],
+    *,
+    contract_addresses: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Build user liquidity history while excluding custody-only Island actions."""
+    chain_key = str(pool.get("chainKey") or "").strip().lower()
+    adapter = str(pool.get("adapter") or "").strip().lower()
+    pool_address = _normalized_address(pool.get("identifier"), "Kodiak pool")
+    island = _normalized_address(island_address, "Kodiak Island")
+    token0 = _normalized_address(pool.get("token0"), "Kodiak token0")
+    token1 = _normalized_address(pool.get("token1"), "Kodiak token1")
+    if DOLO_ADDRESS not in {token0, token1}:
+        raise ValueError("Kodiak Island pool does not contain DOLO")
+    contracts = {
+        _normalized_address(address, "contract address")
+        for address in (contract_addresses or set())
+    }
+    ignored = {"rebalance", "stake", "unstake", "share_transfer"}
+    share_balances: defaultdict[str, int] = defaultdict(int)
+    history = []
+    for action in actions:
+        kind = action.get("kind")
+        if kind in ignored:
+            continue
+        if kind not in {"deposit", "withdraw"}:
+            raise ValueError(f"unsupported Kodiak Island action {kind!r}")
+        owner = _normalized_address(action.get("owner"), "Kodiak Island action owner")
+        share_delta = _raw_integer(
+            action.get("shareDeltaRaw"), "Kodiak Island share delta"
+        )
+        if share_delta <= 0:
+            raise ValueError("Kodiak Island share delta must be positive")
+        before = share_balances[owner]
+        if kind == "deposit":
+            share_balances[owner] += share_delta
+            action_name = "Added" if before == 0 else "Increased"
+        else:
+            if share_delta > before:
+                raise ValueError("Kodiak Island withdrawal exceeds replayed user shares")
+            share_balances[owner] -= share_delta
+            action_name = "Closed" if share_balances[owner] == 0 else "Removed"
+        amount0_value = action.get("amount0Raw")
+        amount1_value = action.get("amount1Raw")
+        amounts_exact = amount0_value is not None and amount1_value is not None
+        amount0 = _raw_integer(amount0_value, "Kodiak Island amount0") if amounts_exact else None
+        amount1 = _raw_integer(amount1_value, "Kodiak Island amount1") if amounts_exact else None
+        if owner in contracts:
+            beneficial_owner = None
+            quality = "unavailable"
+            status = "custodied_unresolved"
+        else:
+            beneficial_owner = owner
+            quality = "verified" if amounts_exact else "partial"
+            status = "active"
+        block_number = _exact_int(action.get("blockNumber"), "Island action block")
+        timestamp = _exact_int(action.get("timestamp"), "Island action timestamp")
+        log_index = _exact_int(action.get("logIndex"), "Island action log index")
+        tx_hash = str(action.get("txHash") or "").lower()
+        history.append(
+            {
+                "id": event_key(chain_key, tx_hash, log_index),
+                "sourceKey": f"{chain_key}:{adapter}:kodiak-island",
+                "poolId": pool_address,
+                "poolIdentifierType": "contract",
+                "chainKey": chain_key,
+                "adapter": adapter,
+                "pair": pool.get("pair"),
+                "island": island,
+                "action": action_name,
+                "blockNumber": block_number,
+                "timestamp": timestamp,
+                "txHash": tx_hash,
+                "logIndex": log_index,
+                "shareDeltaRaw": str(share_delta),
+                "amountStatus": "verified" if amounts_exact else "unavailable",
+                "amount0Raw": str(amount0) if amount0 is not None else None,
+                "amount1Raw": str(amount1) if amount1 is not None else None,
+                "doloRaw": str(amount0 if token0 == DOLO_ADDRESS else amount1)
+                if amounts_exact
+                else None,
+                "pairedRaw": str(amount1 if token0 == DOLO_ADDRESS else amount0)
+                if amounts_exact
+                else None,
+                "valueUsd": None,
+                "custodian": island,
+                "beneficialOwner": beneficial_owner,
+                "attributionPath": "kodiak_island",
+                "positionStatus": status,
+                "quality": quality,
+            }
+        )
+    return history
 
 
 def _event_attribution(
