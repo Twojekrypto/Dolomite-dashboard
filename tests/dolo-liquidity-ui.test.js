@@ -34,6 +34,35 @@ test('liquidity UI keeps exact active/history schemas and stable ten-row paginat
   assert.match(html, /data-dolo-lp-details/);
 });
 
+test('liquidity table uses fixed mode-specific column geometry', () => {
+  assert.match(html, /\.dolo-lp-table\{[^}]*table-layout:fixed/s);
+  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[9,13,19,14,10,12,10,7,6\]/);
+  assert.match(html, /const HISTORY_WIDTHS\s*=\s*\[10,9,13,19,9,11,13,10,6\]/);
+  assert.match(html, /id="dolo-lp-columns" data-dolo-lp-columns="active"/);
+  assert.match(html, /columns\.dataset\.doloLpColumns\s*=\s*doloLpState\.mode/);
+  assert.match(html, /widths\.map\(width\s*=>\s*`<col style="width:\$\{width\}%">`\)/);
+  assert.match(html, /Array\.from\(\{length:\s*Math\.max\(0,\s*doloLpState\.pageSize/);
+});
+
+test('collapsed price range is classified instead of rendering raw bounds', () => {
+  assert.match(html, /function compactRangeBound\(value\)/);
+  assert.match(html, /function rangePresentation\(row\)/);
+  assert.match(html, /Near-full range/);
+  assert.match(html, /Custom range/);
+  assert.match(html, /Always active/);
+  assert.doesNotMatch(html, /`\$\{number\(Number\(row\.rangeLower\)\)\}–\$\{number\(Number\(row\.rangeUpper\)\)\}`/);
+});
+
+test('expanded liquidity details carry compact range evidence and accessible sort state', () => {
+  for (const label of ['Lower bound', 'Upper bound', 'Tick interval']) {
+    assert.match(html, new RegExp(label));
+  }
+  assert.match(html, /compactRangeBound\(row\.rangeLower\)/);
+  assert.match(html, /compactRangeBound\(row\.rangeUpper\)/);
+  assert.match(html, /aria-sort="\$\{ariaSort\}"/);
+  assert.match(html, /class="sort" aria-hidden="true">\$\{marker\}<\/span>/);
+});
+
 test('mode, filters, null pricing and action groups are explicit behavior contracts', () => {
   assert.match(html, /mode:\s*["']active["']/);
   assert.match(html, /historyPeriod:\s*["']30d["']/);

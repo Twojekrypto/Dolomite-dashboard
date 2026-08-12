@@ -1025,16 +1025,20 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-select{height:38px;min-width:132px;padding:0 30px 0 12px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-3);color:var(--fg-2);font-size:11px;font-weight:600;outline:none;cursor:pointer;color-scheme:dark}
 .dolo-lp-select:hover,.dolo-lp-select:focus{border-color:var(--line-3);color:var(--fg-1)}
 .dolo-lp-history-controls[hidden]{display:flex!important;visibility:hidden;pointer-events:none}
-.dolo-lp-table{min-width:1140px;table-layout:auto}
+.dolo-lp-table{width:100%;min-width:1140px;table-layout:fixed}
 .dolo-lp-table th{white-space:nowrap}
-.dolo-lp-table td{height:68px}
+.dolo-lp-table td{height:68px;min-width:0;overflow:hidden}
+.dolo-lp-table td > *{max-width:100%}
 .dolo-lp-table .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .dolo-lp-table th[data-dolo-lp-sort]{cursor:pointer}
 .dolo-lp-table th[data-dolo-lp-sort]:hover,.dolo-lp-table th.sorted{color:var(--fg-1)}
-.dolo-lp-pair{display:flex;flex-direction:column;gap:3px}
+.dolo-lp-table th .sort{display:inline-block;width:10px;margin-left:4px;color:var(--gold);font-size:8px;vertical-align:1px;text-align:center}
+.dolo-lp-pair{display:flex;flex-direction:column;gap:3px;min-width:0}
+.dolo-lp-pair strong,.dolo-lp-pair span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dolo-lp-pair strong{font-size:12px;color:var(--fg-1);font-weight:600}
 .dolo-lp-pair span{font-size:10px;color:var(--fg-4)}
 .dolo-lp-range{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;color:var(--fg-2)}
+.dolo-lp-range span,.dolo-lp-range small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dolo-lp-range small{font-family:var(--sans);font-size:9px;color:var(--fg-4);text-transform:uppercase;letter-spacing:.7px}
 .dolo-lp-chip{display:inline-flex;align-items:center;justify-content:center;min-height:23px;padding:3px 8px;border:1px solid var(--line-2);border-radius:999px;background:rgba(255,255,255,.025);font-size:9px;font-weight:700;letter-spacing:.65px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap}
 .dolo-lp-chip.verified,.dolo-lp-chip.in-range{color:var(--up);border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.07)}
@@ -1542,6 +1546,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
     <div class="tbl-wrap">
       <table class="tbl dolo-lp-table" id="dolo-lp-table" data-address-match-cells>
+        <colgroup id="dolo-lp-columns" data-dolo-lp-columns="active"></colgroup>
         <thead id="dolo-lp-head"></thead>
         <tbody id="dolo-lp-body"></tbody>
       </table>
@@ -5907,6 +5912,8 @@ renderCexSupplyChart();
     ["timestamp","Date"],["chainKey","Chain"],["pair","Pair"],["wallet","Wallet"],["action","Action"],
     ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["details","Details"],
   ];
+  const ACTIVE_WIDTHS = [9,13,19,14,10,12,10,7,6];
+  const HISTORY_WIDTHS = [10,9,13,19,9,11,13,10,6];
   const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   const doloLpState = {
     mode: "active",
@@ -6028,10 +6035,29 @@ renderCexSupplyChart();
       </div>
     </div>`;
   }
+  function compactRangeBound(value){
+    const numeric = Number(value);
+    if(!Number.isFinite(numeric)) return "Unavailable";
+    if(numeric === 0) return "0";
+    const magnitude = Math.abs(numeric);
+    if(magnitude < 0.001 || magnitude >= 1e7){
+      return numeric.toExponential(2).replace("e-","e−");
+    }
+    return new Intl.NumberFormat("en-US", {maximumSignificantDigits:4, useGrouping:false}).format(numeric);
+  }
+  function rangePresentation(row){
+    if(row.rangeStatus === "full_range") return {state:"Full range",detail:"Always active"};
+    const state = row.rangeStatus === "in_range" ? "In range" : row.rangeStatus === "out_of_range" ? "Out of range" : "Unavailable";
+    const lower = Number(row.tickLower);
+    const upper = Number(row.tickUpper);
+    const spacing = Number(row.tickSpacing || row.feeTier / 50 || 1);
+    const nearFull = Number.isFinite(lower) && Number.isFinite(upper) && Number.isFinite(spacing)
+      && lower <= -887272 + spacing && upper >= 887272 - spacing;
+    return {state,detail:nearFull ? "Near-full range" : "Custom range"};
+  }
   function rangeCell(row){
-    if(row.rangeStatus === "full_range") return `<div class="dolo-lp-range"><span>Full range</span><small>Always active</small></div>`;
-    const range = row.rangeLower != null && row.rangeUpper != null ? `${number(Number(row.rangeLower))}–${number(Number(row.rangeUpper))}` : "Unavailable";
-    return `<div class="dolo-lp-range"><span>${esc(range)}</span><small>${esc(String(row.rangeStatus || "unavailable").replaceAll("_"," "))}</small></div>`;
+    const range = rangePresentation(row);
+    return `<div class="dolo-lp-range"><span>${esc(range.state)}</span><small>${esc(range.detail)}</small></div>`;
   }
   function chip(value){
     const normalizedValue = String(value || "unavailable").replaceAll("_","-");
@@ -6053,11 +6079,16 @@ renderCexSupplyChart();
     const custody = row.beneficialOwner && row.custodian && normalized(row.beneficialOwner) !== normalized(row.custodian)
       ? `${row.attributionPath || "verified path"} via ${shortAddress(row.custodian)}`
       : row.attributionPath || "Direct ownership";
+    const rangeDetails = doloLpState.mode === "active" && row.rangeStatus !== "full_range" ? `
+      <div class="dolo-lp-detail dolo-lp-range-detail"><div class="dolo-lp-detail-label">Lower bound</div><div class="dolo-lp-detail-value">${esc(compactRangeBound(row.rangeLower))}</div></div>
+      <div class="dolo-lp-detail dolo-lp-range-detail"><div class="dolo-lp-detail-label">Upper bound</div><div class="dolo-lp-detail-value">${esc(compactRangeBound(row.rangeUpper))}</div></div>
+      <div class="dolo-lp-detail dolo-lp-range-detail"><div class="dolo-lp-detail-label">Tick interval</div><div class="dolo-lp-detail-value">${Number.isInteger(row.tickLower) && Number.isInteger(row.tickUpper) ? `${number(row.tickLower)} → ${number(row.tickUpper)}` : "Unavailable"}</div></div>` : "";
     return `<tr class="dolo-lp-detail-row" id="dolo-lp-details-${esc(row.id)}"><td colspan="9"><div class="dolo-lp-details-grid">
       <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Attribution</div><div class="dolo-lp-detail-value">${esc(custody)}</div></div>
       <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Position</div><div class="dolo-lp-detail-value">${esc(row.positionId || row.positionType || "Fungible LP")}</div></div>
       <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Source quality</div><div class="dolo-lp-detail-value">${esc(source?.status || row.quality || "Unavailable")}${source?.errors?.length ? ` · ${esc(source.errors.join("; "))}` : ""}</div></div>
       <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Provenance</div><div class="dolo-lp-detail-value">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Open pool ↗</a>` : "Pool link unavailable"}${row.txHash ? ` · <a href="${txBase}${esc(row.txHash)}" target="_blank" rel="noopener">Transaction ↗</a>` : ""}</div></div>
+      ${rangeDetails}
     </div></td></tr>`;
   }
   function activeRow(row){
@@ -6081,8 +6112,18 @@ renderCexSupplyChart();
   }
   function renderHeaders(){
     const headers = doloLpState.mode === "active" ? ACTIVE_HEADERS : HISTORY_HEADERS;
+    const widths = doloLpState.mode === "active" ? ACTIVE_WIDTHS : HISTORY_WIDTHS;
     const sort = doloLpState.mode === "active" ? doloLpState.activeSort : doloLpState.historySort;
-    byId("dolo-lp-head").innerHTML = `<tr>${headers.map(([key,label]) => `<th ${!["details"].includes(key) ? `data-dolo-lp-sort="${key}"` : ""} class="${["doloRaw","pairedRaw","valueUsd"].includes(key) ? "num " : ""}${sort.key === key ? "sorted" : ""}">${label}</th>`).join("")}</tr>`;
+    const columns = byId("dolo-lp-columns");
+    columns.dataset.doloLpColumns = doloLpState.mode;
+    columns.innerHTML = widths.map(width => `<col style="width:${width}%">`).join("");
+    byId("dolo-lp-head").innerHTML = `<tr>${headers.map(([key,label]) => {
+      const sortable = key !== "details";
+      const active = sort.key === key;
+      const ariaSort = !sortable ? "none" : active ? (sort.dir === "asc" ? "ascending" : "descending") : "none";
+      const marker = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+      return `<th ${sortable ? `data-dolo-lp-sort="${key}"` : ""} aria-sort="${ariaSort}" class="${["doloRaw","pairedRaw","valueUsd"].includes(key) ? "num " : ""}${active ? "sorted" : ""}"><span>${label}</span>${sortable ? `<span class="sort" aria-hidden="true">${marker}</span>` : ""}</th>`;
+    }).join("")}</tr>`;
   }
   function renderSummary(rows){
     const stats = byId("dolo-lp-summary");
