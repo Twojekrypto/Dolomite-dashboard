@@ -359,6 +359,31 @@ test('moving within a row preserves row-derived peers and leaving clears them', 
   assert.equal(fixture.duplicateWrapperPeer.addressTrigger.classList.contains('address-match-peer'), false);
 });
 
+test('row-derived matching survives focusout when an interactive row is re-rendered', () => {
+  const fixture = buildFixture();
+
+  fixture.document.dispatch('mouseover', fixture.source.cell);
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), true);
+
+  assert.doesNotThrow(() => fixture.document.dispatch('focusout', fixture.source.cell));
+  assert.equal(fixture.peer.addressTrigger.classList.contains('address-match-peer'), false);
+});
+
+test('all address-matching routes advance the shared asset cache together', () => {
+  const version = '20260812-row-focusout';
+  const routes = [
+    'assets-preview.html', 'dolo-preview.html', 'liquidation-preview.html',
+    'odolo-preview.html', 'portfolio-preview.html', 'revenue-preview.html',
+    'rewards-preview.html', 'tvl-preview.html', 'vedolo-preview.html',
+  ];
+
+  for (const route of routes) {
+    const source = fs.readFileSync(path.join(__dirname, '..', route), 'utf8');
+    assert.equal(source.split(version).length - 1, 2, route);
+    assert.doesNotMatch(source, /shared-hover-tooltips\.(?:css|js)\?v=20260810-source-row-addresses/);
+  }
+});
+
 test('delegated row matching includes rows rendered after controller installation', () => {
   const fixture = buildFixture();
   const latePeer = fixture.appendVisibleRow(['0x1111111111111111111111111111111111111111']).cells[0];

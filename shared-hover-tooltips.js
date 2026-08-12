@@ -389,8 +389,10 @@
   });
 
   document.addEventListener('focusout', function (event) {
-    if (!activeAddressMatch || !activeAddressMatch.trigger.contains(event.target)) return;
-    if (event.relatedTarget && activeAddressMatch.trigger.contains(event.relatedTarget)) return;
+    if (!activeAddressMatch) return;
+    var focusScope = activeAddressMatch.trigger || activeAddressMatch.row;
+    if (!focusScope || !focusScope.contains(event.target)) return;
+    if (event.relatedTarget && focusScope.contains(event.relatedTarget)) return;
     clearAddressMatches();
   });
   window.addEventListener('blur', clearAddressMatches);
