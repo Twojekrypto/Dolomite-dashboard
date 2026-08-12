@@ -88,7 +88,7 @@ test('wallet and provenance UX is scoped and does not confuse poolId with a cont
 });
 
 test('both DOLO route entry points advance the liquidity feature cache once', () => {
-  const version = 'dolo-liquidity-live-20260811';
+  const version = 'dolo-liquidity-table-ux-20260812';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
