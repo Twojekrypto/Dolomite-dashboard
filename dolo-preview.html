@@ -1044,14 +1044,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-range{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;color:var(--fg-2)}
 .dolo-lp-range span,.dolo-lp-range small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dolo-lp-range small{font-family:var(--sans);font-size:9px;color:var(--fg-4);text-transform:uppercase;letter-spacing:.7px}
-.dolo-lp-chip{display:inline-flex;align-items:center;justify-content:center;min-height:23px;max-width:100%;padding:3px 8px;border:1px solid var(--line-2);border-radius:999px;background:rgba(255,255,255,.025);font-size:9px;font-weight:700;letter-spacing:.65px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dolo-lp-table td.status-cell{text-align:center;padding-left:4px;padding-right:4px}
-.dolo-lp-chip.verified,.dolo-lp-chip.in-range{color:var(--up);border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.07)}
-.dolo-lp-chip.partial,.dolo-lp-chip.stale{color:#d4b56f;border-color:rgba(212,181,111,.25);background:rgba(212,181,111,.07)}
-.dolo-lp-chip.out-of-range,.dolo-lp-chip.unavailable{color:var(--down);border-color:rgba(180,121,107,.25);background:rgba(180,121,107,.07)}
-.dolo-lp-chip[data-tooltip]{cursor:default}
+.dolo-lp-range.is-in-range>span{color:var(--up)}
+.dolo-lp-range.is-out-of-range>span{color:var(--down)}
 .dolo-lp-token-amount{display:flex;align-items:center;justify-content:flex-end;gap:7px;width:100%;min-width:0;color:var(--fg-1);font-family:var(--mono);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
-.dolo-lp-token-amount span{overflow:hidden;text-overflow:ellipsis}
+.dolo-lp-token-value{overflow:hidden;text-overflow:ellipsis;cursor:default}
 .dolo-lp-token-amount img{width:16px;height:16px;border-radius:50%;object-fit:contain;flex:0 0 16px;background:var(--bg-3)}
 .dolo-lp-table td.details-cell{text-align:center;padding-left:2px;padding-right:2px}
 .dolo-lp-details-btn{-webkit-appearance:none;appearance:none;overflow:visible;box-sizing:border-box;vertical-align:middle;height:24px;width:100%;max-width:72px;min-width:0;padding:0 2px;border:1px solid rgba(201,162,39,.28);border-radius:999px;background:var(--gold-wash);color:var(--gold);display:inline-flex;align-items:center;justify-content:center;gap:2px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease)}
@@ -1085,6 +1081,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-detail-sub{margin-top:4px;font-size:10px;color:var(--fg-4);font-family:var(--sans)}
 .dolo-lp-detail-evidence{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:16px;border-top:1px solid var(--line-1);border-left:1px solid var(--line-1)}
 .dolo-lp-evidence-item{min-width:0;padding:13px 15px;border-right:1px solid var(--line-1);border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.008)}
+.dolo-lp-evidence-item.data-status{grid-column:span 2}
 .dolo-lp-detail-value.dolo-lp-exact{font-family:var(--mono);font-size:10.5px;line-height:1.5;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;word-break:break-word}
 .dolo-lp-detail-value a{color:var(--gold);text-decoration:none}
 .dolo-lp-detail-value a:hover{color:var(--gold-hi)}
@@ -1092,6 +1089,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-bound-row{display:grid;grid-template-columns:42px minmax(0,1fr);gap:8px;align-items:start}
 .dolo-lp-bound-row span,.dolo-lp-source-health span{font-family:var(--sans);font-size:8.5px;font-weight:700;letter-spacing:.75px;text-transform:uppercase;color:var(--fg-4)}
 .dolo-lp-bound-row code{font-family:var(--mono);font-size:9.5px;color:var(--fg-2);white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.dolo-lp-bound-row small{grid-column:2;font-family:var(--sans);font-size:9px;color:var(--fg-4)}
 .dolo-lp-source-health{margin-top:7px;padding-top:7px;border-top:1px solid var(--line-1);font-size:10px;color:var(--fg-3)}
 .dolo-lp-source-health span{margin-right:6px}
 .dolo-lp-empty td{color:var(--fg-4);font-size:11px}
@@ -1113,10 +1111,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .dolo-lp-toolbar .dd,.dolo-lp-toolbar .dd-btn,.dolo-lp-toggle{width:100%}
   .dolo-lp-toolbar .dd-panel{left:0;right:0;min-width:0;max-width:none}
   .dolo-lp-details-btn{min-width:44px;min-height:44px}
+  .dolo-lp-detail-panel{width:calc(100vw - 48px);max-width:calc(100vw - 48px)}
   .dolo-lp-detail-head{padding:15px 16px;align-items:flex-start;flex-direction:column}
   .dolo-lp-detail-meta{justify-content:flex-start}
   .dolo-lp-detail-content{margin:0 10px 14px 12px;padding:14px}
   .dolo-lp-detail-overview,.dolo-lp-detail-evidence{grid-template-columns:1fr}
+  .dolo-lp-evidence-item.data-status{grid-column:auto}
   .dolo-lp-detail-metric{border-left:0;border-top:1px solid rgba(255,255,255,.055)}
   .dolo-lp-detail-metric:first-child{border-top:0}
   .dolo-lp-detail-metric:nth-child(4){border-left:0}
@@ -5950,9 +5950,9 @@ renderCexSupplyChart();
   const POSITION_DUST_USD = 10;
   const ACTIVE_HEADERS = [
     ["chainKey","Chain"],["wallet","Address"],["pair","Pair"],["rangeStatus","Price Range"],
-    ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["quality","Status"],["details","Details"],
+    ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["details","Details"],
   ];
-  const ACTIVE_WIDTHS = [10,20,13,13,9,11,10,8,6];
+  const ACTIVE_WIDTHS = [10,22,14,15,10,13,10,6];
   const LP_CHAINS = {
     ethereum: {name:"Ethereum", icon:"https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg"},
     berachain: {name:"Berachain", icon:"https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"},
@@ -6076,6 +6076,17 @@ renderCexSupplyChart();
     const fraction = decimals ? value.slice(-decimals).replace(/0+$/, "") : "";
     return groupedInteger(whole || "0") + (fraction ? `.${fraction}` : "");
   }
+  function roundedRawAmount(raw, decimals, fractionDigits=2){
+    if(raw === null || raw === undefined || !/^\d+$/.test(String(raw)) || !Number.isInteger(decimals) || decimals < 0 || decimals > 255 || !Number.isInteger(fractionDigits) || fractionDigits < 0 || fractionDigits > 12) return "Unavailable";
+    const unit = 10n ** BigInt(decimals);
+    const scale = 10n ** BigInt(fractionDigits);
+    const rounded = (BigInt(String(raw)) * scale + unit / 2n) / unit;
+    const whole = rounded / scale;
+    const grouped = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",");
+    if(!fractionDigits) return grouped;
+    const fraction = (rounded % scale).toString().padStart(fractionDigits,"0");
+    return `${grouped}.${fraction}`;
+  }
   function pairDecimals(pool){
     const decimals = Number(pool?.pairedDecimals);
     return validDecimals(decimals) ? decimals : null;
@@ -6091,7 +6102,7 @@ renderCexSupplyChart();
     const compact = compactRawAmount(raw,decimals);
     const exact = exactRawAmount(raw,decimals);
     const tooltip = exact === "Unavailable" ? `${symbol} amount unavailable` : `${exact} ${symbol}`;
-    return `<div class="dolo-lp-token-amount" data-tooltip="${esc(tooltip)}"><span>${esc(compact)}</span><img src="${esc(tokenIconUrl(symbol))}" alt="${esc(symbol)}" onerror="this.style.display='none'"></div>`;
+    return `<div class="dolo-lp-token-amount"><span class="dolo-lp-token-value" data-tooltip="${esc(tooltip)}">${esc(compact)}</span><img src="${esc(tokenIconUrl(symbol))}" alt="${esc(symbol)}" onerror="this.style.display='none'"></div>`;
   }
   function chainCell(chainKey){
     const chain = LP_CHAINS[chainKey] || {name:chainKey || "Unavailable", icon:""};
@@ -6129,18 +6140,20 @@ renderCexSupplyChart();
     return /^\d+(?:\.\d+)?$/.test(exact) ? exact : "Unavailable";
   }
   function rangePresentation(row){
-    if(row.rangeStatus === "full_range") return {state:"Full range",detail:"Always active"};
+    if(row.rangeStatus === "full_range") return {state:"Full range",detail:"Always active",protocolMinimum:true,protocolMaximum:true};
     const state = row.rangeStatus === "in_range" ? "In range" : row.rangeStatus === "out_of_range" ? "Out of range" : "Unavailable";
     const lower = Number(row.tickLower);
     const upper = Number(row.tickUpper);
     const spacing = Number(row.tickSpacing || row.feeTier / 50 || 1);
-    const nearFull = Number.isFinite(lower) && Number.isFinite(upper) && Number.isFinite(spacing)
-      && lower <= -887272 + spacing && upper >= 887272 - spacing;
-    return {state,detail:nearFull ? "Near-full range" : "Custom range"};
+    const protocolMinimum = Number.isFinite(lower) && Number.isFinite(spacing) && lower <= -887272 + spacing;
+    const protocolMaximum = Number.isFinite(upper) && Number.isFinite(spacing) && upper >= 887272 - spacing;
+    const detail = protocolMinimum && protocolMaximum ? "Near-full range" : protocolMaximum ? "Open upper bound" : protocolMinimum ? "Open lower bound" : "Custom range";
+    return {state,detail,protocolMinimum,protocolMaximum};
   }
   function rangeCell(row){
     const range = rangePresentation(row);
-    return `<div class="dolo-lp-range"><span>${esc(range.state)}</span><small>${esc(range.detail)}</small></div>`;
+    const rangeClass = row.rangeStatus === "in_range" ? "is-in-range" : row.rangeStatus === "out_of_range" ? "is-out-of-range" : "";
+    return `<div class="dolo-lp-range${rangeClass ? ` ${rangeClass}` : ""}"><span>${esc(range.state)}</span><small>${esc(range.detail)}</small></div>`;
   }
   function statusPresentation(value){
     const key = String(value || "unavailable").toLowerCase().replaceAll("-","_");
@@ -6153,11 +6166,6 @@ renderCexSupplyChart();
       out_of_range: {label:"Out of range",explanation:"The current price is outside the active price range, so this liquidity is not earning swap fees until price returns."},
     };
     return statuses[key] || {label:String(value || "Unavailable").replaceAll("_"," "),explanation:"This is the latest status reported by the liquidity data source."};
-  }
-  function chip(value){
-    const status = statusPresentation(value);
-    const normalizedValue = String(value || "unavailable").replaceAll("_","-");
-    return `<span class="dolo-lp-chip ${esc(normalizedValue)}" data-tooltip="${esc(status.explanation)}" tabindex="0" aria-label="${esc(`${status.label}. ${status.explanation}`)}">${esc(status.label)}</span>`;
   }
   function poolLink(row,pool){
     if(!pool) return null;
@@ -6180,17 +6188,14 @@ renderCexSupplyChart();
       : row.beneficialOwner ? "Direct ownership verified for the displayed wallet." : "Beneficial ownership could not be verified; the custodian address is displayed.";
     const range = rangePresentation(row);
     const bounds = row.rangeStatus === "full_range"
-      ? '<div class="dolo-lp-bound-row"><span>Range</span><code>Full range · no fixed price bounds</code></div>'
-      : `<div class="dolo-lp-bound-row"><span>Lower</span><code title="${esc(exactRangeBound(row.rangeLower))}">${esc(compactRangeBound(row.rangeLower))}</code></div><div class="dolo-lp-bound-row"><span>Upper</span><code title="${esc(exactRangeBound(row.rangeUpper))}">${esc(compactRangeBound(row.rangeUpper))}</code></div>`;
-    const ticks = Number.isInteger(row.tickLower) && Number.isInteger(row.tickUpper)
-      ? `${number(row.tickLower)} → ${number(row.tickUpper)}`
-      : "Not reported for this position";
+      ? '<div class="dolo-lp-bound-row"><span>Range</span><code>Protocol minimum → Protocol maximum</code></div>'
+      : `<div class="dolo-lp-bound-row"><span>Lower</span><code${range.protocolMinimum ? "" : ` title="${esc(exactRangeBound(row.rangeLower))}"`}>${range.protocolMinimum ? "Protocol minimum" : esc(compactRangeBound(row.rangeLower))}</code><small>${esc(pairedSymbol)} per DOLO</small></div><div class="dolo-lp-bound-row"><span>Upper</span><code${range.protocolMaximum ? "" : ` title="${esc(exactRangeBound(row.rangeUpper))}"`}>${range.protocolMaximum ? "Protocol maximum" : esc(compactRangeBound(row.rangeUpper))}</code><small>${esc(pairedSymbol)} per DOLO</small></div>`;
     const statusValue = row.quality;
     const status = statusPresentation(statusValue);
     const sourceHealth = source?.status ? `${source.status}${source?.errors?.length ? ` · ${source.errors.join("; ")}` : ""}` : "Not reported";
     const positionId = row.positionId || row.positionType || "Fungible LP";
     const links = `${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Open pool ↗</a>` : "Pool link unavailable"}${row.txHash ? ` · <a href="${txBase}${esc(row.txHash)}" target="_blank" rel="noopener">Transaction ↗</a>` : ""}`;
-    return `<tr class="dolo-lp-detail-row" id="dolo-lp-details-${esc(row.id)}"><td colspan="9"><div class="dolo-lp-detail-panel">
+    return `<tr class="dolo-lp-detail-row" id="dolo-lp-details-${esc(row.id)}"><td colspan="8"><div class="dolo-lp-detail-panel">
       <div class="dolo-lp-detail-head">
         <div><div class="dolo-lp-detail-eyebrow">Liquidity position</div><div class="dolo-lp-detail-title">${esc(pool?.pair || row.pair || "DOLO liquidity")} · Position ${esc(positionId)}</div></div>
         <div class="dolo-lp-detail-meta">
@@ -6201,8 +6206,8 @@ renderCexSupplyChart();
       </div>
       <div class="dolo-lp-detail-content">
         <div class="dolo-lp-detail-overview">
-          <div class="dolo-lp-detail-metric"><div class="dolo-lp-detail-label">Exact DOLO</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(exactRawAmount(row.doloRaw,18))} DOLO</div><div class="dolo-lp-detail-sub">Current token amount</div></div>
-          <div class="dolo-lp-detail-metric"><div class="dolo-lp-detail-label">Exact paired asset</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(exactRawAmount(row.pairedRaw,pairedDecimals))} ${esc(pairedSymbol)}</div><div class="dolo-lp-detail-sub">Current paired amount</div></div>
+          <div class="dolo-lp-detail-metric"><div class="dolo-lp-detail-label">Current DOLO</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(roundedRawAmount(row.doloRaw,18))} DOLO</div><div class="dolo-lp-detail-sub">Current token amount</div></div>
+          <div class="dolo-lp-detail-metric"><div class="dolo-lp-detail-label">Current paired asset</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(roundedRawAmount(row.pairedRaw,pairedDecimals))} ${esc(pairedSymbol)}</div><div class="dolo-lp-detail-sub">Current paired amount</div></div>
           <div class="dolo-lp-detail-metric"><div class="dolo-lp-detail-label">Range status</div><div class="dolo-lp-detail-value">${esc(range.state)}</div><div class="dolo-lp-detail-sub">${esc(range.detail)}</div></div>
           <div class="dolo-lp-detail-metric"><div class="dolo-lp-detail-label">Pool liquidity</div><div class="dolo-lp-detail-value">${esc(exactMoney(pool?.liquidityUsd))}</div><div class="dolo-lp-detail-sub">Total liquidity in this pool</div></div>
         </div>
@@ -6210,9 +6215,8 @@ renderCexSupplyChart();
           <div class="dolo-lp-evidence-item"><div class="dolo-lp-detail-label">Ownership</div><div class="dolo-lp-detail-value">${esc(custody)}</div></div>
           <div class="dolo-lp-evidence-item"><div class="dolo-lp-detail-label">Position ID</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(positionId)}</div></div>
           <div class="dolo-lp-evidence-item"><div class="dolo-lp-detail-label">Price bounds</div><div class="dolo-lp-detail-value dolo-lp-exact dolo-lp-bound-list">${bounds}</div></div>
-          <div class="dolo-lp-evidence-item"><div class="dolo-lp-detail-label">Tick interval</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(ticks)}</div></div>
-          <div class="dolo-lp-evidence-item"><div class="dolo-lp-detail-label">Data status</div><div class="dolo-lp-detail-value"><strong>${esc(status.label)}</strong> — ${esc(status.explanation)}<div class="dolo-lp-source-health"><span>Source health</span>${esc(sourceHealth)}</div></div></div>
           <div class="dolo-lp-evidence-item"><div class="dolo-lp-detail-label">Links</div><div class="dolo-lp-detail-value">${links}</div></div>
+          <div class="dolo-lp-evidence-item data-status"><div class="dolo-lp-detail-label">Data status</div><div class="dolo-lp-detail-value"><strong>${esc(status.label)}</strong> — ${esc(status.explanation)}<div class="dolo-lp-source-health"><span>Source health</span>${esc(sourceHealth)}</div></div></div>
         </div>
       </div>
     </div></td></tr>`;
@@ -6223,7 +6227,7 @@ renderCexSupplyChart();
     const cells = `<tr class="dolo-lp-data-row${expanded ? " expanded" : ""}" data-dolo-lp-row="${esc(row.id)}">
       <td>${chainCell(row.chainKey)}</td><td>${walletCell(row)}</td><td>${pairCell(pool)}</td><td>${rangeCell(row)}</td>
       <td class="num">${tokenAmountCell(row.doloRaw,18,"DOLO")}</td><td class="num">${tokenAmountCell(row.pairedRaw,pairDecimals(pool),pool?.pairedSymbol || "Token")}</td>
-      <td class="num">${money(row.valueUsd)}</td><td class="status-cell">${chip(row.quality)}</td>
+      <td class="num">${money(row.valueUsd)}</td>
       <td class="details-cell"><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-controls="dolo-lp-details-${esc(row.id)}" aria-label="${expanded ? "Hide liquidity position details" : "Show liquidity position details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button></td></tr>`;
     return cells + (expanded ? detailRow(row) : "");
   }
@@ -6260,7 +6264,7 @@ renderCexSupplyChart();
     doloLpState.page = Math.min(doloLpState.page,pages-1);
     const start = doloLpState.page*doloLpState.pageSize;
     const pageRows = rows.slice(start,start+doloLpState.pageSize);
-    const spacerRows = Array.from({length: Math.max(0, doloLpState.pageSize - pageRows.length)}, (_,index) => `<tr class="tbl-spacer-row dolo-lp-empty"><td colspan="9">${index===0 && !pageRows.length ? esc(doloLpState.error || "No active positions match these filters.") : "—"}</td></tr>`).join("");
+    const spacerRows = Array.from({length: Math.max(0, doloLpState.pageSize - pageRows.length)}, (_,index) => `<tr class="tbl-spacer-row dolo-lp-empty"><td colspan="8">${index===0 && !pageRows.length ? esc(doloLpState.error || "No active positions match these filters.") : "—"}</td></tr>`).join("");
     byId("dolo-lp-body").innerHTML = pageRows.map(activeRow).join("") + spacerRows;
     byId("dolo-lp-info").textContent = total ? `${start+1}–${Math.min(start+doloLpState.pageSize,total)} of ${total.toLocaleString("en-US")}` : "0–0 of 0";
     byId("dolo-lp-count").textContent = doloLpState.data ? `${new Set(rows.map(row => normalized(row.beneficialOwner)).filter(Boolean)).size.toLocaleString("en-US")} wallets · ${total.toLocaleString("en-US")} positions` : "— wallets · — positions";
@@ -6360,7 +6364,13 @@ renderCexSupplyChart();
       const sortHeader=event.target.closest("[data-dolo-lp-sort]");
       if(sortHeader){const sort=doloLpState.activeSort;const key=sortHeader.dataset.doloLpSort;sort.dir=sort.key===key&&sort.dir==="desc"?"asc":"desc";sort.key=key;doloLpState.page=0;render();return}
       const details=event.target.closest("[data-dolo-lp-details]");
-      if(details){doloLpState.expandedId=doloLpState.expandedId===details.dataset.doloLpDetails?null:details.dataset.doloLpDetails;render();return}
+      if(details){
+        const opening=doloLpState.expandedId!==details.dataset.doloLpDetails;
+        doloLpState.expandedId=opening?details.dataset.doloLpDetails:null;
+        render();
+        if(opening&&window.innerWidth<=640){const wrap=byId("dolo-lp-table").closest(".tbl-wrap");if(wrap)wrap.scrollLeft=0}
+        return;
+      }
       const page=event.target.closest("[data-dolo-lp-page]");
       if(page&&!page.disabled){doloLpState.page+=page.dataset.doloLpPage==="next"?1:-1;render();return}
       const copy=event.target.closest("[data-dolo-lp-copy]");

@@ -58,15 +58,18 @@ test('liquidity card remains one stable active-position shell', () => {
 });
 
 test('active table schema and fixed ten-row geometry stay explicit', () => {
-  for (const label of ['Chain', 'Address', 'Pair', 'Price Range', 'DOLO', 'Paired Asset', 'Value', 'Status', 'Details']) {
+  for (const label of ['Chain', 'Address', 'Pair', 'Price Range', 'DOLO', 'Paired Asset', 'Value', 'Details']) {
     assert.match(html, new RegExp(label.replace(' ', '\\s*')));
   }
+  const headers = html.match(/const ACTIVE_HEADERS\s*=\s*\[([\s\S]*?)\];/)?.[1] || '';
+  assert.doesNotMatch(headers, /\["quality","Status"\]/);
   assert.match(html, /\.dolo-lp-table\{[^}]*table-layout:fixed/s);
-  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[10,20,13,13,9,11,10,8,6\]/);
+  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[10,22,14,15,10,13,10,6\]/);
   assert.doesNotMatch(html, /const HISTORY_WIDTHS/);
   assert.match(html, /pageSize:\s*10/);
   assert.match(html, /Array\.from\(\{length:\s*Math\.max\(0,\s*doloLpState\.pageSize/);
-  assert.match(html, /<td colspan="9"/);
+  assert.match(html, /<td colspan="8"/);
+  assert.doesNotMatch(html, /<td class="status-cell">\$\{chip\(row\.quality\)\}<\/td>/);
 });
 
 test('pool eligibility is fail-closed at ten thousand dollars', () => {
@@ -118,11 +121,22 @@ test('compact raw token amounts are BigInt-safe and match row notation', () => {
   assert.match(html, /class="dolo-lp-token-amount"/);
   assert.match(html, /dolomite-token-icons\.generated\.js/);
   assert.match(html, /DOLOMITE_TOKEN_ICONS/);
-  assert.match(html, /exactRawAmount\(row\.doloRaw,18\)/);
-  assert.match(html, /exactRawAmount\(row\.pairedRaw,pairedDecimals\)/);
+  assert.match(html, /exactRawAmount\(raw,decimals\)/);
 });
 
-test('every liquidity status has a plain-English shared tooltip', () => {
+test('Details rounds current token amounts exactly to two decimals', () => {
+  const roundedRawAmount = extractNamedFunction('roundedRawAmount');
+  assert.equal(roundedRawAmount('16387908718238867098667283', 18), '16,387,908.72');
+  assert.equal(roundedRawAmount('271676083206709108742668', 18), '271,676.08');
+  assert.equal(roundedRawAmount('0', 6), '0.00');
+  assert.equal(roundedRawAmount('not-wei', 18), 'Unavailable');
+  assert.match(html, />Current DOLO</);
+  assert.match(html, />Current paired asset</);
+  assert.match(html, /roundedRawAmount\(row\.doloRaw,18\)/);
+  assert.match(html, /roundedRawAmount\(row\.pairedRaw,pairedDecimals\)/);
+});
+
+test('every liquidity status has a plain-English Details explanation', () => {
   assert.match(html, /function statusPresentation\(value\)/);
   for (const phrase of [
     'fully verified on-chain',
@@ -131,13 +145,16 @@ test('every liquidity status has a plain-English shared tooltip', () => {
     'could not be fully verified',
     'outside the active price range',
   ]) assert.match(html, new RegExp(phrase, 'i'));
-  assert.match(html, /class="dolo-lp-chip[^"']*"[^>]+data-tooltip=/);
+  assert.match(html, />Data status</);
+  assert.match(html, /\$\{esc\(status\.label\)\}<\/strong> — \$\{esc\(status\.explanation\)\}/);
+  assert.doesNotMatch(html, /class="dolo-lp-chip/);
 });
 
-test('verification status stays separate from price-range status', () => {
-  assert.match(html, /class="dolo-lp-range"/);
-  assert.match(html, /<td class="status-cell">\$\{chip\(row\.quality\)\}<\/td>/);
+test('verification status stays in Details and separate from price-range status', () => {
+  assert.match(html, /class="dolo-lp-range\$\{rangeClass/);
+  assert.doesNotMatch(html, /<td class="status-cell">/);
   assert.match(html, /const statusValue\s*=\s*row\.quality/);
+  assert.match(html, />Data status</);
   assert.doesNotMatch(
     html,
     /chip\(row\.rangeStatus\s*===\s*"out_of_range"\s*\?\s*"out_of_range"\s*:\s*row\.quality\)/,
@@ -151,16 +168,24 @@ test('Details follows the Dolomite Assets information hierarchy', () => {
     'dolo-lp-detail-content', 'dolo-lp-detail-overview', 'dolo-lp-detail-evidence',
   ]) assert.match(html, new RegExp(className));
   for (const label of [
-    'Exact DOLO', 'Exact paired asset', 'Range status', 'Pool liquidity',
-    'Ownership', 'Position ID', 'Price bounds', 'Tick interval', 'Data status', 'Links',
+    'Current DOLO', 'Current paired asset', 'Range status', 'Pool liquidity',
+    'Ownership', 'Position ID', 'Price bounds', 'Data status', 'Links',
   ]) assert.match(html, new RegExp(label));
+  assert.doesNotMatch(html, />Tick interval</);
   assert.match(html, /class="dolo-lp-bound-row"><span>Lower<\/span>/);
   assert.match(html, /class="dolo-lp-bound-row"><span>Upper<\/span>/);
   assert.match(html, /title="\$\{esc\(exactRangeBound\(row\.rangeLower\)\)\}"/);
-  assert.match(html, /\$\{esc\(compactRangeBound\(row\.rangeUpper\)\)\}/);
+  assert.match(html, /Protocol maximum/);
+  assert.match(html, /\$\{esc\(pairedSymbol\)\} per DOLO/);
   assert.match(html, /Source health/);
   assert.match(html, /aria-expanded="\$\{expanded\}"/);
   assert.match(html, /<span>\$\{expanded\s*\?\s*"Hide"\s*:\s*"Details"\}<\/span>\$\{CHEV_DOWN_ICO\}/);
+});
+
+test('mobile Details opens inside the visible table viewport', () => {
+  assert.match(html, /@media \(max-width:640px\)\{[\s\S]*?\.dolo-lp-detail-panel\{[^}]*width:calc\(100vw - 48px\)[^}]*max-width:calc\(100vw - 48px\)/s);
+  assert.match(html, /const opening\s*=\s*doloLpState\.expandedId\s*!==\s*details\.dataset\.doloLpDetails/);
+  assert.match(html, /if\(opening\s*&&\s*window\.innerWidth\s*<=\s*640\)[\s\S]*?wrap\.scrollLeft\s*=\s*0/);
 });
 
 test('successful LP freshness uses the same gold pulse as DOLO Flows', () => {
@@ -168,14 +193,26 @@ test('successful LP freshness uses the same gold pulse as DOLO Flows', () => {
   assert.match(html, /innerHTML=`<span class="pulse"><\/span>Data updated · \$\{agoLabel\(data\.generatedAt\)\}`/);
 });
 
-test('wallet, chain, status and details cells remain contained and accessible', () => {
+test('wallet, chain and details cells remain contained and accessible', () => {
   assert.match(html, /class="chain-badge"><img src="\$\{esc\(chain\.icon\)\}"/);
   assert.match(html, /\.dolo-lp-card \.chain-badge\{[^}]*font-size:12\.5px[^}]*font-weight:500/s);
   assert.match(html, /addr-tooltip-wrap[^>]+data-full-addr/);
   assert.match(html, /debank\.com\/profile/);
-  assert.match(html, /\.dolo-lp-chip\{[^}]*max-width:100%[^}]*overflow:hidden[^}]*text-overflow:ellipsis/s);
   assert.match(html, /\.dolo-lp-details-btn\{[^}]*-webkit-appearance:none[^}]*appearance:none[^}]*overflow:visible/s);
   assert.match(html, /@media \(max-width:640px\)\{[\s\S]*?\.dolo-lp-details-btn\{[^}]*min-height:44px/s);
+});
+
+test('price-range states use restrained semantic text colours', () => {
+  assert.match(html, /\.dolo-lp-range\.is-in-range>span\{color:var\(--up\)\}/);
+  assert.match(html, /\.dolo-lp-range\.is-out-of-range>span\{color:var\(--down\)\}/);
+  assert.match(html, /row\.rangeStatus\s*===\s*"in_range"\s*\?\s*"is-in-range"/);
+  assert.match(html, /row\.rangeStatus\s*===\s*"out_of_range"\s*\?\s*"is-out-of-range"/);
+});
+
+test('exact token tooltip is anchored to numeric text only', () => {
+  assert.match(html, /class="dolo-lp-token-value" data-tooltip="\$\{esc\(tooltip\)\}"/);
+  assert.doesNotMatch(html, /class="dolo-lp-token-amount" data-tooltip=/);
+  assert.match(html, /\.dolo-lp-token-value\{[^}]*cursor:default/);
 });
 
 test('stable-height shell shows one readable empty-state message', () => {
@@ -194,7 +231,7 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
 });
 
 test('both production entry points advance the active-only liquidity cache once', () => {
-  const version = 'lp-status-recovery-20260812';
+  const version = 'lp-range-details-20260812';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
