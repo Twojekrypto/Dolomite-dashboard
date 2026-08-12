@@ -134,6 +134,16 @@ test('every liquidity status has a plain-English shared tooltip', () => {
   assert.match(html, /class="dolo-lp-chip[^"']*"[^>]+data-tooltip=/);
 });
 
+test('verification status stays separate from price-range status', () => {
+  assert.match(html, /class="dolo-lp-range"/);
+  assert.match(html, /<td class="status-cell">\$\{chip\(row\.quality\)\}<\/td>/);
+  assert.match(html, /const statusValue\s*=\s*row\.quality/);
+  assert.doesNotMatch(
+    html,
+    /chip\(row\.rangeStatus\s*===\s*"out_of_range"\s*\?\s*"out_of_range"\s*:\s*row\.quality\)/,
+  );
+});
+
 test('Details follows the Dolomite Assets information hierarchy', () => {
   for (const className of [
     'dolo-lp-detail-panel', 'dolo-lp-detail-head', 'dolo-lp-detail-eyebrow',
@@ -184,9 +194,9 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
 });
 
 test('both production entry points advance the active-only liquidity cache once', () => {
-  const version = 'dolo-liquidity-active-only-20260812';
+  const version = 'lp-status-recovery-20260812';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-active-only-details/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-wallet-status-recovery/);
 });

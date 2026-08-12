@@ -6,6 +6,7 @@ from decimal import Decimal, getcontext
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import requests
 from eth_abi import encode
 
 import generate_dolo_liquidity as liquidity
@@ -454,6 +455,117 @@ class IncrementalReplayTests(unittest.TestCase):
                 rpc_batch=missing_batch,
                 cache={},
             )
+
+
+class LiveSourceRecoveryTests(unittest.TestCase):
+    OWNER = "0x" + "12" * 20
+    SAFE_SINGLETON = "0x41675c099f32341bf84bfc5382af534df5c7461a"
+
+    def test_contract_owners_treats_exact_eip7702_designator_as_wallet(self):
+        delegate = "0x" + "34" * 20
+        with patch.object(
+            liquidity,
+            "_eth_code",
+            return_value="0xef0100" + delegate[2:],
+        ):
+            contracts = liquidity._contract_owners("ethereum", {self.OWNER})
+
+        self.assertEqual(contracts, set())
+
+    def test_contract_owners_treats_official_safe_proxy_as_wallet(self):
+        slot_zero = "0x" + "00" * 12 + self.SAFE_SINGLETON[2:]
+        with (
+            patch.object(liquidity, "_eth_code", return_value="0x60016000"),
+            patch.object(
+                liquidity,
+                "rpc_single_request",
+                return_value={"jsonrpc": "2.0", "id": "slot", "result": slot_zero},
+            ) as rpc,
+        ):
+            contracts = liquidity._contract_owners("ethereum", {self.OWNER})
+
+        self.assertEqual(contracts, set())
+        self.assertEqual(rpc.call_args.args[1]["method"], "eth_getStorageAt")
+
+    def test_contract_owners_keeps_unknown_contract_and_rpc_failure_unavailable(self):
+        unknown = "0x" + "56" * 20
+        failed = "0x" + "78" * 20
+
+        def code(_chain, owner):
+            if owner == failed:
+                raise RuntimeError("RPC unavailable")
+            return "0x60016000"
+
+        with (
+            patch.object(liquidity, "_eth_code", side_effect=code),
+            patch.object(
+                liquidity,
+                "rpc_single_request",
+                side_effect=RuntimeError("slot unavailable"),
+            ),
+        ):
+            contracts = liquidity._contract_owners("ethereum", {unknown, failed})
+
+        self.assertEqual(contracts, {unknown, failed})
+
+    def test_routescan_logs_retries_transient_rate_limit(self):
+        limited = Mock(status_code=429, headers={"Retry-After": "0"})
+        limited.raise_for_status.side_effect = requests.HTTPError(
+            "429 Too Many Requests",
+            response=limited,
+        )
+        complete = Mock(status_code=200, headers={})
+        complete.raise_for_status.return_value = None
+        complete.json.return_value = {
+            "status": "0",
+            "message": "No records found",
+            "result": "No records found",
+        }
+        session = Mock()
+        session.get.side_effect = [limited, complete]
+
+        with patch.object(liquidity.time, "sleep") as sleep:
+            rows = liquidity._routescan_logs(
+                1,
+                self.OWNER,
+                "0x" + "ab" * 32,
+                1,
+                2,
+                session=session,
+            )
+
+        self.assertEqual(rows, [])
+        self.assertEqual(session.get.call_count, 2)
+        sleep.assert_called_once()
+
+    def test_missing_batch_receipt_retries_canonical_rpc_before_routescan(self):
+        tx_hash = "0x" + "ab" * 32
+        canonical_receipt = {
+            "jsonrpc": "2.0",
+            "id": tx_hash,
+            "result": {"logs": []},
+        }
+        with (
+            patch.object(
+                liquidity,
+                "rpc_batch_requests",
+                return_value=({}, [tx_hash]),
+            ),
+            patch.object(
+                liquidity,
+                "rpc_single_request",
+                return_value=canonical_receipt,
+            ) as rpc,
+            patch.object(liquidity.requests, "get") as routescan,
+        ):
+            rows = liquidity._receipt_logs_for_transactions(
+                "ethereum",
+                {tx_hash: 1_700_000_000},
+            )
+
+        self.assertEqual(rows, [])
+        self.assertEqual(rpc.call_args.args[1]["method"], "eth_getTransactionReceipt")
+        routescan.assert_not_called()
 
 
 class V2AdapterTests(unittest.TestCase):
