@@ -3369,12 +3369,16 @@ def generate_artifact(
                 paired_decimals = 18
                 if paired and paired != ZERO_ADDRESS:
                     paired_decimals, = _eth_call(chain_key, paired, "decimals()", ["uint8"])
+                paired_decimals = _exact_int(paired_decimals, "paired token decimals")
+                if not 0 <= paired_decimals <= 255:
+                    raise ValueError("paired token decimals must be an integer from 0 to 255")
+                matching_pool["pairedDecimals"] = paired_decimals
                 for row in result["activePositions"]:
                     active.append(
                         value_position_row(
                             row,
                             dolo_decimals=registry["token"]["decimals"],
-                            paired_decimals=int(paired_decimals),
+                            paired_decimals=paired_decimals,
                             dolo_price_usd=dolo_price if metadata else None,
                             paired_price_usd=Decimal(str(metadata["pairedPriceUsd"])) if metadata else None,
                         )
@@ -3383,7 +3387,7 @@ def generate_artifact(
                     value_exact_history_rows(
                         result["history"],
                         dolo_decimals=registry["token"]["decimals"],
-                        paired_decimals=int(paired_decimals),
+                        paired_decimals=paired_decimals,
                         dolo_price_usd=dolo_price if metadata else None,
                         paired_price_usd=(
                             Decimal(str(metadata["pairedPriceUsd"])) if metadata else None

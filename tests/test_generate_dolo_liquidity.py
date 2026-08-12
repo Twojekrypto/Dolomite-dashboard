@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timezone
 from decimal import Decimal, getcontext
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from eth_abi import encode
 
@@ -1387,6 +1387,71 @@ class LiveAdapterOrchestrationTests(unittest.TestCase):
 
 
 class ArtifactAssemblyTests(unittest.TestCase):
+    def test_generated_pool_persists_exact_paired_token_decimals(self):
+        """Prevent USD1 (18 decimals) from being rendered as a six-decimal stablecoin."""
+        registry_payload = json.loads((FIXTURES / "registry-minimal.json").read_text())
+        registry_payload["token"]["decimals"] = 18
+        pool = registry_payload["pools"][0]
+        usd1 = "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
+        position = {
+            "id": "position-usd1",
+            "sourceKey": "ethereum:uniswap-v4",
+            "poolId": pool["identifier"],
+            "doloRaw": "0",
+            "pairedRaw": "272818773938299314127615",
+            "quality": "verified",
+            "rangeStatus": "in_range",
+        }
+        built = {
+            "sourceStatus": "complete",
+            "poolResults": {
+                pool["identifier"]: {
+                    "sourceStatus": "complete",
+                    "activePositions": [position],
+                    "history": [],
+                    "unresolved": [],
+                }
+            },
+            "activePositions": [position],
+            "history": [],
+            "unresolved": [],
+        }
+        dexscreener_pair = {
+            "chainId": "ethereum",
+            "pairAddress": pool["identifier"],
+            "baseToken": {"address": DOLO, "symbol": "DOLO"},
+            "quoteToken": {"address": usd1, "symbol": "USD1"},
+            "priceNative": "0.02",
+            "priceUsd": "0.02",
+            "liquidity": {"usd": 1000},
+            "volume": {"h24": 1},
+            "url": "https://dexscreener.com/ethereum/example",
+        }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            temp = Path(tmp)
+            registry_path = temp / "registry.json"
+            price_path = temp / "price.json"
+            output_path = temp / "liquidity.json"
+            registry_path.write_text(json.dumps(registry_payload))
+            price_path.write_text(json.dumps({"price": 0.02}))
+            with (
+                patch.object(liquidity, "_latest_block", return_value=123),
+                patch.object(liquidity, "_dexscreener_pair", return_value=dexscreener_pair),
+                patch.object(liquidity, "build_registered_source", return_value=built),
+                patch.object(liquidity, "_eth_call", return_value=(18,)),
+            ):
+                artifact = liquidity.generate_artifact(
+                    registry_path,
+                    output_path,
+                    price_path=price_path,
+                )
+
+        generated_pool = artifact["pools"][0]
+        self.assertEqual(generated_pool["pairedToken"], usd1)
+        self.assertEqual(generated_pool["pairedDecimals"], 18)
+        self.assertEqual(artifact["activePositions"][0]["valueUsd"], 272818.773938)
+
     def test_dexscreener_enrichment_derives_quote_price_without_owning_attribution(self):
         pool = {
             "chainKey": "ethereum",
