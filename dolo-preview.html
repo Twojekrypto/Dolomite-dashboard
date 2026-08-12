@@ -5945,7 +5945,7 @@ renderCexSupplyChart();
 <script>
 (()=>{
   "use strict";
-  const DATA_URL = "data/dolo-liquidity.json?v=20260812-active-only-details";
+  const DATA_URL = "data/dolo-liquidity.json?v=20260812-wallet-status-recovery";
   const MIN_POOL_LIQUIDITY_USD = 10000;
   const POSITION_DUST_USD = 10;
   const ACTIVE_HEADERS = [
@@ -6185,7 +6185,7 @@ renderCexSupplyChart();
     const ticks = Number.isInteger(row.tickLower) && Number.isInteger(row.tickUpper)
       ? `${number(row.tickLower)} → ${number(row.tickUpper)}`
       : "Not reported for this position";
-    const statusValue = row.rangeStatus === "out_of_range" ? "out_of_range" : row.quality;
+    const statusValue = row.quality;
     const status = statusPresentation(statusValue);
     const sourceHealth = source?.status ? `${source.status}${source?.errors?.length ? ` · ${source.errors.join("; ")}` : ""}` : "Not reported";
     const positionId = row.positionId || row.positionType || "Fungible LP";
@@ -6223,7 +6223,7 @@ renderCexSupplyChart();
     const cells = `<tr class="dolo-lp-data-row${expanded ? " expanded" : ""}" data-dolo-lp-row="${esc(row.id)}">
       <td>${chainCell(row.chainKey)}</td><td>${walletCell(row)}</td><td>${pairCell(pool)}</td><td>${rangeCell(row)}</td>
       <td class="num">${tokenAmountCell(row.doloRaw,18,"DOLO")}</td><td class="num">${tokenAmountCell(row.pairedRaw,pairDecimals(pool),pool?.pairedSymbol || "Token")}</td>
-      <td class="num">${money(row.valueUsd)}</td><td class="status-cell">${chip(row.rangeStatus === "out_of_range" ? "out_of_range" : row.quality)}</td>
+      <td class="num">${money(row.valueUsd)}</td><td class="status-cell">${chip(row.quality)}</td>
       <td class="details-cell"><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-controls="dolo-lp-details-${esc(row.id)}" aria-label="${expanded ? "Hide liquidity position details" : "Show liquidity position details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button></td></tr>`;
     return cells + (expanded ? detailRow(row) : "");
   }

@@ -33,6 +33,7 @@ from rpc_client import (
     rpc_single_request,
     sanitize_error,
 )
+from safe_wallets import SAFE_SINGLETON_ADDRS
 
 
 Q96 = 1 << 96
@@ -78,6 +79,7 @@ KODIAK_V3_SUBGRAPH = (
     "d7eed6cc-ad4a-4862-8017-89893c4095d3/subgraphs/kodiak-v3/latest/gn"
 )
 BULLA_BOUNDED_LOOKBACK_BLOCKS = 1_500_000
+ROUTESCAN_TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
 
 
 def _finite_decimal(value: Any, label: str, *, allow_zero: bool = True) -> Decimal:
@@ -2163,6 +2165,71 @@ def _eth_code(chain_key: str, address: str) -> str:
     return code.lower()
 
 
+def _eip7702_delegation_address(code: str) -> str | None:
+    """Return the delegate only for an exact EIP-7702 designator."""
+    match = re.fullmatch(r"0xef0100([0-9a-f]{40})", str(code or "").lower())
+    return "0x" + match.group(1) if match else None
+
+
+def _safe_singleton_address(chain_key: str, address: str) -> str:
+    """Read and validate a proxy's slot-zero singleton address."""
+    contract = _normalized_address(address, "Safe proxy address")
+    response = rpc_single_request(
+        get_endpoints(chain_key),
+        {
+            "jsonrpc": "2.0",
+            "id": f"safe-singleton:{contract}",
+            "method": "eth_getStorageAt",
+            "params": [contract, "0x0", "latest"],
+        },
+        timeout=10,
+        retries_per_endpoint=2,
+        quiet=True,
+        describe=f"{chain_key} Safe singleton {contract}",
+    )
+    slot_zero = response.get("result") if isinstance(response, dict) else None
+    if not isinstance(slot_zero, str) or not re.fullmatch(r"0x[0-9a-fA-F]{64}", slot_zero):
+        raise RuntimeError(f"invalid {chain_key} eth_getStorageAt response")
+    return "0x" + slot_zero[-40:].lower()
+
+
+def _routescan_request(
+    client: requests.Session,
+    url: str,
+    *,
+    params: dict[str, Any],
+    timeout: int,
+    max_attempts: int = 5,
+) -> requests.Response:
+    """Retry only transient Routescan transport failures with a bounded delay."""
+    last_error: Exception | None = None
+    for attempt in range(max_attempts):
+        try:
+            response = client.get(
+                url,
+                params=params,
+                timeout=timeout,
+                headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
+            )
+            response.raise_for_status()
+            return response
+        except requests.RequestException as exc:
+            last_error = exc
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            transient = status in ROUTESCAN_TRANSIENT_STATUS_CODES or status is None
+            if not transient or attempt + 1 >= max_attempts:
+                raise
+            retry_after = getattr(getattr(exc, "response", None), "headers", {}).get(
+                "Retry-After"
+            )
+            try:
+                delay = float(retry_after) if retry_after is not None else 0.5 * (2**attempt)
+            except (TypeError, ValueError):
+                delay = 0.5 * (2**attempt)
+            time.sleep(max(0.25, min(delay, 8.0)))
+    raise RuntimeError(f"Routescan request failed: {sanitize_error(last_error)}")
+
+
 def _routescan_logs(
     chain_id: int,
     address: str,
@@ -2232,7 +2299,8 @@ def _routescan_logs(
             raise RuntimeError("Routescan block-range subdivision exceeded the safety limit")
         local = []
         for page in range(1, 11):
-            response = client.get(
+            response = _routescan_request(
+                client,
                 url,
                 params={
                     "module": "logs",
@@ -2246,9 +2314,7 @@ def _routescan_logs(
                     **filters,
                 },
                 timeout=45,
-                headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
             )
-            response.raise_for_status()
             payload = response.json()
             rows = payload.get("result") if isinstance(payload, dict) else None
             if payload.get("status") == "0" and (
@@ -2524,12 +2590,22 @@ def _contract_owners(chain_key: str, owners: set[str]) -> set[str]:
     contracts = set()
     for owner in sorted(owners):
         try:
-            if _eth_code(chain_key, owner) not in {"0x", "0x0", "0x00"}:
-                contracts.add(owner)
+            code = _eth_code(chain_key, owner)
         except Exception:
             # Classification fails closed: an owner with unavailable bytecode is
             # treated as a contract so it cannot be mislabeled as a personal LP.
             contracts.add(owner)
+            continue
+        if code in {"0x", "0x0", "0x00"} or _eip7702_delegation_address(code):
+            continue
+        try:
+            if _safe_singleton_address(chain_key, owner) in SAFE_SINGLETON_ADDRS:
+                continue
+        except Exception:
+            # Unknown bytecode or an unavailable singleton read is not enough to
+            # prove wallet ownership, so custody remains unresolved.
+            pass
+        contracts.add(owner)
     return contracts
 
 
@@ -2598,6 +2674,25 @@ def _receipt_logs_for_transactions(
         raise ValueError(f"unsupported receipt chain {chain_key}")
     url = f"https://api.routescan.io/v2/network/mainnet/evm/{chain_id}/etherscan/api"
 
+    def fetch_rpc_receipt(tx_hash: str) -> tuple[str, dict[str, Any]]:
+        response = rpc_single_request(
+            get_endpoints(chain_key),
+            {
+                "jsonrpc": "2.0",
+                "id": tx_hash,
+                "method": "eth_getTransactionReceipt",
+                "params": [tx_hash],
+            },
+            timeout=30,
+            retries_per_endpoint=2,
+            quiet=True,
+            describe=f"{chain_key} liquidity receipt {tx_hash}",
+        )
+        receipt = response.get("result") if isinstance(response, dict) else None
+        if not isinstance(receipt, dict) or not isinstance(receipt.get("logs"), list):
+            raise RuntimeError(f"canonical RPC receipt unavailable for {tx_hash}")
+        return tx_hash, response
+
     def fetch_receipt(tx_hash: str) -> tuple[str, dict[str, Any]]:
         last_error = None
         for attempt in range(5):
@@ -2639,13 +2734,30 @@ def _receipt_logs_for_transactions(
     if missing:
         failures = []
         with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = {executor.submit(fetch_receipt, tx_hash): tx_hash for tx_hash in missing}
+            futures = {executor.submit(fetch_rpc_receipt, tx_hash): tx_hash for tx_hash in missing}
             for future in as_completed(futures):
                 try:
                     tx_hash, response = future.result()
                     responses[tx_hash] = response
                 except Exception as exc:
-                    failures.append(f"{futures[future]}: {sanitize_error(exc)}")
+                    failures.append((futures[future], sanitize_error(exc)))
+        if failures:
+            retry_failures = []
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = {
+                    executor.submit(fetch_receipt, tx_hash): (tx_hash, rpc_error)
+                    for tx_hash, rpc_error in failures
+                }
+                for future in as_completed(futures):
+                    tx_hash, rpc_error = futures[future]
+                    try:
+                        recovered_hash, response = future.result()
+                        responses[recovered_hash] = response
+                    except Exception as exc:
+                        retry_failures.append(
+                            f"{tx_hash}: RPC {rpc_error}; Routescan {sanitize_error(exc)}"
+                        )
+            failures = retry_failures
         if failures:
             raise RuntimeError(
                 f"missing {len(failures)} exact liquidity receipts after Routescan fallback"
