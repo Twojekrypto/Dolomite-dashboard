@@ -12,6 +12,7 @@ on:
         default: all
         options:
           - all
+          - ethereum
           - mantle
           - arbitrum
           - berachain
@@ -32,6 +33,14 @@ jobs:
       max-parallel: 3
       matrix:
         include:
+          # Ethereum's freshness lane only advances already-built histories.
+          # Keep new-wallet archive backfills checkpointed here so four slow
+          # wallets cannot hold 3K+ current wallets behind the SLA.
+          - chain: ethereum
+            concurrency_group: earn-ethereum-canonical-coverage
+            limit: 8
+            scan_workers: 2
+            materialize_workers: 2
           - chain: mantle
             concurrency_group: earn-secondary-canonical-history-mantle
             limit: 200
@@ -53,6 +62,12 @@ jobs:
       COVERAGE_LIMIT: ${{ matrix.limit }}
       SCAN_WORKERS: ${{ matrix.scan_workers }}
       MATERIALIZE_WORKERS: ${{ matrix.materialize_workers }}
+      ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
+      ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
+      ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}
+      ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}
+      ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
+      ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC || secrets.ARBITRUM_RPC_URL || secrets.ARBITRUM_RPC }}
       ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}
       ALCHEMY_ARBITRUM_RPC_DAN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_DAN }}

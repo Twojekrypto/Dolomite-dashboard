@@ -93,7 +93,7 @@ class AddressMatchTableScopeTest(unittest.TestCase):
         self.assertGreaterEqual(liquidation.count("data-full-addr"), 2)
 
     def test_opted_in_pages_load_the_shared_assets_with_fresh_cache_keys(self):
-        version = "20260810-source-row-addresses"
+        version = "20260812-row-focusout"
         for preview_name in (
             "assets-preview.html",
             "dolo-preview.html",
