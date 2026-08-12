@@ -811,11 +811,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .flows-col-head .arrow-icon{display:none}
 .flows-wrap{border-radius:0;background:rgba(9,9,11,.12);flex:1;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .flows-tbl{width:100%;min-width:520px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:12.5px;--stable-row-height:71px}
-.flows-tbl thead th{font-size:9.5px;font-weight:600;letter-spacing:1.05px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:11px 12px;background:rgba(9,9,11,.38);border-bottom:1px solid var(--line-1);user-select:none;cursor:default}
+.flows-tbl thead th{font-family:'Inter',system-ui,sans-serif;font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:11px 12px;background:rgba(9,9,11,.38);border-bottom:1px solid var(--line-1);user-select:none;cursor:default}
 .flows-tbl thead th.num{text-align:right}
 .flows-tbl thead th[data-flow-sort]{cursor:pointer;transition:color .15s var(--ease)}
 .flows-tbl thead th[data-flow-sort]:hover,
-.flows-tbl thead th.sorted{color:var(--fg-1)}
+.flows-tbl thead th.sorted{color:var(--gold)}
+.flows-tbl thead th .sort{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-left:6px;color:var(--fg-4);font-size:10px;line-height:1;transition:color .15s var(--ease)}
+.flows-tbl thead th.sorted .sort{color:var(--gold)}
 .flows-tbl tbody tr{cursor:pointer;transition:background .12s var(--ease)}
 .flows-tbl tbody tr.flow-spacer-row{pointer-events:none;cursor:default}
 .flows-tbl tbody tr.flow-spacer-row td{color:transparent}
@@ -997,8 +999,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* DOLO LIQUIDITY PROVIDERS — one shell, two modes */
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 .dolo-lp-card{background:var(--bg-2);overflow:visible}
-.dolo-lp-head{align-items:flex-start;gap:16px}
-.dolo-lp-head-main{display:flex;flex-direction:column;align-items:flex-start;gap:11px;min-width:0}
+.dolo-lp-head{align-items:center;gap:16px;border-bottom:0}
+.dolo-lp-head-main{display:flex;align-items:center;min-width:0}
+.dolo-lp-head-separator{height:1px;background:var(--line-1)}
+.dolo-lp-mode-row{display:flex;align-items:center;padding:12px 24px 14px;border-bottom:1px solid var(--line-1);background:rgba(255,255,255,.006)}
 .holder-bucket-mode.dolo-lp-mode{grid-template-columns:repeat(2,minmax(124px,1fr))}
 .dolo-lp-mode button[aria-pressed="true"]{background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)}
 .dolo-lp-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-bottom:1px solid var(--line-1);background:linear-gradient(90deg,rgba(201,162,39,.018),transparent 60%)}
@@ -1006,8 +1010,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-stat:last-child{border-right:0}
 .dolo-lp-stat-label{font-size:9px;font-weight:700;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dolo-lp-stat-value{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dolo-lp-toolbar{align-items:flex-start}
+.dolo-lp-toolbar{align-items:center}
 .dolo-lp-toolbar .tb-left{flex:1;min-width:0;flex-wrap:wrap}
+.dolo-lp-toolbar-secondary{margin-left:auto;justify-content:flex-end;flex-wrap:wrap}
+.dolo-lp-history-controls{display:flex;align-items:center;gap:10px}
 .dolo-lp-toolbar .search{width:min(300px,100%)}
 #dolo-lp-chain .dd-btn,#dolo-lp-pairs .dd-btn,#dolo-lp-dexes .dd-btn{min-width:154px}
 #dolo-lp-pairs .dd-panel,#dolo-lp-dexes .dd-panel{min-width:228px}
@@ -1024,8 +1030,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-low-liq:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
 .dolo-lp-select{height:38px;min-width:132px;padding:0 30px 0 12px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-3);color:var(--fg-2);font-size:11px;font-weight:600;outline:none;cursor:pointer;color-scheme:dark}
 .dolo-lp-select:hover,.dolo-lp-select:focus{border-color:var(--line-3);color:var(--fg-1)}
-.dolo-lp-history-controls[hidden]{display:flex!important;visibility:hidden;pointer-events:none}
+.dolo-lp-history-controls[hidden]{display:none!important}
 .dolo-lp-table{width:100%;min-width:1140px;table-layout:fixed}
+.dolo-lp-table thead th{font-family:'Inter',system-ui,sans-serif;font-size:10px;font-weight:600;letter-spacing:1.6px}
 .dolo-lp-table th{white-space:nowrap}
 .dolo-lp-table td{height:68px;min-width:0;overflow:hidden}
 .dolo-lp-table td > *{max-width:100%}
@@ -1044,8 +1051,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-chip.verified,.dolo-lp-chip.in-range{color:var(--up);border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.07)}
 .dolo-lp-chip.partial,.dolo-lp-chip.stale{color:#d4b56f;border-color:rgba(212,181,111,.25);background:rgba(212,181,111,.07)}
 .dolo-lp-chip.out-of-range,.dolo-lp-chip.unavailable{color:var(--down);border-color:rgba(180,121,107,.25);background:rgba(180,121,107,.07)}
-.dolo-lp-details-btn{-webkit-appearance:none;appearance:none;overflow:visible;box-sizing:border-box;vertical-align:middle;height:28px;padding:0 10px;border:1px solid var(--line-2);border-radius:7px;background:var(--bg-3);font-size:10px;font-weight:600;color:var(--fg-2);white-space:nowrap}
-.dolo-lp-details-btn:hover,.dolo-lp-details-btn[aria-expanded="true"]{color:var(--gold-hi);border-color:var(--gold-line);background:var(--gold-wash)}
+.dolo-lp-table td.details-cell{text-align:center;padding-left:6px;padding-right:6px}
+.dolo-lp-details-btn{-webkit-appearance:none;appearance:none;overflow:visible;box-sizing:border-box;vertical-align:middle;height:24px;width:100%;max-width:72px;min-width:0;padding:0 6px;border:1px solid rgba(201,162,39,.28);border-radius:999px;background:var(--gold-wash);color:var(--gold);display:inline-flex;align-items:center;justify-content:center;gap:3px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease)}
+.dolo-lp-details-btn span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dolo-lp-details-btn svg{width:12px;height:12px;flex:0 0 12px;transition:transform .18s var(--ease);pointer-events:none}
+.dolo-lp-details-btn:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
+.dolo-lp-details-btn[aria-expanded="true"]{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
+.dolo-lp-details-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
 .dolo-lp-detail-row td{height:auto!important;padding:0!important;background:linear-gradient(90deg,rgba(201,162,39,.055),rgba(201,162,39,.012) 55%,transparent)!important}
 .dolo-lp-details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:15px 20px 17px;border-left:2px solid var(--gold)}
 .dolo-lp-detail{min-width:0;padding:0 16px;border-left:1px solid var(--line-1)}
@@ -1064,10 +1076,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .dolo-lp-detail:nth-child(3){border-left:0;padding-left:0}
 }
 @media (max-width:640px){
-  .dolo-lp-head-main,.dolo-lp-mode{width:100%}
+  .dolo-lp-head-main,.dolo-lp-mode,.dolo-lp-mode-row{width:100%}
+  .dolo-lp-mode-row{padding:12px 16px 14px}
   .dolo-lp-mode button{width:100%}
   .dolo-lp-toolbar .tb-left,.dolo-lp-toolbar .tb-right{display:grid;grid-template-columns:1fr;width:100%}
-  .dolo-lp-history-controls[hidden]{display:grid!important}
+  .dolo-lp-toolbar-secondary{margin-left:0}
+  .dolo-lp-history-controls{display:grid;grid-template-columns:1fr;width:100%}
+  .dolo-lp-history-controls[hidden]{display:none!important}
   .dolo-lp-select,.dolo-lp-toolbar .dd,.dolo-lp-toolbar .dd-btn,.dolo-lp-low-liq{width:100%}
   .dolo-lp-toolbar .dd-panel{left:0;right:0;min-width:0;max-width:none}
   .dolo-lp-details-btn{min-width:44px;min-height:44px}
@@ -1431,8 +1446,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
               <tr>
                 <th style="width:48px">#</th>
                 <th>Address</th>
-                <th class="num" data-flow-kind="acc" data-flow-sort="balance" style="width:118px">Balance</th>
-                <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" style="width:130px">Net DOLO</th>
+                <th class="num" data-flow-kind="acc" data-flow-sort="balance" aria-sort="none" style="width:118px">Balance<span class="sort" aria-hidden="true"></span></th>
+                <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" aria-sort="descending" style="width:130px">Net DOLO<span class="sort" aria-hidden="true">▼</span></th>
               </tr>
             </thead>
             <tbody id="flows-acc-body"></tbody>
@@ -1455,8 +1470,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
               <tr>
                 <th style="width:48px">#</th>
                 <th>Address</th>
-                <th class="num" data-flow-kind="out" data-flow-sort="balance" style="width:118px">Balance</th>
-                <th class="num sorted" data-flow-kind="out" data-flow-sort="net" style="width:130px">Net DOLO</th>
+                <th class="num" data-flow-kind="out" data-flow-sort="balance" aria-sort="none" style="width:118px">Balance<span class="sort" aria-hidden="true"></span></th>
+                <th class="num sorted" data-flow-kind="out" data-flow-sort="net" aria-sort="descending" style="width:130px">Net DOLO<span class="sort" aria-hidden="true">▼</span></th>
               </tr>
             </thead>
             <tbody id="flows-out-body"></tbody>
@@ -1478,12 +1493,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <h2>DOLO Liquidity Providers</h2>
           <span class="count-badge" id="dolo-lp-count">— wallets · — positions</span>
         </div>
-        <div class="holder-bucket-mode dolo-lp-mode" role="group" aria-label="Liquidity table mode">
-          <button class="active" type="button" data-dolo-lp-mode="active" aria-pressed="true">Active positions</button>
-          <button type="button" data-dolo-lp-mode="history" aria-pressed="false">History</button>
-        </div>
       </div>
       <div class="card-meta" id="dolo-lp-meta"><span class="pulse pulse-loading"></span>Loading…</div>
+    </div>
+    <div class="dolo-lp-head-separator" aria-hidden="true"></div>
+    <div class="dolo-lp-mode-row">
+      <div class="holder-bucket-mode dolo-lp-mode" role="group" aria-label="Liquidity table mode">
+        <button class="active" type="button" data-dolo-lp-mode="active" aria-pressed="true">Active positions</button>
+        <button type="button" data-dolo-lp-mode="history" aria-pressed="false">History</button>
+      </div>
     </div>
 
     <div class="dolo-lp-summary" id="dolo-lp-summary" aria-label="Liquidity summary">
@@ -1494,7 +1512,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     </div>
 
     <div class="toolbar dolo-lp-toolbar">
-      <div class="tb-left">
+      <div class="tb-left dolo-lp-toolbar-primary">
         <label class="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input id="dolo-lp-search" type="text" placeholder="Search wallet, label or pair…" spellcheck="false" autocomplete="off">
@@ -1533,14 +1551,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           </button>
           <div class="dd-panel" id="dolo-lp-dexes-panel" role="listbox" aria-label="DEXes" aria-multiselectable="true"><div class="dd-panel-head">DEXes</div><div class="dolo-lp-filter-options dd-list"></div></div>
         </div>
+      </div>
+      <div class="tb-right dolo-lp-toolbar-secondary">
+        <div class="dolo-lp-history-controls" id="dolo-lp-history-controls" hidden>
+          <label><span class="sr-only">History period</span><select class="dolo-lp-select" id="dolo-lp-history-period"><option value="24h">24H</option><option value="7d">7D</option><option value="30d" selected>30D</option><option value="90d">90D</option><option value="all">All</option></select></label>
+          <label><span class="sr-only">History action</span><select class="dolo-lp-select" id="dolo-lp-history-action"><option value="all">All actions</option><option value="added">Added</option><option value="removed">Removed</option></select></label>
+        </div>
         <div class="dust-pill dolo-lp-low-liq" id="dolo-lp-low-liquidity" role="switch" aria-checked="false" tabindex="0" data-tooltip="Include pools below the $1K liquidity threshold">
           <div class="dust-switch-track"><div class="dust-switch-knob"></div></div>
           <span class="dust-pill-label">Low-liq pools</span>
         </div>
-      </div>
-      <div class="tb-right dolo-lp-history-controls" id="dolo-lp-history-controls" hidden>
-        <label><span class="sr-only">History period</span><select class="dolo-lp-select" id="dolo-lp-history-period"><option value="24h">24H</option><option value="7d">7D</option><option value="30d" selected>30D</option><option value="90d">90D</option><option value="all">All</option></select></label>
-        <label><span class="sr-only">History action</span><select class="dolo-lp-select" id="dolo-lp-history-action"><option value="all">All actions</option><option value="added">Added</option><option value="removed">Removed</option></select></label>
       </div>
     </div>
 
@@ -4604,13 +4624,14 @@ function syncFlowSortHeaders(){
     const active = sort && sort.key === th.dataset.flowSort;
     th.classList.toggle("sorted", active);
     let marker = th.querySelector(".sort");
-    if(marker) marker.remove();
-    if(active){
+    if(!marker){
       marker = document.createElement("span");
       marker.className = "sort";
-      marker.textContent = sort.dir === "asc" ? "▲" : "▼";
+      marker.setAttribute("aria-hidden", "true");
       th.appendChild(marker);
     }
+    marker.textContent = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+    th.setAttribute("aria-sort", active ? (sort.dir === "asc" ? "ascending" : "descending") : "none");
   });
 }
 function sortFlowRows(rows, kind){
@@ -5915,6 +5936,7 @@ renderCexSupplyChart();
   const ACTIVE_WIDTHS = [9,13,19,14,10,12,10,7,6];
   const HISTORY_WIDTHS = [10,9,13,19,9,11,13,10,6];
   const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const CHEV_DOWN_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
   const doloLpState = {
     mode: "active",
     query: "",
@@ -6098,7 +6120,7 @@ renderCexSupplyChart();
       <td>${chainCell(row.chainKey)}</td><td>${pairCell(pool)}</td><td>${walletCell(row)}</td><td>${rangeCell(row)}</td>
       <td class="num">${rawAmount(row.doloRaw,18)}</td><td class="num">${rawAmount(row.pairedRaw,pairDecimals(pool))} ${esc(pool?.pairedSymbol || "")}</td>
       <td class="num">${money(row.valueUsd)}</td><td>${chip(row.rangeStatus === "out_of_range" ? "out_of_range" : row.quality)}</td>
-      <td><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-expanded="${expanded}">Details</button></td></tr>`;
+      <td class="details-cell"><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-label="${expanded ? "Hide liquidity position details" : "Show liquidity position details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button></td></tr>`;
     return cells + (expanded ? detailRow(row) : "");
   }
   function historyRow(row){
@@ -6107,7 +6129,7 @@ renderCexSupplyChart();
     const date = row.timestamp ? new Date(row.timestamp*1000).toLocaleDateString("en-US", {month:"short",day:"numeric",year:"numeric"}) : "Unavailable";
     const cells = `<tr data-dolo-lp-row="${esc(row.id)}"><td>${esc(date)}</td><td>${chainCell(row.chainKey)}</td><td>${pairCell(pool)}</td><td>${walletCell(row)}</td>
       <td>${chip(row.action)}</td><td class="num">${rawAmount(row.doloRaw,18)}</td><td class="num">${rawAmount(row.pairedRaw,pairDecimals(pool))} ${esc(pool?.pairedSymbol || "")}</td>
-      <td class="num">${money(row.valueUsd)}</td><td><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-expanded="${expanded}">Details</button></td></tr>`;
+      <td class="num">${money(row.valueUsd)}</td><td class="details-cell"><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-label="${expanded ? "Hide liquidity event details" : "Show liquidity event details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button></td></tr>`;
     return cells + (expanded ? detailRow(row) : "");
   }
   function renderHeaders(){
