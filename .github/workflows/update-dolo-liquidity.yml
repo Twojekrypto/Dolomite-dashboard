@@ -2,8 +2,14 @@ name: Update DOLO Liquidity
 
 on:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '17 */6 * * *'
   workflow_dispatch:
+    inputs:
+      full_history:
+        description: 'Run a full historical replay instead of the incremental refresh'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -47,7 +53,12 @@ jobs:
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
           QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
           DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
-        run: python3 generate_dolo_liquidity.py --registry data/dolo-liquidity-pools.json --output data/dolo-liquidity.json
+        run: |
+          full_history_arg=""
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.full_history }}" == "true" ]]; then
+            full_history_arg="--full-history"
+          fi
+          python3 generate_dolo_liquidity.py --registry data/dolo-liquidity-pools.json --output data/dolo-liquidity.json $full_history_arg
 
       - name: Validate generated artifact
         run: python3 validate_data.py data/dolo-liquidity.json

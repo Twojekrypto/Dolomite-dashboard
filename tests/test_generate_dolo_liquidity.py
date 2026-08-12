@@ -1,4 +1,5 @@
 import json
+import inspect
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -566,6 +567,139 @@ class LiveSourceRecoveryTests(unittest.TestCase):
         self.assertEqual(rows, [])
         self.assertEqual(rpc.call_args.args[1]["method"], "eth_getTransactionReceipt")
         routescan.assert_not_called()
+
+    def test_degraded_refresh_is_rejected_before_atomic_write(self):
+        self.assertTrue(hasattr(liquidity, "assert_refresh_not_degraded"))
+        previous = {
+            "quality": {"verifiedActivePositions": 4, "staleActivePositions": 0},
+            "sources": [
+                {"key": "ethereum:uniswap-v3", "status": "partial", "errors": []}
+            ],
+        }
+        candidate = {
+            "quality": {"verifiedActivePositions": 0, "staleActivePositions": 4},
+            "sources": [
+                {
+                    "key": "ethereum:uniswap-v3",
+                    "status": "stale",
+                    "errors": ["429 Too Many Requests"],
+                }
+            ],
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "degraded liquidity refresh"):
+            liquidity.assert_refresh_not_degraded(previous, candidate)
+        liquidity.assert_refresh_not_degraded(candidate, previous)
+
+        source = inspect.getsource(liquidity.generate_artifact)
+        self.assertLess(
+            source.index("assert_refresh_not_degraded(previous, artifact)"),
+            source.index("write_artifact_atomic(output_path, artifact)"),
+        )
+
+    def test_incremental_context_reuses_cursor_token_ids_and_clean_history(self):
+        self.assertTrue(hasattr(liquidity, "incremental_pool_context"))
+        pool_id = "0x" + "12" * 20
+        previous = {
+            "sources": [
+                {
+                    "key": "ethereum:uniswap-v3",
+                    "status": "stale",
+                    "lastScannedBlock": 1_000,
+                }
+            ],
+            "activePositions": [
+                {
+                    "sourceKey": "ethereum:uniswap-v3",
+                    "poolId": pool_id,
+                    "positionId": "77",
+                },
+                {
+                    "sourceKey": "ethereum:uniswap-v3",
+                    "poolId": pool_id,
+                    "positionId": "88",
+                },
+            ],
+            "history": [
+                {
+                    "id": "event-1",
+                    "sourceKey": "ethereum:uniswap-v3",
+                    "poolId": pool_id,
+                    "blockNumber": 900,
+                    "logIndex": 2,
+                    "staleSince": "2026-08-12T15:18:22Z",
+                }
+            ],
+        }
+
+        context = liquidity.incremental_pool_context(
+            previous,
+            "ethereum:uniswap-v3",
+            pool_id,
+            100,
+        )
+
+        self.assertEqual(context["scanStart"], 873)
+        self.assertEqual(context["tokenIds"], {77, 88})
+        self.assertEqual(context["history"][0]["id"], "event-1")
+        self.assertNotIn("staleSince", context["history"][0])
+
+    def test_registered_source_passes_incremental_state_to_default_shape_builder(self):
+        captured = {}
+
+        def builder(_registry, pool, latest_block, *, previous_artifact, full_history):
+            captured.update(
+                pool=pool,
+                latestBlock=latest_block,
+                previous=previous_artifact,
+                fullHistory=full_history,
+            )
+            return {
+                "sourceStatus": "partial",
+                "activePositions": [],
+                "history": [],
+                "unresolved": [],
+            }
+
+        previous = {"generatedAt": "2026-08-12T12:00:00Z"}
+        pool = {
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v3",
+            "identifier": "0x" + "12" * 20,
+        }
+        result = liquidity.build_registered_source(
+            {"chains": {"ethereum": {}}},
+            "ethereum:uniswap-v3",
+            [pool],
+            1_100,
+            builders={"uniswap-v3": builder},
+            previous_artifact=previous,
+            full_history=True,
+        )
+
+        self.assertEqual(result["sourceStatus"], "partial")
+        self.assertIs(captured["previous"], previous)
+        self.assertTrue(captured["fullHistory"])
+
+    def test_uniswap_builders_use_incremental_scan_context(self):
+        v3_source = inspect.getsource(liquidity._build_uniswap_v3_live_source)
+        v4_source = inspect.getsource(liquidity._build_uniswap_v4_live_source)
+        for source in (v3_source, v4_source):
+            self.assertIn("incremental_pool_context(", source)
+            self.assertIn('context["scanStart"]', source)
+            self.assertIn('context["tokenIds"]', source)
+
+    def test_incremental_v3_seed_does_not_require_a_new_increase_event(self):
+        first_blocks = liquidity.first_v3_increase_blocks(
+            [
+                {"kind": "decrease", "tokenId": 77, "blockNumber": 1_010},
+                {"kind": "increase", "tokenId": 88, "blockNumber": 1_011},
+                {"kind": "increase", "tokenId": 88, "blockNumber": 1_012},
+            ]
+        )
+
+        self.assertNotIn(77, first_blocks)
+        self.assertEqual(first_blocks, {88: 1_011})
 
 
 class V2AdapterTests(unittest.TestCase):
