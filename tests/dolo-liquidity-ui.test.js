@@ -97,6 +97,10 @@ test('both DOLO route entry points advance the liquidity feature cache once', ()
 
 test('Details remains usable in Safari and meets the mobile touch target', () => {
   assert.match(html, /\.dolo-lp-details-btn\{[^}]*-webkit-appearance:none[^}]*appearance:none[^}]*overflow:visible/s);
+  assert.match(html, /\.dolo-lp-details-btn\{[^}]*height:24px[^}]*border-radius:999px/s);
+  assert.match(html, /\.dolo-lp-details-btn svg\{[^}]*width:12px[^}]*transition:transform/s);
+  assert.match(html, /\.dolo-lp-details-btn\[aria-expanded="true"\] svg\{[^}]*transform:rotate\(180deg\)/s);
+  assert.match(html, /<span>\$\{expanded\s*\?\s*"Hide"\s*:\s*"Details"\}<\/span>\$\{CHEV_DOWN_ICO\}/);
   assert.match(html, /@media \(max-width:640px\)\{[\s\S]*?\.dolo-lp-details-btn\{[^}]*min-height:44px/s);
 });
 
@@ -105,9 +109,14 @@ test('the stable-height shell still shows one readable empty-state message', () 
   assert.match(html, /No verified positions match these filters\./);
 });
 
-test('history-only controls reserve their footprint to prevent mode layout shift', () => {
-  assert.match(html, /\.dolo-lp-history-controls\[hidden\]\{[^}]*visibility:hidden[^}]*pointer-events:none/);
-  assert.doesNotMatch(html, /\.dolo-lp-history-controls\[hidden\]\{[^}]*display:none/);
+test('history controls hide without displacing the right-aligned low-liquidity switch', () => {
+  assert.match(html, /\.dolo-lp-history-controls\[hidden\]\{[^}]*display:none!important/);
+  assert.match(html, /class="tb-right dolo-lp-toolbar-secondary"/);
+  const toolbarStart = html.indexOf('<div class="toolbar dolo-lp-toolbar">');
+  const toolbarEnd = html.indexOf('</div>\n\n    <div class="tbl-wrap">', toolbarStart);
+  const toolbar = html.slice(toolbarStart, toolbarEnd);
+  assert.ok(toolbar.indexOf('class="tb-left dolo-lp-toolbar-primary"') >= 0);
+  assert.ok(toolbar.indexOf('id="dolo-lp-low-liquidity"') > toolbar.indexOf('class="tb-right dolo-lp-toolbar-secondary"'));
 });
 
 test('liquidity controls reuse the established DOLO dropdown and holder mode patterns', () => {
@@ -126,13 +135,21 @@ test('liquidity controls reuse the established DOLO dropdown and holder mode pat
   assert.match(html, />Low-liq pools</);
 });
 
-test('active/history mode sits directly below the liquidity title', () => {
+test('header metadata is separated before the active/history mode row', () => {
   const cardStart = html.indexOf('<section class="card dolo-lp-card"');
   const summaryStart = html.indexOf('<div class="dolo-lp-summary"', cardStart);
   const header = html.slice(cardStart, summaryStart);
   const title = header.indexOf('<h2>DOLO Liquidity Providers</h2>');
-  const mode = header.indexOf('class="holder-bucket-mode dolo-lp-mode"');
   const meta = header.indexOf('id="dolo-lp-meta"');
+  const separator = header.indexOf('class="dolo-lp-head-separator"');
+  const modeRow = header.indexOf('class="dolo-lp-mode-row"');
+  const mode = header.indexOf('class="holder-bucket-mode dolo-lp-mode"');
 
-  assert.ok(title >= 0 && mode > title && meta > mode);
+  assert.ok(title >= 0 && meta > title && separator > meta && modeRow > separator && mode > modeRow);
+});
+
+test('liquidity and flow sortable headers match Dolomite Assets typography', () => {
+  assert.match(html, /\.dolo-lp-table thead th\{[^}]*font-size:10px[^}]*font-weight:600[^}]*letter-spacing:1\.6px/s);
+  assert.match(html, /\.flows-tbl thead th\{[^}]*font-size:10px[^}]*font-weight:600[^}]*letter-spacing:1\.6px/s);
+  assert.match(html, /function syncFlowSortHeaders\(\)[\s\S]*?th\.setAttribute\("aria-sort",\s*active\s*\?\s*\(sort\.dir\s*===\s*"asc"\s*\?\s*"ascending"\s*:\s*"descending"\)\s*:\s*"none"\)/);
 });
