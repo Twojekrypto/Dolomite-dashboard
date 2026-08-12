@@ -198,5 +198,5 @@ test('both production entry points advance the active-only liquidity cache once'
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-wallet-status-recovery/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-low-rpc-refresh/);
 });

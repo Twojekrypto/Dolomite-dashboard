@@ -1252,7 +1252,7 @@ RULES = {
     "dolo-liquidity.json": {
         "required_keys": ["schemaVersion", "generatedAt", "summary", "sources", "pools", "activePositions", "history", "quality"],
         "checks": [
-            ("generatedAt must be fresh", lambda d: _fresh_timestamp(d.get("generatedAt"), 3)),
+            ("generatedAt must be fresh", lambda d: _fresh_timestamp(d.get("generatedAt"), 8)),
             ("DOLO liquidity identities and totals must reconcile", _dolo_liquidity_valid),
         ],
         "min_bytes": 500,

@@ -2,7 +2,7 @@ import copy
 import json
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import validate_data
@@ -105,6 +105,15 @@ def valid_payload():
 
 
 class DoloLiquidityValidatorTests(unittest.TestCase):
+    def test_liquidity_freshness_accepts_seven_hours_and_rejects_nine(self):
+        freshness = dict(validate_data.RULES["dolo-liquidity.json"]["checks"])[
+            "generatedAt must be fresh"
+        ]
+        now = datetime.now(timezone.utc)
+
+        self.assertTrue(freshness({"generatedAt": (now - timedelta(hours=7)).isoformat()}))
+        self.assertFalse(freshness({"generatedAt": (now - timedelta(hours=9)).isoformat()}))
+
     def test_valid_payload_passes_strict_contract(self):
         self.assertTrue(validate_data._dolo_liquidity_valid(valid_payload()))
 

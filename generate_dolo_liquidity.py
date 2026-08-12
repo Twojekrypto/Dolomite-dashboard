@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import inspect
 import itertools
 import json
 import math
@@ -415,6 +416,70 @@ def resume_block(
     return max(start, last_scanned - overlap_blocks + 1)
 
 
+def incremental_pool_context(
+    previous: dict[str, Any],
+    source_key: str,
+    pool_id: str,
+    configured_start: int,
+) -> dict[str, Any]:
+    """Reuse a source cursor and known live NFT IDs without trusting stale values."""
+    if not isinstance(previous, dict):
+        raise ValueError("previous artifact must be an object")
+    normalized_source = str(source_key or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9-]+:[a-z0-9-]+", normalized_source):
+        raise ValueError("source key must contain normalized chain and adapter names")
+    normalized_pool = str(pool_id or "").strip().lower()
+    if not (ADDRESS_RE.fullmatch(normalized_pool) or POOL_ID_RE.fullmatch(normalized_pool)):
+        raise ValueError("pool identifier must be an address or bytes32 pool ID")
+
+    matching_sources = [
+        row
+        for row in previous.get("sources", [])
+        if isinstance(row, dict) and row.get("key") == normalized_source
+    ]
+    if len(matching_sources) > 1:
+        raise ValueError(f"previous artifact has duplicate source {normalized_source}")
+    previous_source = matching_sources[0] if matching_sources else None
+    token_ids: set[int] = set()
+    for row in previous.get("activePositions", []):
+        if not isinstance(row, dict):
+            continue
+        if row.get("sourceKey") != normalized_source or row.get("poolId") != normalized_pool:
+            continue
+        raw_token_id = row.get("positionId")
+        if isinstance(raw_token_id, bool) or not isinstance(raw_token_id, (int, str)):
+            raise ValueError("previous positionId must be a nonnegative integer")
+        token_text = str(raw_token_id).strip()
+        if not re.fullmatch(r"\d+", token_text):
+            raise ValueError("previous positionId must be a nonnegative integer")
+        token_ids.add(int(token_text))
+
+    history = []
+    for row in previous.get("history", []):
+        if not isinstance(row, dict):
+            continue
+        if row.get("sourceKey") != normalized_source or row.get("poolId") != normalized_pool:
+            continue
+        preserved = copy.deepcopy(row)
+        preserved.pop("staleSince", None)
+        if preserved.get("quality") == "stale":
+            preserved["quality"] = "partial"
+        history.append(preserved)
+    history.sort(
+        key=lambda row: (
+            row.get("blockNumber", -1),
+            row.get("logIndex", -1),
+            str(row.get("id") or ""),
+        )
+    )
+    return {
+        "incremental": previous_source is not None,
+        "scanStart": resume_block(previous_source, configured_start),
+        "tokenIds": token_ids,
+        "history": history,
+    }
+
+
 def block_ranges(from_block: int, to_block: int, chunk_size: int):
     """Yield inclusive block ranges without gaps or boundary duplication."""
     start = _exact_int(from_block, "from block")
@@ -631,6 +696,29 @@ def preserve_stale_adapter(
         "activePositions": rows_for("activePositions"),
         "history": rows_for("history"),
     }
+
+
+def assert_refresh_not_degraded(
+    previous: dict[str, Any],
+    candidate: dict[str, Any],
+) -> None:
+    """Reject failed refreshes so they cannot replace a last-known-good artifact."""
+    if not previous:
+        return
+    if not isinstance(previous, dict) or not isinstance(candidate, dict):
+        raise ValueError("liquidity refresh artifacts must be objects")
+    failed_sources = []
+    for source in candidate.get("sources", []):
+        if not isinstance(source, dict):
+            raise ValueError("candidate liquidity sources must be objects")
+        errors = source.get("errors")
+        if source.get("status") == "stale" or (isinstance(errors, list) and errors):
+            failed_sources.append(str(source.get("key") or "unknown"))
+    if failed_sources:
+        raise RuntimeError(
+            "degraded liquidity refresh rejected; failed sources: "
+            + ", ".join(sorted(failed_sources))
+        )
 
 
 def fetch_block_timestamps(
@@ -865,6 +953,20 @@ def decode_v3_npm_log(log: dict[str, Any]) -> dict[str, Any] | None:
         "amount0Raw": int(amount0),
         "amount1Raw": int(amount1),
     }
+
+
+def first_v3_increase_blocks(events: list[dict[str, Any]]) -> dict[int, int]:
+    """Return first newly observed increase block without requiring seeded IDs."""
+    first_blocks: dict[int, int] = {}
+    for event in events:
+        if not isinstance(event, dict) or event.get("kind") != "increase":
+            continue
+        token_id = _exact_int(event.get("tokenId"), "V3 tokenId")
+        block_number = _exact_int(event.get("blockNumber"), "V3 block number")
+        if token_id < 0 or block_number < 0:
+            raise ValueError("V3 token ID and block number must be nonnegative")
+        first_blocks[token_id] = min(first_blocks.get(token_id, block_number), block_number)
+    return first_blocks
 
 
 def map_v3_events_to_pools(
@@ -2827,12 +2929,23 @@ def _build_kodiak_v3_live_source(
 
 
 def _build_uniswap_v3_live_source(
-    registry: dict[str, Any], pool: dict[str, Any], latest_block: int
+    registry: dict[str, Any],
+    pool: dict[str, Any],
+    latest_block: int,
+    *,
+    previous_artifact: dict[str, Any] | None = None,
+    full_history: bool = False,
 ) -> dict[str, Any]:
     """Discover target-pool NPM tokens from pool events and reconcile live state."""
     chain_key = pool["chainKey"]
     chain = registry["chains"][chain_key]
     position_manager = chain["adapters"]["uniswap-v3"]["positionManager"]
+    context = incremental_pool_context(
+        {} if full_history else (previous_artifact or {}),
+        f"{chain_key}:uniswap-v3",
+        pool["identifier"],
+        chain["discoveryStartBlock"],
+    )
     pool_logs = []
     for signature in (
         "Mint(address,address,int24,int24,uint128,uint256,uint256)",
@@ -2843,7 +2956,7 @@ def _build_uniswap_v3_live_source(
                 chain["chainId"],
                 pool["identifier"],
                 event_topic(signature),
-                chain["discoveryStartBlock"],
+                context["scanStart"],
                 latest_block,
                 discovery_only=True,
             )
@@ -2866,17 +2979,13 @@ def _build_uniswap_v3_live_source(
         if event is not None:
             npm_logs.append(log)
             decoded_events.append(event)
-    token_ids = {event["tokenId"] for event in decoded_events if event["kind"] == "increase"}
+    token_ids = {
+        *context["tokenIds"],
+        *(event["tokenId"] for event in decoded_events if event["kind"] == "increase"),
+    }
     if not token_ids:
         raise RuntimeError("Uniswap pool emitted no attributable position events")
-    first_blocks = {
-        token_id: min(
-            event["blockNumber"]
-            for event in decoded_events
-            if event.get("tokenId") == token_id and event["kind"] == "increase"
-        )
-        for token_id in token_ids
-    }
+    first_blocks = first_v3_increase_blocks(decoded_events)
     snapshots = {}
     latest_positions = {}
     unresolved = []
@@ -2933,7 +3042,7 @@ def _build_uniswap_v3_live_source(
             snapshots[token_id] = {
                 **current,
                 "pool": pool["identifier"],
-                "snapshotBlock": first_blocks[token_id],
+                "snapshotBlock": first_blocks.get(token_id, context["scanStart"]),
             }
             if current["liquidity"] > 0:
                 current_positions[token_id] = current
@@ -2965,19 +3074,19 @@ def _build_uniswap_v3_live_source(
             "pool": pool["identifier"],
             "owner": owner,
         }
-    mapped = map_v3_events_to_pools(
-        npm_logs,
-        snapshots,
-        {pool["identifier"]},
-        DOLO_ADDRESS,
-    )
+    mapped = map_v3_events_to_pools(npm_logs, snapshots, {pool["identifier"]}, DOLO_ADDRESS)
     unresolved.extend(mapped["unresolved"])
     state = _v3_pool_state(chain_key, pool["identifier"], "uniswap-v3")
     contract_addresses = _contract_owners(chain_key, owners)
+    replay_events = (
+        []
+        if context["incremental"]
+        else mapped["eventsByPool"].get(pool["identifier"], [])
+    )
     try:
         result = build_v3_rows(
             pool,
-            mapped["eventsByPool"].get(pool["identifier"], []),
+            replay_events,
             latest_positions,
             state,
             contract_addresses=contract_addresses,
@@ -2991,6 +3100,8 @@ def _build_uniswap_v3_live_source(
             state,
             contract_addresses=contract_addresses,
         )
+    if context["incremental"]:
+        result["history"] = context["history"]
     # Standalone NFT transfers are not part of pool Mint/Burn receipts. Current
     # ownerOf is exact; historical wallet attribution remains explicitly partial.
     for row in result["history"]:
@@ -3177,18 +3288,29 @@ def _v4_pool_id(pool_key: tuple[Any, ...]) -> str:
 
 
 def _build_uniswap_v4_live_source(
-    registry: dict[str, Any], pool: dict[str, Any], latest_block: int
+    registry: dict[str, Any],
+    pool: dict[str, Any],
+    latest_block: int,
+    *,
+    previous_artifact: dict[str, Any] | None = None,
+    full_history: bool = False,
 ) -> dict[str, Any]:
     chain_key = pool["chainKey"]
     chain = registry["chains"][chain_key]
     config = chain["adapters"]["uniswap-v4"]
     pool_manager = config["poolManager"]
     position_manager = config["positionManager"]
+    context = incremental_pool_context(
+        {} if full_history else (previous_artifact or {}),
+        f"{chain_key}:uniswap-v4",
+        pool["identifier"],
+        chain["discoveryStartBlock"],
+    )
     pool_logs = _routescan_logs(
         chain["chainId"],
         pool_manager,
         event_topic(V4_EVENT_SIGNATURES["modify_liquidity"]),
-        chain["discoveryStartBlock"],
+        context["scanStart"],
         latest_block,
         indexed_topics={
             1: pool["identifier"],
@@ -3202,7 +3324,10 @@ def _build_uniswap_v4_live_source(
         and event.get("kind") == "modify_liquidity"
         and event.get("sender") == position_manager
     ]
-    token_ids = {int(event["salt"], 16) for event in modifications if int(event["salt"], 16) > 0}
+    token_ids = {
+        *context["tokenIds"],
+        *(int(event["salt"], 16) for event in modifications if int(event["salt"], 16) > 0),
+    }
     if not token_ids:
         raise RuntimeError("Uniswap v4 pool emitted no canonical position events")
     latest_positions = {}
@@ -3330,7 +3455,7 @@ def _build_uniswap_v4_live_source(
     try:
         result = build_v4_rows(
             pool,
-            pool_logs,
+            [] if context["incremental"] else pool_logs,
             [],
             latest_positions,
             pool_state,
@@ -3352,6 +3477,8 @@ def _build_uniswap_v4_live_source(
             position_manager=position_manager,
             contract_addresses=contract_addresses,
         )
+    if context["incremental"]:
+        result["history"] = context["history"]
     result["sourceStatus"] = "partial"
     result["unresolved"] = [
         *result.get("unresolved", []),
@@ -3370,6 +3497,8 @@ def build_registered_source(
     latest_block: int,
     *,
     builders: dict[str, Any] | None = None,
+    previous_artifact: dict[str, Any] | None = None,
+    full_history: bool = False,
 ) -> dict[str, Any]:
     """Dispatch every configured pool through its exact live adapter."""
     chain_key, adapter = source_key.split(":", 1)
@@ -3396,7 +3525,24 @@ def build_registered_source(
     statuses = []
     unresolved = []
     for pool in registered:
-        result = builder(registry, pool, latest_block)
+        signature = inspect.signature(builder)
+        accepts_incremental = (
+            "previous_artifact" in signature.parameters
+            and "full_history" in signature.parameters
+        ) or any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in signature.parameters.values()
+        )
+        if accepts_incremental:
+            result = builder(
+                registry,
+                pool,
+                latest_block,
+                previous_artifact=previous_artifact,
+                full_history=full_history,
+            )
+        else:
+            result = builder(registry, pool, latest_block)
         pool_results[pool["identifier"]] = result
         active.extend(result.get("activePositions", []))
         history.extend(result.get("history", []))
@@ -3418,6 +3564,7 @@ def generate_artifact(
     output_path: str | Path,
     *,
     price_path: str | Path = "dolo_price.json",
+    full_history: bool = False,
 ) -> dict[str, Any]:
     """Run the bounded production pipeline and preserve uncertainty explicitly."""
     registry = load_registry(registry_path)
@@ -3471,7 +3618,14 @@ def generate_artifact(
             "errors": [],
         }
         try:
-            built = build_registered_source(registry, source_key, registered, latest)
+            built = build_registered_source(
+                registry,
+                source_key,
+                registered,
+                latest,
+                previous_artifact=previous,
+                full_history=full_history,
+            )
             for pool in registered:
                 result = built["poolResults"][pool["identifier"]]
                 matching_pool = next(row for row in pool_rows if row["identifier"] == pool["identifier"])
@@ -3525,6 +3679,7 @@ def generate_artifact(
         sources.append(source)
 
     artifact = assemble_artifact(registry, sources, pool_rows, active, history, generated_at)
+    assert_refresh_not_degraded(previous, artifact)
     write_artifact_atomic(output_path, artifact)
     return artifact
 
@@ -3534,8 +3689,18 @@ def main() -> None:
     parser.add_argument("--registry", default="data/dolo-liquidity-pools.json")
     parser.add_argument("--output", default="data/dolo-liquidity.json")
     parser.add_argument("--price", default="dolo_price.json")
+    parser.add_argument(
+        "--full-history",
+        action="store_true",
+        help="Replay configured historical ranges instead of using saved cursors",
+    )
     args = parser.parse_args()
-    artifact = generate_artifact(args.registry, args.output, price_path=args.price)
+    artifact = generate_artifact(
+        args.registry,
+        args.output,
+        price_path=args.price,
+        full_history=args.full_history,
+    )
     print(
         "Generated DOLO liquidity: "
         f"{artifact['summary']['lpWallets']} wallets, "
