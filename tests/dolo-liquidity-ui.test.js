@@ -53,14 +53,27 @@ test('collapsed price range is classified instead of rendering raw bounds', () =
   assert.doesNotMatch(html, /`\$\{number\(Number\(row\.rangeLower\)\)\}–\$\{number\(Number\(row\.rangeUpper\)\)\}`/);
 });
 
-test('expanded liquidity details carry compact range evidence and accessible sort state', () => {
-  for (const label of ['Lower bound', 'Upper bound', 'Tick interval']) {
+test('expanded liquidity details carry exact range evidence and accessible sort state', () => {
+  for (const label of ['Exact lower bound', 'Exact upper bound', 'Tick interval']) {
     assert.match(html, new RegExp(label));
   }
-  assert.match(html, /compactRangeBound\(row\.rangeLower\)/);
-  assert.match(html, /compactRangeBound\(row\.rangeUpper\)/);
+  assert.match(html, /exactRangeBound\(row\.rangeLower\)/);
+  assert.match(html, /exactRangeBound\(row\.rangeUpper\)/);
   assert.match(html, /aria-sort="\$\{ariaSort\}"/);
   assert.match(html, /class="sort" aria-hidden="true">\$\{marker\}<\/span>/);
+});
+
+test('liquidity quantities use on-chain token decimals and expose exact position evidence', () => {
+  assert.match(html, /function pairDecimals\(pool\)[\s\S]*?pool\?\.pairedDecimals/);
+  assert.doesNotMatch(html, /\["USDC","USDC\.e","USD1"\]\.includes\(pool\?\.pairedSymbol\)/);
+  assert.match(html, /function exactRawAmount\(raw, decimals\)/);
+  assert.match(html, /DOLO amount/);
+  assert.match(html, /Paired amount/);
+  assert.match(html, /Position value/);
+  assert.match(html, /Exact lower bound/);
+  assert.match(html, /Exact upper bound/);
+  assert.match(html, /function exactRangeBound\(value\)/);
+  assert.match(html, /dolo-lp-exact/);
 });
 
 test('mode, filters, null pricing and action groups are explicit behavior contracts', () => {
@@ -71,7 +84,7 @@ test('mode, filters, null pricing and action groups are explicit behavior contra
   assert.match(html, /row\.liquidityUsd\s*===\s*null/);
   assert.match(html, /Added.*Increased/);
   assert.match(html, /Removed.*Closed/);
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260811-dolo-liquidity-v2/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-exact-token-decimals/);
   assert.match(html, /Data unavailable — try again later/);
 });
 
@@ -88,11 +101,11 @@ test('wallet and provenance UX is scoped and does not confuse poolId with a cont
 });
 
 test('both DOLO route entry points advance the liquidity feature cache once', () => {
-  const version = 'dolo-liquidity-table-ux-20260812';
+  const version = 'dolo-liquidity-exact-decimals-20260812';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260811-dolo-liquidity-v2/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-exact-token-decimals/);
 });
 
 test('Details remains usable in Safari and meets the mobile touch target', () => {

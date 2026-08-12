@@ -1064,6 +1064,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-detail:first-child{padding-left:0;border-left:0}
 .dolo-lp-detail-label{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:var(--fg-4);margin-bottom:5px}
 .dolo-lp-detail-value{font-size:11px;color:var(--fg-2);overflow-wrap:anywhere}
+.dolo-lp-detail-value.dolo-lp-exact{font-family:var(--mono);font-size:10px;line-height:1.45;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;word-break:break-word}
 .dolo-lp-detail-value a{color:var(--gold);text-decoration:none}
 .dolo-lp-empty td{color:var(--fg-4);font-size:11px}
 .tbl tbody tr.tbl-spacer-row.dolo-lp-empty:first-child td{color:var(--fg-4);font-size:11px;text-align:center}
@@ -5923,7 +5924,7 @@ renderCexSupplyChart();
 <script>
 (()=>{
   "use strict";
-  const DATA_URL = "data/dolo-liquidity.json?v=20260811-dolo-liquidity-v2";
+  const DATA_URL = "data/dolo-liquidity.json?v=20260812-exact-token-decimals";
   const LOW_LIQUIDITY_USD = 1000;
   const ACTIVE_HEADERS = [
     ["chainKey","Chain"],["pair","Pair"],["wallet","Wallet"],["rangeStatus","Price Range"],
@@ -5968,6 +5969,9 @@ renderCexSupplyChart();
     if(value >= 1e3) return `$${(value/1e3).toFixed(1)}K`;
     return `$${value.toFixed(2)}`;
   };
+  const exactMoney = value => finite(value)
+    ? `$${value.toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:6})}`
+    : "Unavailable";
   const number = value => Number(value || 0).toLocaleString("en-US", {maximumFractionDigits:2});
   const agoLabel = iso => {
     const timestamp = Date.parse(iso || "");
@@ -6028,14 +6032,26 @@ renderCexSupplyChart();
     const sort = doloLpState.mode === "active" ? doloLpState.activeSort : doloLpState.historySort;
     return [...rows].sort((a,b) => compareRows(a,b,sort.key,sort.dir) || String(a.id).localeCompare(String(b.id)));
   }
+  function validDecimals(decimals){ return Number.isInteger(decimals) && decimals >= 0 && decimals <= 255; }
+  function groupedInteger(value){ return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
   function rawAmount(raw, decimals){
-    if(raw === null || raw === undefined || !/^\d+$/.test(String(raw))) return "Unavailable";
+    if(raw === null || raw === undefined || !/^\d+$/.test(String(raw)) || !validDecimals(decimals)) return "Unavailable";
     const value = String(raw).padStart(decimals + 1, "0");
-    const whole = value.slice(0, -decimals) || "0";
-    const fraction = value.slice(-decimals).replace(/0+$/, "").slice(0, 4);
-    return Number(whole).toLocaleString("en-US") + (fraction ? `.${fraction}` : "");
+    const whole = decimals ? value.slice(0, -decimals) : value;
+    const fraction = decimals ? value.slice(-decimals).replace(/0+$/, "").slice(0, 4) : "";
+    return groupedInteger(whole || "0") + (fraction ? `.${fraction}` : "");
   }
-  function pairDecimals(pool){ return ["USDC","USDC.e","USD1"].includes(pool?.pairedSymbol) ? 6 : 18; }
+  function exactRawAmount(raw, decimals){
+    if(raw === null || raw === undefined || !/^\d+$/.test(String(raw)) || !validDecimals(decimals)) return "Unavailable";
+    const value = String(raw).padStart(decimals + 1, "0");
+    const whole = decimals ? value.slice(0, -decimals) : value;
+    const fraction = decimals ? value.slice(-decimals).replace(/0+$/, "") : "";
+    return groupedInteger(whole || "0") + (fraction ? `.${fraction}` : "");
+  }
+  function pairDecimals(pool){
+    const decimals = Number(pool?.pairedDecimals);
+    return validDecimals(decimals) ? decimals : null;
+  }
   function chainCell(chain){
     const label = chain === "ethereum" ? "Ethereum" : "Berachain";
     return `<span class="chain-chip"><span class="dot dot-${esc(chain)}"></span>${label}</span>`;
@@ -6067,6 +6083,10 @@ renderCexSupplyChart();
     }
     return new Intl.NumberFormat("en-US", {maximumSignificantDigits:4, useGrouping:false}).format(numeric);
   }
+  function exactRangeBound(value){
+    const exact = String(value ?? "");
+    return /^\d+(?:\.\d+)?$/.test(exact) ? exact : "Unavailable";
+  }
   function rangePresentation(row){
     if(row.rangeStatus === "full_range") return {state:"Full range",detail:"Always active"};
     const state = row.rangeStatus === "in_range" ? "In range" : row.rangeStatus === "out_of_range" ? "Out of range" : "Unavailable";
@@ -6097,19 +6117,26 @@ renderCexSupplyChart();
     const pool = poolFor(row);
     const source = sourceFor(row);
     const link = poolLink(row,pool);
+    const pairedDecimals = pairDecimals(pool);
+    const pairedSymbol = pool?.pairedSymbol || "paired asset";
     const txBase = row.chainKey === "ethereum" ? "https://etherscan.io/tx/" : "https://berascan.com/tx/";
     const custody = row.beneficialOwner && row.custodian && normalized(row.beneficialOwner) !== normalized(row.custodian)
       ? `${row.attributionPath || "verified path"} via ${shortAddress(row.custodian)}`
       : row.attributionPath || "Direct ownership";
+    const amountDetails = row.doloRaw !== null && row.doloRaw !== undefined && row.pairedRaw !== null && row.pairedRaw !== undefined ? `
+      <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">DOLO amount</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(exactRawAmount(row.doloRaw,18))} DOLO</div></div>
+      <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Paired amount</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(exactRawAmount(row.pairedRaw,pairedDecimals))} ${esc(pairedSymbol)}</div></div>` : "";
     const rangeDetails = doloLpState.mode === "active" && row.rangeStatus !== "full_range" ? `
-      <div class="dolo-lp-detail dolo-lp-range-detail"><div class="dolo-lp-detail-label">Lower bound</div><div class="dolo-lp-detail-value">${esc(compactRangeBound(row.rangeLower))}</div></div>
-      <div class="dolo-lp-detail dolo-lp-range-detail"><div class="dolo-lp-detail-label">Upper bound</div><div class="dolo-lp-detail-value">${esc(compactRangeBound(row.rangeUpper))}</div></div>
+      <div class="dolo-lp-detail dolo-lp-range-detail"><div class="dolo-lp-detail-label">Exact lower bound</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(exactRangeBound(row.rangeLower))}</div></div>
+      <div class="dolo-lp-detail dolo-lp-range-detail"><div class="dolo-lp-detail-label">Exact upper bound</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(exactRangeBound(row.rangeUpper))}</div></div>
       <div class="dolo-lp-detail dolo-lp-range-detail"><div class="dolo-lp-detail-label">Tick interval</div><div class="dolo-lp-detail-value">${Number.isInteger(row.tickLower) && Number.isInteger(row.tickUpper) ? `${number(row.tickLower)} → ${number(row.tickUpper)}` : "Unavailable"}</div></div>` : "";
     return `<tr class="dolo-lp-detail-row" id="dolo-lp-details-${esc(row.id)}"><td colspan="9"><div class="dolo-lp-details-grid">
       <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Attribution</div><div class="dolo-lp-detail-value">${esc(custody)}</div></div>
       <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Position</div><div class="dolo-lp-detail-value">${esc(row.positionId || row.positionType || "Fungible LP")}</div></div>
+      <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Position value</div><div class="dolo-lp-detail-value dolo-lp-exact">${esc(exactMoney(row.valueUsd))}</div></div>
       <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Source quality</div><div class="dolo-lp-detail-value">${esc(source?.status || row.quality || "Unavailable")}${source?.errors?.length ? ` · ${esc(source.errors.join("; "))}` : ""}</div></div>
       <div class="dolo-lp-detail"><div class="dolo-lp-detail-label">Provenance</div><div class="dolo-lp-detail-value">${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Open pool ↗</a>` : "Pool link unavailable"}${row.txHash ? ` · <a href="${txBase}${esc(row.txHash)}" target="_blank" rel="noopener">Transaction ↗</a>` : ""}</div></div>
+      ${amountDetails}
       ${rangeDetails}
     </div></td></tr>`;
   }
