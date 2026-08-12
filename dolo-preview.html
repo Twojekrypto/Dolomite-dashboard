@@ -1019,15 +1019,17 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 #dolo-lp-pairs .dd-panel,#dolo-lp-dexes .dd-panel{min-width:228px}
 .dolo-lp-filter-options{display:flex;flex-direction:column}
 .dolo-lp-filter-options .dd-opt{user-select:none}
-.dolo-lp-low-liq{--dust-gold:var(--gold);--dust-gold-line:var(--gold-line);--dust-bg:var(--bg-3);--dust-bg-strong:var(--bg-4);--dust-fg:var(--fg-2);--dust-fg-active:var(--fg-1);display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;min-width:126px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--dust-bg);color:var(--dust-fg);cursor:pointer;user-select:none;transition:border-color .18s var(--ease),background .18s var(--ease),color .18s var(--ease),box-shadow .18s var(--ease);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-.dolo-lp-low-liq:hover{color:var(--dust-fg-active);border-color:var(--line-3)}
-.dolo-lp-low-liq.active{color:var(--dust-fg-active);border-color:var(--dust-gold-line);background:linear-gradient(180deg,rgba(201,162,39,.20),rgba(201,162,39,.08));box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 0 0 1px rgba(201,162,39,.05)}
-.dolo-lp-low-liq .dust-switch-track{width:24px;height:14px;border-radius:999px;background:var(--dust-bg-strong);border:1px solid var(--line-3);position:relative;flex:0 0 auto;transition:background .18s var(--ease),border-color .18s var(--ease)}
-.dolo-lp-low-liq.active .dust-switch-track{background:rgba(201,162,39,.16);border-color:var(--dust-gold-line)}
-.dolo-lp-low-liq .dust-switch-knob{position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--fg-3);transition:transform .18s var(--ease),background .18s var(--ease),box-shadow .18s var(--ease)}
-.dolo-lp-low-liq.active .dust-switch-knob{transform:translateX(10px);background:var(--dust-gold);box-shadow:0 0 8px rgba(201,162,39,.35)}
-.dolo-lp-low-liq .dust-pill-label{font-size:11px;font-weight:800;color:inherit;letter-spacing:.08px}
-.dolo-lp-low-liq:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+.dolo-lp-toggle{--dust-gold:var(--gold);--dust-gold-line:var(--gold-line);--dust-bg:var(--bg-3);--dust-bg-strong:var(--bg-4);--dust-fg:var(--fg-2);--dust-fg-active:var(--fg-1);display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;min-width:112px;padding:0 12px;border-radius:999px;border:1px solid var(--line-2);background:var(--dust-bg);color:var(--dust-fg);cursor:pointer;user-select:none;transition:border-color .18s var(--ease),background .18s var(--ease),color .18s var(--ease),box-shadow .18s var(--ease);box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.dolo-lp-low-liq{min-width:126px}
+.dolo-lp-toggle:hover{color:var(--dust-fg-active);border-color:var(--line-3)}
+.dolo-lp-toggle.active{color:var(--dust-fg-active);border-color:var(--dust-gold-line);background:linear-gradient(180deg,rgba(201,162,39,.20),rgba(201,162,39,.08));box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 0 0 1px rgba(201,162,39,.05)}
+.dolo-lp-toggle .dust-switch-track{width:24px;height:14px;border-radius:999px;background:var(--dust-bg-strong);border:1px solid var(--line-3);position:relative;flex:0 0 auto;transition:background .18s var(--ease),border-color .18s var(--ease)}
+.dolo-lp-toggle.active .dust-switch-track{background:rgba(201,162,39,.16);border-color:var(--dust-gold-line)}
+.dolo-lp-toggle .dust-switch-knob{position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:var(--fg-3);transition:transform .18s var(--ease),background .18s var(--ease),box-shadow .18s var(--ease)}
+.dolo-lp-toggle.active .dust-switch-knob{transform:translateX(10px);background:var(--dust-gold);box-shadow:0 0 8px rgba(201,162,39,.35)}
+.dolo-lp-toggle .dust-pill-label{font-size:11px;font-weight:800;color:inherit;letter-spacing:.08px}
+.dolo-lp-toggle:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+#dolo-lp-meta{color:var(--fg-3)}
 .dolo-lp-select{height:38px;min-width:132px;padding:0 30px 0 12px;border:1px solid var(--line-2);border-radius:8px;background:var(--bg-3);color:var(--fg-2);font-size:11px;font-weight:600;outline:none;cursor:pointer;color-scheme:dark}
 .dolo-lp-select:hover,.dolo-lp-select:focus{border-color:var(--line-3);color:var(--fg-1)}
 .dolo-lp-history-controls[hidden]{display:none!important}
@@ -1037,6 +1039,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-table td{height:68px;min-width:0;overflow:hidden}
 .dolo-lp-table td > *{max-width:100%}
 .dolo-lp-table .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.dolo-lp-card .chain-badge{display:inline-flex;align-items:center;gap:7px;color:var(--fg-1);font-size:12.5px;font-weight:500;line-height:1.2;white-space:nowrap}
+.dolo-lp-card .chain-badge img{width:15px;height:15px;border-radius:50%;object-fit:contain;background:var(--bg-3);flex:0 0 15px}
 .dolo-lp-table th[data-dolo-lp-sort]{cursor:pointer}
 .dolo-lp-table th[data-dolo-lp-sort]:hover,.dolo-lp-table th.sorted{color:var(--fg-1)}
 .dolo-lp-table th .sort{display:inline-block;width:10px;margin-left:4px;color:var(--gold);font-size:8px;vertical-align:1px;text-align:center}
@@ -1047,7 +1051,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-range{display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:11px;color:var(--fg-2)}
 .dolo-lp-range span,.dolo-lp-range small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dolo-lp-range small{font-family:var(--sans);font-size:9px;color:var(--fg-4);text-transform:uppercase;letter-spacing:.7px}
-.dolo-lp-chip{display:inline-flex;align-items:center;justify-content:center;min-height:23px;padding:3px 8px;border:1px solid var(--line-2);border-radius:999px;background:rgba(255,255,255,.025);font-size:9px;font-weight:700;letter-spacing:.65px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap}
+.dolo-lp-chip{display:inline-flex;align-items:center;justify-content:center;min-height:23px;max-width:100%;padding:3px 8px;border:1px solid var(--line-2);border-radius:999px;background:rgba(255,255,255,.025);font-size:9px;font-weight:700;letter-spacing:.65px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dolo-lp-table td.status-cell{text-align:center;padding-left:4px;padding-right:4px}
 .dolo-lp-chip.verified,.dolo-lp-chip.in-range{color:var(--up);border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.07)}
 .dolo-lp-chip.partial,.dolo-lp-chip.stale{color:#d4b56f;border-color:rgba(212,181,111,.25);background:rgba(212,181,111,.07)}
 .dolo-lp-chip.out-of-range,.dolo-lp-chip.unavailable{color:var(--down);border-color:rgba(180,121,107,.25);background:rgba(180,121,107,.07)}
@@ -1084,7 +1089,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .dolo-lp-toolbar-secondary{margin-left:0}
   .dolo-lp-history-controls{display:grid;grid-template-columns:1fr;width:100%}
   .dolo-lp-history-controls[hidden]{display:none!important}
-  .dolo-lp-select,.dolo-lp-toolbar .dd,.dolo-lp-toolbar .dd-btn,.dolo-lp-low-liq{width:100%}
+  .dolo-lp-select,.dolo-lp-toolbar .dd,.dolo-lp-toolbar .dd-btn,.dolo-lp-toggle{width:100%}
   .dolo-lp-toolbar .dd-panel{left:0;right:0;min-width:0;max-width:none}
   .dolo-lp-details-btn{min-width:44px;min-height:44px}
   .dolo-lp-details-grid{grid-template-columns:1fr;gap:13px}
@@ -1558,9 +1563,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <label><span class="sr-only">History period</span><select class="dolo-lp-select" id="dolo-lp-history-period"><option value="24h">24H</option><option value="7d">7D</option><option value="30d" selected>30D</option><option value="90d">90D</option><option value="all">All</option></select></label>
           <label><span class="sr-only">History action</span><select class="dolo-lp-select" id="dolo-lp-history-action"><option value="all">All actions</option><option value="added">Added</option><option value="removed">Removed</option></select></label>
         </div>
-        <div class="dust-pill dolo-lp-low-liq" id="dolo-lp-low-liquidity" role="switch" aria-checked="false" tabindex="0" data-tooltip="Include pools below the $1K liquidity threshold">
+        <div class="dust-pill dolo-lp-toggle dolo-lp-low-liq" id="dolo-lp-low-liquidity" role="switch" aria-checked="false" tabindex="0" data-tooltip="Include pools below the $1K liquidity threshold">
           <div class="dust-switch-track"><div class="dust-switch-knob"></div></div>
           <span class="dust-pill-label">Low-liq pools</span>
+        </div>
+        <div class="dust-pill dolo-lp-toggle active" id="dolo-lp-hide-dust" role="switch" aria-checked="true" tabindex="0" data-tooltip="Hide LP positions worth less than $10">
+          <div class="dust-switch-track"><div class="dust-switch-knob"></div></div>
+          <span class="dust-pill-label">Hide dust</span>
         </div>
       </div>
     </div>
@@ -5924,18 +5933,23 @@ renderCexSupplyChart();
 <script>
 (()=>{
   "use strict";
-  const DATA_URL = "data/dolo-liquidity.json?v=20260812-exact-token-decimals";
+  const DATA_URL = "data/dolo-liquidity.json?v=20260812-filter-ux";
   const LOW_LIQUIDITY_USD = 1000;
+  const POSITION_DUST_USD = 10;
   const ACTIVE_HEADERS = [
-    ["chainKey","Chain"],["pair","Pair"],["wallet","Wallet"],["rangeStatus","Price Range"],
+    ["chainKey","Chain"],["wallet","Address"],["pair","Pair"],["rangeStatus","Price Range"],
     ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["quality","Status"],["details","Details"],
   ];
   const HISTORY_HEADERS = [
-    ["timestamp","Date"],["chainKey","Chain"],["pair","Pair"],["wallet","Wallet"],["action","Action"],
+    ["timestamp","Date"],["chainKey","Chain"],["wallet","Address"],["pair","Pair"],["action","Action"],
     ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["details","Details"],
   ];
-  const ACTIVE_WIDTHS = [9,13,19,14,10,12,10,7,6];
-  const HISTORY_WIDTHS = [10,9,13,19,9,11,13,10,6];
+  const ACTIVE_WIDTHS = [10,20,13,13,9,11,10,8,6];
+  const HISTORY_WIDTHS = [10,9,20,13,9,10,12,11,6];
+  const LP_CHAINS = {
+    ethereum: {name:"Ethereum", icon:"https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg"},
+    berachain: {name:"Berachain", icon:"https://icons.llamao.fi/icons/chains/rsz_berachain.jpg"},
+  };
   const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   const CHEV_DOWN_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
   const doloLpState = {
@@ -5945,6 +5959,7 @@ renderCexSupplyChart();
     pairs: new Set(),
     dexes: new Set(),
     includeLowLiquidity: false,
+    hideDust: true,
     historyPeriod: "30d",
     historyAction: "all",
     activeSort: {key:"valueUsd", dir:"desc"},
@@ -5998,6 +6013,7 @@ renderCexSupplyChart();
   function rowMatchesFilters(row){
     const pool = poolFor(row);
     if(!pool || !poolPassesLowLiquidity(pool)) return false;
+    if(doloLpState.hideDust && finite(row.valueUsd) && row.valueUsd < POSITION_DUST_USD) return false;
     if(doloLpState.chain !== "all" && row.chainKey !== doloLpState.chain) return false;
     if(doloLpState.pairs.size && !doloLpState.pairs.has(pool.pair)) return false;
     if(doloLpState.dexes.size && !doloLpState.dexes.has(poolDexKey(pool))) return false;
@@ -6034,12 +6050,12 @@ renderCexSupplyChart();
   }
   function validDecimals(decimals){ return Number.isInteger(decimals) && decimals >= 0 && decimals <= 255; }
   function groupedInteger(value){ return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
-  function rawAmount(raw, decimals){
+  function roundedRawAmount(raw, decimals){
     if(raw === null || raw === undefined || !/^\d+$/.test(String(raw)) || !validDecimals(decimals)) return "Unavailable";
-    const value = String(raw).padStart(decimals + 1, "0");
-    const whole = decimals ? value.slice(0, -decimals) : value;
-    const fraction = decimals ? value.slice(-decimals).replace(/0+$/, "").slice(0, 4) : "";
-    return groupedInteger(whole || "0") + (fraction ? `.${fraction}` : "");
+    const amount = BigInt(String(raw));
+    if(decimals === 0) return groupedInteger(amount.toString());
+    const unit = 10n ** BigInt(decimals);
+    return groupedInteger(((amount + unit / 2n) / unit).toString());
   }
   function exactRawAmount(raw, decimals){
     if(raw === null || raw === undefined || !/^\d+$/.test(String(raw)) || !validDecimals(decimals)) return "Unavailable";
@@ -6052,9 +6068,9 @@ renderCexSupplyChart();
     const decimals = Number(pool?.pairedDecimals);
     return validDecimals(decimals) ? decimals : null;
   }
-  function chainCell(chain){
-    const label = chain === "ethereum" ? "Ethereum" : "Berachain";
-    return `<span class="chain-chip"><span class="dot dot-${esc(chain)}"></span>${label}</span>`;
+  function chainCell(chainKey){
+    const chain = LP_CHAINS[chainKey] || {name:chainKey || "Unavailable", icon:""};
+    return `<span class="chain-badge"><img src="${esc(chain.icon)}" onerror="this.style.display='none'" alt="">${esc(chain.name)}</span>`;
   }
   function pairCell(pool){
     if(!pool) return "Unavailable";
@@ -6144,9 +6160,9 @@ renderCexSupplyChart();
     const pool = poolFor(row);
     const expanded = doloLpState.expandedId === row.id;
     const cells = `<tr data-dolo-lp-row="${esc(row.id)}">
-      <td>${chainCell(row.chainKey)}</td><td>${pairCell(pool)}</td><td>${walletCell(row)}</td><td>${rangeCell(row)}</td>
-      <td class="num">${rawAmount(row.doloRaw,18)}</td><td class="num">${rawAmount(row.pairedRaw,pairDecimals(pool))} ${esc(pool?.pairedSymbol || "")}</td>
-      <td class="num">${money(row.valueUsd)}</td><td>${chip(row.rangeStatus === "out_of_range" ? "out_of_range" : row.quality)}</td>
+      <td>${chainCell(row.chainKey)}</td><td>${walletCell(row)}</td><td>${pairCell(pool)}</td><td>${rangeCell(row)}</td>
+      <td class="num">${roundedRawAmount(row.doloRaw,18)}</td><td class="num">${roundedRawAmount(row.pairedRaw,pairDecimals(pool))} ${esc(pool?.pairedSymbol || "")}</td>
+      <td class="num">${money(row.valueUsd)}</td><td class="status-cell">${chip(row.rangeStatus === "out_of_range" ? "out_of_range" : row.quality)}</td>
       <td class="details-cell"><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-label="${expanded ? "Hide liquidity position details" : "Show liquidity position details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button></td></tr>`;
     return cells + (expanded ? detailRow(row) : "");
   }
@@ -6154,8 +6170,8 @@ renderCexSupplyChart();
     const pool = poolFor(row);
     const expanded = doloLpState.expandedId === row.id;
     const date = row.timestamp ? new Date(row.timestamp*1000).toLocaleDateString("en-US", {month:"short",day:"numeric",year:"numeric"}) : "Unavailable";
-    const cells = `<tr data-dolo-lp-row="${esc(row.id)}"><td>${esc(date)}</td><td>${chainCell(row.chainKey)}</td><td>${pairCell(pool)}</td><td>${walletCell(row)}</td>
-      <td>${chip(row.action)}</td><td class="num">${rawAmount(row.doloRaw,18)}</td><td class="num">${rawAmount(row.pairedRaw,pairDecimals(pool))} ${esc(pool?.pairedSymbol || "")}</td>
+    const cells = `<tr data-dolo-lp-row="${esc(row.id)}"><td>${esc(date)}</td><td>${chainCell(row.chainKey)}</td><td>${walletCell(row)}</td><td>${pairCell(pool)}</td>
+      <td class="status-cell">${chip(row.action)}</td><td class="num">${roundedRawAmount(row.doloRaw,18)}</td><td class="num">${roundedRawAmount(row.pairedRaw,pairDecimals(pool))} ${esc(pool?.pairedSymbol || "")}</td>
       <td class="num">${money(row.valueUsd)}</td><td class="details-cell"><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-label="${expanded ? "Hide liquidity event details" : "Show liquidity event details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button></td></tr>`;
     return cells + (expanded ? detailRow(row) : "");
   }
@@ -6240,6 +6256,52 @@ renderCexSupplyChart();
     }));
     sync();
   }
+  function availablePairValues(){
+    if(!doloLpState.data) return [];
+    const pools = doloLpState.chain === "all"
+      ? doloLpState.data.pools
+      : doloLpState.data.pools.filter(pool => pool.chainKey === doloLpState.chain);
+    return [...new Set(pools.map(pool => pool.pair))].sort();
+  }
+  function renderPairFilter(){
+    const root = byId("dolo-lp-pairs");
+    const options = root.querySelector(".dolo-lp-filter-options");
+    const values = availablePairValues();
+    const available = new Set(values);
+    [...doloLpState.pairs].forEach(value => {
+      if(!available.has(value)) doloLpState.pairs.delete(value);
+    });
+    root._doloLpValues = values;
+    const allSelected = doloLpState.pairs.size === 0;
+    options.innerHTML = `<div class="dd-opt select-all${allSelected ? " active" : ""}" data-dolo-lp-filter-all role="option" aria-selected="${allSelected}"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">All pairs</span></div>`
+      + values.map(value => {
+        const active = doloLpState.pairs.has(value);
+        return `<div class="dd-opt${active ? " active" : ""}" data-dolo-lp-filter-value="${esc(value)}" role="option" aria-selected="${active}"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="dd-opt-name">${esc(value)}</span></div>`;
+      }).join("");
+    const button = root.querySelector(".dd-btn");
+    button.classList.toggle("filtered", !allSelected);
+    button.querySelector(".lbl").textContent = allSelected ? "All pairs" : doloLpState.pairs.size === 1 ? [...doloLpState.pairs][0] : `${doloLpState.pairs.size} pairs`;
+    button.querySelector(".count").textContent = String(allSelected ? values.length : doloLpState.pairs.size);
+    options.querySelector("[data-dolo-lp-filter-all]").addEventListener("click", event => {
+      event.stopPropagation();
+      doloLpState.pairs.clear();
+      doloLpState.page = 0;
+      renderPairFilter();
+      render();
+    });
+    options.querySelectorAll("[data-dolo-lp-filter-value]").forEach(option => option.addEventListener("click", event => {
+      event.stopPropagation();
+      const value = option.dataset.doloLpFilterValue;
+      if(doloLpState.pairs.size === 0) doloLpState.pairs.add(value);
+      else if(doloLpState.pairs.has(value)) doloLpState.pairs.delete(value);
+      else doloLpState.pairs.add(value);
+      if(doloLpState.pairs.size === values.length) doloLpState.pairs.clear();
+      doloLpState.page = 0;
+      renderPairFilter();
+      render();
+    }));
+    root._syncDoloLpFilter = renderPairFilter;
+  }
   function bind(){
     document.querySelectorAll("[data-dolo-lp-mode]").forEach(button => button.addEventListener("click",()=>{
       doloLpState.mode=button.dataset.doloLpMode; doloLpState.page=0; doloLpState.expandedId=null;
@@ -6257,20 +6319,25 @@ renderCexSupplyChart();
       setDropdownButtonIcon(button,option);
       button.classList.toggle("filtered",doloLpState.chain!=="all");
       closeDropdownPanelFromOption(option);
-      doloLpState.page=0;render();
+      doloLpState.page=0;renderPairFilter();render();
     }));
     document.querySelectorAll("[data-dolo-lp-clear]").forEach(clear=>clear.addEventListener("click",event=>{
       event.preventDefault();event.stopPropagation();
       const kind=clear.dataset.doloLpClear;
       const root=byId(`dolo-lp-${kind}`);
       const set=doloLpState[kind];
-      set.clear();(root._doloLpValues||[]).forEach(value=>set.add(value));
+      set.clear();
+      if(kind !== "pairs") (root._doloLpValues||[]).forEach(value=>set.add(value));
       root._syncDoloLpFilter?.();doloLpState.page=0;render();
     }));
     const lowLiquidity=byId("dolo-lp-low-liquidity");
     const toggleLowLiquidity=()=>{doloLpState.includeLowLiquidity=!doloLpState.includeLowLiquidity;lowLiquidity.classList.toggle("active",doloLpState.includeLowLiquidity);lowLiquidity.setAttribute("aria-checked",String(doloLpState.includeLowLiquidity));doloLpState.page=0;render()};
     lowLiquidity.addEventListener("click",toggleLowLiquidity);
     lowLiquidity.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();toggleLowLiquidity()}});
+    const hideDust=byId("dolo-lp-hide-dust");
+    const toggleDust=()=>{doloLpState.hideDust=!doloLpState.hideDust;hideDust.classList.toggle("active",doloLpState.hideDust);hideDust.setAttribute("aria-checked",String(doloLpState.hideDust));doloLpState.page=0;render()};
+    hideDust.addEventListener("click",toggleDust);
+    hideDust.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();toggleDust()}});
     byId("dolo-lp-history-period").addEventListener("change",event=>{doloLpState.historyPeriod=event.target.value;doloLpState.page=0;render()});
     byId("dolo-lp-history-action").addEventListener("change",event=>{doloLpState.historyAction=event.target.value;doloLpState.page=0;render()});
     byId("dolo-lp-card").addEventListener("click",async event=>{
@@ -6291,7 +6358,7 @@ renderCexSupplyChart();
       const data=await response.json();
       if(!Array.isArray(data.pools)||!Array.isArray(data.activePositions)||!Array.isArray(data.history)) throw new Error("invalid artifact");
       doloLpState.data=data;
-      fillMultiFilter("dolo-lp-pairs",[...new Set(data.pools.map(pool=>pool.pair))].sort(),doloLpState.pairs);
+      renderPairFilter();
       fillMultiFilter("dolo-lp-dexes",[...new Set(data.pools.map(poolDexKey))].sort(),doloLpState.dexes);
       const affected=data.sources.filter(source=>source.status!=="complete");
       byId("dolo-lp-meta").innerHTML=`<span class="pulse${affected.length?" pulse-loading":""}"></span>Data updated · ${agoLabel(data.generatedAt)}`;

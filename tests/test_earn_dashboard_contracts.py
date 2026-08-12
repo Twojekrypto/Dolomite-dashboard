@@ -435,10 +435,17 @@ for (const [input, decimals, expected] of cases) {
         self.assertIn("cron: '11 */2 * * *'", workflow)
         self.assertIn("max-parallel: 3", workflow)
         self.assertIn("group: ${{ matrix.concurrency_group }}", workflow)
+        self.assertIn("earn-ethereum-canonical-coverage", workflow)
         self.assertIn("earn-arbitrum-canonical-history", workflow)
         self.assertIn("earn-berachain-canonical-history", workflow)
         self.assertIn("earn-secondary-canonical-history-mantle", workflow)
         self.assertNotIn("--existing-history-only", workflow)
+        for env_name in (
+            "ALCHEMY_ETHEREUM_RPC_KAT",
+            "ALCHEMY_ETHEREUM_RPC_DAN",
+            "ALCHEMY_ETHEREUM_RPC_ZEN",
+        ):
+            self.assertIn(env_name, workflow)
         self.assertIn("build_earn_verified_ledger_shards.py", workflow)
         self.assertLess(
             workflow.index("build_earn_resolved_interest_ledger.py"),
@@ -1252,9 +1259,10 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
             "ALCHEMY_ETHEREUM_RPC_ZEN",
         ):
             self.assertIn(env_name, workflow)
-        self.assertNotIn("--existing-history-only", workflow)
+        self.assertIn("--existing-history-only", workflow)
+        self.assertNotIn("--include-priority-even-if-unknown", workflow)
         self.assertIn("--prefer-stale-history", workflow)
-        self.assertIn("Select missing and oldest Ethereum canonical wallets", workflow)
+        self.assertIn("Select oldest existing Ethereum canonical wallets", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)

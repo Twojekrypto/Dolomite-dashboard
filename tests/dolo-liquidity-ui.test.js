@@ -15,6 +15,7 @@ test('liquidity card is one shell between flows and fresh wallets', () => {
   for (const id of [
     'dolo-lp-count', 'dolo-lp-meta', 'dolo-lp-summary', 'dolo-lp-search',
     'dolo-lp-chain', 'dolo-lp-pairs', 'dolo-lp-dexes', 'dolo-lp-low-liquidity',
+    'dolo-lp-hide-dust',
     'dolo-lp-history-period', 'dolo-lp-history-action', 'dolo-lp-head',
     'dolo-lp-body', 'dolo-lp-info', 'dolo-lp-pager',
   ]) assert.match(html, new RegExp(`id=["']${id}["']`));
@@ -25,7 +26,7 @@ test('liquidity card is one shell between flows and fresh wallets', () => {
 });
 
 test('liquidity UI keeps exact active/history schemas and stable ten-row pagination', () => {
-  for (const label of ['Chain', 'Pair', 'Wallet', 'Price Range', 'DOLO', 'Paired Asset', 'Value', 'Status', 'Details']) {
+  for (const label of ['Chain', 'Address', 'Pair', 'Price Range', 'DOLO', 'Paired Asset', 'Value', 'Status', 'Details']) {
     assert.match(html, new RegExp(label.replace(' ', '\\s*')));
   }
   for (const label of ['Date', 'Action']) assert.match(html, new RegExp(label));
@@ -36,8 +37,8 @@ test('liquidity UI keeps exact active/history schemas and stable ten-row paginat
 
 test('liquidity table uses fixed mode-specific column geometry', () => {
   assert.match(html, /\.dolo-lp-table\{[^}]*table-layout:fixed/s);
-  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[9,13,19,14,10,12,10,7,6\]/);
-  assert.match(html, /const HISTORY_WIDTHS\s*=\s*\[10,9,13,19,9,11,13,10,6\]/);
+  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[10,20,13,13,9,11,10,8,6\]/);
+  assert.match(html, /const HISTORY_WIDTHS\s*=\s*\[10,9,20,13,9,10,12,11,6\]/);
   assert.match(html, /id="dolo-lp-columns" data-dolo-lp-columns="active"/);
   assert.match(html, /columns\.dataset\.doloLpColumns\s*=\s*doloLpState\.mode/);
   assert.match(html, /widths\.map\(width\s*=>\s*`<col style="width:\$\{width\}%">`\)/);
@@ -74,6 +75,24 @@ test('liquidity quantities use on-chain token decimals and expose exact position
   assert.match(html, /Exact upper bound/);
   assert.match(html, /function exactRangeBound\(value\)/);
   assert.match(html, /dolo-lp-exact/);
+  assert.match(html, /function roundedRawAmount\(raw, decimals\)/);
+  assert.match(html, /roundedRawAmount\(row\.doloRaw,18\)/);
+  assert.match(html, /roundedRawAmount\(row\.pairedRaw,pairDecimals\(pool\)\)/);
+});
+
+test('chain selection narrows the pair menu and All pairs is an exclusive reset', () => {
+  assert.match(html, /function availablePairValues\(\)/);
+  assert.match(html, /pool\.chainKey\s*===\s*doloLpState\.chain/);
+  assert.match(html, /data-dolo-lp-filter-all/);
+  assert.match(html, />All pairs</);
+  assert.match(html, /doloLpState\.pairs\.clear\(\)/);
+  assert.match(html, /renderPairFilter\(\)/);
+});
+
+test('active and history rows place Address before Pair', () => {
+  assert.match(html, /\["chainKey","Chain"\],\["wallet","Address"\],\["pair","Pair"\]/);
+  assert.match(html, /\["timestamp","Date"\],\["chainKey","Chain"\],\["wallet","Address"\],\["pair","Pair"\]/);
+  assert.match(html, /<td>\$\{chainCell\(row\.chainKey\)\}<\/td><td>\$\{walletCell\(row\)\}<\/td><td>\$\{pairCell\(pool\)\}<\/td>/);
 });
 
 test('mode, filters, null pricing and action groups are explicit behavior contracts', () => {
@@ -84,7 +103,7 @@ test('mode, filters, null pricing and action groups are explicit behavior contra
   assert.match(html, /row\.liquidityUsd\s*===\s*null/);
   assert.match(html, /Added.*Increased/);
   assert.match(html, /Removed.*Closed/);
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-exact-token-decimals/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-filter-ux/);
   assert.match(html, /Data unavailable — try again later/);
 });
 
@@ -101,11 +120,11 @@ test('wallet and provenance UX is scoped and does not confuse poolId with a cont
 });
 
 test('both DOLO route entry points advance the liquidity feature cache once', () => {
-  const version = 'dolo-liquidity-exact-decimals-20260812';
+  const version = 'dolo-liquidity-filter-ux-20260812';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-exact-token-decimals/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-filter-ux/);
 });
 
 test('Details remains usable in Safari and meets the mobile touch target', () => {
@@ -130,6 +149,7 @@ test('history controls hide without displacing the right-aligned low-liquidity s
   const toolbar = html.slice(toolbarStart, toolbarEnd);
   assert.ok(toolbar.indexOf('class="tb-left dolo-lp-toolbar-primary"') >= 0);
   assert.ok(toolbar.indexOf('id="dolo-lp-low-liquidity"') > toolbar.indexOf('class="tb-right dolo-lp-toolbar-secondary"'));
+  assert.ok(toolbar.indexOf('id="dolo-lp-hide-dust"') > toolbar.indexOf('id="dolo-lp-low-liquidity"'));
 });
 
 test('liquidity controls reuse the established DOLO dropdown and holder mode patterns', () => {
@@ -145,7 +165,19 @@ test('liquidity controls reuse the established DOLO dropdown and holder mode pat
 
   assert.match(html, /class=["'][^"']*holder-bucket-mode[^"']*dolo-lp-mode[^"']*["']/);
   assert.match(html, /class=["'][^"']*dust-pill[^"']*["'][^>]+id=["']dolo-lp-low-liquidity["']/);
+  assert.match(html, /class=["'][^"']*dust-pill[^"']*["'][^>]+id=["']dolo-lp-hide-dust["']/);
   assert.match(html, />Low-liq pools</);
+  assert.match(html, />Hide dust</);
+});
+
+test('dust filtering, asset-style chain badges and contained status chips are explicit', () => {
+  assert.match(html, /const POSITION_DUST_USD\s*=\s*10/);
+  assert.match(html, /hideDust:\s*true/);
+  assert.match(html, /doloLpState\.hideDust\s*&&\s*finite\(row\.valueUsd\)\s*&&\s*row\.valueUsd\s*<\s*POSITION_DUST_USD/);
+  assert.match(html, /class="chain-badge"><img src="\$\{esc\(chain\.icon\)\}"/);
+  assert.match(html, /\.dolo-lp-card \.chain-badge\{[^}]*font-size:12\.5px[^}]*font-weight:500/s);
+  assert.match(html, /\.dolo-lp-chip\{[^}]*max-width:100%[^}]*overflow:hidden[^}]*text-overflow:ellipsis/s);
+  assert.match(html, /#dolo-lp-meta\{[^}]*color:var\(--fg-3\)/s);
 });
 
 test('header metadata is separated before the active/history mode row', () => {
