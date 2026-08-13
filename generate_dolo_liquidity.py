@@ -74,6 +74,9 @@ V4_EVENT_SIGNATURES = {
     "transfer": "Transfer(address,address,uint256)",
 }
 KODIAK_ISLAND_CREATED_SIGNATURE = "IslandCreated(address,address,address,address)"
+KODIAK_FARM_DEPLOYED_SIGNATURE = "FarmDeployed(address,address)"
+KODIAK_STAKE_LOCKED_SIGNATURE = "StakeLocked(address,uint256,uint256,bytes32)"
+KODIAK_WITHDRAW_LOCKED_SIGNATURE = "WithdrawLocked(address,uint256,bytes32)"
 BULLA_INCREASE_SIGNATURE = "IncreaseLiquidity(uint256,uint128,uint128,uint256,uint256,address)"
 KODIAK_V3_SUBGRAPH = (
     "https://api.subgraph.ormilabs.com/api/public/"
@@ -81,6 +84,7 @@ KODIAK_V3_SUBGRAPH = (
 )
 BULLA_BOUNDED_LOOKBACK_BLOCKS = 1_500_000
 ROUTESCAN_TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
+_KODIAK_FARM_INDEX_CACHE: dict[tuple[str, str, int], dict[str, list[dict[str, Any]]]] = {}
 
 
 def _finite_decimal(value: Any, label: str, *, allow_zero: bool = True) -> Decimal:
@@ -1253,6 +1257,230 @@ def decode_v4_pool_manager_log(log: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def partition_v4_modifications(
+    modifications: list[dict[str, Any]], canonical_sender: str
+) -> dict[str, list[dict[str, Any]]]:
+    """Keep canonical NFT and non-canonical manager liquidity in separate paths."""
+    canonical = _normalized_address(canonical_sender, "V4 canonical sender")
+    result = {"canonical": [], "noncanonical": []}
+    for event in modifications:
+        if not isinstance(event, dict) or event.get("kind") != "modify_liquidity":
+            raise ValueError("V4 sender partition requires ModifyLiquidity events")
+        sender = _normalized_address(event.get("sender"), "V4 liquidity sender")
+        result["canonical" if sender == canonical else "noncanonical"].append(event)
+    return result
+
+
+def build_v4_unresolved_sender_rows(
+    pool: dict[str, Any],
+    modifications: list[dict[str, Any]],
+    pool_state: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Expose exact in-pool amounts for unsupported V4 manager custody."""
+    pool_id = _pool_id_from_topic(pool.get("identifier"), "V4 pool ID")
+    currency0 = _normalized_address(pool_state.get("currency0"), "V4 currency0")
+    currency1 = _normalized_address(pool_state.get("currency1"), "V4 currency1")
+    if DOLO_ADDRESS not in {currency0, currency1}:
+        raise ValueError("V4 unresolved manager pool must contain DOLO")
+    current_sqrt = _exact_int(pool_state.get("sqrtPriceX96"), "current V4 sqrt price")
+    current_tick = _exact_int(pool_state.get("currentTick"), "current V4 tick")
+    decimals0 = _exact_int(pool_state.get("decimals0"), "V4 currency0 decimals")
+    decimals1 = _exact_int(pool_state.get("decimals1"), "V4 currency1 decimals")
+    net: defaultdict[tuple[str, int, int, str], int] = defaultdict(int)
+    for event in modifications:
+        if event.get("kind") != "modify_liquidity":
+            raise ValueError("unsupported manager rows require ModifyLiquidity events")
+        if _pool_id_from_topic(event.get("poolId"), "V4 event pool ID") != pool_id:
+            continue
+        sender = _normalized_address(event.get("sender"), "V4 liquidity sender")
+        lower = _exact_int(event.get("tickLower"), "V4 lower tick")
+        upper = _exact_int(event.get("tickUpper"), "V4 upper tick")
+        if lower >= upper:
+            raise ValueError("V4 manager tick range must be increasing")
+        salt = _pool_id_from_topic(event.get("salt"), "V4 position salt")
+        net[(sender, lower, upper, salt)] += _exact_int(
+            event.get("liquidityDelta"), "V4 liquidity delta"
+        )
+    grouped: defaultdict[str, list[tuple[int, int, str, int]]] = defaultdict(list)
+    for (sender, lower, upper, salt), liquidity_raw in sorted(net.items()):
+        if liquidity_raw < 0:
+            raise ValueError("V4 manager liquidity replay became negative")
+        if liquidity_raw > 0:
+            grouped[sender].append((lower, upper, salt, liquidity_raw))
+    rows = []
+    for sender, positions in sorted(grouped.items()):
+        amount0 = amount1 = total_liquidity = 0
+        ranges = []
+        bounds = []
+        any_in_range = False
+        for lower, upper, salt, liquidity_raw in positions:
+            part0, part1 = amounts_for_liquidity(
+                liquidity_raw,
+                current_sqrt,
+                sqrt_ratio_at_tick(lower),
+                sqrt_ratio_at_tick(upper),
+            )
+            amount0 += part0
+            amount1 += part1
+            total_liquidity += liquidity_raw
+            in_range = lower <= current_tick < upper
+            any_in_range = any_in_range or in_range
+            bound_a = tick_to_paired_per_dolo(
+                lower, currency0, currency1, decimals0, decimals1, DOLO_ADDRESS
+            )
+            bound_b = tick_to_paired_per_dolo(
+                upper, currency0, currency1, decimals0, decimals1, DOLO_ADDRESS
+            )
+            low, high = sorted((bound_a, bound_b))
+            bounds.extend((low, high))
+            ranges.append(
+                {
+                    "salt": salt,
+                    "tickLower": lower,
+                    "tickUpper": upper,
+                    "liquidityRaw": str(liquidity_raw),
+                    "rangeLower": str(low),
+                    "rangeUpper": str(high),
+                    "rangeStatus": "in_range" if in_range else "out_of_range",
+                }
+            )
+        range_lower = min(bounds)
+        range_upper = max(bounds)
+        rows.append(
+            {
+                "id": f"{pool['chainKey']}:uniswap-v4:{pool_id}:manager:{sender}",
+                "sourceKey": f"{pool['chainKey']}:uniswap-v4",
+                "poolId": pool_id,
+                "poolIdentifierType": "poolId",
+                "poolExplorerUrl": None,
+                "dexscreenerUrl": pool.get("sourceUrl")
+                or f"https://dexscreener.com/{pool['chainKey']}/{pool_id}",
+                "chainKey": pool["chainKey"],
+                "adapter": "uniswap-v4",
+                "pair": pool.get("pair"),
+                "positionType": "uniswap_v4_manager_custody",
+                "positionId": sender,
+                "liquidityRaw": str(total_liquidity),
+                "rangeLower": str(range_lower),
+                "rangeUpper": str(range_upper),
+                "rangeStatus": "in_range" if any_in_range else "out_of_range",
+                "positionRanges": ranges,
+                "amount0Raw": str(amount0),
+                "amount1Raw": str(amount1),
+                "doloRaw": str(amount0 if currency0 == DOLO_ADDRESS else amount1),
+                "pairedRaw": str(amount1 if currency0 == DOLO_ADDRESS else amount0),
+                "valueUsd": None,
+                "custodian": sender,
+                "beneficialOwner": None,
+                "attributionPath": "unresolved_contract",
+                "attributionReason": (
+                    "non-canonical V4 manager; in-pool liquidity is exact but "
+                    "beneficial share ownership is unresolved"
+                ),
+                "positionStatus": "custodied_unresolved",
+                "quality": "unavailable",
+            }
+        )
+    return rows
+
+
+def _build_v4_noncanonical_rows(
+    registry: dict[str, Any],
+    pool: dict[str, Any],
+    modifications: list[dict[str, Any]],
+    pool_state: dict[str, Any],
+    latest_block: int,
+) -> dict[str, Any]:
+    """Resolve supported V4 share vaults and retain exact unsupported custody."""
+    aggregate_rows = build_v4_unresolved_sender_rows(pool, modifications, pool_state)
+    if not aggregate_rows:
+        return {"activePositions": [], "unresolved": []}
+    chain_key = pool["chainKey"]
+    chain = registry["chains"][chain_key]
+    expected_pool_manager = chain["adapters"]["uniswap-v4"]["poolManager"]
+    active = []
+    unresolved = []
+    for aggregate in aggregate_rows:
+        vault = aggregate["custodian"]
+        try:
+            pool_manager, = _eth_call(chain_key, vault, "poolManager()", ["address"])
+            if _normalized_address(pool_manager, "V4 vault pool manager") != expected_pool_manager:
+                raise ValueError("vault pool manager mismatch")
+            pool_key, = _eth_call(
+                chain_key,
+                vault,
+                "poolKey()",
+                ["(address,address,uint24,int24,address)"],
+            )
+            normalized_pool_key = (
+                _normalized_address(pool_key[0], "V4 vault currency0"),
+                _normalized_address(pool_key[1], "V4 vault currency1"),
+                _exact_int(int(pool_key[2]), "V4 vault fee"),
+                _exact_int(int(pool_key[3]), "V4 vault tick spacing"),
+                _normalized_address(pool_key[4], "V4 vault hooks"),
+            )
+            if _v4_pool_id(normalized_pool_key) != pool["identifier"]:
+                raise ValueError("vault pool key mismatch")
+            total0, total1, _fee0, _fee1 = _eth_call(
+                chain_key,
+                vault,
+                "getTotalAmounts()",
+                ["uint256", "uint256", "uint256", "uint256"],
+            )
+            total_supply, = _eth_call(chain_key, vault, "totalSupply()", ["uint256"])
+            total0 = _raw_integer(int(total0), "V4 vault total0")
+            total1 = _raw_integer(int(total1), "V4 vault total1")
+            total_supply = _raw_integer(int(total_supply), "V4 vault total supply")
+            if total_supply <= 0:
+                raise ValueError("V4 vault total supply must be positive")
+            transfer_logs = _routescan_logs(
+                chain["chainId"],
+                vault,
+                event_topic(V2_EVENT_SIGNATURES["transfer"]),
+                chain["discoveryStartBlock"],
+                latest_block,
+            )
+            balances = replay_erc20_share_balances(transfer_logs, total_supply)
+            contracts = _contract_owners(chain_key, set(balances) | {vault})
+            currency0 = pool_state["currency0"]
+            underlying = {
+                **aggregate,
+                "id": f"{aggregate['id']}:vault-total",
+                "positionType": "uniswap_v4_share_vault",
+                "amount0Raw": str(total0),
+                "amount1Raw": str(total1),
+                "doloRaw": str(total0 if currency0 == DOLO_ADDRESS else total1),
+                "pairedRaw": str(total1 if currency0 == DOLO_ADDRESS else total0),
+                "attributionPath": "uniswap_v4_share_vault",
+                "attributionReason": "exact V4 share-vault totals and ERC-20 balances",
+                "quality": "verified",
+            }
+            allocated = allocate_v4_share_vault_position(
+                underlying,
+                {"address": vault, "totalShares": total_supply, "balances": balances},
+                contract_addresses=contracts,
+            )
+            active.extend(allocated)
+            unresolved.extend(
+                {
+                    "manager": vault,
+                    "custodian": row.get("custodian"),
+                    "reason": row.get("attributionReason"),
+                }
+                for row in allocated
+                if not row.get("beneficialOwner")
+            )
+        except Exception as exc:
+            reason = sanitize_error(exc)
+            aggregate["attributionReason"] = (
+                "non-canonical V4 manager retained as custody because exact share "
+                f"attribution is unavailable: {reason}"
+            )
+            active.append(aggregate)
+            unresolved.append({"manager": vault, "reason": reason})
+    return {"activePositions": active, "unresolved": unresolved}
+
+
 def decode_v4_position_manager_log(log: dict[str, Any]) -> dict[str, Any] | None:
     """Decode v4 PositionManager ERC-721 and modify-position evidence."""
     topics = log.get("topics") if isinstance(log, dict) else None
@@ -1673,6 +1901,88 @@ def _raw_integer(value: Any, label: str) -> int:
     return parsed
 
 
+def _ordered_event_logs(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not isinstance(logs, list):
+        raise ValueError("event logs must be a list")
+    return sorted(
+        logs,
+        key=lambda log: (
+            _exact_int(log.get("blockNumber"), "event block number"),
+            _exact_int(log.get("transactionIndex"), "event transaction index"),
+            _exact_int(log.get("logIndex"), "event log index"),
+        ),
+    )
+
+
+def replay_erc20_share_balances(
+    logs: list[dict[str, Any]], total_supply: int
+) -> dict[str, int]:
+    """Replay canonical ERC-20 transfers and reconcile current share supply."""
+    expected_supply = _raw_integer(total_supply, "share total supply")
+    transfer_topic = event_topic("Transfer(address,address,uint256)")
+    balances: defaultdict[str, int] = defaultdict(int)
+    for log in _ordered_event_logs(logs):
+        topics = log.get("topics")
+        if not isinstance(topics, list) or len(topics) != 3:
+            raise ValueError("share Transfer must have sender and recipient topics")
+        if str(topics[0]).lower() != transfer_topic:
+            raise ValueError("share replay received a non-Transfer event")
+        sender = _address_from_topic(topics[1], "share sender")
+        recipient = _address_from_topic(topics[2], "share recipient")
+        data_hex = str(log.get("data") or "").strip().lower()
+        if not re.fullmatch(r"0x[0-9a-f]{64}", data_hex):
+            raise ValueError("share Transfer amount must be one uint256 word")
+        (amount,) = decode(["uint256"], bytes.fromhex(data_hex[2:]))
+        amount = _raw_integer(int(amount), "share Transfer amount")
+        if sender != ZERO_ADDRESS:
+            if balances[sender] < amount:
+                raise ValueError("share transfer exceeds proven balance")
+            balances[sender] -= amount
+        if recipient != ZERO_ADDRESS:
+            balances[recipient] += amount
+    result = {address: amount for address, amount in sorted(balances.items()) if amount > 0}
+    if sum(result.values()) != expected_supply:
+        raise ValueError("share balances do not reconcile to total supply")
+    return result
+
+
+def replay_kodiak_farm_balances(
+    logs: list[dict[str, Any]], total_locked: int
+) -> dict[str, int]:
+    """Replay Kodiak locked-stake events and reconcile current farm custody."""
+    expected_locked = _raw_integer(total_locked, "farm total locked")
+    stake_topic = event_topic("StakeLocked(address,uint256,uint256,bytes32)")
+    withdraw_topic = event_topic("WithdrawLocked(address,uint256,bytes32)")
+    balances: defaultdict[str, int] = defaultdict(int)
+    for log in _ordered_event_logs(logs):
+        topics = log.get("topics")
+        if not isinstance(topics, list) or len(topics) != 2:
+            raise ValueError("Kodiak farm event must have one user topic")
+        signature = str(topics[0]).lower()
+        user = _address_from_topic(topics[1], "Kodiak farm user")
+        data_hex = str(log.get("data") or "").strip().lower()
+        if not re.fullmatch(r"0x(?:[0-9a-f]{64})+", data_hex):
+            raise ValueError("Kodiak farm event data must contain ABI words")
+        data = bytes.fromhex(data_hex[2:])
+        if signature == stake_topic:
+            amount, _seconds, _stake_id = decode(
+                ["uint256", "uint256", "bytes32"], data
+            )
+            balances[user] += _raw_integer(int(amount), "Kodiak farm stake")
+        elif signature == withdraw_topic:
+            amount, _stake_id = decode(["uint256", "bytes32"], data)
+            amount = _raw_integer(int(amount), "Kodiak farm withdrawal")
+            if balances[user] < amount:
+                raise ValueError("Kodiak farm withdrawal exceeds proven stake")
+            balances[user] -= amount
+        else:
+            raise ValueError("farm replay received an unsupported event")
+    result = {address: amount for address, amount in sorted(balances.items()) if amount > 0}
+    if sum(result.values()) != expected_locked:
+        raise ValueError("farm balances do not reconcile to total locked")
+    return result
+
+
 def _allocate_total_by_claims(
     total: int, claims: list[dict[str, Any]]
 ) -> list[int]:
@@ -1736,18 +2046,29 @@ def allocate_kodiak_island_position(
             )
             for address, value in (state.get("stakedBalances") or {}).items()
         }
+        unresolved_balance = _raw_integer(
+            state.get("unresolvedBalance", 0), "Kodiak staking unresolved balance"
+        )
         reasons = []
         if staking_token != island:
             reasons.append("staking token mismatch")
         if custody_balance != balances.get(farm, 0):
             reasons.append("farm custody balance mismatch")
-        if sum(staked_balances.values()) != custody_balance:
+        if sum(staked_balances.values()) + unresolved_balance != custody_balance:
             reasons.append("farm staker balances do not reconcile")
         farms_by_address[farm] = {
             "address": farm,
             "stakedBalances": staked_balances,
             "supported": not reasons,
             "reason": "; ".join(reasons),
+            "unresolvedBalance": unresolved_balance,
+            "attributionPath": state.get(
+                "attributionPath", "kodiak_island_farm"
+            ),
+            "attributionReason": state.get(
+                "attributionReason",
+                "farm staking token and per-user balances reconcile",
+            ),
         }
 
     claims = []
@@ -1775,12 +2096,26 @@ def allocate_kodiak_island_position(
                             "beneficialOwner": staker,
                             "custodian": holder,
                             "shares": staked_shares,
-                            "path": "kodiak_island_farm",
+                            "path": farm["attributionPath"],
                             "quality": "verified",
                             "status": "active",
-                            "reason": "farm staking token and per-user balances reconcile",
+                            "reason": farm["attributionReason"],
                         }
                     )
+            if farm["unresolvedBalance"] > 0:
+                claims.append(
+                    {
+                        "beneficialOwner": None,
+                        "custodian": holder,
+                        "shares": farm["unresolvedBalance"],
+                        "path": "unresolved_contract",
+                        "quality": "unavailable",
+                        "status": "custodied_unresolved",
+                        "reason": (
+                            "exact on-chain staking residual has no proven wallet owner"
+                        ),
+                    }
+                )
             continue
         if holder in contracts:
             reason = (
@@ -1860,6 +2195,102 @@ def allocate_kodiak_island_position(
                 "island": island,
                 "shareBalanceRaw": str(claim["shares"]),
                 "shareOfIsland": str(Decimal(claim["shares"]) / Decimal(total_shares)),
+                "custodian": claim["custodian"],
+                "beneficialOwner": claim["beneficialOwner"],
+                "attributionPath": claim["path"],
+                "attributionReason": claim["reason"],
+                "positionStatus": claim["status"],
+                "quality": quality,
+                **{field: str(allocations[field][index]) for field in raw_fields},
+            }
+        )
+    return rows
+
+
+def allocate_v4_share_vault_position(
+    underlying_position: dict[str, Any],
+    vault_state: dict[str, Any],
+    *,
+    contract_addresses: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Allocate exact V4 fungible-vault totals without guessing contract owners."""
+    if not isinstance(underlying_position, dict):
+        raise ValueError("underlying V4 vault position must be an object")
+    vault = _normalized_address(vault_state.get("address"), "V4 share vault")
+    total_shares = _raw_integer(vault_state.get("totalShares"), "V4 vault total shares")
+    if total_shares <= 0:
+        raise ValueError("V4 vault total shares must be positive")
+    balances = {
+        _normalized_address(address, "V4 vault share holder"): _raw_integer(
+            value, "V4 vault share balance"
+        )
+        for address, value in (vault_state.get("balances") or {}).items()
+    }
+    balances = {address: value for address, value in balances.items() if value > 0}
+    if sum(balances.values()) != total_shares:
+        raise ValueError("V4 vault holder balances must reconcile exactly to total shares")
+    contracts = {
+        _normalized_address(address, "contract address")
+        for address in (contract_addresses or set())
+    }
+    claims = []
+    for holder, shares in sorted(balances.items()):
+        unresolved = holder in contracts
+        claims.append(
+            {
+                "beneficialOwner": None if unresolved else holder,
+                "custodian": holder if unresolved else vault,
+                "shares": shares,
+                "path": "unresolved_contract" if unresolved else "uniswap_v4_share_vault",
+                "quality": "unavailable" if unresolved else "verified",
+                "status": "custodied_unresolved" if unresolved else "active",
+                "reason": (
+                    "vault shares are held by an unsupported custody contract"
+                    if unresolved
+                    else "direct ERC-20 share balance in a verified V4 liquidity vault"
+                ),
+            }
+        )
+    raw_fields = ("amount0Raw", "amount1Raw", "doloRaw", "pairedRaw")
+    allocations = {
+        field: _allocate_total_by_claims(
+            _raw_integer(underlying_position.get(field), f"underlying {field}"),
+            claims,
+        )
+        for field in raw_fields
+    }
+    allocation_group = f"{underlying_position.get('id')}:v4-share-vault:{vault}"
+    underlying_quality = underlying_position.get("quality")
+    rows = []
+    for index, claim in enumerate(claims):
+        quality = claim["quality"]
+        if quality == "verified" and underlying_quality in {"partial", "stale"}:
+            quality = underlying_quality
+        identity = claim["beneficialOwner"] or "unresolved-" + claim["custodian"]
+        rows.append(
+            {
+                **underlying_position,
+                "id": (
+                    f"{underlying_position.get('id')}:{claim['path']}:"
+                    f"{claim['custodian']}:{identity}"
+                ),
+                "positionType": "uniswap_v4_vault_share",
+                "allocationGroup": allocation_group,
+                "allocationTotalAmount0Raw": str(
+                    _raw_integer(underlying_position.get("amount0Raw"), "underlying amount0Raw")
+                ),
+                "allocationTotalAmount1Raw": str(
+                    _raw_integer(underlying_position.get("amount1Raw"), "underlying amount1Raw")
+                ),
+                "allocationTotalDoloRaw": str(
+                    _raw_integer(underlying_position.get("doloRaw"), "underlying doloRaw")
+                ),
+                "allocationTotalPairedRaw": str(
+                    _raw_integer(underlying_position.get("pairedRaw"), "underlying pairedRaw")
+                ),
+                "vault": vault,
+                "shareBalanceRaw": str(claim["shares"]),
+                "shareOfVault": str(Decimal(claim["shares"]) / Decimal(total_shares)),
                 "custodian": claim["custodian"],
                 "beneficialOwner": claim["beneficialOwner"],
                 "attributionPath": claim["path"],
@@ -2110,6 +2541,79 @@ def assemble_artifact(
         quality: sum(row.get("quality") == quality for row in sorted_active)
         for quality in ("verified", "partial", "stale", "unavailable")
     }
+    for pool in sorted_pools:
+        pool_id = str(pool.get("identifier") or pool.get("id") or "").lower()
+        pool_rows = [
+            row
+            for row in sorted_active
+            if str(row.get("poolId") or "").lower() == pool_id
+            and row.get("valueUsd") is not None
+        ]
+        attributed = sum(
+            (Decimal(str(row["valueUsd"])) for row in pool_rows), Decimal(0)
+        )
+        verified_wallet = sum(
+            (
+                Decimal(str(row["valueUsd"]))
+                for row in pool_rows
+                if row.get("beneficialOwner") and row.get("quality") == "verified"
+            ),
+            Decimal(0),
+        )
+        unresolved_custody = sum(
+            (
+                Decimal(str(row["valueUsd"]))
+                for row in pool_rows
+                if not row.get("beneficialOwner")
+            ),
+            Decimal(0),
+        )
+        money_quantum = Decimal("0.000001")
+        coverage = {
+            "attributedValueUsd": float(attributed.quantize(money_quantum)),
+            "verifiedWalletValueUsd": float(verified_wallet.quantize(money_quantum)),
+            "unresolvedCustodyValueUsd": float(unresolved_custody.quantize(money_quantum)),
+            "coveragePct": None,
+            "residualValueUsd": None,
+            "status": "unavailable",
+            "residualReason": "Pool liquidity is unavailable for coverage comparison.",
+        }
+        liquidity_value = pool.get("liquidityUsd")
+        if (
+            isinstance(liquidity_value, (int, float))
+            and not isinstance(liquidity_value, bool)
+            and math.isfinite(liquidity_value)
+            and liquidity_value >= 0
+        ):
+            pool_liquidity = Decimal(str(liquidity_value))
+            tolerance = Decimal("0.000001")
+            residual = pool_liquidity - attributed
+            over_attributed = residual < -tolerance
+            if over_attributed or abs(residual) <= tolerance:
+                residual = Decimal(0)
+            coverage_pct = (
+                Decimal(100)
+                if pool_liquidity == 0 and attributed == 0
+                else Decimal(0)
+                if pool_liquidity == 0
+                else attributed * Decimal(100) / pool_liquidity
+            )
+            complete = Decimal("99.5") <= coverage_pct <= Decimal("100.5")
+            coverage.update(
+                {
+                    "coveragePct": float(coverage_pct.quantize(Decimal("0.0001"))),
+                    "residualValueUsd": float(residual.quantize(money_quantum)),
+                    "status": "complete" if complete else "partial",
+                    "residualReason": (
+                        "Attributed active positions reconcile with pool liquidity."
+                        if complete
+                        else "Attributed position valuation exceeds pool liquidity; pricing or source timing requires review."
+                        if over_attributed
+                        else "Pool liquidity exceeds currently attributed active positions."
+                    ),
+                }
+            )
+        pool["coverage"] = coverage
     return {
         "schemaVersion": 1,
         "generatedAt": generated_at,
@@ -2332,6 +2836,406 @@ def _routescan_request(
     raise RuntimeError(f"Routescan request failed: {sanitize_error(last_error)}")
 
 
+def _routescan_token_holder_candidates(
+    chain_id: int,
+    token: str,
+    *,
+    session: requests.Session | None = None,
+) -> set[str]:
+    """Discover current holder candidates without trusting indexed balances."""
+    client = session or requests.Session()
+    contract = _normalized_address(token, "Routescan token holder contract")
+    url = f"https://api.routescan.io/v2/network/mainnet/evm/{chain_id}/etherscan/api"
+    candidates: set[str] = set()
+    for page in range(1, 101):
+        response = _routescan_request(
+            client,
+            url,
+            params={
+                "module": "token",
+                "action": "tokenholderlist",
+                "contractaddress": contract,
+                "page": page,
+                "offset": 1000,
+            },
+            timeout=45,
+        )
+        payload = response.json()
+        rows = payload.get("result") if isinstance(payload, dict) else None
+        no_records = (
+            isinstance(payload, dict)
+            and payload.get("status") == "0"
+            and isinstance(rows, str)
+            and "No records" in rows
+        )
+        if no_records:
+            break
+        if not isinstance(rows, list):
+            raise RuntimeError(
+                f"Routescan token holders failed: {sanitize_error(rows or payload)}"
+            )
+        for row in rows:
+            if not isinstance(row, dict):
+                raise RuntimeError("Routescan token holder row must be an object")
+            address = _normalized_address(
+                row.get("TokenHolderAddress"), "Routescan token holder"
+            )
+            quantity = str(row.get("TokenHolderQuantity") or "").strip()
+            if not re.fullmatch(r"[0-9]+", quantity):
+                raise RuntimeError("Routescan token holder quantity must be an integer")
+            if int(quantity) > 0:
+                candidates.add(address)
+        if len(rows) < 1000:
+            break
+    else:
+        raise RuntimeError("Routescan token holder pagination exceeded safety limit")
+    return candidates
+
+
+def _routescan_method_callers(
+    chain_id: int,
+    address: str,
+    signature: str,
+    from_block: int,
+    to_block: int,
+    *,
+    session: requests.Session | None = None,
+) -> set[str]:
+    """Discover successful direct callers of one exact contract method."""
+    start = _exact_int(from_block, "method caller start block")
+    end = _exact_int(to_block, "method caller end block")
+    if start < 0 or end < start:
+        raise ValueError("method caller block range is invalid")
+    client = session or requests.Session()
+    contract = _normalized_address(address, "Routescan method contract")
+    method_id = "0x" + Web3.keccak(text=signature).hex()[:8]
+    url = f"https://api.routescan.io/v2/network/mainnet/evm/{chain_id}/etherscan/api"
+
+    def fetch_range(range_start: int, range_end: int, depth: int = 0) -> list[Any]:
+        if depth > 24:
+            raise RuntimeError("Routescan method-call subdivision exceeded safety limit")
+        response = _routescan_request(
+            client,
+            url,
+            params={
+                "module": "account",
+                "action": "txlist",
+                "address": contract,
+                "startblock": range_start,
+                "endblock": range_end,
+                "page": 1,
+                "offset": 10000,
+                "sort": "asc",
+            },
+            timeout=45,
+        )
+        payload = response.json()
+        rows = payload.get("result") if isinstance(payload, dict) else None
+        if (
+            isinstance(payload, dict)
+            and payload.get("status") == "0"
+            and isinstance(rows, str)
+            and "No transactions" in rows
+        ):
+            return []
+        if not isinstance(rows, list):
+            raise RuntimeError(
+                f"Routescan method callers failed: {sanitize_error(rows or payload)}"
+            )
+        if len(rows) < 10000:
+            return rows
+        if range_start == range_end:
+            raise RuntimeError("Routescan method-call block exceeds page ceiling")
+        midpoint = (range_start + range_end) // 2
+        return fetch_range(range_start, midpoint, depth + 1) + fetch_range(
+            midpoint + 1, range_end, depth + 1
+        )
+
+    callers: set[str] = set()
+    for row in fetch_range(start, end):
+        if not isinstance(row, dict):
+            raise RuntimeError("Routescan method-call row must be an object")
+        if str(row.get("to") or "").lower() != contract:
+            continue
+        if str(row.get("methodId") or "").lower() != method_id:
+            continue
+        if str(row.get("isError") or "") != "0":
+            continue
+        callers.add(_normalized_address(row.get("from"), "Routescan method caller"))
+    return callers
+
+
+def _routescan_token_transfer_counterparties(
+    chain_id: int,
+    token: str,
+    account: str,
+    from_block: int,
+    to_block: int,
+    *,
+    session: requests.Session | None = None,
+) -> set[str]:
+    """Discover bounded early/recent token counterparties for custody resolution."""
+    start = _exact_int(from_block, "token transfer start block")
+    end = _exact_int(to_block, "token transfer end block")
+    if start < 0 or end < start:
+        raise ValueError("token transfer block range is invalid")
+    client = session or requests.Session()
+    contract = _normalized_address(token, "Routescan transfer token")
+    target = _normalized_address(account, "Routescan transfer account")
+    url = f"https://api.routescan.io/v2/network/mainnet/evm/{chain_id}/etherscan/api"
+    counterparties: set[str] = set()
+    for sort in ("asc", "desc"):
+        response = _routescan_request(
+            client,
+            url,
+            params={
+                "module": "account",
+                "action": "tokentx",
+                "address": target,
+                "contractaddress": contract,
+                "startblock": start,
+                "endblock": end,
+                "page": 1,
+                "offset": 1000,
+                "sort": sort,
+            },
+            timeout=60,
+        )
+        payload = response.json()
+        rows = payload.get("result") if isinstance(payload, dict) else None
+        if (
+            isinstance(payload, dict)
+            and payload.get("status") == "0"
+            and isinstance(rows, str)
+            and "No transactions" in rows
+        ):
+            continue
+        if not isinstance(rows, list):
+            raise RuntimeError(
+                f"Routescan token transfers failed: {sanitize_error(rows or payload)}"
+            )
+        for row in rows:
+            if not isinstance(row, dict):
+                raise RuntimeError("Routescan token transfer row must be an object")
+            sender = _normalized_address(row.get("from"), "token transfer sender")
+            recipient = _normalized_address(row.get("to"), "token transfer recipient")
+            if recipient == target and sender != ZERO_ADDRESS:
+                counterparties.add(sender)
+            if sender == target and recipient != ZERO_ADDRESS:
+                counterparties.add(recipient)
+    return counterparties
+
+
+def _read_indexed_holder_balances(
+    chain_key: str,
+    token: str,
+    candidates: set[str],
+) -> dict[str, int]:
+    """Read exact current balances for an index-discovered candidate set."""
+    contract = _normalized_address(token, "holder balance contract")
+    holders = sorted(
+        {_normalized_address(address, "holder candidate") for address in candidates}
+    )
+    calls = [
+        {
+            "id": f"balance:{holder}",
+            "address": contract,
+            "signature": "balanceOf(address)",
+            "outputTypes": ["uint256"],
+            "inputTypes": ["address"],
+            "args": [holder],
+        }
+        for holder in holders
+    ]
+    values, errors = _batch_eth_call_args(chain_key, calls)
+    if errors or len(values) != len(calls):
+        raise RuntimeError("one or more exact holder balances are unavailable")
+    balances: dict[str, int] = {}
+    for holder in holders:
+        call_id = f"balance:{holder}"
+        raw = values.get(call_id)
+        if not isinstance(raw, tuple) or len(raw) != 1:
+            raise RuntimeError(f"invalid exact holder balance for {holder}")
+        amount = _raw_integer(int(raw[0]), "exact holder balance")
+        if amount > 0:
+            balances[holder] = amount
+    return balances
+
+
+def _reconcile_indexed_holder_balances(
+    chain_key: str,
+    token: str,
+    candidates: set[str],
+    expected_total: int,
+) -> dict[str, int]:
+    """Read exact on-chain balances and require full raw-unit reconciliation."""
+    total = _raw_integer(expected_total, "holder balance total")
+    balances = _read_indexed_holder_balances(chain_key, token, candidates)
+    if sum(balances.values()) != total:
+        raise RuntimeError("exact indexed holder balances do not reconcile to total supply")
+    return balances
+
+
+def _standard_staking_custody_state(
+    chain_key: str,
+    chain_id: int,
+    staking_contract: str,
+    staking_token: str,
+    custody_balance: int,
+    from_block: int,
+    to_block: int,
+) -> dict[str, Any] | None:
+    """Resolve a 1:1 staking custodian only when all user claims reconcile on-chain."""
+    contract = _normalized_address(staking_contract, "staking custody contract")
+    token = _normalized_address(staking_token, "staking custody token")
+    expected = _raw_integer(custody_balance, "staking custody balance")
+    try:
+        total_supply, = _eth_call(chain_key, contract, "totalSupply()", ["uint256"])
+    except Exception:
+        return None
+    if _raw_integer(int(total_supply), "staking custody total supply") != expected:
+        return None
+    candidates = _routescan_method_callers(
+        chain_id,
+        contract,
+        "stake(uint256)",
+        from_block,
+        to_block,
+    )
+    candidates.update(
+        _routescan_token_transfer_counterparties(
+            chain_id,
+            token,
+            contract,
+            from_block,
+            to_block,
+        )
+    )
+    balances = _read_indexed_holder_balances(chain_key, contract, candidates)
+    resolved = sum(balances.values())
+    if resolved > expected:
+        raise RuntimeError("exact staking balances exceed custody balance")
+    return {
+        "address": contract,
+        "stakingToken": token,
+        "custodyBalance": expected,
+        "stakedBalances": balances,
+        "unresolvedBalance": expected - resolved,
+        "attributionPath": "kodiak_island_staking",
+        "attributionReason": (
+            "staking custody and every user balance reconcile exactly on-chain"
+        ),
+    }
+
+
+def _infrared_staking_custody_state(
+    chain_key: str,
+    chain_id: int,
+    infrared_vault: str,
+    rewards_vault: str,
+    staking_token: str,
+    custody_balance: int,
+    from_block: int,
+    to_block: int,
+) -> dict[str, Any] | None:
+    """Resolve an Infrared vault after proving its one-share bootstrap invariant."""
+    vault = _normalized_address(infrared_vault, "Infrared vault")
+    parent = _normalized_address(rewards_vault, "Infrared rewards vault")
+    token = _normalized_address(staking_token, "Infrared staking token")
+    expected = _raw_integer(custody_balance, "Infrared custody balance")
+    try:
+        onchain_token, = _eth_call(
+            chain_key, vault, "stakingToken()", ["address"]
+        )
+        onchain_parent, = _eth_call(
+            chain_key, vault, "rewardsVault()", ["address"]
+        )
+        infrared, = _eth_call(chain_key, vault, "infrared()", ["address"])
+        total_supply, = _eth_call(
+            chain_key, vault, "totalSupply()", ["uint256"]
+        )
+    except Exception:
+        return None
+    infrared = _normalized_address(infrared, "Infrared coordinator")
+    if _normalized_address(onchain_token, "Infrared on-chain staking token") != token:
+        return None
+    if _normalized_address(onchain_parent, "Infrared on-chain rewards vault") != parent:
+        return None
+    total = _raw_integer(int(total_supply), "Infrared total supply")
+    if total != expected + 1:
+        return None
+    candidates = _routescan_method_callers(
+        chain_id, vault, "stake(uint256)", from_block, to_block
+    )
+    candidates.update(
+        _routescan_token_transfer_counterparties(
+            chain_id, token, vault, from_block, to_block
+        )
+    )
+    candidates.add(infrared)
+    balances = _read_indexed_holder_balances(chain_key, vault, candidates)
+    if sum(balances.values()) != total or balances.get(infrared) != 1:
+        raise RuntimeError("Infrared user balances do not reconcile exactly")
+    balances.pop(infrared)
+    if sum(balances.values()) != expected:
+        raise RuntimeError("Infrared backed balances do not match rewards-vault custody")
+    return {
+        "address": vault,
+        "stakingToken": token,
+        "custodyBalance": expected,
+        "stakedBalances": balances,
+        "unresolvedBalance": 0,
+        "attributionPath": "kodiak_island_infrared",
+        "attributionReason": (
+            "Infrared rewards-vault custody and every user balance reconcile "
+            "exactly on-chain"
+        ),
+    }
+
+
+def _flatten_nested_staking_state(
+    parent_state: dict[str, Any], child_state: dict[str, Any]
+) -> dict[str, Any]:
+    """Replace one proven contract claim with its exact nested user balances."""
+    parent = copy.deepcopy(parent_state)
+    child = copy.deepcopy(child_state)
+    child_address = _normalized_address(child.get("address"), "nested custody")
+    parent_token = _normalized_address(parent.get("stakingToken"), "parent staking token")
+    child_token = _normalized_address(child.get("stakingToken"), "nested staking token")
+    if parent_token != child_token:
+        raise ValueError("nested staking token mismatch")
+    parent_balances = {
+        _normalized_address(address, "parent staker"): _raw_integer(
+            amount, "parent staker balance"
+        )
+        for address, amount in (parent.get("stakedBalances") or {}).items()
+    }
+    child_balance = parent_balances.get(child_address)
+    child_custody = _raw_integer(child.get("custodyBalance"), "nested custody balance")
+    child_residual = _raw_integer(
+        child.get("unresolvedBalance", 0), "nested unresolved balance"
+    )
+    child_balances = {
+        _normalized_address(address, "nested staker"): _raw_integer(
+            amount, "nested staker balance"
+        )
+        for address, amount in (child.get("stakedBalances") or {}).items()
+    }
+    if child_balance != child_custody:
+        raise ValueError("nested custody does not match its parent claim")
+    if child_residual != 0 or sum(child_balances.values()) != child_custody:
+        raise ValueError("nested custody must be fully resolved before flattening")
+    del parent_balances[child_address]
+    for address, amount in child_balances.items():
+        parent_balances[address] = parent_balances.get(address, 0) + amount
+    parent["stakedBalances"] = dict(sorted(parent_balances.items()))
+    parent["attributionReason"] = (
+        str(parent.get("attributionReason") or "staking custody reconciles")
+        + "; nested Infrared vault user balances reconcile exactly on-chain"
+    )
+    return parent
+
+
 def _routescan_logs(
     chain_id: int,
     address: str,
@@ -2359,22 +3263,40 @@ def _routescan_logs(
         filters[f"topic{previous_topic}_{topic_index}_opr"] = "and"
         previous_topic = topic_index
 
-    def recover_incomplete_log(raw: dict[str, Any]) -> dict[str, Any] | None:
+    def needs_receipt_recovery(raw: Any) -> bool:
+        if not isinstance(raw, dict):
+            return True
+        raw_data = raw.get("data")
+        data_complete = isinstance(raw_data, str) and bool(
+            re.fullmatch(r"0x(?:[0-9a-fA-F]{2})*", raw_data)
+        )
+        try:
+            _rpc_hex_int(raw.get("logIndex"), "Routescan log index")
+        except ValueError:
+            return True
+        return not data_complete
+
+    def recover_incomplete_log(
+        raw: dict[str, Any], receipt: dict[str, Any] | None = None
+    ) -> dict[str, Any] | None:
+        if not isinstance(raw, dict):
+            raise ValueError("incomplete Routescan log must be an object")
         chain_key = {1: "ethereum", 80094: "berachain"}.get(chain_id)
         if chain_key is None:
             raise ValueError(f"unsupported Routescan chain {chain_id}")
         tx_hash = str(raw.get("transactionHash") or "").lower()
-        response = rpc_single_request(
-            get_endpoints(chain_key),
-            {
-                "jsonrpc": "2.0",
-                "id": f"receipt:{tx_hash}",
-                "method": "eth_getTransactionReceipt",
-                "params": [tx_hash],
-            },
-            describe=f"{chain_key} incomplete Routescan log receipt",
-        )
-        receipt = response.get("result") if isinstance(response, dict) else None
+        if receipt is None:
+            response = rpc_single_request(
+                get_endpoints(chain_key),
+                {
+                    "jsonrpc": "2.0",
+                    "id": f"receipt:{tx_hash}",
+                    "method": "eth_getTransactionReceipt",
+                    "params": [tx_hash],
+                },
+                describe=f"{chain_key} incomplete Routescan log receipt",
+            )
+            receipt = response.get("result") if isinstance(response, dict) else None
         receipt_logs = receipt.get("logs") if isinstance(receipt, dict) else None
         if not isinstance(receipt_logs, list):
             raise RuntimeError("could not recover incomplete Routescan log receipt")
@@ -2382,12 +3304,24 @@ def _routescan_logs(
             # Routescan occasionally indexes a phantom event row for a reverted
             # transaction. The canonical receipt proves that no log was emitted.
             return None
-        expected_index = _rpc_hex_int(raw.get("logIndex"), "Routescan log index")
-        matches = [
-            row for row in receipt_logs
-            if _rpc_hex_int(row.get("logIndex"), "receipt log index") == expected_index
-            and str(row.get("address") or "").lower() == normalized_address
-        ]
+        try:
+            expected_index = _rpc_hex_int(raw.get("logIndex"), "Routescan log index")
+        except ValueError:
+            expected_topics = [str(topic or "").lower() for topic in raw.get("topics", [])]
+            expected_data = str(raw.get("data") or "").lower()
+            matches = [
+                row for row in receipt_logs
+                if str(row.get("address") or "").lower() == normalized_address
+                and [str(topic or "").lower() for topic in row.get("topics", [])]
+                == expected_topics
+                and str(row.get("data") or "").lower() == expected_data
+            ]
+        else:
+            matches = [
+                row for row in receipt_logs
+                if _rpc_hex_int(row.get("logIndex"), "receipt log index") == expected_index
+                and str(row.get("address") or "").lower() == normalized_address
+            ]
         if not matches:
             # A canonical receipt without the indexed address/logIndex proves
             # the Routescan row is non-canonical and must be excluded.
@@ -2400,6 +3334,44 @@ def _routescan_logs(
         if depth > 24:
             raise RuntimeError("Routescan block-range subdivision exceeded the safety limit")
         local = []
+        if start < end:
+            ceiling_response = _routescan_request(
+                client,
+                url,
+                params={
+                    "module": "logs",
+                    "action": "getLogs",
+                    "fromBlock": start,
+                    "toBlock": end,
+                    "address": normalized_address,
+                    "topic0": topic0,
+                    "page": 10,
+                    "offset": 1000,
+                    **filters,
+                },
+                timeout=45,
+            )
+            ceiling_payload = ceiling_response.json()
+            ceiling_rows = (
+                ceiling_payload.get("result")
+                if isinstance(ceiling_payload, dict)
+                else None
+            )
+            no_ceiling_records = (
+                isinstance(ceiling_payload, dict)
+                and ceiling_payload.get("status") == "0"
+                and isinstance(ceiling_rows, str)
+                and "No records" in ceiling_rows
+            )
+            if not no_ceiling_records and not isinstance(ceiling_rows, list):
+                raise RuntimeError(
+                    f"Routescan logs failed: {sanitize_error(ceiling_rows or ceiling_payload)}"
+                )
+            if isinstance(ceiling_rows, list) and len(ceiling_rows) >= 1000:
+                midpoint = (start + end) // 2
+                return fetch_range(start, midpoint, depth + 1) + fetch_range(
+                    midpoint + 1, end, depth + 1
+                )
         for page in range(1, 11):
             response = _routescan_request(
                 client,
@@ -2427,13 +3399,53 @@ def _routescan_logs(
                 return local
             if not isinstance(rows, list):
                 raise RuntimeError(f"Routescan logs failed: {sanitize_error(rows or payload)}")
+            incomplete_rows = [raw for raw in rows if needs_receipt_recovery(raw)]
+            receipt_cache = {}
+            tx_hashes = sorted(
+                {
+                    str(raw.get("transactionHash") or "").lower()
+                    for raw in incomplete_rows
+                    if isinstance(raw, dict)
+                    and TX_HASH_RE.fullmatch(
+                        str(raw.get("transactionHash") or "").lower()
+                    )
+                }
+            )
+            if tx_hashes:
+                chain_key = {1: "ethereum", 80094: "berachain"}.get(chain_id)
+                if chain_key is None:
+                    raise ValueError(f"unsupported Routescan chain {chain_id}")
+                receipt_payloads = [
+                    {
+                        "jsonrpc": "2.0",
+                        "id": f"receipt:{tx_hash}",
+                        "method": "eth_getTransactionReceipt",
+                        "params": [tx_hash],
+                    }
+                    for tx_hash in tx_hashes
+                ]
+                responses, _missing = rpc_batch_requests(
+                    get_endpoints(chain_key),
+                    receipt_payloads,
+                    timeout=30,
+                    batch_size=50,
+                    describe=f"{chain_key} incomplete Routescan log receipts",
+                )
+                for tx_hash in tx_hashes:
+                    response = responses.get(f"receipt:{tx_hash}")
+                    receipt = response.get("result") if isinstance(response, dict) else None
+                    if not (
+                        isinstance(receipt, dict)
+                        and isinstance(receipt.get("logs"), list)
+                    ):
+                        raise RuntimeError(
+                            f"canonical RPC receipt unavailable for {tx_hash}"
+                        )
+                    receipt_cache[tx_hash] = receipt
             for row_index, raw in enumerate(rows):
-                raw_data = raw.get("data") if isinstance(raw, dict) else None
-                if not (
-                    isinstance(raw_data, str)
-                    and re.fullmatch(r"0x(?:[0-9a-fA-F]{2})*", raw_data)
-                ):
-                    raw = recover_incomplete_log(raw)
+                if needs_receipt_recovery(raw):
+                    tx_hash = str(raw.get("transactionHash") or "").lower()
+                    raw = recover_incomplete_log(raw, receipt_cache.get(tx_hash))
                     if raw is None:
                         continue
                 if discovery_only and not (
@@ -2767,6 +3779,323 @@ def _kodiak_position_index(pool_address: str) -> dict[int, dict[str, Any]]:
     return indexed
 
 
+def _kodiak_farm_index(
+    registry: dict[str, Any], chain_key: str, latest_block: int
+) -> dict[str, list[dict[str, Any]]]:
+    """Index official Kodiak farms by their exact staking-token contract."""
+    chain = registry["chains"][chain_key]
+    factory = chain["custody"]["kodiakFarmFactory"]
+    cache_key = (chain_key, factory, latest_block)
+    cached = _KODIAK_FARM_INDEX_CACHE.get(cache_key)
+    if cached is not None:
+        return copy.deepcopy(cached)
+    logs = _routescan_logs(
+        chain["chainId"],
+        factory,
+        event_topic(KODIAK_FARM_DEPLOYED_SIGNATURE),
+        chain["discoveryStartBlock"],
+        latest_block,
+    )
+    farms = []
+    seen = set()
+    for log in logs:
+        topics = log.get("topics")
+        if not isinstance(topics, list) or len(topics) != 3:
+            raise ValueError("FarmDeployed must index farm and implementation")
+        farm = _address_from_topic(topics[1], "Kodiak farm")
+        if farm in seen:
+            continue
+        seen.add(farm)
+        farms.append(
+            {
+                "address": farm,
+                "implementation": _address_from_topic(
+                    topics[2], "Kodiak farm implementation"
+                ),
+                "deploymentBlock": _exact_int(
+                    log.get("blockNumber"), "Kodiak farm deployment block"
+                ),
+            }
+        )
+    values, errors = _batch_eth_call_args(
+        chain_key,
+        [
+            {
+                "id": f"staking:{row['address']}",
+                "address": row["address"],
+                "signature": "stakingToken()",
+                "outputTypes": ["address"],
+            }
+            for row in farms
+        ],
+    )
+    by_token: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in farms:
+        call_id = f"staking:{row['address']}"
+        if call_id not in values:
+            raise RuntimeError(
+                f"Kodiak farm staking token unavailable for {row['address']}: "
+                f"{errors.get(call_id, 'unknown RPC error')}"
+            )
+        staking_token = _normalized_address(
+            values[call_id][0], "Kodiak farm staking token"
+        )
+        by_token[staking_token].append({**row, "stakingToken": staking_token})
+    result = {
+        token: sorted(rows, key=lambda row: (row["deploymentBlock"], row["address"]))
+        for token, rows in sorted(by_token.items())
+    }
+    _KODIAK_FARM_INDEX_CACHE[cache_key] = copy.deepcopy(result)
+    return result
+
+
+def _kodiak_farms_for_island(
+    registry: dict[str, Any],
+    chain_key: str,
+    island: str,
+    island_balances: dict[str, int],
+    latest_block: int,
+) -> list[dict[str, Any]]:
+    """Reconcile official farm custody for one Kodiak Island share token."""
+    chain = registry["chains"][chain_key]
+    factory = chain["custody"]["kodiakFarmFactory"]
+    farms = _kodiak_farm_index(registry, chain_key, latest_block).get(island, [])
+    states = []
+    for farm in farms:
+        legitimate, = _eth_call_args(
+            chain_key,
+            factory,
+            "isLegitFarm(address)",
+            ["bool"],
+            input_types=["address"],
+            args=[farm["address"]],
+        )
+        if legitimate is not True:
+            raise RuntimeError(f"Kodiak farm is not factory-approved: {farm['address']}")
+        total_locked, = _eth_call(
+            chain_key, farm["address"], "totalLiquidityLocked()", ["uint256"]
+        )
+        event_logs = []
+        for signature in (
+            KODIAK_STAKE_LOCKED_SIGNATURE,
+            KODIAK_WITHDRAW_LOCKED_SIGNATURE,
+        ):
+            event_logs.extend(
+                _routescan_logs(
+                    chain["chainId"],
+                    farm["address"],
+                    event_topic(signature),
+                    farm["deploymentBlock"],
+                    latest_block,
+                )
+            )
+        staked_balances = replay_kodiak_farm_balances(
+            dedupe_logs(chain_key, event_logs), int(total_locked)
+        )
+        states.append(
+            {
+                "address": farm["address"],
+                "stakingToken": island,
+                "custodyBalance": island_balances.get(farm["address"], 0),
+                "stakedBalances": staked_balances,
+            }
+        )
+    return states
+
+
+def _build_kodiak_island_rows(
+    registry: dict[str, Any],
+    pool: dict[str, Any],
+    pool_state: dict[str, Any],
+    latest_block: int,
+) -> dict[str, Any]:
+    """Build exact Island share rows for one registered Kodiak V3 pool."""
+    chain_key = pool["chainKey"]
+    chain = registry["chains"][chain_key]
+    factory = chain["custody"]["kodiakIslandFactory"]
+    creation_logs = _routescan_logs(
+        chain["chainId"],
+        factory,
+        event_topic(KODIAK_ISLAND_CREATED_SIGNATURE),
+        chain["discoveryStartBlock"],
+        latest_block,
+        indexed_topics={1: _topic_for_address(pool["identifier"])},
+    )
+    islands = discover_kodiak_islands(
+        creation_logs,
+        {pool["identifier"]: (pool_state["token0"], pool_state["token1"])},
+        DOLO_ADDRESS,
+    )
+    active = []
+    unresolved = []
+    island_addresses = set()
+    for discovered in islands:
+        island = discovered["island"]
+        island_addresses.add(island)
+        onchain_pool, = _eth_call(chain_key, island, "pool()", ["address"])
+        token0, = _eth_call(chain_key, island, "token0()", ["address"])
+        token1, = _eth_call(chain_key, island, "token1()", ["address"])
+        island_factory, = _eth_call(chain_key, island, "islandFactory()", ["address"])
+        normalized_pool = _normalized_address(onchain_pool, "Kodiak Island pool")
+        normalized_token0 = _normalized_address(token0, "Kodiak Island token0")
+        normalized_token1 = _normalized_address(token1, "Kodiak Island token1")
+        if normalized_pool != pool["identifier"]:
+            raise RuntimeError(f"Kodiak Island pool mismatch for {island}")
+        if (normalized_token0, normalized_token1) != (
+            pool_state["token0"],
+            pool_state["token1"],
+        ):
+            raise RuntimeError(f"Kodiak Island token mismatch for {island}")
+        if _normalized_address(island_factory, "Kodiak Island factory") != factory:
+            raise RuntimeError(f"Kodiak Island factory mismatch for {island}")
+        total_supply, = _eth_call(chain_key, island, "totalSupply()", ["uint256"])
+        amount0, amount1 = _eth_call(
+            chain_key, island, "getUnderlyingBalances()", ["uint256", "uint256"]
+        )
+        lower_tick, = _eth_call(chain_key, island, "lowerTick()", ["int24"])
+        upper_tick, = _eth_call(chain_key, island, "upperTick()", ["int24"])
+        total_supply = _raw_integer(int(total_supply), "Island total supply")
+        amount0 = _raw_integer(int(amount0), "Island underlying amount0")
+        amount1 = _raw_integer(int(amount1), "Island underlying amount1")
+        if total_supply == 0:
+            if amount0 or amount1:
+                raise RuntimeError(f"Kodiak Island {island} has assets without shares")
+            continue
+        holder_candidates = _routescan_token_holder_candidates(
+            chain["chainId"], island
+        )
+        balances = _reconcile_indexed_holder_balances(
+            chain_key, island, holder_candidates, total_supply
+        )
+        farms = _kodiak_farms_for_island(
+            registry, chain_key, island, balances, latest_block
+        )
+        official_farms = {state["address"] for state in farms}
+        initial_contracts = _contract_owners(
+            chain_key, set(balances) | {island}
+        )
+        for custody in sorted(initial_contracts - official_farms - {island}):
+            try:
+                state = _standard_staking_custody_state(
+                    chain_key,
+                    chain["chainId"],
+                    custody,
+                    island,
+                    balances.get(custody, 0),
+                    chain["discoveryStartBlock"],
+                    latest_block,
+                )
+            except Exception:
+                state = None
+            if state is not None:
+                farms.append(state)
+        expanded_farms = []
+        for farm in farms:
+            expanded = farm
+            nested_contracts = _contract_owners(
+                chain_key, set(farm.get("stakedBalances", {}))
+            )
+            for custody in sorted(nested_contracts):
+                try:
+                    nested = _infrared_staking_custody_state(
+                        chain_key,
+                        chain["chainId"],
+                        custody,
+                        farm["address"],
+                        island,
+                        int(farm["stakedBalances"].get(custody, 0)),
+                        chain["discoveryStartBlock"],
+                        latest_block,
+                    )
+                    if nested is not None:
+                        expanded = _flatten_nested_staking_state(expanded, nested)
+                except Exception:
+                    continue
+            expanded_farms.append(expanded)
+        farms = expanded_farms
+        stakers = {
+            address
+            for farm in farms
+            for address in farm.get("stakedBalances", {})
+        }
+        contracts = _contract_owners(
+            chain_key, set(balances) | stakers | {island}
+        )
+        lower_tick = _exact_int(int(lower_tick), "Kodiak Island lower tick")
+        upper_tick = _exact_int(int(upper_tick), "Kodiak Island upper tick")
+        if lower_tick >= upper_tick:
+            raise RuntimeError(f"Kodiak Island {island} has an invalid tick range")
+        bound_a = tick_to_paired_per_dolo(
+            lower_tick,
+            normalized_token0,
+            normalized_token1,
+            pool_state["decimals0"],
+            pool_state["decimals1"],
+            DOLO_ADDRESS,
+        )
+        bound_b = tick_to_paired_per_dolo(
+            upper_tick,
+            normalized_token0,
+            normalized_token1,
+            pool_state["decimals0"],
+            pool_state["decimals1"],
+            DOLO_ADDRESS,
+        )
+        range_lower, range_upper = sorted((bound_a, bound_b))
+        underlying = {
+            "id": f"{chain_key}:kodiak-v3:{pool['identifier']}:island:{island}",
+            "sourceKey": f"{chain_key}:kodiak-v3",
+            "poolId": pool["identifier"],
+            "poolIdentifierType": "contract",
+            "poolExplorerUrl": pool.get("explorerUrl"),
+            "dexscreenerUrl": pool.get("sourceUrl"),
+            "chainKey": chain_key,
+            "adapter": "kodiak-v3",
+            "pair": pool.get("pair"),
+            "positionType": "kodiak_island_aggregate",
+            "positionId": island,
+            "tickLower": lower_tick,
+            "tickUpper": upper_tick,
+            "rangeLower": str(range_lower),
+            "rangeUpper": str(range_upper),
+            "rangeStatus": classify_range(
+                pool_state["currentTick"], lower_tick, upper_tick
+            ),
+            "amount0Raw": str(amount0),
+            "amount1Raw": str(amount1),
+            "doloRaw": str(amount0 if normalized_token0 == DOLO_ADDRESS else amount1),
+            "pairedRaw": str(amount1 if normalized_token0 == DOLO_ADDRESS else amount0),
+            "valueUsd": None,
+            "custodian": island,
+            "beneficialOwner": None,
+            "attributionPath": "kodiak_island",
+            "attributionReason": "exact Kodiak Island underlying balances",
+            "positionStatus": "custodied_unresolved",
+            "quality": "verified",
+        }
+        rows = allocate_kodiak_island_position(
+            underlying,
+            {"address": island, "totalShares": total_supply, "balances": balances},
+            farms,
+            contract_addresses=contracts,
+        )
+        active.extend(rows)
+        unresolved.extend(
+            {
+                "island": island,
+                "custodian": row.get("custodian"),
+                "reason": row.get("attributionReason"),
+            }
+            for row in rows
+            if not row.get("beneficialOwner")
+        )
+    return {
+        "activePositions": active,
+        "islands": island_addresses,
+        "unresolved": unresolved,
+    }
+
+
 def _receipt_logs_for_transactions(
     chain_key: str,
     transaction_timestamps: dict[str, int],
@@ -2915,12 +4244,26 @@ def _build_kodiak_v3_live_source(
         state,
         contract_addresses=_contract_owners(chain_key, owners),
     )
+    island_result = _build_kodiak_island_rows(
+        registry, pool, state, latest_block
+    )
+    island_addresses = island_result["islands"]
+    result["activePositions"] = [
+        row
+        for row in result["activePositions"]
+        if not (
+            row.get("positionType") == "concentrated_nft"
+            and row.get("custodian") in island_addresses
+        )
+    ]
+    result["activePositions"].extend(island_result["activePositions"])
     # Current position balances and owners are on-chain verified. Kodiak's public
     # index is used only to discover token IDs; historical ownership/action rows
     # are withheld until an archive-complete replay can prove them.
     result["sourceStatus"] = "partial"
     result["unresolved"] = [
         *unresolved,
+        *island_result["unresolved"],
         {"reason": "Kodiak history withheld; current NFT positions are on-chain reconciled"},
     ]
     result["token0"] = state["token0"]
@@ -3314,15 +4657,21 @@ def _build_uniswap_v4_live_source(
         latest_block,
         indexed_topics={
             1: pool["identifier"],
-            2: _topic_for_address(position_manager),
         },
     )
-    modifications = [
+    decoded_logs = [decode_v4_pool_manager_log(log) for log in pool_logs]
+    all_modifications = [
         event
-        for event in (decode_v4_pool_manager_log(log) for log in pool_logs)
-        if event is not None
-        and event.get("kind") == "modify_liquidity"
-        and event.get("sender") == position_manager
+        for event in decoded_logs
+        if event is not None and event.get("kind") == "modify_liquidity"
+    ]
+    partitioned = partition_v4_modifications(all_modifications, position_manager)
+    modifications = partitioned["canonical"]
+    noncanonical_modifications = partitioned["noncanonical"]
+    canonical_pool_logs = [
+        log
+        for log, event in zip(pool_logs, decoded_logs)
+        if event is not None and event.get("sender") == position_manager
     ]
     token_ids = {
         *context["tokenIds"],
@@ -3455,7 +4804,7 @@ def _build_uniswap_v4_live_source(
     try:
         result = build_v4_rows(
             pool,
-            [] if context["incremental"] else pool_logs,
+            [] if context["incremental"] else canonical_pool_logs,
             [],
             latest_positions,
             pool_state,
@@ -3477,12 +4826,21 @@ def _build_uniswap_v4_live_source(
             position_manager=position_manager,
             contract_addresses=contract_addresses,
         )
+    noncanonical = _build_v4_noncanonical_rows(
+        registry,
+        pool,
+        noncanonical_modifications,
+        pool_state,
+        latest_block,
+    )
+    result["activePositions"].extend(noncanonical["activePositions"])
     if context["incremental"]:
         result["history"] = context["history"]
     result["sourceStatus"] = "partial"
     result["unresolved"] = [
         *result.get("unresolved", []),
         *unresolved,
+        *noncanonical["unresolved"],
         {"reason": "v4 historical token amounts and standalone NFT transfers are withheld"},
     ]
     result["token0"] = currency0

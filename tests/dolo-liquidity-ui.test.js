@@ -91,6 +91,15 @@ test('chain narrows eligible Pair and DEX choices', () => {
   assert.match(html, /renderDexFilter\(\)/);
 });
 
+test('filtered Chain has an independent accessible clear action', () => {
+  assert.match(html, /data-dolo-lp-clear="chain"/);
+  assert.match(html, /data-dolo-lp-clear="chain"[^>]*tabindex="0"/);
+  assert.match(html, /function resetDoloLpChainFilter\(\)/);
+  assert.match(html, /doloLpState\.chain\s*=\s*"all"/);
+  assert.match(html, /kind\s*===\s*"chain"/);
+  assert.match(html, /clear\.addEventListener\("keydown"/);
+});
+
 test('All pairs and All DEXes are exclusive resets', () => {
   assert.match(html, /data-dolo-lp-pair-filter-all/);
   assert.match(html, /data-dolo-lp-dex-filter-all/);
@@ -172,14 +181,58 @@ test('Details follows the Dolomite Assets information hierarchy', () => {
     'Ownership', 'Position ID', 'Price bounds', 'Data status', 'Links',
   ]) assert.match(html, new RegExp(label));
   assert.doesNotMatch(html, />Tick interval</);
-  assert.match(html, /class="dolo-lp-bound-row"><span>Lower<\/span>/);
-  assert.match(html, /class="dolo-lp-bound-row"><span>Upper<\/span>/);
+  assert.match(html, /class="dolo-lp-bound-row"><span>Lower bound<\/span>/);
+  assert.match(html, /class="dolo-lp-bound-row"><span>Upper bound<\/span>/);
   assert.match(html, /title="\$\{esc\(exactRangeBound\(row\.rangeLower\)\)\}"/);
   assert.match(html, /Protocol maximum/);
   assert.match(html, /\$\{esc\(pairedSymbol\)\} per DOLO/);
   assert.match(html, /Source health/);
   assert.match(html, /aria-expanded="\$\{expanded\}"/);
   assert.match(html, /<span>\$\{expanded\s*\?\s*"Hide"\s*:\s*"Details"\}<\/span>\$\{CHEV_DOWN_ICO\}/);
+});
+
+test('Price bounds use readable fixed notation and one shared unit', () => {
+  const formatRangeBound = extractNamedFunction('formatRangeBound');
+  assert.equal(formatRangeBound('0.000999'), '0.000999');
+  assert.doesNotMatch(formatRangeBound('0.000999'), /e/i);
+  assert.equal(formatRangeBound('2.95428e-39'), '2.95 × 10⁻³⁹');
+  assert.equal(formatRangeBound('3.38492e38'), '3.38 × 10³⁸');
+  assert.match(html, /class="dolo-lp-bound-row"><span>Lower bound<\/span>/);
+  assert.match(html, /class="dolo-lp-bound-row"><span>Upper bound<\/span>/);
+  assert.match(html, /class="dolo-lp-bound-unit">\$\{esc\(pairedSymbol\)\} per DOLO/);
+  assert.equal((html.match(/class="dolo-lp-bound-unit"/g) || []).length, 1);
+});
+
+test('liquidity summary reuses the Fresh wallets metric rail', () => {
+  assert.match(html, /class="dolo-lp-summary fresh-wallet-stats selected-market-rail"/);
+  assert.match(html, /class="fresh-stat selected-market-metric primary"/);
+  assert.match(html, /class="fresh-stat selected-market-metric"/);
+  assert.match(html, /class="label">\$\{icon\}\$\{label\}<\/div><div class="value">\$\{value\}<\/div><div class="sub">\$\{sub\}/);
+  assert.match(html, /verified owners/i);
+  assert.match(html, /\.fresh-wallet-stats\.selected-market-rail \.fresh-stat \.value\{[^}]*font-size:24px/s);
+});
+
+test('identity, numeric and action columns keep explicit alignment groups', () => {
+  assert.match(html, /const LP_IDENTITY_COLUMNS\s*=\s*new Set\(\["chainKey","wallet","pair","rangeStatus"\]\)/);
+  assert.match(html, /const LP_NUMERIC_COLUMNS\s*=\s*new Set\(\["doloRaw","pairedRaw","valueUsd"\]\)/);
+  assert.match(html, /<td class="identity">\$\{chainCell\(row\.chainKey\)\}<\/td><td class="identity">\$\{walletCell\(row\)\}<\/td><td class="identity">\$\{pairCell\(pool\)\}<\/td><td class="identity">\$\{rangeCell\(row\)\}<\/td>/);
+  assert.match(html, /\.dolo-lp-table \.identity\{text-align:left\}/);
+  assert.match(html, /\.dolo-lp-table \.num\{[^}]*text-align:right/s);
+  assert.match(html, /\.dolo-lp-table td\.details-cell\{text-align:center/);
+});
+
+test('finite Value cells use the muted Latest Exercises price blue', () => {
+  assert.match(html, /class="num dolo-lp-value\$\{finite\(row\.valueUsd\)\s*\?\s*""\s*:\s*" is-muted"\}"/);
+  assert.match(html, /\.dolo-lp-value\{color:#9ab7c2\}/);
+  assert.match(html, /\.dolo-lp-value\.is-muted\{color:var\(--fg-4\)\}/);
+});
+
+test('unresolved protocol custody is named without inventing a wallet', () => {
+  assert.match(html, /Kodiak Island custody/);
+  assert.match(html, /Uniswap v4 vault custody/);
+  assert.match(html, /Custody unresolved/);
+  assert.match(html, /row\.attributionReason/);
+  assert.match(html, /data-dolo-lp-copy="\$\{esc\(address\)\}"/);
 });
 
 test('mobile Details opens inside the visible table viewport', () => {
@@ -231,9 +284,9 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
 });
 
 test('both production entry points advance the active-only liquidity cache once', () => {
-  const version = 'lp-range-details-20260812';
+  const version = 'lp-coverage-parity-20260813';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
-  assert.match(html, /data\/dolo-liquidity\.json\?v=20260812-low-rpc-refresh/);
+  assert.match(html, /data\/dolo-liquidity\.json\?v=20260813-lp-coverage-parity/);
 });
