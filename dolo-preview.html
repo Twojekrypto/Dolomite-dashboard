@@ -1030,6 +1030,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-table td > *{max-width:100%}
 .dolo-lp-table .identity{text-align:left}
 .dolo-lp-table .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.dolo-lp-table .dolo-lp-group-gap{padding:0;pointer-events:none}
 .dolo-lp-table tbody td.dolo-lp-value{color:#9ab7c2}
 .dolo-lp-table tbody td.dolo-lp-value.is-muted{color:var(--fg-4)}
 .dolo-lp-card .chain-badge{display:inline-flex;align-items:center;gap:7px;color:var(--fg-1);font-size:12.5px;font-weight:500;line-height:1.2;white-space:nowrap}
@@ -5950,9 +5951,10 @@ renderCexSupplyChart();
   const POSITION_DUST_USD = 10;
   const ACTIVE_HEADERS = [
     ["chainKey","Chain"],["wallet","Address"],["pair","Pair"],["rangeStatus","Price Range"],
+    ["groupGap",""],
     ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["details","Details"],
   ];
-  const ACTIVE_WIDTHS = [10,22,14,15,10,13,10,6];
+  const ACTIVE_WIDTHS = [9,19,12,13,11,9,12,9,6];
   const LP_IDENTITY_COLUMNS = new Set(["chainKey","wallet","pair","rangeStatus"]);
   const LP_NUMERIC_COLUMNS = new Set(["doloRaw","pairedRaw","valueUsd"]);
   const LP_CHAINS = {
@@ -6217,7 +6219,7 @@ renderCexSupplyChart();
     const sourceHealth = source?.status ? `${source.status}${source?.errors?.length ? ` · ${source.errors.join("; ")}` : ""}` : "Not reported";
     const positionId = row.positionId || row.positionType || "Fungible LP";
     const links = `${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">Open pool ↗</a>` : "Pool link unavailable"}${row.txHash ? ` · <a href="${txBase}${esc(row.txHash)}" target="_blank" rel="noopener">Transaction ↗</a>` : ""}`;
-    return `<tr class="dolo-lp-detail-row" id="dolo-lp-details-${esc(row.id)}"><td colspan="8"><div class="dolo-lp-detail-panel">
+    return `<tr class="dolo-lp-detail-row" id="dolo-lp-details-${esc(row.id)}"><td colspan="9"><div class="dolo-lp-detail-panel">
       <div class="dolo-lp-detail-head">
         <div><div class="dolo-lp-detail-eyebrow">Liquidity position</div><div class="dolo-lp-detail-title">${esc(pool?.pair || row.pair || "DOLO liquidity")} · Position ${esc(positionId)}</div></div>
         <div class="dolo-lp-detail-meta">
@@ -6248,6 +6250,7 @@ renderCexSupplyChart();
     const expanded = doloLpState.expandedId === row.id;
     const cells = `<tr class="dolo-lp-data-row${expanded ? " expanded" : ""}" data-dolo-lp-row="${esc(row.id)}">
       <td class="identity">${chainCell(row.chainKey)}</td><td class="identity">${walletCell(row)}</td><td class="identity">${pairCell(pool)}</td><td class="identity">${rangeCell(row)}</td>
+      <td class="dolo-lp-group-gap" aria-hidden="true"></td>
       <td class="num">${tokenAmountCell(row.doloRaw,18,"DOLO")}</td><td class="num">${tokenAmountCell(row.pairedRaw,pairDecimals(pool),pool?.pairedSymbol || "Token")}</td>
       <td class="num dolo-lp-value${finite(row.valueUsd) ? "" : " is-muted"}">${money(row.valueUsd)}</td>
       <td class="details-cell"><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-controls="dolo-lp-details-${esc(row.id)}" aria-label="${expanded ? "Hide liquidity position details" : "Show liquidity position details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button></td></tr>`;
@@ -6258,6 +6261,7 @@ renderCexSupplyChart();
     columns.dataset.doloLpColumns = "active";
     columns.innerHTML = ACTIVE_WIDTHS.map(width => `<col style="width:${width}%">`).join("");
     byId("dolo-lp-head").innerHTML = `<tr>${ACTIVE_HEADERS.map(([key,label]) => {
+      if(key === "groupGap") return `<th class="dolo-lp-group-gap" aria-hidden="true"></th>`;
       const sortable = key !== "details";
       const active = doloLpState.activeSort.key === key;
       const ariaSort = !sortable ? "none" : active ? (doloLpState.activeSort.dir === "asc" ? "ascending" : "descending") : "none";
@@ -6292,7 +6296,7 @@ renderCexSupplyChart();
     doloLpState.page = Math.min(doloLpState.page,pages-1);
     const start = doloLpState.page*doloLpState.pageSize;
     const pageRows = rows.slice(start,start+doloLpState.pageSize);
-    const spacerRows = Array.from({length: Math.max(0, doloLpState.pageSize - pageRows.length)}, (_,index) => `<tr class="tbl-spacer-row dolo-lp-empty"><td colspan="8">${index===0 && !pageRows.length ? esc(doloLpState.error || "No active positions match these filters.") : "—"}</td></tr>`).join("");
+    const spacerRows = Array.from({length: Math.max(0, doloLpState.pageSize - pageRows.length)}, (_,index) => `<tr class="tbl-spacer-row dolo-lp-empty"><td colspan="9">${index===0 && !pageRows.length ? esc(doloLpState.error || "No active positions match these filters.") : "—"}</td></tr>`).join("");
     byId("dolo-lp-body").innerHTML = pageRows.map(activeRow).join("") + spacerRows;
     byId("dolo-lp-info").textContent = total ? `${start+1}–${Math.min(start+doloLpState.pageSize,total)} of ${total.toLocaleString("en-US")}` : "0–0 of 0";
     byId("dolo-lp-count").textContent = doloLpState.data ? `${new Set(rows.map(row => normalized(row.beneficialOwner)).filter(Boolean)).size.toLocaleString("en-US")} wallets · ${total.toLocaleString("en-US")} positions` : "— wallets · — positions";

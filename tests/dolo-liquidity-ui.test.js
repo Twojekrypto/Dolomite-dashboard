@@ -64,11 +64,14 @@ test('active table schema and fixed ten-row geometry stay explicit', () => {
   const headers = html.match(/const ACTIVE_HEADERS\s*=\s*\[([\s\S]*?)\];/)?.[1] || '';
   assert.doesNotMatch(headers, /\["quality","Status"\]/);
   assert.match(html, /\.dolo-lp-table\{[^}]*table-layout:fixed/s);
-  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[10,22,14,15,10,13,10,6\]/);
+  assert.match(headers, /\["rangeStatus","Price Range"\],\s*\["groupGap",""\],\s*\["doloRaw","DOLO"\]/);
+  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[9,19,12,13,11,9,12,9,6\]/);
+  assert.match(html, /<td class="dolo-lp-group-gap" aria-hidden="true"><\/td>/);
+  assert.match(html, /\.dolo-lp-table \.dolo-lp-group-gap\{[^}]*padding:0/s);
   assert.doesNotMatch(html, /const HISTORY_WIDTHS/);
   assert.match(html, /pageSize:\s*10/);
   assert.match(html, /Array\.from\(\{length:\s*Math\.max\(0,\s*doloLpState\.pageSize/);
-  assert.match(html, /<td colspan="8"/);
+  assert.match(html, /<td colspan="9"/);
   assert.doesNotMatch(html, /<td class="status-cell">\$\{chip\(row\.quality\)\}<\/td>/);
 });
 
@@ -283,8 +286,8 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
   assert.match(html, /function syncFlowSortHeaders\(\)[\s\S]*?th\.setAttribute\("aria-sort",\s*active\s*\?\s*\(sort\.dir\s*===\s*"asc"\s*\?\s*"ascending"\s*:\s*"descending"\)\s*:\s*"none"\)/);
 });
 
-test('both production entry points advance the active-only liquidity cache once', () => {
-  const version = 'lp-value-blue-20260813';
+test('both production entry points advance the grouped-column liquidity cache once', () => {
+  const version = 'lp-column-groups-20260813';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
