@@ -40,6 +40,9 @@ def valid_payload():
             "sourceKey": "ethereum:uniswap-v3",
             "poolId": "0x003896387666c5c11458eeb3f927b72a11b19783",
             "poolIdentifierType": "contract",
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v3",
+            "pair": "DOLO/USDC",
             "beneficialOwner": owner,
             "custodian": owner,
             "attributionPath": "direct",
@@ -58,6 +61,9 @@ def valid_payload():
             "sourceKey": "ethereum:uniswap-v3",
             "poolId": "0x003896387666c5c11458eeb3f927b72a11b19783",
             "poolIdentifierType": "contract",
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v3",
+            "pair": "DOLO/USDC",
             "blockNumber": 10,
             "logIndex": 1,
             "timestamp": 1000,
@@ -93,14 +99,17 @@ def valid_payload():
         },
         "sources": [
             {
-                "key": "ethereum:uniswap-v3",
-                "chainKey": "ethereum",
-                "adapter": "uniswap-v3",
+                "key": f"{chain_key}:{adapter}",
+                "chainKey": chain_key,
+                "adapter": adapter,
                 "status": "complete",
                 "lastScannedBlock": 10,
                 "latestChainBlock": 10,
                 "errors": [],
             }
+            for chain_key, adapter in sorted(
+                {(row["chainKey"], row["adapter"]) for row in pools}
+            )
         ],
         "pools": pools,
         "activePositions": active,
@@ -240,6 +249,40 @@ class DoloLiquidityValidatorTests(unittest.TestCase):
             "status": "partial",
         }
 
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
+
+    def test_active_position_lineage_and_wallet_identity_fail_closed(self):
+        payload = valid_payload()
+        payload["activePositions"][0]["chainKey"] = "berachain"
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
+
+        payload = valid_payload()
+        payload["activePositions"][0]["pair"] = "DOLO/WBERA"
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
+
+        payload = valid_payload()
+        payload["activePositions"][0]["beneficialOwner"] = "0xnot-an-address"
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
+
+        payload = valid_payload()
+        payload["activePositions"][0]["positionStatus"] = "guessed"
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
+
+        payload = valid_payload()
+        payload["activePositions"][0]["rangeStatus"] = "probably_in_range"
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
+
+    def test_history_lineage_and_event_timestamp_fail_closed(self):
+        payload = valid_payload()
+        payload["history"][0]["adapter"] = "uniswap-v4"
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
+
+        payload = valid_payload()
+        payload["history"][0]["custodian"] = "not-a-wallet"
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
+
+        payload = valid_payload()
+        payload["history"][0]["timestamp"] = -1
         self.assertFalse(validate_data._dolo_liquidity_valid(payload))
 
 
