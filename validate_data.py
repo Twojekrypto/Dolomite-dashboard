@@ -1079,6 +1079,80 @@ def _dolo_liquidity_value_valid(row):
     )
 
 
+def _dolo_liquidity_pool_coverage_valid(pool, active):
+    coverage = pool.get("coverage")
+    if not isinstance(coverage, dict):
+        return False
+    pool_id = str(pool.get("identifier") or "").lower()
+    rows = [
+        row
+        for row in active
+        if str(row.get("poolId") or "").lower() == pool_id
+        and row.get("valueUsd") is not None
+    ]
+    attributed = sum((Decimal(str(row["valueUsd"])) for row in rows), Decimal(0))
+    verified_wallet = sum(
+        (
+            Decimal(str(row["valueUsd"]))
+            for row in rows
+            if row.get("beneficialOwner") and row.get("quality") == "verified"
+        ),
+        Decimal(0),
+    )
+    unresolved_custody = sum(
+        (
+            Decimal(str(row["valueUsd"]))
+            for row in rows
+            if not row.get("beneficialOwner")
+        ),
+        Decimal(0),
+    )
+    if not all(
+        _nearly_equal(coverage.get(key), expected, abs_tol=0.000001)
+        for key, expected in (
+            ("attributedValueUsd", attributed),
+            ("verifiedWalletValueUsd", verified_wallet),
+            ("unresolvedCustodyValueUsd", unresolved_custody),
+        )
+    ):
+        return False
+    reason = coverage.get("residualReason")
+    if not isinstance(reason, str) or not reason.strip():
+        return False
+    liquidity_value = pool.get("liquidityUsd")
+    if pool.get("liquidityStatus") == "unavailable":
+        return (
+            coverage.get("coveragePct") is None
+            and coverage.get("residualValueUsd") is None
+            and coverage.get("status") == "unavailable"
+        )
+    if not _finite_real_json_number(liquidity_value) or liquidity_value < 0:
+        return False
+    liquidity = Decimal(str(liquidity_value))
+    residual = liquidity - attributed
+    tolerance = Decimal("0.000001")
+    over_attributed = residual < -tolerance
+    if over_attributed or abs(residual) <= tolerance:
+        residual = Decimal(0)
+    coverage_pct = (
+        Decimal(100)
+        if liquidity == 0 and attributed == 0
+        else Decimal(0)
+        if liquidity == 0
+        else attributed * Decimal(100) / liquidity
+    )
+    expected_status = (
+        "complete"
+        if Decimal("99.5") <= coverage_pct <= Decimal("100.5")
+        else "partial"
+    )
+    return (
+        coverage.get("status") == expected_status
+        and _nearly_equal(coverage.get("coveragePct"), coverage_pct, abs_tol=0.0001)
+        and _nearly_equal(coverage.get("residualValueUsd"), residual, abs_tol=0.000001)
+    )
+
+
 def _dolo_liquidity_valid(data):
     """Fail closed when the LP artifact cannot prove identity and reconciliation."""
     if not isinstance(data, dict) or data.get("schemaVersion") != 1:
@@ -1184,7 +1258,10 @@ def _dolo_liquidity_valid(data):
         active_ids.add(row_id)
         allocation_group = row.get("allocationGroup")
         if allocation_group is not None:
-            if row.get("positionType") != "kodiak_island_share":
+            if row.get("positionType") not in {
+                "kodiak_island_share",
+                "uniswap_v4_vault_share",
+            }:
                 return False
             if not isinstance(allocation_group, str) or not allocation_group:
                 return False
@@ -1202,6 +1279,9 @@ def _dolo_liquidity_valid(data):
             or sum(int(row["pairedRaw"]) for row in rows) != int(next(iter(total_paired)))
         ):
             return False
+
+    if any(not _dolo_liquidity_pool_coverage_valid(pool, active) for pool in pools):
+        return False
 
     history_ids = set()
     for row in history:

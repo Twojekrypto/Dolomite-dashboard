@@ -523,7 +523,7 @@ class LiveSourceRecoveryTests(unittest.TestCase):
             "result": "No records found",
         }
         session = Mock()
-        session.get.side_effect = [limited, complete]
+        session.get.side_effect = [limited, complete, complete]
 
         with patch.object(liquidity.time, "sleep") as sleep:
             rows = liquidity._routescan_logs(
@@ -536,8 +536,234 @@ class LiveSourceRecoveryTests(unittest.TestCase):
             )
 
         self.assertEqual(rows, [])
-        self.assertEqual(session.get.call_count, 2)
+        self.assertEqual(session.get.call_count, 3)
         sleep.assert_called_once()
+
+    def test_routescan_logs_probes_result_ceiling_before_fetching_large_range(self):
+        pages = []
+
+        def fake_get(_url, *, params, **_kwargs):
+            pages.append((params["fromBlock"], params["toBlock"], params["page"]))
+            response = Mock()
+            response.raise_for_status.return_value = None
+            if params["fromBlock"] == 1 and params["toBlock"] == 100 and params["page"] == 10:
+                response.json.return_value = {"status": "1", "result": [{}] * 1000}
+            else:
+                response.json.return_value = {
+                    "status": "0",
+                    "message": "No records found",
+                    "result": "No records found",
+                }
+            return response
+
+        session = Mock()
+        session.get.side_effect = fake_get
+
+        rows = liquidity._routescan_logs(
+            1,
+            self.OWNER,
+            "0x" + "ab" * 32,
+            1,
+            100,
+            session=session,
+        )
+
+        self.assertEqual(rows, [])
+        self.assertEqual(pages[0], (1, 100, 10))
+        self.assertNotIn((1, 100, 1), pages)
+        self.assertIn((1, 50, 10), pages)
+        self.assertIn((51, 100, 10), pages)
+
+    def test_routescan_logs_recovers_missing_log_index_from_exact_receipt_payload(self):
+        tx_hash = "0x" + "ab" * 32
+        topic = "0x" + "cd" * 32
+        data = "0x" + "00" * 31 + "01"
+        raw = {
+            "address": self.OWNER,
+            "blockNumber": "0xa",
+            "transactionIndex": "0x2",
+            "logIndex": "0x",
+            "transactionHash": tx_hash,
+            "blockHash": "0x" + "ef" * 32,
+            "topics": [topic],
+            "data": data,
+            "timeStamp": hex(1_700_000_000),
+        }
+        canonical = {**raw, "logIndex": "0x7", "removed": False}
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"status": "1", "result": [raw]}
+        session = Mock()
+        session.get.return_value = response
+
+        with (
+            patch.object(
+                liquidity,
+                "rpc_batch_requests",
+                return_value=(
+                    {f"receipt:{tx_hash}": {"result": {"status": "0x1", "logs": [canonical]}}},
+                    [],
+                ),
+            ) as batch,
+            patch.object(liquidity, "rpc_single_request") as single,
+        ):
+            rows = liquidity._routescan_logs(
+                1,
+                self.OWNER,
+                topic,
+                10,
+                10,
+                session=session,
+            )
+
+        self.assertEqual([(row["logIndex"], row["transactionIndex"]) for row in rows], [(7, 2)])
+        self.assertEqual(rows[0]["timestamp"], 1_700_000_000)
+        self.assertEqual(batch.call_args.args[1][0]["method"], "eth_getTransactionReceipt")
+        single.assert_not_called()
+
+    def test_routescan_logs_batches_multiple_missing_log_index_receipts(self):
+        topic = "0x" + "cd" * 32
+        response_rows = []
+        batch_responses = {}
+        for offset, suffix in enumerate(("ab", "bc"), start=1):
+            tx_hash = "0x" + suffix * 32
+            raw = {
+                "address": self.OWNER,
+                "blockNumber": hex(10 + offset),
+                "transactionIndex": hex(offset),
+                "logIndex": "0x",
+                "transactionHash": tx_hash,
+                "blockHash": "0x" + f"{10 + offset:064x}",
+                "topics": [topic],
+                "data": "0x" + f"{offset:064x}",
+                "timeStamp": hex(1_700_000_000 + offset),
+            }
+            response_rows.append(raw)
+            batch_responses[f"receipt:{tx_hash}"] = {
+                "result": {"status": "0x1", "logs": [{**raw, "logIndex": hex(6 + offset)}]}
+            }
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"status": "1", "result": response_rows}
+        session = Mock()
+        session.get.return_value = response
+
+        with (
+            patch.object(
+                liquidity,
+                "rpc_batch_requests",
+                return_value=(batch_responses, []),
+            ) as batch,
+            patch.object(liquidity, "rpc_single_request") as single,
+        ):
+            rows = liquidity._routescan_logs(
+                1,
+                self.OWNER,
+                topic,
+                10,
+                20,
+                session=session,
+            )
+
+        self.assertEqual([row["logIndex"] for row in rows], [7, 8])
+        self.assertEqual(len(batch.call_args.args[1]), 2)
+        single.assert_not_called()
+
+    def test_routescan_logs_rejects_missing_canonical_receipts(self):
+        topic = "0x" + "cd" * 32
+        response_rows = []
+        missing = []
+        for offset, suffix in enumerate(("ab", "bc"), start=1):
+            tx_hash = "0x" + suffix * 32
+            raw = {
+                "address": self.OWNER,
+                "blockNumber": hex(10 + offset),
+                "transactionIndex": hex(offset),
+                "logIndex": "0x",
+                "transactionHash": tx_hash,
+                "blockHash": "0x" + f"{10 + offset:064x}",
+                "topics": [topic],
+                "data": "0x" + f"{offset:064x}",
+                "timeStamp": hex(1_700_000_000 + offset),
+            }
+            response_rows.append(raw)
+            missing.append(f"receipt:{tx_hash}")
+        logs_response = Mock()
+        logs_response.raise_for_status.return_value = None
+        logs_response.json.return_value = {"status": "1", "result": response_rows}
+        no_records = Mock()
+        no_records.raise_for_status.return_value = None
+        no_records.json.return_value = {
+            "status": "0",
+            "message": "No records found",
+            "result": "No records found",
+        }
+        def fake_get(_url, *, params, **_kwargs):
+            return no_records if params.get("page") == 10 else logs_response
+
+        session = Mock()
+        session.get.side_effect = fake_get
+
+        with (
+            patch.object(
+                liquidity,
+                "rpc_batch_requests",
+                return_value=({}, missing),
+            ),
+            self.assertRaisesRegex(RuntimeError, "canonical RPC receipt unavailable"),
+        ):
+            liquidity._routescan_logs(
+                1,
+                self.OWNER,
+                topic,
+                10,
+                20,
+                session=session,
+            )
+
+    def test_routescan_logs_rejects_ambiguous_missing_log_index_recovery(self):
+        tx_hash = "0x" + "ab" * 32
+        topic = "0x" + "cd" * 32
+        raw = {
+            "address": self.OWNER,
+            "blockNumber": "0xa",
+            "transactionIndex": "0x2",
+            "logIndex": "0x",
+            "transactionHash": tx_hash,
+            "blockHash": "0x" + "ef" * 32,
+            "topics": [topic],
+            "data": "0x",
+            "timeStamp": hex(1_700_000_000),
+        }
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"status": "1", "result": [raw]}
+        session = Mock()
+        session.get.return_value = response
+        receipt_logs = [
+            {**raw, "logIndex": hex(index), "removed": False}
+            for index in (7, 8)
+        ]
+
+        with (
+            patch.object(
+                liquidity,
+                "rpc_batch_requests",
+                return_value=(
+                    {f"receipt:{tx_hash}": {"result": {"status": "0x1", "logs": receipt_logs}}},
+                    [],
+                ),
+            ),
+            self.assertRaisesRegex(RuntimeError, "identify one exact incomplete Routescan log"),
+        ):
+            liquidity._routescan_logs(
+                1,
+                self.OWNER,
+                topic,
+                10,
+                10,
+                session=session,
+            )
 
     def test_missing_batch_receipt_retries_canonical_rpc_before_routescan(self):
         tx_hash = "0x" + "ab" * 32
@@ -1336,6 +1562,105 @@ class V4AdapterTests(unittest.TestCase):
         self.assertIsNotNone(result["history"][0]["doloRaw"])
         self.assertEqual(result["history"][0]["priceEvidence"], "archive_state")
 
+    def test_v4_sender_partition_keeps_noncanonical_liquidity_visible(self):
+        canonical = liquidity.decode_v4_pool_manager_log(
+            self._pool_modify(7, 1_000, 230, 0, "a")
+        )
+        vault = liquidity.decode_v4_pool_manager_log(
+            self._pool_modify(
+                9, 800, 231, 0, "b", sender=self.OTHER_SENDER
+            )
+        )
+
+        partitioned = liquidity.partition_v4_modifications(
+            [canonical, vault], self.POSITION_MANAGER
+        )
+
+        self.assertEqual(partitioned["canonical"], [canonical])
+        self.assertEqual(partitioned["noncanonical"], [vault])
+
+    def test_v4_unknown_sender_builds_exact_unresolved_custody_row(self):
+        added = liquidity.decode_v4_pool_manager_log(
+            self._pool_modify(
+                11, 1_000, 240, 0, "c", sender=self.OTHER_SENDER
+            )
+        )
+        removed = liquidity.decode_v4_pool_manager_log(
+            self._pool_modify(
+                11, -200, 241, 0, "d", sender=self.OTHER_SENDER
+            )
+        )
+        pool = {
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v4",
+            "identifier": self.POOL_ID,
+            "identifierType": "poolId",
+            "pair": "DOLO/USD1",
+        }
+
+        rows = liquidity.build_v4_unresolved_sender_rows(
+            pool,
+            [added, removed],
+            {
+                "currency0": DOLO,
+                "currency1": self.USD1,
+                "sqrtPriceX96": 1 << 96,
+                "currentTick": 0,
+                "decimals0": 18,
+                "decimals1": 18,
+            },
+        )
+
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["custodian"], self.OTHER_SENDER)
+        self.assertIsNone(row["beneficialOwner"])
+        self.assertEqual(row["positionType"], "uniswap_v4_manager_custody")
+        self.assertEqual(row["positionStatus"], "custodied_unresolved")
+        self.assertEqual(row["quality"], "unavailable")
+        self.assertEqual(row["liquidityRaw"], "800")
+        self.assertEqual(row["doloRaw"], "3")
+        self.assertEqual(row["pairedRaw"], "3")
+
+    def test_v4_share_vault_allocation_keeps_contract_custody_unresolved(self):
+        alice = "0x" + "aa" * 20
+        vault = self.OTHER_SENDER
+        custody = "0x" + "ee" * 20
+        underlying = {
+            "id": "v4-vault-total",
+            "sourceKey": "ethereum:uniswap-v4",
+            "poolId": self.POOL_ID,
+            "poolIdentifierType": "poolId",
+            "chainKey": "ethereum",
+            "adapter": "uniswap-v4",
+            "pair": "DOLO/USD1",
+            "positionType": "uniswap_v4_share_vault",
+            "positionId": vault,
+            "amount0Raw": "101",
+            "amount1Raw": "203",
+            "doloRaw": "101",
+            "pairedRaw": "203",
+            "rangeStatus": "in_range",
+            "valueUsd": None,
+            "quality": "verified",
+        }
+
+        rows = liquidity.allocate_v4_share_vault_position(
+            underlying,
+            {"address": vault, "totalShares": 100, "balances": {alice: 30, custody: 70}},
+            contract_addresses={vault, custody},
+        )
+
+        self.assertEqual(sum(int(row["doloRaw"]) for row in rows), 101)
+        self.assertEqual(sum(int(row["pairedRaw"]) for row in rows), 203)
+        verified = next(row for row in rows if row["beneficialOwner"] == alice)
+        unresolved = next(row for row in rows if row["beneficialOwner"] is None)
+        self.assertEqual(verified["attributionPath"], "uniswap_v4_share_vault")
+        self.assertEqual(verified["quality"], "verified")
+        self.assertEqual(unresolved["custodian"], custody)
+        self.assertEqual(unresolved["positionStatus"], "custodied_unresolved")
+        self.assertEqual(unresolved["quality"], "unavailable")
+
 
 class BeneficialOwnerTests(unittest.TestCase):
     ZERO = "0x" + "00" * 20
@@ -1354,6 +1679,413 @@ class BeneficialOwnerTests(unittest.TestCase):
     @staticmethod
     def _topic_address(address):
         return "0x" + address[2:].lower().rjust(64, "0")
+
+    def _share_transfer(self, sender, recipient, amount, log_index):
+        return {
+            "address": self.ISLAND,
+            "blockNumber": 300 + log_index,
+            "transactionIndex": 0,
+            "logIndex": log_index,
+            "transactionHash": "0x" + f"{log_index + 1:064x}",
+            "blockHash": "0x" + f"{300 + log_index:064x}",
+            "data": "0x" + encode(["uint256"], [amount]).hex(),
+            "topics": [
+                liquidity.event_topic("Transfer(address,address,uint256)"),
+                self._topic_address(sender),
+                self._topic_address(recipient),
+            ],
+            "removed": False,
+            "timestamp": 1_700_200_300 + log_index,
+        }
+
+    def _farm_liquidity_event(self, kind, user, amount, log_index):
+        signatures = {
+            "stake": "StakeLocked(address,uint256,uint256,bytes32)",
+            "withdraw": "WithdrawLocked(address,uint256,bytes32)",
+        }
+        data_types = ["uint256", "uint256", "bytes32"] if kind == "stake" else ["uint256", "bytes32"]
+        data_values = [amount, 604800, bytes.fromhex(f"{log_index + 1:064x}")] if kind == "stake" else [amount, bytes.fromhex(f"{log_index + 1:064x}")]
+        return {
+            "address": self.FARM,
+            "blockNumber": 400 + log_index,
+            "transactionIndex": 0,
+            "logIndex": log_index,
+            "transactionHash": "0x" + f"{log_index + 101:064x}",
+            "blockHash": "0x" + f"{400 + log_index:064x}",
+            "data": "0x" + encode(data_types, data_values).hex(),
+            "topics": [
+                liquidity.event_topic(signatures[kind]),
+                self._topic_address(user),
+            ],
+            "removed": False,
+            "timestamp": 1_700_300_400 + log_index,
+        }
+
+    def test_erc20_share_replay_reconciles_mints_transfers_and_burns(self):
+        logs = [
+            self._share_transfer(self.ZERO, self.ALICE, 100, 0),
+            self._share_transfer(self.ALICE, self.BOB, 40, 1),
+            self._share_transfer(self.BOB, self.ZERO, 10, 2),
+        ]
+
+        balances = liquidity.replay_erc20_share_balances(logs, 90)
+
+        self.assertEqual(balances, {self.ALICE: 60, self.BOB: 30})
+
+    def test_erc20_share_replay_rejects_negative_balance_and_supply_mismatch(self):
+        with self.assertRaisesRegex(ValueError, "exceeds proven balance"):
+            liquidity.replay_erc20_share_balances(
+                [self._share_transfer(self.ALICE, self.BOB, 1, 0)],
+                0,
+            )
+        with self.assertRaisesRegex(ValueError, "total supply"):
+            liquidity.replay_erc20_share_balances(
+                [self._share_transfer(self.ZERO, self.ALICE, 100, 0)],
+                99,
+            )
+
+    def test_kodiak_farm_replay_reconciles_locked_liquidity(self):
+        logs = [
+            self._farm_liquidity_event("stake", self.ALICE, 70, 0),
+            self._farm_liquidity_event("stake", self.BOB, 30, 1),
+            self._farm_liquidity_event("withdraw", self.ALICE, 20, 2),
+        ]
+
+        balances = liquidity.replay_kodiak_farm_balances(logs, 80)
+
+        self.assertEqual(balances, {self.ALICE: 50, self.BOB: 30})
+
+    def test_kodiak_farm_replay_rejects_over_withdrawal_and_total_mismatch(self):
+        with self.assertRaisesRegex(ValueError, "exceeds proven stake"):
+            liquidity.replay_kodiak_farm_balances(
+                [self._farm_liquidity_event("withdraw", self.ALICE, 1, 0)],
+                0,
+            )
+        with self.assertRaisesRegex(ValueError, "total locked"):
+            liquidity.replay_kodiak_farm_balances(
+                [self._farm_liquidity_event("stake", self.ALICE, 100, 0)],
+                99,
+            )
+
+    def test_routescan_holder_candidates_are_discovery_only_and_paginate(self):
+        first = Mock()
+        first.raise_for_status.return_value = None
+        first.json.return_value = {
+            "status": "1",
+            "result": [
+                {
+                    "TokenHolderAddress": self.ALICE,
+                    "TokenHolderQuantity": "999999999999999999999999",
+                }
+            ] * 1000,
+        }
+        second = Mock()
+        second.raise_for_status.return_value = None
+        second.json.return_value = {
+            "status": "1",
+            "result": [
+                {
+                    "TokenHolderAddress": self.BOB,
+                    "TokenHolderQuantity": "1",
+                }
+            ],
+        }
+        session = Mock()
+        session.get.side_effect = [first, second]
+
+        candidates = liquidity._routescan_token_holder_candidates(
+            80094,
+            self.ISLAND,
+            session=session,
+        )
+
+        self.assertEqual(candidates, {self.ALICE, self.BOB})
+        self.assertEqual(
+            [call.kwargs["params"]["page"] for call in session.get.call_args_list],
+            [1, 2],
+        )
+
+    def test_indexed_holder_balances_require_exact_onchain_reconciliation(self):
+        def exact_calls(_chain, calls):
+            values = {
+                call["id"]: (70 if call["args"][0] == self.ALICE else 30,)
+                for call in calls
+            }
+            return values, {}
+
+        with patch.object(liquidity, "_batch_eth_call_args", side_effect=exact_calls):
+            balances = liquidity._reconcile_indexed_holder_balances(
+                "berachain",
+                self.ISLAND,
+                {self.ALICE, self.BOB},
+                100,
+            )
+
+        self.assertEqual(balances, {self.ALICE: 70, self.BOB: 30})
+
+        with (
+            patch.object(liquidity, "_batch_eth_call_args", side_effect=exact_calls),
+            self.assertRaisesRegex(RuntimeError, "do not reconcile"),
+        ):
+            liquidity._reconcile_indexed_holder_balances(
+                "berachain",
+                self.ISLAND,
+                {self.ALICE, self.BOB},
+                101,
+            )
+
+    def test_routescan_method_callers_excludes_failed_and_other_calls(self):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {
+            "status": "1",
+            "result": [
+                {
+                    "from": self.ALICE,
+                    "to": self.UNKNOWN_VAULT,
+                    "methodId": "0xa694fc3a",
+                    "isError": "0",
+                },
+                {
+                    "from": self.BOB,
+                    "to": self.UNKNOWN_VAULT,
+                    "methodId": "0xa694fc3a",
+                    "isError": "1",
+                },
+                {
+                    "from": self.CAROL,
+                    "to": self.UNKNOWN_VAULT,
+                    "methodId": "0x2e1a7d4d",
+                    "isError": "0",
+                },
+            ],
+        }
+        session = Mock()
+        session.get.return_value = response
+
+        callers = liquidity._routescan_method_callers(
+            80094,
+            self.UNKNOWN_VAULT,
+            "stake(uint256)",
+            2_900_000,
+            20_000_000,
+            session=session,
+        )
+
+        self.assertEqual(callers, {self.ALICE})
+        self.assertEqual(session.get.call_args.kwargs["params"]["offset"], 10000)
+
+    def test_routescan_transfer_counterparties_reads_both_ends_of_history(self):
+        incoming = Mock()
+        incoming.raise_for_status.return_value = None
+        incoming.json.return_value = {
+            "status": "1",
+            "result": [
+                {"from": self.ALICE, "to": self.UNKNOWN_VAULT},
+            ],
+        }
+        outgoing = Mock()
+        outgoing.raise_for_status.return_value = None
+        outgoing.json.return_value = {
+            "status": "1",
+            "result": [
+                {"from": self.UNKNOWN_VAULT, "to": self.BOB},
+            ],
+        }
+        session = Mock()
+        session.get.side_effect = [incoming, outgoing]
+
+        counterparties = liquidity._routescan_token_transfer_counterparties(
+            80094,
+            self.ISLAND,
+            self.UNKNOWN_VAULT,
+            2_900_000,
+            20_000_000,
+            session=session,
+        )
+
+        self.assertEqual(counterparties, {self.ALICE, self.BOB})
+        self.assertEqual(
+            [call.kwargs["params"]["sort"] for call in session.get.call_args_list],
+            ["asc", "desc"],
+        )
+
+    def test_standard_staking_custody_is_verified_only_from_exact_user_balances(self):
+        def exact_calls(_chain, calls):
+            return (
+                {
+                    call["id"]: (
+                        60 if call["args"][0] == self.ALICE else 40,
+                    )
+                    for call in calls
+                },
+                {},
+            )
+
+        with (
+            patch.object(liquidity, "_eth_call", return_value=(100,)),
+            patch.object(
+                liquidity,
+                "_routescan_method_callers",
+                return_value={self.ALICE, self.BOB},
+            ) as discover,
+            patch.object(
+                liquidity,
+                "_routescan_token_transfer_counterparties",
+                return_value=set(),
+            ),
+            patch.object(liquidity, "_batch_eth_call_args", side_effect=exact_calls),
+        ):
+            state = liquidity._standard_staking_custody_state(
+                "berachain",
+                80094,
+                self.UNKNOWN_VAULT,
+                self.ISLAND,
+                100,
+                2_900_000,
+                20_000_000,
+            )
+
+        self.assertEqual(state["stakedBalances"], {self.ALICE: 60, self.BOB: 40})
+        self.assertEqual(state["unresolvedBalance"], 0)
+        self.assertEqual(state["attributionPath"], "kodiak_island_staking")
+        self.assertIn("on-chain", state["attributionReason"])
+        self.assertEqual(discover.call_args.args[2], "stake(uint256)")
+
+        with patch.object(liquidity, "_eth_call", return_value=(99,)):
+            self.assertIsNone(
+                liquidity._standard_staking_custody_state(
+                    "berachain",
+                    80094,
+                    self.UNKNOWN_VAULT,
+                    self.ISLAND,
+                    100,
+                    2_900_000,
+                    20_000_000,
+                )
+            )
+
+    def test_staking_allocation_keeps_exact_residual_unresolved(self):
+        underlying = {
+            "id": "position-residual",
+            "amount0Raw": "100",
+            "amount1Raw": "200",
+            "doloRaw": "100",
+            "pairedRaw": "200",
+            "quality": "verified",
+        }
+        rows = liquidity.allocate_kodiak_island_position(
+            underlying,
+            {
+                "address": self.ISLAND,
+                "totalShares": 100,
+                "balances": {self.UNKNOWN_VAULT: 100},
+            },
+            [
+                {
+                    "address": self.UNKNOWN_VAULT,
+                    "stakingToken": self.ISLAND,
+                    "custodyBalance": 100,
+                    "stakedBalances": {self.ALICE: 99},
+                    "unresolvedBalance": 1,
+                    "attributionPath": "kodiak_island_staking",
+                    "attributionReason": "exact staking balances",
+                }
+            ],
+            contract_addresses={self.UNKNOWN_VAULT},
+        )
+
+        verified = next(row for row in rows if row["beneficialOwner"] == self.ALICE)
+        residual = next(row for row in rows if row["beneficialOwner"] is None)
+        self.assertEqual(verified["quality"], "verified")
+        self.assertEqual(verified["shareBalanceRaw"], "99")
+        self.assertEqual(residual["quality"], "unavailable")
+        self.assertEqual(residual["shareBalanceRaw"], "1")
+        self.assertIn("residual", residual["attributionReason"])
+
+    def test_infrared_custody_removes_only_the_proven_bootstrap_share(self):
+        infrared = "0x" + "15" * 20
+        rewards_vault = self.UNKNOWN_VAULT
+        infrared_vault = self.FARM
+
+        def exact_call(_chain, address, signature, _outputs):
+            self.assertEqual(address, infrared_vault)
+            return {
+                "stakingToken()": (self.ISLAND,),
+                "rewardsVault()": (rewards_vault,),
+                "infrared()": (infrared,),
+                "totalSupply()": (100,),
+            }[signature]
+
+        def exact_balances(_chain, calls):
+            return (
+                {
+                    call["id"]: (
+                        99 if call["args"][0] == self.ALICE else 1,
+                    )
+                    for call in calls
+                },
+                {},
+            )
+
+        with (
+            patch.object(liquidity, "_eth_call", side_effect=exact_call),
+            patch.object(
+                liquidity,
+                "_routescan_method_callers",
+                return_value={self.ALICE},
+            ),
+            patch.object(
+                liquidity,
+                "_routescan_token_transfer_counterparties",
+                return_value=set(),
+            ),
+            patch.object(liquidity, "_batch_eth_call_args", side_effect=exact_balances),
+        ):
+            state = liquidity._infrared_staking_custody_state(
+                "berachain",
+                80094,
+                infrared_vault,
+                rewards_vault,
+                self.ISLAND,
+                99,
+                2_900_000,
+                20_000_000,
+            )
+
+        self.assertEqual(state["stakedBalances"], {self.ALICE: 99})
+        self.assertEqual(state["custodyBalance"], 99)
+        self.assertEqual(state["unresolvedBalance"], 0)
+        self.assertEqual(state["attributionPath"], "kodiak_island_infrared")
+
+    def test_nested_staking_state_flattens_without_changing_share_total(self):
+        parent = {
+            "address": self.UNKNOWN_VAULT,
+            "stakingToken": self.ISLAND,
+            "custodyBalance": 100,
+            "stakedBalances": {self.FARM: 90, self.BOB: 10},
+            "unresolvedBalance": 0,
+            "attributionPath": "kodiak_island_staking",
+            "attributionReason": "outer exact",
+        }
+        child = {
+            "address": self.FARM,
+            "stakingToken": self.ISLAND,
+            "custodyBalance": 90,
+            "stakedBalances": {self.ALICE: 90},
+            "unresolvedBalance": 0,
+            "attributionPath": "kodiak_island_infrared",
+            "attributionReason": "nested exact",
+        }
+
+        flattened = liquidity._flatten_nested_staking_state(parent, child)
+
+        self.assertEqual(
+            flattened["stakedBalances"],
+            {self.ALICE: 90, self.BOB: 10},
+        )
+        self.assertEqual(sum(flattened["stakedBalances"].values()), 100)
+        self.assertIn("nested", flattened["attributionReason"])
 
     def test_island_created_discovery_requires_underlying_dolo_pool(self):
         log = {
@@ -1429,6 +2161,8 @@ class BeneficialOwnerTests(unittest.TestCase):
                 "stakingToken": self.ISLAND,
                 "custodyBalance": 50,
                 "stakedBalances": {self.BOB: 30, self.CAROL: 20},
+                "attributionPath": "kodiak_island_staking",
+                "attributionReason": "exact on-chain staking balances reconcile",
             }
         ]
 
@@ -1446,7 +2180,11 @@ class BeneficialOwnerTests(unittest.TestCase):
         self.assertEqual(sum(int(row["shareBalanceRaw"]) for row in rows), 100)
         by_owner = {row["beneficialOwner"]: row for row in rows}
         self.assertEqual(by_owner[self.ALICE]["attributionPath"], "kodiak_island")
-        self.assertEqual(by_owner[self.BOB]["attributionPath"], "kodiak_island_farm")
+        self.assertEqual(by_owner[self.BOB]["attributionPath"], "kodiak_island_staking")
+        self.assertEqual(
+            by_owner[self.BOB]["attributionReason"],
+            "exact on-chain staking balances reconcile",
+        )
         self.assertEqual(by_owner[self.BOB]["custodian"], self.FARM)
         self.assertEqual(by_owner[self.CAROL]["shareBalanceRaw"], "20")
         unresolved = by_owner[None]
@@ -1630,6 +2368,181 @@ class LiveAdapterOrchestrationTests(unittest.TestCase):
         )
 
         self.assertEqual(token_ids, {7})
+
+    def test_kodiak_live_builder_replaces_island_custody_with_share_rows(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(
+            row
+            for row in registry["pools"]
+            if row["adapter"] == "kodiak-v3" and row["pair"] == "DOLO/WBERA"
+        )
+        island = "0x" + "14" * 20
+        alice = "0x" + "aa" * 20
+        wbera = "0x6969696969696969696969696969696969696969"
+        indexed = {
+            token_id: {
+                "pool": pool["identifier"],
+                "token0": DOLO,
+                "token1": wbera,
+                "fee": 500,
+                "tickLower": -100,
+                "tickUpper": 100,
+                "indexedLiquidity": 1_000,
+            }
+            for token_id in (1, 2)
+        }
+        island_row = {
+            "id": "island-share-row",
+            "sourceKey": "berachain:kodiak-v3",
+            "poolId": pool["identifier"],
+            "poolIdentifierType": "contract",
+            "chainKey": "berachain",
+            "adapter": "kodiak-v3",
+            "pair": "DOLO/WBERA",
+            "positionType": "kodiak_island_share",
+            "positionId": island,
+            "amount0Raw": "100",
+            "amount1Raw": "200",
+            "doloRaw": "100",
+            "pairedRaw": "200",
+            "rangeStatus": "in_range",
+            "beneficialOwner": alice,
+            "custodian": island,
+            "quality": "verified",
+        }
+        current = {
+            "token0": DOLO,
+            "token1": wbera,
+            "fee": 500,
+            "tickLower": -100,
+            "tickUpper": 100,
+            "liquidity": 1_000,
+        }
+        state = {
+            "token0": DOLO,
+            "token1": wbera,
+            "sqrtPriceX96": 1 << 96,
+            "currentTick": 0,
+            "decimals0": 18,
+            "decimals1": 18,
+        }
+
+        with (
+            patch.object(liquidity, "_kodiak_position_index", return_value=indexed),
+            patch.object(liquidity, "_v3_position", return_value=current),
+            patch.object(
+                liquidity,
+                "_v3_owner",
+                side_effect=lambda _chain, _manager, token_id: island if token_id == 1 else alice,
+            ),
+            patch.object(liquidity, "_v3_pool_state", return_value=state),
+            patch.object(liquidity, "_contract_owners", return_value={island}),
+            patch.object(
+                liquidity,
+                "_build_kodiak_island_rows",
+                create=True,
+                return_value={
+                    "activePositions": [island_row],
+                    "islands": {island},
+                    "unresolved": [],
+                },
+            ) as island_builder,
+        ):
+            result = liquidity._build_kodiak_v3_live_source(registry, pool, 1_000)
+
+        island_builder.assert_called_once()
+        self.assertIn("island-share-row", {row["id"] for row in result["activePositions"]})
+        self.assertFalse(
+            any(
+                row.get("custodian") == island
+                and row.get("positionType") == "concentrated_nft"
+                for row in result["activePositions"]
+            )
+        )
+        self.assertTrue(
+            any(row.get("beneficialOwner") == alice for row in result["activePositions"])
+        )
+
+    def test_uniswap_v4_live_builder_routes_noncanonical_sender_rows(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(
+            row
+            for row in registry["pools"]
+            if row["adapter"] == "uniswap-v4" and row["pair"] == "DOLO/USD1"
+        )
+        config = registry["chains"]["ethereum"]["adapters"]["uniswap-v4"]
+        usd1 = "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
+        vault = "0x" + "53" * 20
+        alice = "0x" + "aa" * 20
+        canonical = {
+            "kind": "modify_liquidity",
+            "poolId": pool["identifier"],
+            "sender": config["positionManager"],
+            "tickLower": -100,
+            "tickUpper": 100,
+            "liquidityDelta": 1_000,
+            "salt": "0x" + f"{1:064x}",
+        }
+        noncanonical = {
+            "kind": "modify_liquidity",
+            "poolId": pool["identifier"],
+            "sender": vault,
+            "tickLower": -200,
+            "tickUpper": 200,
+            "liquidityDelta": 2_000,
+            "salt": "0x" + "42" * 32,
+        }
+        packed_ticks = ((-100 & ((1 << 24) - 1)) << 8) | ((100 & ((1 << 24) - 1)) << 32)
+        direct_row = {"id": "canonical-row", "custodian": alice, "beneficialOwner": alice}
+        vault_row = {"id": "vault-row", "custodian": vault, "beneficialOwner": None}
+
+        def batch_calls(_chain, calls):
+            call_id = calls[0]["id"]
+            if call_id.startswith("info:"):
+                return {
+                    "info:1": ((DOLO, usd1, 3_000, 60, liquidity.ZERO_ADDRESS), packed_ticks)
+                }, {}
+            if call_id.startswith("liquidity:"):
+                return {"liquidity:1": (1_000,)}, {}
+            if call_id.startswith("owner:"):
+                return {"owner:1": (alice,)}, {}
+            self.fail(f"unexpected batch call {call_id}")
+
+        with (
+            patch.object(liquidity, "_routescan_logs", return_value=[canonical, noncanonical]),
+            patch.object(liquidity, "decode_v4_pool_manager_log", side_effect=lambda row: row),
+            patch.object(liquidity, "_batch_eth_call_args", side_effect=batch_calls),
+            patch.object(liquidity, "_eth_call_args", return_value=(1 << 96, 0, 0, 0)),
+            patch.object(liquidity, "_eth_call", return_value=(18,)),
+            patch.object(liquidity, "_contract_owners", return_value=set()),
+            patch.object(
+                liquidity,
+                "build_v4_rows",
+                return_value={
+                    "sourceStatus": "complete",
+                    "activePositions": [direct_row],
+                    "history": [],
+                    "unresolved": [],
+                },
+            ),
+            patch.object(
+                liquidity,
+                "_build_v4_noncanonical_rows",
+                create=True,
+                return_value={"activePositions": [vault_row], "unresolved": []},
+            ) as vault_builder,
+        ):
+            result = liquidity._build_uniswap_v4_live_source(
+                registry, pool, 1_000, previous_artifact={}, full_history=True
+            )
+
+        vault_builder.assert_called_once()
+        routed = vault_builder.call_args.args[2]
+        self.assertEqual(routed, [noncanonical])
+        self.assertEqual(
+            {row["id"] for row in result["activePositions"]},
+            {"canonical-row", "vault-row"},
+        )
 
 
 class ArtifactAssemblyTests(unittest.TestCase):
@@ -1874,6 +2787,66 @@ class ArtifactAssemblyTests(unittest.TestCase):
                     max_bytes=2_000_000,
                 )
             self.assertFalse(output.exists())
+
+    def test_pool_coverage_separates_verified_wallets_and_unresolved_custody(self):
+        registry = json.loads((FIXTURES / "registry-minimal.json").read_text())
+        pool = {
+            **registry["pools"][0],
+            "id": registry["pools"][0]["identifier"],
+            "sourceKey": "ethereum:uniswap-v4",
+            "liquidityUsd": 100.0,
+            "liquidityStatus": "verified",
+            "quality": "partial",
+        }
+        owner = "0x" + "aa" * 20
+        custodian = "0x" + "ee" * 20
+        base = {
+            "sourceKey": "ethereum:uniswap-v4",
+            "poolId": pool["identifier"],
+            "poolIdentifierType": "poolId",
+            "quality": "verified",
+            "rangeStatus": "in_range",
+            "doloRaw": "1",
+            "pairedRaw": "1",
+            "valueStatus": "verified",
+        }
+        artifact = liquidity.assemble_artifact(
+            registry,
+            [],
+            [pool],
+            [
+                {
+                    **base,
+                    "id": "verified-owner",
+                    "beneficialOwner": owner,
+                    "custodian": owner,
+                    "valueUsd": 75.0,
+                },
+                {
+                    **base,
+                    "id": "unresolved-custody",
+                    "beneficialOwner": None,
+                    "custodian": custodian,
+                    "quality": "unavailable",
+                    "valueUsd": 10.0,
+                },
+            ],
+            [],
+            "2026-08-13T08:00:00Z",
+        )
+
+        self.assertEqual(
+            artifact["pools"][0]["coverage"],
+            {
+                "attributedValueUsd": 85.0,
+                "verifiedWalletValueUsd": 75.0,
+                "unresolvedCustodyValueUsd": 10.0,
+                "coveragePct": 85.0,
+                "residualValueUsd": 15.0,
+                "status": "partial",
+                "residualReason": "Pool liquidity exceeds currently attributed active positions.",
+            },
+        )
 
 
 if __name__ == "__main__":

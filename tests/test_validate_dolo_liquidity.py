@@ -71,6 +71,17 @@ def valid_payload():
             "valueStatus": "verified",
         }
     ]
+    for pool in pools:
+        has_active = pool["identifier"] == active[0]["poolId"]
+        pool["coverage"] = {
+            "attributedValueUsd": 1.05 if has_active else 0.0,
+            "verifiedWalletValueUsd": 1.05 if has_active else 0.0,
+            "unresolvedCustodyValueUsd": 0.0,
+            "coveragePct": None,
+            "residualValueUsd": None,
+            "status": "unavailable",
+            "residualReason": "Pool liquidity is unavailable for coverage comparison.",
+        }
     return {
         "schemaVersion": 1,
         "generatedAt": generated_at,
@@ -186,6 +197,11 @@ class DoloLiquidityValidatorTests(unittest.TestCase):
         payload["summary"]["activePositions"] = 2
         payload["summary"]["activeLiquidityUsd"] = 2.1
         payload["quality"]["verifiedActivePositions"] = 2
+        target_pool = next(
+            pool for pool in payload["pools"] if pool["identifier"] == base["poolId"]
+        )
+        target_pool["coverage"]["attributedValueUsd"] = 2.1
+        target_pool["coverage"]["verifiedWalletValueUsd"] = 2.1
         self.assertTrue(validate_data._dolo_liquidity_valid(payload))
 
         broken = copy.deepcopy(payload)
@@ -205,6 +221,26 @@ class DoloLiquidityValidatorTests(unittest.TestCase):
         duplicate_aggregate["summary"]["activeLiquidityUsd"] = 3.15
         duplicate_aggregate["quality"]["verifiedActivePositions"] = 3
         self.assertFalse(validate_data._dolo_liquidity_valid(duplicate_aggregate))
+
+    def test_pool_coverage_must_reconcile_with_rows_and_liquidity(self):
+        payload = valid_payload()
+        target = next(
+            pool
+            for pool in payload["pools"]
+            if pool["identifier"] == payload["activePositions"][0]["poolId"]
+        )
+        target["liquidityUsd"] = 2.0
+        target["liquidityStatus"] = "verified"
+        target["coverage"] = {
+            "attributedValueUsd": 99.0,
+            "verifiedWalletValueUsd": 1.05,
+            "unresolvedCustodyValueUsd": 0.0,
+            "coveragePct": 5250.0,
+            "residualValueUsd": -97.0,
+            "status": "partial",
+        }
+
+        self.assertFalse(validate_data._dolo_liquidity_valid(payload))
 
 
 if __name__ == "__main__":
