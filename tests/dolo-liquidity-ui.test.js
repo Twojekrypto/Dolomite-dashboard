@@ -223,8 +223,8 @@ test('identity, numeric and action columns keep explicit alignment groups', () =
 
 test('finite Value cells use the muted Latest Exercises price blue', () => {
   assert.match(html, /class="num dolo-lp-value\$\{finite\(row\.valueUsd\)\s*\?\s*""\s*:\s*" is-muted"\}"/);
-  assert.match(html, /\.dolo-lp-value\{color:#9ab7c2\}/);
-  assert.match(html, /\.dolo-lp-value\.is-muted\{color:var\(--fg-4\)\}/);
+  assert.match(html, /\.dolo-lp-table tbody td\.dolo-lp-value\{color:#9ab7c2\}/);
+  assert.match(html, /\.dolo-lp-table tbody td\.dolo-lp-value\.is-muted\{color:var\(--fg-4\)\}/);
 });
 
 test('unresolved protocol custody is named without inventing a wallet', () => {
@@ -284,7 +284,7 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
 });
 
 test('both production entry points advance the active-only liquidity cache once', () => {
-  const version = 'lp-coverage-parity-20260813';
+  const version = 'lp-value-blue-20260813';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
