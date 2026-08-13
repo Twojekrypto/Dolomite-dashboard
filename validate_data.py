@@ -13,7 +13,7 @@ import math
 import sys
 import os
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from vedolo_vote_power import VEDOLO_CONTRACT
 
@@ -45,6 +45,8 @@ ODOLO_FUTURE_REWARDS_WALLET = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
 ODOLO_ALLOCATION = 200_000_000.0
 ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543"
 ODOLO_CLAIMS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026"
+VEDOLO_DEPLOYMENT_BLOCK = 2_926_448
+DOLO_WEI = Decimal(10) ** 18
 NON_CHAIN_TVL_KEYS = {
     "borrowed",
     "staking",
@@ -78,6 +80,143 @@ def _nearly_equal(a, b, rel=1e-8, abs_tol=5.0):
     except (TypeError, ValueError):
         return False
     return abs(a - b) <= max(abs_tol, max(abs(a), abs(b)) * rel)
+
+
+def _early_exit_raw(value):
+    if isinstance(value, bool) or not isinstance(value, str) or not value.isdigit():
+        raise ValueError("raw DOLO value must be a non-negative integer string")
+    return int(value)
+
+
+def _early_exit_decimal_matches_raw(value, raw_value):
+    try:
+        return Decimal(str(value)) == Decimal(_early_exit_raw(raw_value)) / DOLO_WEI
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+
+
+def _early_exit_coverage_complete(data):
+    try:
+        coverage = data["coverage"]
+        stats = data["stats"]
+        rows = data["recent_exits"]
+        early = stats["total_early_exits"]
+        normal = stats["total_normal_exits"]
+        withdrawals = stats["total_withdrawals"]
+        unique_txs = stats["unique_withdrawal_transactions"]
+        count_values = (early, normal, withdrawals, unique_txs)
+        if any(type(value) is not int or value < 0 for value in count_values):
+            return False
+        return (
+            data.get("schemaVersion") == 2
+            and coverage.get("complete") is True
+            and coverage.get("fromBlock") == VEDOLO_DEPLOYMENT_BLOCK
+            and type(coverage.get("toBlock")) is int
+            and coverage["toBlock"] >= coverage["fromBlock"]
+            and coverage.get("eventCount") == withdrawals
+            and coverage.get("uniqueTransactionCount") == unique_txs
+            and 0 < unique_txs <= withdrawals
+            and early + normal == withdrawals
+            and len(rows) == early
+            and _fresh_timestamp(stats.get("last_updated"), max_hours=12)
+        )
+    except (KeyError, TypeError):
+        return False
+
+
+def _early_exit_rows_reconcile(data):
+    try:
+        rows = data["recent_exits"]
+        stats = data["stats"]
+        if not isinstance(rows, list):
+            return False
+        seen_events = set()
+        totals = {
+            "burn_fee_raw": 0,
+            "recoup_fee_raw": 0,
+            "total_penalty_raw": 0,
+            "original_locked_raw": 0,
+            "user_received_raw": 0,
+        }
+        for row in rows:
+            if not isinstance(row, dict):
+                return False
+            tx_hash = row.get("tx_hash")
+            address = row.get("address")
+            log_index = row.get("log_index")
+            event_id = row.get("event_id")
+            if (
+                not isinstance(tx_hash, str)
+                or len(tx_hash) != 66
+                or not tx_hash.startswith("0x")
+                or not isinstance(address, str)
+                or len(address) != 42
+                or not address.startswith("0x")
+                or type(log_index) is not int
+                or log_index < 0
+                or event_id != f"{tx_hash.lower()}:{log_index}"
+                or event_id in seen_events
+            ):
+                return False
+            int(tx_hash[2:], 16)
+            int(address[2:], 16)
+            seen_events.add(event_id)
+            burn = _early_exit_raw(row.get("burn_fee_raw"))
+            recoup = _early_exit_raw(row.get("recoup_fee_raw"))
+            penalty = _early_exit_raw(row.get("total_penalty_raw"))
+            original = _early_exit_raw(row.get("original_locked_raw"))
+            received = _early_exit_raw(row.get("user_received_raw"))
+            if penalty <= 0 or burn + recoup != penalty or received + penalty != original:
+                return False
+            for decimal_key, raw_key in (
+                ("burn_fee", "burn_fee_raw"),
+                ("recoup_fee", "recoup_fee_raw"),
+                ("total_penalty", "total_penalty_raw"),
+                ("original_locked", "original_locked_raw"),
+                ("user_received", "user_received_raw"),
+            ):
+                if not _early_exit_decimal_matches_raw(row.get(decimal_key), row.get(raw_key)):
+                    return False
+            expected_pct = (
+                Decimal(penalty) * Decimal(100) / Decimal(original)
+            ).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+            if Decimal(str(row.get("penalty_pct"))) != expected_pct:
+                return False
+            for key, value in (
+                ("burn_fee_raw", burn),
+                ("recoup_fee_raw", recoup),
+                ("total_penalty_raw", penalty),
+                ("original_locked_raw", original),
+                ("user_received_raw", received),
+            ):
+                totals[key] += value
+
+        stat_mapping = {
+            "total_burn_fee_raw": "burn_fee_raw",
+            "total_recoup_fee_raw": "recoup_fee_raw",
+            "total_penalty_raw": "total_penalty_raw",
+            "total_original_locked_raw": "original_locked_raw",
+            "total_received_raw": "user_received_raw",
+        }
+        for stat_raw_key, total_key in stat_mapping.items():
+            if _early_exit_raw(stats.get(stat_raw_key)) != totals[total_key]:
+                return False
+        for decimal_key, raw_key in (
+            ("total_burn_fee_dolo", "total_burn_fee_raw"),
+            ("total_recoup_fee_dolo", "total_recoup_fee_raw"),
+            ("total_penalty_dolo", "total_penalty_raw"),
+            ("total_original_locked", "total_original_locked_raw"),
+            ("total_received_dolo", "total_received_raw"),
+        ):
+            if not _early_exit_decimal_matches_raw(stats.get(decimal_key), stats.get(raw_key)):
+                return False
+        total_original = totals["original_locked_raw"]
+        expected_avg = Decimal(0) if not total_original else (
+            Decimal(totals["total_penalty_raw"]) * Decimal(100) / Decimal(total_original)
+        ).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
+        return Decimal(str(stats.get("avg_penalty_pct"))) == expected_avg
+    except (InvalidOperation, KeyError, TypeError, ValueError):
+        return False
 
 
 def _safe_number(value):
@@ -1512,8 +1651,11 @@ RULES = {
         "min_bytes": 50_000,
     },
     "early_exits.json": {
-        "required_keys": ["stats", "recent_exits"],
-        "checks": [],
+        "required_keys": ["schemaVersion", "coverage", "stats", "recent_exits"],
+        "checks": [
+            ("early exits must have complete event coverage", _early_exit_coverage_complete),
+            ("early exit rows and totals must reconcile exactly", _early_exit_rows_reconcile),
+        ],
         "min_bytes": 1_000,
     },
     "dolomite_tvl.json": {
