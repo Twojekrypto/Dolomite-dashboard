@@ -1293,6 +1293,10 @@ const fmtCompact = n => {
   return n.toLocaleString("en-US",{maximumFractionDigits:2});
 };
 const fmtDolo = n => fmtCompact(n) + " DOLO";
+function fmtExitDolo(v){
+  const value = num(v);
+  return value > 0 && value < 0.01 ? "<0.01 DOLO" : fmtDolo(value);
+}
 const fmtMoney = n => "$" + fmtCompact(n);
 const fmtPrice = n => num(n) > 0 ? "$" + num(n).toFixed(num(n) >= 1 ? 2 : 4) : "--";
 const pct = n => num(n).toFixed(1) + "%";
@@ -2709,8 +2713,8 @@ function renderExits(){
   const exitRows = pageRows.length ? pageRows.map((ex,i) => `<tr class="stable-data-row">
     <td>${exitDateCell(ex.date, ex.tx_hash, exitTimestamp(ex))}</td>
     <td>${exitAddressCell(ex.address)}</td>
-    <td class="num"><span class="exit-value">${fmtDolo(ex.original_locked)}</span></td>
-    <td class="num"><span class="exit-value penalty">${fmtDolo(ex.total_penalty)}</span></td>
+    <td class="num"><span class="exit-value">${fmtExitDolo(ex.original_locked)}</span></td>
+    <td class="num"><span class="exit-value penalty">${fmtExitDolo(ex.total_penalty)}</span></td>
     <td class="num"><span class="exit-loss-pill">${pct(ex.penalty_pct)}</span></td>
   </tr>`).join("") : '<tr class="loading-row table-empty-row"><td colspan="5">No early exits in this period.</td></tr>';
   qs("#exits-body").innerHTML = exitRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 5);

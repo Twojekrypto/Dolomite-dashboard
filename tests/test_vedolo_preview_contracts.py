@@ -263,6 +263,13 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('#recent-early-exits-section #dd-exit-period .dd-opt.active .dd-opt-check', self.html)
         self.assertIn('vedolo-exit-red-controls-20260711', self.route)
 
+    def test_early_exit_rows_do_not_render_positive_micro_amounts_as_zero(self):
+        self.assertIn('function fmtExitDolo(v)', self.html)
+        self.assertIn('return value > 0 && value < 0.01 ? "<0.01 DOLO" : fmtDolo(value);', self.html)
+        self.assertIn('${fmtExitDolo(ex.original_locked)}', self.html)
+        self.assertIn('${fmtExitDolo(ex.total_penalty)}', self.html)
+        self.assertIn('vedolo-early-exit-exact-20260813', self.route)
+
     def test_lock_duration_uses_header_update_metadata_without_summary(self):
         duration_section = re.search(
             r'<section class="card chart-card duration-card">(?P<body>.*?)</section>',
