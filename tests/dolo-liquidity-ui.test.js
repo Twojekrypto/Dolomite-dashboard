@@ -65,7 +65,7 @@ test('active table schema and fixed ten-row geometry stay explicit', () => {
   assert.doesNotMatch(headers, /\["quality","Status"\]/);
   assert.match(html, /\.dolo-lp-table\{[^}]*table-layout:fixed/s);
   assert.match(headers, /\["rangeStatus","Price Range"\],\s*\["groupGap",""\],\s*\["doloRaw","DOLO"\]/);
-  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[9,17,11,13,11,9,12,9,9\]/);
+  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[9,16,10,13,15,8,11,9,9\]/);
   assert.match(html, /<td class="dolo-lp-group-gap" aria-hidden="true"><\/td>/);
   assert.match(html, /\.dolo-lp-table \.dolo-lp-group-gap\{[^}]*padding:0/s);
   assert.doesNotMatch(html, /const HISTORY_WIDTHS/);
@@ -225,12 +225,15 @@ test('identity, numeric and action columns keep explicit alignment groups', () =
   assert.match(html, /\.dolo-lp-card \.dolo-lp-table thead th\.paired-asset,\.dolo-lp-card \.dolo-lp-table tbody td\.paired-asset\{text-align:center\}/);
   assert.match(html, /\.dolo-lp-table th\.paired-asset \.sort\{[^}]*position:absolute/s);
   assert.match(html, /\.dolo-lp-table td\.paired-asset \.dolo-lp-token-amount\{justify-content:center\}/);
+  assert.match(html, /<td class="num dolo-lp-value value-cell\$\{finite\(row\.valueUsd\)\s*\?\s*""\s*:\s*" is-muted"\}"/);
+  assert.match(html, /\.dolo-lp-card \.dolo-lp-table thead th\.value-cell,\.dolo-lp-card \.dolo-lp-table tbody td\.value-cell\{text-align:center\}/);
+  assert.match(html, /\.dolo-lp-table th\.value-cell \.sort\{[^}]*position:absolute/s);
   assert.match(html, /\.dolo-lp-table th\.details-cell\{text-align:center/);
   assert.match(html, /\.dolo-lp-table td\.details-cell\{text-align:center;padding-left:14px;padding-right:14px\}/);
 });
 
 test('finite Value cells use the muted Latest Exercises price blue', () => {
-  assert.match(html, /class="num dolo-lp-value\$\{finite\(row\.valueUsd\)\s*\?\s*""\s*:\s*" is-muted"\}"/);
+  assert.match(html, /class="num dolo-lp-value value-cell\$\{finite\(row\.valueUsd\)\s*\?\s*""\s*:\s*" is-muted"\}"/);
   assert.match(html, /\.dolo-lp-table tbody td\.dolo-lp-value\{color:#9ab7c2\}/);
   assert.match(html, /\.dolo-lp-table tbody td\.dolo-lp-value\.is-muted\{color:var\(--fg-4\)\}/);
 });
@@ -292,7 +295,7 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
 });
 
 test('both production entry points advance the aligned-column liquidity cache once', () => {
-  const version = 'lp-column-alignment-20260813';
+  const version = 'lp-column-balance-20260813';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }

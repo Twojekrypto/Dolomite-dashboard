@@ -1061,10 +1061,24 @@ DOLO_LIQUIDITY_POOLS = {
     ("berachain", "kodiak-v3", "0x8194ed4d6701b7a1b40e48431de37047f0248b0b"),
 }
 DOLO_LIQUIDITY_QUALITIES = {"verified", "partial", "stale", "unavailable"}
+DOLO_LIQUIDITY_POSITION_STATUSES = {"active", "custodied_unresolved"}
+DOLO_LIQUIDITY_RANGE_STATUSES = {"in_range", "out_of_range", "full_range", "unavailable"}
 
 
 def _dolo_liquidity_raw(value):
     return isinstance(value, str) and bool(value) and value.isdigit()
+
+
+def _dolo_liquidity_address(value, *, allow_none=False):
+    if value is None:
+        return allow_none
+    return (
+        isinstance(value, str)
+        and len(value) == 42
+        and value.startswith("0x")
+        and value == value.lower()
+        and all(char in "0123456789abcdef" for char in value[2:])
+    )
 
 
 def _dolo_liquidity_value_valid(row):
@@ -1180,6 +1194,7 @@ def _dolo_liquidity_valid(data):
 
     pool_identities = set()
     pool_ids = set()
+    pool_by_id = {}
     for pool in pools:
         if not isinstance(pool, dict):
             return False
@@ -1198,6 +1213,7 @@ def _dolo_liquidity_valid(data):
             or not identifier.startswith("0x")
             or any(char not in "0123456789abcdef" for char in identifier[2:])
             or pool.get("id") != identifier
+            or pool.get("sourceKey") != f"{identity[0]}:{identity[1]}"
             or pool.get("quality") not in DOLO_LIQUIDITY_QUALITIES
         ):
             return False
@@ -1214,10 +1230,12 @@ def _dolo_liquidity_valid(data):
             return False
         pool_identities.add(identity)
         pool_ids.add(identifier)
+        pool_by_id[identifier] = pool
     if pool_identities != DOLO_LIQUIDITY_POOLS:
         return False
 
     source_keys = set()
+    source_by_key = {}
     for source in sources:
         if not isinstance(source, dict):
             return False
@@ -1233,9 +1251,13 @@ def _dolo_liquidity_valid(data):
             or not _is_exact_integer(latest_block)
             or not 0 <= last_block <= latest_block
             or not isinstance(source.get("errors"), list)
+            or key != f"{source.get('chainKey')}:{source.get('adapter')}"
         ):
             return False
         source_keys.add(key)
+        source_by_key[key] = source
+    if source_keys != {f"{chain}:{adapter}" for chain, adapter, _ in pool_identities}:
+        return False
 
     active_ids = set()
     allocation_groups = {}
@@ -1243,12 +1265,27 @@ def _dolo_liquidity_valid(data):
         if not isinstance(row, dict):
             return False
         row_id = row.get("id")
+        pool_id = str(row.get("poolId") or "").lower()
+        pool = pool_by_id.get(pool_id)
+        source = source_by_key.get(row.get("sourceKey"))
         if (
             not isinstance(row_id, str)
             or not row_id
             or row_id in active_ids
             or row.get("sourceKey") not in source_keys
-            or str(row.get("poolId") or "").lower() not in pool_ids
+            or pool is None
+            or source is None
+            or row.get("chainKey") != pool.get("chainKey")
+            or row.get("adapter") != pool.get("adapter")
+            or row.get("pair") != pool.get("pair")
+            or row.get("poolIdentifierType") != pool.get("identifierType")
+            or row.get("sourceKey") != pool.get("sourceKey")
+            or source.get("chainKey") != row.get("chainKey")
+            or source.get("adapter") != row.get("adapter")
+            or not _dolo_liquidity_address(row.get("beneficialOwner"), allow_none=True)
+            or not _dolo_liquidity_address(row.get("custodian"))
+            or row.get("positionStatus") not in DOLO_LIQUIDITY_POSITION_STATUSES
+            or row.get("rangeStatus") not in DOLO_LIQUIDITY_RANGE_STATUSES
             or row.get("quality") not in DOLO_LIQUIDITY_QUALITIES
             or not _dolo_liquidity_raw(row.get("doloRaw"))
             or not _dolo_liquidity_raw(row.get("pairedRaw"))
@@ -1288,14 +1325,29 @@ def _dolo_liquidity_valid(data):
         if not isinstance(row, dict):
             return False
         row_id = row.get("id")
+        pool_id = str(row.get("poolId") or "").lower()
+        pool = pool_by_id.get(pool_id)
+        source = source_by_key.get(row.get("sourceKey"))
         if (
             not isinstance(row_id, str)
             or not row_id
             or row_id in history_ids
             or row.get("sourceKey") not in source_keys
-            or str(row.get("poolId") or "").lower() not in pool_ids
+            or pool is None
+            or source is None
+            or row.get("chainKey") != pool.get("chainKey")
+            or row.get("adapter") != pool.get("adapter")
+            or row.get("pair") != pool.get("pair")
+            or row.get("poolIdentifierType") != pool.get("identifierType")
+            or row.get("sourceKey") != pool.get("sourceKey")
+            or source.get("chainKey") != row.get("chainKey")
+            or source.get("adapter") != row.get("adapter")
+            or not _dolo_liquidity_address(row.get("beneficialOwner"), allow_none=True)
+            or not _dolo_liquidity_address(row.get("custodian"), allow_none=True)
             or not _is_exact_integer(row.get("blockNumber"))
             or not _is_exact_integer(row.get("logIndex"))
+            or not _is_exact_integer(row.get("timestamp"))
+            or row.get("timestamp") < 0
             or row.get("action") not in {"Added", "Increased", "Removed", "Closed"}
             or row.get("quality") not in DOLO_LIQUIDITY_QUALITIES
             or not _dolo_liquidity_raw(row.get("doloRaw"))
