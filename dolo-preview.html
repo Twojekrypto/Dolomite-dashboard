@@ -1030,6 +1030,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-table td > *{max-width:100%}
 .dolo-lp-table .identity{text-align:left}
 .dolo-lp-table .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.dolo-lp-card .dolo-lp-table thead th.paired-asset,.dolo-lp-card .dolo-lp-table tbody td.paired-asset{text-align:center}
 .dolo-lp-table .dolo-lp-group-gap{padding:0;pointer-events:none}
 .dolo-lp-table tbody td.dolo-lp-value{color:#9ab7c2}
 .dolo-lp-table tbody td.dolo-lp-value.is-muted{color:var(--fg-4)}
@@ -1038,6 +1039,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-table th[data-dolo-lp-sort]{cursor:pointer}
 .dolo-lp-table th[data-dolo-lp-sort]:hover,.dolo-lp-table th.sorted{color:var(--fg-1)}
 .dolo-lp-table th .sort{display:inline-block;width:10px;margin-left:4px;color:var(--gold);font-size:8px;vertical-align:1px;text-align:center}
+.dolo-lp-table th.paired-asset{position:relative}
+.dolo-lp-table th.paired-asset .sort{position:absolute;top:50%;margin-left:4px;transform:translateY(-50%)}
 .dolo-lp-pair{display:flex;flex-direction:column;gap:3px;min-width:0}
 .dolo-lp-pair strong,.dolo-lp-pair span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dolo-lp-pair strong{font-size:12px;color:var(--fg-1);font-weight:600}
@@ -1048,9 +1051,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-range.is-in-range>span{color:var(--up)}
 .dolo-lp-range.is-out-of-range>span{color:var(--down)}
 .dolo-lp-token-amount{display:flex;align-items:center;justify-content:flex-end;gap:7px;width:100%;min-width:0;color:var(--fg-1);font-family:var(--mono);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dolo-lp-table td.paired-asset .dolo-lp-token-amount{justify-content:center}
 .dolo-lp-token-value{overflow:hidden;text-overflow:ellipsis;cursor:default}
 .dolo-lp-token-amount img{width:16px;height:16px;border-radius:50%;object-fit:contain;flex:0 0 16px;background:var(--bg-3)}
-.dolo-lp-table td.details-cell{text-align:center;padding-left:2px;padding-right:2px}
+.dolo-lp-table th.details-cell{text-align:center;padding-left:14px;padding-right:14px}
+.dolo-lp-table td.details-cell{text-align:center;padding-left:14px;padding-right:14px}
 .dolo-lp-details-btn{-webkit-appearance:none;appearance:none;overflow:visible;box-sizing:border-box;vertical-align:middle;height:24px;width:100%;max-width:72px;min-width:0;padding:0 2px;border:1px solid rgba(201,162,39,.28);border-radius:999px;background:var(--gold-wash);color:var(--gold);display:inline-flex;align-items:center;justify-content:center;gap:2px;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease)}
 .dolo-lp-details-btn span{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;line-height:1;pointer-events:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dolo-lp-details-btn svg{width:12px;height:12px;flex:0 0 12px;transition:transform .18s var(--ease);pointer-events:none}
@@ -5954,7 +5959,7 @@ renderCexSupplyChart();
     ["groupGap",""],
     ["doloRaw","DOLO"],["pairedRaw","Paired Asset"],["valueUsd","Value"],["details","Details"],
   ];
-  const ACTIVE_WIDTHS = [9,19,12,13,11,9,12,9,6];
+  const ACTIVE_WIDTHS = [9,17,11,13,11,9,12,9,9];
   const LP_IDENTITY_COLUMNS = new Set(["chainKey","wallet","pair","rangeStatus"]);
   const LP_NUMERIC_COLUMNS = new Set(["doloRaw","pairedRaw","valueUsd"]);
   const LP_CHAINS = {
@@ -6251,7 +6256,7 @@ renderCexSupplyChart();
     const cells = `<tr class="dolo-lp-data-row${expanded ? " expanded" : ""}" data-dolo-lp-row="${esc(row.id)}">
       <td class="identity">${chainCell(row.chainKey)}</td><td class="identity">${walletCell(row)}</td><td class="identity">${pairCell(pool)}</td><td class="identity">${rangeCell(row)}</td>
       <td class="dolo-lp-group-gap" aria-hidden="true"></td>
-      <td class="num">${tokenAmountCell(row.doloRaw,18,"DOLO")}</td><td class="num">${tokenAmountCell(row.pairedRaw,pairDecimals(pool),pool?.pairedSymbol || "Token")}</td>
+      <td class="num">${tokenAmountCell(row.doloRaw,18,"DOLO")}</td><td class="num paired-asset">${tokenAmountCell(row.pairedRaw,pairDecimals(pool),pool?.pairedSymbol || "Token")}</td>
       <td class="num dolo-lp-value${finite(row.valueUsd) ? "" : " is-muted"}">${money(row.valueUsd)}</td>
       <td class="details-cell"><button class="dolo-lp-details-btn" type="button" data-dolo-lp-details="${esc(row.id)}" aria-controls="dolo-lp-details-${esc(row.id)}" aria-label="${expanded ? "Hide liquidity position details" : "Show liquidity position details"}" aria-expanded="${expanded}"><span>${expanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button></td></tr>`;
     return cells + (expanded ? detailRow(row) : "");
@@ -6266,7 +6271,7 @@ renderCexSupplyChart();
       const active = doloLpState.activeSort.key === key;
       const ariaSort = !sortable ? "none" : active ? (doloLpState.activeSort.dir === "asc" ? "ascending" : "descending") : "none";
       const marker = active ? (doloLpState.activeSort.dir === "asc" ? "▲" : "▼") : "";
-      const alignment = LP_IDENTITY_COLUMNS.has(key) ? "identity" : LP_NUMERIC_COLUMNS.has(key) ? "num" : "details-cell";
+      const alignment = key === "pairedRaw" ? "num paired-asset" : LP_IDENTITY_COLUMNS.has(key) ? "identity" : LP_NUMERIC_COLUMNS.has(key) ? "num" : "details-cell";
       return `<th ${sortable ? `data-dolo-lp-sort="${key}"` : ""} aria-sort="${ariaSort}" class="${alignment}${active ? " sorted" : ""}"><span>${label}</span>${sortable ? `<span class="sort" aria-hidden="true">${marker}</span>` : ""}</th>`;
     }).join("")}</tr>`;
   }
