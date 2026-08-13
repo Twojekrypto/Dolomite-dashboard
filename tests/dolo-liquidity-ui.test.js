@@ -65,7 +65,7 @@ test('active table schema and fixed ten-row geometry stay explicit', () => {
   assert.doesNotMatch(headers, /\["quality","Status"\]/);
   assert.match(html, /\.dolo-lp-table\{[^}]*table-layout:fixed/s);
   assert.match(headers, /\["rangeStatus","Price Range"\],\s*\["groupGap",""\],\s*\["doloRaw","DOLO"\]/);
-  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[9,19,12,13,11,9,12,9,6\]/);
+  assert.match(html, /const ACTIVE_WIDTHS\s*=\s*\[9,17,11,13,11,9,12,9,9\]/);
   assert.match(html, /<td class="dolo-lp-group-gap" aria-hidden="true"><\/td>/);
   assert.match(html, /\.dolo-lp-table \.dolo-lp-group-gap\{[^}]*padding:0/s);
   assert.doesNotMatch(html, /const HISTORY_WIDTHS/);
@@ -221,7 +221,12 @@ test('identity, numeric and action columns keep explicit alignment groups', () =
   assert.match(html, /<td class="identity">\$\{chainCell\(row\.chainKey\)\}<\/td><td class="identity">\$\{walletCell\(row\)\}<\/td><td class="identity">\$\{pairCell\(pool\)\}<\/td><td class="identity">\$\{rangeCell\(row\)\}<\/td>/);
   assert.match(html, /\.dolo-lp-table \.identity\{text-align:left\}/);
   assert.match(html, /\.dolo-lp-table \.num\{[^}]*text-align:right/s);
-  assert.match(html, /\.dolo-lp-table td\.details-cell\{text-align:center/);
+  assert.match(html, /<td class="num paired-asset">\$\{tokenAmountCell\(row\.pairedRaw/);
+  assert.match(html, /\.dolo-lp-card \.dolo-lp-table thead th\.paired-asset,\.dolo-lp-card \.dolo-lp-table tbody td\.paired-asset\{text-align:center\}/);
+  assert.match(html, /\.dolo-lp-table th\.paired-asset \.sort\{[^}]*position:absolute/s);
+  assert.match(html, /\.dolo-lp-table td\.paired-asset \.dolo-lp-token-amount\{justify-content:center\}/);
+  assert.match(html, /\.dolo-lp-table th\.details-cell\{text-align:center/);
+  assert.match(html, /\.dolo-lp-table td\.details-cell\{text-align:center;padding-left:14px;padding-right:14px\}/);
 });
 
 test('finite Value cells use the muted Latest Exercises price blue', () => {
@@ -286,8 +291,8 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
   assert.match(html, /function syncFlowSortHeaders\(\)[\s\S]*?th\.setAttribute\("aria-sort",\s*active\s*\?\s*\(sort\.dir\s*===\s*"asc"\s*\?\s*"ascending"\s*:\s*"descending"\)\s*:\s*"none"\)/);
 });
 
-test('both production entry points advance the grouped-column liquidity cache once', () => {
-  const version = 'lp-column-groups-20260813';
+test('both production entry points advance the aligned-column liquidity cache once', () => {
+  const version = 'lp-column-alignment-20260813';
   for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
     assert.equal(source.split(version).length - 1, 1, name);
   }
