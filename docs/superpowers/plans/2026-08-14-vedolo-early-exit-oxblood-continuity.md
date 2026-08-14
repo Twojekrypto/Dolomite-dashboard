@@ -153,4 +153,3 @@ git push dolomite-dashboard HEAD:master
 - [ ] **Step 5: Confirm deployment state**
 
 Verify the remote `master` SHA equals local `HEAD`, inspect the newly triggered workflow runs, and load the live veDOLO page with its new cache key.
-

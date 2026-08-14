@@ -42,4 +42,3 @@ Use the approved **Layered Oxblood** treatment:
 - Confirm the two cards share the expected surface border and freshness-dot colors.
 - Confirm the Recent Early Exits header, toolbar, table, and footer have no unintended neutral strip or viewport overflow.
 - Advance the veDOLO route cache key after the visual change.
-
