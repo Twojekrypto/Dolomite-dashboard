@@ -4,6 +4,102 @@ import test from "node:test";
 
 const preview = fs.readFileSync("dolo-preview.html", "utf8");
 
+function extractNamedFunctionSource(name) {
+  const marker = `function ${name}(`;
+  const start = preview.indexOf(marker);
+  assert.notEqual(start, -1, `${name} must exist`);
+  const bodyStart = preview.indexOf("{", start);
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  for (let index = bodyStart; index < preview.length; index += 1) {
+    const char = preview[index];
+    if (quote) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === quote) quote = null;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === '`') {
+      quote = char;
+      continue;
+    }
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return preview.slice(start, index + 1);
+    }
+  }
+  assert.fail(`${name} has no closing brace`);
+}
+
+function extractStaticSections(html) {
+  const sections = [];
+  const sectionTag = /<\/?section\b[^>]*>/gi;
+  let depth = 0;
+  let start = -1;
+  let match;
+  while((match = sectionTag.exec(html))){
+    if(match[0].startsWith("</")){
+      depth -= 1;
+      if(depth === 0 && start !== -1){
+        sections.push(html.slice(start, sectionTag.lastIndex));
+        start = -1;
+      }
+    } else {
+      if(depth === 0) start = match.index;
+      depth += 1;
+    }
+  }
+  return sections;
+}
+
+function extractCexExchangeBreakdown(cexSupplyBrushSel, cexSupplyBrushDomainKey = "") {
+  const source = [
+    `let cexSupplyBrushSel = ${JSON.stringify(cexSupplyBrushSel)};`,
+    `let cexSupplyBrushDomainKey = ${JSON.stringify(cexSupplyBrushDomainKey)};`,
+    extractNamedFunctionSource("ensureCexSupplyBrushSelection"),
+    extractNamedFunctionSource("visibleCexSupplyHistory"),
+    extractNamedFunctionSource("buildCexExchangeBreakdown"),
+    "return buildCexExchangeBreakdown;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)();
+}
+
+function buildAllocationSeriesFromFixtures(history, nowModel, baseTs) {
+  const source = [
+    `const DOLO_HOLDER_BUCKET_HISTORY = ${JSON.stringify(history)};`,
+    `const nowModel = ${JSON.stringify(nowModel)};`,
+    `const baseTs = ${JSON.stringify(baseTs)};`,
+    "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
+    "function parseHolderTimestamp(){ return 0; }",
+    "function getHolderDistribution(){ return nowModel; }",
+    "function holderHistoryBaseTs(){ return baseTs; }",
+    extractNamedFunctionSource("allocationPointFromSource"),
+    extractNamedFunctionSource("buildAllocationSeries"),
+    "return buildAllocationSeries();",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)();
+}
+
+function buildCexSupplySeriesFromFixtures(history, current, baseTs) {
+  const source = [
+    `const DOLO_CEX_SUPPLY_HISTORY = ${JSON.stringify(history)};`,
+    "const DOLO_BALANCE_CHANGES = {};",
+    "const doloAllHistoryStartTs = 0;",
+    `const current = ${JSON.stringify(current)};`,
+    `const baseTs = ${JSON.stringify(baseTs)};`,
+    "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
+    "function parseHolderTimestamp(value){ return Number(value) || 0; }",
+    "function holderCexCurrentSupply(){ return current; }",
+    "function holderHistoryBaseTs(){ return baseTs; }",
+    "function holderCexFlow(){ return {net:0, inflow:0, outflow:0}; }",
+    extractNamedFunctionSource("buildCexSupplySeries"),
+    "return buildCexSupplySeries();",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)();
+}
+
 test("holder distribution exposes accessible metric controls", () => {
   assert.match(preview, /id="holder-bucket-mode"/);
   assert.match(preview, /data-holder-bucket-view="whales" aria-pressed="true"/);
@@ -14,9 +110,249 @@ test("holder distribution exposes accessible metric controls", () => {
   assert.match(preview, /aria-pressed="true"/);
 });
 
+test("allocation history card sits between market holders and CEX with every renderer target", () => {
+  const cards = extractStaticSections(preview).filter(section => /\bholder-chart-card\b/.test(section));
+  const allocationCards = cards.filter(section => /id="allocation-chart-card"/.test(section));
+  const cardIds = cards.map(section => section.match(/id="([^"]+)"/)?.[1]);
+  const allocationCard = allocationCards[0];
+  const rendererTargets = [
+    "allocation-chart-count", "allocation-chart-meta", "allocationChartWrap", "allocationChartSvg",
+    "allocationChartGrid", "allocationChartArea", "allocationChartLines", "allocationChartDots",
+    "allocationChartHoverLine", "allocationChartHoverDot", "allocationChartAxis", "allocationChartTip",
+    "allocationBrushWrap", "allocationBrushSvg", "allocationBrushArea", "allocationBrushLine",
+    "allocationBrushOverlay", "allocationBrushDimL", "allocationBrushWindow", "allocationBrushHandleL",
+    "allocationBrushHandleR", "allocationBrushDimR", "allocationBrushLabel", "allocationChartLegend",
+  ];
+
+  assert.equal(allocationCards.length, 1, "one visible allocation card must own the renderer targets");
+  assert.deepEqual(
+    cardIds.slice(cardIds.indexOf("holder-distribution-card"), cardIds.indexOf("cex-supply-card") + 1),
+    ["holder-distribution-card", "allocation-chart-card", "cex-supply-card"],
+  );
+  assert.match(allocationCard, /class="card holder-chart-card allocation-chart-card"/);
+  assert.match(allocationCard, /<h2>Team &amp; Investor Allocations Over Time<\/h2>/);
+  assert.match(allocationCard, /not freely distributed market supply/);
+  rendererTargets.forEach(id => assert.match(allocationCard, new RegExp(`id="${id}"`), `${id} must be inside the allocation card`));
+});
+
+test("allocation series appends a matching runtime Now point", () => {
+  const series = buildAllocationSeriesFromFixtures(
+    [{
+      key: "hist_1",
+      ts: 1_000,
+      liquid: {market: {whales: {
+        allocationTotal: 300,
+        teamTotal: 200,
+        investorTotal: 100,
+        allocationWallets: 3,
+        teamWallets: 2,
+        investorWallets: 1,
+      }}},
+    }],
+    {
+      allocationTotal: 302,
+      teamTotal: 201,
+      investorTotal: 101,
+      allocationWallets: 3,
+      teamWallets: 2,
+      investorWallets: 1,
+    },
+    10_000,
+  );
+
+  assert.deepEqual(series.points.map(point => point.key), ["hist_1", "now"]);
+  assert.equal(series.current.key, "now");
+});
+
+test("allocation series rejects a runtime Now point with mismatched Team and Investor composition", () => {
+  const series = buildAllocationSeriesFromFixtures(
+    [{
+      key: "hist_1",
+      ts: 1_000,
+      liquid: {market: {whales: {
+        allocationTotal: 300,
+        teamTotal: 200,
+        investorTotal: 100,
+        allocationWallets: 3,
+        teamWallets: 2,
+        investorWallets: 1,
+      }}},
+    }],
+    {
+      allocationTotal: 300,
+      teamTotal: 100,
+      investorTotal: 200,
+      allocationWallets: 3,
+      teamWallets: 1,
+      investorWallets: 2,
+    },
+    10_000,
+  );
+
+  assert.deepEqual(series.points.map(point => point.key), ["hist_1"]);
+  assert.equal(series.current.key, "hist_1");
+});
+
+test("allocation series rejects component wallet-count drift when balances still match", () => {
+  const series = buildAllocationSeriesFromFixtures(
+    [{
+      key: "hist_1",
+      ts: 1_000,
+      liquid: {market: {whales: {
+        allocationTotal: 300,
+        teamTotal: 200,
+        investorTotal: 100,
+        allocationWallets: 4,
+        teamWallets: 3,
+        investorWallets: 1,
+      }}},
+    }],
+    {
+      allocationTotal: 300,
+      teamTotal: 200,
+      investorTotal: 100,
+      allocationWallets: 4,
+      teamWallets: 1,
+      investorWallets: 3,
+    },
+    10_000,
+  );
+
+  assert.deepEqual(series.points.map(point => point.key), ["hist_1"]);
+  assert.equal(series.current.key, "hist_1");
+});
+
+test("allocation series does not manufacture a runtime point without a generated baseline", () => {
+  const series = buildAllocationSeriesFromFixtures(
+    [],
+    {
+      allocationTotal: 300,
+      teamTotal: 200,
+      investorTotal: 100,
+      allocationWallets: 3,
+      teamWallets: 2,
+      investorWallets: 1,
+    },
+    10_000,
+  );
+
+  assert.deepEqual(series.points, []);
+  assert.equal(series.current.key, "now");
+});
+
 test("holder distribution explains scope and keeps the Change header concise", () => {
   assert.match(preview, /holder-source-exclusion/);
   assert.match(preview, /<span data-column="change">Change<\/span>/);
+});
+
+test("CEX exchange breakdown reports sorted selected-range balance changes", () => {
+  const buildCexExchangeBreakdown = extractCexExchangeBreakdown({from: 1, to: 2});
+  const breakdown = buildCexExchangeBreakdown({
+    points: [
+      {
+        ts: 1,
+        exchanges: [
+          {name: "Coinbase", liquid: 1000000, wallets: 2},
+          {name: "Kraken", liquid: 2000000, wallets: 1},
+        ],
+      },
+      {
+        ts: 2,
+        exchanges: [
+          {name: "Coinbase", liquid: 1400000, wallets: 3},
+          {name: "Kraken", liquid: 1500000, wallets: 1},
+          {name: "Bitget", liquid: 2500000, wallets: 2},
+        ],
+      },
+    ],
+  });
+
+  assert.deepEqual(breakdown, [
+    {name: "Bitget", current: 2500000, start: 0, change: 2500000},
+    {name: "Kraken", current: 1500000, start: 2000000, change: -500000},
+    {name: "Coinbase", current: 1400000, start: 1000000, change: 400000},
+  ]);
+});
+
+test("CEX exchange breakdown uses the chart's two nearest points for an empty brush interval", () => {
+  const buildCexExchangeBreakdown = extractCexExchangeBreakdown({from: 48, to: 52}, "0:200:3");
+  const breakdown = buildCexExchangeBreakdown({
+    points: [
+      {ts: 0, exchanges: [{name: "Binance", liquid: 100, wallets: 1}]},
+      {ts: 100, exchanges: [{name: "Binance", liquid: 160, wallets: 1}]},
+      {ts: 200, exchanges: [{name: "Binance", liquid: 220, wallets: 1}]},
+    ],
+  });
+
+  assert.deepEqual(breakdown, [
+    {name: "Binance", current: 160, start: 100, change: 60},
+  ]);
+});
+
+test("CEX exchange breakdown stays empty when the chart endpoint has no exchange snapshot", () => {
+  const buildCexExchangeBreakdown = extractCexExchangeBreakdown({from: 0, to: 200});
+  const breakdown = buildCexExchangeBreakdown({
+    points: [
+      {ts: 0, exchanges: [{name: "Binance", liquid: 100, wallets: 1}]},
+      {ts: 100, exchanges: [{name: "Binance", liquid: 160, wallets: 1}]},
+      {ts: 200},
+    ],
+  });
+
+  assert.deepEqual(breakdown, []);
+});
+
+test("CEX exact-data series keeps the generated endpoint and default breakdown populated", () => {
+  const series = buildCexSupplySeriesFromFixtures(
+    [
+      {key: "day_1", timestamp: 1_000, liquid: 100, wallets: 1, exchanges: [{name: "Binance", liquid: 100, wallets: 1}]},
+      {key: "day_2", timestamp: 2_000, liquid: 160, wallets: 1, exchanges: [{name: "Binance", liquid: 160, wallets: 1}]},
+    ],
+    {total: 160, wallets: 1},
+    10_000,
+  );
+  const breakdown = extractCexExchangeBreakdown({from: 1_000, to: 10_000})(series);
+
+  assert.deepEqual(series.points.map(point => point.key), ["day_1", "day_2"]);
+  assert.deepEqual(breakdown, [
+    {name: "Binance", current: 160, start: 100, change: 60},
+  ]);
+});
+
+test("CEX one-point exact-data series keeps its generated endpoint", () => {
+  const exchanges = [{name: "Binance", liquid: 160, wallets: 1}];
+  const series = buildCexSupplySeriesFromFixtures(
+    [{key: "day_1", timestamp: 1_000, liquid: 160, wallets: 1, exchanges}],
+    {total: 160, wallets: 1},
+    10_000,
+  );
+
+  assert.deepEqual(series.points.map(point => point.key), ["day_1"]);
+  assert.equal(series.currentPoint.key, "day_1");
+  assert.deepEqual(series.currentPoint.exchanges, exchanges);
+  assert.deepEqual(extractCexExchangeBreakdown({from: 1_000, to: 10_000})(series), []);
+});
+
+test("CEX legacy series preserves its synthetic Now fallback without exchange snapshots", () => {
+  const series = buildCexSupplySeriesFromFixtures(
+    [
+      {key: "day_1", timestamp: 1_000, liquid: 100, wallets: 1},
+      {key: "day_2", timestamp: 2_000, liquid: 160, wallets: 1},
+    ],
+    {total: 160, wallets: 1},
+    10_000,
+  );
+
+  assert.deepEqual(series.points.map(point => point.key), ["day_1", "day_2", "now"]);
+  assert.deepEqual(extractCexExchangeBreakdown({from: 1_000, to: 10_000})(series), []);
+});
+
+test("CEX details disclosure is keyboard-focusable and protects long exchange labels", () => {
+  assert.match(preview, /<details class="cex-exchange-disclosure" id="cexSupplyDetails">/);
+  assert.match(preview, /<summary>CEX details<\/summary>/);
+  assert.match(preview, /id="cexSupplyExchangeBreakdown"/);
+  assert.match(preview, /\.cex-exchange-disclosure summary:focus-visible\{[^}]*outline:1px solid var\(--gold\)/);
+  assert.match(preview, /\.cex-exchange-name\{[^}]*min-width:0;[^}]*overflow:hidden;[^}]*text-overflow:ellipsis/);
 });
 
 test("holder distribution excludes potential CEX/MM and bots from the chart", () => {

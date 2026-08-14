@@ -12,8 +12,8 @@ Outputs: early_exits.json with aggregated stats + per-exit details.
 Usage:
     python3 fetch_early_exits.py
 
-The cache is only accepted when it proves complete coverage from the veDOLO
-deployment block. Monetary arithmetic stays in integer wei until JSON output.
+The checked-in output is used as an audited incremental checkpoint. Monetary
+arithmetic stays in integer wei until JSON output.
 """
 
 import json
@@ -32,6 +32,22 @@ CACHE_SCHEMA_VERSION = 3
 OUTPUT_SCHEMA_VERSION = 2
 REORG_OVERLAP_BLOCKS = 1_000
 WEI = 10**18
+AUDITED_CHECKPOINT_BASELINE = {
+    "coverage": {
+        "fromBlock": 2_926_448,
+        "minimumToBlock": 24_819_325,
+    },
+    "stats": {
+        "total_withdrawals": 9_063,
+        "unique_withdrawal_transactions": 9_060,
+        "total_early_exits": 7_999,
+        "total_burn_fee_raw": "1562201311256111315281866",
+        "total_recoup_fee_raw": "13736860507157405327229275",
+        "total_penalty_raw": "15299061818413516642511141",
+        "total_original_locked_raw": "31244026225122226305692208",
+        "total_received_raw": "15944964406708709663181067",
+    },
+}
 
 # Event topics (keccak256)
 WITHDRAW_TOPIC = "0x02f25270a4d87bea75db541cdfe559334a275b4a233520ed6c0a2429667cca94"
@@ -45,6 +61,7 @@ ZERO_ADDR = "0x0000000000000000000000000000000000000000"
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "early_exits.json")
 CACHE_FILE = os.path.join(DATA_DIR, "early_exits_cache.json")
+MIN_CHECKPOINT_BYTES = 1_000
 
 LOG_INITIAL_STEP = int(os.environ.get("EARLY_EXITS_LOG_INITIAL_STEP") or "50000")
 TRANSFER_LOG_MAX_STEP = int(os.environ.get("EARLY_EXITS_TRANSFER_LOG_MAX_STEP") or "50000")
@@ -446,39 +463,324 @@ def build_output(events, calculations, latest_block, updated_at=None):
     }
 
 
+def _checkpoint_error(message):
+    raise ValueError(f"invalid early-exits checkpoint: {message}")
+
+
+def _checkpoint_int(value, field):
+    if isinstance(value, bool):
+        _checkpoint_error(f"{field} must be an integer")
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        _checkpoint_error(f"{field} must be an integer")
+    if str(value).strip() != str(parsed):
+        _checkpoint_error(f"{field} must be an integer")
+    if parsed < 0:
+        _checkpoint_error(f"{field} cannot be negative")
+    return parsed
+
+
+def _strict_checkpoint_int(value, field):
+    if type(value) is not int or value < 0:
+        _checkpoint_error(f"{field} must be a strict non-negative integer")
+    return value
+
+
+def _checkpoint_raw(value, field):
+    if not isinstance(value, str) or not value.isascii() or not value.isdigit():
+        _checkpoint_error(f"{field} must be an exact digit string")
+    return int(value)
+
+
+def load_checkpoint(path=None):
+    """Load the audited checkpoint, rejecting truncated/partial artifacts first."""
+    path = OUTPUT_FILE if path is None else path
+    try:
+        size = os.path.getsize(path)
+    except OSError as exc:
+        raise ValueError(f"checkpoint cannot be read: {exc}") from exc
+    if size < MIN_CHECKPOINT_BYTES:
+        raise ValueError(f"checkpoint is too small ({size} bytes; minimum {MIN_CHECKPOINT_BYTES})")
+    try:
+        with open(path) as handle:
+            return json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"checkpoint cannot be parsed: {exc}") from exc
+
+
+def _validate_checkpoint(previous):
+    if not isinstance(previous, dict) or previous.get("schemaVersion") != OUTPUT_SCHEMA_VERSION:
+        _checkpoint_error("schemaVersion must be 2")
+    coverage = previous.get("coverage")
+    stats = previous.get("stats")
+    early_rows = previous.get("recent_exits")
+    if not isinstance(coverage, dict) or coverage.get("complete") is not True:
+        _checkpoint_error("coverage must be complete")
+    if (
+        type(coverage.get("fromBlock")) is not int
+        or coverage.get("fromBlock") != AUDITED_CHECKPOINT_BASELINE["coverage"]["fromBlock"]
+    ):
+        _checkpoint_error("coverage must start at the deployment block")
+    to_block = _strict_checkpoint_int(coverage.get("toBlock"), "coverage.toBlock")
+    if not isinstance(stats, dict) or not isinstance(early_rows, list):
+        _checkpoint_error("stats and recent_exits are required")
+
+    count_fields = (
+        "total_early_exits",
+        "total_normal_exits",
+        "total_withdrawals",
+        "unique_withdrawal_transactions",
+    )
+    counts = {field: _strict_checkpoint_int(stats.get(field), f"stats.{field}") for field in count_fields}
+    if counts["total_early_exits"] + counts["total_normal_exits"] != counts["total_withdrawals"]:
+        _checkpoint_error("withdrawal counts do not reconcile")
+    event_count = _strict_checkpoint_int(coverage.get("eventCount"), "coverage.eventCount")
+    unique_transaction_count = _strict_checkpoint_int(
+        coverage.get("uniqueTransactionCount"),
+        "coverage.uniqueTransactionCount",
+    )
+    if event_count != counts["total_withdrawals"]:
+        _checkpoint_error("coverage.eventCount does not match total withdrawals")
+    if unique_transaction_count != counts["unique_withdrawal_transactions"]:
+        _checkpoint_error("coverage.uniqueTransactionCount does not match unique transactions")
+    if len(early_rows) != counts["total_early_exits"]:
+        _checkpoint_error("early-exit row count does not match total early exits")
+
+    raw_fields = (
+        "total_burn_fee_raw",
+        "total_recoup_fee_raw",
+        "total_penalty_raw",
+        "total_original_locked_raw",
+        "total_received_raw",
+    )
+    totals = {field: _checkpoint_raw(stats.get(field), f"stats.{field}") for field in raw_fields}
+    if totals["total_burn_fee_raw"] + totals["total_recoup_fee_raw"] != totals["total_penalty_raw"]:
+        _checkpoint_error("penalty totals do not reconcile")
+    if totals["total_penalty_raw"] + totals["total_received_raw"] != totals["total_original_locked_raw"]:
+        _checkpoint_error("locked and received totals do not reconcile")
+
+    if to_block < AUDITED_CHECKPOINT_BASELINE["coverage"]["minimumToBlock"]:
+        _checkpoint_error("coverage.toBlock is below the audited baseline")
+    for field in (
+        "total_withdrawals",
+        "unique_withdrawal_transactions",
+        "total_early_exits",
+    ):
+        if counts[field] < AUDITED_CHECKPOINT_BASELINE["stats"][field]:
+            _checkpoint_error(f"stats.{field} is below the audited baseline")
+    for field in raw_fields:
+        if totals[field] < int(AUDITED_CHECKPOINT_BASELINE["stats"][field]):
+            _checkpoint_error(f"stats.{field} is below the audited baseline")
+
+    event_ids = set()
+    row_totals = {field: 0 for field in raw_fields}
+    for row in early_rows:
+        if not isinstance(row, dict) or not row.get("event_id"):
+            _checkpoint_error("every early-exit row requires an event_id")
+        event_id = str(row["event_id"])
+        if event_id in event_ids:
+            _checkpoint_error("early-exit event IDs must be unique")
+        event_ids.add(event_id)
+        row_values = {
+            "total_burn_fee_raw": _checkpoint_raw(row.get("burn_fee_raw"), f"{event_id}.burn_fee_raw"),
+            "total_recoup_fee_raw": _checkpoint_raw(row.get("recoup_fee_raw"), f"{event_id}.recoup_fee_raw"),
+            "total_penalty_raw": _checkpoint_raw(row.get("total_penalty_raw"), f"{event_id}.total_penalty_raw"),
+            "total_original_locked_raw": _checkpoint_raw(row.get("original_locked_raw"), f"{event_id}.original_locked_raw"),
+            "total_received_raw": _checkpoint_raw(row.get("user_received_raw"), f"{event_id}.user_received_raw"),
+        }
+        if row_values["total_burn_fee_raw"] + row_values["total_recoup_fee_raw"] != row_values["total_penalty_raw"]:
+            _checkpoint_error(f"{event_id} penalty components do not reconcile")
+        if row_values["total_penalty_raw"] + row_values["total_received_raw"] != row_values["total_original_locked_raw"]:
+            _checkpoint_error(f"{event_id} locked and received values do not reconcile")
+        for field, value in row_values.items():
+            row_totals[field] += value
+    if row_totals != totals:
+        _checkpoint_error("raw aggregates do not match early-exit rows")
+    return {"to_block": to_block, "counts": counts, "totals": totals, "event_ids": event_ids}
+
+
+def _fresh_calculation(calculation, event_id):
+    if not isinstance(calculation, dict):
+        _checkpoint_error(f"missing calculation for {event_id}")
+    if not isinstance(calculation.get("is_early_exit"), bool):
+        _checkpoint_error(f"{event_id}.is_early_exit must be a boolean")
+    values = {}
+    for key in ("burn_fee_raw", "recoup_fee_raw", "total_penalty_raw", "original_locked_raw", "user_received_raw"):
+        values[key] = _checkpoint_raw(calculation.get(key), f"{event_id}.{key}")
+    if values["burn_fee_raw"] + values["recoup_fee_raw"] != values["total_penalty_raw"]:
+        _checkpoint_error(f"{event_id} penalty components do not reconcile")
+    if values["total_penalty_raw"] + values["user_received_raw"] != values["original_locked_raw"]:
+        _checkpoint_error(f"{event_id} locked and received values do not reconcile")
+    values["is_early_exit"] = calculation["is_early_exit"]
+    return values
+
+
+def _build_early_exit_row(event, values):
+    original_raw = values["original_locked_raw"]
+    penalty_raw = values["total_penalty_raw"]
+    burn_raw = values["burn_fee_raw"]
+    recoup_raw = values["recoup_fee_raw"]
+    received_raw = values["user_received_raw"]
+    return {
+        "event_id": event["event_id"],
+        "address": event["provider"],
+        "tx_hash": event["tx_hash"],
+        "log_index": event["log_index"],
+        "block": event["block"],
+        "token_id": event["token_id"],
+        "timestamp": event["timestamp"],
+        "date": datetime.fromtimestamp(event["timestamp"], timezone.utc).strftime("%Y-%m-%d"),
+        "original_locked": _wei_to_decimal(original_raw),
+        "original_locked_raw": str(original_raw),
+        "total_penalty": _wei_to_decimal(penalty_raw),
+        "total_penalty_raw": str(penalty_raw),
+        "penalty_pct": _percentage(penalty_raw, original_raw),
+        "burn_fee": _wei_to_decimal(burn_raw),
+        "burn_fee_raw": str(burn_raw),
+        "recoup_fee": _wei_to_decimal(recoup_raw),
+        "recoup_fee_raw": str(recoup_raw),
+        "user_received": _wei_to_decimal(received_raw),
+        "user_received_raw": str(received_raw),
+    }
+
+
+def merge_incremental_output(previous, fresh_events, fresh_calculations, latest_block, updated_at=None):
+    """Merge only Withdraw events after a validated audited checkpoint."""
+    checkpoint = _validate_checkpoint(previous)
+    latest_block = _checkpoint_int(latest_block, "latest_block")
+    if latest_block < checkpoint["to_block"]:
+        _checkpoint_error("latest block regresses before checkpoint coverage")
+    if not isinstance(fresh_events, list) or not isinstance(fresh_calculations, dict):
+        raise ValueError("invalid fresh early-exits data")
+
+    previous_rows = list(previous["recent_exits"])
+    fresh_ids = set()
+    fresh_rows = []
+    fresh_early_count = 0
+    fresh_normal_count = 0
+    fresh_totals = {
+        "total_burn_fee_raw": 0,
+        "total_recoup_fee_raw": 0,
+        "total_penalty_raw": 0,
+        "total_original_locked_raw": 0,
+        "total_received_raw": 0,
+    }
+    fresh_tx_hashes = set()
+    for event in fresh_events:
+        if not isinstance(event, dict) or not event.get("event_id"):
+            raise ValueError("invalid fresh early-exits data: every event requires an event_id")
+        event_id = str(event["event_id"])
+        if event_id in fresh_ids or event_id in checkpoint["event_ids"]:
+            raise ValueError(f"invalid fresh early-exits data: duplicate event_id {event_id}")
+        fresh_ids.add(event_id)
+        try:
+            block = int(event["block"])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError(f"invalid fresh early-exits data: {event_id} has no valid block")
+        if block <= checkpoint["to_block"]:
+            raise ValueError(f"invalid fresh early-exits data: {event_id} is not after checkpoint coverage")
+        if block > latest_block:
+            raise ValueError(f"invalid fresh early-exits data: {event_id} is after latest_block")
+        if not event.get("tx_hash"):
+            raise ValueError(f"invalid fresh early-exits data: {event_id} has no transaction hash")
+        calculation = _fresh_calculation(fresh_calculations.get(event_id), event_id)
+        fresh_tx_hashes.add(str(event["tx_hash"]).lower())
+        if calculation.get("is_early_exit", False):
+            fresh_early_count += 1
+            for key, total_key in (
+                ("burn_fee_raw", "total_burn_fee_raw"),
+                ("recoup_fee_raw", "total_recoup_fee_raw"),
+                ("total_penalty_raw", "total_penalty_raw"),
+                ("original_locked_raw", "total_original_locked_raw"),
+                ("user_received_raw", "total_received_raw"),
+            ):
+                fresh_totals[total_key] += calculation[key]
+            fresh_rows.append(_build_early_exit_row(event, calculation))
+        else:
+            fresh_normal_count += 1
+    if set(fresh_calculations) != fresh_ids:
+        raise ValueError("invalid fresh early-exits data: calculations do not match events")
+
+    counts = checkpoint["counts"]
+    totals = checkpoint["totals"]
+    merged_rows = previous_rows + fresh_rows
+    merged_rows.sort(key=lambda row: (row["timestamp"], row["log_index"]), reverse=True)
+    merged_counts = {
+        "total_early_exits": counts["total_early_exits"] + fresh_early_count,
+        "total_normal_exits": counts["total_normal_exits"] + fresh_normal_count,
+        "total_withdrawals": counts["total_withdrawals"] + len(fresh_events),
+        "unique_withdrawal_transactions": counts["unique_withdrawal_transactions"] + len(fresh_tx_hashes),
+    }
+    merged_totals = {field: totals[field] + fresh_totals[field] for field in totals}
+    updated_at = updated_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    stats = {
+        **{field: merged_counts[field] for field in ("total_early_exits", "total_normal_exits", "total_withdrawals", "unique_withdrawal_transactions")},
+        "total_burn_fee_dolo": _wei_to_decimal(merged_totals["total_burn_fee_raw"]),
+        "total_burn_fee_raw": str(merged_totals["total_burn_fee_raw"]),
+        "total_recoup_fee_dolo": _wei_to_decimal(merged_totals["total_recoup_fee_raw"]),
+        "total_recoup_fee_raw": str(merged_totals["total_recoup_fee_raw"]),
+        "total_penalty_dolo": _wei_to_decimal(merged_totals["total_penalty_raw"]),
+        "total_penalty_raw": str(merged_totals["total_penalty_raw"]),
+        "total_original_locked": _wei_to_decimal(merged_totals["total_original_locked_raw"]),
+        "total_original_locked_raw": str(merged_totals["total_original_locked_raw"]),
+        "total_received_dolo": _wei_to_decimal(merged_totals["total_received_raw"]),
+        "total_received_raw": str(merged_totals["total_received_raw"]),
+        "avg_penalty_pct": _percentage(merged_totals["total_penalty_raw"], merged_totals["total_original_locked_raw"]),
+        "last_updated": updated_at,
+    }
+    return {
+        "schemaVersion": OUTPUT_SCHEMA_VERSION,
+        "coverage": {
+            "complete": True,
+            "fromBlock": VEDOLO_DEPLOYMENT_BLOCK,
+            "toBlock": latest_block,
+            "eventCount": merged_counts["total_withdrawals"],
+            "uniqueTransactionCount": merged_counts["unique_withdrawal_transactions"],
+        },
+        "stats": stats,
+        "recent_exits": merged_rows,
+    }
+
+
 def main():
     print("=" * 60)
     print("🔄 veDOLO Early Exit Penalty — Data Fetcher")
     print(f"   {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
-    cached_withdraws, cached_transfers, rescan_from = load_cache()
-    print(
-        f"  📦 Loaded {len(cached_withdraws):,} Withdraw logs and "
-        f"{len(cached_transfers):,} outbound transfer logs"
-    )
-    fresh_withdraws, latest_block = fetch_withdraw_events(start_block=rescan_from)
+    try:
+        previous = load_checkpoint()
+        checkpoint = _validate_checkpoint(previous)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        raise SystemExit(f"❌ Cannot load audited early_exits.json checkpoint — preserving previous artifact: {exc}")
+
+    start_block = checkpoint["to_block"] + 1
+    print(f"  📦 Loaded audited checkpoint through block {checkpoint['to_block']:,}")
+    fresh_withdraws, latest_block = fetch_withdraw_events(start_block=start_block)
+    if not fresh_withdraws:
+        output = merge_incremental_output(previous, [], {}, latest_block)
+        _atomic_dump(output, OUTPUT_FILE)
+        print(f"\n💾 Refreshed early_exits.json coverage through block {latest_block:,}")
+        return
+
     fresh_transfers, _ = fetch_outbound_transfer_events(
-        start_block=rescan_from,
+        start_block=start_block,
         latest_block=latest_block,
     )
-    withdraw_logs = merge_event_logs(cached_withdraws, fresh_withdraws, rescan_from)
-    transfer_logs = merge_event_logs(cached_transfers, fresh_transfers, rescan_from)
-    if not withdraw_logs:
-        raise SystemExit("❌ No Withdraw events found — preserving previous artifact")
-    if not transfer_logs:
-        raise SystemExit("❌ No outbound DOLO transfers found — preserving previous artifact")
-    events = [decode_withdraw_event(log) for log in withdraw_logs]
+    if not fresh_transfers:
+        raise SystemExit("❌ No outbound DOLO transfers found for fresh Withdraw events — preserving previous artifact")
+    events = [decode_withdraw_event(log) for log in fresh_withdraws]
     events_by_tx = {}
     for event in events:
         events_by_tx.setdefault(event["tx_hash"], []).append(event)
     transfers_by_tx = {}
-    for transfer in transfer_logs:
+    for transfer in fresh_transfers:
         tx_hash = str(transfer.get("transactionHash", "")).lower()
         transfers_by_tx.setdefault(tx_hash, []).append(transfer)
     print(
         f"\n💰 Reconciling {len(events):,} Withdraw events against "
-        f"{len(transfer_logs):,} outbound DOLO transfers"
+        f"{len(fresh_transfers):,} outbound DOLO transfers"
     )
     calculations = {}
     errors = []
@@ -504,8 +806,7 @@ def main():
         raise SystemExit(
             f"❌ {len(missing)} Withdraw events have no exact calculation — preserving previous artifact"
         )
-    _atomic_dump(_cache_payload(withdraw_logs, transfer_logs, latest_block), CACHE_FILE)
-    output = build_output(events, calculations, latest_block)
+    output = merge_incremental_output(previous, events, calculations, latest_block)
     _atomic_dump(output, OUTPUT_FILE)
     print(f"\n💾 Saved early_exits.json ({os.path.getsize(OUTPUT_FILE) / 1024:.0f} KB)")
     stats = output["stats"]
