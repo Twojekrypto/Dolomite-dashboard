@@ -263,6 +263,25 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('#recent-early-exits-section #dd-exit-period .dd-opt.active .dd-opt-check', self.html)
         self.assertIn('vedolo-exit-red-controls-20260711', self.route)
 
+    def test_early_exit_cards_share_crimson_surface_and_rounded_geometry(self):
+        self.assertIn('--exit-surface-bg:linear-gradient(', self.html)
+        self.assertIn('--exit-surface-accent:#c98678', self.html)
+        self.assertIn('.exit-suite{', self.html)
+        self.assertIn('overflow:visible', self.html)
+        self.assertIn(
+            '.exit-suite .card-meta .dot-live,.exit-suite .card-meta .pulse-down{background:var(--exit-surface-accent);box-shadow:0 0 8px var(--exit-surface-glow)}',
+            self.html,
+        )
+        self.assertIn(
+            '.exit-analytics-card>.card-head,.exit-table-card>.exit-table-head{border-radius:calc(var(--r-xl) - 1px) calc(var(--r-xl) - 1px) 0 0}',
+            self.html,
+        )
+        self.assertIn(
+            '.exit-analytics-card>.exit-summary,.exit-table-card>.tbl-foot{border-radius:0 0 calc(var(--r-xl) - 1px) calc(var(--r-xl) - 1px)}',
+            self.html,
+        )
+        self.assertIn('vedolo-exit-crimson-surface-20260814', self.route)
+
     def test_early_exit_rows_do_not_render_positive_micro_amounts_as_zero(self):
         self.assertIn('function fmtExitDolo(v)', self.html)
         self.assertIn('return value > 0 && value < 0.01 ? "<0.01 DOLO" : fmtDolo(value);', self.html)

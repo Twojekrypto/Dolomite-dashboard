@@ -84,7 +84,7 @@ Expected: PASS, 0 failures.
 
 - [ ] **Step 1: Serve through HTTP and inspect both viewports**
 
-Run `python3 -m http.server 8765` and use Playwright at 1440×900 and 390×844. Assert the two cards have matching computed background/border colors and freshness-dot colors, Recent Early Exits painted children have non-zero outer radii, the page has no horizontal overflow, and the opened period panel is visible outside the card bounds when required.
+Run `python3 -m http.server 8765` and use Playwright at 1440×900 and 390×844. Assert the two cards have matching computed background/border colors and freshness-dot colors, Recent Early Exits painted children have non-zero outer radii, both modified cards remain within the viewport, the table scroll remains internal, and the opened period panel is visible.
 
 - [ ] **Step 2: Run static verification**
 
@@ -104,4 +104,3 @@ Inspect `git diff -- vedolo-preview.html vedolo/index.html tests/test_vedolo_pre
 - [ ] **Step 4: Synchronize and push production**
 
 Fetch `dolomite-dashboard/master`, rebase the feature commit if remote advanced, rerun the contract suite, then push `HEAD:master` to `dolomite-dashboard`.
-
