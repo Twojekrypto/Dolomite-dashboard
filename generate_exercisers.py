@@ -36,6 +36,7 @@ from odolo_exercises import (
     EXERCISE_METHOD_DOLO as EXERCISE_METHOD_ID_2,
     EXERCISE_METHOD_IDS,
     extract_lock_duration_days,
+    extract_lock_duration_seconds,
 )
 USDC_DECIMALS = 6
 ODOLO_DECIMALS = 18
@@ -291,6 +292,7 @@ def seed_cache_from_existing_output():
                 "usdc": tx.get("usdc"),
                 "odolo": vedolo,
                 "lock_days": tx.get("lock_days"),
+                "lock_seconds": tx.get("lock_seconds"),
                 "dolo_paid": tx.get("dolo_paid"),
                 "paid_token": paid_token,
                 "receipt_version": int(tx.get("receipt_version") or 0),
@@ -545,8 +547,10 @@ def main():
         if not entry:
             continue
         lock_days = extract_lock_duration(tx)
-        if entry.get("lock_days") != lock_days:
+        lock_seconds = extract_lock_duration_seconds(tx)
+        if entry.get("lock_days") != lock_days or entry.get("lock_seconds") != lock_seconds:
             entry["lock_days"] = lock_days
+            entry["lock_seconds"] = lock_seconds
             lock_updates += 1
     if lock_updates:
         print(f"  🔄 Recomputed {lock_updates} cached lock duration(s)")
@@ -571,12 +575,14 @@ def main():
         tx_hash = tx["hash"]
         usdc_amount, odolo_amount, dolo_amount = get_tx_details_from_receipt(tx_hash)
         lock_days = extract_lock_duration(tx)
+        lock_seconds = extract_lock_duration_seconds(tx)
 
         if usdc_amount is not None or dolo_amount is not None or odolo_amount is not None:
             cache[tx_hash] = {
                 "usdc": round_amount(usdc_amount) if usdc_amount is not None else None,
                 "odolo": round_amount(odolo_amount) if odolo_amount is not None else None,
                 "lock_days": lock_days,
+                "lock_seconds": lock_seconds,
                 "dolo_paid": round_amount(dolo_amount) if dolo_amount is not None else None,
                 # Classify by the tx's method id (authoritative), not by which
                 # transfer logs happened to be found in the receipt.
@@ -604,6 +610,7 @@ def main():
                 break
             tx_hash = tx["hash"]
             lock_days = extract_lock_duration(tx)
+            lock_seconds = extract_lock_duration_seconds(tx)
 
             time.sleep(1.5)
             usdc_amount, odolo_amount, dolo_amount = get_tx_details_from_receipt(tx_hash, retries=5)
@@ -615,6 +622,7 @@ def main():
                     "usdc": round_amount(usdc_amount) if usdc_amount is not None else None,
                     "odolo": round_amount(odolo_amount) if odolo_amount is not None else None,
                     "lock_days": lock_days,
+                    "lock_seconds": lock_seconds,
                     "dolo_paid": round_amount(dolo_amount) if dolo_amount is not None else None,
                     # Classify by the tx's method id (authoritative), not by which
                     # transfer logs happened to be found in the receipt.
@@ -650,6 +658,7 @@ def main():
         usdc_amount = cached.get("usdc") or 0
         odolo_amount = cached.get("odolo")
         lock_days = cached.get("lock_days")
+        lock_seconds = cached.get("lock_seconds")
         dolo_paid = cached.get("dolo_paid")
         paid_token = cached.get("paid_token", "USDC.e")
 
@@ -682,6 +691,7 @@ def main():
             "vedolo": round_amount(vedolo_amount) if vedolo_amount else None,
             "price": price_per_vedolo,
             "lock_days": lock_days,
+            "lock_seconds": lock_seconds,
             "paid_token": paid_token,
             "receipt_version": int(cached.get("receipt_version") or 0),
         }

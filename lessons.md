@@ -359,6 +359,12 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
 **Reguła na przyszłość:** Krzywa `realized discount` nie może podstawiać wartości teoretycznej jako wyniku. Estymacja realized to `1 - exercisePrice / dailyDoloPrice`; tooltip musi ujawniać exercise price, wykorzystaną cenę dnia i datę ceny. Teoretyczna linia pozostaje osobną referencją.
 **Reguła na przyszłość:** Okresowy Claimer Breakdown musi łączyć transfery historycznego reward walleta z `RewardClaimed` event indexem per block, stosując deduplikację źródeł. Current `balanceOf(wallet)` nie jest częścią claimed-token lifecycle i nie wolno dodawać go do tego samego donut partition.
 
+### Audyt oDOLO i custody 2026-08-14
+
+**Reguła na przyszłość:** Discount calculator nie jest ciągłą linią 5%→50%. Pierwszy tydzień jest liniowy do 5%, a po nim kontrakt zaokrągla pozostały czas w górę do pełnych tygodni i rozkłada 45 punktów procentowych na 103 tygodnie. Dane transakcji muszą zachowywać dokładne `lock_seconds`; `lock_days` jest wyłącznie wartością prezentacyjną.
+**Reguła na przyszłość:** Heurystyka custody/MM nie może scalać maksimów `tx_count`, `balance`, `net_flow` i roli z różnych okresów albo sieci. Każdy próg oceniaj na pojedynczej obserwacji `period × chain × role`; inaczej aktywność sprzedażowa z jednego przekroju i akumulacja z innego tworzą fałszywy syntetyczny dowód custody.
+**Reguła na przyszłość:** Awaria niezależnego ciężkiego backfillu (np. Early Exits) nie może blokować publikacji poprawnych danych exercise/lock/contract. Workflow może zachować poprzedni audytowany artefakt, ale walidator ma pomijać jego kontrolę świeżości tylko wtedy, gdy konkretny krok odświeżenia zakończył się błędem; pozostałe nowe artefakty nadal przechodzą strict validation.
+
 ### Lokalny edytor układu kolumn tabeli
 
 **Reguła na przyszłość:** Gdy użytkownik chce sam dobrać kolejność i szerokości kolumn, dodaj tymczasowy edytor uruchamiany wyłącznie parametrem `?layoutEditor=1` na prawdziwej tabeli. Kolumny muszą mieć stabilne `data-column`, przeciąganie ma używać Pointer Events, a zmiana szerokości ma kompensować sąsiednią kolumnę tak, aby tabela zawsze zajmowała dokładnie 100% dostępnej szerokości.

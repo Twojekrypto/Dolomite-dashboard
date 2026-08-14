@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
+ODOLO_WORKFLOW = ROOT / ".github" / "workflows" / "update-odolo-data.yml"
 
 
 class PagesWorkflowContractTests(unittest.TestCase):
@@ -40,6 +41,22 @@ class PagesWorkflowContractTests(unittest.TestCase):
             monitor.index("Deploy verified EARN snapshot"),
         )
         self.assertNotIn("- Monitor EARN Freshness", pages)
+
+    def test_odolo_exercise_data_still_publishes_when_independent_early_exit_refresh_fails(self):
+        workflow = ODOLO_WORKFLOW.read_text(encoding="utf-8")
+        early_exit_step = workflow.split("- name: Fetch early exit penalty data", 1)[1].split(
+            "- name: Fetch oDOLO contract data", 1
+        )[0]
+
+        self.assertIn("continue-on-error: true", early_exit_step)
+        self.assertIn("id: early-exits", early_exit_step)
+        self.assertLess(workflow.index("- name: Fetch early exit penalty data"), workflow.index("- name: Validate generated data"))
+        self.assertIn("early_exits.json", workflow)
+        validation_step = workflow.split("- name: Validate generated data", 1)[1].split(
+            "- name: Commit & push changes", 1
+        )[0]
+        self.assertIn("steps.early-exits.outcome", validation_step)
+        self.assertIn('files+=(early_exits.json)', validation_step)
 
 
 if __name__ == "__main__":

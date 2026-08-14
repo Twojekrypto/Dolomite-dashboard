@@ -38,6 +38,9 @@ class OdoloPreviewContractsTest(unittest.TestCase):
     def test_odolo_route_no_longer_uses_mistaken_latest_price_cache_bust(self):
         self.assertNotIn("latest-ex-price-20260706", self.route)
 
+    def test_odolo_accuracy_artifacts_use_a_fresh_data_cache_key(self):
+        self.assertIn('const DATA_VERSION = "odolo-discount-accuracy-20260814";', self.html)
+
     def test_discount_curve_uses_the_protocol_schedule_and_stays_within_zero_to_fifty_percent(self):
         curve = re.search(
             r'function syncLiveDiscountCurve\(\)\{(?P<body>.*?)\n\}',
@@ -47,10 +50,129 @@ class OdoloPreviewContractsTest(unittest.TestCase):
 
         self.assertIn("const yMin = 0;", self.html)
         self.assertIn("const yMax = 50;", self.html)
-        self.assertIn("const discount = theoreticalDiscount(days);", curve)
+        self.assertIn("const discount = theoreticalDiscount(days, lockSeconds);", curve)
         self.assertIn("Protocol discount by lock duration", self.html)
         self.assertNotIn("dailyDoloPrice", self.html)
         self.assertNotIn('fetchJson("dolo_price_history.json")', self.html)
+
+    def test_discount_curve_rounds_post_week_locks_up_to_the_next_protocol_week(self):
+        match = re.search(
+            r'(function protocolDiscountFromDurationSeconds\(lockSeconds\)\{.*?\n\})\nfunction theoreticalDiscount',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(match, "exact protocol discount helper is required")
+        script = f"""
+{match.group(1)}
+console.log(JSON.stringify([
+  protocolDiscountFromDurationSeconds(3.5 * 86400),
+  protocolDiscountFromDurationSeconds(7 * 86400),
+  protocolDiscountFromDurationSeconds(14 * 86400),
+  protocolDiscountFromDurationSeconds(365 * 86400),
+  protocolDiscountFromDurationSeconds(721.1 * 86400)
+]));
+"""
+        result = subprocess.run(["node", "-e", script], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        values = json.loads(result.stdout)
+        expected = [2.5, 5, 5 + 45 / 103, 5 + 45 * 52 / 103, 50]
+        for actual, wanted in zip(values, expected):
+            self.assertAlmostEqual(actual, wanted, places=9)
+
+    def test_protocol_discount_line_is_drawn_as_exact_weekly_steps(self):
+        discount_helper = re.search(
+            r'(function protocolDiscountFromDurationSeconds\(lockSeconds\)\{.*?\n\})\nfunction theoreticalDiscount',
+            self.html,
+            re.S,
+        ).group(1)
+        points_helper = re.search(
+            r'(function protocolDiscountCurvePoints\(maxDays = 760\)\{.*?\n\})',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(points_helper, "explicit staircase points are required")
+        script = f"""
+{discount_helper}
+{points_helper.group(1)}
+console.log(JSON.stringify(protocolDiscountCurvePoints()));
+"""
+        result = subprocess.run(["node", "-e", script], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        points = json.loads(result.stdout)
+        at_seven = [point["discount"] for point in points if point["days"] == 7]
+        at_fourteen = [point["discount"] for point in points if point["days"] == 14]
+        self.assertEqual(len(at_seven), 2)
+        self.assertAlmostEqual(at_seven[0], 5, places=9)
+        self.assertAlmostEqual(at_seven[1], 5 + 45 / 103, places=9)
+        self.assertEqual(len(at_fourteen), 2)
+        self.assertAlmostEqual(at_fourteen[0], 5 + 45 / 103, places=9)
+        self.assertAlmostEqual(at_fourteen[1], 5 + 45 * 2 / 103, places=9)
+        self.assertEqual(points[-1], {"days": 760, "discount": 50})
+        self.assertIn("protocolDiscountCurvePoints().forEach", self.html)
+        self.assertNotIn("for(let d=0; d<=760; d+=2)", self.html)
+
+    def test_discount_curve_keeps_verified_zero_usdc_dust_exercises(self):
+        curve_match = re.search(
+            r'(function syncLiveDiscountCurve\(\)\{.*?\n\})\n\nfunction syncOdoloTableMetadata',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(curve_match)
+        script = f"""
+const LIVE = {{exercisers: {{exercisers: [{{txs: [
+  {{paid_token:"USDC.e", usdc:0, vedolo:0.000674, lock_days:7, lock_seconds:604800}},
+  {{paid_token:"USDC.e", usdc:10, vedolo:100, lock_days:14, lock_seconds:1209600}}
+]}}]}}}};
+const DISC_DATA = [];
+const txUsd = tx => Number(tx.usdc);
+const txVedolo = tx => Number(tx.vedolo);
+const isUsdcExerciseTx = tx => tx.paid_token !== "DOLO";
+const exerciseLockSeconds = tx => Number(tx.lock_seconds) || Number(tx.lock_days) * 86400;
+const theoreticalDiscount = (days, seconds) => Number(seconds || days * 86400) / 86400;
+const tierForUsd = () => "small";
+const applyRows = (target, rows) => target.splice(0, target.length, ...rows);
+const setMetricText = () => {{}};
+{curve_match.group(1)}
+syncLiveDiscountCurve();
+console.log(JSON.stringify(DISC_DATA));
+"""
+        result = subprocess.run(["node", "-e", script], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        rows = json.loads(result.stdout)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["usd"], 0)
+
+    def test_discount_curve_average_guide_is_derived_from_rendered_rows(self):
+        match = re.search(
+            r'(function discountCurveAverageLockDays\(rows\)\{.*?\n\})\n',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(match, "dynamic average-lock helper is required")
+        script = f"""
+{match.group(1)}
+console.log(JSON.stringify([
+  discountCurveAverageLockDays([{{days:7}}, {{days:21}}]),
+  discountCurveAverageLockDays([
+    {{days:7, lockSeconds:10 * 86400}},
+    {{days:21, lockSeconds:10 * 86400}}
+  ])
+]));
+"""
+        result = subprocess.run(["node", "-e", script], text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), [14, 10])
+        self.assertNotIn("avg lock 17.5mo", self.html)
+
+    def test_top_exerciser_badge_counts_the_current_usdc_view_not_mixed_methods(self):
+        renderer = re.search(
+            r'function renderExercisers\(\)\{(?P<body>.*?)\nfunction renderFlows',
+            self.html,
+            re.S,
+        ).group("body")
+        self.assertIn("const totalAddresses = filterExercisers({includeSearch:false}).length;", renderer)
+        self.assertIn("sum(usdcTxs, exerciseLockDays)", self.html)
+        self.assertNotIn("LIVE.exercisers?.total_addresses", renderer)
 
     def test_one_day_filters_compare_exact_transaction_timestamps(self):
         self.assertIn("return Date.now() - days * 86400000;", self.html)

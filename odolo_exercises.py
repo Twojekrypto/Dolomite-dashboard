@@ -21,6 +21,7 @@ EXERCISE_METHOD_DOLO = "0xf3621c90"
 EXERCISE_METHOD_IDS = {EXERCISE_METHOD_USDC, EXERCISE_METHOD_DOLO}
 
 MAX_LOCK_SECONDS = 3 * 365 * 86400  # sanity: max 3 years
+WEEK_SECONDS = 7 * 86400
 
 
 def tx_method_id(tx):
@@ -66,3 +67,17 @@ def extract_lock_duration_days(tx):
         return None
     days = seconds / 86400
     return round(days, 4) if days < 1 else round(days, 1)
+
+
+def protocol_discount_pct(lock_seconds):
+    """Discount from the deployed ExternalVesterDiscountCalculatorV1."""
+    if isinstance(lock_seconds, bool) or not isinstance(lock_seconds, (int, float)):
+        return 0.0
+    seconds = float(lock_seconds)
+    if seconds <= 0:
+        return 0.0
+    if seconds <= WEEK_SECONDS:
+        return 5 * seconds / WEEK_SECONDS
+    post_week_seconds = seconds - WEEK_SECONDS
+    rounded_post_week_seconds = int((post_week_seconds + WEEK_SECONDS - 1) // WEEK_SECONDS) * WEEK_SECONDS
+    return min(50.0, 5 + 45 * rounded_post_week_seconds / (103 * WEEK_SECONDS))

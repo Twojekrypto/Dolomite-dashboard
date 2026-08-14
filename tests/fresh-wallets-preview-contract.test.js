@@ -8,6 +8,7 @@ const freshSection = preview.slice(preview.indexOf('<table class="tbl fresh-wall
 const freshRenderer = preview.slice(preview.indexOf("function freshWalletStatus(row)"), preview.indexOf('\ndocument.getElementById("q-holders")'));
 const freshStatusSource = preview.slice(preview.indexOf("const fmtPct = v =>"), preview.indexOf("const HOLDER_BUCKET_GROUPS")) + preview.slice(preview.indexOf("function freshWalletStatus(row)"), preview.indexOf("function freshChainCell(row)"));
 const freshWalletStatus = new Function(`${freshStatusSource}\nreturn freshWalletStatus;`)();
+const freshPageModelSource = preview.match(/function freshPageModel\(rows, page, pageSize\)\{[\s\S]*?\n\}/)?.[0];
 
 test("fresh wallet table uses a Chain-first layout without a rank column", () => {
   assert.match(freshSection, /<col data-column="chain"/);
@@ -46,4 +47,18 @@ test("production preview keeps the saved static table layout without editor asse
   assert.match(freshSection, /<col data-column="exposure" style="width:10\.117%">/);
   assert.match(freshSection, /<col data-column="status" style="width:12\.5%">/);
   assert.doesNotMatch(preview, /fresh-wallets-layout-editor/);
+});
+
+test("fresh wallet pagination renders up to ten real rows without artificial spacer rows", () => {
+  assert.match(preview, /freshPageSize:\s*10,/);
+  assert.doesNotMatch(freshRenderer, /fresh-spacer-row/);
+  assert.doesNotMatch(freshRenderer, /syncFlowSpacerHeight\(tbody,\s*"fresh"/);
+  assert.ok(freshPageModelSource, "pure Fresh Wallet pagination model is required");
+  const freshPageModel = new Function(`${freshPageModelSource}\nreturn freshPageModel;`)();
+  const twoRows = freshPageModel(["a", "b"], 0, 10);
+  const firstTwelve = freshPageModel(Array.from({length: 12}, (_, i) => i), 0, 10);
+  const lastTwelve = freshPageModel(Array.from({length: 12}, (_, i) => i), 1, 10);
+  assert.deepEqual(twoRows, {page: 0, totalPages: 1, start: 0, rows: ["a", "b"]});
+  assert.deepEqual(firstTwelve, {page: 0, totalPages: 2, start: 0, rows: [0,1,2,3,4,5,6,7,8,9]});
+  assert.deepEqual(lastTwelve, {page: 1, totalPages: 2, start: 10, rows: [10,11]});
 });

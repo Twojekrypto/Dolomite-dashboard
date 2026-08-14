@@ -11,7 +11,7 @@ import json
 import os
 from datetime import datetime, timezone
 
-from odolo_exercises import is_exercise_tx, extract_lock_duration_seconds
+from odolo_exercises import is_exercise_tx, extract_lock_duration_seconds, protocol_discount_pct
 
 ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 VESTER_CONTRACT = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
@@ -114,6 +114,11 @@ def get_all_exercise_txs():
 extract_lock_duration = extract_lock_duration_seconds
 
 
+def average_discount_pct(durations):
+    """Mean deployed-protocol discount across exact per-transaction durations."""
+    return sum(protocol_discount_pct(duration) for duration in durations) / len(durations) if durations else 0.0
+
+
 def main():
     print("=" * 55)
     print("oDOLO Average Lock Duration Calculator")
@@ -161,9 +166,9 @@ def main():
         else:
             buckets["2+ years"] += 1
 
-    # Average discount (linear: 5% at 7 days, 50% at 730 days)
-    avg_discount = 5 + (avg_days - 7) * (50 - 5) / (730 - 7)
-    avg_discount = max(5, min(50, avg_discount))
+    # Average each transaction's deployed-protocol discount. The calculator is
+    # linear during week one, then rounds the remaining duration up by week.
+    avg_discount = average_discount_pct(durations)
 
     # Load exercised USD for avg price
     usd_file = os.path.join(SCRIPT_DIR, "exercised_usd.json")
@@ -194,7 +199,7 @@ def main():
     result = {
         "avg_lock_days": round(avg_days, 1),
         "avg_lock_months": round(avg_months, 1),
-        "avg_discount_pct": round(avg_discount, 1),
+        "avg_discount_pct": round(avg_discount, 3),
         "total_exercises": len(txs),
         "valid_durations": len(durations),
         "distribution": buckets,
