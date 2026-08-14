@@ -45,10 +45,11 @@ class TableUiConsistencyContractsTest(unittest.TestCase):
         self.assertIn("stableTableSpacerRowsHtml(cbState.pageSize - pageRows.length, 7)", self.odolo)
         self.assertIn("stableTableSpacerRowsHtml(state.latestPageSize - 1, 6)", self.odolo)
         self.assertIn("stableTableSpacerRowsHtml(state.pairPageSize - 1, 4)", self.odolo)
-        self.assertIn(
-            "state.freshPageSize - Math.max(pageRows.length, 1)",
-            self.dolo,
-        )
+        # Fresh Wallets is intentionally content-height: it renders only real
+        # rows (up to ten per page) instead of padding short result sets.
+        self.assertIn("function freshPageModel(rows, page, pageSize)", self.dolo)
+        self.assertIn("rows:rows.slice(start, start + size)", self.dolo)
+        self.assertNotIn("fresh-spacer-row", self.dolo)
         self.assertIn("SUPPLY_ACTIVITY_PAGE_SIZE - 1", self.liquidation)
         self.assertIn(
             "veBorrowWalletPageSize - Math.max(pageRows.length, 1)",
