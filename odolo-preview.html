@@ -2003,7 +2003,7 @@ const CHECK_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const CHEV_DOWN_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
 const EXTERNAL_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
 const LIVE = { contract:null, usd:null, lock:null, exercisers:null, flows:null, loaded:false };
-const DATA_VERSION = "odolo-integrity-20260710b";
+const DATA_VERSION = "odolo-discount-accuracy-20260814";
 // Address labels come from the shared single source of truth
 // (dolo-address-labels.js, per lessons.md). The adapter preserves provenance
 // while mapping shared types onto this page's existing visual vocabulary.
@@ -2139,6 +2139,13 @@ function isUsdcExerciseTx(tx){
 }
 function txUsd(tx){ return isUsdcExerciseTx(tx) ? (Number(tx.usdc) || 0) : 0; }
 function txVedolo(tx){ return isUsdcExerciseTx(tx) ? (Number(tx.vedolo) || 0) : 0; }
+function exerciseLockSeconds(tx){
+  const exact = Number(tx?.lock_seconds);
+  if(Number.isFinite(exact) && exact > 0) return exact;
+  const days = Number(tx?.lock_days);
+  return Number.isFinite(days) && days > 0 ? days * 86400 : 0;
+}
+function exerciseLockDays(tx){ return exerciseLockSeconds(tx) / 86400; }
 function summarizeOdoloExercise(json){
   const txs = [];
   (json?.exercisers || []).forEach(item => (item.txs || []).forEach(tx => txs.push(tx)));
@@ -2347,12 +2354,33 @@ const DISC_COLOURS = {
 };
 const DISC_FILTERS = new Set(["theory", ...DISC_TIERS]);
 
-/* Theoretical: 5% at 7d, linear up to 50% at 730d. */
-function theoreticalDiscount(days){
-  if(days <= 0)   return 0;
-  if(days < 7)    return 5 * (days/7);
-  if(days >= 730) return 50;
-  return 5 + 45 * (days - 7) / (730 - 7);
+/* The deployed calculator is linear for week one. After that it rounds the
+   remaining duration up to whole weeks and advances across 103 weeks. */
+function protocolDiscountFromDurationSeconds(lockSeconds){
+  const weekSeconds = 7 * 86400;
+  const seconds = Number(lockSeconds);
+  if(!Number.isFinite(seconds) || seconds <= 0) return 0;
+  if(seconds <= weekSeconds) return 5 * seconds / weekSeconds;
+  const roundedPostWeekSeconds = Math.ceil((seconds - weekSeconds) / weekSeconds) * weekSeconds;
+  return Math.min(50, 5 + 45 * roundedPostWeekSeconds / (103 * weekSeconds));
+}
+function theoreticalDiscount(days, lockSeconds = Number(days) * 86400){
+  return protocolDiscountFromDurationSeconds(lockSeconds);
+}
+function protocolDiscountCurvePoints(maxDays = 760){
+  const points = [{days:0, discount:0}, {days:7, discount:5}];
+  for(let step=1; step<=103; step++){
+    const startDays = 7 * step;
+    const endDays = 7 * (step + 1);
+    const discount = Math.min(50, 5 + 45 * step / 103);
+    points.push({days:startDays, discount});
+    points.push({days:Math.min(endDays, maxDays), discount});
+    if(endDays >= maxDays) break;
+  }
+  if(points[points.length - 1].days < maxDays){
+    points.push({days:maxDays, discount:50});
+  }
+  return points;
 }
 
 /* Synthetic fallback shaped from real lock distribution. Protocol discount is
@@ -2400,6 +2428,18 @@ function generateExercises(){
   return out;
 }
 const DISC_DATA = generateExercises();
+
+function discountCurveAverageLockDays(rows){
+  const values = (rows || []).map(row => {
+    const seconds = Number(row?.lockSeconds);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds / 86400 : Number(row?.days);
+  }).filter(value => Number.isFinite(value) && value > 0);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+function discountCurveAverageLabel(days){
+  if(days >= 60) return `${(days / 30.4375).toFixed(1)}mo`;
+  return `${days.toFixed(1)}d`;
+}
 
 const DISC_TIER_LABELS = {
   small:"<$500", medium:"$500 – $5K", large:"$5K – $25K", whale:"Whale (>$25K)",
@@ -2477,20 +2517,23 @@ function drawDiscountCurve(){
   ctx.textAlign = "right";
   ctx.fillText("Lock duration", w - padR, h - padB + 28);
 
-  // ── Layer 2: avg-lock vertical guide (532d = 17.5mo)
-  const avgX = X(532);
-  ctx.strokeStyle = "rgba(228,193,90,.32)";
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 4]);
-  ctx.beginPath();
-  ctx.moveTo(avgX, padT); ctx.lineTo(avgX, h - padB);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = "rgba(228,193,90,.95)";
-  ctx.font = "9.5px JetBrains Mono, monospace";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText("avg lock 17.5mo", avgX, padT - 10);
+  // ── Layer 2: average-lock guide derived from the currently visible rows
+  const averageLockDays = discountCurveAverageLockDays(visible);
+  if(averageLockDays > 0){
+    const avgX = X(averageLockDays);
+    ctx.strokeStyle = "rgba(228,193,90,.32)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(avgX, padT); ctx.lineTo(avgX, h - padB);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(228,193,90,.95)";
+    ctx.font = "9.5px JetBrains Mono, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(`avg lock ${discountCurveAverageLabel(averageLockDays)}`, avgX, padT - 10);
+  }
 
   // ── Layer 3: theoretical schedule (drawn BEFORE dots so each dot sits ON it)
   if(DISC_FILTERS.has("theory")){
@@ -2501,11 +2544,10 @@ function drawDiscountCurve(){
     ctx.setLineDash([8, 5]);
     ctx.beginPath();
     let first = true;
-    for(let d=0; d<=760; d+=2){
-      const p = theoreticalDiscount(d);
-      const x = X(d), y = Y(p);
+    protocolDiscountCurvePoints().forEach(point=>{
+      const x = X(point.days), y = Y(point.discount);
       if(first){ ctx.moveTo(x,y); first = false; } else ctx.lineTo(x,y);
-    }
+    });
     ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -2955,7 +2997,7 @@ function exerciseTxSortValue(tx, key){
   if(key === "usdc") return txUsd(tx);
   if(key === "vedolo") return txVedolo(tx);
   if(key === "price") return exerciseTxPrice(tx);
-  if(key === "lock") return Number(tx?.lock_days) || 0;
+  if(key === "lock") return exerciseLockDays(tx);
   return 0;
 }
 function sortExerciseTxs(txs){
@@ -2999,7 +3041,7 @@ function getLatestExerciseRows(){
         usdc,
         vedolo,
         price:exerciseTxPrice(tx),
-        lockDays:Number(tx.lock_days) || 0,
+        lockDays:exerciseLockDays(tx),
       });
     });
   });
@@ -3360,7 +3402,7 @@ function renderExerciserDetailRow(r){
     const usd = txUsd(tx);
     const vedolo = txVedolo(tx);
     const price = exerciseTxPrice(tx);
-    const lockDays = Number(tx.lock_days) || 0;
+    const lockDays = exerciseLockDays(tx);
     const lockClass = lockBucket(lockDays);
     const hash = tx.hash || "";
     const hashLabel = hash ? `${hash.slice(0,6)}…${hash.slice(-4)}` : "—";
@@ -3433,7 +3475,7 @@ function renderExercisers(){
     sortExercisers(filterExercisers({includeSearch:false}))
       .map((r,i)=>[r.addr.toLowerCase(), i + 1])
   );
-  const totalAddresses = LIVE.exercisers?.total_addresses || EXERCISERS.length;
+  const totalAddresses = filterExercisers({includeSearch:false}).length;
   document.getElementById("ex-count").textContent = `${totalAddresses.toLocaleString("en-US")} addresses`;
 
   document.querySelectorAll("#tbl-ex thead th[data-sort]").forEach(th=>{
@@ -4126,7 +4168,7 @@ function syncLiveExercisersForPeriod(){
     if(cutoff && !usdcTxs.length) return null;
     const usdc = sum(usdcTxs, txUsd);
     const usdcVedolo = sum(usdcTxs, txVedolo);
-    const lockDays = usdcTxs.length ? sum(usdcTxs, tx => Number(tx.lock_days) || 0) / usdcTxs.length : (Number(item.avg_lock_days) || 0);
+    const lockDays = usdcTxs.length ? sum(usdcTxs, exerciseLockDays) / usdcTxs.length : (Number(item.avg_lock_days) || 0);
     return {
       addr:item.address,
       label:meta.label,
@@ -4165,14 +4207,15 @@ function syncLiveDiscountCurve(){
   (json.exercisers || []).forEach(item => {
     (item.txs || []).forEach(tx => {
       const usd = txUsd(tx);
-      const days = Number(tx.lock_days);
+      const lockSeconds = exerciseLockSeconds(tx);
+      const days = lockSeconds / 86400;
       const vedolo = txVedolo(tx);
-      if(!usd || !vedolo || !days) return;
+      if(!isUsdcExerciseTx(tx) || !Number.isFinite(usd) || usd < 0 || !vedolo || !days) return;
       const paidPrice = usd / vedolo;
-      const discount = theoreticalDiscount(days);
+      const discount = theoreticalDiscount(days, lockSeconds);
       if(!Number.isFinite(discount)) return;
       dots.push({
-        days, discount, usd, tier:tierForUsd(usd), expected:discount, paidPrice,
+        days, lockSeconds, discount, usd, tier:tierForUsd(usd), expected:discount, paidPrice,
       });
     });
   });

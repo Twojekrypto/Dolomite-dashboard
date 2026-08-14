@@ -566,11 +566,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .fresh-chain-chip .chain-icon.berachain{transform:scale(1.08)}
 .fresh-chain-chip .dot{width:8px;height:8px;flex:0 0 8px}
 .fresh-chain-chip.unknown{width:15px;justify-content:center;color:var(--fg-3);font-family:var(--sans);font-size:14px;font-weight:600}
-.fresh-wallets-table tbody tr.fresh-spacer-row{pointer-events:none;cursor:default}
-.fresh-wallets-table tbody tr.fresh-spacer-row td{color:transparent}
-.fresh-wallets-table tbody tr.fresh-spacer-row td > *{visibility:hidden}
-.fresh-wallets-table tbody tr.fresh-spacer-row:hover td{background:transparent}
-.fresh-wallets-table tbody tr.fresh-spacer-row:hover td:first-child::before{display:none}
 
 /* TOOLBAR */
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 24px;background:transparent;border-bottom:1px solid var(--line-1);flex-wrap:wrap}
@@ -1918,8 +1913,7 @@ const state = {
   flowsPageSize: 6,
   flowsStableBodyHeight: {acc: 0, out: 0},
   freshPage: 0,
-  freshPageSize: 8,
-  freshStableBodyHeight: 0,
+  freshPageSize: 10,
   freshSort: {key:"created", dir:"desc"},
   sort: {key:"total", dir:"desc"},
   page: 0,
@@ -3955,6 +3949,10 @@ function holderWalletChainHtml(row){
 function holderWalletChainSortValue(row){
   return holderWalletChainKeys(row).join("+") || "unknown";
 }
+function canonicalHolderLabel(addr, fallbackLabel = ""){
+  const info = sharedAddressInfo(addr) || {};
+  return info.label || fallbackLabel;
+}
 function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
   const key = point?.key || "";
   if(!key || key === "now") return null;
@@ -3976,7 +3974,7 @@ function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
     const type = item.type || holderDistributionType(addr, item);
     return {
       addr,
-      label:item.label || info.label || "",
+      label:canonicalHolderLabel(addr, item.label || ""),
       type,
       balEth,
       balBera,
@@ -5036,6 +5034,13 @@ function renderFreshStats(rows){
     <div class="fresh-stat selected-market-metric"><div class="label">${ICONS.retention}Retention</div><div class="value">${fmtPct(retained)}</div><div class="sub">kept exposure</div></div>
   `;
 }
+function freshPageModel(rows, page, pageSize){
+  const size = Math.max(1, Number(pageSize) || 10);
+  const totalPages = Math.max(1, Math.ceil(rows.length / size));
+  const currentPage = Math.max(0, Math.min(Number(page) || 0, totalPages - 1));
+  const start = currentPage * size;
+  return {page:currentPage, totalPages, start, rows:rows.slice(start, start + size)};
+}
 function renderFreshPager(totalRows){
   const totalPages = Math.max(1, Math.ceil(totalRows / state.freshPageSize));
   state.freshPage = Math.max(0, Math.min(state.freshPage, totalPages - 1));
@@ -5065,10 +5070,10 @@ function renderFreshWallets(){
   const q = state.qFresh.trim().toLowerCase();
   if(q) rows = rows.filter(row => `${row.addr || ""} ${row.label || ""} ${row.type || ""} ${TYPE_LABELS[row.type] || ""} ${row.signal.label || ""}`.toLowerCase().includes(q));
   const total = rows.length;
-  const totalPages = Math.max(1, Math.ceil(total / state.freshPageSize));
-  state.freshPage = Math.max(0, Math.min(state.freshPage, totalPages - 1));
-  const start = state.freshPage * state.freshPageSize;
-  const pageRows = rows.slice(start, start + state.freshPageSize);
+  const pageModel = freshPageModel(rows, state.freshPage, state.freshPageSize);
+  state.freshPage = pageModel.page;
+  const start = pageModel.start;
+  const pageRows = pageModel.rows;
   const tbody = document.getElementById("fresh-wallets-body");
   if(!tbody) return;
   const rowHtml = pageRows.map((row, i) => {
@@ -5109,19 +5114,7 @@ function renderFreshWallets(){
         <td colspan="7" class="loading-row">${allRows.length ? "No matching fresh wallets." : "No verified fresh 10K+ DOLO wallets in this period."}</td>
       </tr>
     ` : "";
-  const spacerRowsHtml = Array.from({length: Math.max(0, state.freshPageSize - Math.max(pageRows.length, 1))}, () => `
-      <tr class="fresh-spacer-row" aria-hidden="true" tabindex="-1">
-        <td data-column="chain">&nbsp;</td>
-        <td data-column="address">&nbsp;</td>
-        <td data-column="created">&nbsp;</td>
-        <td data-column="signal">&nbsp;</td>
-        <td class="num" data-column="received">&nbsp;</td>
-        <td class="num" data-column="exposure">&nbsp;</td>
-        <td data-column="status">&nbsp;</td>
-      </tr>
-    `).join("");
-  tbody.innerHTML = rowHtml + spacerRowsHtml + emptyHtml;
-  syncFlowSpacerHeight(tbody, "fresh", "tr:not(.fresh-spacer-row)", "tr.fresh-spacer-row", state.freshPageSize);
+  tbody.innerHTML = rowHtml + emptyHtml;
   const showStart = total > 0 ? start + 1 : 0;
   const showEnd = Math.min(start + state.freshPageSize, total);
   const info = document.getElementById("fresh-wallets-info");
@@ -5137,7 +5130,7 @@ function renderFreshWallets(){
     btn.innerHTML = CHECK_ICO;
     setTimeout(()=>{ btn.classList.remove("copied"); btn.innerHTML = COPY_ICO; }, 1400);
   }));
-  tbody.querySelectorAll("tr:not(.fresh-spacer-row)").forEach(tr => tr.addEventListener("click", e=>{
+  tbody.querySelectorAll("tr[data-addr]").forEach(tr => tr.addEventListener("click", e=>{
     if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
     const addr = tr.dataset.addr;
     if(addr) window.open(`https://etherscan.io/address/${addr}`, "_blank", "noopener");
@@ -5620,8 +5613,17 @@ renderCexSupplyChart();
     if(holder?.is_contract || holder?.type === "ca") return "Smart Contract / CA";
     return null;
   }
+  function isPotentialCustodyObservation(item, role){
+    const tx = safeNum(item?.tx_count);
+    const balance = safeNum(item?.balance);
+    const flow = Math.abs(safeNum(item?.net_flow));
+    const hotWithdrawalWallet = role === "out" && tx >= 250 && flow >= 250_000 && balance <= 150_000;
+    const largeCustodyLike = tx >= 3 && balance >= 2_500_000 && flow >= 250_000;
+    const activeCustodyLike = role === "acc" && tx >= 100 && balance >= 500_000 && flow >= 100_000;
+    return hotWithdrawalWallet || largeCustodyLike || activeCustodyLike;
+  }
   function learnAutoCexLabels(flows, holdersData){
-    const signals = {};
+    const candidates = new Set();
     const contractAddresses = new Set(
       (holdersData?.holders || [])
         .filter(holder => holder?.is_contract && !isDelegatedEoa(holder))
@@ -5630,11 +5632,8 @@ renderCexSupplyChart();
     const touch = (item, role) => {
       const key = lower(item?.address);
       if(!key || ADDR_LABELS[key] || contractAddresses.has(key)) return;
-      const s = signals[key] || (signals[key] = {tx:0, balance:0, flow:0, roles:new Set()});
-      s.tx = Math.max(s.tx, safeNum(item.tx_count));
-      s.balance = Math.max(s.balance, safeNum(item.balance));
-      s.flow = Math.max(s.flow, Math.abs(safeNum(item.net_flow)));
-      s.roles.add(role);
+      if(!isPotentialCustodyObservation(item, role)) return;
+      candidates.add(key);
     };
     Object.values(flows?.periods || {}).forEach(period => {
       ["eth", "bera"].forEach(chain => {
@@ -5643,17 +5642,10 @@ renderCexSupplyChart();
         (data.sellers || []).forEach(item => touch(item, "out"));
       });
     });
-    let learned = 0;
-    Object.entries(signals).forEach(([key, s]) => {
-      const hotWithdrawalWallet = s.roles.has("out") && s.tx >= 250 && s.flow >= 250_000 && s.balance <= 150_000;
-      const largeCustodyLike = s.tx >= 3 && s.balance >= 2_500_000 && s.flow >= 250_000;
-      const activeCustodyLike = s.roles.has("acc") && s.tx >= 100 && s.balance >= 500_000 && s.flow >= 100_000;
-      if(hotWithdrawalWallet || largeCustodyLike || activeCustodyLike){
-        AUTO_CEX_LABELS[key] = {label:"Potential custody/MM", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};
-        learned += 1;
-      }
+    candidates.forEach(key => {
+      AUTO_CEX_LABELS[key] = {label:"Potential custody/MM", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};
     });
-    return learned;
+    return candidates.size;
   }
   function syncPriceMeta(timestamp){
     const label = timestamp ? "Price updated · " + ago(timestamp) : "Price updating";

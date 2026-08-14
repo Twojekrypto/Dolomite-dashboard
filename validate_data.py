@@ -715,9 +715,19 @@ def _odolo_exercise_transactions_are_valid(data):
                 expected_date = datetime.fromtimestamp(timestamp, timezone.utc).strftime("%Y-%m-%d")
                 vedolo = float(tx.get("vedolo") or 0)
                 lock_days = float(tx.get("lock_days"))
+                lock_seconds = tx.get("lock_seconds")
             except (TypeError, ValueError, OSError):
                 return False
-            if timestamp <= 0 or tx.get("date") != expected_date or vedolo <= 0 or lock_days <= 0:
+            if (
+                timestamp <= 0
+                or tx.get("date") != expected_date
+                or vedolo <= 0
+                or lock_days <= 0
+                or isinstance(lock_seconds, bool)
+                or type(lock_seconds) is not int
+                or lock_seconds <= 0
+                or abs(lock_days - lock_seconds / 86400) > 0.051
+            ):
                 return False
             paid_token = tx.get("paid_token")
             if paid_token == "DOLO":

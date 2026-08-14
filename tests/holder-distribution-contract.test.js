@@ -283,10 +283,31 @@ test("holder distribution keeps mobile tooltips bounded and hides empty chart pa
 
   assert.match(preview, /\.holder-chart-tip\{[\s\S]*box-sizing:border-box;[\s\S]*max-width:calc\(100% - 16px\);[\s\S]*white-space:normal/);
   assert.match(holderRenderer, /const maxTipLeft = Math\.max\(8, wrap\.clientWidth - tipW - 8\);/);
-  assert.match(holderRenderer, /aria-label="Pin \$\{bucket\.label\} DOLO series\. Balance \$\{fmtNum\(bucket\.total\)\} DOLO\. Wallets \$\{bucket\.wallets\.toLocaleString\(\)\}\. Change \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
+  assert.match(holderRenderer, /aria-label="Pin \$\{bucket\.label\} DOLO series\. Balance \$\{fmtNum\(bucket\.total\)\} DOLO\. Wallets \$\{bucket\.wallets\.toLocaleString\("en-US"\)\}\. Change \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
   assert.match(holderRenderer, /const interactionAttrs = path \? ` role="button" tabindex="0"/);
   assert.match(holderRenderer, /: ` aria-hidden="true" pointer-events="none"`/);
   assert.match(holderRenderer, /lines\.querySelectorAll\("\.holder-chart-series-line\[role='button'\]"\)/);
+});
+
+test("historical holder rows prefer the canonical DOLO Holders wallet name", () => {
+  const start = preview.indexOf("function canonicalHolderLabel");
+  const end = preview.indexOf("function holderHistoricalWalletRowsAtPoint", start);
+  assert.notEqual(start, -1, "canonicalHolderLabel helper is required");
+  assert.notEqual(end, -1, "historical holder renderer must follow the canonical label helper");
+  const helperSource = preview.slice(start, end);
+  const canonicalHolderLabel = new Function(
+    "sharedAddressInfo",
+    `${helperSource}\nreturn canonicalHolderLabel;`
+  )(() => ({label: "Canonical DOLO Holders name"}));
+
+  assert.equal(
+    canonicalHolderLabel("0x1111111111111111111111111111111111111111", "Stale snapshot name"),
+    "Canonical DOLO Holders name"
+  );
+  assert.match(
+    preview.slice(end, preview.indexOf("function holderWalletRowsAvailableAtPoint", end)),
+    /label:canonicalHolderLabel\(addr, item\.label \|\| ""\)/
+  );
 });
 
 test("holder hover marks the line nearest to the pointer", () => {

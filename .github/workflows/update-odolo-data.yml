@@ -61,6 +61,8 @@ jobs:
           PYTHONUNBUFFERED: '1'
 
       - name: Fetch early exit penalty data
+        id: early-exits
+        continue-on-error: true
         run: python3 fetch_early_exits.py
         env:
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
@@ -75,7 +77,14 @@ jobs:
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
 
       - name: Validate generated data
-        run: python3 validate_data.py exercisers_by_address.json avg_lock_data.json odolo_contract_data.json early_exits.json
+        run: |
+          files=(exercisers_by_address.json avg_lock_data.json odolo_contract_data.json)
+          if [ "${{ steps.early-exits.outcome }}" = "success" ]; then
+            files+=(early_exits.json)
+          else
+            echo "::warning::Early-exit refresh failed; preserving the previous audited artifact while publishing independent oDOLO updates"
+          fi
+          python3 validate_data.py "${files[@]}"
 
       - name: Commit & push changes
         run: |

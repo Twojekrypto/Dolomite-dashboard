@@ -1,11 +1,14 @@
 import os
 import sys
+import json
+import tempfile
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import generate_exercisers
+import calculate_avg_lock
 import odolo_exercises
 import validate_data
 
@@ -97,6 +100,21 @@ class TestOdoloExerciseMetrics(unittest.TestCase):
 
         self.assertEqual(odolo_exercises.extract_lock_duration_days(tx), 0.0258)
 
+    def test_protocol_discount_matches_the_deployed_week_rounding_schedule(self):
+        self.assertTrue(hasattr(odolo_exercises, "protocol_discount_pct"))
+        discount = odolo_exercises.protocol_discount_pct
+        self.assertAlmostEqual(discount(int(3.5 * 86400)), 2.5, places=9)
+        self.assertAlmostEqual(discount(7 * 86400), 5, places=9)
+        self.assertAlmostEqual(discount(14 * 86400), 5 + 45 / 103, places=9)
+        self.assertAlmostEqual(discount(365 * 86400), 5 + 45 * 52 / 103, places=9)
+        self.assertAlmostEqual(discount(int(721.1 * 86400)), 50, places=9)
+
+    def test_average_discount_is_the_mean_of_exact_transaction_discounts(self):
+        self.assertTrue(hasattr(calculate_avg_lock, "average_discount_pct"))
+        durations = [int(3.5 * 86400), 14 * 86400]
+        expected = (2.5 + 5 + 45 / 103) / 2
+        self.assertAlmostEqual(calculate_avg_lock.average_discount_pct(durations), expected, places=9)
+
     def test_legacy_zero_usdc_receipt_is_refetched_once(self):
         legacy = {"paid_token": "USDC.e", "usdc": 0, "odolo": 0.00001}
         verified = {
@@ -113,6 +131,30 @@ class TestOdoloExerciseMetrics(unittest.TestCase):
         self.assertEqual(generate_exercisers.round_amount(0.000673978684860832), 0.000674)
         self.assertGreater(generate_exercisers.round_amount(0.000673978684860832), 0)
         self.assertEqual(generate_exercisers.round_amount(1234.5678), 1234.57)
+
+    def test_existing_output_seed_preserves_exact_lock_seconds(self):
+        tx_hash = "0x" + "a" * 64
+        payload = {
+            "exercisers": [{
+                "txs": [{
+                    "hash": tx_hash,
+                    "vedolo": 100,
+                    "usdc": 10,
+                    "lock_days": 14,
+                    "lock_seconds": 14 * 86400,
+                    "paid_token": "USDC.e",
+                    "receipt_version": generate_exercisers.RECEIPT_CACHE_VERSION,
+                }]
+            }]
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output = os.path.join(tmpdir, "exercisers_by_address.json")
+            with open(output, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle)
+            with patch.object(generate_exercisers, "OUTPUT_FILE", output):
+                cache = generate_exercisers.seed_cache_from_existing_output()
+
+        self.assertEqual(cache[tx_hash]["lock_seconds"], 14 * 86400)
 
     def test_generator_splits_usdc_exercise_from_dolo_pairing(self):
         exercisers = [{
@@ -232,11 +274,28 @@ class TestOdoloExerciseMetrics(unittest.TestCase):
             "usdc": 10,
             "vedolo": 100,
             "lock_days": 7,
+            "lock_seconds": 7 * 86400,
         }
         data = {"exercisers": [{"txs": [tx]}]}
         self.assertTrue(validate_data._odolo_exercise_transactions_are_valid(data))
 
         data["exercisers"][0]["txs"].append(dict(tx))
+        self.assertFalse(validate_data._odolo_exercise_transactions_are_valid(data))
+
+    def test_validation_requires_exact_lock_seconds_for_discount_math(self):
+        tx = {
+            "hash": "0x" + "b" * 64,
+            "date": "2023-11-14",
+            "timestamp": 1_700_000_000,
+            "paid_token": "USDC.e",
+            "usdc": 10,
+            "vedolo": 100,
+            "lock_days": 14,
+            "lock_seconds": 14 * 86400,
+        }
+        data = {"exercisers": [{"txs": [tx]}]}
+        self.assertTrue(validate_data._odolo_exercise_transactions_are_valid(data))
+        del tx["lock_seconds"]
         self.assertFalse(validate_data._odolo_exercise_transactions_are_valid(data))
 
 
