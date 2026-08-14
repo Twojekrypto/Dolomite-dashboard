@@ -442,6 +442,14 @@ def build_canonical_claim_totals(
     }
     stats = {
         "first_canonical_event_block": first_canonical_event_block,
+        "historical_transfer_wallets": len(historical_claims),
+        "canonical_event_wallets": len(normalized_event_claims),
+        "canonical_event_added": len(
+            set(normalized_event_claims) - set(historical_claims)
+        ),
+        "canonical_event_updated": len(
+            set(normalized_event_claims) & set(historical_claims)
+        ),
         "historical_transfer_claimed": round(sum(historical_claims.values()), 8),
         "canonical_event_claimed": round(sum(normalized_event_claims.values()), 8),
         "post_index_transfer_observed": round(sum(post_index_transfers.values()), 8),
@@ -1235,9 +1243,9 @@ def main():
         "exerciser_candidates": len(exerciser_candidates),
         "vedolo_odolo_route_candidates": len(vedolo_route_candidates),
         "claim_candidates": len(claim_candidates),
-        "claim_event_wallets": claim_reconciliation["source_wallets"],
-        "claim_event_added": claim_reconciliation["added"],
-        "claim_event_updated": claim_reconciliation["updated"],
+        "claim_event_wallets": claim_reconciliation["canonical_event_wallets"],
+        "claim_event_added": claim_reconciliation["canonical_event_added"],
+        "claim_event_updated": claim_reconciliation["canonical_event_updated"],
         "rpc_balances": len(balances) - len(missing_balances),
         "ledger_fallback_balances": len(missing_balances),
         "current_holder_rows": len(current_holders),

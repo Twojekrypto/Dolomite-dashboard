@@ -353,6 +353,10 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
         })
         self.assertEqual(stats["historical_transfer_claimed"], 10.0)
         self.assertEqual(stats["canonical_event_claimed"], 30.0)
+        self.assertEqual(stats["historical_transfer_wallets"], 1)
+        self.assertEqual(stats["canonical_event_wallets"], 1)
+        self.assertEqual(stats["canonical_event_added"], 1)
+        self.assertEqual(stats["canonical_event_updated"], 0)
         self.assertEqual(stats["ignored_post_index_transfer_count"], 1)
         self.assertEqual(stats["ignored_post_index_transfer_amount"], 70.0)
 
