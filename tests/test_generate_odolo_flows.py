@@ -323,6 +323,211 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
         self.assertEqual(merged[wallet], 125.0)
         self.assertEqual(stats["updated"], 1)
 
+    def test_canonical_claim_totals_ignore_unmatched_post_index_transfers(self):
+        historical_wallet = "0x" + "1" * 40
+        canonical_wallet = "0x" + "2" * 40
+        transfers = [
+            (
+                odolo_flows.REWARDS_CONTRACT,
+                historical_wallet,
+                10 * 10**18,
+                90,
+            ),
+            (
+                odolo_flows.REWARDS_CONTRACT,
+                canonical_wallet,
+                100 * 10**18,
+                110,
+            ),
+        ]
+
+        claims, stats = odolo_flows.build_canonical_claim_totals(
+            transfers,
+            {canonical_wallet: 30.0},
+            first_canonical_event_block=100,
+        )
+
+        self.assertEqual(claims, {
+            historical_wallet: 10.0,
+            canonical_wallet: 30.0,
+        })
+        self.assertEqual(stats["historical_transfer_claimed"], 10.0)
+        self.assertEqual(stats["canonical_event_claimed"], 30.0)
+        self.assertEqual(stats["ignored_post_index_transfer_count"], 1)
+        self.assertEqual(stats["ignored_post_index_transfer_amount"], 70.0)
+
+    def test_claim_coverage_uses_only_exact_canonical_events(self):
+        payload = {
+            "events": [
+                {
+                    "blockNumber": 100,
+                    "user": "0x" + "1" * 40,
+                    "distributor": "0x" + "4" * 40,
+                    "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                    "amountWei": str(10 * 10**18),
+                },
+                {
+                    "blockNumber": 200,
+                    "user": "0x" + "2" * 40,
+                    "distributor": odolo_flows.REWARDS_CONTRACT,
+                    "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                    "amountWei": str(20 * 10**18),
+                },
+            ],
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump(payload, f)
+            path = f.name
+        try:
+            first_block = odolo_flows.load_first_canonical_claim_block([path])
+        finally:
+            os.unlink(path)
+
+        self.assertEqual(first_block, 200)
+
+    def test_claim_sources_deduplicate_event_ids_and_keep_disjoint_events(self):
+        wallet = "0x" + "3" * 40
+        event_a = {
+            "txHash": "0x" + "a" * 64,
+            "logIndex": 1,
+            "blockNumber": 200,
+            "user": wallet,
+            "distributor": odolo_flows.REWARDS_CONTRACT,
+            "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+            "amountWei": str(10 * 10**18),
+        }
+        event_b = {
+            "txHash": "0x" + "b" * 64,
+            "logIndex": 2,
+            "blockNumber": 201,
+            "user": wallet,
+            "distributor": odolo_flows.REWARDS_CONTRACT,
+            "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+            "amountWei": str(20 * 10**18),
+        }
+        paths = []
+        try:
+            for events in ([event_a], [event_a], [event_b]):
+                with tempfile.NamedTemporaryFile("w", delete=False) as f:
+                    json.dump({"events": events}, f)
+                    paths.append(f.name)
+
+            claims = odolo_flows.load_reward_claims_from_sources(paths)
+        finally:
+            for path in paths:
+                os.unlink(path)
+
+        self.assertEqual(claims, {wallet: 30.0})
+
+    def test_claim_sources_ignore_events_above_snapshot_block(self):
+        wallet = "0x" + "4" * 40
+        events = [
+            {
+                "txHash": "0x" + "c" * 64,
+                "logIndex": 1,
+                "blockNumber": 200,
+                "user": wallet,
+                "distributor": odolo_flows.REWARDS_CONTRACT,
+                "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                "amountWei": str(10 * 10**18),
+            },
+            {
+                "txHash": "0x" + "d" * 64,
+                "logIndex": 2,
+                "blockNumber": 201,
+                "user": wallet,
+                "distributor": odolo_flows.REWARDS_CONTRACT,
+                "tokenAddress": odolo_flows.ODOLO_CONTRACT,
+                "amountWei": str(20 * 10**18),
+            },
+        ]
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump({"events": events}, f)
+            path = f.name
+        try:
+            claims = odolo_flows.load_reward_claims_from_sources(
+                [path],
+                max_block=200,
+            )
+        finally:
+            os.unlink(path)
+
+        self.assertEqual(claims, {wallet: 10.0})
+
+    def test_canonical_claim_coverage_must_be_complete(self):
+        payload = {
+            "chains": {
+                "berachain": {
+                    "coverageStatus": "complete",
+                    "fromBlock": odolo_flows.DEPLOY_BLOCK,
+                    "toBlock": odolo_flows.DEPLOY_BLOCK + 1_000,
+                },
+            },
+            "events": [],
+        }
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            json.dump(payload, f)
+            path = f.name
+        try:
+            coverage = odolo_flows.load_canonical_claim_coverage([path])
+            self.assertEqual(coverage["to_block"], odolo_flows.DEPLOY_BLOCK + 1_000)
+
+            payload["chains"]["berachain"]["coverageStatus"] = "partial"
+            with open(path, "w") as f:
+                json.dump(payload, f)
+            with self.assertRaises(RuntimeError):
+                odolo_flows.load_canonical_claim_coverage([path])
+        finally:
+            os.unlink(path)
+
+    def test_flow_snapshot_is_capped_to_fresh_claim_coverage(self):
+        confirmed_head = odolo_flows.DEPLOY_BLOCK + 10_000
+        chain_head = confirmed_head + odolo_flows.REORG_BUFFER_BLOCKS
+
+        snapshot = odolo_flows.select_flow_snapshot_block(
+            chain_head,
+            claim_coverage_to_block=confirmed_head - 40,
+        )
+
+        self.assertEqual(snapshot, confirmed_head - 40)
+
+        with self.assertRaises(RuntimeError):
+            odolo_flows.select_flow_snapshot_block(
+                chain_head,
+                claim_coverage_to_block=(
+                    confirmed_head - odolo_flows.CLAIM_COVERAGE_MAX_LAG_BLOCKS - 1
+                ),
+            )
+
+    def test_claimer_summary_uses_row_totals_not_rounded_percentages(self):
+        rows = [
+            {
+                "claimed": 60.01,
+                "exercised": 20.01,
+                "outflow": 10.0,
+                "claim_remaining": 30.0,
+                "held": 45.25,
+                "bought_extra": 0,
+            },
+            {
+                "claimed": 40.03,
+                "exercised": 20.0,
+                "outflow": 20.02,
+                "claim_remaining": 0.01,
+                "held": 4.75,
+                "bought_extra": 2.5,
+            },
+        ]
+
+        summary = odolo_flows.summarize_claimer_rows(rows)
+
+        self.assertEqual(summary["total_claimed"], 100.04)
+        self.assertEqual(summary["total_exercised"], 40.01)
+        self.assertEqual(summary["total_outflow"], 30.02)
+        self.assertEqual(summary["total_claim_remaining"], 30.01)
+        self.assertEqual(summary["total_held"], 50.0)
+        self.assertEqual(summary["count_bought_extra"], 1)
+
     def test_current_holder_rows_include_self_healing_balance_candidates(self):
         wallet = "0x" + "5" * 40
         candidates = {}

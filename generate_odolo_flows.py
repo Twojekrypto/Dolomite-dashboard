@@ -103,6 +103,10 @@ BLOCK_TIME = 2  # ~2 seconds per block on Berachain
 CHUNK_SIZE = max(1000, int(os.environ.get("ODOLO_FLOW_CHUNK_SIZE", "10000")))
 RECENT_RESCAN_BLOCKS = max(1, int(os.environ.get("ODOLO_FLOW_RECENT_RESCAN_BLOCKS", "10000")))
 REORG_BUFFER_BLOCKS = max(0, int(os.environ.get("ODOLO_FLOW_REORG_BUFFER_BLOCKS", "20")))
+CLAIM_COVERAGE_MAX_LAG_BLOCKS = max(
+    0,
+    int(os.environ.get("ODOLO_CLAIM_COVERAGE_MAX_LAG_BLOCKS", "300")),
+)
 FLOW_STATE_SCHEMA_VERSION = 2
 DEPLOY_BLOCK = 3_500_000  # oDOLO deployed on Berachain mainnet
 
@@ -268,14 +272,226 @@ def merge_claim_sources(primary, secondary):
     return merged, {"added": added, "updated": updated, "source_wallets": len(secondary)}
 
 
-def load_reward_claims_from_sources(paths, min_block=None):
-    """Merge compatibility and chain claim indexes without double counting."""
-    merged = {}
+def load_reward_claims_from_sources(paths, min_block=None, max_block=None):
+    """Deduplicate canonical events inside the confirmed snapshot, then aggregate."""
+    events_by_id = {}
     for path in paths:
-        source_claims = load_reward_claims(path, min_block=min_block)
-        for wallet, amount in source_claims.items():
-            merged[wallet] = max(merged.get(wallet, 0), amount)
-    return merged
+        payload = read_json_file(path)
+        events = payload.get("events", []) if isinstance(payload, dict) else []
+        for event in events or []:
+            distributor = normalize_address(
+                event.get("distributor") or payload.get("distributor")
+            )
+            token = normalize_address(event.get("tokenAddress"))
+            if distributor != REWARDS_CONTRACT or token != ODOLO_CONTRACT:
+                continue
+            wallet = normalize_address(event.get("user"))
+            try:
+                block_number = int(event.get("blockNumber") or 0)
+                log_index = int(event.get("logIndex"))
+            except (TypeError, ValueError) as exc:
+                raise RuntimeError("Canonical oDOLO claim event lacks block/log identity") from exc
+            tx_hash = str(event.get("txHash") or "").strip().lower()
+            if not wallet or wallet in CLAIM_SKIP_ADDRS or not re.fullmatch(r"0x[a-f0-9]{64}", tx_hash):
+                raise RuntimeError("Canonical oDOLO claim event has invalid wallet or transaction hash")
+            if min_block is not None and block_number < min_block:
+                continue
+            if max_block is not None and block_number > max_block:
+                continue
+            if event.get("amountWei") is not None:
+                try:
+                    amount_wei = int(str(event.get("amountWei")))
+                except (TypeError, ValueError) as exc:
+                    raise RuntimeError("Canonical oDOLO claim event has invalid amountWei") from exc
+            else:
+                try:
+                    amount_wei = int(Decimal(str(event.get("amount") or "0")) * (10 ** 18))
+                except (InvalidOperation, ValueError, TypeError) as exc:
+                    raise RuntimeError("Canonical oDOLO claim event has invalid amount") from exc
+            if block_number <= 0 or log_index < 0 or amount_wei <= 0:
+                raise RuntimeError("Canonical oDOLO claim event has non-positive evidence")
+            event_id = (tx_hash, log_index)
+            signature = (wallet, block_number, amount_wei)
+            previous = events_by_id.get(event_id)
+            if previous is not None and previous != signature:
+                raise RuntimeError("Conflicting duplicate canonical oDOLO claim event")
+            events_by_id[event_id] = signature
+
+    claims = {}
+    for wallet, _, amount_wei in events_by_id.values():
+        claims[wallet] = claims.get(wallet, 0) + amount_wei / (10 ** 18)
+    return claims
+
+
+def load_canonical_claim_coverage(paths):
+    """Load continuous Berachain RewardClaimed scan coverage metadata."""
+    complete = []
+    for path in paths:
+        payload = read_json_file(path)
+        chain = (payload.get("chains") or {}).get("berachain") if isinstance(payload, dict) else None
+        if not isinstance(chain, dict):
+            continue
+        try:
+            from_block = int(chain.get("fromBlock") or 0)
+            to_block = int(chain.get("toBlock") or 0)
+        except (TypeError, ValueError):
+            continue
+        status = str(chain.get("coverageStatus") or "").lower()
+        if status == "complete" and from_block <= DEPLOY_BLOCK and to_block >= DEPLOY_BLOCK:
+            complete.append((to_block, from_block))
+    if not complete:
+        raise RuntimeError("Canonical oDOLO RewardClaimed index lacks complete block coverage")
+    to_block, from_block = max(complete)
+    return {
+        "status": "complete",
+        "from_block": from_block,
+        "to_block": to_block,
+    }
+
+
+def select_flow_snapshot_block(chain_head, claim_coverage_to_block):
+    """Choose a confirmed snapshot fully covered by the canonical claim index."""
+    chain_head = int(chain_head)
+    claim_coverage_to_block = int(claim_coverage_to_block)
+    confirmed_head = chain_head - REORG_BUFFER_BLOCKS
+    if confirmed_head < DEPLOY_BLOCK or claim_coverage_to_block < DEPLOY_BLOCK:
+        raise RuntimeError("Invalid oDOLO flow or claim coverage block")
+    coverage_lag = max(0, confirmed_head - claim_coverage_to_block)
+    if coverage_lag > CLAIM_COVERAGE_MAX_LAG_BLOCKS:
+        raise RuntimeError(
+            f"Canonical oDOLO claim index is stale by {coverage_lag} blocks"
+        )
+    return min(confirmed_head, claim_coverage_to_block)
+
+
+def load_first_canonical_claim_block(paths):
+    """Return the first exact oDOLO RewardClaimed block across indexes."""
+    first_block = None
+    for path in paths:
+        payload = read_json_file(path)
+        events = payload.get("events", []) if isinstance(payload, dict) else []
+        for event in events or []:
+            distributor = normalize_address(
+                event.get("distributor") or payload.get("distributor")
+            )
+            token = normalize_address(event.get("tokenAddress"))
+            if distributor != REWARDS_CONTRACT or token != ODOLO_CONTRACT:
+                continue
+            try:
+                block_number = int(event.get("blockNumber"))
+            except (TypeError, ValueError):
+                continue
+            if block_number <= 0:
+                continue
+            first_block = block_number if first_block is None else min(first_block, block_number)
+    if first_block is None:
+        raise RuntimeError("No canonical oDOLO RewardClaimed coverage found")
+    return first_block
+
+
+def build_canonical_claim_totals(
+    transfers,
+    event_claims,
+    first_canonical_event_block,
+):
+    """Combine pre-index reward transfers with authoritative indexed claims."""
+    try:
+        first_canonical_event_block = int(first_canonical_event_block)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("first canonical claim block must be an integer") from exc
+    if first_canonical_event_block <= 0:
+        raise ValueError("first canonical claim block must be positive")
+
+    historical_claims = {}
+    post_index_transfers = {}
+    for from_addr, to_addr, value_wei, block_number in transfers:
+        from_addr = normalize_address(from_addr)
+        to_addr = normalize_address(to_addr)
+        if (
+            from_addr != REWARDS_CONTRACT
+            or not to_addr
+            or to_addr in CLAIM_SKIP_ADDRS
+        ):
+            continue
+        amount = value_wei / (10 ** 18)
+        target = (
+            historical_claims
+            if int(block_number) < first_canonical_event_block
+            else post_index_transfers
+        )
+        target[to_addr] = target.get(to_addr, 0) + amount
+
+    claims = dict(historical_claims)
+    normalized_event_claims = {}
+    for wallet, amount in (event_claims or {}).items():
+        wallet = normalize_address(wallet)
+        if not wallet or wallet in CLAIM_SKIP_ADDRS:
+            continue
+        amount = float(amount)
+        if amount <= 0:
+            continue
+        normalized_event_claims[wallet] = normalized_event_claims.get(wallet, 0) + amount
+        claims[wallet] = claims.get(wallet, 0) + amount
+
+    excess_by_wallet = {
+        wallet: max(0.0, transfer_amount - normalized_event_claims.get(wallet, 0.0))
+        for wallet, transfer_amount in post_index_transfers.items()
+    }
+    excess_by_wallet = {
+        wallet: amount for wallet, amount in excess_by_wallet.items() if amount > 1e-9
+    }
+    stats = {
+        "first_canonical_event_block": first_canonical_event_block,
+        "historical_transfer_claimed": round(sum(historical_claims.values()), 8),
+        "canonical_event_claimed": round(sum(normalized_event_claims.values()), 8),
+        "post_index_transfer_observed": round(sum(post_index_transfers.values()), 8),
+        "ignored_post_index_transfer_count": len(excess_by_wallet),
+        "ignored_post_index_transfer_amount": round(sum(excess_by_wallet.values()), 8),
+        "methodology": (
+            "Reward-wallet transfers before canonical RewardClaimed coverage plus exact "
+            "canonical RewardClaimed events from the first indexed block onward"
+        ),
+    }
+    return claims, stats
+
+
+def summarize_claimer_rows(rows):
+    """Return display aggregates derived from the exact published rows."""
+    total_keys = {
+        "claimed": "total_claimed",
+        "exercised": "total_exercised",
+        "outflow": "total_outflow",
+        "held": "total_held",
+        "claim_remaining": "total_claim_remaining",
+    }
+    totals = {
+        output_key: sum(Decimal(str(row.get(row_key) or 0)) for row in rows)
+        for row_key, output_key in total_keys.items()
+    }
+    claimed = totals["total_claimed"]
+    count = len(rows)
+    bought_extra_count = sum(
+        1 for row in rows if Decimal(str(row.get("bought_extra") or 0)) > 0
+    )
+
+    def display_total(value):
+        return float(value.quantize(Decimal("0.01")))
+
+    def display_pct(value, denominator):
+        if denominator <= 0:
+            return 0.0
+        return round(float(value / denominator * Decimal(100)), 1)
+
+    return {
+        "total_claimers": count,
+        **{key: display_total(value) for key, value in totals.items()},
+        "pct_exercised": display_pct(totals["total_exercised"], claimed),
+        "pct_outflow": display_pct(totals["total_outflow"], claimed),
+        "pct_held": display_pct(totals["total_held"], claimed),
+        "pct_claim_remaining": display_pct(totals["total_claim_remaining"], claimed),
+        "pct_bought_extra": round(bought_extra_count / max(count, 1) * 100, 1),
+        "count_bought_extra": bought_extra_count,
+    }
 
 
 def merge_candidate_maps(*maps):
@@ -822,11 +1038,23 @@ def main():
     else:
         print("🆕 Missing current integrity checkpoint — rebuilding full Transfer history")
 
-    # Get current block
+    claim_paths = (ODOLO_CLAIM_EVENTS_JSON, REWARD_CLAIM_EVENTS_BERA_JSON)
+    claim_coverage = load_canonical_claim_coverage(claim_paths)
+    first_canonical_claim_block = load_first_canonical_claim_block(claim_paths)
+
+    # Get current block and cap the snapshot to fully indexed claim coverage.
     print("\n📡 Getting current block number...")
     chain_head = get_current_block()
-    current_block = max(DEPLOY_BLOCK, chain_head - REORG_BUFFER_BLOCKS)
-    print(f"  Berachain: head {chain_head:,}; confirmed scan end {current_block:,}")
+    confirmed_head = chain_head - REORG_BUFFER_BLOCKS
+    current_block = select_flow_snapshot_block(
+        chain_head,
+        claim_coverage["to_block"],
+    )
+    claim_coverage_lag = max(0, confirmed_head - claim_coverage["to_block"])
+    print(
+        f"  Berachain: head {chain_head:,}; claim-covered scan end {current_block:,} "
+        f"({claim_coverage_lag:,} block lag)"
+    )
 
     # Calculate cutoff blocks. If current_block is invalid, fail before touching data.
     cutoff_blocks = build_cutoff_blocks(current_block)
@@ -896,24 +1124,31 @@ def main():
     )
 
     # ── Identify claimer wallets first (needed for per-period filtering) ──
-    SKIP_ADDRS_CB = CLAIM_SKIP_ADDRS - {REWARDS_CONTRACT}
-    claims_by_wallet = {}
-    for from_addr, to_addr, value_wei, _ in all_transfers:
-        if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS_CB:
-            val = value_wei / (10 ** 18)
-            claims_by_wallet[to_addr] = claims_by_wallet.get(to_addr, 0) + val
-
-    claim_paths = (ODOLO_CLAIM_EVENTS_JSON, REWARD_CLAIM_EVENTS_BERA_JSON)
-    event_claims = load_reward_claims_from_sources(claim_paths)
-    claims_by_wallet, claim_reconciliation = merge_claim_sources(claims_by_wallet, event_claims)
+    event_claims = load_reward_claims_from_sources(
+        claim_paths,
+        max_block=current_block,
+    )
+    claims_by_wallet, claim_reconciliation = build_canonical_claim_totals(
+        all_transfers,
+        event_claims,
+        first_canonical_claim_block,
+    )
+    claim_coverage_metadata = {
+        "coverage_status": claim_coverage["status"],
+        "coverage_from_block": claim_coverage["from_block"],
+        "coverage_to_block": claim_coverage["to_block"],
+        "coverage_lag_blocks": claim_coverage_lag,
+    }
+    claim_reconciliation.update(claim_coverage_metadata)
     claimer_addrs = set(claims_by_wallet.keys())
     print(f"  Found {len(claimer_addrs)} claimer wallets")
-    if event_claims:
-        print(
-            "  Claim-event reconciliation: "
-            f"{claim_reconciliation['added']} added, {claim_reconciliation['updated']} updated "
-            f"from {claim_reconciliation['source_wallets']} event-indexed wallet(s)"
-        )
+    print(
+        "  Claim-source reconciliation: "
+        f"{claim_reconciliation['canonical_event_claimed']:,.2f} canonical + "
+        f"{claim_reconciliation['historical_transfer_claimed']:,.2f} historical; "
+        f"ignored {claim_reconciliation['ignored_post_index_transfer_amount']:,.2f} "
+        "unmatched post-index transfer amount"
+    )
 
     # Calculate flows for each period
     print("\n📊 Calculating flows...")
@@ -1060,31 +1295,15 @@ def main():
             "bought_extra": round(max(0, exercised - claimed), 2),
         }
 
-    # Aggregate
-    total_claimed = sum(s["claimed"] for s in claimer_stats.values())
-    total_exercised = sum(s["exercised"] for s in claimer_stats.values())
-    total_outflow = sum(s["outflow"] for s in claimer_stats.values())
-    total_held = sum(s["held"] for s in claimer_stats.values())
-    total_claim_remaining = sum(s["claim_remaining"] for s in claimer_stats.values())
-
-    # Count wallets that bought extra oDOLO and exercised
-    bought_extra_count = sum(1 for s in claimer_stats.values() if s["bought_extra"] > 0)
-
     # All claimers sorted by claimed desc (for the breakdown table)
     all_claimers_list = sorted(
         [{"address": addr, **stats} for addr, stats in claimer_stats.items()],
         key=lambda x: x["claimed"], reverse=True,
     )
+    claimer_summary = summarize_claimer_rows(all_claimers_list)
 
     claimer_behavior = {
-        "total_claimers": len(claimer_stats),
-        "total_claimed": round(total_claimed, 2),
-        "pct_exercised": round(total_exercised / max(total_claimed, 1) * 100, 1),
-        "pct_outflow": round(total_outflow / max(total_claimed, 1) * 100, 1),
-        "pct_held": round(total_held / max(total_claimed, 1) * 100, 1),
-        "pct_claim_remaining": round(total_claim_remaining / max(total_claimed, 1) * 100, 1),
-        "pct_bought_extra": round(bought_extra_count / max(len(claimer_stats), 1) * 100, 1),
-        "count_bought_extra": bought_extra_count,
+        **claimer_summary,
         "held_source": "balanceOf(wallet)",
         "claim_attribution_methodology": (
             "Fungible oDOLO provenance is estimated per wallet: claimed allocation is assigned "
@@ -1093,11 +1312,11 @@ def main():
         ),
         "all_claimers": all_claimers_list,
     }
-    print(f"  Claimers: {len(claimer_stats)}, Claimed: {total_claimed:,.0f}")
-    print(f"  Exercised: {total_exercised:,.0f} ({claimer_behavior['pct_exercised']}%)")
-    print(f"  Outflow: {total_outflow:,.0f} ({claimer_behavior['pct_outflow']}%)")
-    print(f"  Held now: {total_held:,.0f} ({claimer_behavior['pct_held']}%)")
-    print(f"  Claim remaining by flow: {total_claim_remaining:,.0f} ({claimer_behavior['pct_claim_remaining']}%)")
+    print(f"  Claimers: {len(claimer_stats)}, Claimed: {claimer_summary['total_claimed']:,.0f}")
+    print(f"  Exercised: {claimer_summary['total_exercised']:,.0f} ({claimer_behavior['pct_exercised']}%)")
+    print(f"  Outflow: {claimer_summary['total_outflow']:,.0f} ({claimer_behavior['pct_outflow']}%)")
+    print(f"  Held now: {claimer_summary['total_held']:,.0f} ({claimer_behavior['pct_held']}%)")
+    print(f"  Claim remaining by flow: {claimer_summary['total_claim_remaining']:,.0f} ({claimer_behavior['pct_claim_remaining']}%)")
 
     # ── Per-period claimer breakdown (for date range filtering) ──
     print("\n📊 Generating per-period claimer breakdown...")
@@ -1108,13 +1327,19 @@ def main():
 
         if period == "all":
             p_claims = dict(claims_by_wallet)
+            period_claim_reconciliation = dict(claim_reconciliation)
         else:
-            p_claims = {}
-            for from_addr, to_addr, value_wei, _ in p_transfers:
-                if from_addr == REWARDS_CONTRACT and to_addr not in SKIP_ADDRS:
-                    p_claims[to_addr] = p_claims.get(to_addr, 0) + value_wei / (10 ** 18)
-            period_event_claims = load_reward_claims_from_sources(claim_paths, min_block=cutoff)
-            p_claims, _ = merge_claim_sources(p_claims, period_event_claims)
+            period_event_claims = load_reward_claims_from_sources(
+                claim_paths,
+                min_block=cutoff,
+                max_block=current_block,
+            )
+            p_claims, period_claim_reconciliation = build_canonical_claim_totals(
+                p_transfers,
+                period_event_claims,
+                first_canonical_claim_block,
+            )
+            period_claim_reconciliation.update(claim_coverage_metadata)
 
         p_all = []
         for wallet, claimed in p_claims.items():
@@ -1143,7 +1368,11 @@ def main():
             })
 
         p_all.sort(key=lambda x: x["claimed"], reverse=True)
-        claimer_periods[period] = {"all_claimers": p_all, "total_claimers": len(p_all)}
+        claimer_periods[period] = {
+            **summarize_claimer_rows(p_all),
+            "all_claimers": p_all,
+            "claim_source_reconciliation": period_claim_reconciliation,
+        }
         print(f"  {period}: {len(p_all)} claimers")
 
     # ── Data protection: don't overwrite good data with empty data ──
@@ -1197,6 +1426,7 @@ def main():
         "periods": existing_periods if existing_periods else output_periods,
         "claimer_behavior": existing_cb if existing_cb else claimer_behavior,
         "claimer_periods": existing_cp if existing_cp else claimer_periods,
+        "claim_source_reconciliation": claim_reconciliation,
         "current_holders": current_holders,
         "balance_reconciliation": balance_reconciliation,
     }
