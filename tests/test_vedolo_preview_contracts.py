@@ -282,6 +282,21 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         )
         self.assertIn('vedolo-exit-crimson-surface-20260814', self.route)
 
+    def test_recent_early_exit_owns_the_layered_oxblood_table_surface(self):
+        self.assertIn('--exit-surface-summary:linear-gradient(', self.html)
+        self.assertIn('--exit-surface-toolbar:', self.html)
+        self.assertIn('--exit-surface-th:linear-gradient(', self.html)
+        scoped_header_rule = (
+            '.exit-suite.exit-table-card #exits-table th{background:var(--exit-surface-th);'
+            'border-bottom:1px solid var(--exit-surface-line)}'
+        )
+        self.assertIn(scoped_header_rule, self.html)
+        self.assertGreater(
+            self.html.index(scoped_header_rule),
+            self.html.index('#exits-table th,#holders-table th,#claimable-table th,.flow-col .tbl th{'),
+        )
+        self.assertIn('vedolo-exit-oxblood-continuity-20260814', self.route)
+
     def test_early_exit_rows_do_not_render_positive_micro_amounts_as_zero(self):
         self.assertIn('function fmtExitDolo(v)', self.html)
         self.assertIn('return value > 0 && value < 0.01 ? "<0.01 DOLO" : fmtDolo(value);', self.html)
