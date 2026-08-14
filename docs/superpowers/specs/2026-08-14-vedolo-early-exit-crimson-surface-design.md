@@ -37,7 +37,7 @@ Use the recommended **Crimson Glass** treatment. The cards retain the dashboard'
 ## Responsive requirements
 
 - Verify at 1440×900 and 390×844.
-- No horizontal page overflow may be introduced.
+- Both modified cards must remain inside the viewport; the wide Recent Early Exits table must keep its horizontal overflow inside `.tbl-wrap`.
 - At each viewport, computed top-left/top-right/bottom-left/bottom-right radii must be non-zero on the painted Recent Early Exits header/footer surfaces.
 - The dropdown must remain unclipped when opened.
 
@@ -45,4 +45,3 @@ Use the recommended **Crimson Glass** treatment. The cards retain the dashboard'
 
 - Add a new route cache-bust token to `vedolo/index.html` so GitHub Pages visitors receive the updated preview immediately.
 - Push the verified commit to production `master`.
-
