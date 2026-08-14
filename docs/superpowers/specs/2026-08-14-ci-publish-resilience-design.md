@@ -48,4 +48,3 @@ Manifest and shard staging behavior remains unchanged.
 - Add Node tests for retry-after-transient-failure, bounded exhaustion, and permanent HTTP 4xx fail-fast behavior.
 - Run the targeted EARN workflow contract test, token-icon tests, shell/YAML source checks already used by the repository, and `git diff --check`.
 - Push one verified release commit to production `master`.
-
