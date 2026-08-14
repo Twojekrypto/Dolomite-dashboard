@@ -30,6 +30,7 @@ EARN_SNAPSHOTS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-snapshot
 EARN_MERKL_REWARDS_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-merkl-rewards.yml"
 EARN_FRESHNESS_SCRIPT = ROOT / "update_earn_freshness_status.py"
 EARN_COMMIT_HELPER = ROOT / "scripts" / "commit_with_fresh_earn_status.sh"
+EARN_STAGE_HELPER = ROOT / "scripts" / "stage_earn_publishable_wallet_paths.sh"
 EARN_RPC_POLICY = ROOT / "earn" / "earn-rpc-policy.js"
 GLOBAL_PRIORITY_ADDRESSES = ROOT / "config" / "earn_canonical_priority_addresses.txt"
 BERACHAIN_PRIORITY_ADDRESSES = ROOT / "config" / "earn_berachain_canonical_hot_addresses.txt"
@@ -1371,6 +1372,53 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertLess(
             workflow.index("Commit publishable canonical coverage"),
             workflow.index("Save canonical coverage checkpoint"),
+        )
+
+    def test_publishable_wallet_staging_skips_absent_untracked_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            address = "0x1111111111111111111111111111111111111111"
+            history_path = repo / "data" / "earn-subaccount-history" / "ethereum" / f"{address}.json"
+            ledger_path = repo / "data" / "earn-verified-ledger" / "ethereum" / f"{address}.json"
+            address_file = repo / "publishable.txt"
+
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo, check=True)
+            ledger_path.parent.mkdir(parents=True)
+            ledger_path.write_text('{"status":"baseline"}\n', encoding="utf-8")
+            subprocess.run(["git", "add", str(ledger_path.relative_to(repo))], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-qm", "baseline"], cwd=repo, check=True)
+
+            ledger_path.unlink()
+            history_path.parent.mkdir(parents=True)
+            history_path.write_text('{"status":"complete"}\n', encoding="utf-8")
+            address_file.write_text(f"{address}\n", encoding="utf-8")
+
+            subprocess.run(
+                ["bash", str(EARN_STAGE_HELPER), "ethereum", str(address_file)],
+                cwd=repo,
+                check=True,
+            )
+            staged = subprocess.check_output(
+                ["git", "diff", "--cached", "--name-status"],
+                cwd=repo,
+                text=True,
+            ).splitlines()
+
+            self.assertEqual(
+                [
+                    f"A\tdata/earn-subaccount-history/ethereum/{address}.json",
+                    f"D\tdata/earn-verified-ledger/ethereum/{address}.json",
+                ],
+                sorted(staged),
+            )
+
+    def test_coverage_backfill_uses_safe_per_wallet_staging_helper(self):
+        workflow = EARN_COVERAGE_BACKFILL_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(
+            'bash scripts/stage_earn_publishable_wallet_paths.sh "$CHAIN" "${{ steps.publishable.outputs.path }}"',
+            workflow,
         )
 
     def test_berachain_canonical_priority_file_pins_valid_hot_wallets(self):
