@@ -1179,14 +1179,31 @@ def calculate_cex_supply_history(all_transfers, points, current_blocks, base_ts,
             "timestamp": point["timestamp"],
             "liquid": cex["liquid"],
             "wallets": cex["wallets"],
+            "exchanges": cex["exchanges"],
         })
 
     return sorted(history, key=lambda row: row["timestamp"])
 
 
+def canonical_cex_name(label):
+    """Collapse verified CEX wallet-role labels into their exchange family."""
+    name = str(label or "").strip()
+    verified_variants = {
+        "mexc wallet": "MEXC",
+        "bingx-linked": "BingX",
+        "gate.io routing wallet": "Gate.io",
+        "kucoin wallet": "KuCoin",
+    }
+    if name.casefold() in verified_variants:
+        return verified_variants[name.casefold()]
+    name = re.sub(r"\s+(?:deposit|hot wallet|cold wallet)(?:\s+\d+)?$", "", name, flags=re.I)
+    return re.sub(r"\s+\d+$", "", name).strip()
+
+
 def build_cex_supply_point(liquid_balances, holder_rows, address_labels):
     total = 0
     wallets = 0
+    exchanges = {}
     for addr, value in liquid_balances.items():
         liquid = max(0, float(value or 0))
         if liquid <= 0:
@@ -1195,9 +1212,48 @@ def build_cex_supply_point(liquid_balances, holder_rows, address_labels):
             continue
         total += liquid
         wallets += 1
+        name = canonical_cex_name((address_labels.get(addr.lower()) or {}).get("label"))
+        aggregate = exchanges.setdefault(name, {"name": name, "liquid": 0, "wallets": 0})
+        aggregate["liquid"] += liquid
+        aggregate["wallets"] += 1
+    total_liquid = round(total, 2)
+    rounded_exchanges = [
+        {
+            "name": aggregate["name"],
+            "liquid": round(aggregate["liquid"], 2),
+            "wallets": aggregate["wallets"],
+        }
+        for aggregate in exchanges.values()
+    ]
+    residual_cents = int(round(total_liquid * 100)) - sum(
+        int(round(aggregate["liquid"] * 100)) for aggregate in rounded_exchanges
+    )
+    if residual_cents and rounded_exchanges:
+        reconciliation_order = sorted(
+            exchanges.values(),
+            key=lambda aggregate: (-aggregate["liquid"], aggregate["name"]),
+        )
+        rounded_by_name = {aggregate["name"]: aggregate for aggregate in rounded_exchanges}
+        if residual_cents > 0:
+            target = rounded_by_name[reconciliation_order[0]["name"]]
+            target["liquid"] = round(target["liquid"] + residual_cents / 100, 2)
+        else:
+            cents_to_remove = -residual_cents
+            for aggregate in reconciliation_order:
+                target = rounded_by_name[aggregate["name"]]
+                target_cents = int(round(target["liquid"] * 100))
+                removed_cents = min(target_cents, cents_to_remove)
+                target["liquid"] = round((target_cents - removed_cents) / 100, 2)
+                cents_to_remove -= removed_cents
+                if cents_to_remove == 0:
+                    break
     return {
         "wallets": wallets,
-        "liquid": round(total, 2),
+        "liquid": total_liquid,
+        "exchanges": sorted(
+            rounded_exchanges,
+            key=lambda aggregate: (-aggregate["liquid"], aggregate["name"]),
+        ),
     }
 
 

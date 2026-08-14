@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -35,6 +38,286 @@ def _event(tx_hash, log_index, provider, value_raw):
 
 
 class FetchEarlyExitsTest(unittest.TestCase):
+    def _checkpoint_fixture(self):
+        early_rows = []
+        for index in range(7_999):
+            tx_hash = f"0x{index + 1:064x}"
+            audited_row = index == 0
+            early_rows.append({
+                "event_id": f"{tx_hash}:1",
+                "address": "0x1111111111111111111111111111111111111111",
+                "tx_hash": tx_hash,
+                "log_index": 1,
+                "block": 4_000_000 + index,
+                "token_id": index,
+                "timestamp": 1_700_000_000 + index,
+                "date": "2023-11-14",
+                "original_locked": "31244026.225122226305692208" if audited_row else "0",
+                "original_locked_raw": "31244026225122226305692208" if audited_row else "0",
+                "total_penalty": "15299061.818413516642511141" if audited_row else "0",
+                "total_penalty_raw": "15299061818413516642511141" if audited_row else "0",
+                "penalty_pct": "48.966358" if audited_row else "0",
+                "burn_fee": "1562201.311256111315281866" if audited_row else "0",
+                "burn_fee_raw": "1562201311256111315281866" if audited_row else "0",
+                "recoup_fee": "13736860.507157405327229275" if audited_row else "0",
+                "recoup_fee_raw": "13736860507157405327229275" if audited_row else "0",
+                "user_received": "15944964.406708709663181067" if audited_row else "0",
+                "user_received_raw": "15944964406708709663181067" if audited_row else "0",
+            })
+        return {
+            "schemaVersion": fetch_early_exits.OUTPUT_SCHEMA_VERSION,
+            "coverage": {
+                "complete": True,
+                "fromBlock": fetch_early_exits.VEDOLO_DEPLOYMENT_BLOCK,
+                "toBlock": 24_819_325,
+                "eventCount": 9_063,
+                "uniqueTransactionCount": 9_060,
+            },
+            "stats": {
+                "total_early_exits": 7_999,
+                "total_normal_exits": 1_064,
+                "total_withdrawals": 9_063,
+                "unique_withdrawal_transactions": 9_060,
+                "total_burn_fee_dolo": "1562201.311256111315281866",
+                "total_burn_fee_raw": "1562201311256111315281866",
+                "total_recoup_fee_dolo": "13736860.507157405327229275",
+                "total_recoup_fee_raw": "13736860507157405327229275",
+                "total_penalty_dolo": "15299061.818413516642511141",
+                "total_penalty_raw": "15299061818413516642511141",
+                "total_original_locked": "31244026.225122226305692208",
+                "total_original_locked_raw": "31244026225122226305692208",
+                "total_received_dolo": "15944964.406708709663181067",
+                "total_received_raw": "15944964406708709663181067",
+                "avg_penalty_pct": "48.966358",
+                "last_updated": "2026-08-13T20:36:09Z",
+            },
+            "recent_exits": early_rows,
+        }
+
+    def test_incremental_merge_preserves_full_audited_history(self):
+        previous = self._checkpoint_fixture()
+        fresh_events = [
+            _event(f"0x{10_000 + index:064x}", 1, "0x1111111111111111111111111111111111111111", 7)
+            for index in range(3)
+        ]
+        for index, event in enumerate(fresh_events):
+            event["block"] = previous["coverage"]["toBlock"] + index + 1
+        fresh_calculations = {
+            event["event_id"]: {
+                "burn_fee_raw": "0",
+                "recoup_fee_raw": "0",
+                "total_penalty_raw": "0",
+                "original_locked_raw": "7",
+                "user_received_raw": "7",
+                "is_early_exit": False,
+            }
+            for event in fresh_events
+        }
+
+        merged = fetch_early_exits.merge_incremental_output(
+            previous,
+            fresh_events,
+            fresh_calculations,
+            latest_block=previous["coverage"]["toBlock"] + 3,
+            updated_at="2026-08-14T00:00:00Z",
+        )
+
+        self.assertEqual(merged["stats"]["total_withdrawals"], 9_066)
+        self.assertEqual(merged["stats"]["total_early_exits"], 7_999)
+        self.assertEqual(len(merged["recent_exits"]), 7_999)
+        self.assertEqual(merged["coverage"]["toBlock"], previous["coverage"]["toBlock"] + 3)
+        self.assertEqual(merged["stats"]["total_penalty_raw"], "15299061818413516642511141")
+        self.assertEqual(merged["stats"]["total_original_locked_raw"], "31244026225122226305692208")
+
+    def test_invalid_checkpoint_raises_instead_of_rebuilding_from_partial_history(self):
+        previous = self._checkpoint_fixture()
+        previous["coverage"]["eventCount"] -= 1
+        event = _event("0x" + "ab" * 32, 1, "0x1111111111111111111111111111111111111111", 7)
+        event["block"] = previous["coverage"]["toBlock"] + 1
+        calculation = {
+            event["event_id"]: {
+                "burn_fee_raw": "0",
+                "recoup_fee_raw": "0",
+                "total_penalty_raw": "0",
+                "original_locked_raw": "7",
+                "user_received_raw": "7",
+                "is_early_exit": False,
+            }
+        }
+
+        with self.assertRaisesRegex(ValueError, "invalid early-exits checkpoint"):
+            fetch_early_exits.merge_incremental_output(
+                previous,
+                [event],
+                calculation,
+                latest_block=event["block"],
+            )
+
+    def test_undersized_checkpoint_is_rejected_before_parse_or_rpc(self):
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".json") as handle:
+            handle.write(b"{")
+            handle.flush()
+            with patch.object(fetch_early_exits, "OUTPUT_FILE", handle.name), \
+                 patch.object(fetch_early_exits, "fetch_withdraw_events", side_effect=AssertionError("RPC must not run")):
+                with self.assertRaisesRegex(SystemExit, "checkpoint is too small"):
+                    fetch_early_exits.main()
+
+    def test_coherent_two_withdrawal_checkpoint_is_rejected_before_rpc(self):
+        first_tx = "0x" + "11" * 32
+        second_tx = "0x" + "22" * 32
+        partial = {
+            "schemaVersion": 2,
+            "coverage": {
+                "complete": True,
+                "fromBlock": 2_926_448,
+                "toBlock": 24_819_325,
+                "eventCount": 2,
+                "uniqueTransactionCount": 2,
+            },
+            "stats": {
+                "total_early_exits": 2,
+                "total_normal_exits": 0,
+                "total_withdrawals": 2,
+                "unique_withdrawal_transactions": 2,
+                "total_burn_fee_dolo": "0.000000000000000003",
+                "total_burn_fee_raw": "3",
+                "total_recoup_fee_dolo": "0.000000000000000005",
+                "total_recoup_fee_raw": "5",
+                "total_penalty_dolo": "0.000000000000000008",
+                "total_penalty_raw": "8",
+                "total_original_locked": "0.000000000000000022",
+                "total_original_locked_raw": "22",
+                "total_received_dolo": "0.000000000000000014",
+                "total_received_raw": "14",
+                "avg_penalty_pct": "36.363636",
+                "last_updated": "2026-08-14T00:00:00Z",
+            },
+            "recent_exits": [
+                {
+                    "event_id": f"{first_tx}:1",
+                    "address": "0x" + "33" * 20,
+                    "tx_hash": first_tx,
+                    "log_index": 1,
+                    "block": 3_000_000,
+                    "token_id": 1,
+                    "timestamp": 1_700_000_001,
+                    "date": "2023-11-14",
+                    "original_locked": "0.000000000000000010",
+                    "original_locked_raw": "10",
+                    "total_penalty": "0.000000000000000003",
+                    "total_penalty_raw": "3",
+                    "penalty_pct": "30",
+                    "burn_fee": "0.000000000000000001",
+                    "burn_fee_raw": "1",
+                    "recoup_fee": "0.000000000000000002",
+                    "recoup_fee_raw": "2",
+                    "user_received": "0.000000000000000007",
+                    "user_received_raw": "7",
+                },
+                {
+                    "event_id": f"{second_tx}:2",
+                    "address": "0x" + "44" * 20,
+                    "tx_hash": second_tx,
+                    "log_index": 2,
+                    "block": 3_000_001,
+                    "token_id": 2,
+                    "timestamp": 1_700_000_002,
+                    "date": "2023-11-14",
+                    "original_locked": "0.000000000000000012",
+                    "original_locked_raw": "12",
+                    "total_penalty": "0.000000000000000005",
+                    "total_penalty_raw": "5",
+                    "penalty_pct": "41.666667",
+                    "burn_fee": "0.000000000000000002",
+                    "burn_fee_raw": "2",
+                    "recoup_fee": "0.000000000000000003",
+                    "recoup_fee_raw": "3",
+                    "user_received": "0.000000000000000007",
+                    "user_received_raw": "7",
+                },
+            ],
+        }
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as handle:
+            json.dump(partial, handle)
+            handle.flush()
+            self.assertGreater(os.path.getsize(handle.name), 1_000)
+            with patch.object(fetch_early_exits, "OUTPUT_FILE", handle.name), \
+                 patch.object(fetch_early_exits, "fetch_withdraw_events", return_value=([], 24_819_325)) as fetch, \
+                 patch.object(fetch_early_exits, "_atomic_dump"):
+                with self.assertRaisesRegex(SystemExit, "audited baseline"):
+                    fetch_early_exits.main()
+            fetch.assert_not_called()
+
+    def test_checkpoint_coverage_counters_reject_boolean_values(self):
+        for field in ("eventCount", "uniqueTransactionCount"):
+            with self.subTest(field=field):
+                previous = self._checkpoint_fixture()
+                previous["coverage"][field] = True
+                with self.assertRaisesRegex(ValueError, f"coverage\\.{field} must be a strict non-negative integer"):
+                    fetch_early_exits._validate_checkpoint(previous)
+
+    def test_checkpoint_block_and_stat_counters_require_strict_integers(self):
+        previous = self._checkpoint_fixture()
+        previous["coverage"]["toBlock"] = "24819325"
+        with self.assertRaisesRegex(ValueError, "coverage\\.toBlock must be a strict non-negative integer"):
+            fetch_early_exits._validate_checkpoint(previous)
+
+        for field in (
+            "total_early_exits",
+            "total_normal_exits",
+            "total_withdrawals",
+            "unique_withdrawal_transactions",
+        ):
+            with self.subTest(field=field):
+                previous = self._checkpoint_fixture()
+                previous["stats"][field] = str(previous["stats"][field])
+                with self.assertRaisesRegex(ValueError, f"stats\\.{field} must be a strict non-negative integer"):
+                    fetch_early_exits._validate_checkpoint(previous)
+
+    def test_checkpoint_from_block_requires_strict_integer_and_rejects_before_rpc(self):
+        for from_block in (2_926_448.0, True):
+            with self.subTest(from_block=from_block):
+                previous = self._checkpoint_fixture()
+                previous["coverage"]["fromBlock"] = from_block
+                with self.assertRaisesRegex(ValueError, "coverage must start at the deployment block"):
+                    fetch_early_exits._validate_checkpoint(previous)
+
+        previous = self._checkpoint_fixture()
+        previous["coverage"]["fromBlock"] = 2_926_448.0
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as handle:
+            json.dump(previous, handle)
+            handle.flush()
+            with patch.object(fetch_early_exits, "OUTPUT_FILE", handle.name), \
+                 patch.object(fetch_early_exits, "rpc_call", side_effect=AssertionError("RPC must not run")) as rpc:
+                with self.assertRaisesRegex(SystemExit, "coverage must start at the deployment block"):
+                    fetch_early_exits.main()
+            rpc.assert_not_called()
+
+    def test_checkpoint_raw_values_require_exact_digit_strings(self):
+        previous = self._checkpoint_fixture()
+        previous["stats"]["total_burn_fee_raw"] = 1_562_201_311_256_111_315_281_866
+        with self.assertRaisesRegex(ValueError, "stats\\.total_burn_fee_raw must be an exact digit string"):
+            fetch_early_exits._validate_checkpoint(previous)
+
+        previous = self._checkpoint_fixture()
+        previous["recent_exits"][0]["burn_fee_raw"] = 1_562_201_311_256_111_315_281_866
+        with self.assertRaisesRegex(ValueError, "burn_fee_raw must be an exact digit string"):
+            fetch_early_exits._validate_checkpoint(previous)
+
+    def test_fresh_calculation_raw_values_require_exact_digit_strings(self):
+        calculation = {
+            "is_early_exit": True,
+            "burn_fee_raw": 1,
+            "recoup_fee_raw": "2",
+            "total_penalty_raw": "3",
+            "original_locked_raw": "10",
+            "user_received_raw": "7",
+        }
+
+        with self.assertRaisesRegex(ValueError, "fresh:1\\.burn_fee_raw must be an exact digit string"):
+            fetch_early_exits._fresh_calculation(calculation, "fresh:1")
+
     def test_withdraw_log_fetch_reduces_oversized_windows(self):
         calls = []
 

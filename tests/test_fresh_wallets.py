@@ -540,6 +540,101 @@ class FreshWalletTests(unittest.TestCase):
             "eoa",
         )
 
+    def test_cex_supply_point_groups_canonical_exchanges(self):
+        binance_numbered = "0x1111111111111111111111111111111111111111"
+        binance_deposit = "0x2222222222222222222222222222222222222222"
+        coinbase_hot = "0x3333333333333333333333333333333333333333"
+        non_cex = "0x4444444444444444444444444444444444444444"
+        point = flows.build_cex_supply_point(
+            {
+                binance_numbered: 100,
+                binance_deposit: 50,
+                coinbase_hot: 25,
+                non_cex: 900,
+            },
+            {},
+            {
+                binance_numbered: {"label": "Binance 14", "type": "cex"},
+                binance_deposit: {"label": "Binance Deposit", "type": "cex"},
+                coinbase_hot: {"label": "Coinbase Hot Wallet", "type": "cex"},
+                non_cex: {"label": "MEXC Wallet", "type": "protocol"},
+            },
+        )
+
+        self.assertEqual(point["liquid"], 175.0)
+        self.assertEqual(point["wallets"], 3)
+        self.assertEqual(point["exchanges"], [
+            {"name": "Binance", "liquid": 150.0, "wallets": 2},
+            {"name": "Coinbase", "liquid": 25.0, "wallets": 1},
+        ])
+
+    def test_canonical_cex_name_groups_verified_real_world_variants(self):
+        cases = [
+            ("MEXC Wallet", "MEXC"),
+            ("MEXC 16", "MEXC"),
+            ("BingX-linked", "BingX"),
+            ("BingX 29", "BingX"),
+            ("Gate.io Routing Wallet", "Gate.io"),
+            ("Gate.io Deposit", "Gate.io"),
+            ("KuCoin Wallet", "KuCoin"),
+            ("Coinbase Prime 1", "Coinbase Prime"),
+            ("CEX Distributor", "CEX Distributor"),
+        ]
+
+        for label, expected in cases:
+            with self.subTest(label=label):
+                self.assertEqual(flows.canonical_cex_name(label), expected)
+
+    def test_cex_supply_point_reconciles_rounding_residual_to_name_tiebreak(self):
+        alpha = "0x1111111111111111111111111111111111111111"
+        beta = "0x2222222222222222222222222222222222222222"
+
+        point = flows.build_cex_supply_point(
+            {alpha: 10.004, beta: 10.004},
+            {},
+            {
+                alpha: {"label": "Alpha 1", "type": "cex"},
+                beta: {"label": "Beta 1", "type": "cex"},
+            },
+        )
+
+        self.assertEqual(point, {
+            "wallets": 2,
+            "liquid": 20.01,
+            "exchanges": [
+                {"name": "Alpha", "liquid": 10.01, "wallets": 1},
+                {"name": "Beta", "liquid": 10.0, "wallets": 1},
+            ],
+        })
+
+    def test_cex_supply_point_negative_residual_never_makes_an_exchange_negative(self):
+        addresses = {
+            "Alpha": "0x1111111111111111111111111111111111111111",
+            "Beta": "0x2222222222222222222222222222222222222222",
+            "Gamma": "0x3333333333333333333333333333333333333333",
+            "Delta": "0x4444444444444444444444444444444444444444",
+        }
+
+        point = flows.build_cex_supply_point(
+            {address: 0.0051 for address in addresses.values()},
+            {},
+            {
+                address: {"label": f"{name} 1", "type": "cex"}
+                for name, address in addresses.items()
+            },
+        )
+
+        self.assertEqual(point, {
+            "wallets": 4,
+            "liquid": 0.02,
+            "exchanges": [
+                {"name": "Delta", "liquid": 0.01, "wallets": 1},
+                {"name": "Gamma", "liquid": 0.01, "wallets": 1},
+                {"name": "Alpha", "liquid": 0.0, "wallets": 1},
+                {"name": "Beta", "liquid": 0.0, "wallets": 1},
+            ],
+        })
+
     def test_holder_wallet_history_rows_include_safe_user_wallets(self):
         safe_wallet = "0x1111111111111111111111111111111111111111"
         cex_wallet = "0x2222222222222222222222222222222222222222"

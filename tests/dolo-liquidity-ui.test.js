@@ -124,6 +124,8 @@ test('position dust stays independently controllable below ten dollars', () => {
 
 test('compact raw token amounts are BigInt-safe and match row notation', () => {
   const compactRawAmount = extractNamedFunction('compactRawAmount');
+  assert.equal(compactRawAmount('731333962797000000000000', 18), '731K');
+  assert.equal(compactRawAmount('16387908718238867098667283', 18), '16.4M');
   assert.equal(compactRawAmount('1235000000000000000000', 18), '1.2K');
   assert.equal(compactRawAmount('1250000000000000000', 18), '1.25');
   assert.equal(compactRawAmount('1000000', 6), '1');
@@ -134,6 +136,7 @@ test('compact raw token amounts are BigInt-safe and match row notation', () => {
   assert.match(html, /dolomite-token-icons\.generated\.js/);
   assert.match(html, /DOLOMITE_TOKEN_ICONS/);
   assert.match(html, /exactRawAmount\(raw,decimals\)/);
+  assert.doesNotMatch(html, /\.dolo-lp-token-value\{[^}]*text-overflow:ellipsis/);
 });
 
 test('Details rounds current token amounts exactly to two decimals', () => {
@@ -252,6 +255,13 @@ test('mobile Details opens inside the visible table viewport', () => {
   assert.match(html, /if\(opening\s*&&\s*window\.innerWidth\s*<=\s*640\)[\s\S]*?wrap\.scrollLeft\s*=\s*0/);
 });
 
+test('mobile LP Details restores wrapping without changing compact primary table rows', () => {
+  assert.match(html, /body\.mobile-polished \.dolo-lp-detail-row>td\{[^}]*white-space:normal/);
+  assert.match(html, /\.dolo-lp-detail-value\{[^}]*overflow-wrap:anywhere/);
+  assert.match(html, /\.dolo-lp-detail-value\.dolo-lp-exact\{[^}]*word-break:break-word/);
+  assert.match(html, /\.dolo-lp-token-amount\{[^}]*white-space:nowrap/);
+});
+
 test('successful LP freshness uses the same gold pulse as DOLO Flows', () => {
   assert.match(html, /#dolo-lp-meta\{[^}]*color:var\(--fg-3\)/s);
   assert.match(html, /innerHTML=`<span class="pulse"><\/span>Data updated · \$\{agoLabel\(data\.generatedAt\)\}`/);
@@ -294,10 +304,12 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
   assert.match(html, /function syncFlowSortHeaders\(\)[\s\S]*?th\.setAttribute\("aria-sort",\s*active\s*\?\s*\(sort\.dir\s*===\s*"asc"\s*\?\s*"ascending"\s*:\s*"descending"\)\s*:\s*"none"\)/);
 });
 
-test('both production entry points advance the aligned-column liquidity cache once', () => {
-  const version = 'lp-column-balance-20260813';
-  for (const [name, source] of [['index.html', rootRoute], ['dolo/index.html', doloRoute]]) {
-    assert.equal(source.split(version).length - 1, 1, name);
-  }
+test('both production entry points use the exact shared holder-CEX-LP release cache key', () => {
+  const expected = 'dolo-label-cleanup-20260514-hero-value-chip-20260718-typography-row-address-peers-20260809-dolo-holder-cex-lp-20260814';
+  const routeVersion = source => source.match(/"version": "([^"]+)"/)?.[1];
+
+  assert.equal(routeVersion(rootRoute), expected, 'index.html');
+  assert.equal(routeVersion(doloRoute), expected, 'dolo/index.html');
+  assert.equal(routeVersion(rootRoute), routeVersion(doloRoute));
   assert.match(html, /data\/dolo-liquidity\.json\?v=20260813-lp-coverage-parity/);
 });
