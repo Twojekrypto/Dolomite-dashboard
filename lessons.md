@@ -5,6 +5,7 @@
 - **Check for duplicate markup**: When modifying HTML in a large file, old markup can persist alongside new markup if edits don't target the exact right lines.
 - **Unbalanced Flex Containers**: Be extremely careful when adding blocks to existing `display:flex` layout toolbars. A single stray opening/closing `</div>` tag will detach siblings from the flex flow, destroying alignment ("rozjechany interfejs"). Always cross-check the target edit chunk perfectly matches tag depth.
 - **ZAWSZE podawaj komendy push**: Agent nie może `git push` (macOS Keychain blokuje). Po KAŻDEJ zmianie podaj userowi gotową komendę do wklejenia w terminal, np.: `git -C ~/Desktop/Draft/Dolomite\ website add -A && git commit -m "msg" && git push origin main && git push origin main:master`
+- **Manually reviewed custody false positives belong in the automatic-classification override set, not verified identity labels**: Keep the exception exact and add a regression proving unrelated qualifying wallets remain detected.
 
 ## Deployment & Verification
 - **GH Pages cache**: Always add a unique timestamp/version parameter to URLs when verifying deployed changes (e.g., `?v=abc123&t=<timestamp>`).

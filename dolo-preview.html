@@ -5537,6 +5537,13 @@ renderCexSupplyChart();
   let liveFlowTimestamp = null;
   let veDoloDataPromise = null;
   const AUTO_CEX_LABELS = {};
+  const REVIEWED_MARKET_WALLET_OVERRIDES = new Set([
+    "0x74d4138b742560802d8e10325f72d1b4e0b20882",
+    "0x39c4210ed2286d56e979e8ad1fa64c12c2713904",
+    "0x8c39b7cb82b9d791adcc9387098944b635c17b32",
+    "0x32cd32b45277bf025c1df7bb4388e6a412b77fe5",
+    "0x97d59a4cd39fec0756e067979b17207212ecd999",
+  ]);
 
   const originalRenderHolders = renderHolders;
   const originalRenderFlows = renderFlows;
@@ -5631,7 +5638,7 @@ renderCexSupplyChart();
     );
     const touch = (item, role) => {
       const key = lower(item?.address);
-      if(!key || ADDR_LABELS[key] || contractAddresses.has(key)) return;
+      if(!key || ADDR_LABELS[key] || contractAddresses.has(key) || REVIEWED_MARKET_WALLET_OVERRIDES.has(key)) return;
       if(!isPotentialCustodyObservation(item, role)) return;
       candidates.add(key);
     };
