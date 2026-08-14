@@ -162,6 +162,25 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .cex-supply-card .holder-chart-series-line{filter:drop-shadow(0 0 7px rgba(180,121,107,.18))}
 .cex-supply-card .holder-flow-stats{border-radius:0 0 var(--r-xl) var(--r-xl);overflow:hidden;background:linear-gradient(90deg,rgba(180,121,107,.055),rgba(255,255,255,.012))}
 .cex-supply-card .holder-flow-stat{border-bottom:0}
+#cexSupplyStats{display:contents}
+.cex-exchange-disclosure{grid-column:1/-1;border-top:1px solid var(--line-1);background:rgba(9,9,11,.1)}
+.cex-exchange-disclosure summary{display:flex;align-items:center;min-height:42px;padding:0 18px;color:var(--fg-2);font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;cursor:pointer;list-style:none}
+.cex-exchange-disclosure summary::-webkit-details-marker{display:none}
+.cex-exchange-disclosure summary::after{content:"+";margin-left:auto;color:var(--gold);font-family:var(--mono);font-size:15px;line-height:1}
+.cex-exchange-disclosure[open] summary{color:var(--fg-1);border-bottom:1px solid var(--line-1)}
+.cex-exchange-disclosure[open] summary::after{content:"−"}
+.cex-exchange-disclosure summary:focus-visible{outline:1px solid var(--gold);outline-offset:-2px}
+.cex-exchange-breakdown{display:grid;padding:4px 18px 12px}
+.cex-exchange-row{display:grid;grid-template-columns:minmax(0,1fr) max-content max-content;align-items:center;gap:14px;min-height:34px;border-bottom:1px solid rgba(255,255,255,.045);font-variant-numeric:tabular-nums}
+.cex-exchange-row:last-child{border-bottom:0}
+.cex-exchange-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-2);font-size:12px;font-weight:600}
+.cex-exchange-current,.cex-exchange-change{font-family:var(--mono);font-size:11px;white-space:nowrap}
+.cex-exchange-current{color:var(--fg-1)}
+.cex-exchange-change{min-width:84px;text-align:right}
+.cex-exchange-change.up{color:var(--up)}
+.cex-exchange-change.down{color:var(--down)}
+.cex-exchange-change.neutral{color:var(--fg-3)}
+.cex-exchange-empty{padding:8px 0;color:var(--fg-3);font-size:12px}
 .holder-distribution-head{display:block;padding:0;border-bottom:0}
 .holder-distribution-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px 18px;border-bottom:1px solid var(--line-1)}
 .holder-distribution-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px 0;flex-wrap:wrap}
@@ -1048,9 +1067,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-range small{font-family:var(--sans);font-size:9px;color:var(--fg-4);text-transform:uppercase;letter-spacing:.7px}
 .dolo-lp-range.is-in-range>span{color:var(--up)}
 .dolo-lp-range.is-out-of-range>span{color:var(--down)}
-.dolo-lp-token-amount{display:flex;align-items:center;justify-content:flex-end;gap:7px;width:100%;min-width:0;color:var(--fg-1);font-family:var(--mono);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dolo-lp-token-amount{display:flex;align-items:center;justify-content:flex-end;gap:5px;width:100%;min-width:0;color:var(--fg-1);font-family:var(--mono);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 .dolo-lp-table td.paired-asset .dolo-lp-token-amount{justify-content:center}
-.dolo-lp-token-value{overflow:hidden;text-overflow:ellipsis;cursor:default}
+.dolo-lp-token-value{cursor:default}
 .dolo-lp-token-amount img{width:16px;height:16px;border-radius:50%;object-fit:contain;flex:0 0 16px;background:var(--bg-3)}
 .dolo-lp-table th.details-cell{text-align:center;padding-left:14px;padding-right:14px}
 .dolo-lp-table td.details-cell{text-align:center;padding-left:14px;padding-right:14px}
@@ -1064,6 +1083,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dolo-lp-data-row.expanded td:first-child::before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:var(--gold);box-shadow:0 0 12px var(--gold-line)}
 .dolo-lp-detail-row{cursor:default}
 .dolo-lp-detail-row>td{position:relative;height:auto!important;padding:0!important;white-space:normal;background:linear-gradient(90deg,rgba(201,162,39,.035),var(--bg-1) 42px)!important;border-bottom-color:var(--line-2)}
+body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
 .dolo-lp-detail-row>td::before{content:"";position:absolute;inset:0 auto 0 0;width:2px;background:var(--gold);box-shadow:0 0 12px var(--gold-line)}
 .dolo-lp-detail-row:hover>td{background:linear-gradient(90deg,rgba(201,162,39,.035),var(--bg-1) 42px)!important}
 .dolo-lp-detail-panel{position:relative;width:100%;margin:0;overflow:visible;border:0;border-radius:0;background:transparent;box-shadow:none}
@@ -1755,6 +1775,63 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="holder-chart-legend holder-distribution-legend" id="holderChartLegend"></div>
   </section>
 
+  <section class="card holder-chart-card allocation-chart-card" id="allocation-chart-card">
+    <div class="card-head">
+      <div class="holder-title-block">
+        <div class="card-title">
+          <h2>Team &amp; Investor Allocations Over Time</h2>
+          <span class="count-badge" id="allocation-chart-count">All</span>
+        </div>
+        <div class="holder-source-exclusion">Allocation history · not freely distributed market supply</div>
+      </div>
+      <div class="card-meta holder-chart-meta" id="allocation-chart-meta" aria-label="Allocation chart data scope"></div>
+    </div>
+    <div class="holder-chart-wrap" id="allocationChartWrap">
+      <svg class="holder-chart-svg" id="allocationChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="Team and Investor DOLO allocations over time chart">
+        <defs>
+          <linearGradient id="allocationChartAreaGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#e4c15a" stop-opacity=".18"/>
+            <stop offset="58%" stop-color="#e4c15a" stop-opacity=".05"/>
+            <stop offset="100%" stop-color="#e4c15a" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <g class="holder-chart-grid" id="allocationChartGrid"></g>
+        <path class="holder-chart-area" id="allocationChartArea" fill="url(#allocationChartAreaGrad)" d=""></path>
+        <g class="holder-chart-lines" id="allocationChartLines"></g>
+        <g class="holder-chart-dots" id="allocationChartDots"></g>
+        <line class="holder-chart-line" id="allocationChartHoverLine" x1="0" x2="0" y1="0" y2="0"/>
+        <circle class="holder-chart-dot" id="allocationChartHoverDot" r="4" cx="0" cy="0"/>
+        <g class="holder-chart-axis" id="allocationChartAxis"></g>
+      </svg>
+      <div class="holder-chart-tip" id="allocationChartTip">
+        <div class="tt-date">—</div>
+        <div class="tt-val">—</div>
+      </div>
+    </div>
+    <div class="holder-brush-wrap" id="allocationBrushWrap">
+      <svg class="holder-brush-svg" id="allocationBrushSvg" viewBox="0 0 1000 56" preserveAspectRatio="none" aria-label="Allocation history time range navigator">
+        <defs>
+          <linearGradient id="allocationBrushGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#e4c15a" stop-opacity=".30"/>
+            <stop offset="100%" stop-color="#e4c15a" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path class="holder-brush-area" id="allocationBrushArea" fill="url(#allocationBrushGrad)" d=""></path>
+        <path class="holder-brush-line" id="allocationBrushLine" d="" style="stroke:#e4c15a"></path>
+      </svg>
+      <div class="holder-brush-overlay" id="allocationBrushOverlay">
+        <div class="holder-brush-dim l" id="allocationBrushDimL"></div>
+        <div class="holder-brush-window" id="allocationBrushWindow">
+          <div class="holder-brush-handle l" id="allocationBrushHandleL"><div class="grip"><span></span><span></span></div></div>
+          <div class="holder-brush-handle r" id="allocationBrushHandleR"><div class="grip"><span></span><span></span></div></div>
+        </div>
+        <div class="holder-brush-dim r" id="allocationBrushDimR"></div>
+      </div>
+      <div class="holder-brush-label" id="allocationBrushLabel"></div>
+    </div>
+    <div class="holder-chart-legend" id="allocationChartLegend"></div>
+  </section>
+
   <section class="card holder-chart-card cex-supply-card" id="cex-supply-card">
     <div class="card-head">
       <div class="holder-title-block">
@@ -1807,7 +1884,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
       <div class="holder-brush-label" id="cexSupplyBrushLabel"></div>
     </div>
-    <div class="holder-flow-stats" id="cexSupplyStats"></div>
+    <div class="holder-flow-stats" id="cexSupplyFlowRail">
+      <div id="cexSupplyStats"></div>
+      <details class="cex-exchange-disclosure" id="cexSupplyDetails">
+        <summary>CEX details</summary>
+        <div class="cex-exchange-breakdown" id="cexSupplyExchangeBreakdown"></div>
+      </details>
+    </div>
   </section>
 
   <!-- PROTOCOL INFO -->
@@ -3084,8 +3167,20 @@ function buildAllocationSeries(){
     teamWallets:safeHolderNum(nowModel.teamWallets),
     investorWallets:safeHolderNum(nowModel.investorWallets),
   };
-  if(now.total > 0 && (!dailyPoints.length || Math.abs(now.ts - dailyPoints[dailyPoints.length - 1].ts) > 3600)){
-    dailyPoints.push(now);
+  if(now.total > 0 && dailyPoints.length){
+    const last = dailyPoints[dailyPoints.length - 1];
+    const relativeDifference = (current, generated) => Math.abs(current - generated) / Math.max(Math.abs(generated), 1);
+    const methodologyMatch = (
+      relativeDifference(now.total, last.total) <= 0.01
+      && relativeDifference(now.team, last.team) <= 0.01
+      && relativeDifference(now.investors, last.investors) <= 0.01
+      && Math.abs(now.wallets - last.wallets) <= 1
+      && Math.abs(now.teamWallets - last.teamWallets) <= 1
+      && Math.abs(now.investorWallets - last.investorWallets) <= 1
+    );
+    if(Math.abs(now.ts - last.ts) > 3600 && methodologyMatch){
+      dailyPoints.push(now);
+    }
   }
   const current = dailyPoints[dailyPoints.length - 1] || now;
   return {
@@ -3549,10 +3644,12 @@ function buildCexSupplySeries(){
       ts:parseHolderTimestamp(point.timestamp) || safeHolderNum(point.ts),
       cex:safeHolderNum(point.liquid ?? point.cex ?? point.supply),
       wallets:safeHolderNum(point.wallets),
+      exchanges:Array.isArray(point.exchanges) ? point.exchanges : null,
     }))
     .filter(point => point.ts > 0)
     .sort((a,b) => a.ts - b.ts);
-  if(dailyPoints.length > 1){
+  const hasExchangeSnapshots = dailyPoints.some(point => Array.isArray(point.exchanges));
+  if(dailyPoints.length > 1 || hasExchangeSnapshots){
     // Methodology guard (same rule as the holder chart): append the live
     // "now" point only when it agrees with the precomputed series — a label
     // added between the daily run and page load must not draw a false jump.
@@ -3560,7 +3657,7 @@ function buildCexSupplySeries(){
     const relDiff = Math.abs(current.total - last.cex) / Math.max(last.cex, 1);
     const walletDiff = Math.abs(current.wallets - last.wallets);
     const methodologyMatch = relDiff <= 0.01 && walletDiff <= 1;
-    if(current.total > 0 && Math.abs(baseTs - last.ts) > 3600 && methodologyMatch){
+    if(current.total > 0 && Math.abs(baseTs - last.ts) > 3600 && methodologyMatch && !hasExchangeSnapshots){
       dailyPoints.push({key:"now", label:"Now", ts:baseTs, cex:current.total, wallets:current.wallets});
     }
     return {
@@ -3629,6 +3726,40 @@ function visibleCexSupplyHistory(fullModel){
       .sort((a,b)=>a.ts-b.ts);
   }
   return {...fullModel, points:visible.length ? visible : points};
+}
+function buildCexExchangeBreakdown(fullModel = cexSupplyFullModel){
+  if(!fullModel || !Array.isArray(fullModel.points)) return [];
+  const points = visibleCexSupplyHistory(fullModel).points || [];
+  if(points.length < 2) return [];
+  const first = points[0];
+  const last = points[points.length - 1];
+  if(!Array.isArray(first.exchanges) || !Array.isArray(last.exchanges)) return [];
+  const exchangeMap = point => new Map(point.exchanges
+    .map(exchange => [String(exchange?.name || "").trim(), Number(exchange?.liquid)])
+    .filter(([name, liquid]) => name && Number.isFinite(liquid)));
+  const startByName = exchangeMap(first);
+  const currentByName = exchangeMap(last);
+  const names = new Set([...startByName.keys(), ...currentByName.keys()]);
+  return [...names]
+    .map(name => {
+      const start = startByName.get(name) || 0;
+      const current = currentByName.get(name) || 0;
+      return {name, current, start, change:current - start};
+    })
+    .sort((a,b) => b.current - a.current || a.name.localeCompare(b.name));
+}
+function cexExchangeChangeClass(change){
+  if(change > 0) return "up";
+  if(change < 0) return "down";
+  return "neutral";
+}
+function renderCexExchangeBreakdown(fullModel = cexSupplyFullModel){
+  const container = document.getElementById("cexSupplyExchangeBreakdown");
+  if(!container) return;
+  const exchanges = buildCexExchangeBreakdown(fullModel);
+  container.innerHTML = exchanges.length
+    ? exchanges.map(exchange => `<div class="cex-exchange-row"><span class="cex-exchange-name">${escHtml(exchange.name)}</span><span class="cex-exchange-current">${fmtNum(exchange.current)} DOLO</span><span class="cex-exchange-change ${cexExchangeChangeClass(exchange.change)}">${fmtSignedHolder(exchange.change)} DOLO</span></div>`).join("")
+    : '<p class="cex-exchange-empty">Exchange movement data is not available for this range yet.</p>';
 }
 function cexSupplySelectedChange(fullModel = cexSupplyFullModel){
   if(!fullModel || !Array.isArray(fullModel.points)) return null;
@@ -3870,6 +4001,7 @@ function renderCexSupplyChart(options = {}){
     statsEl.innerHTML = holderCexStatHtml();
     statsEl.style.display = statsEl.innerHTML.trim() ? "" : "none";
   }
+  renderCexExchangeBreakdown(fullModel);
 
   const hoverLine = document.getElementById("cexSupplyHoverLine");
   const hoverDot = document.getElementById("cexSupplyHoverDot");
@@ -6076,12 +6208,17 @@ renderCexSupplyChart();
     if(amount === 0n) return "0";
     const unit = 10n ** BigInt(decimals);
     const compactUnits = [[1000000000n,"B"],[1000000n,"M"],[1000n,"K"]];
-    for(const [size,suffix] of compactUnits){
+    for(let index = 0; index < compactUnits.length; index += 1){
+      const [size,suffix] = compactUnits[index];
       const denominator = unit * size;
       if(amount < denominator) continue;
-      const tenths = (amount * 10n + denominator / 2n) / denominator;
-      const whole = tenths / 10n;
-      const fraction = tenths % 10n;
+      const wholeUnits = amount >= denominator * 100n
+        ? (amount + denominator / 2n) / denominator
+        : (amount * 10n + denominator / 2n) / denominator;
+      const decimalScale = amount >= denominator * 100n ? 1n : 10n;
+      const whole = wholeUnits / decimalScale;
+      const fraction = wholeUnits % decimalScale;
+      if(whole === 1000n && index > 0) return `1${compactUnits[index - 1][1]}`;
       return fraction ? `${whole}.${fraction}${suffix}` : `${whole}${suffix}`;
     }
     const digits = amount >= unit ? 2 : amount * 100n >= unit ? 4 : 6;

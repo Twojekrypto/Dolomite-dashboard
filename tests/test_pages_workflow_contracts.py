@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PAGES_WORKFLOW = ROOT / ".github" / "workflows" / "pages.yml"
 ODOLO_WORKFLOW = ROOT / ".github" / "workflows" / "update-odolo-data.yml"
+DOLO_FLOWS_WORKFLOW = ROOT / ".github" / "workflows" / "update-dolo-flows.yml"
 
 
 class PagesWorkflowContractTests(unittest.TestCase):
@@ -24,6 +25,21 @@ class PagesWorkflowContractTests(unittest.TestCase):
         self.assertIn("Update veDOLO Flows", workflow)
         self.assertIn("Update TVL Data", workflow)
         self.assertIn("github.event.workflow_run.conclusion == 'success'", workflow)
+
+    def test_pages_redeploys_after_exact_odolo_workflow(self):
+        workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertEqual(workflow.count("      - Update oDOLO Data\n"), 1)
+
+    def test_dolo_flows_workflow_validates_generated_artifact_before_commit(self):
+        workflow = DOLO_FLOWS_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn("tests/test_validate_dolo_flows.py", workflow)
+        generated = workflow.index("python3 generate_dolo_flows.py")
+        validated = workflow.index("python3 validate_data.py dolo_flows.json")
+        committed = workflow.index("- name: Commit and push if changed")
+        self.assertLess(generated, validated)
+        self.assertLess(validated, committed)
 
     def test_earn_pages_deploy_is_dispatched_only_after_freshness_sla(self):
         pages = PAGES_WORKFLOW.read_text(encoding="utf-8")

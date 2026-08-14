@@ -1674,6 +1674,69 @@ def _dolo_liquidity_valid(data):
     return all(quality.get(key) == value for key, value in expected_quality.items())
 
 
+def _dolo_cex_supply_history_valid(data):
+    history = data.get("cex_supply_history")
+    if not isinstance(history, list) or not history:
+        return False
+    try:
+        for point in history:
+            if not isinstance(point, dict):
+                return False
+            liquid = point.get("liquid")
+            wallets = point.get("wallets")
+            if (
+                not _finite_real_json_number(liquid)
+                or liquid < 0
+                or not _is_exact_integer(wallets)
+                or wallets < 0
+            ):
+                return False
+            exchanges = point.get("exchanges")
+            if exchanges is None:
+                if liquid > 0 or wallets != 0:
+                    return False
+                continue
+            if not isinstance(exchanges, list) or (liquid > 0 and not exchanges):
+                return False
+
+            names = set()
+            exchange_wallets = 0
+            exchange_cents = 0
+            for row in exchanges:
+                if not isinstance(row, dict):
+                    return False
+                name = row.get("name")
+                row_liquid = row.get("liquid")
+                row_wallets = row.get("wallets")
+                if (
+                    not isinstance(name, str)
+                    or not name.strip()
+                    or name != name.strip()
+                    or name in names
+                    or not _finite_real_json_number(row_liquid)
+                    or row_liquid < 0
+                    or not _is_exact_integer(row_wallets)
+                    or row_wallets < 0
+                ):
+                    return False
+                names.add(name)
+                exchange_wallets += row_wallets
+                exchange_cents += int(
+                    Decimal(str(row_liquid)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) * 100
+                )
+
+            if exchanges != sorted(exchanges, key=lambda row: (-row["liquid"], row["name"])):
+                return False
+            point_cents = int(
+                Decimal(str(liquid)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) * 100
+            )
+            if exchange_cents != point_cents or exchange_wallets != wallets:
+                return False
+        return True
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+
+
 RULES = {
     "dolo-liquidity.json": {
         "required_keys": ["schemaVersion", "generatedAt", "summary", "sources", "pools", "activePositions", "history", "quality"],
@@ -1684,10 +1747,11 @@ RULES = {
         "min_bytes": 500,
     },
     "dolo_flows.json": {
-        "required_keys": ["timestamp", "dolo_price", "periods"],
+        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history"],
         "checks": [
             ("periods must have data",     lambda d: len(d.get("periods", {})) >= 3),
             ("dolo_price must be positive", lambda d: d.get("dolo_price", 0) > 0),
+            ("CEX exchange history must reconcile exactly", _dolo_cex_supply_history_valid),
         ],
         "min_bytes": 50_000,
     },
