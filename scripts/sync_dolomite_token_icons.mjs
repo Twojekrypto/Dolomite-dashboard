@@ -11,6 +11,8 @@ const OUTPUT_PATH = path.join(ROOT, 'dolomite-token-icons.generated.js');
 const OFFICIAL_APP_ORIGIN = 'https://app.dolomite.io';
 const OFFICIAL_MANIFEST_URL = `${OFFICIAL_APP_ORIGIN}/asset-manifest.json`;
 const REQUEST_TIMEOUT_MS = 25_000;
+const MAX_MANIFEST_ATTEMPTS = 3;
+const MANIFEST_RETRY_DELAY_MS = 750;
 
 export function buildOfficialIconRegistry(manifest) {
   const registry = {};
@@ -48,19 +50,44 @@ export function renderOfficialIconRegistry(registry) {
 `;
 }
 
-async function fetchOfficialManifest() {
+function isRetryableHttpStatus(status) {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function fetchOfficialManifestAttempt(fetchImpl) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(OFFICIAL_MANIFEST_URL, {
+    const response = await fetchImpl(OFFICIAL_MANIFEST_URL, {
       cache: 'no-store',
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status} for ${OFFICIAL_MANIFEST_URL}`);
+    if (!response.ok) {
+      const error = new Error(`HTTP ${response.status} for ${OFFICIAL_MANIFEST_URL}`);
+      error.retryable = isRetryableHttpStatus(response.status);
+      throw error;
+    }
     return await response.json();
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function fetchOfficialManifest(options = {}) {
+  const fetchImpl = options.fetchImpl || globalThis.fetch;
+  const sleepImpl = options.sleepImpl || ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const maxAttempts = options.maxAttempts || MAX_MANIFEST_ATTEMPTS;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetchOfficialManifestAttempt(fetchImpl);
+    } catch (error) {
+      if (error?.retryable === false || attempt === maxAttempts) throw error;
+      await sleepImpl(MANIFEST_RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  throw new Error(`Failed to fetch ${OFFICIAL_MANIFEST_URL}`);
 }
 
 async function main() {
