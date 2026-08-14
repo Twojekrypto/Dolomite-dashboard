@@ -2311,6 +2311,8 @@ const BEHAV_SEGMENTS = [
 function renderDonuts(){
   const distTotal = DIST_SEGMENTS.reduce((s,r)=>s+r.value, 0);
   const behaviorPrimary = BEHAV_SEGMENTS[0]?.value || 0;
+  const behaviorTotal = BEHAV_SEGMENTS.reduce((s,r)=>s+r.value, 0);
+  const behaviorPrimaryPct = behaviorTotal > 0 ? behaviorPrimary / behaviorTotal * 100 : 0;
   drawDonut({
     svgId:"dist-donut",
     segments:DIST_SEGMENTS.map(s => ({...s})),
@@ -2323,7 +2325,7 @@ function renderDonuts(){
   drawDonut({
     svgId:"behav-donut",
     segments:BEHAV_SEGMENTS.map(s => ({...s})),
-    totalLabel:behaviorPrimary.toFixed(1) + "%",
+    totalLabel:behaviorPrimaryPct.toFixed(1) + "%",
     centerVId:"behav-center-v",
     centerLId:"behav-center-l",
     centerLDefault:"Claim exercised",
@@ -4077,10 +4079,13 @@ function syncLiveBehavior(){
   if(!cb) return;
   const claimed = Number(cb.total_claimed) || 0;
   const allocationSupply = finiteNum(LIVE.contract?.allocationSupply, 200e6);
+  const exercised = finiteNum(cb.total_exercised, claimed * (Number(cb.pct_exercised) || 0) / 100);
+  const outflow = finiteNum(cb.total_outflow, claimed * (Number(cb.pct_outflow) || 0) / 100);
+  const claimRemaining = finiteNum(cb.total_claim_remaining, claimed * (Number(cb.pct_claim_remaining) || 0) / 100);
   applyRows(BEHAV_SEGMENTS, [
-    {label:"Claim exercised", value:Number(cb.pct_exercised) || 0, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO", fmt:fmtNum(claimed * (Number(cb.pct_exercised) || 0) / 100) + " oDOLO"},
-    {label:"Sold or sent away", value:Number(cb.pct_outflow) || 0, color:"#b4796b", desc:"Moved out without exercising", fmt:fmtNum(claimed * (Number(cb.pct_outflow) || 0) / 100) + " oDOLO"},
-    {label:"Claim remaining", value:Number(cb.pct_claim_remaining) || 0, color:"#22d3ee", desc:"Claimed allocation not attributed to exercise or outflow", fmt:fmtNum(claimed * (Number(cb.pct_claim_remaining) || 0) / 100) + " oDOLO"},
+    {label:"Claim exercised", value:exercised, color:"#8aa37b", desc:"Claimed oDOLO used for veDOLO", fmt:fmtNum(exercised) + " oDOLO"},
+    {label:"Sold or sent away", value:outflow, color:"#b4796b", desc:"Moved out without exercising", fmt:fmtNum(outflow) + " oDOLO"},
+    {label:"Claim remaining", value:claimRemaining, color:"#22d3ee", desc:"Claimed allocation not attributed to exercise or outflow", fmt:fmtNum(claimRemaining) + " oDOLO"},
   ]);
   setText("behav-count", `${Number(cb.total_claimers || 0).toLocaleString("en-US")} claimers`);
   setHtml("behav-meta", `<span class="pulse"></span>${fmtNum(claimed)} oDOLO claimed of ${fmtNum(allocationSupply)} allocation`);

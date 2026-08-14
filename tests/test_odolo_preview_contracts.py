@@ -1,4 +1,6 @@
+import json
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -69,6 +71,82 @@ class OdoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("pct_claim_remaining", behavior)
         self.assertNotIn("pct_held", behavior)
         self.assertNotIn("pct_bought_extra", behavior)
+
+    def test_inline_javascript_is_syntax_valid(self):
+        inline_scripts = []
+        for opening, body in re.findall(
+            r'(<script(?:\s[^>]*)?>)(.*?)</script>',
+            self.html,
+            re.S | re.I,
+        ):
+            if re.search(r'\bsrc\s*=', opening, re.I):
+                continue
+            inline_scripts.append(body)
+
+        result = subprocess.run(
+            ["node", "--check", "-"],
+            input="\n".join(inline_scripts),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_claimer_behavior_executes_with_exact_aggregate_amounts(self):
+        behavior_fn = re.search(
+            r'(function syncLiveBehavior\(\)\{.*?\n\})\n\nfunction syncLiveClaimersForPeriod',
+            self.html,
+            re.S,
+        ).group(1)
+        render_fn = re.search(
+            r'(function renderDonuts\(\)\{.*?\n\})\n\n/\* ={20,}\n   DISCOUNT CURVE',
+            self.html,
+            re.S,
+        ).group(1)
+        script = f"""
+const LIVE = {{
+  contract: {{allocationSupply: 200000000}},
+  flows: {{claimer_behavior: {{
+    total_claimers: 2,
+    total_claimed: 100.04,
+    total_exercised: 40.01,
+    total_outflow: 30.02,
+    total_claim_remaining: 30.01,
+    pct_exercised: 1,
+    pct_outflow: 1,
+    pct_claim_remaining: 98
+  }}}}
+}};
+const BEHAV_SEGMENTS = [];
+const DIST_SEGMENTS = [];
+const donutCalls = [];
+const finiteNum = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+const applyRows = (target, rows) => target.splice(0, target.length, ...rows);
+const fmtNum = value => Number(value).toFixed(2);
+const setText = () => {{}};
+const setHtml = () => {{}};
+const drawDonut = opts => donutCalls.push(opts);
+{behavior_fn}
+{render_fn}
+syncLiveBehavior();
+renderDonuts();
+console.log(JSON.stringify({{segments: BEHAV_SEGMENTS, behaviorDonut: donutCalls[1]}}));
+"""
+        result = subprocess.run(
+            ["node", "-e", script],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+
+        self.assertEqual(
+            [row["value"] for row in payload["segments"]],
+            [40.01, 30.02, 30.01],
+        )
+        self.assertEqual(payload["behaviorDonut"]["totalLabel"], "40.0%")
 
     def test_latest_pair_controls_use_portfolio_green_interactions(self):
         self.assertIn('id="latest-pairs-section"', self.html)

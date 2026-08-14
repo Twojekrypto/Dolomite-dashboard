@@ -141,6 +141,69 @@ class OdoloFlowsValidationTests(unittest.TestCase):
         row["net_flow"] = 70
         self.assertFalse(validate_data._odolo_flow_components_reconcile(payload))
 
+    def test_claim_source_reconciliation_rejects_invalid_metadata(self):
+        payload = {
+            "current_block": 6_600_000,
+            "deploy_block": 3_500_000,
+            "claimer_behavior": {
+                "total_claimed": 54_000_125.5,
+                "total_claimers": 1,
+            },
+            "claimer_periods": {},
+            "claim_source_reconciliation": {
+                "first_canonical_event_block": 6_568_388,
+                "coverage_from_block": 3_500_000,
+                "coverage_to_block": 6_600_000,
+                "coverage_status": "complete",
+                "coverage_lag_blocks": 0,
+                "historical_transfer_claimed": 125.5,
+                "canonical_event_claimed": 54_000_000,
+                "post_index_transfer_observed": 54_006_553.71,
+                "ignored_post_index_transfer_count": 1,
+                "ignored_post_index_transfer_amount": 6_553.71,
+                "methodology": "historical transfers before canonical event coverage plus canonical events",
+            },
+        }
+
+        self.assertTrue(validate_data._odolo_claim_source_reconciliation_is_valid(payload))
+
+        payload["claimer_behavior"]["total_claimed"] = 54_000_225.5
+        self.assertFalse(validate_data._odolo_claim_source_reconciliation_is_valid(payload))
+
+        payload["claimer_behavior"]["total_claimed"] = 54_000_125.5
+        payload["claim_source_reconciliation"]["ignored_post_index_transfer_count"] = -1
+        self.assertFalse(validate_data._odolo_claim_source_reconciliation_is_valid(payload))
+
+    def test_claimer_aggregates_must_match_breakdown_rows(self):
+        row = {
+            "address": "0x" + "1" * 40,
+            "claimed": 100.04,
+            "exercised": 40.01,
+            "outflow": 30.02,
+            "claim_remaining": 30.01,
+            "held": 50.0,
+            "bought_extra": 2.5,
+        }
+        summary = {
+            "total_claimers": 1,
+            "total_claimed": 100.04,
+            "total_exercised": 40.01,
+            "total_outflow": 30.02,
+            "total_claim_remaining": 30.01,
+            "total_held": 50.0,
+            "count_bought_extra": 1,
+            "all_claimers": [row],
+        }
+        payload = {
+            "claimer_behavior": summary,
+            "claimer_periods": {"all": dict(summary)},
+        }
+
+        self.assertTrue(validate_data._odolo_claimer_aggregates_reconcile(payload))
+
+        payload["claimer_behavior"]["total_outflow"] = 29.02
+        self.assertFalse(validate_data._odolo_claimer_aggregates_reconcile(payload))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -351,12 +351,54 @@ def _odolo_allocation_reconciles(data):
         burned = float(data.get("redeemedAndBurned"))
     except (TypeError, ValueError):
         return False
-    return (
+    display_reconciles = (
         _nearly_equal(allocation, ODOLO_ALLOCATION, abs_tol=0.01)
         and current <= allocation
         and burned >= 0
         and _nearly_equal(components, allocation, abs_tol=2.0)
         and _nearly_equal(current + burned, allocation, abs_tol=2.0)
+    )
+    raw_keys = (
+        "allocationSupplyWei",
+        "totalSupplyWei",
+        "futureRewardsReserveWei",
+        "inVesterBalanceWei",
+        "inCirculationWei",
+        "redeemedAndBurnedWei",
+    )
+    if not any(key in data for key in raw_keys):
+        return display_reconciles
+    raw = {key: _nonnegative_integer(data.get(key)) for key in raw_keys}
+    if any(value is None for value in raw.values()):
+        return False
+    display_raw_pairs = {
+        "allocationSupply": "allocationSupplyWei",
+        "totalSupply": "totalSupplyWei",
+        "futureRewardsReserve": "futureRewardsReserveWei",
+        "inVesterBalance": "inVesterBalanceWei",
+        "inCirculation": "inCirculationWei",
+        "redeemedAndBurned": "redeemedAndBurnedWei",
+    }
+    try:
+        display_matches_raw = all(
+            abs(
+                Decimal(str(data.get(display_key)))
+                - Decimal(raw[raw_key]) / DOLO_WEI
+            ) <= Decimal("0.000001")
+            for display_key, raw_key in display_raw_pairs.items()
+        )
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    return (
+        display_reconciles
+        and display_matches_raw
+        and raw["allocationSupplyWei"] == 200_000_000 * 10**18
+        and raw["totalSupplyWei"]
+        == raw["futureRewardsReserveWei"]
+        + raw["inVesterBalanceWei"]
+        + raw["inCirculationWei"]
+        and raw["allocationSupplyWei"]
+        == raw["totalSupplyWei"] + raw["redeemedAndBurnedWei"]
     )
 
 
@@ -464,12 +506,115 @@ def _odolo_claimer_partitions_reconcile(data):
     return True
 
 
+def _odolo_claimer_aggregates_reconcile(data):
+    groups = [data.get("claimer_behavior")]
+    groups.extend((data.get("claimer_periods") or {}).values())
+    required_totals = {
+        "total_claimed": "claimed",
+        "total_exercised": "exercised",
+        "total_outflow": "outflow",
+        "total_claim_remaining": "claim_remaining",
+        "total_held": "held",
+    }
+    if not groups or any(not isinstance(group, dict) for group in groups):
+        return False
+    for group in groups:
+        rows = group.get("all_claimers")
+        if not isinstance(rows, list):
+            return False
+        if group.get("total_claimers") != len(rows):
+            return False
+        bought_extra_count = sum(
+            1 for row in rows if _safe_number(row.get("bought_extra")) > 0
+        )
+        if group.get("count_bought_extra") != bought_extra_count:
+            return False
+        for total_key, row_key in required_totals.items():
+            if not _finite_real_json_number(group.get(total_key)):
+                return False
+            row_total = sum(_safe_number(row.get(row_key)) for row in rows)
+            if not _nearly_equal(
+                group[total_key],
+                row_total,
+                rel=0,
+                abs_tol=0.011,
+            ):
+                return False
+    return True
+
+
 def _odolo_claim_total_within_allocation(data):
     try:
         claimed = float((data.get("claimer_behavior") or {}).get("total_claimed"))
     except (TypeError, ValueError):
         return False
     return 0 <= claimed <= ODOLO_ALLOCATION
+
+
+def _odolo_claim_source_reconciliation_is_valid(data):
+    current_block = data.get("current_block")
+    deploy_block = data.get("deploy_block")
+    if not _is_exact_integer(current_block) or not _is_exact_integer(deploy_block):
+        return False
+    groups = [(data.get("claimer_behavior"), data.get("claim_source_reconciliation"))]
+    groups.extend(
+        (period, period.get("claim_source_reconciliation"))
+        for period in (data.get("claimer_periods") or {}).values()
+        if isinstance(period, dict)
+    )
+    for group, reconciliation in groups:
+        if not isinstance(group, dict) or not isinstance(reconciliation, dict):
+            return False
+        if not isinstance(reconciliation.get("methodology"), str) or not reconciliation["methodology"]:
+            return False
+        first_block = reconciliation.get("first_canonical_event_block")
+        ignored_count = reconciliation.get("ignored_post_index_transfer_count")
+        coverage_from = reconciliation.get("coverage_from_block")
+        coverage_to = reconciliation.get("coverage_to_block")
+        coverage_lag = reconciliation.get("coverage_lag_blocks")
+        if not _is_exact_integer(first_block) or first_block <= 0:
+            return False
+        if not _is_exact_integer(ignored_count) or ignored_count < 0:
+            return False
+        if (
+            reconciliation.get("coverage_status") != "complete"
+            or not _is_exact_integer(coverage_from)
+            or not _is_exact_integer(coverage_to)
+            or not _is_exact_integer(coverage_lag)
+            or coverage_from > deploy_block
+            or coverage_to < current_block
+            or not coverage_from <= first_block <= coverage_to
+            or coverage_lag < 0
+        ):
+            return False
+        for key in (
+            "historical_transfer_claimed",
+            "canonical_event_claimed",
+            "post_index_transfer_observed",
+            "ignored_post_index_transfer_amount",
+        ):
+            value = reconciliation.get(key)
+            if not _finite_real_json_number(value) or value < 0:
+                return False
+        if reconciliation["ignored_post_index_transfer_amount"] > reconciliation["post_index_transfer_observed"]:
+            return False
+        claimed = group.get("total_claimed")
+        claimers = group.get("total_claimers")
+        if not _finite_real_json_number(claimed) or not _is_exact_integer(claimers) or claimers < 0:
+            return False
+        source_total = (
+            reconciliation["historical_transfer_claimed"]
+            + reconciliation["canonical_event_claimed"]
+        )
+        row_rounding_tolerance = max(0.011, claimers * 0.0051)
+        if not _nearly_equal(
+            claimed,
+            source_total,
+            rel=0,
+            abs_tol=row_rounding_tolerance,
+        ):
+            return False
+    return True
 
 
 def _odolo_flow_components_reconcile(data):
@@ -1573,14 +1718,16 @@ RULES = {
         "min_bytes": 200,
     },
     "odolo_flows.json": {
-        "required_keys": ["timestamp", "current_block", "deploy_block", "cutoff_blocks", "transfer_coverage", "periods"],
+        "required_keys": ["timestamp", "current_block", "deploy_block", "cutoff_blocks", "transfer_coverage", "periods", "claimer_behavior", "claimer_periods", "claim_source_reconciliation"],
         "checks": [
             ("periods must have data", lambda d: len(d.get("periods", {})) >= 3),
             ("period transfer counts must be monotonic by window", _odolo_flow_windows_are_monotonic),
             ("period windows must not collapse to all-time", _odolo_flow_windows_are_not_collapsed),
             ("block metadata must prove full all-time coverage", _odolo_flow_block_metadata_is_valid),
             ("claimer lifecycle partitions must reconcile", _odolo_claimer_partitions_reconcile),
+            ("claimer aggregates must reconcile to published rows", _odolo_claimer_aggregates_reconcile),
             ("claimer total must not exceed the 200M allocation", _odolo_claim_total_within_allocation),
+            ("claimer sources must have canonical reconciliation metadata", _odolo_claim_source_reconciliation_is_valid),
             ("gross and net oDOLO flows must reconcile", _odolo_flow_components_reconcile),
         ],
         "min_bytes": 50_000,
@@ -1771,17 +1918,28 @@ RULES = {
     "odolo_contract_data.json": {
         "required_keys": [
             "totalSupply",
+            "totalSupplyWei",
             "allocationSupply",
+            "allocationSupplyWei",
             "redeemedAndBurned",
+            "redeemedAndBurnedWei",
             "allocationMethodology",
             "decimals",
+            "blockNumber",
             "futureRewardsWallet",
             "futureRewardsReserve",
+            "futureRewardsReserveWei",
             "inVesterBalance",
+            "inVesterBalanceWei",
             "inCirculation",
+            "inCirculationWei",
             "pushedTokens",
         ],
         "checks": [
+            (
+                "snapshot block must be a positive integer",
+                lambda d: _is_exact_integer(d.get("blockNumber")) and d["blockNumber"] > 0,
+            ),
             (
                 "future rewards wallet must be tracked",
                 lambda d: str(d.get("futureRewardsWallet", "")).lower() == ODOLO_FUTURE_REWARDS_WALLET,

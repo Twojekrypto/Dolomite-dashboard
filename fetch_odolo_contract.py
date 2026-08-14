@@ -56,6 +56,33 @@ def derive_supply_metrics(total_supply, in_vester_balance, future_rewards_reserv
     }
 
 
+def derive_raw_supply_metrics(
+    total_supply_wei,
+    in_vester_balance_wei,
+    future_rewards_reserve_wei,
+):
+    """Preserve the exact on-chain supply partition for validation."""
+    values = (
+        int(total_supply_wei),
+        int(in_vester_balance_wei),
+        int(future_rewards_reserve_wei),
+    )
+    if any(value < 0 for value in values):
+        raise ValueError("oDOLO raw supply values must be non-negative")
+    total_supply_wei, in_vester_balance_wei, future_rewards_reserve_wei = values
+    in_circulation_wei = (
+        total_supply_wei - in_vester_balance_wei - future_rewards_reserve_wei
+    )
+    if in_circulation_wei < 0:
+        raise ValueError("oDOLO excluded balances exceed totalSupply")
+    return {
+        "totalSupplyWei": str(total_supply_wei),
+        "inVesterBalanceWei": str(in_vester_balance_wei),
+        "futureRewardsReserveWei": str(future_rewards_reserve_wei),
+        "inCirculationWei": str(in_circulation_wei),
+    }
+
+
 def derive_allocation_metrics(total_supply_wei, decimals):
     """Reconcile current ERC-20 supply against the immutable 200M allocation."""
     unit = 10 ** int(decimals)
@@ -65,7 +92,9 @@ def derive_allocation_metrics(total_supply_wei, decimals):
     burned_wei = allocation_wei - total_supply_wei
     return {
         "allocationSupply": ODOLO_ALLOCATION_TOKENS,
+        "allocationSupplyWei": str(allocation_wei),
         "redeemedAndBurned": burned_wei / unit,
+        "redeemedAndBurnedWei": str(burned_wei),
         "allocationMethodology": (
             "allocationSupply - totalSupply; exercised oDOLO is burned"
         ),
@@ -94,20 +123,22 @@ def main():
 
     client = RpcClient(chain="berachain")
     try:
+        snapshot_block = int(client.call("eth_blockNumber", []), 16)
+        snapshot_block_tag = hex(snapshot_block)
         # Batch 1: Token data
         batch1 = client.eth_call_batch([
             (ODOLO_TOKEN, SEL["totalSupply"]),
             (ODOLO_TOKEN, SEL["decimals"]),
             (ODOLO_TOKEN, SEL["balanceOf"] + VESTER_PADDED),
             (ODOLO_TOKEN, SEL["balanceOf"] + FUTURE_REWARDS_PADDED),
-        ])
+        ], block=snapshot_block_tag)
 
         # Batch 2: Vester data
         batch2 = client.eth_call_batch([
             (ODOLO_VESTER, SEL["promisedTokens"]),
             (ODOLO_VESTER, SEL["pushedTokens"]),
             (ODOLO_VESTER, SEL["availableTokens"]),
-        ])
+        ], block=snapshot_block_tag)
     except RpcError as e:
         print(f"   ❌ All RPC endpoints failed! {e}")
         if os.path.exists(OUTPUT_FILE):
@@ -120,14 +151,18 @@ def main():
     decimals = decode_uint256(batch1[1]) or 18
     divisor = 10 ** decimals
 
+    in_vester_balance_wei = decode_uint256(batch1[2])
+    future_rewards_reserve_wei = decode_uint256(batch1[3])
+
     data = {
         "totalSupply": total_supply_wei / divisor,
-        "inVesterBalance": decode_uint256(batch1[2]) / divisor,
-        "futureRewardsReserve": decode_uint256(batch1[3]) / divisor,
+        "inVesterBalance": in_vester_balance_wei / divisor,
+        "futureRewardsReserve": future_rewards_reserve_wei / divisor,
         "promisedTokens": decode_uint256(batch2[0]) / divisor,
         "pushedTokens": decode_uint256(batch2[1]) / divisor,
         "availableTokens": decode_uint256(batch2[2]) / divisor,
         "decimals": decimals,
+        "blockNumber": snapshot_block,
         "last_updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         # Store only the provider host, never the full URL (it contains the API key).
         "rpc_source": safe_host(client.last_endpoint or ""),
@@ -137,6 +172,11 @@ def main():
         data["totalSupply"],
         data["inVesterBalance"],
         data["futureRewardsReserve"],
+    ))
+    data.update(derive_raw_supply_metrics(
+        total_supply_wei,
+        in_vester_balance_wei,
+        future_rewards_reserve_wei,
     ))
     data.update(derive_allocation_metrics(total_supply_wei, decimals))
 
