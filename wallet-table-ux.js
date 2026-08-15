@@ -59,18 +59,15 @@
     const identity = resolveIdentity(address, options.fallback || {}, options.labels);
     const date = formatTxDateValue(options.txTimestamp, options.txDate);
     const txUrl = date ? txExplorerUrl(options.txChain, options.txHash) : "";
-    const primary = identity.known
-      ? `<div class="wallet-primary-line"><div class="wallet-primary">${escapeHtml(identity.label)}</div>${options.badgesHtml || ""}</div>`
-      : "";
+    const displayLabel = identity.known ? identity.label : "Wallet";
+    const primary = `<div class="wallet-primary-line"><div class="wallet-primary">${escapeHtml(displayLabel)}</div>${options.badgesHtml || ""}</div>`;
     const copyIcon = options.copyIcon || '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
     const externalIcon = options.externalIcon || '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7"></path><path d="M10 14 21 3"></path><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"></path></svg>';
     const actions = `<span class="wallet-address-actions"><span class="wallet-address addr-mono addr-tooltip-wrap" data-full-addr="${safeAddress}">${escapeHtml(shortAddress(address))}</span><button class="addr-copy" type="button" data-copy="${safeAddress}" aria-label="Copy address">${copyIcon}</button><a class="addr-debank" href="https://debank.com/profile/${safeAddress}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()"><img src="https://debank.com/favicon.ico" alt="DeBank"></a></span>`;
     const txMeta = txUrl
       ? `<a class="wallet-tx-meta" href="${escapeHtml(txUrl)}" target="_blank" rel="noopener" aria-label="Open transaction from ${escapeHtml(date)}" onclick="event.stopPropagation()"><span>${escapeHtml(date)}</span>${externalIcon}</a>`
       : "";
-    const secondary = identity.known
-      ? `<div class="wallet-secondary">${actions}${txMeta ? `<span class="wallet-meta-separator" aria-hidden="true">·</span>${txMeta}` : ""}</div>`
-      : `<div class="wallet-secondary">${actions}</div>${txMeta ? `<div class="wallet-secondary wallet-secondary-tx">${txMeta}</div>` : ""}`;
+    const secondary = `<div class="wallet-secondary">${actions}${txMeta ? `<span class="wallet-meta-separator" aria-hidden="true">·</span>${txMeta}` : ""}</div>`;
     return `<div class="wallet-identity-cell" data-wallet-address="${safeAddress}">${primary}${secondary}</div>`;
   }
 

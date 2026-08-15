@@ -8,8 +8,8 @@ const pages = Object.fromEntries(
 
 test("all three Flow pages load the shared wallet UX assets", () => {
   Object.entries(pages).forEach(([name, html]) => {
-    assert.match(html, /wallet-table-ux\.css\?v=20260815-wallet-flow-consistency/, `${name} shared CSS`);
-    assert.match(html, /wallet-table-ux\.js\?v=20260815-wallet-flow-consistency/, `${name} shared JS`);
+    assert.match(html, /wallet-table-ux\.css\?v=20260815-wallet-fallback-cex-cue/, `${name} shared CSS`);
+    assert.match(html, /wallet-table-ux\.js\?v=20260815-wallet-fallback-cex-cue/, `${name} shared JS`);
   });
 });
 

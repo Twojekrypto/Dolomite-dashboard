@@ -3047,7 +3047,7 @@ h1{
     const identity = window.resolveDoloWalletIdentity
       ? window.resolveDoloWalletIdentity(row?.address, {}, VEBORROW_WALLET_LABELS)
       : {known:false,label:""};
-    return { name: identity.known ? String(identity.label) : "", generic: false };
+    return { name: identity.known ? String(identity.label) : "Wallet", generic: !identity.known };
   }
   function renderVeBorrowWalletAddress(row){
     const address = String(row?.address || "").toLowerCase();
@@ -3056,7 +3056,7 @@ h1{
     const displayName = veBorrowWalletDisplayName(row);
     return `
       <div class="addr-cell">
-        ${displayName.name ? `<div class="addr-line top"><span class="addr-name">${esc(displayName.name)}</span></div>` : ""}
+        <div class="addr-line top"><span class="addr-name${displayName.generic ? " addr-generic" : ""}">${esc(displayName.name)}</span></div>
         <div class="addr-line bot">
           <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="addr-mono addr-tooltip-wrap" data-full-addr="${safeAddress}" title="${safeAddress}">${esc(shortAddress(address))}</a>
           <button class="addr-copy" type="button" data-copy-address="${safeAddress}" onclick="event.stopPropagation();copyVeBorrowAddress(this.dataset.copyAddress,this)" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>
@@ -3104,7 +3104,8 @@ h1{
   function veBorrowWalletAddressSortValue(row){
     if (!row || typeof row !== "object") return String(row?.address || "").toLowerCase();
     if (veBorrowWalletAddressSortCache.has(row)) return veBorrowWalletAddressSortCache.get(row);
-    const value = (veBorrowWalletDisplayName(row).name || String(row.address || "")).toLowerCase();
+    const display = veBorrowWalletDisplayName(row);
+    const value = (display.generic ? String(row.address || "") : display.name || String(row.address || "")).toLowerCase();
     veBorrowWalletAddressSortCache.set(row, value);
     return value;
   }

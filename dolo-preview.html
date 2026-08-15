@@ -15,7 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260812-row-focusout">
 <script defer src="shared-hover-tooltips.js?v=20260812-row-focusout"></script>
-<link rel="stylesheet" href="wallet-table-ux.css?v=20260815-wallet-flow-consistency">
+<link rel="stylesheet" href="wallet-table-ux.css?v=20260815-wallet-fallback-cex-cue">
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
 <style>
@@ -172,15 +172,20 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .cex-exchange-disclosure[open] summary::after{content:"−"}
 .cex-exchange-disclosure summary:focus-visible{outline:1px solid var(--gold);outline-offset:-2px}
 .cex-exchange-breakdown{display:grid;padding:4px 18px 12px}
-.cex-exchange-row{display:grid;grid-template-columns:minmax(0,1fr) max-content max-content;align-items:center;gap:14px;min-height:34px;border-bottom:1px solid rgba(255,255,255,.045);font-variant-numeric:tabular-nums}
+.cex-exchange-row{display:grid;grid-template-columns:minmax(0,1fr) max-content max-content max-content;align-items:center;gap:14px;min-height:42px;border-bottom:1px solid rgba(255,255,255,.045);font-variant-numeric:tabular-nums}
 .cex-exchange-row:last-child{border-bottom:0}
-.cex-exchange-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-2);font-size:12px;font-weight:600}
+.cex-exchange-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg-1);font-size:13px;font-weight:650}
 .cex-exchange-current,.cex-exchange-change{font-family:var(--mono);font-size:11px;white-space:nowrap}
 .cex-exchange-current{color:var(--fg-1)}
 .cex-exchange-change{min-width:84px;text-align:right}
 .cex-exchange-change.up{color:var(--up)}
 .cex-exchange-change.down{color:var(--down)}
 .cex-exchange-change.neutral{color:var(--fg-3)}
+.cex-exchange-expand{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:86px;height:24px;padding:0 9px;border:1px solid var(--line-2);border-radius:999px;background:rgba(255,255,255,.018);color:var(--fg-3);font-family:var(--mono);font-size:9.5px;font-weight:600;white-space:nowrap;transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease)}
+.cex-exchange-expand svg{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;transition:transform .16s var(--ease)}
+.cex-wallet-disclosure>summary:hover .cex-exchange-expand,.cex-wallet-disclosure>summary:focus-visible .cex-exchange-expand{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.cex-wallet-disclosure[open] .cex-exchange-expand{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+.cex-wallet-disclosure[open] .cex-exchange-expand svg{transform:rotate(180deg)}
 .cex-exchange-empty{padding:8px 0;color:var(--fg-3);font-size:12px}
 .cex-wallet-disclosure{border-bottom:1px solid rgba(255,255,255,.045)}
 .cex-wallet-disclosure:last-child{border-bottom:0}
@@ -194,6 +199,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .cex-wallet-row{display:grid;grid-template-columns:minmax(0,1fr) max-content;align-items:center;gap:14px;min-height:54px;padding:8px 6px;border-radius:8px}
 .cex-wallet-row:hover{background:rgba(255,255,255,.025)}
 .cex-wallet-balance{color:var(--fg-2);font-family:var(--mono);font-size:11px;white-space:nowrap}
+@media(max-width:640px){
+  .cex-exchange-breakdown{padding:4px 12px 12px}
+  .cex-exchange-row{grid-template-columns:minmax(0,1fr) max-content;gap:5px 10px;padding:8px 2px}
+  .cex-exchange-name{grid-column:1;grid-row:1}
+  .cex-exchange-expand{grid-column:2;grid-row:1;min-width:0}
+  .cex-exchange-current{grid-column:1;grid-row:2}
+  .cex-exchange-change{grid-column:2;grid-row:2;min-width:0}
+}
 .holder-distribution-head{display:block;padding:0;border-bottom:0}
 .holder-distribution-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px 18px;border-bottom:1px solid var(--line-1)}
 .holder-distribution-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px 0;flex-wrap:wrap}
@@ -1160,7 +1173,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
 </style>
 <script src="count-up.js?v=20260427-countup"></script>
 <script src="dolo-address-labels.js?v=dolo-labels-20260805-strategic-round"></script>
-<script src="wallet-table-ux.js?v=20260815-wallet-flow-consistency"></script>
+<script src="wallet-table-ux.js?v=20260815-wallet-fallback-cex-cue"></script>
 </head>
 <body>
 <div class="wrap">
@@ -3790,7 +3803,8 @@ function renderCexExchangeBreakdown(fullModel = cexSupplyFullModel){
           ${DoloWalletTableUX.walletCellHtml({address:wallet.address,labels:window.DOLO_ADDR_LABELS,copyIcon:COPY_ICO})}
           <span class="cex-wallet-balance">${fmtNum(wallet.total)} DOLO</span>
         </div>`).join("") : '<p class="cex-exchange-empty">No address-level wallet is present in the current holder snapshot.</p>';
-      return `<details class="cex-wallet-disclosure"><summary><div class="cex-exchange-row"><span class="cex-exchange-name">${escHtml(exchange.name)}</span><span class="cex-exchange-current">${fmtNum(exchange.current)} DOLO</span><span class="cex-exchange-change ${cexExchangeChangeClass(exchange.change)}">${fmtSignedHolder(exchange.change)} DOLO</span></div></summary><div class="cex-wallet-list"><div class="cex-wallet-list-head">Current wallet snapshot</div>${walletRows}</div></details>`;
+      const addressCue = wallets.length ? `${wallets.length} ${wallets.length === 1 ? "address" : "addresses"}` : "Addresses";
+      return `<details class="cex-wallet-disclosure"><summary aria-label="Expand ${escHtml(exchange.name)} address details"><div class="cex-exchange-row"><span class="cex-exchange-name">${escHtml(exchange.name)}</span><span class="cex-exchange-current">${fmtNum(exchange.current)} DOLO</span><span class="cex-exchange-change ${cexExchangeChangeClass(exchange.change)}">${fmtSignedHolder(exchange.change)} DOLO</span><span class="cex-exchange-expand">${escHtml(addressCue)}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3"></path></svg></span></div></summary><div class="cex-wallet-list"><div class="cex-wallet-list-head">Current wallet snapshot</div>${walletRows}</div></details>`;
     }).join("")
     : '<p class="cex-exchange-empty">Exchange movement data is not available for this range yet.</p>';
   container.querySelectorAll(".addr-copy").forEach(button => button.addEventListener("click", async event => {

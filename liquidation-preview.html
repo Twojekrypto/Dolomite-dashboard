@@ -14381,7 +14381,15 @@
             `;
 
             if (!info) {
-                return `<a href="${safeHref}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${shortAddr}</a>${toolsHtml}`;
+                return `<div class="known-address-cell">
+                    <div class="known-address-main">
+                        <span class="known-address-label addr-generic">Wallet</span>
+                    </div>
+                    <div class="known-address-sub">
+                        <a href="${safeHref}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${shortAddr}</a>
+                        ${toolsHtml}
+                    </div>
+                </div>`;
             }
 
             const label = supplyEscapeHtml(info.label);
