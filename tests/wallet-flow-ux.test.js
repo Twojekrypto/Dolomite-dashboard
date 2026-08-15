@@ -22,12 +22,12 @@ test("DOLO and oDOLO flow adapters preserve optional exact transaction metadata"
   assert.match(pages.odolo, /latestTxChain:item\.latest_tx_chain/);
 });
 
-test("all three Flow renderers use the same wallet cell renderer", () => {
+test("Flow renderers share the wallet cell while aggregate tables omit single-TX metadata", () => {
   assert.match(pages.dolo, /DoloWalletTableUX\.walletCellHtml\(/);
   assert.match(pages.odolo, /DoloWalletTableUX\.walletCellHtml\(/);
   assert.match(pages.vedolo, /DoloWalletTableUX\.walletCellHtml\(/);
-  assert.match(pages.dolo, /txInPrimaryLine:true/);
-  assert.match(pages.odolo, /txInPrimaryLine:true/);
+  assert.doesNotMatch(pages.dolo, /txInPrimaryLine:true/);
+  assert.doesNotMatch(pages.odolo, /txInPrimaryLine:true/);
   assert.match(pages.vedolo, /txInPrimaryLine:true/);
   assert.doesNotMatch(pages.dolo, /txOnOwnLine:true/);
   assert.doesNotMatch(pages.odolo, /txOnOwnLine:true/);
