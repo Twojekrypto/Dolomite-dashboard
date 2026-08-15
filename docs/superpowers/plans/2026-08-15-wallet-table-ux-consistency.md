@@ -206,3 +206,26 @@
 5. Monitor GitHub Pages deployment and verify cache-busted live URLs.
 6. Report changed files, tables missing labels before, reused primitives, TX metadata solution, verified viewports, workflow/deployment status, and explicitly confirm that data sources, flow calculations, and default sorting logic were not changed.
 
+## Task 11: Correct selected-range holder deltas and refine Flow/CEX hierarchy
+
+**Files:**
+
+- Modify: `dolo-preview.html`
+- Modify: `odolo-preview.html`
+- Modify: `vedolo-preview.html`
+- Modify: `wallet-table-ux.js`
+- Modify: `wallet-table-ux.css`
+- Modify: `tests/holder-distribution-contract.test.js`
+- Modify: `tests/wallet-table-ux.test.js`
+- Modify: `tests/wallet-flow-ux.test.js`
+
+**Steps:**
+
+1. Add a RED behavioral contract proving the 1 Jun–15 Aug 1M+ delta is calculated from `254,030,706.10` to `244,674,520.62`, yielding `−9,356,185.48`, not from the allocation-free reconstructed baseline.
+2. Add RED renderer contracts for separate address and transaction metadata lines and the stacked CEX current/change amount block.
+3. Use the exact first visible precomputed aggregate as the legend baseline while retaining the wallet-level fallback point only for Details.
+4. Add a shared opt-in Flow renderer option that moves exact transaction metadata to its own third line; enable it in DOLO, oDOLO, and veDOLO Flow only.
+5. Change the CEX exchange row to three columns with a stacked amount block, larger exchange-name text, semantic range-change color, and the existing address-count disclosure.
+6. Run the holder/CEX data reconciliation scan, focused Node/Python suites, inline-script parsing, validator, and `git diff --check`.
+7. Verify 1440×900, 1024×768, 768×1024, and 390×844 with computed styles, bounding boxes, exact visible values, keyboard disclosure behavior, and no document overflow.
+8. Rebase on the latest production `master`, rerun the final gate, push `HEAD:master`, monitor Pages, and verify cache-busted public URLs.
