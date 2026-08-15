@@ -67,7 +67,10 @@
     const txMeta = txUrl
       ? `<a class="wallet-tx-meta" href="${escapeHtml(txUrl)}" target="_blank" rel="noopener" aria-label="Open transaction from ${escapeHtml(date)}" onclick="event.stopPropagation()"><span>${escapeHtml(date)}</span>${externalIcon}</a>`
       : "";
-    const secondary = `<div class="wallet-secondary">${actions}${txMeta ? `<span class="wallet-meta-separator" aria-hidden="true">·</span>${txMeta}` : ""}</div>`;
+    const addressLine = `<div class="wallet-secondary">${actions}</div>`;
+    const secondary = options.txOnOwnLine && txMeta
+      ? `${addressLine}<div class="wallet-secondary wallet-secondary-tx">${txMeta}</div>`
+      : `<div class="wallet-secondary">${actions}${txMeta ? `<span class="wallet-meta-separator" aria-hidden="true">·</span>${txMeta}` : ""}</div>`;
     return `<div class="wallet-identity-cell" data-wallet-address="${safeAddress}">${primary}${secondary}</div>`;
   }
 

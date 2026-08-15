@@ -234,3 +234,10 @@ Run the relevant Python and Node suites, `py_compile`, inline-script syntax pars
 
 The UI must remain backward-compatible when older generated flow rows do not yet contain transaction metadata. After code deployment, run the existing DOLO and oDOLO flow workflows to generate and validate the new optional fields, then confirm the GitHub Pages deployment with cache-busted URLs.
 
+## Approved follow-up: exact range deltas and three-line Flow metadata
+
+The Holder Distribution legend must derive every selected-range change from the exact first and last precomputed points visible in the chart. It must never substitute a nearest 1D/7D/30D/90D/180D reconstruction, and it must never compare a `holders` endpoint against a `market` baseline that excludes Team/Investor allocations. Address-level Details may keep its separate fallback resolution only when an exact wallet snapshot is unavailable.
+
+All three Flow surfaces use a strict three-line identity hierarchy: wallet name, address with copy/DeBank actions, then transaction date with the external-link icon. The transaction line is optional and appears only when the complete exact metadata tuple is present. It uses shared typography and does not change numeric flow data, ranking, or explorer destinations.
+
+CEX Details keeps a three-column exchange row: exchange name, a stacked current/change amount block, and the address-count disclosure. The current amount is primary; the selected-range change sits directly below it and uses positive/negative/neutral semantic color. The exchange name is increased one restrained type step while preserving mobile containment and keyboard disclosure behavior.

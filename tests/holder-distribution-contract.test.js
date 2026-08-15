@@ -100,6 +100,15 @@ function buildCexSupplySeriesFromFixtures(history, current, baseTs) {
   return Function(`"use strict"; ${source}`)();
 }
 
+function extractHolderLegendRangeRows() {
+  const source = [
+    "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
+    extractNamedFunctionSource("holderLegendRangeRows"),
+    "return holderLegendRangeRows;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)();
+}
+
 test("holder distribution exposes accessible metric controls", () => {
   assert.match(preview, /id="holder-bucket-mode"/);
   assert.match(preview, /data-holder-bucket-view="whales" aria-pressed="true"/);
@@ -231,6 +240,22 @@ test("holder distribution explains scope and keeps the Change header concise", (
   assert.match(preview, /<span data-column="change">Change<\/span>/);
 });
 
+test("holder legend compares the exact visible endpoints without dropping Team and Investor balances", () => {
+  const holderLegendRangeRows = extractHolderLegendRangeRows();
+  const rows = holderLegendRangeRows({
+    points: [
+      {key: "hist_20260601", buckets: [{total: 254_030_706.10, allocationTotal: 210_766_381.84}]},
+      {key: "hist_20260815", buckets: [{total: 244_674_520.62, allocationTotal: 200_060_103.13}]},
+    ],
+    current: {key: "hist_20260815", buckets: [{total: 244_674_520.62, allocationTotal: 200_060_103.13}]},
+  });
+
+  assert.equal(rows[0].firstTotal, 254_030_706.10);
+  assert.equal(rows[0].currentTotal, 244_674_520.62);
+  assert.equal(Math.round(rows[0].delta * 100) / 100, -9_356_185.48);
+  assert.equal(Math.round(rows[0].pct * 100) / 100, -3.68);
+});
+
 test("CEX exchange breakdown reports sorted selected-range balance changes", () => {
   const buildCexExchangeBreakdown = extractCexExchangeBreakdown({from: 1, to: 2});
   const breakdown = buildCexExchangeBreakdown({
@@ -353,7 +378,9 @@ test("CEX details exposes canonical wallet addresses with copy and DeBank action
 test("each CEX exchange row visibly advertises its expandable address list", () => {
   assert.match(preview, /class="cex-exchange-expand"/);
   assert.match(preview, /wallets\.length === 1 \? "address" : "addresses"/);
-  assert.match(preview, /\.cex-exchange-name\{[^}]*font-size:13px;[^}]*font-weight:650/);
+  assert.match(preview, /\.cex-exchange-name\{[^}]*font-size:14px;[^}]*font-weight:650/);
+  assert.match(preview, /class="cex-exchange-value"[^>]*>[\s\S]*?class="cex-exchange-current"[\s\S]*?class="cex-exchange-change/);
+  assert.match(preview, /\.cex-exchange-value\{[^}]*display:flex;[^}]*flex-direction:column;[^}]*align-items:flex-end/);
   assert.match(preview, /\.cex-exchange-expand\{[^}]*border:1px solid var\(--line-2\);[^}]*border-radius:999px/);
   assert.match(preview, /\.cex-wallet-disclosure\[open\] \.cex-exchange-expand svg\{transform:rotate\(180deg\)\}/);
 });
