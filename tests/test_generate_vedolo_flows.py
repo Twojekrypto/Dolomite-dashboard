@@ -1,8 +1,12 @@
+import json
+import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import rpc_usage
 from generate_vedolo_flows import (
+    AUDITED_MISSING_DEPOSIT_BLOCKS,
     DEPOSIT_TOPIC,
     EventLogFetchError,
     ODOLO_EXERCISE_TOPIC,
@@ -16,11 +20,117 @@ from generate_vedolo_flows import (
     decode_transfer,
     extract_odolo_receipt_beneficiary,
     fetch_event_logs,
+    recover_missing_deposit_events,
     remap_odolo_lock_beneficiaries,
 )
 
 
 class GenerateVedoloFlowsTests(unittest.TestCase):
+    def test_audited_recovery_covers_every_current_expired_position_without_a_route(self):
+        root = Path(__file__).resolve().parents[1]
+        flows = json.loads((root / "vedolo_flows.json").read_text(encoding="utf-8"))
+        holders = json.loads((root / "vedolo_holders.json").read_text(encoding="utf-8"))["holders"]
+
+        routed_lock_ids = {
+            int(lock.get("tokenId") or 0)
+            for lock in flows.get("locks", [])
+            if int(lock.get("depositType") or 0) != 3
+        }
+        latest_transfers = {}
+        for transfer in flows.get("transfers", []):
+            token_id = int(transfer.get("tokenId") or 0)
+            previous = latest_transfers.get(token_id)
+            if not previous or int(transfer.get("timestamp") or 0) > int(previous.get("timestamp") or 0):
+                latest_transfers[token_id] = transfer
+
+        missing_route_ids = set()
+        now = int(time.time())
+        for holder in holders:
+            owner = str(holder.get("address") or "").lower()
+            for position in holder.get("token_details", []):
+                if int(position.get("end") or 0) > now:
+                    continue
+                token_id = int(position.get("id") or 0)
+                latest_transfer = latest_transfers.get(token_id)
+                transferred_to_owner = (
+                    latest_transfer
+                    and str(latest_transfer.get("to") or "").lower() == owner
+                )
+                if token_id not in routed_lock_ids and not transferred_to_owner:
+                    missing_route_ids.add(token_id)
+
+        self.assertFalse(missing_route_ids - set(AUDITED_MISSING_DEPOSIT_BLOCKS))
+        self.assertTrue({12724, 12726, 15001}.issubset(AUDITED_MISSING_DEPOSIT_BLOCKS))
+
+    def test_recovers_only_the_exact_missing_deposit_for_an_audited_token_block(self):
+        provider = "0x" + "a" * 40
+        target_token_id = 22
+        target_block = 12_345
+
+        def deposit_log(token_id, block, tx_suffix):
+            return {
+                "topics": [
+                    DEPOSIT_TOPIC,
+                    "0x" + ("0" * 24) + provider[2:],
+                    "0x" + hex(1_800_000_000)[2:].zfill(64),
+                ],
+                "data": "0x" + "".join([
+                    hex(token_id)[2:].zfill(64),
+                    hex(5 * 10**18)[2:].zfill(64),
+                    hex(1)[2:].zfill(64),
+                    hex(1_700_000_000)[2:].zfill(64),
+                ]),
+                "transactionHash": "0x" + tx_suffix * 64,
+                "blockNumber": hex(block),
+            }
+
+        calls = []
+
+        def fetcher(start_block, end_block, topic):
+            calls.append((start_block, end_block, topic))
+            return [
+                deposit_log(target_token_id, target_block, "b"),
+                deposit_log(999, target_block, "c"),
+            ]
+
+        existing = [{"tokenId": 11, "txHash": "0x" + "1" * 64}]
+        merged, recovered = recover_missing_deposit_events(
+            existing,
+            {11: 100, target_token_id: target_block},
+            fetcher=fetcher,
+        )
+
+        self.assertEqual(calls, [(target_block, target_block + 1, DEPOSIT_TOPIC)])
+        self.assertEqual(len(recovered), 1)
+        self.assertEqual(recovered[0]["tokenId"], target_token_id)
+        self.assertEqual(recovered[0]["address"], provider)
+        self.assertEqual(recovered[0]["depositType"], 1)
+        self.assertEqual([row["tokenId"] for row in merged], [11, target_token_id])
+
+    def test_missing_deposit_recovery_fails_closed_without_an_exact_token_event(self):
+        wrong_token_log = {
+            "topics": [
+                DEPOSIT_TOPIC,
+                "0x" + ("0" * 24) + ("a" * 40),
+                "0x" + hex(1_800_000_000)[2:].zfill(64),
+            ],
+            "data": "0x" + "".join([
+                hex(999)[2:].zfill(64),
+                hex(10**18)[2:].zfill(64),
+                hex(1)[2:].zfill(64),
+                hex(1_700_000_000)[2:].zfill(64),
+            ]),
+            "transactionHash": "0x" + "d" * 64,
+            "blockNumber": hex(12_345),
+        }
+
+        with self.assertRaisesRegex(EventLogFetchError, "token 22 at block 12,345"):
+            recover_missing_deposit_events(
+                [],
+                {22: 12_345},
+                fetcher=lambda *_args: [wrong_token_log],
+            )
+
     def test_remaps_odolo_locks_to_exerciser_wallets(self):
         locks = [
             {

@@ -74,6 +74,12 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn("renderExpiredClaimable();", self.html)
         self.assertIn('id="claimable-meta"', self.html)
 
+    def test_recent_flow_tables_show_six_rows_per_page(self):
+        self.assertIn(
+            'locksPage:1,unlocksPage:1,perPage:6',
+            self.html,
+        )
+
     def test_expired_claimable_table_reuses_holder_wallet_ux_contracts(self):
         self.assertIn("#claimable-table{table-layout:fixed;min-width:1040px}", self.html)
         self.assertIn("#claimable-table .holder-wallet", self.html)

@@ -103,6 +103,50 @@ MANUAL_LOCK_BENEFICIARY_BACKFILLS = {
     422: "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
 }
 
+# Exact Deposit blocks for active/expired veDOLO positions whose historical
+# events were skipped by an older incremental state. Each entry was audited
+# against the token's zero-address mint and the Deposit log in the same receipt.
+# The repair fetches the source log again and fails closed unless it finds one
+# exact Deposit event for the expected token ID.
+AUDITED_MISSING_DEPOSIT_BLOCKS = {
+    2277: 4_153_083,
+    3988: 4_608_750,
+    8280: 4_732_828,
+    11432: 4_910_493,
+    12724: 5_296_617,
+    12726: 5_296_670,
+    12727: 5_296_678,
+    15001: 7_346_298,
+    15277: 7_755_817,
+    15678: 8_216_171,
+    16554: 9_078_333,
+    16555: 9_078_349,
+    17152: 9_651_326,
+    17158: 9_661_612,
+    17538: 9_716_375,
+    18780: 9_932_082,
+    20955: 10_469_469,
+    21090: 10_640_817,
+    21228: 10_776_211,
+    21430: 11_160_642,
+    21536: 11_328_238,
+    21841: 11_855_426,
+    21842: 11_855_440,
+    21844: 11_855_530,
+    21846: 11_855_708,
+    21918: 11_933_110,
+    22648: 13_728_306,
+    23208: 16_041_595,
+    23278: 16_352_058,
+    23292: 16_393_061,
+    23984: 19_452_141,
+    24184: 20_566_127,
+    24202: 20_580_440,
+    24293: 21_201_033,
+    24309: 21_337_599,
+    24349: 21_703_026,
+}
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Generate veDOLO lock/unlock flow data")
@@ -685,6 +729,47 @@ def decode_deposit(log):
     }
 
 
+def recover_missing_deposit_events(
+    locks,
+    audited_token_blocks=None,
+    fetcher=None,
+):
+    """Recover audited historical Deposit gaps from exact on-chain blocks."""
+    token_blocks = audited_token_blocks or AUDITED_MISSING_DEPOSIT_BLOCKS
+    fetch_logs = fetcher or fetch_event_logs
+    merged = list(locks or [])
+    existing_ids = {
+        int(lock.get("tokenId") or 0)
+        for lock in merged
+        if int(lock.get("tokenId") or 0) > 0
+    }
+    recovered = []
+
+    for token_id, block in sorted(token_blocks.items()):
+        token_id = int(token_id)
+        block = int(block)
+        if token_id in existing_ids:
+            continue
+
+        logs = fetch_logs(block, block + 1, DEPOSIT_TOPIC)
+        candidates = []
+        for log in _logs_with_topic0(logs or [], DEPOSIT_TOPIC):
+            decoded = decode_deposit(log)
+            if decoded["tokenId"] == token_id and decoded["block"] == block:
+                candidates.append(decoded)
+
+        if len(candidates) != 1:
+            raise EventLogFetchError(
+                f"Expected one audited Deposit for token {token_id} at block {block:,}; "
+                f"found {len(candidates)}"
+            )
+
+        recovered.append(candidates[0])
+        existing_ids.add(token_id)
+
+    return merged + recovered, recovered
+
+
 def decode_transfer(log):
     """Decode ERC721 Transfer(address indexed from, address indexed to, uint256 indexed tokenId)."""
     topics = log.get("topics") or []
@@ -817,6 +902,23 @@ def main():
         pending_tx_hashes = list(set(l["txHash"].lower() for l in new_locks))
         if pending_tx_hashes:
             save_pending_sync(state, current_block, all_unlocks, all_locks, pending_tx_hashes, all_transfers)
+
+    all_locks, recovered_locks = recover_missing_deposit_events(all_locks)
+    if recovered_locks:
+        print(f"  Recovered {len(recovered_locks):,} audited historical Deposit events")
+        pending_tx_hashes = sorted(set(pending_tx_hashes) | {
+            str(lock.get("txHash") or "").lower()
+            for lock in recovered_locks
+            if lock.get("txHash")
+        })
+        save_pending_sync(
+            state,
+            current_block,
+            all_unlocks,
+            all_locks,
+            pending_tx_hashes,
+            all_transfers,
+        )
 
     # Check oDOLO exercise status for new lock events
     if pending_tx_hashes:

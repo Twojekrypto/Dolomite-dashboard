@@ -48,6 +48,31 @@ test("oDOLO flow sort headers keep a stable marker slot and aria-sort", () => {
   assert.doesNotMatch(pages.odolo, /if\(marker\) marker\.remove\(\)/);
 });
 
+test("DOLO and oDOLO flow sort headers use white hover and gold active states", () => {
+  for (const name of ["dolo", "odolo"]) {
+    assert.match(
+      pages[name],
+      /\.flows-tbl thead th\[data-flow-sort\]:hover\{color:var\(--fg-1\)\}/,
+      `${name} hover state`,
+    );
+    assert.match(
+      pages[name],
+      /\.flows-tbl thead th\.sorted\{color:var\(--gold\)\}/,
+      `${name} active label`,
+    );
+    assert.match(
+      pages[name],
+      /\.flows-tbl thead th\.sorted:hover\{color:var\(--gold\)\}/,
+      `${name} active hover label`,
+    );
+    assert.match(
+      pages[name],
+      /\.flows-tbl thead th\.sorted \.sort\{color:var\(--gold\)\}/,
+      `${name} active marker`,
+    );
+  }
+});
+
 test("veDOLO Flow table uses the shared flow typography/header token", () => {
   assert.match(pages.dolo, /class="flows-tbl wallet-flow-table"/);
   assert.match(pages.odolo, /class="flows-tbl wallet-flow-table"/);
