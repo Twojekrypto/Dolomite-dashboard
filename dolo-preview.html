@@ -4920,15 +4920,10 @@ function renderFlow(target, kind){
     const addrAttr = escHtml(r.addr);
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
     const safeHtml = safeBadgeHtml(r);
-    const tx = effectiveFlowTx(r) || {};
     const walletHtml = DoloWalletTableUX.walletCellHtml({
       address:r.addr,
       fallback:{label:r.label,type:r.type},
       labels:window.DOLO_ADDR_LABELS,
-      txHash:tx.latestTxHash,
-      txTimestamp:tx.latestTxTimestamp,
-      txChain:tx.latestTxChain,
-      txInPrimaryLine:true,
       badgesHtml:typeHtml + safeHtml,
       copyIcon:COPY_ICO,
     });
