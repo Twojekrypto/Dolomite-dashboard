@@ -368,7 +368,9 @@ console.log(JSON.stringify({{segments: BEHAV_SEGMENTS, behaviorDonut: donutCalls
         self.assertNotIn("const ODOLO_SHARED_TYPE_MAP", self.html)
         self.assertIn("badgeLabel: meta.badgeLabel", self.html)
         self.assertIn("labelTooltip: meta.tooltip", self.html)
-        self.assertIn('<span class="addr-name">${esc(r.label)}</span>', self.html)
+        self.assertIn("function odoloWalletCell(row, badgesHtml=\"\")", self.html)
+        self.assertIn("DoloWalletTableUX.walletCellHtml", self.html)
+        self.assertIn("labels:ADDRESS_META", self.html)
         self.assertIn('data-tooltip="${esc(r.labelTooltip || TYPE_TIPS[r.type] || "")}"', self.html)
         self.assertIn("odolo-claimer-label-parity-20260807", self.route)
 

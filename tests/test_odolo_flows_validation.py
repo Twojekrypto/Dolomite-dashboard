@@ -35,6 +35,29 @@ def _payload(period_counts):
 
 
 class OdoloFlowsValidationTests(unittest.TestCase):
+    def test_optional_latest_transaction_metadata_guard_is_shared(self):
+        payload = {
+            "periods": {
+                "7d": {
+                    "accumulators": [{
+                        "address": "0x" + "2" * 40,
+                        "latest_tx_hash": "0x" + "b" * 64,
+                        "latest_tx_timestamp": 1_786_406_400,
+                        "latest_tx_chain": "berachain",
+                    }],
+                    "sellers": [],
+                    "claimer_sellers": [],
+                }
+            }
+        }
+        self.assertTrue(validate_data._flow_tx_metadata_is_valid(payload))
+        payload["periods"]["7d"]["accumulators"][0]["latest_tx_chain"] = "Berachain"
+        self.assertFalse(validate_data._flow_tx_metadata_is_valid(payload))
+        self.assertIn(
+            "optional latest transaction metadata must be exact",
+            dict(validate_data.RULES["odolo_flows.json"]["checks"]),
+        )
+
     def test_rejects_collapsed_period_windows(self):
         payload = _payload({
             "1d": 100_000,

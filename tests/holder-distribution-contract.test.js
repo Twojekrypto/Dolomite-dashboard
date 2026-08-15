@@ -110,29 +110,15 @@ test("holder distribution exposes accessible metric controls", () => {
   assert.match(preview, /aria-pressed="true"/);
 });
 
-test("allocation history card sits between market holders and CEX with every renderer target", () => {
+test("Team and Investor allocations are merged into holder ranges without a standalone card", () => {
   const cards = extractStaticSections(preview).filter(section => /\bholder-chart-card\b/.test(section));
   const allocationCards = cards.filter(section => /id="allocation-chart-card"/.test(section));
   const cardIds = cards.map(section => section.match(/id="([^"]+)"/)?.[1]);
-  const allocationCard = allocationCards[0];
-  const rendererTargets = [
-    "allocation-chart-count", "allocation-chart-meta", "allocationChartWrap", "allocationChartSvg",
-    "allocationChartGrid", "allocationChartArea", "allocationChartLines", "allocationChartDots",
-    "allocationChartHoverLine", "allocationChartHoverDot", "allocationChartAxis", "allocationChartTip",
-    "allocationBrushWrap", "allocationBrushSvg", "allocationBrushArea", "allocationBrushLine",
-    "allocationBrushOverlay", "allocationBrushDimL", "allocationBrushWindow", "allocationBrushHandleL",
-    "allocationBrushHandleR", "allocationBrushDimR", "allocationBrushLabel", "allocationChartLegend",
-  ];
-
-  assert.equal(allocationCards.length, 1, "one visible allocation card must own the renderer targets");
-  assert.deepEqual(
-    cardIds.slice(cardIds.indexOf("holder-distribution-card"), cardIds.indexOf("cex-supply-card") + 1),
-    ["holder-distribution-card", "allocation-chart-card", "cex-supply-card"],
-  );
-  assert.match(allocationCard, /class="card holder-chart-card allocation-chart-card"/);
-  assert.match(allocationCard, /<h2>Team &amp; Investor Allocations Over Time<\/h2>/);
-  assert.match(allocationCard, /not freely distributed market supply/);
-  rendererTargets.forEach(id => assert.match(allocationCard, new RegExp(`id="${id}"`), `${id} must be inside the allocation card`));
+  assert.equal(allocationCards.length, 0);
+  assert.deepEqual(cardIds.slice(cardIds.indexOf("holder-distribution-card"), cardIds.indexOf("cex-supply-card") + 1), ["holder-distribution-card", "cex-supply-card"]);
+  assert.match(preview, /<template id="allocation-chart-legacy" aria-hidden="true">/);
+  assert.match(preview, /const holderAudience = "holders"/);
+  assert.match(preview, /Market \+ Team\/Investor/);
 });
 
 test("allocation series appends a matching runtime Now point", () => {
@@ -355,10 +341,20 @@ test("CEX details disclosure is keyboard-focusable and protects long exchange la
   assert.match(preview, /\.cex-exchange-name\{[^}]*min-width:0;[^}]*overflow:hidden;[^}]*text-overflow:ellipsis/);
 });
 
+test("CEX details exposes canonical wallet addresses with copy and DeBank actions", () => {
+  assert.match(preview, /function cexWalletRowsForExchange\(/);
+  assert.match(preview, /DoloWalletTableUX\.walletCellHtml\(/);
+  assert.match(preview, /class="cex-wallet-disclosure"/);
+  assert.match(preview, /data-cex-wallet-copy/);
+  assert.match(preview, /https:\/\/debank\.com\/profile\//);
+  assert.match(preview, /Current wallet snapshot/);
+});
+
 test("holder distribution excludes potential CEX/MM and bots from the chart", () => {
   const scopeRenderer = preview.slice(preview.indexOf("function holderScopeHtml"), preview.indexOf("function holderCexStatHtml"));
-  assert.match(scopeRenderer, /CEX &amp; allocations excluded/);
-  assert.match(scopeRenderer, /potential CEX\/MM or bot wallets/);
+  assert.match(scopeRenderer, /Market \+ Team\/Investor/);
+  assert.match(scopeRenderer, /CEX &amp; protocol excluded/);
+  assert.match(scopeRenderer, /potential custody\/MM and bot wallets remain excluded/);
 });
 
 test("holder bucket controls share the metric UX without an active gold dot", () => {
@@ -375,10 +371,10 @@ test("holder distribution clips its final row to the card's rounded lower corner
   assert.match(preview, /\.holder-chart-card > \.holder-chart-legend:last-child\{border-radius:0 0 var\(--r-xl\) var\(--r-xl\);overflow:hidden}/);
 });
 
-test("holder distribution fixes the visible chart audience to market wallets", () => {
+test("holder distribution fixes the visible chart audience to market plus allocation wallets", () => {
   assert.doesNotMatch(preview, /holder-audience-mode/);
   assert.doesNotMatch(preview, /data-holder-audience/);
-  assert.match(preview, /const holderAudience = "market"/);
+  assert.match(preview, /const holderAudience = "holders"/);
   assert.match(preview, /function holderBelongsToAudience\(type, audience = holderAudience\)/);
   assert.match(preview, /root\?\.\[audience\]\?\.\[holderBucketView\]/);
   assert.match(preview, /source\?\.\[balanceKey\]\?\.\[holderAudience\]\?\.\[holderBucketView\]/);

@@ -15,6 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260812-row-focusout">
 <script defer src="shared-hover-tooltips.js?v=20260812-row-focusout"></script>
+<link rel="stylesheet" href="wallet-table-ux.css?v=20260815-wallet-flow-consistency">
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
 <style>
@@ -181,6 +182,18 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .cex-exchange-change.down{color:var(--down)}
 .cex-exchange-change.neutral{color:var(--fg-3)}
 .cex-exchange-empty{padding:8px 0;color:var(--fg-3);font-size:12px}
+.cex-wallet-disclosure{border-bottom:1px solid rgba(255,255,255,.045)}
+.cex-wallet-disclosure:last-child{border-bottom:0}
+.cex-wallet-disclosure>summary{display:block;min-height:0;padding:0;list-style:none;text-transform:none;letter-spacing:0}
+.cex-wallet-disclosure>summary::-webkit-details-marker{display:none}
+.cex-wallet-disclosure>summary::after{display:none}
+.cex-wallet-disclosure[open]>summary{border-bottom:1px solid rgba(255,255,255,.045)}
+.cex-wallet-disclosure .cex-exchange-row{border-bottom:0;padding:0 2px}
+.cex-wallet-list{display:grid;gap:1px;padding:8px 10px 10px;background:rgba(9,9,11,.18)}
+.cex-wallet-list-head{padding:2px 4px 7px;color:var(--fg-4);font-size:9.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.cex-wallet-row{display:grid;grid-template-columns:minmax(0,1fr) max-content;align-items:center;gap:14px;min-height:54px;padding:8px 6px;border-radius:8px}
+.cex-wallet-row:hover{background:rgba(255,255,255,.025)}
+.cex-wallet-balance{color:var(--fg-2);font-family:var(--mono);font-size:11px;white-space:nowrap}
 .holder-distribution-head{display:block;padding:0;border-bottom:0}
 .holder-distribution-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px 18px;border-bottom:1px solid var(--line-1)}
 .holder-distribution-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px 0;flex-wrap:wrap}
@@ -1147,6 +1160,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
 </style>
 <script src="count-up.js?v=20260427-countup"></script>
 <script src="dolo-address-labels.js?v=dolo-labels-20260805-strategic-round"></script>
+<script src="wallet-table-ux.js?v=20260815-wallet-flow-consistency"></script>
 </head>
 <body>
 <div class="wrap">
@@ -1353,13 +1367,13 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
       <table class="tbl" id="tbl-holders">
         <thead>
           <tr>
-            <th data-sort="rank" style="width:56px">#</th>
-            <th data-sort="addr">Address</th>
-            <th data-sort="balEth" class="num" style="width:140px"><span class="hd-chain"><span class="dot dot-ethereum"></span>ETH</span></th>
-            <th data-sort="balBera" class="num" style="width:140px"><span class="hd-chain"><span class="dot dot-berachain"></span>BERA</span></th>
-            <th data-sort="locked" class="num col-vedolo" style="width:140px"><span class="hd-chain"><img src="vedolo-logo.svg" alt="" style="width:11px;height:11px;border-radius:50%" onerror="this.style.display='none'">veDOLO</span></th>
-            <th data-sort="total" class="num sorted" style="width:140px">Total</th>
-            <th data-sort="share" class="num" style="padding-right:32px;width:140px">Share</th>
+            <th data-sort="rank" class="wallet-rank-col" style="width:36px"><span class="wallet-sort-content">#<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="addr"><span class="wallet-sort-content">Address<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="balEth" class="num" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><span class="dot dot-ethereum"></span>ETH</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="balBera" class="num" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><span class="dot dot-berachain"></span>BERA</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="locked" class="num col-vedolo" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><img src="vedolo-logo.svg" alt="" style="width:11px;height:11px;border-radius:50%" onerror="this.style.display='none'">veDOLO</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="total" class="num sorted" style="width:140px"><span class="wallet-sort-content">Total<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
+            <th data-sort="share" class="num" style="padding-right:32px;width:140px"><span class="wallet-sort-content">Share<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
           </tr>
         </thead>
         <tbody id="holders-body"></tbody>
@@ -1496,13 +1510,13 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
           Top Accumulators
         </div>
         <div class="flows-wrap">
-          <table class="flows-tbl">
+          <table class="flows-tbl wallet-flow-table">
             <thead>
               <tr>
-                <th style="width:48px">#</th>
+                <th class="wallet-rank-col" style="width:36px">#</th>
                 <th>Address</th>
-                <th class="num" data-flow-kind="acc" data-flow-sort="balance" aria-sort="none" style="width:118px">Balance<span class="sort" aria-hidden="true"></span></th>
-                <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" aria-sort="descending" style="width:130px">Net DOLO<span class="sort" aria-hidden="true">▼</span></th>
+                <th class="num" data-flow-kind="acc" data-flow-sort="balance" aria-sort="none" style="width:118px"><span class="wallet-sort-content">Balance<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+                <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" aria-sort="descending" style="width:130px"><span class="wallet-sort-content">Net DOLO<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
               </tr>
             </thead>
             <tbody id="flows-acc-body"></tbody>
@@ -1520,13 +1534,13 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
           Top Outflows
         </div>
         <div class="flows-wrap">
-          <table class="flows-tbl">
+          <table class="flows-tbl wallet-flow-table">
             <thead>
               <tr>
-                <th style="width:48px">#</th>
+                <th class="wallet-rank-col" style="width:36px">#</th>
                 <th>Address</th>
-                <th class="num" data-flow-kind="out" data-flow-sort="balance" aria-sort="none" style="width:118px">Balance<span class="sort" aria-hidden="true"></span></th>
-                <th class="num sorted" data-flow-kind="out" data-flow-sort="net" aria-sort="descending" style="width:130px">Net DOLO<span class="sort" aria-hidden="true">▼</span></th>
+                <th class="num" data-flow-kind="out" data-flow-sort="balance" aria-sort="none" style="width:118px"><span class="wallet-sort-content">Balance<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+                <th class="num sorted" data-flow-kind="out" data-flow-sort="net" aria-sort="descending" style="width:130px"><span class="wallet-sort-content">Net DOLO<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
               </tr>
             </thead>
             <tbody id="flows-out-body"></tbody>
@@ -1775,7 +1789,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
     <div class="holder-chart-legend holder-distribution-legend" id="holderChartLegend"></div>
   </section>
 
-  <section class="card holder-chart-card allocation-chart-card" id="allocation-chart-card">
+  <template id="allocation-chart-legacy" aria-hidden="true">
     <div class="card-head">
       <div class="holder-title-block">
         <div class="card-title">
@@ -1830,7 +1844,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
       <div class="holder-brush-label" id="allocationBrushLabel"></div>
     </div>
     <div class="holder-chart-legend" id="allocationChartLegend"></div>
-  </section>
+  </template>
 
   <section class="card holder-chart-card cex-supply-card" id="cex-supply-card">
     <div class="card-head">
@@ -2064,7 +2078,7 @@ let holderDistributionMetric = "balance";
 let holderWalletPanelKey = "";
 const holderDetailsSearch = new Map();
 let holderBucketView = "whales";
-const holderAudience = "market";
+const holderAudience = "holders";
 let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
 let DOLO_BALANCE_CHANGES = {};
@@ -2129,6 +2143,7 @@ function holderBucketFloorLabel(view = holderBucketView){
 }
 function holderBelongsToAudience(type, audience = holderAudience){
   if(audience === "potential") return type === "watch" || type === "mm" || type === "bot";
+  if(audience === "holders") return type !== "cex" && type !== "ca" && type !== "watch" && type !== "mm" && type !== "bot";
   return type !== "cex" && type !== "ca" && type !== "team" && type !== "investor" && type !== "watch" && type !== "mm" && type !== "bot";
 }
 function sharedAddressInfo(addr){
@@ -2232,7 +2247,7 @@ function holderResolvedBalanceChangePoint(point){
     sourceKey:point?.key || "",
   };
 }
-function holderDistributionForBalancePoint(point, includeVeDolo = state.includeVeDolo, includeAllocations = false){
+function holderDistributionForBalancePoint(point, includeVeDolo = state.includeVeDolo, includeAllocations = true){
   if(!point) return null;
   if(includeVeDolo && !VEDOLO_LOCKS.size) return null;
   if(point.key === "now") return getHolderDistribution(includeVeDolo);
@@ -2286,8 +2301,8 @@ function holderCexFlow(period = "7d"){
   return {inflow, outflow, net, inflowWallets, outflowWallets};
 }
 function holderScopeHtml(){
-  const tip = "Chart lines show market wallets and exclude confirmed CEX wallets, protocol/contract/LP addresses, Team/Investor allocation wallets, and potential CEX/MM or bot wallets. Core Team and Investor allocations are shown in the separate allocations chart below.";
-  return `<span class="holder-source-scope">Market wallets</span><span class="holder-source-exclusion">CEX &amp; allocations excluded</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
+  const tip = "Chart lines include market wallets plus confirmed Core Team and Investor allocation wallets in their actual DOLO balance ranges. Confirmed CEX, protocol/contract/LP, potential custody/MM and bot wallets remain excluded.";
+  return `<span class="holder-source-scope">Market + Team/Investor</span><span class="holder-source-exclusion">CEX &amp; protocol excluded</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
 }
 function holderCexStatHtml(){
   const periods = [
@@ -2495,13 +2510,14 @@ function getHolderDistributionAtPoint(point, baseTs, includeVeDolo = state.inclu
   return model;
 }
 function getHolderDistribution(includeVeDolo = state.includeVeDolo){
-  return getHolderDistributionAtPoint({key:"now", label:"Now", days:0}, holderHistoryBaseTs(), includeVeDolo, false);
+  return getHolderDistributionAtPoint({key:"now", label:"Now", days:0}, holderHistoryBaseTs(), includeVeDolo, true);
 }
 function holderPrecomputedSource(point, sourceKey, audience = holderAudience){
   const root = point?.[sourceKey];
   if(!root) return null;
   const source = root?.[audience]?.[holderBucketView];
   if(source) return source;
+  if(audience === "holders") return root?.market?.[holderBucketView] || null;
   return audience === "market" ? (root[holderBucketView] || null) : null;
 }
 function holderHistoryPointList(baseTs){
@@ -2550,7 +2566,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       label:point.key,
       ts,
       includeVeDolo,
-      includeAllocations:false,
+      includeAllocations:true,
       audience:holderAudience,
       bucketView:holderBucketView,
       bucketFloorLabel:holderBucketFloorLabel(),
@@ -2597,7 +2613,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
   const current = points[points.length - 1] || now || getHolderDistribution(includeVeDolo);
   return {
     includeVeDolo,
-    includeAllocations:false,
+    includeAllocations:true,
     audience:holderAudience,
     bucketView:holderBucketView,
     bucketFloorLabel:holderBucketFloorLabel(),
@@ -2631,12 +2647,12 @@ function getHolderHistory(includeVeDolo = state.includeVeDolo){
   if(precomputed) return precomputed;
   const baseTs = holderHistoryBaseTs();
   const points = holderHistoryPointList(baseTs)
-    .map(point => getHolderDistributionAtPoint(point, baseTs, includeVeDolo, false))
+    .map(point => getHolderDistributionAtPoint(point, baseTs, includeVeDolo, true))
     .sort((a,b)=>a.ts-b.ts);
   const current = points[points.length - 1] || getHolderDistribution(includeVeDolo);
   return {
     includeVeDolo,
-    includeAllocations: false,
+    includeAllocations: true,
     audience: holderAudience,
     bucketView: holderBucketView,
     bucketFloorLabel: holderBucketFloorLabel(),
@@ -3276,7 +3292,6 @@ function scheduleAllocationChartRender(){
   if(allocationBrushRenderFrame) return;
   const run = () => {
     allocationBrushRenderFrame = 0;
-    renderAllocationChart({skipBrush:true});
   };
   if(typeof requestAnimationFrame === "function"){
     allocationBrushRenderFrame = requestAnimationFrame(run);
@@ -3290,7 +3305,6 @@ function flushAllocationChartRender(){
     else clearTimeout(allocationBrushRenderFrame);
     allocationBrushRenderFrame = 0;
   }
-  renderAllocationChart({skipBrush:true});
 }
 function renderAllocationBrush(fullModel){
   allocationFullModel = fullModel;
@@ -3393,7 +3407,6 @@ function initAllocationBrush(){
     if(to > maxX){ to = maxX; from = to - span; }
     allocationBrushSel = {from, to};
     paintAllocationBrushWindow();
-    renderAllocationChart({skipBrush:true});
   });
 }
 function renderAllocationChart(options = {}){
@@ -3615,8 +3628,6 @@ function renderAllocationChart(options = {}){
       allocationWalletPanelKey = key;
     }
     allocationChartActiveKey = "total";
-    ensureHolderWalletHistory().then(() => renderAllocationChart({skipBrush:true})).catch(()=>{});
-    renderAllocationChart({skipBrush:true});
   }));
   bindHolderWalletPanel(legend);
   window.DoloHolderLayoutEditor?.reapply?.();
@@ -3753,13 +3764,43 @@ function cexExchangeChangeClass(change){
   if(change < 0) return "down";
   return "neutral";
 }
+function canonicalCexDisplayName(label){
+  const value = String(label || "").trim();
+  const variants = {"mexc wallet":"MEXC", "bingx-linked":"BingX", "gate.io routing wallet":"Gate.io", "kucoin wallet":"KuCoin"};
+  if(variants[value.toLowerCase()]) return variants[value.toLowerCase()];
+  return value.replace(/\s+(?:deposit|hot wallet|cold wallet)(?:\s+\d+)?$/i, "").replace(/\s+\d+$/, "").trim();
+}
+function cexWalletRowsForExchange(exchangeName){
+  return HOLDERS.map(holder => {
+    const address = holder.addr || holder.address || "";
+    const identity = window.resolveDoloWalletIdentity(address, {label:holder.label,type:holder.type}, window.DOLO_ADDR_LABELS);
+    return {...holder, address, identity, exchange:canonicalCexDisplayName(identity.label)};
+  }).filter(holder => holder.identity.type === "cex" && holder.exchange === exchangeName)
+    .sort((a,b)=>safeHolderNum(b.total) - safeHolderNum(a.total));
+}
 function renderCexExchangeBreakdown(fullModel = cexSupplyFullModel){
   const container = document.getElementById("cexSupplyExchangeBreakdown");
   if(!container) return;
   const exchanges = buildCexExchangeBreakdown(fullModel);
   container.innerHTML = exchanges.length
-    ? exchanges.map(exchange => `<div class="cex-exchange-row"><span class="cex-exchange-name">${escHtml(exchange.name)}</span><span class="cex-exchange-current">${fmtNum(exchange.current)} DOLO</span><span class="cex-exchange-change ${cexExchangeChangeClass(exchange.change)}">${fmtSignedHolder(exchange.change)} DOLO</span></div>`).join("")
+    ? exchanges.map(exchange => {
+      const wallets = cexWalletRowsForExchange(exchange.name);
+      const walletRows = wallets.length ? wallets.map(wallet => `
+        <div class="cex-wallet-row" data-cex-wallet-copy="${escHtml(wallet.address)}">
+          ${DoloWalletTableUX.walletCellHtml({address:wallet.address,labels:window.DOLO_ADDR_LABELS,copyIcon:COPY_ICO})}
+          <span class="cex-wallet-balance">${fmtNum(wallet.total)} DOLO</span>
+        </div>`).join("") : '<p class="cex-exchange-empty">No address-level wallet is present in the current holder snapshot.</p>';
+      return `<details class="cex-wallet-disclosure"><summary><div class="cex-exchange-row"><span class="cex-exchange-name">${escHtml(exchange.name)}</span><span class="cex-exchange-current">${fmtNum(exchange.current)} DOLO</span><span class="cex-exchange-change ${cexExchangeChangeClass(exchange.change)}">${fmtSignedHolder(exchange.change)} DOLO</span></div></summary><div class="cex-wallet-list"><div class="cex-wallet-list-head">Current wallet snapshot</div>${walletRows}</div></details>`;
+    }).join("")
     : '<p class="cex-exchange-empty">Exchange movement data is not available for this range yet.</p>';
+  container.querySelectorAll(".addr-copy").forEach(button => button.addEventListener("click", async event => {
+    event.preventDefault();
+    event.stopPropagation();
+    try { await navigator.clipboard.writeText(button.dataset.copy); } catch(_) {}
+    button.classList.add("copied");
+    button.innerHTML = CHECK_ICO;
+    setTimeout(()=>{ button.classList.remove("copied"); button.innerHTML = COPY_ICO; }, 1400);
+  }));
 }
 function cexSupplySelectedChange(fullModel = cexSupplyFullModel){
   if(!fullModel || !Array.isArray(fullModel.points)) return null;
@@ -4092,7 +4133,7 @@ function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
   if(!source) return null;
   const balanceKey = includeVeDolo ? "with_vedolo" : "liquid";
   const audienceRows = source?.[balanceKey]?.[holderAudience]?.[holderBucketView];
-  const viewRows = audienceRows || (holderAudience === "market" ? source?.[balanceKey]?.[holderBucketView] : null);
+  const viewRows = audienceRows || (holderAudience === "holders" ? source?.[balanceKey]?.market?.[holderBucketView] : (holderAudience === "market" ? source?.[balanceKey]?.[holderBucketView] : null));
   if(!Array.isArray(viewRows)) return null;
   return viewRows.map(item => {
     const addr = item.address || item.addr || "";
@@ -4288,25 +4329,13 @@ function safeBadgeHtml(row){
     : "";
 }
 function holderWalletAddressCell(row){
-  const label = row.label
-    ? `<span class="addr-name">${escHtml(row.label)}</span>`
-    : `<span class="addr-name addr-generic">${escHtml(TYPE_GENERIC[row.type] || "Wallet")}</span>`;
-  return `
-    <div class="addr-cell">
-      <div class="addr-line top">
-        ${label}
-        ${holderWalletTypeHtml(row.type)}
-        ${safeBadgeHtml(row)}
-      </div>
-      <div class="addr-line bot">
-        <span class="addr-mono addr-tooltip-wrap" data-full-addr="${escHtml(row.addr)}">${shorten(row.addr)}</span>
-        <button class="addr-copy" data-copy="${escHtml(row.addr)}" aria-label="Copy address">${COPY_ICO}</button>
-        <a class="addr-debank" href="https://debank.com/profile/${escHtml(row.addr)}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-          <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-        </a>
-      </div>
-    </div>
-  `;
+  return DoloWalletTableUX.walletCellHtml({
+    address:row.addr,
+    fallback:row,
+    labels:window.DOLO_ADDR_LABELS,
+    badgesHtml:`${holderWalletTypeHtml(row.type)}${safeBadgeHtml(row)}`,
+    copyIcon:COPY_ICO,
+  });
 }
 function holderBucketWalletRows(bucket, point = null, baselinePoint = null){
   const includeVeDolo = !!state.includeVeDolo;
@@ -4612,13 +4641,9 @@ function renderHolders(){
   document.querySelectorAll("#tbl-holders thead th").forEach(th=>{
     const k = th.dataset.sort;
     th.classList.toggle("sorted", k===state.sort.key);
-    let s = th.querySelector(".sort"); if(s) s.remove();
-    if(k===state.sort.key){
-      const span = document.createElement("span");
-      span.className = "sort";
-      span.textContent = state.sort.dir==="asc" ? "▲" : "▼";
-      th.appendChild(span);
-    }
+    const s = th.querySelector(".sort");
+    s.textContent = k===state.sort.key ? (state.sort.dir==="asc" ? "▲" : "▼") : "";
+    th.setAttribute("aria-sort", k===state.sort.key ? (state.sort.dir==="asc" ? "ascending" : "descending") : "none");
   });
 
   const start = state.page * state.pageSize;
@@ -4632,29 +4657,16 @@ function renderHolders(){
     const addrAttr = escHtml(h.addr);
     const typeHtml = `<span class="type-tag type-${h.type}" data-tooltip="${TYPE_TIPS[h.type]}">${TYPE_LABELS[h.type]}</span>`;
     const safeHtml = safeBadgeHtml(h);
-    const actions = `
-      <button class="addr-copy" data-copy="${addrAttr}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${addrAttr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-      </a>`;
-    // Always 2-line layout for uniform row height. Unlabeled wallets show a
-    // humanized type name (e.g. "Smart contract", "Trading bot") so the row
-    // reads naturally instead of feeling empty.
-    const nameCell = h.label
-      ? `<span class="addr-name">${escHtml(h.label)}</span>`
-      : `<span class="addr-name addr-generic">${TYPE_GENERIC[h.type]}</span>`;
-    const cellInner = `<div class="addr-line top">
-        ${nameCell}
-        ${typeHtml}
-        ${safeHtml}
-      </div>
-      <div class="addr-line bot">
-        <span class="addr-mono addr-tooltip-wrap" data-full-addr="${addrAttr}">${shorten(h.addr)}</span>
-        ${actions}
-      </div>`;
+    const cellInner = DoloWalletTableUX.walletCellHtml({
+      address:h.addr,
+      fallback:h,
+      labels:window.DOLO_ADDR_LABELS,
+      badgesHtml:`${typeHtml}${safeHtml}`,
+      copyIcon:COPY_ICO,
+    });
     return `
       <tr data-addr="${addrAttr}">
-        <td class="rank">${rank}</td>
+        <td class="rank wallet-rank-col">${rank}</td>
         <td>
           <div class="addr-cell">${cellInner}</div>
         </td>
@@ -4673,7 +4685,7 @@ function renderHolders(){
   }).join("");
   const spacerRowsHtml = Array.from({length: Math.max(0, state.pageSize - pageRows.length)}, () => `
       <tr class="tbl-spacer-row" aria-hidden="true" tabindex="-1">
-        <td class="rank">0</td>
+        <td class="rank wallet-rank-col">0</td>
         <td>
           <div class="addr-cell">
             <div class="addr-line top">
@@ -4778,6 +4790,12 @@ function effectiveFlowBalance(r){
   const holder = HOLDERS.find(h => h.addr.toLowerCase() === r.addr.toLowerCase());
   return holder ? holder.total : 0;
 }
+function effectiveFlowTx(r){
+  if(state.flowsChain === "ethereum") return r.latestTxEth || null;
+  if(state.flowsChain === "berachain") return r.latestTxBera || null;
+  const candidates = [r.latestTxEth, r.latestTxBera].filter(Boolean);
+  return candidates.sort((a,b)=>safeHolderNum(b.latestTxTimestamp) - safeHolderNum(a.latestTxTimestamp))[0] || null;
+}
 function syncFlowSortHeaders(){
   document.querySelectorAll(".flows-tbl th[data-flow-sort]").forEach(th=>{
     const kind = th.dataset.flowKind;
@@ -4875,26 +4893,21 @@ function renderFlow(target, kind){
     const addrAttr = escHtml(r.addr);
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
     const safeHtml = safeBadgeHtml(r);
-    const actions = `
-      <button class="addr-copy" data-copy="${addrAttr}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${addrAttr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-      </a>`;
-    const nameCell = r.label
-      ? `<span class="addr-name">${escHtml(r.label)}</span>`
-      : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
+    const tx = effectiveFlowTx(r) || {};
+    const walletHtml = DoloWalletTableUX.walletCellHtml({
+      address:r.addr,
+      fallback:{label:r.label,type:r.type},
+      labels:window.DOLO_ADDR_LABELS,
+      txHash:tx.latestTxHash,
+      txTimestamp:tx.latestTxTimestamp,
+      txChain:tx.latestTxChain,
+      badgesHtml:typeHtml + safeHtml,
+      copyIcon:COPY_ICO,
+    });
     return `
       <tr data-addr="${addrAttr}">
-        <td class="rank">${rank}</td>
-        <td>
-          <div class="addr-cell">
-            <div class="addr-line top">${nameCell}${typeHtml}${safeHtml}</div>
-            <div class="addr-line bot">
-              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${addrAttr}">${shorten(r.addr)}</span>
-              ${actions}
-            </div>
-          </div>
-        </td>
+        <td class="rank wallet-rank-col">${rank}</td>
+        <td>${walletHtml}</td>
         <td class="num"><span class="bal-val">${balance>0 ? fmtNum(balance) : "—"}</span></td>
         <td class="num"><span class="flows-net ${cls}" data-tooltip="${flowBreakdown}" aria-label="${flowBreakdown}">${sign}${fmtNum(r.chg)}</span></td>
       </tr>
@@ -4902,7 +4915,7 @@ function renderFlow(target, kind){
   }).join("");
   const spacerRowsHtml = Array.from({length: Math.max(0, state.flowsPageSize - pageRows.length)}, () => `
       <tr class="flow-spacer-row" aria-hidden="true" tabindex="-1">
-        <td class="rank">0</td>
+        <td class="rank wallet-rank-col">0</td>
         <td>
           <div class="addr-cell">
             <div class="addr-line top">
@@ -5212,27 +5225,18 @@ function renderFreshWallets(){
     const typeHtml = `<span class="type-tag type-${row.type}" data-tooltip="${TYPE_TIPS[row.type] || row.type}">${TYPE_LABELS[row.type] || row.type.toUpperCase()}</span>`;
     const safeHtml = safeBadgeHtml(row);
     const addrAttr = escHtml(row.addr);
-    const actions = `
-      <button class="addr-copy" data-copy="${addrAttr}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${addrAttr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-      </a>`;
-    const nameCell = row.label
-      ? `<span class="addr-name">${escHtml(row.label)}</span>`
-      : `<span class="addr-name addr-generic">${TYPE_GENERIC[row.type] || "Wallet"}</span>`;
+    const walletHtml = DoloWalletTableUX.walletCellHtml({
+      address:row.addr,
+      fallback:row,
+      labels:window.DOLO_ADDR_LABELS,
+      badgesHtml:`${typeHtml}${safeHtml}`,
+      copyIcon:COPY_ICO,
+    });
     const status = freshWalletStatus(row);
     return `
       <tr data-addr="${addrAttr}">
         <td data-column="chain">${freshChainCell(row)}</td>
-        <td data-column="address">
-          <div class="addr-cell">
-            <div class="addr-line top">${nameCell}${typeHtml}${safeHtml}</div>
-            <div class="addr-line bot">
-              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${addrAttr}">${shorten(row.addr)}</span>
-              ${actions}
-            </div>
-          </div>
-        </td>
+        <td data-column="address">${walletHtml}</td>
         <td data-column="created">${freshCreatedHtml(row)}</td>
         <td data-column="signal"><span class="fresh-signal ${row.signal.cls}">${escHtml(row.signal.label)}</span></td>
         <td class="num" data-column="received"><span class="flows-net up">+${fmtNum(row.received)}</span></td>
@@ -5646,7 +5650,6 @@ document.querySelectorAll(".nav-item").forEach(it=>{
 renderHolders();
 renderFlows();
 renderFreshWallets();
-renderAllocationChart();
 renderCexSupplyChart();
 
 // Live integration layer. The visual prototype above ships with sample rows so
@@ -5867,7 +5870,6 @@ renderCexSupplyChart();
     renderHolders();
     renderFreshWallets();
     renderHolderDistributionChart();
-    renderAllocationChart();
     renderCexSupplyChart();
     syncLiveMeta(data.timestamp);
   }
@@ -5877,7 +5879,6 @@ renderCexSupplyChart();
     vedoloHolderStats = null;
     vedoloDataTimestamp = null;
     renderHolderDistributionChart();
-    renderAllocationChart();
     return;
     }
     vedoloHolderStats = data.stats || null;
@@ -5888,7 +5889,6 @@ renderCexSupplyChart();
       VEDOLO_LOCKS.set(key, safeNum(holder.total_dolo));
     });
     renderHolderDistributionChart();
-    renderAllocationChart();
     renderCexSupplyChart();
   }
   function applyVeDoloFlows(data){
@@ -5897,7 +5897,6 @@ renderCexSupplyChart();
       unlocks: Array.isArray(data?.unlocks) ? data.unlocks : [],
     };
     renderHolderDistributionChart();
-    renderAllocationChart();
     renderCexSupplyChart();
   }
   function applyDoloFlows(flows){
@@ -5919,7 +5918,6 @@ renderCexSupplyChart();
     liveFlowsData = flows;
     liveFlowTimestamp = flows.timestamp;
     renderHolderDistributionChart();
-    renderAllocationChart();
     renderCexSupplyChart();
   }
   window.ensureDoloVeDoloDataLoaded = function(){
@@ -5938,7 +5936,6 @@ renderCexSupplyChart();
         }
         if(state.includeVeDolo){
           renderHolderDistributionChart();
-          renderAllocationChart();
           renderCexSupplyChart();
         }
         return results;
@@ -5983,17 +5980,21 @@ renderCexSupplyChart();
       const cd = periodData[chainKey] || {};
       (cd.accumulators || []).forEach(item => {
         const row = ensure(item.address);
+        const txMeta = {latestTxHash:item.latest_tx_hash,latestTxTimestamp:item.latest_tx_timestamp,latestTxChain:item.latest_tx_chain};
         row[prop] += safeNum(item.net_flow);
         row[grossInProp] += safeNum(item.gross_inflow);
         row[grossOutProp] += safeNum(item.gross_outflow);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
+        if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
       (cd.sellers || []).forEach(item => {
         const row = ensure(item.address);
+        const txMeta = {latestTxHash:item.latest_tx_hash,latestTxTimestamp:item.latest_tx_timestamp,latestTxChain:item.latest_tx_chain};
         row[prop] -= safeNum(item.net_flow);
         row[grossInProp] += safeNum(item.gross_inflow);
         row[grossOutProp] += safeNum(item.gross_outflow);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
+        if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
     });
     FLOWS.length = 0;
@@ -6060,7 +6061,6 @@ renderCexSupplyChart();
           renderFlows();
           renderFreshWallets();
           renderHolderDistributionChart();
-          renderAllocationChart();
           renderCexSupplyChart();
           return flows;
         })
@@ -6171,7 +6171,7 @@ renderCexSupplyChart();
       return "Protocol custody";
     }
     const info = window.DOLO_ADDR_LABELS?.[walletAddress(row)];
-    return info?.label || "Wallet";
+    return info?.label || "";
   }
   function rowMatchesFilters(row){
     const pool = poolFor(row);
@@ -6276,18 +6276,11 @@ renderCexSupplyChart();
     const address = walletAddress(row);
     const label = walletLabel(row);
     if(!address) return `<div class="addr-cell"><span class="addr-name">${esc(label)}</span><span class="addr-mono">No beneficiary proof</span></div>`;
-    const explorerBase = row.chainKey === "ethereum" ? "https://etherscan.io/address/" : "https://berascan.com/address/";
-    const addressAction = row.beneficialOwner
-      ? `<a class="addr-debank" href="https://debank.com/profile/${esc(address)}" target="_blank" rel="noopener" aria-label="View on DeBank"><img src="https://debank.com/favicon.ico" alt="" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'"></a>`
-      : `<a class="addr-explorer" href="${explorerBase}${esc(address)}" target="_blank" rel="noopener" aria-label="View custody contract on explorer">↗</a>`;
-    return `<div class="addr-cell">
-      <div class="addr-line top"><span class="addr-name">${esc(label)}</span></div>
-      <div class="addr-line bot">
-        <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(address)}">${esc(shortAddress(address))}</span>
-        <button class="addr-copy" type="button" data-dolo-lp-copy="${esc(address)}" aria-label="Copy address">${COPY_ICON}</button>
-        ${addressAction}
-      </div>
-    </div>`;
+    return DoloWalletTableUX.walletCellHtml({
+      address,
+      labels:window.DOLO_ADDR_LABELS,
+      copyIcon:COPY_ICON,
+    });
   }
   function formatRangeBound(value){
     const numeric = Number(value);
@@ -6564,8 +6557,8 @@ renderCexSupplyChart();
       }
       const page=event.target.closest("[data-dolo-lp-page]");
       if(page&&!page.disabled){doloLpState.page+=page.dataset.doloLpPage==="next"?1:-1;render();return}
-      const copy=event.target.closest("[data-dolo-lp-copy]");
-      if(copy){event.preventDefault();event.stopPropagation();try{await navigator.clipboard.writeText(copy.dataset.doloLpCopy);copy.classList.add("copied");setTimeout(()=>copy.classList.remove("copied"),900)}catch(_error){}}
+      const copy=event.target.closest("[data-dolo-lp-copy],.addr-copy[data-copy]");
+      if(copy){event.preventDefault();event.stopPropagation();try{await navigator.clipboard.writeText(copy.dataset.doloLpCopy||copy.dataset.copy);copy.classList.add("copied");setTimeout(()=>copy.classList.remove("copied"),900)}catch(_error){}}
     });
   }
   async function load(){

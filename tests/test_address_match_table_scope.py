@@ -80,11 +80,15 @@ class AddressMatchTableScopeTest(unittest.TestCase):
 
         for renderer in ("function exitAddressCell", "function flowAddressCell", "function holderCell"):
             self.assertIn(renderer, vedolo)
-        self.assertGreaterEqual(vedolo.count("data-full-addr"), 3)
+        self.assertGreaterEqual(vedolo.count("DoloWalletTableUX.walletCellHtml"), 3)
 
         for renderer in ("function renderLatestExercises", "function renderLatestPairs"):
             self.assertIn(renderer, odolo)
-        self.assertGreaterEqual(odolo.count("data-full-addr"), 2)
+        self.assertIn("function odoloWalletCell", odolo)
+        self.assertGreaterEqual(odolo.count("odoloWalletCell("), 5)
+
+        shared_wallet = (ROOT / "wallet-table-ux.js").read_text(encoding="utf-8")
+        self.assertIn("data-full-addr", shared_wallet)
 
         self.assertIn("function walletCell", (ROOT / "dolo-preview.html").read_text(encoding="utf-8"))
 

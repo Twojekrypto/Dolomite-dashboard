@@ -246,7 +246,9 @@ test('unresolved protocol custody is named without inventing a wallet', () => {
   assert.match(html, /Uniswap v4 vault custody/);
   assert.match(html, /Custody unresolved/);
   assert.match(html, /row\.attributionReason/);
-  assert.match(html, /data-dolo-lp-copy="\$\{esc\(address\)\}"/);
+  assert.match(html, /function walletCell\(row\)[\s\S]*?DoloWalletTableUX\.walletCellHtml/);
+  assert.match(html, /labels:window\.DOLO_ADDR_LABELS/);
+  assert.match(html, /\.addr-copy\[data-copy\]/);
 });
 
 test('mobile Details opens inside the visible table viewport', () => {
@@ -305,7 +307,7 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
 });
 
 test('both production entry points use the exact shared holder-CEX-LP release cache key', () => {
-  const expected = 'dolo-label-cleanup-20260514-hero-value-chip-20260718-typography-row-address-peers-20260809-dolo-holder-cex-lp-20260814';
+  const expected = 'dolo-label-cleanup-20260514-hero-value-chip-20260718-typography-row-address-peers-20260809-dolo-holder-cex-lp-20260814-wallet-table-ux-20260815';
   const routeVersion = source => source.match(/"version": "([^"]+)"/)?.[1];
 
   assert.equal(routeVersion(rootRoute), expected, 'index.html');

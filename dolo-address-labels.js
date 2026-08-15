@@ -154,6 +154,34 @@
     return /^0x[a-f0-9]{40}$/.test(String(value || "").toLowerCase());
   }
 
+  const GENERIC_WALLET_LABELS = new Set([
+    "wallet", "eoa", "smart contract", "smart contract / ca", "contract", "address", "unknown wallet",
+  ]);
+
+  function resolveDoloWalletIdentity(address, fallback = {}, labels){
+    const normalizedAddress = String(address || "").toLowerCase();
+    const sourceLabels = labels && typeof labels === "object"
+      ? labels
+      : window.DOLO_ADDR_LABELS || window.DOLO_ADDRESS_LABELS || NORMALIZED_DOLO_ADDRESS_LABELS;
+    const canonical = isDoloAddress(normalizedAddress) ? sourceLabels[normalizedAddress] : null;
+    const fallbackLabel = String(fallback?.label || "").trim();
+    const fallbackIsNamed = Boolean(
+      fallbackLabel
+      && !GENERIC_WALLET_LABELS.has(fallbackLabel.toLowerCase())
+      && (fallback?.confidence === "confirmed" || fallback?.source)
+    );
+    const identity = canonical || (fallbackIsNamed ? fallback : null);
+    return {
+      address: normalizedAddress,
+      known: Boolean(identity?.label),
+      label: identity?.label || "",
+      type: identity?.type || fallback?.type || "",
+      source: identity?.source || fallback?.source || "",
+      confidence: identity?.confidence || fallback?.confidence || "",
+      metadata: identity ? {...identity} : {},
+    };
+  }
+
   function normalizeInvestorLabel(label){
     if(label === "Early Investor") return "Strategic Investor";
     if(label === "Investor") return "Long-term Investor";
@@ -271,5 +299,6 @@
   window.cloneDoloAddressLabels = cloneLabels;
   window.mergeDoloVestingLabels = mergeDoloVestingLabels;
   window.loadDoloVestingLabels = loadDoloVestingLabels;
+  window.resolveDoloWalletIdentity = resolveDoloWalletIdentity;
   if(!window.DOLO_ADDR_LABELS) window.DOLO_ADDR_LABELS = cloneLabels();
 })();

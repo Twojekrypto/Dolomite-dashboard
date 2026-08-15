@@ -17,6 +17,10 @@ from rpc_client import (
 )
 
 import rpc_usage
+from flow_tx_metadata import (
+    attach_latest_flow_metadata,
+    fetch_token_block_evidence,
+)
 
 ETHERSCAN_API_KEY = os.environ.get("ETHERSCAN_API_KEY", "").strip()
 BERASCAN_API_KEY = os.environ.get("BERASCAN_API_KEY", "").strip()
@@ -1083,7 +1087,7 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
             "liquid": {},
             "with_vedolo": {},
         }
-        for audience in ("market", "potential"):
+        for audience in ("market", "holders", "potential"):
             row["liquid"][audience] = {}
             row["with_vedolo"][audience] = {}
             if HOLDER_WALLET_HISTORY_VIEWS:
@@ -1096,6 +1100,7 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
                     holder_rows,
                     address_labels,
                     bucket_defs,
+                    include_allocations=audience == "holders",
                     audience=audience,
                 )
                 row["with_vedolo"][audience][view] = build_bucket_model(
@@ -1104,6 +1109,7 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
                     holder_rows,
                     address_labels,
                     bucket_defs,
+                    include_allocations=audience == "holders",
                     audience=audience,
                 )
                 if view in HOLDER_WALLET_HISTORY_VIEWS:
@@ -2302,6 +2308,8 @@ def holder_belongs_to_audience(holder_type, audience):
         return holder_type in HOLDER_POTENTIAL_TYPES
     if audience == "market":
         return holder_type not in HOLDER_MARKET_EXCLUDED_TYPES and holder_type not in HOLDER_POTENTIAL_TYPES
+    if audience == "holders":
+        return holder_type not in {"cex", "ca"} and holder_type not in HOLDER_POTENTIAL_TYPES
     raise ValueError(f"Unsupported holder audience: {audience}")
 
 
@@ -2794,6 +2802,7 @@ def main():
     print("\n📊 Calculating flows...")
     output_periods = {}
     neutralized_flows_cache = {}  # {period: {chain: flows_dict}} — reused for balance_changes
+    flow_metadata_cache = {"eth": {}, "bera": {}}
     for period, seconds in PERIODS.items():
         output_periods[period] = {}
 
@@ -2846,7 +2855,8 @@ def main():
         if n_count > 0:
             print(f"  🔀 {period}: neutralized {n_count} cross-chain bridge transfers ({n_volume:,.0f} DOLO)")
 
-        # Step 3: Build output using neutralized flows
+        # Step 3: Build output using neutralized flows. Exact transaction metadata
+        # is optional presentation provenance and never participates in arithmetic.
         for chain_key, cfg in CHAINS.items():
             flows = neutralized[chain_key]
             tx_counts = tx_counts_by_chain[chain_key]
@@ -2858,6 +2868,26 @@ def main():
                 components = flow_components_by_chain[chain_key].get(entry["address"], {})
                 entry["gross_inflow"] = round(components.get("gross_inflow", 0), 2)
                 entry["gross_outflow"] = round(components.get("gross_outflow", 0), 2)
+
+            def load_flow_evidence(blocks, _chain_key=chain_key, _cfg=cfg):
+                cache = flow_metadata_cache[_chain_key]
+                missing = set(blocks) - set(cache)
+                if missing:
+                    cache.update(fetch_token_block_evidence(
+                        _cfg["rpcs"], DOLO_CONTRACT, missing, rpc_batch_requests,
+                        retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                        batch_size=RPC_BATCH_SIZE,
+                        describe=f"{_cfg['name']} DOLO flow transaction metadata",
+                    ))
+                return {block: cache[block] for block in blocks if block in cache}
+
+            chain_name = "ethereum" if chain_key == "eth" else "berachain"
+            attach_latest_flow_metadata(
+                accumulators, period_transfers_by_chain[chain_key], "inbound", chain_name, load_flow_evidence,
+            )
+            attach_latest_flow_metadata(
+                sellers, period_transfers_by_chain[chain_key], "outbound", chain_name, load_flow_evidence,
+            )
 
             # Add USD values
             if dolo_price:

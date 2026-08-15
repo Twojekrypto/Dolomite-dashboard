@@ -96,6 +96,10 @@ from rpc_client import (
 )
 
 import rpc_usage
+from flow_tx_metadata import (
+    attach_latest_flow_metadata,
+    fetch_token_block_evidence,
+)
 
 RPC_URLS = _rpc_endpoints("berachain")
 
@@ -1161,6 +1165,7 @@ def main():
     # Calculate flows for each period
     print("\n📊 Calculating flows...")
     output_periods = {}
+    flow_metadata_cache = {}
     for period, seconds in PERIODS.items():
         cutoff = cutoff_blocks[period]
         period_transfers = [t for t in all_transfers if t[3] >= cutoff]
@@ -1181,6 +1186,27 @@ def main():
         claimer_gross = {addr: val for addr, val in gross_out.items() if addr in claimer_addrs}
         claimer_sellers = get_top(
             claimer_gross, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS, flow_components
+        )
+
+        def load_flow_evidence(blocks):
+            missing = set(blocks) - set(flow_metadata_cache)
+            if missing:
+                flow_metadata_cache.update(fetch_token_block_evidence(
+                    RPC_URLS, ODOLO_CONTRACT, missing, rpc_batch_requests,
+                    retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                    batch_size=RPC_BATCH_SIZE,
+                    describe="Berachain oDOLO flow transaction metadata",
+                ))
+            return {block: flow_metadata_cache[block] for block in blocks if block in flow_metadata_cache}
+
+        attach_latest_flow_metadata(
+            accumulators, period_transfers, "inbound", "berachain", load_flow_evidence,
+        )
+        attach_latest_flow_metadata(
+            sellers, period_transfers, "outbound", "berachain", load_flow_evidence,
+        )
+        attach_latest_flow_metadata(
+            claimer_sellers, period_transfers, "outbound", "berachain", load_flow_evidence,
         )
 
         output_periods[period] = {

@@ -22,6 +22,66 @@ ECOSYSTEM_INCENTIVES_2 = "0x06265db7ecd9c5724a97bd4909146625d2e2619c"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
+    def test_holder_audience_includes_team_and_investors_in_balance_ranges(self):
+        balances = {
+            EARLY_ONLY: 2_000_000,
+            INVESTOR_ONLY: 700_000,
+            OUTSIDE: 200_000,
+        }
+        labels = {
+            EARLY_ONLY: {"label": "Core Team 1", "type": "protocol"},
+            INVESTOR_ONLY: {"label": "Long-term Investor", "type": "investor"},
+        }
+        model = flows.build_bucket_model(
+            balances, {}, {}, labels, flows.HOLDER_BUCKET_GROUPS["whales"],
+            include_allocations=True, audience="holders",
+        )
+
+        self.assertEqual(model["trackedWallets"], 3)
+        self.assertEqual(model["allocationWallets"], 2)
+        self.assertEqual(model["teamWallets"], 1)
+        self.assertEqual(model["investorWallets"], 1)
+        self.assertEqual(model["buckets"][0]["teamWallets"], 1)
+        self.assertEqual(model["buckets"][1]["investorWallets"], 1)
+
+    def test_exact_latest_flow_metadata_uses_direction_and_last_log_index(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        peer = "0x2222222222222222222222222222222222222222"
+        rows = [{"address": wallet, "net_flow": 10}]
+        transfers = [
+            (peer, wallet, 1, 100),
+            (wallet, peer, 1, 101),
+            (peer, wallet, 1, 102),
+        ]
+        logs = [
+            {"from": peer, "to": wallet, "transactionHash": "0x" + "a" * 64, "logIndex": "0x1"},
+            {"from": peer, "to": wallet, "transactionHash": "0x" + "b" * 64, "logIndex": "0x2"},
+        ]
+
+        flows.attach_latest_flow_metadata(
+            rows, transfers, "inbound", "ethereum",
+            lambda blocks: {102: {"timestamp": 1_786_406_400, "logs": logs}},
+        )
+
+        self.assertEqual(rows[0]["latest_tx_hash"], "0x" + "b" * 64)
+        self.assertEqual(rows[0]["latest_tx_timestamp"], 1_786_406_400)
+        self.assertEqual(rows[0]["latest_tx_chain"], "ethereum")
+
+    def test_incomplete_latest_flow_evidence_fails_closed(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        peer = "0x2222222222222222222222222222222222222222"
+        rows = [{"address": wallet, "net_flow": -10}]
+        transfers = [(wallet, peer, 1, 100)]
+
+        flows.attach_latest_flow_metadata(
+            rows, transfers, "outbound", "berachain",
+            lambda blocks: {100: {"timestamp": 0, "logs": []}},
+        )
+
+        self.assertNotIn("latest_tx_hash", rows[0])
+        self.assertNotIn("latest_tx_timestamp", rows[0])
+        self.assertNotIn("latest_tx_chain", rows[0])
+
     def test_vesting_investors_are_classified_by_official_claim_contract(self):
         payload = flows.extract_vesting_investors({
             "eth": [

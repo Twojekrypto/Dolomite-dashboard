@@ -14349,7 +14349,12 @@
 
         function getDoloAddressInfo(address) {
             const lower = String(address || '').toLowerCase();
-            return lower ? DOLO_ADDR_LABELS[lower] || null : null;
+            if (!lower) return null;
+            if (window.resolveDoloWalletIdentity) {
+                const identity = window.resolveDoloWalletIdentity(lower, {}, DOLO_ADDR_LABELS);
+                return identity.known ? identity.metadata : null;
+            }
+            return DOLO_ADDR_LABELS[lower] || null;
         }
 
         function getDoloAddressSearchText(address) {
@@ -14370,17 +14375,16 @@
             const shortAddr = supplyEscapeHtml(options.short || shortDoloAddress(address));
             const info = getDoloAddressInfo(address);
             const debankClass = options.debankClass ? ` ${supplyEscapeHtml(options.debankClass)}` : '';
-            const forceLabel = !!options.forceLabel;
             const toolsHtml = `
                 <span class="copy-addr-icon" onclick="event.stopPropagation();copyAddr('${safeAddress}',this)">${COPY_SVG}</span>
                 <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="debank-icon${debankClass}"><img src="https://debank.com/favicon.ico" width="14" height="14" onerror="this.parentElement.style.display='none'"></a>
             `;
 
-            if (!info && !forceLabel) {
+            if (!info) {
                 return `<a href="${safeHref}" target="_blank" rel="noopener" class="addr-tooltip-wrap" data-full-addr="${safeAddress}" onclick="event.stopPropagation()">${shortAddr}</a>${toolsHtml}`;
             }
 
-            const label = supplyEscapeHtml(info?.label || 'Wallet');
+            const label = supplyEscapeHtml(info.label);
             const type = info?.type ? supplyEscapeHtml(info.type) : '';
             const typeHtml = type ? `<span class="addr-label-mini ${type}">${type.toUpperCase()}</span>` : '';
             return `<div class="known-address-cell">
