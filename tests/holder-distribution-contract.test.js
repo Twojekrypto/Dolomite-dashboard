@@ -350,6 +350,14 @@ test("CEX details exposes canonical wallet addresses with copy and DeBank action
   assert.match(preview, /Current wallet snapshot/);
 });
 
+test("each CEX exchange row visibly advertises its expandable address list", () => {
+  assert.match(preview, /class="cex-exchange-expand"/);
+  assert.match(preview, /wallets\.length === 1 \? "address" : "addresses"/);
+  assert.match(preview, /\.cex-exchange-name\{[^}]*font-size:13px;[^}]*font-weight:650/);
+  assert.match(preview, /\.cex-exchange-expand\{[^}]*border:1px solid var\(--line-2\);[^}]*border-radius:999px/);
+  assert.match(preview, /\.cex-wallet-disclosure\[open\] \.cex-exchange-expand svg\{transform:rotate\(180deg\)\}/);
+});
+
 test("holder distribution excludes potential CEX/MM and bots from the chart", () => {
   const scopeRenderer = preview.slice(preview.indexOf("function holderScopeHtml"), preview.indexOf("function holderCexStatHtml"));
   assert.match(scopeRenderer, /Market \+ Team\/Investor/);

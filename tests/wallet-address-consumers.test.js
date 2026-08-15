@@ -29,13 +29,10 @@ test("DOLO, oDOLO and veDOLO wallet tables use the canonical shared renderer", (
   assert.match(pages.vedolo, /function holderCell\([\s\S]*?DoloWalletTableUX\.walletCellHtml/);
 });
 
-test("unknown wallet rows do not manufacture Wallet or Smart Contract names", () => {
-  assert.doesNotMatch(pages.vedolo, /vedoloAddressInfo\(address\)\?\.label \|\| "Wallet"/);
-  assert.doesNotMatch(pages.odolo, /<span class="addr-name addr-generic">Wallet<\/span>/);
-  assert.doesNotMatch(pages.dolo, /info\?\.label \|\| "Wallet"/);
-  assert.match(pages.revenue, /return \{ name: identity\.known \? String\(identity\.label\) : "", generic: false \}/);
-  assert.match(pages.liquidation, /if \(!info\) \{[\s\S]*?data-full-addr/);
-  assert.doesNotMatch(pages.liquidation, /info\?\.label \|\| 'Wallet'/);
+test("unknown wallet rows use Wallet only as a presentation fallback", () => {
+  assert.match(pages.revenue, /name: identity\.known \? String\(identity\.label\) : "Wallet"/);
+  assert.match(pages.revenue, /generic: !identity\.known/);
+  assert.match(pages.liquidation, /<span class="known-address-label addr-generic">Wallet<\/span>/);
 });
 
 test("all audited renderers resolve names from the DOLO Holders source", () => {
@@ -49,6 +46,6 @@ test("all audited renderers resolve names from the DOLO Holders source", () => {
 test("every changed production route refreshes the wallet-table UX release", () => {
   routes.forEach(route => {
     const html = fs.readFileSync(route, "utf8");
-    assert.match(html, /"version": "[^"]*wallet-table-ux-20260815/, route);
+    assert.match(html, /"version": "[^"]*wallet-table-ux-20260815b/, route);
   });
 });

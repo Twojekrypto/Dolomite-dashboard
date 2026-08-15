@@ -370,7 +370,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         positions = [flow_cell.index(item) for item in required]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn('class="addr addr-tooltip-wrap"', flow_cell)
-        self.assertIn('wallet-table-ux.css?v=20260815-wallet-flow-consistency', self.html)
+        self.assertIn('wallet-table-ux.css?v=20260815-wallet-fallback-cex-cue', self.html)
         self.assertIn('.flow-address-main .addr-mono{', self.html)
         self.assertIn('color:var(--fg-1)', self.html)
         self.assertIn('color:var(--fg-3)', self.html)

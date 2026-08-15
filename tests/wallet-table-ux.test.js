@@ -59,7 +59,7 @@ test("wallet renderer uses the approved known-wallet hierarchy with exact transa
   assert.match(html, /target="_blank" rel="noopener"/);
 });
 
-test("unknown wallet renderer shows only the address then transaction metadata", () => {
+test("unknown wallet renderer preserves the wallet name hierarchy before address metadata", () => {
   const html = walletUx.walletCellHtml({
     address: unknownAddress,
     fallback: {label:"Wallet", type:"eoa"},
@@ -67,8 +67,7 @@ test("unknown wallet renderer shows only the address then transaction metadata",
     txTimestamp: Date.UTC(2026, 7, 11) / 1000,
     txChain: "berachain",
   });
-  assert.doesNotMatch(html, /wallet-primary/);
-  assert.doesNotMatch(html, />Wallet</);
+  assert.match(html, /wallet-primary[^>]*>Wallet</);
   assert.match(html, /0x1111…1111/);
   assert.match(html, /11 Aug 2026/);
   assert.match(html, /https:\/\/berascan\.com\/tx\/0x[b]{64}/);

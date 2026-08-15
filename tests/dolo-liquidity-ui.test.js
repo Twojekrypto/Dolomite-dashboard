@@ -307,7 +307,7 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
 });
 
 test('both production entry points use the exact shared holder-CEX-LP release cache key', () => {
-  const expected = 'dolo-label-cleanup-20260514-hero-value-chip-20260718-typography-row-address-peers-20260809-dolo-holder-cex-lp-20260814-wallet-table-ux-20260815';
+  const expected = 'dolo-label-cleanup-20260514-hero-value-chip-20260718-typography-row-address-peers-20260809-dolo-holder-cex-lp-20260814-wallet-table-ux-20260815b';
   const routeVersion = source => source.match(/"version": "([^"]+)"/)?.[1];
 
   assert.equal(routeVersion(rootRoute), expected, 'index.html');
