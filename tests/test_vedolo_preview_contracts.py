@@ -349,7 +349,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('setText("duration-meta",', metadata_sync)
         self.assertIn("vedolo-table-update-metadata-20260717", self.route)
 
-    def test_flow_wallet_cell_uses_shared_three_line_identity_hierarchy(self):
+    def test_flow_wallet_cell_places_tx_beside_name_above_address(self):
         flow_cell = re.search(
             r'function flowAddressCell\(addr, date, txHash, timestamp\)\{(?P<body>.*?)\n\}',
             self.html,
@@ -363,7 +363,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
             'txTimestamp:timestamp',
             'txDate:date',
             'txChain:"berachain"',
-            'txOnOwnLine:true',
+            'txInPrimaryLine:true',
             'copyIcon:copySvg',
         )
         for item in required:
@@ -371,7 +371,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         positions = [flow_cell.index(item) for item in required]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn('class="addr addr-tooltip-wrap"', flow_cell)
-        self.assertIn('wallet-table-ux.css?v=20260815-flow-lines-holder-range', self.html)
+        self.assertIn('wallet-table-ux.css?v=20260815-flow-name-date', self.html)
         self.assertIn('.flow-address-main .addr-mono{', self.html)
         self.assertIn('color:var(--fg-1)', self.html)
         self.assertIn('color:var(--fg-3)', self.html)
