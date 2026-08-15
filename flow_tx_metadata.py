@@ -7,7 +7,7 @@ than guessed, so flow amounts and ranking remain completely independent.
 """
 import re
 
-from rpc_client import RpcError
+from rpc_client import RpcError, rpc_single_request
 
 
 ADDRESS_RE = re.compile(r"^0x[a-f0-9]{40}$")
@@ -111,8 +111,28 @@ def fetch_token_block_evidence(rpcs, token_address, block_numbers, rpc_batch_req
             batch_size=batch_size, quiet=True, describe=describe,
         )
     except RpcError:
-        return {}
+        responses, missing = {}, [payload["id"] for payload in payloads]
+    responses = responses if isinstance(responses, dict) else {}
     missing = set(missing or [])
+    payload_by_id = {payload["id"]: payload for payload in payloads}
+    for item_id, payload in payload_by_id.items():
+        response = responses.get(item_id)
+        result = response.get("result") if isinstance(response, dict) and not response.get("error") else None
+        expected_type = list if payload["method"] == "eth_getLogs" else dict
+        if item_id not in missing and isinstance(result, expected_type):
+            continue
+        try:
+            retry_response = rpc_single_request(
+                rpcs, payload, timeout=12,
+                retries_per_endpoint=retries_per_endpoint,
+                quiet=True, describe=f"{describe} exact retry",
+            )
+        except RpcError:
+            continue
+        retry_result = retry_response.get("result") if isinstance(retry_response, dict) and not retry_response.get("error") else None
+        if isinstance(retry_result, expected_type):
+            responses[item_id] = retry_response
+            missing.discard(item_id)
     evidence = {}
     for block in blocks:
         logs_id, block_id = f"logs:{block}", f"block:{block}"

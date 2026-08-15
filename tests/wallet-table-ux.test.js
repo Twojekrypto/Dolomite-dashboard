@@ -83,15 +83,16 @@ test("incomplete transaction metadata fails closed", () => {
   assert.doesNotMatch(html, /etherscan/);
 });
 
-test("Flow wallet renderer places exact transaction metadata on its own third line", () => {
+test("Flow wallet renderer places exact transaction metadata beside the wallet name", () => {
   const html = walletUx.walletCellHtml({
     address: knownAddress,
     txHash: `0x${"d".repeat(64)}`,
     txTimestamp: Date.UTC(2026, 7, 11) / 1000,
     txChain: "ethereum",
-    txOnOwnLine: true,
+    txInPrimaryLine: true,
   });
 
-  assert.match(html, /<div class="wallet-secondary">[\s\S]*?wallet-address-actions[\s\S]*?<\/div><div class="wallet-secondary wallet-secondary-tx">[\s\S]*?wallet-tx-meta[\s\S]*?<\/div>/);
+  assert.match(html, /<div class="wallet-primary-line">[\s\S]*?wallet-primary[\s\S]*?wallet-tx-meta[\s\S]*?<\/div><div class="wallet-secondary">[\s\S]*?wallet-address-actions[\s\S]*?<\/div>/);
+  assert.doesNotMatch(html, /wallet-secondary-tx/);
   assert.doesNotMatch(html, /wallet-meta-separator/);
 });

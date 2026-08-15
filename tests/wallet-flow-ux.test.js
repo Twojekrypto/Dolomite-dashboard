@@ -8,8 +8,8 @@ const pages = Object.fromEntries(
 
 test("all three Flow pages load the shared wallet UX assets", () => {
   Object.entries(pages).forEach(([name, html]) => {
-    assert.match(html, /wallet-table-ux\.css\?v=20260815-flow-lines-holder-range/, `${name} shared CSS`);
-    assert.match(html, /wallet-table-ux\.js\?v=20260815-flow-lines-holder-range/, `${name} shared JS`);
+    assert.match(html, /wallet-table-ux\.css\?v=20260815-flow-name-date/, `${name} shared CSS`);
+    assert.match(html, /wallet-table-ux\.js\?v=20260815-flow-name-date/, `${name} shared JS`);
   });
 });
 
@@ -26,9 +26,12 @@ test("all three Flow renderers use the same wallet cell renderer", () => {
   assert.match(pages.dolo, /DoloWalletTableUX\.walletCellHtml\(/);
   assert.match(pages.odolo, /DoloWalletTableUX\.walletCellHtml\(/);
   assert.match(pages.vedolo, /DoloWalletTableUX\.walletCellHtml\(/);
-  assert.match(pages.dolo, /txOnOwnLine:true/);
-  assert.match(pages.odolo, /txOnOwnLine:true/);
-  assert.match(pages.vedolo, /txOnOwnLine:true/);
+  assert.match(pages.dolo, /txInPrimaryLine:true/);
+  assert.match(pages.odolo, /txInPrimaryLine:true/);
+  assert.match(pages.vedolo, /txInPrimaryLine:true/);
+  assert.doesNotMatch(pages.dolo, /txOnOwnLine:true/);
+  assert.doesNotMatch(pages.odolo, /txOnOwnLine:true/);
+  assert.doesNotMatch(pages.vedolo, /txOnOwnLine:true/);
 });
 
 test("flow rank columns use the same compact centered class", () => {
@@ -52,7 +55,7 @@ test("veDOLO Flow table uses the shared flow typography/header token", () => {
   assert.match(pages.vedolo, /class="tbl wallet-flow-table" id="unlocks-table"/);
 });
 
-test("three-line Flow wallet cells preserve the shared 71px row contract", () => {
+test("two-line Flow wallet cells preserve the shared 71px row contract", () => {
   const sharedCss = fs.readFileSync("wallet-table-ux.css", "utf8");
   assert.match(sharedCss, /\.wallet-flow-table tbody td\{[^}]*height:var\(--stable-row-height\)!important;[^}]*padding:8px 12px!important/);
   assert.match(sharedCss, /\.wallet-flow-table \.wallet-address-actions \.addr-copy,\.wallet-flow-table \.wallet-address-actions \.addr-debank\{[^}]*width:20px!important;[^}]*height:20px!important/);
