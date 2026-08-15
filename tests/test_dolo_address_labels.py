@@ -65,6 +65,30 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertTrue(info.get("source"))
                 self.assertIn(info.get("confidence"), {"confirmed", "potential"})
 
+    def test_label_script_exports_one_canonical_wallet_resolver(self):
+        node_script = """
+global.window = {};
+require('./dolo-address-labels.js');
+const known = window.resolveDoloWalletIdentity(
+  '0xf977814e90da44bfa03b6295a0616a897441acec',
+  {label:'Wallet', type:'eoa'}
+);
+const unknown = window.resolveDoloWalletIdentity(
+  '0x1111111111111111111111111111111111111111',
+  {label:'Wallet', type:'eoa'}
+);
+console.log(JSON.stringify({known, unknown}));
+"""
+        proc = subprocess.run(
+            ["node", "-e", node_script], cwd=str(ROOT), check=True,
+            text=True, capture_output=True,
+        )
+        result = json.loads(proc.stdout)
+        self.assertEqual(result["known"]["label"], "Binance Hot Wallet 20")
+        self.assertTrue(result["known"]["known"])
+        self.assertEqual(result["unknown"]["label"], "")
+        self.assertFalse(result["unknown"]["known"])
+
     def test_coin_gecko_tokenomics_labels_are_confirmed(self):
         expected = {
             "0x185000fb4d98acea1a771db3714a431f7fe51cac": ("Core Team 1", "protocol"),

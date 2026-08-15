@@ -82,6 +82,36 @@ class ValidateDoloFlowsTest(unittest.TestCase):
 
         self.assertFalse(self._check(payload))
 
+    def test_optional_flow_transaction_metadata_is_all_or_none_and_exact(self):
+        row = {
+            "address": "0x" + "1" * 40,
+            "latest_tx_hash": "0x" + "a" * 64,
+            "latest_tx_timestamp": 1_786_406_400,
+            "latest_tx_chain": "ethereum",
+        }
+        payload = {"periods": {"7d": {"eth": {"accumulators": [row], "sellers": []}}}}
+        self.assertTrue(validate_data._flow_tx_metadata_is_valid(payload))
+
+        for key, invalid in (
+            ("latest_tx_hash", "0x1234"),
+            ("latest_tx_timestamp", True),
+            ("latest_tx_chain", "arbitrum"),
+        ):
+            with self.subTest(key=key):
+                malformed = copy.deepcopy(payload)
+                malformed["periods"]["7d"]["eth"]["accumulators"][0][key] = invalid
+                self.assertFalse(validate_data._flow_tx_metadata_is_valid(malformed))
+
+        partial = copy.deepcopy(payload)
+        partial["periods"]["7d"]["eth"]["accumulators"][0].pop("latest_tx_timestamp")
+        self.assertFalse(validate_data._flow_tx_metadata_is_valid(partial))
+
+    def test_dolo_flow_rule_registers_transaction_metadata_guard(self):
+        self.assertIn(
+            "optional latest transaction metadata must be exact",
+            dict(validate_data.RULES["dolo_flows.json"]["checks"]),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -356,20 +356,21 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
             re.S,
         ).group("body")
         required = (
-            'class="flow-wallet-top"',
-            'class="addr-name ${info ? "" : "addr-generic"}"',
-            'class="flow-tx-line flow-address-main"',
-            'class="addr-mono addr-tooltip-wrap"',
-            'class="copy-btn addr-copy"',
-            'class="addr-debank"',
-            '${flowDateLine(date, txHash, timestamp)}',
+            'DoloWalletTableUX.walletCellHtml',
+            'address:displayAddr',
+            'labels:VEDOLO_ADDRESS_LABELS',
+            'txHash',
+            'txTimestamp:timestamp',
+            'txDate:date',
+            'txChain:"berachain"',
+            'copyIcon:copySvg',
         )
         for item in required:
             self.assertIn(item, flow_cell)
         positions = [flow_cell.index(item) for item in required]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn('class="addr addr-tooltip-wrap"', flow_cell)
-        self.assertIn('.flow-wallet-top .addr-name{', self.html)
+        self.assertIn('wallet-table-ux.css?v=20260815-wallet-flow-consistency', self.html)
         self.assertIn('.flow-address-main .addr-mono{', self.html)
         self.assertIn('color:var(--fg-1)', self.html)
         self.assertIn('color:var(--fg-3)', self.html)

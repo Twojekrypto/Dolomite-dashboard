@@ -3059,22 +3059,19 @@ h1{
     return key ? VEBORROW_WALLET_LABELS[key] || null : null;
   }
   function veBorrowWalletDisplayName(row){
-    const info = veBorrowWalletLabelInfo(row?.address);
-    if (info?.label) return { name: String(info.label), generic: false };
-    const type = String(info?.type || "eoa").toLowerCase();
-    return { name: VEBORROW_WALLET_TYPE_GENERIC[type] || "Wallet", generic: true };
+    const identity = window.resolveDoloWalletIdentity
+      ? window.resolveDoloWalletIdentity(row?.address, {}, VEBORROW_WALLET_LABELS)
+      : {known:false,label:""};
+    return { name: identity.known ? String(identity.label) : "", generic: false };
   }
   function renderVeBorrowWalletAddress(row){
     const address = String(row?.address || "").toLowerCase();
     const safeAddress = esc(address);
     const debankUrl = esc(veBorrowWalletDebankUrl(row));
     const displayName = veBorrowWalletDisplayName(row);
-    const nameClass = displayName.generic ? "addr-name addr-generic" : "addr-name";
     return `
       <div class="addr-cell">
-        <div class="addr-line top">
-          <span class="${nameClass}">${esc(displayName.name)}</span>
-        </div>
+        ${displayName.name ? `<div class="addr-line top"><span class="addr-name">${esc(displayName.name)}</span></div>` : ""}
         <div class="addr-line bot">
           <a href="${debankUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="addr-mono addr-tooltip-wrap" data-full-addr="${safeAddress}" title="${safeAddress}">${esc(shortAddress(address))}</a>
           <button class="addr-copy" type="button" data-copy-address="${safeAddress}" onclick="event.stopPropagation();copyVeBorrowAddress(this.dataset.copyAddress,this)" title="Copy address" aria-label="Copy address">${COPY_ICO}</button>

@@ -8,6 +8,27 @@ import generate_odolo_flows as odolo_flows
 
 
 class GenerateOdoloFlowsTests(unittest.TestCase):
+    def test_exact_latest_flow_metadata_is_optional_and_directional(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        peer = "0x2222222222222222222222222222222222222222"
+        rows = [{"address": wallet, "net_flow": 10}]
+        transfers = [(peer, wallet, 1, 99), (peer, wallet, 1, 100)]
+        logs = [{
+            "from": peer,
+            "to": wallet,
+            "transactionHash": "0x" + "c" * 64,
+            "logIndex": "0x0",
+        }]
+
+        odolo_flows.attach_latest_flow_metadata(
+            rows, transfers, "inbound", "berachain",
+            lambda blocks: {100: {"timestamp": 1_786_406_400, "logs": logs}},
+        )
+
+        self.assertEqual(rows[0]["latest_tx_hash"], "0x" + "c" * 64)
+        self.assertEqual(rows[0]["latest_tx_timestamp"], 1_786_406_400)
+        self.assertEqual(rows[0]["latest_tx_chain"], "berachain")
+
     def test_current_block_must_be_valid_before_cutoffs(self):
         with self.assertRaises(RuntimeError):
             odolo_flows.build_cutoff_blocks(0)

@@ -1737,6 +1737,62 @@ def _dolo_cex_supply_history_valid(data):
         return False
 
 
+def _flow_tx_metadata_is_valid(data):
+    """Optional aggregate-flow transaction evidence must be complete and exact."""
+    metadata_keys = {
+        "latest_tx_hash", "latest_tx_timestamp", "latest_tx_chain",
+    }
+    supported_chains = {"ethereum", "berachain"}
+
+    def row_is_valid(row):
+        if not isinstance(row, dict):
+            return False
+        present = metadata_keys.intersection(row)
+        if not present:
+            return True
+        if present != metadata_keys:
+            return False
+        tx_hash = row.get("latest_tx_hash")
+        timestamp = row.get("latest_tx_timestamp")
+        chain = row.get("latest_tx_chain")
+        if (
+            not isinstance(tx_hash, str)
+            or tx_hash != tx_hash.lower()
+            or len(tx_hash) != 66
+            or not tx_hash.startswith("0x")
+            or not _is_exact_integer(timestamp)
+            or timestamp <= 0
+            or chain not in supported_chains
+        ):
+            return False
+        try:
+            int(tx_hash[2:], 16)
+        except ValueError:
+            return False
+        return True
+
+    def containers(node):
+        if not isinstance(node, dict):
+            return
+        if any(key in node for key in ("accumulators", "sellers", "claimer_sellers")):
+            yield node
+        for value in node.values():
+            if isinstance(value, dict):
+                yield from containers(value)
+
+    periods = data.get("periods", {})
+    if not isinstance(periods, dict):
+        return False
+    for container in containers(periods):
+        for key in ("accumulators", "sellers", "claimer_sellers"):
+            rows = container.get(key)
+            if rows is None:
+                continue
+            if not isinstance(rows, list) or not all(row_is_valid(row) for row in rows):
+                return False
+    return True
+
+
 RULES = {
     "dolo-liquidity.json": {
         "required_keys": ["schemaVersion", "generatedAt", "summary", "sources", "pools", "activePositions", "history", "quality"],
@@ -1752,6 +1808,7 @@ RULES = {
             ("periods must have data",     lambda d: len(d.get("periods", {})) >= 3),
             ("dolo_price must be positive", lambda d: d.get("dolo_price", 0) > 0),
             ("CEX exchange history must reconcile exactly", _dolo_cex_supply_history_valid),
+            ("optional latest transaction metadata must be exact", _flow_tx_metadata_is_valid),
         ],
         "min_bytes": 50_000,
     },
@@ -1803,6 +1860,7 @@ RULES = {
             ("claimer total must not exceed the 200M allocation", _odolo_claim_total_within_allocation),
             ("claimer sources must have canonical reconciliation metadata", _odolo_claim_source_reconciliation_is_valid),
             ("gross and net oDOLO flows must reconcile", _odolo_flow_components_reconcile),
+            ("optional latest transaction metadata must be exact", _flow_tx_metadata_is_valid),
         ],
         "min_bytes": 50_000,
     },

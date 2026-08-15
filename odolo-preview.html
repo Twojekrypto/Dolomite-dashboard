@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="shared-hover-tooltips.css?v=20260812-row-focusout">
 <script defer src="shared-hover-tooltips.js?v=20260812-row-focusout"></script>
 <script src="dolo-address-labels.js?v=dolo-labels-20260805-strategic-round"></script>
+<link rel="stylesheet" href="wallet-table-ux.css?v=20260815-wallet-flow-consistency">
+<script src="wallet-table-ux.js?v=20260815-wallet-flow-consistency"></script>
 <script src="odolo-address-meta.js?v=odolo-label-parity-20260807"></script>
 <script src="odolo-exercise-summary.js?v=odolo-latest-summary-20260808"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
@@ -1736,13 +1738,13 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
           Top Accumulators
         </div>
         <div class="flows-wrap">
-          <table class="flows-tbl">
+          <table class="flows-tbl wallet-flow-table">
             <thead>
               <tr>
-                <th style="width:48px">#</th>
+                <th class="wallet-rank-col" style="width:36px">#</th>
                 <th>Address</th>
-                <th class="num" data-flow-kind="acc" data-flow-sort="balance" style="width:118px">Balance</th>
-                <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" style="padding-right:24px;width:130px">Net oDOLO</th>
+                <th class="num" data-flow-kind="acc" data-flow-sort="balance" aria-sort="none" style="width:118px"><span class="wallet-sort-content">Balance<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+                <th class="num sorted" data-flow-kind="acc" data-flow-sort="net" aria-sort="descending" style="width:130px"><span class="wallet-sort-content">Net oDOLO<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
               </tr>
             </thead>
             <tbody id="flows-acc-body"></tbody>
@@ -1760,13 +1762,13 @@ a.latest-tx:hover{color:var(--fg-1);border-color:var(--line-3);background:rgba(2
           Top Outflows
         </div>
         <div class="flows-wrap">
-          <table class="flows-tbl">
+          <table class="flows-tbl wallet-flow-table">
             <thead>
               <tr>
-                <th style="width:48px">#</th>
+                <th class="wallet-rank-col" style="width:36px">#</th>
                 <th>Address</th>
-                <th class="num" data-flow-kind="out" data-flow-sort="balance" style="width:118px">Balance</th>
-                <th class="num sorted" data-flow-kind="out" data-flow-sort="net" style="padding-right:24px;width:130px">Net oDOLO</th>
+                <th class="num" data-flow-kind="out" data-flow-sort="balance" aria-sort="none" style="width:118px"><span class="wallet-sort-content">Balance<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+                <th class="num sorted" data-flow-kind="out" data-flow-sort="net" aria-sort="descending" style="width:130px"><span class="wallet-sort-content">Net oDOLO<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
               </tr>
             </thead>
             <tbody id="flows-out-body"></tbody>
@@ -2099,6 +2101,17 @@ function addressMeta(addr){
   return normalized && TYPE_LABELS[normalized.type]
     ? normalized
     : { label:null, type:"eoa", sharedType:"eoa", badgeLabel:"EOA", tooltip:"" };
+}
+function odoloWalletCell(row, badgesHtml=""){
+  const address = row?.addr || row?.address || "";
+  const fallback = row?.label ? row : addressMeta(address);
+  return DoloWalletTableUX.walletCellHtml({
+    address,
+    fallback,
+    labels:ADDRESS_META,
+    badgesHtml,
+    copyIcon:COPY_ICO,
+  });
 }
 function periodCutoff(period){
   const days = { "1d":1, "7d":7, "14d":14, "30d":30, "90d":90, "180d":180 }[period];
@@ -2853,22 +2866,12 @@ function renderClaimerBreakdown(){
   const claimerRowsHtml = pageRows.map((r,i)=>{
     const rank = rankMap.get(r.addr.toLowerCase()) || start + i + 1;
     const typeChip = r.label
-      ? `<span class="addr-name">${esc(r.label)}</span><span class="type-tag type-${esc(r.type)}" data-tooltip="${esc(r.labelTooltip || TYPE_TIPS[r.type] || "")}">${esc(r.badgeLabel || TYPE_LABELS[r.type] || "Known")}</span>`
-      : `<span class="addr-name addr-generic">Wallet</span>`;
-    const actions = `
-      <button class="addr-copy" data-copy="${r.addr}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-      </a>`;
+      ? `<span class="type-tag type-${esc(r.type)}" data-tooltip="${esc(r.labelTooltip || TYPE_TIPS[r.type] || "")}">${esc(r.badgeLabel || TYPE_LABELS[r.type] || "Known")}</span>`
+      : "";
     return `
       <tr data-addr="${r.addr}">
         <td class="rank">${rank}</td>
-        <td>
-          <div class="addr-cell">
-            <div class="addr-line top">${typeChip}</div>
-            <div class="addr-line bot"><span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(r.addr)}">${shorten(r.addr)}</span>${actions}</div>
-          </div>
-        </td>
+        <td>${odoloWalletCell(r, typeChip)}</td>
         <td class="num">${cellHtml(r.claimed,   r.claimed, "clm")}</td>
         <td class="num">${cellHtml(r.exercised, r.claimed, "exr")}</td>
         <td class="num">${cellHtml(r.buy, r.claimed, "buy", {prefix:"+"})}</td>
@@ -3167,7 +3170,6 @@ function renderLatestExercises(){
   }
 
   tbody.innerHTML = visibleRows.map(tx => {
-    const title = tx.label || TYPE_GENERIC[tx.type] || "Wallet";
     const typeHtml = `<span class="type-tag type-${tx.type}" data-tooltip="${esc(TYPE_TIPS[tx.type])}">${esc(TYPE_LABELS[tx.type])}</span>`;
     const hashLabel = tx.hash ? `${tx.hash.slice(0,6)}…${tx.hash.slice(-4)}` : "—";
     const txLink = tx.hash
@@ -3182,18 +3184,7 @@ function renderLatestExercises(){
             <span>${esc(fmtRelativeTime(timestamp))} · ${esc(fmtClockTime(timestamp))}</span>
           </div>
         </td>
-        <td data-label="Address">
-          <div class="latest-wallet">
-            <div class="latest-wallet-top"><span class="addr-name ${tx.label ? "" : "addr-generic"}">${esc(title)}</span>${typeHtml}</div>
-            <div class="latest-wallet-bottom">
-              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(tx.addr)}">${esc(shorten(tx.addr))}</span>
-              <button class="addr-copy" data-copy="${esc(tx.addr)}" aria-label="Copy address">${COPY_ICO}</button>
-              <a class="addr-debank" href="https://debank.com/profile/${esc(tx.addr)}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-                <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-              </a>
-            </div>
-          </div>
-        </td>
+        <td data-label="Address">${odoloWalletCell(tx, tx.label ? typeHtml : "")}</td>
         <td class="num" data-label="veDOLO"><span class="bal-val">${fmtTokenFull(tx.vedolo)}</span></td>
         <td class="num" data-label="USDC Paid"><span class="bal-val usd">${fmtUsdFull(tx.usdc)}</span></td>
         <td class="num" data-label="Price"><span class="bal-val price">${fmtPrice(tx.price)}</span></td>
@@ -3335,7 +3326,6 @@ function renderLatestPairs(){
   }
 
   tbody.innerHTML = visibleRows.map(tx => {
-    const title = tx.label || TYPE_GENERIC[tx.type] || "Wallet";
     const typeHtml = `<span class="type-tag type-${tx.type}" data-tooltip="${esc(TYPE_TIPS[tx.type])}">${esc(TYPE_LABELS[tx.type])}</span>`;
     const hashLabel = tx.hash ? `${tx.hash.slice(0,6)}…${tx.hash.slice(-4)}` : "—";
     const txLink = tx.hash
@@ -3350,18 +3340,7 @@ function renderLatestPairs(){
             <span>${esc(fmtRelativeTime(timestamp))} · ${esc(fmtClockTime(timestamp))}</span>
           </div>
         </td>
-        <td data-label="Wallet">
-          <div class="latest-wallet">
-            <div class="latest-wallet-top"><span class="addr-name ${tx.label ? "" : "addr-generic"}">${esc(title)}</span>${typeHtml}</div>
-            <div class="latest-wallet-bottom">
-              <span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(tx.addr)}">${esc(shorten(tx.addr))}</span>
-              <button class="addr-copy" data-copy="${esc(tx.addr)}" aria-label="Copy address">${COPY_ICO}</button>
-              <a class="addr-debank" href="https://debank.com/profile/${esc(tx.addr)}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-                <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-              </a>
-            </div>
-          </div>
-        </td>
+        <td data-label="Wallet">${odoloWalletCell(tx, tx.label ? typeHtml : "")}</td>
         <td class="num" data-label="oDOLO"><span class="bal-val">${fmtTokenFull(tx.odolo)}</span></td>
         <td class="num" data-label="DOLO Paired"><span class="bal-val">${fmtTokenFull(tx.dolo)}</span></td>
       </tr>
@@ -3499,26 +3478,13 @@ function renderExercisers(){
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const isExpanded = state.exExpanded === r.addr.toLowerCase();
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${esc(TYPE_TIPS[r.type])}">${esc(TYPE_LABELS[r.type])}</span>`;
-    const actions = `
-      <button class="addr-copy" data-copy="${esc(r.addr)}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${esc(r.addr)}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-      </a>`;
     const toggle = `<button class="ex-toggle" type="button" aria-label="${isExpanded ? "Hide exercise history" : "Show exercise history"}" aria-expanded="${isExpanded}"><span>${isExpanded ? "Hide" : "Details"}</span>${CHEV_DOWN_ICO}</button>`;
-    const nameCell = r.label
-      ? `<span class="addr-name">${esc(r.label)}</span>`
-      : `<span class="addr-name addr-generic">${esc(TYPE_GENERIC[r.type])}</span>`;
     const bucket = lockBucket(r.lockDays);
     const avgPrice = avgExercisePrice(r);
     return `
       <tr class="ex-data-row ${isExpanded ? "ex-row-open" : ""}" data-addr="${esc(r.addr)}" aria-expanded="${isExpanded}">
         <td class="rank">${rank}</td>
-        <td>
-          <div class="addr-cell">
-            <div class="addr-line top">${nameCell}${typeHtml}</div>
-            <div class="addr-line bot"><span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(r.addr)}">${esc(shorten(r.addr))}</span>${actions}</div>
-          </div>
-        </td>
+        <td>${odoloWalletCell(r, r.label ? typeHtml : "")}</td>
         <td class="num"><span class="bal-val">${fmtNum(r.vedolo)}</span></td>
         <td class="num"><span class="bal-val usd">${fmtUsd(r.usdc)}</span></td>
         <td class="num"><span class="bal-val price">${fmtPrice(avgPrice)}</span></td>
@@ -3618,14 +3584,9 @@ function syncFlowSortHeaders(){
     const sort = state.flowsSort[kind];
     const active = sort && sort.key === th.dataset.flowSort;
     th.classList.toggle("sorted", active);
-    let marker = th.querySelector(".sort");
-    if(marker) marker.remove();
-    if(active){
-      marker = document.createElement("span");
-      marker.className = "sort";
-      marker.textContent = sort.dir === "asc" ? "▲" : "▼";
-      th.appendChild(marker);
-    }
+    const marker = th.querySelector(".sort");
+    marker.textContent = active ? (sort.dir === "asc" ? "▲" : "▼") : "";
+    th.setAttribute("aria-sort", active ? (sort.dir === "asc" ? "ascending" : "descending") : "none");
   });
 }
 function sortFlowRows(rows, kind){
@@ -3697,32 +3658,31 @@ function renderFlow(target, kind){
     const balance = r.balance || 0;
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${esc(TYPE_TIPS[r.type])}">${TYPE_LABELS[r.type]}</span>`;
-    const actions = `
-      <button class="addr-copy" data-copy="${r.addr}" aria-label="Copy address">${COPY_ICO}</button>
-      <a class="addr-debank" href="https://debank.com/profile/${r.addr}" target="_blank" rel="noopener" aria-label="View on DeBank" onclick="event.stopPropagation()">
-        <img src="https://debank.com/favicon.ico" alt="DeBank" onerror="this.outerHTML='<span class=&quot;debank-fallback&quot;>D</span>'">
-      </a>`;
-    const nameCell = r.label ? `<span class="addr-name">${r.label}</span>` : `<span class="addr-name addr-generic">${TYPE_GENERIC[r.type]}</span>`;
+    const walletHtml = DoloWalletTableUX.walletCellHtml({
+      address:r.addr,
+      fallback:{label:r.label,type:r.type},
+      labels:ADDRESS_META,
+      txHash:r.latestTxHash,
+      txTimestamp:r.latestTxTimestamp,
+      txChain:r.latestTxChain,
+      badgesHtml:typeHtml,
+      copyIcon:COPY_ICO,
+    });
     return `
       <tr data-addr="${r.addr}">
-        <td class="rank">${rank}</td>
-        <td>
-          <div class="addr-cell">
-            <div class="addr-line top">${nameCell}${typeHtml}</div>
-            <div class="addr-line bot"><span class="addr-mono addr-tooltip-wrap" data-full-addr="${esc(r.addr)}">${shorten(r.addr)}</span>${actions}</div>
-          </div>
-        </td>
+        <td class="rank wallet-rank-col">${rank}</td>
+        <td>${walletHtml}</td>
         <td class="num"><span class="bal-val">${balance>0 ? fmtNum(balance) : "—"}</span></td>
-        <td class="num" style="padding-right:24px"><span class="flows-net ${cls}">${sign}${fmtNum(r.chg)}</span></td>
+        <td class="num"><span class="flows-net ${cls}">${sign}${fmtNum(r.chg)}</span></td>
       </tr>
     `;
   }).join("");
   const spacerRowsHtml = Array.from({length: Math.max(0, state.flowsPageSize - pageRows.length)}, () => `
       <tr class="flow-spacer-row" aria-hidden="true" tabindex="-1">
-        <td class="rank">0</td>
+        <td class="rank wallet-rank-col">0</td>
         <td><div class="addr-cell"><div class="addr-line top"><span class="addr-name">Placeholder</span><span class="type-tag type-eoa">EOA</span></div><div class="addr-line bot"><span class="addr-mono">0x0000…0000</span></div></div></td>
         <td class="num"><span class="bal-val">0</span></td>
-        <td class="num" style="padding-right:24px"><span class="flows-net ${kind==="acc" ? "up" : "down"}">0</span></td>
+        <td class="num"><span class="flows-net ${kind==="acc" ? "up" : "down"}">0</span></td>
       </tr>
     `).join("");
   tbody.innerHTML = rowHtml + spacerRowsHtml;
@@ -4191,11 +4151,11 @@ function syncLiveFlowsForPeriod(){
   if(!periodData) return;
   const acc = (periodData.accumulators || []).map(item => {
     const meta = addressMeta(item.address);
-    return {addr:item.address, label:meta.label, type:meta.type, chg:Number(item.net_flow) || 0, balance:Number(item.balance) || 0};
+    return {addr:item.address, label:meta.label, type:meta.type, chg:Number(item.net_flow) || 0, balance:Number(item.balance) || 0, latestTxHash:item.latest_tx_hash, latestTxTimestamp:item.latest_tx_timestamp, latestTxChain:item.latest_tx_chain};
   });
   const out = (periodData.sellers || []).map(item => {
     const meta = addressMeta(item.address);
-    return {addr:item.address, label:meta.label, type:meta.type, chg:-(Number(item.gross_outflow ?? item.net_flow) || 0), balance:Number(item.balance) || 0};
+    return {addr:item.address, label:meta.label, type:meta.type, chg:-(Number(item.gross_outflow ?? item.net_flow) || 0), balance:Number(item.balance) || 0, latestTxHash:item.latest_tx_hash, latestTxTimestamp:item.latest_tx_timestamp, latestTxChain:item.latest_tx_chain};
   });
   applyRows(FLOWS, [...acc, ...out]);
 }
