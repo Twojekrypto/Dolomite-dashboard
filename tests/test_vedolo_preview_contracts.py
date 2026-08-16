@@ -95,30 +95,81 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
             self.html,
         )
 
-    def test_position_activity_panel_separates_internal_actions_from_locks(self):
+    def test_position_activity_is_a_standalone_searchable_table(self):
+        flow_start = self.html.index('<section class="card flow-card">')
+        activity_start = self.html.index('<section class="card position-activity-card"')
+        claimable_start = self.html.index('<section class="card claimable-card">')
+        self.assertLess(flow_start, activity_start)
+        self.assertLess(activity_start, claimable_start)
+        self.assertIn('</section>', self.html[flow_start:activity_start])
         self.assertIn('id="position-activity-card"', self.html)
         self.assertIn('veDOLO Position Activity', self.html)
-        self.assertIn('id="position-activity-kind"', self.html)
+        self.assertIn('id="position-activity-meta"', self.html)
+        self.assertIn('id="q-position-activity"', self.html)
+        self.assertIn('placeholder="Search wallet, tx or position ID…"', self.html)
+        self.assertIn('id="dd-position-activity-kind"', self.html)
         for kind in ("all", "transfer", "merge", "split", "extend"):
-            self.assertIn(f'data-activity-kind="{kind}"', self.html)
+            self.assertIn(f'data-value="{kind}"', self.html)
         self.assertIn('class="tbl wallet-flow-table" id="position-activity-table" data-address-match-cells', self.html)
         self.assertIn('id="position-activity-body"', self.html)
         self.assertIn('id="position-activity-info"', self.html)
         self.assertIn('id="position-activity-pager"', self.html)
         self.assertIn('activityRows:[]', self.html)
-        self.assertIn('activity:{kind:"all",sort:"date",asc:false,page:1,perPage:6}', self.html)
+        self.assertIn('activity:{q:"",kind:"all",sort:"date",asc:false,page:1,perPage:10}', self.html)
         self.assertIn('window.VeDoloPositionActivity.buildActivityRows(state.locks,state.transfers)', self.html)
         self.assertIn('function renderPositionActivity()', self.html)
         self.assertIn('renderPositionActivity();', self.html)
         self.assertIn('table === "position-activity-table"', self.html)
 
-    def test_position_activity_panel_has_compact_responsive_contract(self):
-        self.assertIn('.position-activity-shell{', self.html)
-        self.assertIn('#position-activity-table{table-layout:fixed;', self.html)
-        self.assertIn('#position-activity-kind.vedolo-pill-segment{--vedolo-segment-count:5;', self.html)
+    def test_flow_and_activity_filters_use_independent_single_select_dropdowns(self):
+        self.assertIn('id="dd-flow-source"', self.html)
+        self.assertIn('data-value="all" data-short="All routes"', self.html)
+        self.assertIn('data-value="odolo" data-short="via oDOLO"', self.html)
+        self.assertIn('data-value="direct" data-short="Direct"', self.html)
+        self.assertIn('id="dd-position-activity-kind"', self.html)
+        self.assertNotIn('id="flow-source"', self.html)
+        self.assertNotIn('id="position-activity-kind"', self.html)
+        self.assertIn('root.id === "dd-flow-source"', self.html)
+        self.assertIn('root.id === "dd-position-activity-kind"', self.html)
+        self.assertIn('state.activity.q = e.target.value.trim(); state.activity.page = 1; renderPositionActivity();', self.html)
+
+        filter_body = re.search(
+            r'function getFilteredPositionActivity\(\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        ).group("body")
+        self.assertIn("state.activity.q", filter_body)
+        self.assertIn("vedoloAddressName", filter_body)
+        self.assertNotIn("state.flows.q", filter_body)
+        self.assertNotIn("state.flows.period", filter_body)
+
+        bind_body = re.search(
+            r'function bindUi\(\)\{(?P<body>.*?)\n\}',
+            self.html,
+            re.S,
+        ).group("body")
+        flow_search_line = next(line for line in bind_body.splitlines() if 'qs("#q-flows")' in line)
+        self.assertNotIn("state.activity", flow_search_line)
+        flow_period_branch = re.search(
+            r'root\.id === "dd-flow-period"\)\{(?P<body>.*?)\n\s*\}',
+            bind_body,
+            re.S,
+        ).group("body")
+        self.assertNotIn("state.activity", flow_period_branch)
+        self.assertNotIn("renderPositionActivity", flow_period_branch)
+
+    def test_position_activity_table_has_stable_ten_row_responsive_contract(self):
+        self.assertIn('.position-activity-card{', self.html)
+        self.assertIn('#position-activity-table{table-layout:fixed;min-width:936px;', self.html)
+        self.assertIn('#position-activity-table col.activity-rank{width:48px}', self.html)
+        self.assertIn('#position-activity-table col.activity-address{width:300px}', self.html)
+        self.assertIn('#position-activity-table col.activity-kind{width:118px}', self.html)
+        self.assertIn('#position-activity-table col.activity-position{width:180px}', self.html)
+        self.assertIn('#position-activity-table col.activity-amount{width:150px}', self.html)
+        self.assertIn('#position-activity-table col.activity-end{width:140px}', self.html)
         self.assertIn('.position-activity-scroll{overflow-x:auto;', self.html)
         self.assertIn('@media (max-width:720px)', self.html)
-        self.assertIn('position-activity-20260816', self.route)
+        self.assertIn('activity-filter-table-20260816', self.route)
 
     def test_expired_claimable_table_reuses_holder_wallet_ux_contracts(self):
         self.assertIn("#claimable-table{table-layout:fixed;min-width:1040px}", self.html)
@@ -194,14 +245,13 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
 
     def test_vedolo_segmented_controls_use_holder_distribution_pill_ux(self):
         self.assertIn('class="locked-chart-mode vedolo-pill-segment"', self.html)
-        self.assertIn('class="seg vedolo-pill-segment" id="flow-source"', self.html)
         self.assertIn('class="seg vedolo-pill-segment" id="duration-mode"', self.html)
         self.assertIn('.vedolo-pill-segment{', self.html)
         self.assertIn('border-radius:999px', self.html)
         self.assertIn('height:34px;min-height:34px', self.html)
         self.assertIn('.vedolo-pill-segment button.active,', self.html)
         self.assertIn('.vedolo-pill-segment button.active::after{display:none}', self.html)
-        self.assertIn('#flow-source.vedolo-pill-segment{--vedolo-segment-count:3;', self.html)
+        self.assertNotIn('#flow-source.vedolo-pill-segment', self.html)
         self.assertIn("vedolo-pill-controls-20260717", self.route)
 
     def test_locked_chart_places_zoom_meta_in_the_top_right(self):
