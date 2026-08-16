@@ -227,7 +227,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .loading-step.done{border-color:rgba(138,163,123,.28);background:rgba(138,163,123,.08);color:var(--up)}
 .loading-step.active{border-color:var(--gold-line);background:var(--gold-wash);color:var(--gold-hi);box-shadow:0 0 0 1px rgba(201,162,39,.08) inset}
 .loading-step.warn{border-color:rgba(217,163,95,.32);background:rgba(217,163,95,.08);color:var(--warn)}
-.history-table-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line-1);background:transparent;position:relative;z-index:15}
+.history-table-toolbar{--history-tablet-controls-min:716px;display:flex;align-items:flex-end;justify-content:space-between;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line-1);background:transparent;position:relative;z-index:15}
 .history-table-controls{flex:1;min-width:0}
 .history-table-toolbar .lookup-bar{grid-template-columns:minmax(260px,1fr) 176px 190px 210px auto}
 .history-report-menu{position:relative;flex:0 0 auto;align-self:flex-end}
@@ -402,6 +402,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 @media (max-width:1120px){
   .date-top{gap:4px}
   .date-main{font-size:11px}
+  .history-table-toolbar{flex-wrap:wrap}
+  .history-table-controls{flex:1 1 var(--history-tablet-controls-min)}
+  .history-table-toolbar .lookup-bar{grid-template-columns:176px 190px 210px auto}
+  .history-table-toolbar .primary-btn{min-width:104px}
+  .history-table-toolbar .wallet-field{grid-column:1/-1}
 }
 @media (max-width:980px){
   .site-nav-wrap{width:100%;overflow:hidden}
@@ -451,6 +456,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .loading-eta{text-align:left;align-items:flex-start}
   .loading-steps{grid-template-columns:1fr}
   .history-table-toolbar{align-items:stretch;flex-direction:column}
+  .history-table-controls{flex-basis:auto}
   .history-report-menu{align-self:flex-end}
   .report-status{text-align:left}
   .card-head{align-items:flex-start}

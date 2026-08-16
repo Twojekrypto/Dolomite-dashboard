@@ -38,6 +38,86 @@ class HistoryTaxExportContractsTest(unittest.TestCase):
         self.assertIn(f"history/history.js?v={version}", self.html)
         self.assertIn(f"history/history.css?v={version}", self.html)
 
+    def test_history_toolbar_1024_layout_invariant_prevents_run_report_overlap(self):
+        def css_rule(selector, source=None):
+            match = re.search(re.escape(selector) + r"\{(?P<body>[^}]*)\}", source or self.css)
+            self.assertIsNotNone(match, f"CSS rule missing: {selector}")
+            return match.group("body")
+
+        def px_value(body, property_name):
+            match = re.search(rf"(?:^|;){re.escape(property_name)}:(\d+)px(?:;|$)", body)
+            self.assertIsNotNone(match, f"{property_name} px value missing from {body}")
+            return int(match.group(1))
+
+        tablet_media = re.search(
+            r"@media \(max-width:1120px\)\{(?P<rules>.*?)\n\}",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(tablet_media, "History tablet breakpoint is missing")
+        tablet_rules = tablet_media.group("rules")
+        toolbar = css_rule(".history-table-toolbar")
+        toolbar_controls = css_rule(".history-table-controls", tablet_rules)
+        tablet_toolbar = css_rule(".history-table-toolbar", tablet_rules)
+        tablet_lookup = css_rule(".history-table-toolbar .lookup-bar", tablet_rules)
+        tablet_run = css_rule(".history-table-toolbar .primary-btn", tablet_rules)
+        wallet = css_rule(".history-table-toolbar .wallet-field", tablet_rules)
+
+        declared_min_match = re.search(r"--history-tablet-controls-min:(\d+)px", toolbar)
+        self.assertIsNotNone(declared_min_match, "tablet control-row minimum is not exposed")
+        declared_controls_min = int(declared_min_match.group(1))
+        self.assertIn("flex-wrap:wrap", tablet_toolbar)
+        self.assertIn("flex:1 1 var(--history-tablet-controls-min)", toolbar_controls)
+        self.assertIn("grid-column:1/-1", wallet)
+
+        columns_match = re.search(r"grid-template-columns:([^;]+)", tablet_lookup)
+        self.assertIsNotNone(columns_match)
+        fixed_columns = [int(value) for value in re.findall(r"(\d+)px", columns_match.group(1))]
+        self.assertEqual(fixed_columns, [176, 190, 210])
+        lookup_gap = px_value(css_rule(".lookup-bar"), "gap")
+        run_min = px_value(tablet_run, "min-width")
+        derived_controls_min = sum(fixed_columns) + run_min + (lookup_gap * 3)
+        self.assertEqual(
+            declared_controls_min,
+            derived_controls_min,
+            "the active flex-basis must cover every fixed control, the Run button, and all grid gaps",
+        )
+
+        wrap_padding = re.search(r"padding:\d+px (\d+)px \d+px", css_rule(".wrap"))
+        toolbar_padding = re.search(r"padding:\d+px (\d+)px", toolbar)
+        card_border = re.search(r"border:(\d+)px", css_rule(".filter-panel,.history-card,.loading-panel"))
+        self.assertIsNotNone(wrap_padding)
+        self.assertIsNotNone(toolbar_padding)
+        self.assertIsNotNone(card_border)
+        available_at_1024 = 1024 - 2 * (
+            int(wrap_padding.group(1))
+            + int(toolbar_padding.group(1))
+            + int(card_border.group(1))
+        )
+        required_at_1024 = (
+            declared_controls_min
+            + px_value(toolbar, "gap")
+            + px_value(css_rule(".history-report-button"), "width")
+        )
+        self.assertLessEqual(
+            required_at_1024,
+            available_at_1024,
+            "the Run/report controls cannot fit the real 1024px toolbar width",
+        )
+
+    def test_history_toolbar_mobile_resets_tablet_flex_basis(self):
+        mobile_media = re.search(
+            r"@media \(max-width:640px\)\{(?P<rules>.*?)\n\}",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(mobile_media, "History mobile breakpoint is missing")
+        self.assertRegex(
+            mobile_media.group("rules"),
+            r"\.history-table-controls\{[^}]*flex-basis:auto",
+            "the tablet width basis must not become a 716px vertical basis in the mobile column toolbar",
+        )
+
     def test_empty_history_uses_the_same_compact_single_row_as_loading(self):
         script = r"""
 const fs = require("fs");
@@ -356,6 +436,351 @@ vm.runInNewContext(instrumented, sandbox);
         filter_block = filter_match.group("body")
         for custom_value in ["swap", "vestingPair", "exercise", "claim", "addCollateral", "closeBorrow"]:
             self.assertIn(f'action === "{custom_value}"', filter_block)
+
+    def test_vedolo_position_activity_loads_the_shared_classifier_and_actions(self):
+        shared_script = '<script defer src="vedolo-position-activity.js?v=20260817-history-activity-source"></script>'
+        version = re.search(r'const HISTORY_VERSION = "([^"]+)"', self.source).group(1)
+        history_script = f'<script defer src="history/history.js?v={version}"></script>'
+        self.assertIn(shared_script, self.html)
+        self.assertLess(self.html.index(shared_script), self.html.index(history_script))
+
+        options = dict(re.findall(r'<option value="([^"]+)">([^<]+)</option>', self.html))
+        self.assertEqual(
+            {key: options.get(key) for key in ("vedoloTransfer", "vedoloMerge", "vedoloSplit", "vedoloExtend")},
+            {
+                "vedoloTransfer": "Transfer veDOLO",
+                "vedoloMerge": "Merge veDOLO positions",
+                "vedoloSplit": "Split veDOLO position",
+                "vedoloExtend": "Extend veDOLO lock",
+            },
+        )
+
+    def test_vedolo_position_activity_is_wallet_date_chain_scoped_grouped_and_neutral(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const shared = require("./vedolo-position-activity.js");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyVedoloTest = { fetchVedoloHistoryActivity, groupEvents, rowMatchesActionFilter, cleanReportActionLabel, actionDisplayLabel, taxProfileForEvent, reviewReasonForTaxProfile, cleanHistoryReviewStatus, activityGroupForEvent };" + marker);
+const wallet = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const other = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const payload = {
+  locks: [
+    { depositType: 4, sourceTokenId: 1, targetTokenId: 2, timestamp: 100, address: wallet.toUpperCase(), txHash: "0xmerge", block: 10 },
+    { depositType: 3, tokenId: 2, timestamp: 150, beneficiaryAddress: wallet, txHash: "0xextend", block: 11 },
+    { depositType: 5, sourceTokenId: 2, targetTokenId: 3, timestamp: 200, address: wallet, txHash: "0xsplit", block: 13 },
+    { depositType: 1, tokenId: 4, timestamp: 150, address: wallet, txHash: "0xcreate", block: 12, dolo: 50 },
+    { depositType: 4, sourceTokenId: 5, targetTokenId: 6, timestamp: 150, address: other, txHash: "0xother", block: 12 },
+    { depositType: 4, sourceTokenId: 6, targetTokenId: 7, timestamp: 99, address: wallet, txHash: "0xearly", block: 9 },
+  ],
+  transfers: [
+    { tokenId: 3, timestamp: 150, from: wallet, to: other, txHash: "0xshared", block: 12 },
+    { tokenId: 8, timestamp: 150, from: other, to: "0xcccccccccccccccccccccccccccccccccccccccc", txHash: "0xunrelated", block: 12 },
+  ],
+};
+const fetchPaths = [];
+const builderCalls = [];
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  VeDoloPositionActivity: {
+    ...shared,
+    buildHistoryActivityEvents(locks, transfers, address, bounds) {
+      builderCalls.push({ locks, transfers, address, bounds });
+      return shared.buildHistoryActivityEvents(locks, transfers, address, bounds);
+    },
+  },
+  fetch: async path => {
+    fetchPaths.push(path);
+    return { ok: true, status: 200, json: async () => payload };
+  },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  location: { search: "", pathname: "/history/", origin: "https://example.test" },
+  history: { replaceState() {} },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(instrumented, sandbox);
+const api = sandbox.__historyVedoloTest;
+(async () => {
+  const skipped = await api.fetchVedoloHistoryActivity(["arbitrum"], wallet, { start: 100, end: 200 });
+  if (skipped.events.length || skipped.warnings.length || fetchPaths.length) throw new Error(`non-Berachain fetch: ${JSON.stringify({ skipped, fetchPaths })}`);
+
+  const result = await api.fetchVedoloHistoryActivity(["arbitrum", "berachain"], wallet, { start: 100, end: 200 });
+  if (fetchPaths.join(",") !== "vedolo_flows.json") throw new Error(`unexpected data sources: ${JSON.stringify(fetchPaths)}`);
+  if (builderCalls.length !== 1 || builderCalls[0].address !== wallet || builderCalls[0].bounds.start !== 100 || builderCalls[0].bounds.end !== 200) {
+    throw new Error(`wrong shared API call: ${JSON.stringify(builderCalls)}`);
+  }
+  const expectedActions = ["vedoloExtend", "vedoloMerge", "vedoloSplit", "vedoloTransfer"];
+  const actions = result.events.map(event => event.action).sort();
+  if (actions.join(",") !== expectedActions.join(",")) throw new Error(`wrong scoped actions: ${JSON.stringify(result.events)}`);
+  if (result.events.some(event => event.timestamp < 100 || event.timestamp > 200)) throw new Error(`date bounds escaped: ${JSON.stringify(result.events)}`);
+
+  const reportLabels = {
+    vedoloTransfer: "Transfer veDOLO",
+    vedoloMerge: "Merge veDOLO positions",
+    vedoloSplit: "Split veDOLO position",
+    vedoloExtend: "Extend veDOLO lock",
+  };
+  const tableLabels = {
+    vedoloTransfer: "veDOLO Transfer",
+    vedoloMerge: "veDOLO Merge",
+    vedoloSplit: "veDOLO Split",
+    vedoloExtend: "veDOLO Extend",
+  };
+  for (const event of result.events) {
+    const profile = api.taxProfileForEvent(event);
+    if (event.chainKey !== "berachain" || event.role !== "neutral" || event.amount !== "0" || event.usd !== 0 || event.principalDelta !== 0 || event.isPositionManagement !== true) {
+      throw new Error(`non-neutral event: ${JSON.stringify(event)}`);
+    }
+    if (profile.taxCategory !== "vedolo_position_management" || profile.reviewFlag !== "not_applicable" || profile.reviewReason !== "") {
+      throw new Error(`review metadata changed: ${JSON.stringify(profile)}`);
+    }
+    if (api.reviewReasonForTaxProfile(profile) !== "" || api.cleanHistoryReviewStatus([profile], { status: "ok" }, "") !== "ok") {
+      throw new Error(`neutral event entered review: ${JSON.stringify(profile)}`);
+    }
+    if (["dolomite_in", "dolomite_out"].includes(api.activityGroupForEvent(event))) throw new Error(`position management became a deposit/withdrawal: ${JSON.stringify(event)}`);
+    if (api.cleanReportActionLabel(event) !== reportLabels[event.action]) throw new Error(`wrong report label: ${event.action}`);
+    if (api.actionDisplayLabel(event.action, true) !== tableLabels[event.action]) throw new Error(`wrong table label: ${event.action}`);
+
+    const row = api.groupEvents([event])[0];
+    if (!api.rowMatchesActionFilter(row, event.action)) throw new Error(`action filter missed ${event.action}`);
+    if (api.rowMatchesActionFilter(row, "deposit") || api.rowMatchesActionFilter(row, "withdraw")) throw new Error(`internal action matched deposit/withdraw: ${event.action}`);
+  }
+
+  const transfer = result.events.find(event => event.action === "vedoloTransfer");
+  const protocolEvent = {
+    chainKey: "berachain",
+    txHash: transfer.txHash,
+    timestamp: transfer.timestamp,
+    blockNumber: transfer.blockNumber,
+    serialId: "protocol-deposit",
+    action: "deposit",
+    role: "out",
+    label: "Deposit 1 DOLO",
+    asset: "DOLO",
+    amount: "1",
+    usd: 1,
+    taxCategory: "protocol_deposit",
+    reviewFlag: "not_taxable_by_default",
+    reviewReason: "",
+    legs: [],
+  };
+  const grouped = api.groupEvents([protocolEvent, ...result.events]);
+  const sharedRow = grouped.find(row => row.txHash === transfer.txHash);
+  if (!sharedRow || sharedRow.events.length !== 2 || !sharedRow.actions.has("deposit") || !sharedRow.actions.has("vedoloTransfer")) {
+    throw new Error(`same-hash events did not group: ${JSON.stringify(sharedRow)}`);
+  }
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        lookup = self.source[
+            self.source.index("  async function lookup()") : self.source.index("  async function fetchChainHistory", self.source.index("  async function lookup()"))
+        ]
+        self.assertIn("fetchVedoloHistoryActivity(chainKeys, address, bounds)", lookup)
+        self.assertIn(".concat(vedoloActivity.events || [])", lookup)
+        self.assertLess(lookup.index(".concat(vedoloActivity.events || [])"), lookup.index("state.rows = groupEvents(allEvents"))
+
+    def test_vedolo_position_details_preserve_transitions_and_rpc_provenance(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const shared = require("./vedolo-position-activity.js");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyVedoloDetailTest = { groupEvents, detailDisplayEventsForRow, detailHtml, evidenceRowPayload, classificationSourceForEvent, cleanHistoryReportHeaders, cleanHistoryReportCsvRows, state };" + marker);
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  location: { search: "", pathname: "/history/", origin: "https://example.test" },
+  history: { replaceState() {} },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(instrumented, sandbox);
+const api = sandbox.__historyVedoloDetailTest;
+api.state.address = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+api.state.year = "custom";
+api.state.dateFrom = "2026-01-01";
+api.state.dateTo = "2026-12-31";
+api.state.selectedChains = new Set(["berachain"]);
+api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
+api.state.warnings = [];
+
+const locks = [
+  { depositType: 4, sourceTokenId: 7, targetTokenId: 8, timestamp: 200, address: api.state.address, txHash: "0xgrouped", block: 2 },
+  { depositType: 4, sourceTokenId: 7, targetTokenId: 8, timestamp: 200, address: api.state.address, txHash: "0xGROUPED", block: 2 },
+  { depositType: 4, sourceTokenId: 10, targetTokenId: 8, timestamp: 200, address: api.state.address, txHash: "0xgrouped", block: 2 },
+];
+const events = shared.buildHistoryActivityEvents(locks, [], api.state.address);
+if (events.length !== 2) throw new Error(`semantic adapter dedupe changed: ${JSON.stringify(events)}`);
+const row = api.groupEvents(events)[0];
+row.gas = { status: "pending" };
+const details = api.detailDisplayEventsForRow(row);
+if (details.length !== 2 || details.map(event => event.label).join("|") !== "Position #7 -> #8|Position #10 -> #8") {
+  throw new Error(`distinct transitions collapsed: ${JSON.stringify(details)}`);
+}
+const html = api.detailHtml(row);
+if (!html.includes("Position #7 -&gt; #8") || !html.includes("Position #10 -&gt; #8")) {
+  throw new Error(`transition descriptions missing: ${html}`);
+}
+for (const event of events) {
+  if (event.sourceEntity !== "vedoloFlowsRpcLogs" || event.sourceLabel !== "Berachain veDOLO RPC log history") {
+    throw new Error(`adapter provenance missing: ${JSON.stringify(event)}`);
+  }
+  if (api.classificationSourceForEvent(row, event) !== "Berachain veDOLO RPC log history") {
+    throw new Error(`UI provenance is false: ${api.classificationSourceForEvent(row, event)}`);
+  }
+}
+const evidence = api.evidenceRowPayload(row);
+if (evidence.classificationSource !== "Berachain veDOLO RPC log history" || evidence.sourceEntities !== "vedoloFlowsRpcLogs") {
+  throw new Error(`evidence provenance is false: ${JSON.stringify(evidence)}`);
+}
+if (evidence.events.some(event => event.classificationSource !== "Berachain veDOLO RPC log history" || event.sourceEntity !== "vedoloFlowsRpcLogs")) {
+  throw new Error(`event evidence provenance is false: ${JSON.stringify(evidence.events)}`);
+}
+const headers = api.cleanHistoryReportHeaders();
+const csv = api.cleanHistoryReportCsvRows([row], [])[0];
+if (csv[headers.indexOf("source")] !== "Berachain veDOLO RPC log history") throw new Error(JSON.stringify(csv));
+if (csv[headers.indexOf("source_entity")] !== "vedoloFlowsRpcLogs") throw new Error(JSON.stringify(csv));
+
+const primary = {
+  action: "zap",
+  label: "Zap: -1 WBERA / +2 DOLO",
+  taxCategory: "swap",
+  sourceEntity: "zaps",
+  legs: [{ direction: "out", symbol: "WBERA", amount: "1" }, { direction: "in", symbol: "DOLO", amount: "2" }],
+};
+const mixed = { ...row, events: [primary, events[0], { ...events[0] }, events[1]] };
+const mixedDetails = api.detailDisplayEventsForRow(mixed);
+if (mixedDetails.length !== 3 || mixedDetails[0].action !== "zap") {
+  throw new Error(`primary execution hid or duplicated position transitions: ${JSON.stringify(mixedDetails)}`);
+}
+"""
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_vedolo_position_activity_404_blocks_exports_but_valid_empty_payload_does_not_warn(self):
+        script = r"""
+const fs = require("fs");
+const vm = require("vm");
+const shared = require("./vedolo-position-activity.js");
+const source = fs.readFileSync("history/history.js", "utf8");
+const marker = "\n  if (document.readyState === \"loading\") {";
+const instrumented = source.replace(marker, "\n  globalThis.__historyVedolo404Test = { fetchVedoloHistoryActivity, reportExportReadiness, selectAllActions, state, els };" + marker);
+let responseMode = "missing";
+let builderCalls = 0;
+let fetchCalls = 0;
+const sandbox = {
+  console,
+  URL,
+  URLSearchParams,
+  Blob,
+  Set,
+  Map,
+  Date,
+  Math,
+  Intl,
+  VeDoloPositionActivity: {
+    ...shared,
+    buildHistoryActivityEvents(...args) {
+      builderCalls += 1;
+      return shared.buildHistoryActivityEvents(...args);
+    },
+  },
+  fetch: async () => {
+    fetchCalls += 1;
+    return responseMode === "missing"
+      ? { ok: false, status: 404, json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => ({ locks: [], transfers: [] }) };
+  },
+  document: { readyState: "loading", addEventListener() {}, createElement() { return {}; }, body: { appendChild() {} } },
+  location: { search: "", pathname: "/history/", origin: "https://example.test" },
+  history: { replaceState() {} },
+  localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+};
+sandbox.window = sandbox;
+vm.createContext(sandbox);
+vm.runInContext(instrumented, sandbox);
+const api = sandbox.__historyVedolo404Test;
+const wallet = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const rows = [{ chainKey: "berachain", gas: { status: "ok" }, events: [{ action: "deposit" }] }];
+api.els.action = { value: "all", options: [
+  { value: "all" },
+  { value: "deposit" },
+  { value: "vedoloTransfer" },
+  { value: "vedoloMerge" },
+  { value: "vedoloSplit" },
+  { value: "vedoloExtend" },
+] };
+api.state.address = wallet;
+api.state.selectedChains = new Set(["berachain"]);
+api.state.loading = false;
+api.state.filtersDirty = false;
+api.state.earn = { status: "ready", warnings: [] };
+api.selectAllActions();
+(async () => {
+  const [missing, concurrentMissing] = await Promise.all([
+    api.fetchVedoloHistoryActivity(["berachain"], wallet, { start: 100, end: 200 }),
+    api.fetchVedoloHistoryActivity(["berachain"], wallet, { start: 100, end: 200 }),
+  ]);
+  if (missing.events.length !== 0 || missing.warnings.length !== 1 || concurrentMissing.warnings.length !== 1 || builderCalls !== 0 || fetchCalls !== 1) {
+    throw new Error(`404 was cached or concurrent loads were duplicated: ${JSON.stringify({ missing, concurrentMissing, builderCalls, fetchCalls })}`);
+  }
+  if (!missing.warnings[0].startsWith("Berachain") || !missing.warnings[0].includes("veDOLO position activity unavailable")) {
+    throw new Error(`404 warning cannot be scoped: ${JSON.stringify(missing.warnings)}`);
+  }
+  api.state.warnings = missing.warnings;
+  const missingReadiness = api.reportExportReadiness(rows, []);
+  if (missingReadiness.canFullReport || missingReadiness.dataWarnings !== 1 || missingReadiness.activeWarnings[0] !== missing.warnings[0]) {
+    throw new Error(`404 warning did not lock exports: ${JSON.stringify(missingReadiness)}`);
+  }
+
+  responseMode = "valid-empty";
+  const [validEmpty, concurrentValidEmpty] = await Promise.all([
+    api.fetchVedoloHistoryActivity(["berachain"], wallet, { start: 100, end: 200 }),
+    api.fetchVedoloHistoryActivity(["berachain"], wallet, { start: 100, end: 200 }),
+  ]);
+  if (validEmpty.events.length !== 0 || validEmpty.warnings.length !== 0 || concurrentValidEmpty.warnings.length !== 0 || builderCalls !== 2 || fetchCalls !== 2) {
+    throw new Error(`failed payload did not retry cleanly: ${JSON.stringify({ validEmpty, concurrentValidEmpty, builderCalls, fetchCalls })}`);
+  }
+  await api.fetchVedoloHistoryActivity(["berachain"], wallet, { start: 100, end: 200 });
+  if (builderCalls !== 3 || fetchCalls !== 2) throw new Error(`successful payload was not memoized: ${JSON.stringify({ builderCalls, fetchCalls })}`);
+  api.state.warnings = validEmpty.warnings;
+  const emptyReadiness = api.reportExportReadiness(rows, []);
+  if (!emptyReadiness.canFullReport || emptyReadiness.dataWarnings !== 0) {
+    throw new Error(`valid empty payload blocked exports: ${JSON.stringify(emptyReadiness)}`);
+  }
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
+"""
+        result = subprocess.run(["node", "-e", script], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_borrow_position_actions_have_distinct_readable_colors(self):
         self.assertIn(".action-chip.borrow{color:#fb923c", self.css)
@@ -2660,7 +3085,10 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn(".beta-badge{display:inline-flex;align-items:center;height:22px", self.css)
         self.assertIn(".history-scope-line{margin-top:6px;color:var(--fg-3);font-size:13px", self.css)
         self.assertNotIn(".report-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 18px", self.css)
-        self.assertIn(".history-table-toolbar{display:flex;align-items:flex-end;justify-content:space-between", self.css)
+        self.assertRegex(
+            self.css,
+            r"\.history-table-toolbar\{[^}]*display:flex;align-items:flex-end;justify-content:space-between",
+        )
         self.assertIn(".history-table td{padding:12px", self.css)
         self.assertIn(".history-table col.col-chain{width:12%}", self.css)
         self.assertIn(".history-table col.col-date{width:13%}", self.css)
@@ -2726,7 +3154,8 @@ if (api.earnTaxEntriesForCurrentView().length !== 0) throw new Error("dirty filt
         self.assertIn("detailEventFlowLabel(event)", self.source)
         self.assertIn("detailDisplayEventsForRow(row)", self.source)
         self.assertIn("const displayEvents = detailDisplayEventsForRow(row)", self.source)
-        self.assertIn("if (primary) return [primary]", self.source)
+        self.assertIn("const positionEvents = sourceEvents.filter(event => event?.isPositionManagement)", self.source)
+        self.assertIn("return uniqueDetailEvents(primaryEvents.concat(positionEvents))", self.source)
         self.assertIn("isSwapLikeEvent(event)", self.source)
         self.assertIn("cleanSwapOutcomeFlow(event, \"detail\")", self.source)
         self.assertIn("compactVestingTableFlow(event) || stripDetailActionPrefix", self.source)

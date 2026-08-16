@@ -82,9 +82,10 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
 
     def test_recent_locks_use_canonical_external_deposit_classification(self):
         self.assertIn(
-            'script src="vedolo-position-activity.js?v=20260816-position-actions"',
+            'script src="vedolo-position-activity.js?v=20260817-activity-adapters"',
             self.html,
         )
+        self.assertIn("position-activity-helper-20260817", self.route)
         self.assertIn(
             'state.locks.filter(lock => window.VeDoloPositionActivity.isExternalLock(lock))',
             self.html,
@@ -115,7 +116,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('id="position-activity-info"', self.html)
         self.assertIn('id="position-activity-pager"', self.html)
         self.assertIn('activityRows:[]', self.html)
-        self.assertIn('activity:{q:"",kind:"all",sort:"date",asc:false,page:1,perPage:10}', self.html)
+        self.assertIn('activity:{q:"",kind:"all",period:"7",sort:"date",asc:false,page:1,perPage:10}', self.html)
         self.assertIn('window.VeDoloPositionActivity.buildActivityRows(state.locks,state.transfers)', self.html)
         self.assertIn('function renderPositionActivity()', self.html)
         self.assertIn('renderPositionActivity();', self.html)

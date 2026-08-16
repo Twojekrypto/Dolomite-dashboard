@@ -385,7 +385,8 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("background:var(--pf-ex-green)", self.html)
         self.assertIn("const claimRows = rows.filter(r => r.isStableClaim);", self.html)
         self.assertIn("state.vedoloCurrent", self.html)
-        self.assertIn('const activityLocked = rows.filter(r => r.route !== "transfer" && r.route !== "pair").reduce', self.html)
+        self.assertIn('const positionManagementRoutes = new Set(["transfer", "merge", "split", "extend"]);', self.html)
+        self.assertIn('const activityLocked = rows.filter(r => !positionManagementRoutes.has(r.route) && r.route !== "pair").reduce', self.html)
         self.assertIn("const lockedVe = currentVe || activityLocked;", self.html)
         self.assertIn("Total locked", self.html)
         self.assertIn("oDOLO Exercises", self.html)
@@ -401,6 +402,26 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertNotIn('exerciseSummaryItem(\n        "Transfers"', self.html)
         self.assertNotIn("direct DOLO lock", self.html)
         self.assertNotIn("Not mixed with paired DOLO", self.html)
+
+    def test_vedolo_position_management_uses_shared_semantic_rows(self):
+        self.assertIn('<script src="vedolo-position-activity.js?v=20260816-portfolio-activity"></script>', self.html)
+        self.assertIn("window.VeDoloPositionActivity.buildPortfolioActivityRows", self.html)
+        self.assertIn("window.VeDoloPositionActivity.isExternalLock", self.html)
+        self.assertIn("buildPortfolioActivityRows(flowLocks, (flows && flows.transfers) || [], a)", self.html)
+        self.assertIn("appendPortfolioActivityRows(rows, semanticRows)", self.html)
+        self.assertIn("function portfolioActivityIdentity(row)", self.html)
+        self.assertIn("function appendPortfolioActivityRows(rows, activityRows)", self.html)
+        self.assertIn("rows.splice(0, rows.length, ...uniqueRows)", self.html)
+        self.assertIn("sourceTokenId", self.html)
+        self.assertIn("targetTokenId", self.html)
+        self.assertIn("function positionTransitionLabel(row)", self.html)
+        self.assertIn("r.isPositionManagement", self.html)
+        for route in ("transfer", "merge", "split", "extend"):
+            self.assertIn(f'{{ key: "{route}"', self.html)
+        self.assertIn("No new DOLO is locked", self.html)
+
+    def test_portfolio_route_advances_for_position_management_activity(self):
+        self.assertIn("vedolo-position-activity-20260816", self.route)
 
     def test_odolo_pair_snapshot_matches_transaction_rows(self):
         data = json.loads(EXERCISERS_JSON.read_text(encoding="utf-8"))
