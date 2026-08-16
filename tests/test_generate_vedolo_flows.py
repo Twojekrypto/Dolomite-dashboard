@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import rpc_usage
+import generate_vedolo_flows as vedolo_flows
 from generate_vedolo_flows import (
     AUDITED_MISSING_DEPOSIT_BLOCKS,
     DEPOSIT_TOPIC,
@@ -26,6 +27,143 @@ from generate_vedolo_flows import (
 
 
 class GenerateVedoloFlowsTests(unittest.TestCase):
+    def test_fetch_event_logs_does_not_trust_one_empty_provider_when_a_peer_has_events(self):
+        real_log = {
+            "topics": [DEPOSIT_TOPIC],
+            "blockNumber": "0x10",
+            "transactionHash": "0x" + "a" * 64,
+        }
+
+        class _Resp:
+            def __init__(self, result):
+                self._result = result
+
+            def json(self):
+                return {"result": self._result}
+
+        def _fake_post(url, **_kwargs):
+            return _Resp([] if url.endswith("empty") else [real_log])
+
+        with patch("generate_vedolo_flows.RPC_URLS", ["https://rpc.empty", "https://rpc.real"]), \
+             patch("generate_vedolo_flows.requests.post", side_effect=_fake_post), \
+             patch("generate_vedolo_flows.time.sleep", return_value=None):
+            logs = fetch_event_logs(1, 100, DEPOSIT_TOPIC)
+
+        self.assertEqual(logs, [real_log])
+
+    def test_fetch_event_logs_checks_every_peer_before_confirming_empty(self):
+        real_log = {
+            "topics": [DEPOSIT_TOPIC],
+            "blockNumber": "0x11",
+            "transactionHash": "0x" + "b" * 64,
+        }
+
+        class _Resp:
+            def __init__(self, result):
+                self._result = result
+
+            def json(self):
+                return {"result": self._result}
+
+        def _fake_post(url, **_kwargs):
+            return _Resp([real_log] if url.endswith("real") else [])
+
+        with patch(
+            "generate_vedolo_flows.RPC_URLS",
+            ["https://rpc.empty-one", "https://rpc.empty-two", "https://rpc.real"],
+        ), patch("generate_vedolo_flows.requests.post", side_effect=_fake_post), patch(
+            "generate_vedolo_flows.time.sleep", return_value=None
+        ):
+            logs = fetch_event_logs(1, 100, DEPOSIT_TOPIC)
+
+        self.assertEqual(logs, [real_log])
+
+    def test_fetch_event_logs_fails_closed_when_empty_cannot_be_confirmed(self):
+        class _Resp:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        def _fake_post(url, **_kwargs):
+            if url.endswith("empty"):
+                return _Resp({"result": []})
+            return _Resp({"error": {"message": "temporary RPC failure"}})
+
+        with patch("generate_vedolo_flows.RPC_URLS", ["https://rpc.empty", "https://rpc.error"]), \
+             patch("generate_vedolo_flows.requests.post", side_effect=_fake_post), \
+             patch("generate_vedolo_flows.time.sleep", return_value=None):
+            with self.assertRaisesRegex(EventLogFetchError, "unconfirmed empty response"):
+                fetch_event_logs(1, 100, DEPOSIT_TOPIC)
+
+    def test_rejects_candidate_that_drops_finalized_lock_or_unlock(self):
+        previous = {
+            "locks": [{"txHash": "0x" + "1" * 64, "tokenId": 7, "block": 100}],
+            "unlocks": [{"txHash": "0x" + "2" * 64, "tokenId": 8, "block": 200}],
+        }
+        candidate = {
+            "locks": list(previous["locks"]),
+            "unlocks": [],
+        }
+
+        with self.assertRaisesRegex(EventLogFetchError, "dropped 1 finalized unlock"):
+            vedolo_flows.assert_no_immutable_event_regression(
+                previous,
+                candidate,
+                current_block=10_000,
+                reorg_depth=256,
+            )
+
+    def test_allows_candidate_to_replace_only_recent_reorg_window_events(self):
+        previous = {
+            "locks": [{"txHash": "0x" + "1" * 64, "tokenId": 7, "block": 9_900}],
+            "unlocks": [],
+        }
+
+        vedolo_flows.assert_no_immutable_event_regression(
+            previous,
+            {"locks": [], "unlocks": []},
+            current_block=10_000,
+            reorg_depth=256,
+        )
+
+    def test_reconciles_cached_state_with_published_history_before_incremental_scan(self):
+        published = {
+            "locks": [
+                {"txHash": "0x" + "1" * 64, "tokenId": 1, "block": 100},
+                {"txHash": "0x" + "2" * 64, "tokenId": 2, "block": 200},
+            ],
+            "unlocks": [{"txHash": "0x" + "3" * 64, "tokenId": 1, "block": 300}],
+            "transfers": [],
+        }
+        stale_state = {
+            "last_block": 1_000,
+            "transfers_last_block": 1_000,
+            "locks": [published["locks"][1]],
+            "unlocks": [],
+            "transfers": [],
+        }
+
+        repaired = vedolo_flows.reconcile_state_with_published_history(stale_state, published)
+
+        self.assertEqual(len(repaired["locks"]), 2)
+        self.assertEqual(len(repaired["unlocks"]), 1)
+        self.assertEqual(repaired["last_block"], 1_000)
+
+    def test_bootstraps_missing_cache_from_last_published_event_block(self):
+        published = {
+            "locks": [{"txHash": "0x" + "1" * 64, "tokenId": 1, "block": 777}],
+            "unlocks": [],
+            "transfers": [{"txHash": "0x" + "2" * 64, "tokenId": 1, "block": 700, "from": "0x1", "to": "0x2"}],
+        }
+
+        repaired = vedolo_flows.reconcile_state_with_published_history({}, published)
+
+        self.assertEqual(repaired["last_block"], 777)
+        self.assertEqual(repaired["transfers_last_block"], 700)
+        self.assertEqual(repaired["locks"], published["locks"])
+
     def test_audited_recovery_covers_every_current_expired_position_without_a_route(self):
         root = Path(__file__).resolve().parents[1]
         flows = json.loads((root / "vedolo_flows.json").read_text(encoding="utf-8"))

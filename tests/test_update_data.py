@@ -214,6 +214,10 @@ class TestRpcEndpoints(unittest.TestCase):
             "validate_data.py vedolo_holders.json vedolo_stats.json vedolo_expiry.json "
             "data/vedolo-vote-power-history.json"
         )
+        locked_history_validation_position = workflow.index(
+            "validate_vedolo_locked_history.py --flows vedolo_flows.json "
+            "--holders vedolo_holders.json"
+        )
         git_add_position = workflow.index(
             "git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json "
             "vedolo_expiry.json data/vedolo-vote-power-history.json"
@@ -222,6 +226,8 @@ class TestRpcEndpoints(unittest.TestCase):
         self.assertLess(cache_position, update_position)
         self.assertLess(update_position, generator_position)
         self.assertLess(generator_position, validation_position)
+        self.assertLess(validation_position, locked_history_validation_position)
+        self.assertLess(locked_history_validation_position, git_add_position)
         self.assertLess(validation_position, git_add_position)
 
     def test_update_workflow_saves_vedolo_history_state_after_a_failed_generation(self):

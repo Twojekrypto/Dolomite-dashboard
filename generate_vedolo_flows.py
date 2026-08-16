@@ -33,7 +33,11 @@ from rpc_client import get_endpoints as _rpc_endpoints
 RPC_URLS = _rpc_endpoints("berachain")
 
 DEPLOY_BLOCK = 2_925_000  # veDOLO contract first events
-CHUNK_SIZE = 50_000
+# Keep production ranges within the strictest healthy public provider limit.
+# Larger requests have returned a successful but incomplete `[]` response.
+CHUNK_SIZE = 10_000
+MIN_CHUNK_SIZE = 1_000
+FINALITY_REORG_DEPTH = 256
 BLOCK_TIME = 2  # ~2 seconds per block on Berachain
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -393,7 +397,7 @@ def fetch_event_logs(start_block, end_block, topic):
     """
     topic0_filter = list(topic) if isinstance(topic, (list, tuple)) else [topic]
     chunk_size = CHUNK_SIZE
-    if start_block >= end_block:
+    if start_block > end_block:
         return []
 
     total_blocks = end_block - start_block
@@ -408,6 +412,11 @@ def fetch_event_logs(start_block, end_block, topic):
 
         success = False
         last_error = ""
+        accepted_logs = None
+        empty_endpoints = set()
+        restart_with_smaller_chunk = False
+        unique_rpc_count = len(set(RPC_URLS))
+
         for attempt in range(len(RPC_URLS) * 2):
             rpc = RPC_URLS[attempt % len(RPC_URLS)]
             try:
@@ -425,32 +434,59 @@ def fetch_event_logs(start_block, end_block, topic):
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
                     last_error = err_msg or str(r["error"])
-                    if "range" in err_msg.lower() or "limit" in err_msg.lower():
-                        chunk_size = max(chunk_size // 2, 1000)
-                        chunk_end = min(current + chunk_size - 1, end_block)
-                        continue
+                    if (
+                        ("range" in err_msg.lower() or "limit" in err_msg.lower())
+                        and chunk_size > MIN_CHUNK_SIZE
+                    ):
+                        chunk_size = max(chunk_size // 2, MIN_CHUNK_SIZE)
+                        restart_with_smaller_chunk = True
+                        break
                     time.sleep(0.5)
                     continue
 
-                logs = r.get("result", [])
-                all_logs.extend(logs)
+                logs = r.get("result")
+                if not isinstance(logs, list):
+                    last_error = "malformed eth_getLogs result"
+                    continue
+
                 rpc_usage.record_request("eth_getLogs")
-                success = True
-                break
+                if logs:
+                    accepted_logs = logs
+                    success = True
+                    break
+
+                # A single provider can be used in tests/emergency config. In
+                # normal multi-provider production, an empty range is accepted
+                # only after an independent endpoint confirms it.
+                empty_endpoints.add(rpc)
+                if unique_rpc_count == 1 or (
+                    attempt >= len(RPC_URLS) - 1 and len(empty_endpoints) >= 2
+                ):
+                    accepted_logs = []
+                    success = True
+                    break
             except requests.exceptions.Timeout as exc:
                 last_error = f"timeout: {exc}"
-                chunk_size = max(chunk_size // 2, 1000)
-                chunk_end = min(current + chunk_size - 1, end_block)
                 time.sleep(1)
             except Exception as exc:
                 last_error = str(exc)
                 time.sleep(0.5)
 
+        if restart_with_smaller_chunk:
+            continue
+
         if not success:
+            if empty_endpoints:
+                last_error = (
+                    "unconfirmed empty response from "
+                    f"{len(empty_endpoints)} of {unique_rpc_count} independent RPC endpoints"
+                )
             raise EventLogFetchError(
                 f"Failed to fetch veDOLO logs for topic {topic} "
                 f"from block {current:,} to {chunk_end:,}: {last_error or 'unknown RPC error'}"
             )
+
+        all_logs.extend(accepted_logs or [])
 
         current = chunk_end + 1
         chunks_done += 1
@@ -466,6 +502,95 @@ def fetch_event_logs(start_block, end_block, topic):
 
     print(f"  ✅ {len(all_logs):,} events found")
     return all_logs
+
+
+def immutable_event_identity(row):
+    """Stable identity for an immutable veDOLO Deposit/Withdraw event."""
+    return (
+        str(row.get("txHash") or "").lower(),
+        int(row.get("tokenId") or 0),
+        int(row.get("block") or 0),
+    )
+
+
+def assert_no_immutable_event_regression(
+    previous,
+    candidate,
+    current_block,
+    reorg_depth=FINALITY_REORG_DEPTH,
+):
+    """Fail closed if a refresh drops an already-published finalized event."""
+    finalized_through = max(0, int(current_block) - int(reorg_depth))
+    for key, singular in (("locks", "lock"), ("unlocks", "unlock")):
+        old_ids = {
+            immutable_event_identity(row)
+            for row in previous.get(key, [])
+            if int(row.get("block") or 0) <= finalized_through
+        }
+        new_ids = {
+            immutable_event_identity(row)
+            for row in candidate.get(key, [])
+        }
+        missing = old_ids - new_ids
+        if missing:
+            raise EventLogFetchError(
+                f"Candidate veDOLO history dropped {len(missing):,} finalized {singular} "
+                f"event{'s' if len(missing) != 1 else ''}; refusing to overwrite production data"
+            )
+
+
+def _merge_event_rows(published_rows, cached_rows, *, transfer=False):
+    def identity(row):
+        base = immutable_event_identity(row)
+        if not transfer:
+            return base
+        return base + (
+            str(row.get("from") or "").lower(),
+            str(row.get("to") or "").lower(),
+        )
+
+    merged = {identity(row): dict(row) for row in published_rows or []}
+    # Cache values may contain newer annotations, so they win on exact identity.
+    merged.update({identity(row): dict(row) for row in cached_rows or []})
+    return list(merged.values())
+
+
+def reconcile_state_with_published_history(state, published):
+    """Use the checked-in artifact as the minimum cache coverage floor."""
+    state = dict(state or {})
+    if not isinstance(published, dict):
+        return state
+
+    state["locks"] = _merge_event_rows(published.get("locks"), state.get("locks"))
+    state["unlocks"] = _merge_event_rows(published.get("unlocks"), state.get("unlocks"))
+    state["transfers"] = _merge_event_rows(
+        published.get("transfers"), state.get("transfers"), transfer=True
+    )
+
+    if int(state.get("last_block") or 0) <= 0:
+        history_blocks = [
+            int(row.get("block") or 0)
+            for key in ("locks", "unlocks")
+            for row in state.get(key, [])
+        ]
+        if history_blocks:
+            state["last_block"] = max(history_blocks)
+    if int(state.get("transfers_last_block") or 0) <= 0:
+        transfer_blocks = [int(row.get("block") or 0) for row in state.get("transfers", [])]
+        if transfer_blocks:
+            state["transfers_last_block"] = max(transfer_blocks)
+
+    pending = state.get("pending_vedolo_sync")
+    if isinstance(pending, dict):
+        pending = dict(pending)
+        pending["locks"] = _merge_event_rows(published.get("locks"), pending.get("locks"))
+        pending["unlocks"] = _merge_event_rows(published.get("unlocks"), pending.get("unlocks"))
+        pending["transfers"] = _merge_event_rows(
+            published.get("transfers"), pending.get("transfers"), transfer=True
+        )
+        state["pending_vedolo_sync"] = pending
+
+    return state
 
 
 def get_tx_receipt(tx_hash):
@@ -808,8 +933,18 @@ def main():
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 60)
 
-    # Load incremental state
+    # Load incremental state. The checked-in artifact is the minimum coverage
+    # floor, so a missing/stale Actions cache cannot erase historical events.
     state = load_state()
+    if os.path.exists(OUTPUT_JSON):
+        try:
+            with open(OUTPUT_JSON) as published_file:
+                published_output = json.load(published_file)
+            state = reconcile_state_with_published_history(state, published_output)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise EventLogFetchError(
+                f"Could not use published veDOLO history as cache floor: {exc}"
+            ) from exc
     is_incremental = bool(state.get("last_block"))
     if is_incremental:
         print("📦 Found previous state — running incremental sync")
@@ -982,11 +1117,13 @@ def main():
     all_transfers = dedupe_transfers(all_transfers)
     all_transfers.sort(key=lambda x: int(x.get("timestamp") or 0), reverse=True)
 
-    # Data protection: don't overwrite good data with empty
+    # Data protection: don't overwrite good data with empty or incomplete data.
+    previous_output = None
     if os.path.exists(OUTPUT_JSON):
         try:
             with open(OUTPUT_JSON) as f:
                 old = json.load(f)
+            previous_output = old
             old_unlocks = len(old.get("unlocks", []))
             old_locks = len(old.get("locks", []))
             old_transfers = len(old.get("transfers", []))
@@ -1012,6 +1149,9 @@ def main():
         "locks": all_locks,
         "transfers": all_transfers,
     }
+
+    if previous_output is not None:
+        assert_no_immutable_event_regression(previous_output, output, current_block)
 
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, separators=(",", ":"))
