@@ -27,6 +27,10 @@ ODOLO_EXERCISE_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 TRANSFER_TOPIC = ODOLO_EXERCISE_TOPIC
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ZERO_TOPIC = "0x" + ("0" * 64)
+POSITION_ACTION_SELECTORS = {
+    4: "d1c2babb",  # merge(uint256,uint256)
+    5: "4b19becc",  # split(uint256,uint256)
+}
 
 # Single source of truth for endpoints (env-injected Alchemy keys first).
 from rpc_client import get_endpoints as _rpc_endpoints
@@ -149,6 +153,19 @@ AUDITED_MISSING_DEPOSIT_BLOCKS = {
     24293: 21_201_033,
     24309: 21_337_599,
     24349: 21_703_026,
+    24481: 22_244_493,
+    24482: 22_244_500,
+    24483: 22_244_519,
+    24484: 22_244_524,
+    24485: 22_244_530,
+    24486: 22_244_539,
+    24487: 22_244_562,
+    24488: 22_244_568,
+    24489: 22_244_574,
+    24518: 22_275_993,
+    24923: 24_510_973,
+    24930: 24_561_275,
+    24973: 24_670_963,
 }
 
 
@@ -348,6 +365,80 @@ def rpc_call(method, params, timeout=15):
         except Exception:
             time.sleep(0.3)
     return None
+
+
+def parse_position_action_calldata(lock, input_data):
+    """Resolve source/target token IDs for a merge or split Deposit."""
+    deposit_type = int(lock.get("depositType") or -1)
+    kind = "merge" if deposit_type == 4 else "split" if deposit_type == 5 else "position action"
+    expected_selector = POSITION_ACTION_SELECTORS.get(deposit_type)
+    payload = str(input_data or "").strip().lower()
+    if not expected_selector or not payload.startswith("0x") or len(payload) < 138:
+        raise EventLogFetchError(f"could not resolve {kind} transition: malformed calldata")
+    if payload[2:10] != expected_selector:
+        raise EventLogFetchError(f"could not resolve {kind} transition: unexpected selector")
+    try:
+        first_arg = int(payload[10:74], 16)
+        second_arg = int(payload[74:138], 16)
+        event_token_id = int(lock.get("tokenId") or 0)
+    except (TypeError, ValueError) as exc:
+        raise EventLogFetchError(f"could not resolve {kind} transition: invalid token ID") from exc
+
+    source_token_id = first_arg
+    target_token_id = second_arg if deposit_type == 4 else event_token_id
+    if (
+        source_token_id <= 0
+        or target_token_id <= 0
+        or source_token_id == target_token_id
+        or target_token_id != event_token_id
+    ):
+        raise EventLogFetchError(f"could not resolve {kind} transition: token IDs do not reconcile")
+    return {
+        "sourceTokenId": source_token_id,
+        "targetTokenId": target_token_id,
+    }
+
+
+def annotate_position_action_tokens(locks, state, fetcher=None):
+    """Attach exact token transitions to every merge/split Deposit, failing closed."""
+    cache = state.get("position_action_tokens")
+    if not isinstance(cache, dict):
+        cache = {}
+        state["position_action_tokens"] = cache
+
+    def fetch_transaction(tx_hash):
+        if fetcher is not None:
+            return fetcher(tx_hash)
+        response = rpc_call("eth_getTransactionByHash", [tx_hash], timeout=15)
+        return response.get("result") if isinstance(response, dict) else None
+
+    annotated = 0
+    for lock in locks or []:
+        deposit_type = int(lock.get("depositType") or -1)
+        if deposit_type not in POSITION_ACTION_SELECTORS:
+            continue
+        tx_hash = str(lock.get("txHash") or "").strip().lower()
+        kind = "merge" if deposit_type == 4 else "split"
+        if not tx_hash.startswith("0x") or len(tx_hash) != 66:
+            raise EventLogFetchError(f"could not resolve {kind} transition: invalid transaction hash")
+
+        transition = cache.get(tx_hash)
+        if not isinstance(transition, dict):
+            transaction = fetch_transaction(tx_hash)
+            if not isinstance(transaction, dict):
+                raise EventLogFetchError(f"could not resolve {kind} transition for {tx_hash}")
+            transition = parse_position_action_calldata(lock, transaction.get("input"))
+            cache[tx_hash] = transition
+
+        source_token_id = int(transition.get("sourceTokenId") or 0)
+        target_token_id = int(transition.get("targetTokenId") or 0)
+        if target_token_id != int(lock.get("tokenId") or 0) or source_token_id <= 0:
+            raise EventLogFetchError(f"could not resolve {kind} transition for {tx_hash}")
+        lock["sourceTokenId"] = source_token_id
+        lock["targetTokenId"] = target_token_id
+        annotated += 1
+
+    return annotated
 
 
 def get_current_block():
@@ -1108,6 +1199,10 @@ def main():
         print(f"  Resolved {receipt_resolved_odolo:,} fallback locks from transaction receipts")
     all_locks = apply_manual_lock_beneficiary_backfills(all_locks)
     all_locks = apply_airdrop_claim_annotations(all_locks)
+    position_action_count = annotate_position_action_tokens(all_locks, state)
+    if position_action_count:
+        print(f"  Resolved {position_action_count:,} merge/split token transitions")
+        save_state(state)
 
     # Sort by timestamp desc
     all_unlocks.sort(key=lambda x: x["timestamp"], reverse=True)
