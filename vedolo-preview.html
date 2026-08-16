@@ -174,10 +174,16 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .dd-opt-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
 .dd-opt.active .dd-opt-check{background:var(--gold);border-color:var(--gold)}
 .dd-opt.active .dd-opt-check svg{opacity:1}
+.dd-opt-icon{display:grid;place-items:center;width:17px;height:17px;flex:0 0 17px;color:var(--fg-3)}
+.dd-opt-icon svg{width:15px;height:15px}
 #dd-exit-period .dd-btn,#dd-flow-period .dd-btn{min-width:96px}
 #dd-exit-period .dd-panel,#dd-flow-period .dd-panel{min-width:148px;max-width:148px;width:148px}
 #dd-exit-period .dd-opt,#dd-flow-period .dd-opt{gap:9px;padding:8px 9px}
 #dd-exit-period .dd-opt-name,#dd-flow-period .dd-opt-name{white-space:nowrap}
+#dd-flow-source .dd-btn{min-width:176px}
+#dd-flow-source .dd-panel{width:220px}
+#dd-position-activity-kind .dd-btn{min-width:190px}
+#dd-position-activity-kind .dd-panel{width:230px}
 #recent-early-exits-section{
   --recent-exit-accent:var(--down);
   --recent-exit-line:rgba(180,121,107,.38);
@@ -241,7 +247,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   content:"";position:absolute;left:13px;right:13px;bottom:4px;height:2px;border-radius:999px;background:var(--gold);
   box-shadow:0 0 10px rgba(201,162,39,.34)
 }
-#flow-source{grid-auto-columns:minmax(92px,1fr)}
 #duration-mode{grid-auto-columns:minmax(82px,1fr)}
 .locked-chart-mode.vedolo-pill-segment,
 .seg.vedolo-pill-segment{
@@ -250,7 +255,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
 }
-#flow-source.vedolo-pill-segment{--vedolo-segment-count:3;grid-auto-columns:minmax(104px,1fr)}
 .vedolo-pill-segment button{
   position:relative;display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:0;padding:0 14px;
   border:0;border-radius:999px;background:transparent;font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.36px;
@@ -635,20 +639,18 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .flow-col .tag{max-width:96px;overflow:hidden;text-overflow:ellipsis;font-size:9px;padding:2px 6px;letter-spacing:.25px;flex-shrink:0}
 .flow-route-head,.flow-route-cell{text-align:center}
 .flow-route-cell .flow-source-tag{justify-content:center;max-width:100%}
-.position-activity-shell{margin:0 20px 22px;border:1px solid var(--line-2);border-radius:var(--r-lg);overflow:hidden;background:linear-gradient(180deg,rgba(201,162,39,.035),rgba(10,10,12,.62));box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
-.position-activity-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 16px 14px;border-bottom:1px solid var(--line-1);background:rgba(9,9,11,.2)}
-.position-activity-title{display:flex;align-items:center;gap:9px;min-width:0}
-.position-activity-title h3{font-size:13px;font-weight:700;color:var(--fg-1);letter-spacing:-.1px;white-space:nowrap}
-.position-activity-title .flow-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold);flex-shrink:0}
-#position-activity-kind.vedolo-pill-segment{--vedolo-segment-count:5;flex:0 1 auto;min-width:0}
+.position-activity-card{background:linear-gradient(180deg,var(--bg-2),rgba(16,16,18,.98));overflow:visible}
+.position-activity-card .toolbar{align-items:center}
+.position-activity-card .tb-left{flex:1 1 300px;min-width:220px}
+.position-activity-card .tb-right{flex:0 0 auto}
 .position-activity-scroll{overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;background:rgba(9,9,11,.12)}
-#position-activity-table{table-layout:fixed;min-width:880px;--stable-row-height:71px}
-#position-activity-table col.activity-rank{width:44px}
-#position-activity-table col.activity-address{width:290px}
-#position-activity-table col.activity-kind{width:104px}
-#position-activity-table col.activity-position{width:168px}
-#position-activity-table col.activity-amount{width:142px}
-#position-activity-table col.activity-end{width:132px}
+#position-activity-table{table-layout:fixed;min-width:936px;--stable-row-height:71px}
+#position-activity-table col.activity-rank{width:48px}
+#position-activity-table col.activity-address{width:300px}
+#position-activity-table col.activity-kind{width:118px}
+#position-activity-table col.activity-position{width:180px}
+#position-activity-table col.activity-amount{width:150px}
+#position-activity-table col.activity-end{width:140px}
 #position-activity-table th{height:42px;padding:12px 14px;background:var(--bg-1);font-size:10px;font-weight:600;letter-spacing:1.6px}
 #position-activity-table td{height:71px;padding:12px 14px;color:var(--fg-2);font-size:12px;font-weight:600;line-height:1.35}
 #position-activity-table > tbody > tr:hover > td{background:rgba(201,162,39,.026)}
@@ -663,7 +665,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .activity-position-main{font-size:11.5px;color:var(--fg-2);white-space:nowrap}
 .activity-position-sub{font-size:10px;color:var(--fg-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .activity-neutral{color:var(--fg-4)}
-.position-activity-shell .tbl-foot{min-height:59px;padding:12px 14px;background:var(--bg-2);border-top:1px solid var(--line-1)}
+.position-activity-card .tbl-foot{min-height:59px;padding:12px 24px;background:var(--bg-2);border-top:1px solid var(--line-1)}
 .chart-card{min-height:340px}
 .expiry-card .card-body{padding-top:18px}
 .expiry-chart{position:relative;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:stretch}
@@ -761,9 +763,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .hero-stat{border-left:0;padding-left:0;padding-top:14px;border-top:1px solid var(--line-1)}
   .hero-stat:first-child{border-top:0;padding-top:0}
   .toolbar,.card-head,.card-body,.flow-grid,.tbl-foot{padding-left:16px;padding-right:16px}
-  .position-activity-shell{margin-left:16px;margin-right:16px}
-  .position-activity-head{align-items:flex-start;flex-direction:column;padding:14px}
-  #position-activity-kind.vedolo-pill-segment{width:100%;overflow-x:auto;justify-content:flex-start}
+  .position-activity-card .tb-left,.position-activity-card .tb-right{width:100%;min-width:0;flex-basis:auto}
+  .position-activity-card #dd-position-activity-kind{width:100%}
   .search{width:100%}
   .tb-left,.tb-right{width:100%}
   .tb-right{margin-left:0}
@@ -1133,7 +1134,17 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     <div class="toolbar">
       <div class="tb-left">
         <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-flows" type="text" placeholder="Search address or tx hash…" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
-        <div class="seg vedolo-pill-segment" id="flow-source"><button class="active" data-source="all">All</button><button data-source="odolo">via oDOLO</button><button data-source="direct">Direct</button></div>
+        <div class="dd" id="dd-flow-source">
+          <button class="dd-btn" type="button" data-dd="flow-source" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><path d="M10 7h3a4 4 0 0 1 4 4v3"/><path d="M14 17h-3a4 4 0 0 1-4-4v-3"/></svg><span class="lbl">All routes</span><span class="count">3</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4.5 6 7.5l3-3"/></svg></button>
+          <div class="dd-panel" role="menu" aria-label="Lock route">
+            <div class="dd-panel-head">Route</div>
+            <div class="dd-list">
+              <div class="dd-opt active" data-value="all" data-short="All routes" data-count="3"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M7 12h10M12 7v10"/></svg></span><span class="dd-opt-name">All routes</span></div>
+              <div class="dd-opt" data-value="odolo" data-short="via oDOLO" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M14 7l5 5-5 5"/></svg></span><span class="dd-opt-name">via oDOLO</span></div>
+              <div class="dd-opt" data-value="direct" data-short="Direct" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18 18 6M9 6h9v9"/></svg></span><span class="dd-opt-name">Direct</span></div>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="tb-right">
         <div class="dd" id="dd-flow-period">
@@ -1186,35 +1197,50 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <div class="tbl-foot"><div class="tbl-foot-info" id="unlocks-info">--</div><div class="pager" id="unlocks-pager"></div></div>
       </div>
     </div>
-    <div class="position-activity-shell" id="position-activity-card">
-      <div class="position-activity-head">
-        <div class="position-activity-title"><span class="flow-dot"></span><h3>veDOLO Position Activity</h3><span class="flow-head-count" id="position-activity-count">--</span></div>
-        <div class="seg vedolo-pill-segment" id="position-activity-kind" aria-label="Position activity type">
-          <button class="active" type="button" data-activity-kind="all" aria-pressed="true">All</button>
-          <button type="button" data-activity-kind="transfer" aria-pressed="false">Transfers</button>
-          <button type="button" data-activity-kind="merge" aria-pressed="false">Merges</button>
-          <button type="button" data-activity-kind="split" aria-pressed="false">Splits</button>
-          <button type="button" data-activity-kind="extend" aria-pressed="false">Extensions</button>
+  </section>
+
+  <section class="card position-activity-card" id="position-activity-card">
+    <div class="card-head">
+      <div class="card-title"><h2>veDOLO Position Activity</h2><span class="count-badge" id="position-activity-count">--</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="position-activity-meta">Loading data update...</span></div>
+    </div>
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-position-activity" type="text" placeholder="Search wallet, tx or position ID…" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
+      </div>
+      <div class="tb-right">
+        <div class="dd" id="dd-position-activity-kind">
+          <button class="dd-btn" type="button" data-dd="position-activity-kind" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10"/><path d="m13 3 4 4-4 4"/><path d="M17 17H7"/><path d="m11 13-4 4 4 4"/></svg><span class="lbl">All activity</span><span class="count">5</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4.5 6 7.5l3-3"/></svg></button>
+          <div class="dd-panel" role="menu" aria-label="Position activity type">
+            <div class="dd-panel-head">Activity</div>
+            <div class="dd-list">
+              <div class="dd-opt active" data-value="all" data-short="All activity" data-count="5"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M7 12h10M12 7v10"/></svg></span><span class="dd-opt-name">All activity</span></div>
+              <div class="dd-opt" data-value="transfer" data-short="Transfers" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h10m-4-4 4 4-4 4M17 17H7m4-4-4 4 4 4"/></svg></span><span class="dd-opt-name">Transfers</span></div>
+              <div class="dd-opt" data-value="merge" data-short="Merges" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7h4l3 5 3-5h4M12 12v7"/></svg></span><span class="dd-opt-name">Merges</span></div>
+              <div class="dd-opt" data-value="split" data-short="Splits" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v5l-4 4v5M12 10l4 4v5"/></svg></span><span class="dd-opt-name">Splits</span></div>
+              <div class="dd-opt" data-value="extend" data-short="Extensions" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg></span><span class="dd-opt-name">Extensions</span></div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="tbl-wrap position-activity-scroll">
-        <table class="tbl wallet-flow-table" id="position-activity-table" data-address-match-cells>
-          <colgroup>
-            <col class="activity-rank"><col class="activity-address"><col class="activity-kind"><col class="activity-position"><col class="activity-amount"><col class="activity-end">
-          </colgroup>
-          <thead><tr>
-            <th class="sortable sorted" data-sort="date"><span class="th-content"># <span class="sort-arrow"></span></span></th>
-            <th class="sortable" data-sort="address"><span class="th-content">Address <span class="sort-arrow"></span></span></th>
-            <th class="sortable activity-action-head" data-sort="action"><span class="th-content">Action <span class="sort-arrow"></span></span></th>
-            <th class="sortable" data-sort="position"><span class="th-content">Position <span class="sort-arrow"></span></span></th>
-            <th class="num sortable" data-sort="dolo"><span class="th-content">DOLO Moved <span class="sort-arrow"></span></span></th>
-            <th class="num sortable" data-sort="end"><span class="th-content">Lock End <span class="sort-arrow"></span></span></th>
-          </tr></thead>
-          <tbody id="position-activity-body"><tr class="loading-row"><td colspan="6">Loading position activity...</td></tr></tbody>
-        </table>
-      </div>
-      <div class="tbl-foot"><div class="tbl-foot-info" id="position-activity-info">--</div><div class="pager" id="position-activity-pager"></div></div>
     </div>
+    <div class="tbl-wrap position-activity-scroll">
+      <table class="tbl wallet-flow-table" id="position-activity-table" data-address-match-cells>
+        <colgroup>
+          <col class="activity-rank"><col class="activity-address"><col class="activity-kind"><col class="activity-position"><col class="activity-amount"><col class="activity-end">
+        </colgroup>
+        <thead><tr>
+          <th class="sortable sorted wallet-rank-col" data-sort="date"><span class="th-content"># <span class="sort-arrow"></span></span></th>
+          <th class="sortable" data-sort="address"><span class="th-content">Address <span class="sort-arrow"></span></span></th>
+          <th class="sortable activity-action-head" data-sort="action"><span class="th-content">Action <span class="sort-arrow"></span></span></th>
+          <th class="sortable" data-sort="position"><span class="th-content">Position <span class="sort-arrow"></span></span></th>
+          <th class="num sortable" data-sort="dolo"><span class="th-content">DOLO Moved <span class="sort-arrow"></span></span></th>
+          <th class="num sortable" data-sort="end"><span class="th-content">Lock End <span class="sort-arrow"></span></span></th>
+        </tr></thead>
+        <tbody id="position-activity-body"><tr class="loading-row"><td colspan="6">Loading position activity...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="tbl-foot"><div class="tbl-foot-info" id="position-activity-info">--</div><div class="pager" id="position-activity-pager"></div></div>
   </section>
 
   <section class="card claimable-card">
@@ -1308,7 +1334,7 @@ const state = {
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
   expiryUi:{q:""},
   flows:{q:"",period:"7",source:"all",locksSort:"rank",locksAsc:true,unlocksSort:"rank",unlocksAsc:true,locksPage:1,unlocksPage:1,perPage:6},
-  activity:{kind:"all",sort:"date",asc:false,page:1,perPage:6},
+  activity:{q:"",kind:"all",sort:"date",asc:false,page:1,perPage:10},
   durationMode:"dolo",
   durationFocus:-1,
   exitBehaviorFocus:-1
@@ -1426,6 +1452,7 @@ function syncVedoloTableMetadata(){
   setText("recent-exits-meta", dataUpdatedLabel(state.earlyStats?.last_updated));
   setText("holders-meta", dataUpdatedLabel(state.holdersTimestamp));
   setText("flows-meta", dataUpdatedLabel(state.flowsTimestamp));
+  setText("position-activity-meta", dataUpdatedLabel(state.flowsTimestamp));
   setText("claimable-meta", dataUpdatedLabel(state.holdersTimestamp));
   setText("duration-meta", dataUpdatedLabel(state.flowsTimestamp));
   setText("expiry-meta", dataUpdatedLabel(state.expiry?.timestamp));
@@ -2825,15 +2852,12 @@ function renderUnlocks(){
 }
 function getFilteredPositionActivity(){
   const st = state.activity;
-  const cutoff = periodCutoff(state.flows.period);
-  let rows = state.activityRows.filter(row =>
-    (state.flows.period === "all" || num(row.timestamp) >= cutoff)
-    && (st.kind === "all" || row.kind === st.kind)
-  );
-  if(state.flows.q){
-    const q = state.flows.q.toLowerCase();
+  let rows = state.activityRows.filter(row => st.kind === "all" || row.kind === st.kind);
+  if(state.activity.q){
+    const q = state.activity.q.toLowerCase();
     rows = rows.filter(row => [
       row.address,row.from,row.to,row.txHash,row.sourceTokenId,row.targetTokenId,
+      vedoloAddressName(row.address),vedoloAddressName(row.from),vedoloAddressName(row.to),
     ].some(value => String(value || "").toLowerCase().includes(q)));
   }
   const value = row => {
@@ -2893,7 +2917,7 @@ function renderPositionActivity(){
       <td class="num">${moved}</td>
       <td class="num mono">${lockEnd}</td>
     </tr>`;
-  }).join("") : '<tr class="loading-row table-empty-row"><td colspan="6">No position activity in this period.</td></tr>';
+  }).join("") : '<tr class="loading-row table-empty-row"><td colspan="6">No position activity matches the current filters.</td></tr>';
   qs("#position-activity-body").innerHTML = body + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 6);
   setText("position-activity-count", rows.length === state.activityRows.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(state.activityRows.length)}`);
   setText("position-activity-info", formatTableRange(start, rows.length, st.perPage));
@@ -3034,7 +3058,7 @@ function emitQaReport(){
     const activityTable = qs("#position-activity-table");
     const activityWrap = activityTable?.closest(".position-activity-scroll");
     const activityRows = qsa("#position-activity-body tr.stable-data-row");
-    const activityActiveKind = qs("#position-activity-kind button.active");
+    const activityActiveKind = qs("#dd-position-activity-kind .dd-opt.active");
     const exitSuite = qs(".exit-suite");
     const exitCards = qsa(".exit-suite");
     const exitSummary = qs(".exit-summary");
@@ -3207,11 +3231,11 @@ function emitQaReport(){
       activityCardExists: !!activityCard,
       activityRowCount: activityRows.length,
       activityTotalRows: state.activityRows.length,
-      activityActiveKind: activityActiveKind?.dataset.activityKind || "",
+      activityActiveKind: activityActiveKind?.dataset.value || "",
       activityTableMinWidth: activityTable ? getComputedStyle(activityTable).minWidth : "",
       activityWrapClientWidth: activityWrap?.clientWidth || 0,
       activityWrapScrollWidth: activityWrap?.scrollWidth || 0,
-      activityFilterLabels: qsa("#position-activity-kind button").map(button => button.textContent.trim()),
+      activityFilterLabels: qsa("#dd-position-activity-kind .dd-opt-name").map(node => node.textContent.trim()),
       activityActionLabels: activityRows.map(row => row.querySelector(".flow-source-tag")?.textContent.trim() || ""),
       inactiveSortGlyphCount: inactiveSortGlyphs.length,
       exitFirstRowCellCount: exitFirstRowCells.length,
@@ -3281,7 +3305,8 @@ function bindUi(){
   qs("#q-claimable").addEventListener("input", e => { state.claimable.q = e.target.value.trim(); state.claimable.page = 1; renderExpiredClaimable(); wireCopyButtons(); });
   qs("#q-exits").addEventListener("input", e => { state.exitsUi.q = e.target.value.trim(); state.exitsUi.page = 1; renderExits(); wireCopyButtons(); });
   qs("#q-expiry").addEventListener("input", e => { state.expiryUi.q = e.target.value.trim(); renderExpiry(); });
-  qs("#q-flows").addEventListener("input", e => { state.flows.q = e.target.value.trim(); state.flows.locksPage = 1; state.flows.unlocksPage = 1; state.activity.page = 1; renderLocks(); renderUnlocks(); renderPositionActivity(); wireCopyButtons(); });
+  qs("#q-flows").addEventListener("input", e => { state.flows.q = e.target.value.trim(); state.flows.locksPage = 1; state.flows.unlocksPage = 1; renderLocks(); renderUnlocks(); wireCopyButtons(); });
+  qs("#q-position-activity").addEventListener("input", e => { state.activity.q = e.target.value.trim(); state.activity.page = 1; renderPositionActivity(); wireCopyButtons(); });
   wireSearchClears();
   document.addEventListener("click", e => {
     const ddBtn = e.target.closest(".dd-btn[data-dd]");
@@ -3306,37 +3331,25 @@ function bindUi(){
         state.flows.period = value;
         state.flows.locksPage = 1;
         state.flows.unlocksPage = 1;
-        state.activity.page = 1;
         renderLocks();
         renderUnlocks();
+        wireCopyButtons();
+      } else if(root.id === "dd-flow-source"){
+        setDropdown(root.id, value, "all");
+        state.flows.source = value;
+        state.flows.locksPage = 1;
+        renderLocks();
+        wireCopyButtons();
+      } else if(root.id === "dd-position-activity-kind"){
+        setDropdown(root.id, value, "all");
+        state.activity.kind = value;
+        state.activity.page = 1;
         renderPositionActivity();
         wireCopyButtons();
       }
       return;
     }
     if(!e.target.closest(".dd")) closeDropdowns();
-  });
-  qs("#flow-source").addEventListener("click", e => {
-    const btn = e.target.closest("button[data-source]");
-    if(!btn) return;
-    qsa("#flow-source button").forEach(b => b.classList.toggle("active", b === btn));
-    state.flows.source = btn.dataset.source;
-    state.flows.locksPage = 1;
-    renderLocks();
-    wireCopyButtons();
-  });
-  qs("#position-activity-kind").addEventListener("click", e => {
-    const btn = e.target.closest("button[data-activity-kind]");
-    if(!btn) return;
-    qsa("#position-activity-kind button").forEach(button => {
-      const active = button === btn;
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
-    });
-    state.activity.kind = btn.dataset.activityKind;
-    state.activity.page = 1;
-    renderPositionActivity();
-    wireCopyButtons();
   });
   qs("#duration-mode").addEventListener("click", e => {
     const btn = e.target.closest("button[data-mode]");
