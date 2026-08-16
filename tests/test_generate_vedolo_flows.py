@@ -27,6 +27,80 @@ from generate_vedolo_flows import (
 
 
 class GenerateVedoloFlowsTests(unittest.TestCase):
+    @staticmethod
+    def _position_action_input(selector, first, second):
+        return "0x" + selector + hex(first)[2:].zfill(64) + hex(second)[2:].zfill(64)
+
+    def test_parses_merge_and_split_calldata_into_exact_token_transitions(self):
+        merge = vedolo_flows.parse_position_action_calldata(
+            {"depositType": 4, "tokenId": 22},
+            self._position_action_input("d1c2babb", 11, 22),
+        )
+        split = vedolo_flows.parse_position_action_calldata(
+            {"depositType": 5, "tokenId": 33},
+            self._position_action_input("4b19becc", 22, 7 * 10**18),
+        )
+
+        self.assertEqual(merge, {"sourceTokenId": 11, "targetTokenId": 22})
+        self.assertEqual(split, {"sourceTokenId": 22, "targetTokenId": 33})
+
+    def test_position_action_calldata_rejects_wrong_selector_target_and_shape(self):
+        lock = {"depositType": 4, "tokenId": 22}
+        invalid_inputs = [
+            self._position_action_input("4b19becc", 11, 22),
+            self._position_action_input("d1c2babb", 11, 23),
+            "0xd1c2babb01",
+        ]
+        for input_data in invalid_inputs:
+            with self.subTest(input_data=input_data), self.assertRaises(EventLogFetchError):
+                vedolo_flows.parse_position_action_calldata(lock, input_data)
+
+    def test_position_action_annotation_uses_cache_and_fails_closed_when_unresolved(self):
+        merge_tx = "0x" + "a" * 64
+        split_tx = "0x" + "b" * 64
+        locks = [
+            {"depositType": 4, "tokenId": 22, "txHash": merge_tx},
+            {"depositType": 5, "tokenId": 33, "txHash": split_tx},
+        ]
+        inputs = {
+            merge_tx: self._position_action_input("d1c2babb", 11, 22),
+            split_tx: self._position_action_input("4b19becc", 22, 7 * 10**18),
+        }
+        calls = []
+
+        def fetcher(tx_hash):
+            calls.append(tx_hash)
+            return {"input": inputs[tx_hash]}
+
+        state = {}
+        self.assertEqual(
+            vedolo_flows.annotate_position_action_tokens(locks, state, fetcher=fetcher),
+            2,
+        )
+        self.assertEqual(calls, [merge_tx, split_tx])
+        self.assertEqual(locks[0]["sourceTokenId"], 11)
+        self.assertEqual(locks[1]["targetTokenId"], 33)
+
+        replay_rows = [
+            {"depositType": 4, "tokenId": 22, "txHash": merge_tx},
+            {"depositType": 5, "tokenId": 33, "txHash": split_tx},
+        ]
+        self.assertEqual(
+            vedolo_flows.annotate_position_action_tokens(
+                replay_rows,
+                state,
+                fetcher=lambda _tx_hash: self.fail("cache should avoid RPC"),
+            ),
+            2,
+        )
+
+        with self.assertRaisesRegex(EventLogFetchError, "could not resolve merge transition"):
+            vedolo_flows.annotate_position_action_tokens(
+                [{"depositType": 4, "tokenId": 44, "txHash": "0x" + "c" * 64}],
+                {},
+                fetcher=lambda _tx_hash: None,
+            )
+
     def test_fetch_event_logs_does_not_trust_one_empty_provider_when_a_peer_has_events(self):
         real_log = {
             "topics": [DEPOSIT_TOPIC],
@@ -199,6 +273,13 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
 
         self.assertFalse(missing_route_ids - set(AUDITED_MISSING_DEPOSIT_BLOCKS))
         self.assertTrue({12724, 12726, 15001}.issubset(AUDITED_MISSING_DEPOSIT_BLOCKS))
+
+    def test_audited_recovery_covers_the_active_positions_missed_by_incremental_scans(self):
+        expected = {
+            24481, 24482, 24483, 24484, 24485, 24486, 24487, 24488, 24489,
+            24518, 24923, 24930, 24973,
+        }
+        self.assertTrue(expected.issubset(AUDITED_MISSING_DEPOSIT_BLOCKS))
 
     def test_recovers_only_the_exact_missing_deposit_for_an_audited_token_block(self):
         provider = "0x" + "a" * 40

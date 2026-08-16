@@ -80,6 +80,46 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
             self.html,
         )
 
+    def test_recent_locks_use_canonical_external_deposit_classification(self):
+        self.assertIn(
+            'script src="vedolo-position-activity.js?v=20260816-position-actions"',
+            self.html,
+        )
+        self.assertIn(
+            'state.locks.filter(lock => window.VeDoloPositionActivity.isExternalLock(lock))',
+            self.html,
+        )
+        self.assertIn('const sourceKey = routeKeyFromLock(l);', self.html)
+        self.assertNotIn(
+            'const sourceKey = l.isOdolo ? (l.addressSource === "odolo-vester-fallback" ? "protocol" : "odolo") : "direct";',
+            self.html,
+        )
+
+    def test_position_activity_panel_separates_internal_actions_from_locks(self):
+        self.assertIn('id="position-activity-card"', self.html)
+        self.assertIn('veDOLO Position Activity', self.html)
+        self.assertIn('id="position-activity-kind"', self.html)
+        for kind in ("all", "transfer", "merge", "split", "extend"):
+            self.assertIn(f'data-activity-kind="{kind}"', self.html)
+        self.assertIn('class="tbl wallet-flow-table" id="position-activity-table" data-address-match-cells', self.html)
+        self.assertIn('id="position-activity-body"', self.html)
+        self.assertIn('id="position-activity-info"', self.html)
+        self.assertIn('id="position-activity-pager"', self.html)
+        self.assertIn('activityRows:[]', self.html)
+        self.assertIn('activity:{kind:"all",sort:"date",asc:false,page:1,perPage:6}', self.html)
+        self.assertIn('window.VeDoloPositionActivity.buildActivityRows(state.locks,state.transfers)', self.html)
+        self.assertIn('function renderPositionActivity()', self.html)
+        self.assertIn('renderPositionActivity();', self.html)
+        self.assertIn('table === "position-activity-table"', self.html)
+
+    def test_position_activity_panel_has_compact_responsive_contract(self):
+        self.assertIn('.position-activity-shell{', self.html)
+        self.assertIn('#position-activity-table{table-layout:fixed;', self.html)
+        self.assertIn('#position-activity-kind.vedolo-pill-segment{--vedolo-segment-count:5;', self.html)
+        self.assertIn('.position-activity-scroll{overflow-x:auto;', self.html)
+        self.assertIn('@media (max-width:720px)', self.html)
+        self.assertIn('position-activity-20260816', self.route)
+
     def test_expired_claimable_table_reuses_holder_wallet_ux_contracts(self):
         self.assertIn("#claimable-table{table-layout:fixed;min-width:1040px}", self.html)
         self.assertIn("#claimable-table .holder-wallet", self.html)
@@ -143,6 +183,14 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('Date.parse(state.holdersTimestamp || state.statsTimestamp || "")', self.html)
         self.assertIn('window.VeDoloLockedHistory?.activeLockedDoloTotal(', self.html)
         self.assertNotIn('const currentLocked = num(state.stats?.total_locked_dolo);', self.html)
+
+    def test_locked_chart_replays_position_state_instead_of_summing_internal_actions(self):
+        self.assertIn(
+            'window.VeDoloLockedHistory.buildActiveLockedHistory(',
+            self.html,
+        )
+        self.assertNotIn('addDelta(start, amount);', self.html)
+        self.assertNotIn('const tokenUnlock = new Map();', self.html)
 
     def test_vedolo_segmented_controls_use_holder_distribution_pill_ux(self):
         self.assertIn('class="locked-chart-mode vedolo-pill-segment"', self.html)

@@ -49,68 +49,166 @@ def _validated_rows(flows, key):
     return rows
 
 
-def reconstructed_active_locked_dolo(flows, snapshot_sec):
+def _exact_positive_int(row, key):
+    value = row.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        return 0
+    return value
+
+
+def _finite_nonnegative(row, key):
+    value = row.get(key, 0)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise LockedHistoryValidationError(f"invalid {key} value")
+    number = float(value)
+    if not math.isfinite(number) or number < 0:
+        raise LockedHistoryValidationError(f"invalid {key} value")
+    return number
+
+
+def _apply_locked_event(positions, event):
+    row = event["row"]
+    token_id = _exact_positive_int(row, "tokenId")
+    if not token_id:
+        raise LockedHistoryValidationError("invalid position token id")
+    if event["kind"] == "unlock":
+        if token_id not in positions:
+            raise LockedHistoryValidationError(f"unlock source position #{token_id} is missing")
+        positions.pop(token_id)
+        return
+
+    deposit_type = row.get("depositType")
+    if isinstance(deposit_type, bool) or not isinstance(deposit_type, int) or deposit_type not in range(6):
+        raise LockedHistoryValidationError("invalid deposit type")
+    amount = _finite_nonnegative(row, "dolo")
+    locktime = _exact_positive_int(row, "locktime")
+    current = positions.get(token_id)
+
+    if deposit_type in (0, 2):
+        if current is None:
+            raise LockedHistoryValidationError(f"increase source position #{token_id} is missing")
+        positions[token_id] = {
+            "amount": current["amount"] + amount,
+            "end": locktime or current["end"],
+        }
+        return
+    if deposit_type == 1:
+        if current is not None:
+            raise LockedHistoryValidationError(f"create target position #{token_id} already exists")
+        positions[token_id] = {"amount": amount, "end": locktime}
+        return
+    if deposit_type == 3:
+        if current is None:
+            raise LockedHistoryValidationError(f"extend source position #{token_id} is missing")
+        positions[token_id] = {"amount": current["amount"], "end": locktime or current["end"]}
+        return
+    if deposit_type == 4:
+        source_token_id = _exact_positive_int(row, "sourceTokenId")
+        target_token_id = _exact_positive_int(row, "targetTokenId")
+        if not source_token_id or target_token_id != token_id or source_token_id == target_token_id:
+            raise LockedHistoryValidationError(f"merge transition is incomplete for position #{token_id}")
+        source = positions.get(source_token_id)
+        target = positions.get(target_token_id)
+        if source is None:
+            raise LockedHistoryValidationError(f"merge source position #{source_token_id} is missing")
+        if target is None:
+            raise LockedHistoryValidationError(f"merge target position #{target_token_id} is missing")
+        positions.pop(source_token_id)
+        positions[target_token_id] = {
+            "amount": target["amount"] + source["amount"],
+            "end": max(target["end"], source["end"], locktime),
+        }
+        return
+
+    source_token_id = _exact_positive_int(row, "sourceTokenId")
+    target_token_id = _exact_positive_int(row, "targetTokenId")
+    if not source_token_id or target_token_id != token_id or source_token_id == target_token_id:
+        raise LockedHistoryValidationError(f"split transition is incomplete for position #{token_id}")
+    source = positions.get(source_token_id)
+    if source is None:
+        raise LockedHistoryValidationError(f"split source position #{source_token_id} is missing")
+    if target_token_id in positions:
+        raise LockedHistoryValidationError(f"split target position #{target_token_id} already exists")
+    # Event amounts are published to four decimals; a valid positive wei split
+    # can therefore appear as 0.0000 DOLO in the generated artifact.
+    if source["amount"] + 1e-6 < amount:
+        raise LockedHistoryValidationError(f"split amount does not reconcile for position #{source_token_id}")
+    positions[source_token_id] = {"amount": max(0.0, source["amount"] - amount), "end": source["end"]}
+    positions[target_token_id] = {"amount": amount, "end": locktime or source["end"]}
+
+
+def reconstructed_active_positions(flows, snapshot_sec):
     locks = _validated_rows(flows, "locks")
     unlocks = _validated_rows(flows, "unlocks")
-    earliest_unlock = {}
-    for row in unlocks:
-        token_id = int(row.get("tokenId") or 0)
-        timestamp = int(row.get("timestamp") or 0)
-        if token_id > 0 and timestamp > 0:
-            earliest_unlock[token_id] = min(earliest_unlock.get(token_id, timestamp), timestamp)
+    if isinstance(snapshot_sec, bool) or not isinstance(snapshot_sec, int) or snapshot_sec <= 0:
+        raise LockedHistoryValidationError("invalid snapshot timestamp")
+    events = []
+    for kind, rows in (("lock", locks), ("unlock", unlocks)):
+        for row in rows:
+            timestamp = _exact_positive_int(row, "timestamp")
+            block = _exact_positive_int(row, "block")
+            if not timestamp or not block:
+                raise LockedHistoryValidationError(f"invalid {kind} event position")
+            if timestamp <= snapshot_sec:
+                events.append({"kind": kind, "row": row, "timestamp": timestamp, "block": block})
+    events.sort(key=lambda event: (event["timestamp"], event["block"], 0 if event["kind"] == "lock" else 1))
 
-    active = 0.0
-    for row in locks:
-        token_id = int(row.get("tokenId") or 0)
-        amount = float(row.get("dolo") or 0)
-        start = int(row.get("timestamp") or 0)
-        expiry = int(row.get("locktime") or 0)
-        unlock = earliest_unlock.get(token_id)
-        out = unlock if unlock is not None else expiry
-        if (
-            token_id > 0
-            and math.isfinite(amount)
-            and amount >= 0
-            and 0 < start <= snapshot_sec
-            and (out <= 0 or out > snapshot_sec)
-        ):
-            active += amount
-    return active
+    positions = {}
+    for event in events:
+        _apply_locked_event(positions, event)
+    return {
+        token_id: position["amount"]
+        for token_id, position in positions.items()
+        if position["end"] > snapshot_sec
+    }
 
 
-def active_locked_dolo_from_holders(holders_payload, snapshot_sec):
+def reconstructed_active_locked_dolo(flows, snapshot_sec):
+    return sum(reconstructed_active_positions(flows, snapshot_sec).values())
+
+
+def active_positions_from_holders(holders_payload, snapshot_sec):
     holders = holders_payload.get("holders")
     if not isinstance(holders, list):
         raise LockedHistoryValidationError("invalid holder collection")
-    total = 0.0
+    active = {}
     position_count = 0
     for holder in holders:
         details = holder.get("token_details")
         if not isinstance(details, list):
             continue
         for position in details:
-            end = int(position.get("end") or 0)
-            amount = float(position.get("dolo") or 0)
-            if not math.isfinite(amount) or amount < 0:
-                raise LockedHistoryValidationError("invalid holder position amount")
+            token_id = _exact_positive_int(position, "id")
+            end = _exact_positive_int(position, "end")
+            amount = _finite_nonnegative(position, "dolo")
+            if not token_id or not end:
+                raise LockedHistoryValidationError("invalid holder position")
             position_count += 1
             if end > snapshot_sec:
-                total += amount
+                if token_id in active:
+                    raise LockedHistoryValidationError(f"duplicate holder position #{token_id}")
+                active[token_id] = amount
     if position_count == 0:
         raise LockedHistoryValidationError("holder snapshot has no token positions")
-    return total
+    return active
+
+
+def active_locked_dolo_from_holders(holders_payload, snapshot_sec):
+    return sum(active_positions_from_holders(holders_payload, snapshot_sec).values())
 
 
 def validate_locked_history(
     flows,
     holders,
     *,
-    max_absolute_gap=150_000,
-    max_relative_gap=0.0025,
+    max_absolute_gap=1,
+    max_relative_gap=0.00000001,
 ):
     snapshot_sec = _snapshot_seconds(holders)
-    reconstructed = reconstructed_active_locked_dolo(flows, snapshot_sec)
-    active_holders = active_locked_dolo_from_holders(holders, snapshot_sec)
+    reconstructed_positions = reconstructed_active_positions(flows, snapshot_sec)
+    holder_positions = active_positions_from_holders(holders, snapshot_sec)
+    reconstructed = sum(reconstructed_positions.values())
+    active_holders = sum(holder_positions.values())
     gap = abs(reconstructed - active_holders)
     allowed_gap = max(float(max_absolute_gap), active_holders * float(max_relative_gap))
     if gap > allowed_gap:
@@ -119,6 +217,24 @@ def validate_locked_history(
             f"{reconstructed:,.2f} DOLO vs holder positions {active_holders:,.2f} DOLO "
             f"(gap {gap:,.2f}, allowed {allowed_gap:,.2f})"
         )
+    event_ids = set(reconstructed_positions)
+    holder_ids = set(holder_positions)
+    if event_ids != holder_ids:
+        missing = sorted(holder_ids - event_ids)
+        extra = sorted(event_ids - holder_ids)
+        raise LockedHistoryValidationError(
+            "active position IDs mismatch: "
+            f"{len(missing)} missing from event replay, {len(extra)} absent from holder snapshot"
+        )
+    for token_id in sorted(event_ids):
+        event_amount = reconstructed_positions[token_id]
+        holder_amount = holder_positions[token_id]
+        # Flow values are stored to four decimals and holder values to two.
+        if abs(event_amount - holder_amount) > 0.011:
+            raise LockedHistoryValidationError(
+                f"active position amount mismatch for #{token_id}: "
+                f"event history {event_amount:,.4f} vs holder snapshot {holder_amount:,.4f} DOLO"
+            )
     return {
         "snapshot": snapshot_sec,
         "event_active_dolo": reconstructed,

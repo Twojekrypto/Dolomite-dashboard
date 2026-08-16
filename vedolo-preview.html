@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="wallet-table-ux.css?v=20260815-flow-name-date">
 <script src="wallet-table-ux.js?v=20260815-flow-name-date"></script>
 <script src="vedolo-locked-history.js?v=20260816-active-holder-endpoint"></script>
+<script src="vedolo-position-activity.js?v=20260816-position-actions"></script>
 <style>
 :root{
   --up:#75b87b;
@@ -634,6 +635,35 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .flow-col .tag{max-width:96px;overflow:hidden;text-overflow:ellipsis;font-size:9px;padding:2px 6px;letter-spacing:.25px;flex-shrink:0}
 .flow-route-head,.flow-route-cell{text-align:center}
 .flow-route-cell .flow-source-tag{justify-content:center;max-width:100%}
+.position-activity-shell{margin:0 20px 22px;border:1px solid var(--line-2);border-radius:var(--r-lg);overflow:hidden;background:linear-gradient(180deg,rgba(201,162,39,.035),rgba(10,10,12,.62));box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
+.position-activity-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 16px 14px;border-bottom:1px solid var(--line-1);background:rgba(9,9,11,.2)}
+.position-activity-title{display:flex;align-items:center;gap:9px;min-width:0}
+.position-activity-title h3{font-size:13px;font-weight:700;color:var(--fg-1);letter-spacing:-.1px;white-space:nowrap}
+.position-activity-title .flow-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);box-shadow:0 0 10px var(--gold);flex-shrink:0}
+#position-activity-kind.vedolo-pill-segment{--vedolo-segment-count:5;flex:0 1 auto;min-width:0}
+.position-activity-scroll{overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;background:rgba(9,9,11,.12)}
+#position-activity-table{table-layout:fixed;min-width:880px;--stable-row-height:71px}
+#position-activity-table col.activity-rank{width:44px}
+#position-activity-table col.activity-address{width:290px}
+#position-activity-table col.activity-kind{width:104px}
+#position-activity-table col.activity-position{width:168px}
+#position-activity-table col.activity-amount{width:142px}
+#position-activity-table col.activity-end{width:132px}
+#position-activity-table th{height:42px;padding:12px 14px;background:var(--bg-1);font-size:10px;font-weight:600;letter-spacing:1.6px}
+#position-activity-table td{height:71px;padding:12px 14px;color:var(--fg-2);font-size:12px;font-weight:600;line-height:1.35}
+#position-activity-table > tbody > tr:hover > td{background:rgba(201,162,39,.026)}
+#position-activity-table > tbody > tr:hover > td:first-child::before{background:var(--gold)}
+#position-activity-table .holder-wallet{min-width:0}
+#position-activity-table .flow-source-tag{justify-content:center;max-width:100%}
+#position-activity-table .addr-copy,#position-activity-table .addr-debank{display:inline-flex;align-items:center;justify-content:center;overflow:hidden}
+#position-activity-table .addr-copy svg{width:11px;height:11px;pointer-events:none}
+#position-activity-table .addr-debank img{width:14px;height:14px;border-radius:3px;opacity:.7}
+.activity-action-head,.activity-action-cell{text-align:center}
+.activity-position{display:flex;flex-direction:column;gap:4px;min-width:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.activity-position-main{font-size:11.5px;color:var(--fg-2);white-space:nowrap}
+.activity-position-sub{font-size:10px;color:var(--fg-4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.activity-neutral{color:var(--fg-4)}
+.position-activity-shell .tbl-foot{min-height:59px;padding:12px 14px;background:var(--bg-2);border-top:1px solid var(--line-1)}
 .chart-card{min-height:340px}
 .expiry-card .card-body{padding-top:18px}
 .expiry-chart{position:relative;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:stretch}
@@ -731,6 +761,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .hero-stat{border-left:0;padding-left:0;padding-top:14px;border-top:1px solid var(--line-1)}
   .hero-stat:first-child{border-top:0;padding-top:0}
   .toolbar,.card-head,.card-body,.flow-grid,.tbl-foot{padding-left:16px;padding-right:16px}
+  .position-activity-shell{margin-left:16px;margin-right:16px}
+  .position-activity-head{align-items:flex-start;flex-direction:column;padding:14px}
+  #position-activity-kind.vedolo-pill-segment{width:100%;overflow-x:auto;justify-content:flex-start}
   .search{width:100%}
   .tb-left,.tb-right{width:100%}
   .tb-right{margin-left:0}
@@ -1153,6 +1186,35 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
         <div class="tbl-foot"><div class="tbl-foot-info" id="unlocks-info">--</div><div class="pager" id="unlocks-pager"></div></div>
       </div>
     </div>
+    <div class="position-activity-shell" id="position-activity-card">
+      <div class="position-activity-head">
+        <div class="position-activity-title"><span class="flow-dot"></span><h3>veDOLO Position Activity</h3><span class="flow-head-count" id="position-activity-count">--</span></div>
+        <div class="seg vedolo-pill-segment" id="position-activity-kind" aria-label="Position activity type">
+          <button class="active" type="button" data-activity-kind="all" aria-pressed="true">All</button>
+          <button type="button" data-activity-kind="transfer" aria-pressed="false">Transfers</button>
+          <button type="button" data-activity-kind="merge" aria-pressed="false">Merges</button>
+          <button type="button" data-activity-kind="split" aria-pressed="false">Splits</button>
+          <button type="button" data-activity-kind="extend" aria-pressed="false">Extensions</button>
+        </div>
+      </div>
+      <div class="tbl-wrap position-activity-scroll">
+        <table class="tbl wallet-flow-table" id="position-activity-table" data-address-match-cells>
+          <colgroup>
+            <col class="activity-rank"><col class="activity-address"><col class="activity-kind"><col class="activity-position"><col class="activity-amount"><col class="activity-end">
+          </colgroup>
+          <thead><tr>
+            <th class="sortable sorted" data-sort="date"><span class="th-content"># <span class="sort-arrow"></span></span></th>
+            <th class="sortable" data-sort="address"><span class="th-content">Address <span class="sort-arrow"></span></span></th>
+            <th class="sortable activity-action-head" data-sort="action"><span class="th-content">Action <span class="sort-arrow"></span></span></th>
+            <th class="sortable" data-sort="position"><span class="th-content">Position <span class="sort-arrow"></span></span></th>
+            <th class="num sortable" data-sort="dolo"><span class="th-content">DOLO Moved <span class="sort-arrow"></span></span></th>
+            <th class="num sortable" data-sort="end"><span class="th-content">Lock End <span class="sort-arrow"></span></span></th>
+          </tr></thead>
+          <tbody id="position-activity-body"><tr class="loading-row"><td colspan="6">Loading position activity...</td></tr></tbody>
+        </table>
+      </div>
+      <div class="tbl-foot"><div class="tbl-foot-info" id="position-activity-info">--</div><div class="pager" id="position-activity-pager"></div></div>
+    </div>
   </section>
 
   <section class="card claimable-card">
@@ -1237,7 +1299,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 </div>
 <script>
 const state = {
-  stats:{}, holders:[], exits:[], locks:[], unlocks:[], transfers:[], expiry:null, price:null,
+  stats:{}, holders:[], exits:[], locks:[], unlocks:[], transfers:[], activityRows:[], expiry:null, price:null,
   statsTimestamp:null, holdersTimestamp:null, flowsTimestamp:null,
   lockEventsByToken:new Map(), transferEventsByToken:new Map(), exerciseEventsByToken:new Map(),
   lockedHistory:[], votePowerHistory:[], lockedChartMode:"locked", lockedBrush:{from:0,to:0}, lockedBrushReady:false, lockedBrushListenersBound:false,
@@ -1246,6 +1308,7 @@ const state = {
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
   expiryUi:{q:""},
   flows:{q:"",period:"7",source:"all",locksSort:"rank",locksAsc:true,unlocksSort:"rank",unlocksAsc:true,locksPage:1,unlocksPage:1,perPage:6},
+  activity:{kind:"all",sort:"date",asc:false,page:1,perPage:6},
   durationMode:"dolo",
   durationFocus:-1,
   exitBehaviorFocus:-1
@@ -1511,61 +1574,18 @@ function lockedChartValueLabel(value){
   return activeLockedChartSeries().unit === "DOLO" ? fmtDolo(value) : fmtCompact(value) + " Vote Power";
 }
 function buildLockedHistory(){
-  const locks = state.locks || [];
-  const unlocks = state.unlocks || [];
   const snapshotMs = Date.parse(state.holdersTimestamp || state.statsTimestamp || "") || Date.now();
   const snapshotSec = Math.floor(snapshotMs / 1000);
-  const daily = new Map();
-  const tokenEnd = new Map();
-  const tokenUnlock = new Map();
-  const addDelta = (sec, delta) => {
-    if(!Number.isFinite(sec) || sec <= 0 || !Number.isFinite(delta) || !delta) return;
-    const key = lockedChartDayKey(sec);
-    daily.set(key, (daily.get(key) || 0) + delta);
-  };
-
-  locks.forEach(lock => {
-    const tokenId = String(lock.tokenId || "");
-    const locktime = num(lock.locktime);
-    if(tokenId && locktime > 0) tokenEnd.set(tokenId, Math.max(tokenEnd.get(tokenId) || 0, locktime));
-  });
-  unlocks.forEach(unlock => {
-    const tokenId = String(unlock.tokenId || "");
-    const timestamp = num(unlock.timestamp);
-    if(tokenId && timestamp > 0) tokenUnlock.set(tokenId, Math.min(tokenUnlock.get(tokenId) || Infinity, timestamp));
-  });
-  locks.forEach(lock => {
-    const tokenId = String(lock.tokenId || "");
-    const amount = num(lock.dolo);
-    const start = num(lock.timestamp);
-    if(amount <= 0 || start <= 0 || start > snapshotSec) return;
-    addDelta(start, amount);
-    const out = tokenUnlock.get(tokenId) || tokenEnd.get(tokenId) || num(lock.locktime);
-    if(out > 0 && out <= snapshotSec) addDelta(out, -amount);
-  });
-
-  let running = 0;
-  let points = [...daily.keys()].sort().map(key => {
-    running = Math.max(0, running + (daily.get(key) || 0));
-    return [lockedChartDaySecFromKey(key), running];
-  }).filter(p => p[0] > 0 && Number.isFinite(p[1]));
-
-  // The chart measures active, unexpired positions. Contract custody also
-  // includes expired positions waiting to be withdrawn, so it is a different metric.
   const currentLocked = window.VeDoloLockedHistory?.activeLockedDoloTotal(
     state.holders,
     snapshotSec,
   );
-  const snapshotDay = lockedChartDaySecFromMs(snapshotMs);
-  if(currentLocked !== null && Number.isFinite(currentLocked) && currentLocked >= 0){
-    if(points.length){
-      if(points[points.length - 1][0] >= snapshotDay) points[points.length - 1][1] = currentLocked;
-      else points.push([snapshotDay, currentLocked]);
-    }else{
-      points = [[snapshotDay, currentLocked]];
-    }
-  }
-  state.lockedHistory = points.filter(p => p[0] > 0 && p[1] >= 0);
+  state.lockedHistory = window.VeDoloLockedHistory.buildActiveLockedHistory(
+    state.locks,
+    state.unlocks,
+    snapshotSec,
+    currentLocked,
+  ).filter(point => point[0] > 0 && point[1] >= 0);
   state.lockedBrushReady = false;
 }
 function renderLockedChart(){
@@ -1886,8 +1906,20 @@ const FLOW_SOURCE_META = {
   merge:{
     label:"Merge",
     cls:"neutral",
-    title:"Merge Route",
-    body:"Position includes a merge or migration deposit event carrying DOLO."
+    title:"Merged Positions",
+    body:"An existing veDOLO position was burned and its locked DOLO was moved into another position. Total locked principal did not increase."
+  },
+  split:{
+    label:"Split",
+    cls:"neutral",
+    title:"Split Position",
+    body:"Part of an existing veDOLO position was moved into a new position with the same remaining lock. Total locked principal did not increase."
+  },
+  extend:{
+    label:"Extension",
+    cls:"gold",
+    title:"Lock Extension",
+    body:"The position lock end was extended without adding new locked DOLO principal."
   },
   protocol:{
     label:"Protocol",
@@ -2002,7 +2034,8 @@ function routeKeyFromLock(lock){
   const depositType = Number(lock?.depositType || 0);
   if(lock?.claimSource === "airdrop" || lock?.isAirdropClaim) return "airdrop";
   if(lock?.isOdolo) return lock.addressSource === "odolo-vester-fallback" ? "protocol" : "odolo";
-  if(depositType === 4 || depositType === 5) return "merge";
+  if(depositType === 4) return "merge";
+  if(depositType === 5) return "split";
   if(depositType === 3) return "";
   return "direct";
 }
@@ -2148,11 +2181,11 @@ function updatePager(kind,total,page,perPage){
   if(pager) pager.innerHTML = pagerHtml(page,pages,kind);
 }
 function pageChange(kind, action){
-  const map = {holders:state.holder, exits:state.exitsUi, locks:state.flows, unlocks:state.flows, claimable:state.claimable};
+  const map = {holders:state.holder, exits:state.exitsUi, locks:state.flows, unlocks:state.flows, claimable:state.claimable, "position-activity":state.activity};
   const st = map[kind];
   const prop = kind === "locks" ? "locksPage" : kind === "unlocks" ? "unlocksPage" : "page";
-  const total = kind === "holders" ? getFilteredHolders().length : kind === "claimable" ? getFilteredClaimable().length : kind === "exits" ? getFilteredExits().length : kind === "locks" ? getFilteredLocks().length : getFilteredUnlocks().length;
-  const per = kind === "holders" ? state.holder.perPage : kind === "claimable" ? state.claimable.perPage : kind === "exits" ? state.exitsUi.perPage : state.flows.perPage;
+  const total = kind === "holders" ? getFilteredHolders().length : kind === "claimable" ? getFilteredClaimable().length : kind === "exits" ? getFilteredExits().length : kind === "locks" ? getFilteredLocks().length : kind === "unlocks" ? getFilteredUnlocks().length : getFilteredPositionActivity().length;
+  const per = kind === "holders" ? state.holder.perPage : kind === "claimable" ? state.claimable.perPage : kind === "exits" ? state.exitsUi.perPage : kind === "position-activity" ? state.activity.perPage : state.flows.perPage;
   const pages = Math.max(1, Math.ceil(total/per));
   if(action === "first") st[prop] = 1;
   if(action === "prev") st[prop] = Math.max(1, st[prop]-1);
@@ -2730,10 +2763,9 @@ function renderExits(){
 function getBaseFlowRows(kind){
   const cutoff = periodCutoff(state.flows.period);
   const source = state.flows.source;
-  // Types 1/2 = create/increase; 4/5 = merge/migration deposits that also
-  // carry real DOLO — include them so the panels agree with the
-  // Locked-over-time reconstruction (type 3 relocks move no DOLO).
-  const base = kind === "locks" ? state.locks.filter(l => [1,2,4,5].includes(Number(l.depositType)) && num(l.dolo) > 0) : state.unlocks;
+  const base = kind === "locks"
+    ? state.locks.filter(lock => window.VeDoloPositionActivity.isExternalLock(lock))
+    : state.unlocks;
   let rows = base.filter(r => state.flows.period === "all" || num(r.timestamp) >= cutoff);
   if(kind === "locks" && source !== "all") rows = rows.filter(r => source === "odolo" ? !!r.isOdolo : !r.isOdolo);
   if(state.flows.q){
@@ -2759,6 +2791,7 @@ function getFilteredUnlocks(){
 }
 function renderLocks(){
   const rows = getFilteredLocks();
+  const allLocks = state.locks.filter(lock => window.VeDoloPositionActivity.isExternalLock(lock));
   const st = state.flows;
   const pages = Math.max(1, Math.ceil(rows.length/st.perPage));
   if(st.locksPage > pages) st.locksPage = pages;
@@ -2766,12 +2799,12 @@ function renderLocks(){
   const pageRows = rows.slice(start,start+st.perPage);
   const lockRows = pageRows.length ? pageRows.map((l,i) => {
     const displayAddr = l.beneficiaryAddress || l.address;
-    const sourceKey = l.isOdolo ? (l.addressSource === "odolo-vester-fallback" ? "protocol" : "odolo") : "direct";
+    const sourceKey = routeKeyFromLock(l);
     const tag = flowSourceTag(sourceKey);
     return `<tr class="stable-data-row"><td class="rank wallet-rank-col">${fmtInt(start+i+1)}</td><td>${flowAddressCell(displayAddr, l.date, l.txHash, l.timestamp)}</td><td class="flow-route-cell">${tag}</td><td class="num" style="color:var(--up)">${fmtDolo(l.dolo)}</td><td class="num">${fmtLock(l.lockDays)}</td></tr>`;
   }).join("") : '<tr class="loading-row table-empty-row"><td colspan="5">No locks in this period.</td></tr>';
   qs("#locks-body").innerHTML = lockRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 5);
-  setText("locks-count", rows.length === state.locks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(state.locks.length)}`);
+  setText("locks-count", rows.length === allLocks.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(allLocks.length)}`);
   setText("locks-info", formatTableRange(start,rows.length,st.perPage));
   updatePager("locks", rows.length, st.locksPage, st.perPage);
   syncSortHeader("#locks-table", st.locksSort, st.locksAsc);
@@ -2789,6 +2822,83 @@ function renderUnlocks(){
   setText("unlocks-info", formatTableRange(start,rows.length,st.perPage));
   updatePager("unlocks", rows.length, st.unlocksPage, st.perPage);
   syncSortHeader("#unlocks-table", st.unlocksSort, st.unlocksAsc);
+}
+function getFilteredPositionActivity(){
+  const st = state.activity;
+  const cutoff = periodCutoff(state.flows.period);
+  let rows = state.activityRows.filter(row =>
+    (state.flows.period === "all" || num(row.timestamp) >= cutoff)
+    && (st.kind === "all" || row.kind === st.kind)
+  );
+  if(state.flows.q){
+    const q = state.flows.q.toLowerCase();
+    rows = rows.filter(row => [
+      row.address,row.from,row.to,row.txHash,row.sourceTokenId,row.targetTokenId,
+    ].some(value => String(value || "").toLowerCase().includes(q)));
+  }
+  const value = row => {
+    if(st.sort === "date") return num(row.timestamp);
+    if(st.sort === "address") return String(row.address || "").toLowerCase();
+    if(st.sort === "action") return String(row.kind || "");
+    if(st.sort === "position") return num(row.targetTokenId || row.tokenId);
+    if(st.sort === "dolo") return row.dolo == null ? -1 : num(row.dolo);
+    if(st.sort === "end") return row.locktime == null ? -1 : num(row.locktime);
+    return num(row.timestamp);
+  };
+  return rows.slice().sort((a,b) => {
+    const va = value(a);
+    const vb = value(b);
+    const diff = typeof va === "string" || typeof vb === "string"
+      ? String(va).localeCompare(String(vb))
+      : va - vb;
+    if(diff) return st.asc ? diff : -diff;
+    return num(b.timestamp) - num(a.timestamp);
+  });
+}
+function positionActivityPositionCell(row){
+  const source = num(row.sourceTokenId);
+  const target = num(row.targetTokenId || row.tokenId);
+  if(row.kind === "transfer"){
+    return `<div class="activity-position"><span class="activity-position-main">Position #${fmtInt(target)}</span><span class="activity-position-sub" title="From ${esc(row.from || "")}">From ${esc(shortAddr(row.from))}</span></div>`;
+  }
+  if(row.kind === "merge" || row.kind === "split"){
+    return `<div class="activity-position"><span class="activity-position-main">#${fmtInt(source)} → #${fmtInt(target)}</span><span class="activity-position-sub">${row.kind === "merge" ? "Source into target" : "Source into new position"}</span></div>`;
+  }
+  return `<div class="activity-position"><span class="activity-position-main">Position #${fmtInt(target)}</span><span class="activity-position-sub">Lock end updated</span></div>`;
+}
+function positionActivityTooltip(row){
+  if(row.kind === "transfer" && row.from){
+    return `Transferred Position: Position #${fmtInt(row.targetTokenId)} moved from ${shortAddr(row.from)} to ${shortAddr(row.to)}. Locked DOLO principal did not increase.`;
+  }
+  const meta = FLOW_SOURCE_META[row.kind] || FLOW_SOURCE_META.unknown;
+  return `${meta.title}: ${meta.body}`;
+}
+function renderPositionActivity(){
+  const rows = getFilteredPositionActivity();
+  const st = state.activity;
+  const pages = Math.max(1, Math.ceil(rows.length / st.perPage));
+  if(st.page > pages) st.page = pages;
+  const start = (st.page - 1) * st.perPage;
+  const pageRows = rows.slice(start, start + st.perPage);
+  const body = pageRows.length ? pageRows.map((row,index) => {
+    const moved = row.dolo == null || row.kind === "extend"
+      ? '<span class="activity-neutral">—</span>'
+      : row.kind === "split" && num(row.dolo) === 0 ? "<0.01 DOLO" : fmtDolo(row.dolo);
+    const lockEnd = row.locktime == null || row.kind === "transfer" ? '<span class="activity-neutral">—</span>' : esc(holderEndDate(row.locktime));
+    return `<tr class="stable-data-row">
+      <td class="rank wallet-rank-col">${fmtInt(start + index + 1)}</td>
+      <td>${flowAddressCell(row.address, row.date, row.txHash, row.timestamp)}</td>
+      <td class="activity-action-cell">${flowSourceTag(row.kind, positionActivityTooltip(row))}</td>
+      <td>${positionActivityPositionCell(row)}</td>
+      <td class="num">${moved}</td>
+      <td class="num mono">${lockEnd}</td>
+    </tr>`;
+  }).join("") : '<tr class="loading-row table-empty-row"><td colspan="6">No position activity in this period.</td></tr>';
+  qs("#position-activity-body").innerHTML = body + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 6);
+  setText("position-activity-count", rows.length === state.activityRows.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} of ${fmtInt(state.activityRows.length)}`);
+  setText("position-activity-info", formatTableRange(start, rows.length, st.perPage));
+  updatePager("position-activity", rows.length, st.page, st.perPage);
+  syncSortHeader("#position-activity-table", st.sort, st.asc);
 }
 function fmtLock(days){
   days = num(days);
@@ -2814,6 +2924,7 @@ function renderAllTables(){
   renderExits();
   renderLocks();
   renderUnlocks();
+  renderPositionActivity();
   wireCopyButtons();
 }
 function renderStatic(){
@@ -2822,7 +2933,8 @@ function renderStatic(){
   renderExpiry();
   renderDuration();
   syncVedoloTableMetadata();
-  setText("flows-count", `${fmtInt(state.locks.length)} locks / ${fmtInt(state.unlocks.length)} unlocks`);
+  const externalLocks = state.locks.filter(lock => window.VeDoloPositionActivity.isExternalLock(lock)).length;
+  setText("flows-count", `${fmtInt(externalLocks)} locks / ${fmtInt(state.unlocks.length)} unlocks`);
 }
 function renderProtocolInfo(){
   const node = document.getElementById("proto-addrs");
@@ -2918,6 +3030,11 @@ function emitQaReport(){
     const unlocksTxLink = qs("#unlocks-body tr:first-child .flow-address-meta a");
     const flowTxLinks = qsa(".flow-col .tx-only-link");
     const flowSourceTags = qsa("#locks-body .flow-source-tag");
+    const activityCard = qs("#position-activity-card");
+    const activityTable = qs("#position-activity-table");
+    const activityWrap = activityTable?.closest(".position-activity-scroll");
+    const activityRows = qsa("#position-activity-body tr.stable-data-row");
+    const activityActiveKind = qs("#position-activity-kind button.active");
     const exitSuite = qs(".exit-suite");
     const exitCards = qsa(".exit-suite");
     const exitSummary = qs(".exit-summary");
@@ -3087,6 +3204,15 @@ function emitQaReport(){
       flowSourceTagCount: flowSourceTags.length,
       flowSourceTagLabels: flowSourceTags.map(tag => tag.textContent.trim()),
       flowSourceTagHasSharedTooltip: flowSourceTags.every(tag => !!tag.dataset.tooltip),
+      activityCardExists: !!activityCard,
+      activityRowCount: activityRows.length,
+      activityTotalRows: state.activityRows.length,
+      activityActiveKind: activityActiveKind?.dataset.activityKind || "",
+      activityTableMinWidth: activityTable ? getComputedStyle(activityTable).minWidth : "",
+      activityWrapClientWidth: activityWrap?.clientWidth || 0,
+      activityWrapScrollWidth: activityWrap?.scrollWidth || 0,
+      activityFilterLabels: qsa("#position-activity-kind button").map(button => button.textContent.trim()),
+      activityActionLabels: activityRows.map(row => row.querySelector(".flow-source-tag")?.textContent.trim() || ""),
       inactiveSortGlyphCount: inactiveSortGlyphs.length,
       exitFirstRowCellCount: exitFirstRowCells.length,
       exitDateFirstCellText: firstExitDateNode ? (firstExitDateNode.getAttribute("aria-label") || firstExitDateNode.textContent.trim().replace(/\s+/g," ")) : "",
@@ -3155,7 +3281,7 @@ function bindUi(){
   qs("#q-claimable").addEventListener("input", e => { state.claimable.q = e.target.value.trim(); state.claimable.page = 1; renderExpiredClaimable(); wireCopyButtons(); });
   qs("#q-exits").addEventListener("input", e => { state.exitsUi.q = e.target.value.trim(); state.exitsUi.page = 1; renderExits(); wireCopyButtons(); });
   qs("#q-expiry").addEventListener("input", e => { state.expiryUi.q = e.target.value.trim(); renderExpiry(); });
-  qs("#q-flows").addEventListener("input", e => { state.flows.q = e.target.value.trim(); state.flows.locksPage = 1; state.flows.unlocksPage = 1; renderLocks(); renderUnlocks(); wireCopyButtons(); });
+  qs("#q-flows").addEventListener("input", e => { state.flows.q = e.target.value.trim(); state.flows.locksPage = 1; state.flows.unlocksPage = 1; state.activity.page = 1; renderLocks(); renderUnlocks(); renderPositionActivity(); wireCopyButtons(); });
   wireSearchClears();
   document.addEventListener("click", e => {
     const ddBtn = e.target.closest(".dd-btn[data-dd]");
@@ -3180,8 +3306,10 @@ function bindUi(){
         state.flows.period = value;
         state.flows.locksPage = 1;
         state.flows.unlocksPage = 1;
+        state.activity.page = 1;
         renderLocks();
         renderUnlocks();
+        renderPositionActivity();
         wireCopyButtons();
       }
       return;
@@ -3195,6 +3323,19 @@ function bindUi(){
     state.flows.source = btn.dataset.source;
     state.flows.locksPage = 1;
     renderLocks();
+    wireCopyButtons();
+  });
+  qs("#position-activity-kind").addEventListener("click", e => {
+    const btn = e.target.closest("button[data-activity-kind]");
+    if(!btn) return;
+    qsa("#position-activity-kind button").forEach(button => {
+      const active = button === btn;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    state.activity.kind = btn.dataset.activityKind;
+    state.activity.page = 1;
+    renderPositionActivity();
     wireCopyButtons();
   });
   qs("#duration-mode").addEventListener("click", e => {
@@ -3227,6 +3368,9 @@ function bindUi(){
     } else if(table === "unlocks-table"){
       if(state.flows.unlocksSort === key) state.flows.unlocksAsc = !state.flows.unlocksAsc; else { state.flows.unlocksSort = key; state.flows.unlocksAsc = key === "rank"; }
       state.flows.unlocksPage = 1; renderUnlocks();
+    } else if(table === "position-activity-table"){
+      if(state.activity.sort === key) state.activity.asc = !state.activity.asc; else { state.activity.sort = key; state.activity.asc = key === "address" || key === "action" || key === "position"; }
+      state.activity.page = 1; renderPositionActivity();
     }
     wireCopyButtons();
   }));
@@ -3302,6 +3446,7 @@ async function boot(){
     state.locks = (flows?.locks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.unlocks = (flows?.unlocks || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
     state.transfers = (flows?.transfers || []).sort((a,b) => num(b.timestamp)-num(a.timestamp));
+    state.activityRows = window.VeDoloPositionActivity.buildActivityRows(state.locks,state.transfers);
     buildPositionRouteIndexes();
     buildExerciseRouteIndexes(exercises?.exercisers || []);
     state.expiry = expiry;
