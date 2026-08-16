@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="wallet-table-ux.css?v=20260815-flow-name-date">
 <script src="wallet-table-ux.js?v=20260815-flow-name-date"></script>
 <script src="vedolo-locked-history.js?v=20260816-active-holder-endpoint"></script>
-<script src="vedolo-position-activity.js?v=20260816-position-actions"></script>
+<script src="vedolo-position-activity.js?v=20260817-activity-adapters"></script>
 <style>
 :root{
   --up:#75b87b;
@@ -176,10 +176,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .dd-opt.active .dd-opt-check svg{opacity:1}
 .dd-opt-icon{display:grid;place-items:center;width:17px;height:17px;flex:0 0 17px;color:var(--fg-3)}
 .dd-opt-icon svg{width:15px;height:15px}
-#dd-exit-period .dd-btn,#dd-flow-period .dd-btn{min-width:96px}
-#dd-exit-period .dd-panel,#dd-flow-period .dd-panel{min-width:148px;max-width:148px;width:148px}
-#dd-exit-period .dd-opt,#dd-flow-period .dd-opt{gap:9px;padding:8px 9px}
-#dd-exit-period .dd-opt-name,#dd-flow-period .dd-opt-name{white-space:nowrap}
+#dd-exit-period .dd-btn,#dd-flow-period .dd-btn,#dd-position-activity-period .dd-btn{min-width:96px}
+#dd-exit-period .dd-panel,#dd-flow-period .dd-panel,#dd-position-activity-period .dd-panel{min-width:148px;max-width:148px;width:148px}
+#dd-exit-period .dd-opt,#dd-flow-period .dd-opt,#dd-position-activity-period .dd-opt{gap:9px;padding:8px 9px}
+#dd-exit-period .dd-opt-name,#dd-flow-period .dd-opt-name,#dd-position-activity-period .dd-opt-name{white-space:nowrap}
 #dd-flow-source .dd-btn{min-width:176px}
 #dd-flow-source .dd-panel{width:220px}
 #dd-position-activity-kind .dd-btn{min-width:190px}
@@ -763,8 +763,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .hero-stat{border-left:0;padding-left:0;padding-top:14px;border-top:1px solid var(--line-1)}
   .hero-stat:first-child{border-top:0;padding-top:0}
   .toolbar,.card-head,.card-body,.flow-grid,.tbl-foot{padding-left:16px;padding-right:16px}
-  .position-activity-card .tb-left,.position-activity-card .tb-right{width:100%;min-width:0;flex-basis:auto}
-  .position-activity-card #dd-position-activity-kind{width:100%}
+  .position-activity-card .toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(96px,auto);gap:10px;align-items:start}
+  .position-activity-card .tb-left,.position-activity-card .tb-right{display:contents}
+  .position-activity-card .search{grid-column:1/-1;width:100%}
+  .position-activity-card #dd-position-activity-kind{grid-column:1;width:auto;min-width:0}
+  .position-activity-card #dd-position-activity-kind .dd-btn{min-width:0}
+  .position-activity-card #dd-position-activity-period{grid-column:2;width:auto}
+  .position-activity-card #dd-position-activity-period .dd-panel{left:auto;right:0}
   .search{width:100%}
   .tb-left,.tb-right{width:100%}
   .tb-right{margin-left:0}
@@ -1207,8 +1212,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     <div class="toolbar">
       <div class="tb-left">
         <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-position-activity" type="text" placeholder="Search wallet, tx or position ID…" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
-      </div>
-      <div class="tb-right">
         <div class="dd" id="dd-position-activity-kind">
           <button class="dd-btn" type="button" data-dd="position-activity-kind" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10"/><path d="m13 3 4 4-4 4"/><path d="M17 17H7"/><path d="m11 13-4 4 4 4"/></svg><span class="lbl">All activity</span><span class="count">5</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4.5 6 7.5l3-3"/></svg></button>
           <div class="dd-panel" role="menu" aria-label="Position activity type">
@@ -1219,6 +1222,22 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
               <div class="dd-opt" data-value="merge" data-short="Merges" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 7h4l3 5 3-5h4M12 12v7"/></svg></span><span class="dd-opt-name">Merges</span></div>
               <div class="dd-opt" data-value="split" data-short="Splits" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v5l-4 4v5M12 10l4 4v5"/></svg></span><span class="dd-opt-name">Splits</span></div>
               <div class="dd-opt" data-value="extend" data-short="Extensions" data-count="1"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg></span><span class="dd-opt-name">Extensions</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tb-right">
+        <div class="dd" id="dd-position-activity-period">
+          <button class="dd-btn" type="button" data-dd="position-activity-period" aria-expanded="false"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="lbl">7D</span><svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4.5 6 7.5l3-3"/></svg></button>
+          <div class="dd-panel" role="menu" aria-label="Position activity period">
+            <div class="dd-panel-head">Period</div>
+            <div class="dd-list">
+              <div class="dd-opt" data-value="1" data-short="24H"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">24 hours</span></div>
+              <div class="dd-opt active" data-value="7" data-short="7D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">7 days</span></div>
+              <div class="dd-opt" data-value="30" data-short="30D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">30 days</span></div>
+              <div class="dd-opt" data-value="90" data-short="90D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">90 days</span></div>
+              <div class="dd-opt" data-value="180" data-short="180D"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">180 days</span></div>
+              <div class="dd-opt" data-value="all" data-short="All"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 6.5 5 9l4.5-6"/></svg></span><span class="dd-opt-name">All time</span></div>
             </div>
           </div>
         </div>
@@ -1329,12 +1348,12 @@ const state = {
   statsTimestamp:null, holdersTimestamp:null, flowsTimestamp:null,
   lockEventsByToken:new Map(), transferEventsByToken:new Map(), exerciseEventsByToken:new Map(),
   lockedHistory:[], votePowerHistory:[], lockedChartMode:"locked", lockedBrush:{from:0,to:0}, lockedBrushReady:false, lockedBrushListenersBound:false,
-  holder:{q:"",sort:"rank",asc:true,page:1,perPage:12,expanded:null,detailSort:"dolo",detailAsc:false},
-  claimable:{q:"",sort:"dolo",asc:false,page:1,perPage:12},
+  holder:{q:"",sort:"rank",asc:true,page:1,perPage:10,expanded:null,detailSort:"dolo",detailAsc:false},
+  claimable:{q:"",sort:"dolo",asc:false,page:1,perPage:10},
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
   expiryUi:{q:""},
   flows:{q:"",period:"7",source:"all",locksSort:"rank",locksAsc:true,unlocksSort:"rank",unlocksAsc:true,locksPage:1,unlocksPage:1,perPage:6},
-  activity:{q:"",kind:"all",sort:"date",asc:false,page:1,perPage:10},
+  activity:{q:"",kind:"all",period:"7",sort:"date",asc:false,page:1,perPage:10},
   durationMode:"dolo",
   durationFocus:-1,
   exitBehaviorFocus:-1
@@ -2852,7 +2871,8 @@ function renderUnlocks(){
 }
 function getFilteredPositionActivity(){
   const st = state.activity;
-  let rows = state.activityRows.filter(row => st.kind === "all" || row.kind === st.kind);
+  const cutoff = periodCutoff(st.period);
+  let rows = window.VeDoloPositionActivity.filterActivityRows(state.activityRows,{kind:st.kind === "all" ? null : st.kind,address:"",startTimestamp:st.period === "all" ? undefined : cutoff,endTimestamp:undefined});
   if(state.activity.q){
     const q = state.activity.q.toLowerCase();
     rows = rows.filter(row => [
@@ -3343,6 +3363,11 @@ function bindUi(){
       } else if(root.id === "dd-position-activity-kind"){
         setDropdown(root.id, value, "all");
         state.activity.kind = value;
+        state.activity.page = 1;
+        renderPositionActivity();
+        wireCopyButtons();
+      } else if(root.id === "dd-position-activity-period"){
+        state.activity.period = value;
         state.activity.page = 1;
         renderPositionActivity();
         wireCopyButtons();

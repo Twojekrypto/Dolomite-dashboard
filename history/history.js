@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260803-table-system-table-consistency-20260803a-compact-empty-state";
+  const HISTORY_VERSION = "history-20260817-vedolo-final-fix";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -41,6 +41,8 @@
   const REWARD_CLAIM_EVENTS_URL = "data/reward-claim-events.json";
   const REWARD_CLAIM_EVENTS_BASE = "data/reward-claim-events";
   const ODOLO_CLAIM_EVENTS_URL = "data/odolo-claim-events.json";
+  const VEDOLO_RPC_SOURCE_ENTITY = "vedoloFlowsRpcLogs";
+  const VEDOLO_RPC_SOURCE_LABEL = "Berachain veDOLO RPC log history";
   const REWARD_CLAIM_INDEX_CHAIN_KEYS = new Set(["berachain", "arbitrum", "mantle", "xlayer"]);
   const REWARD_CLAIM_INDEX_STALE_GRACE_SECONDS = 24 * 60 * 60;
   const ODOLO_REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026";
@@ -56,6 +58,7 @@
   const BORROW_POSITION_CLOSE_TOPIC = "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7";
   const OPEN_BORROW_POSITION_SELECTOR = "0xbb0a6fa5";
   const CLOSE_BORROW_POSITION_SELECTOR = "0x8fb8b6c7";
+  let vedoloFlowsPayloadPromise = null;
 
   const GRAPH_BASE = "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs";
   const CHAINS = {
@@ -187,6 +190,10 @@
     odoloClaim: "Claim oDOLO",
     rewardClaim: "Claim Rewards",
     rewardLevelUpdate: "Reward Level Update",
+    vedoloTransfer: "Transfer veDOLO",
+    vedoloMerge: "Merge veDOLO positions",
+    vedoloSplit: "Split veDOLO position",
+    vedoloExtend: "Extend veDOLO lock",
     classificationPending: "Checking classification...",
   };
 
@@ -221,6 +228,10 @@
     odoloClaim: "CLAIM",
     rewardClaim: "CLAIM",
     rewardLevelUpdate: "Reward Level",
+    vedoloTransfer: "veDOLO Transfer",
+    vedoloMerge: "veDOLO Merge",
+    vedoloSplit: "veDOLO Split",
+    vedoloExtend: "veDOLO Extend",
     classificationPending: "Checking classification...",
   };
 
@@ -1352,7 +1363,7 @@
       setStatus(`Scanning Dolomite subgraphs for ${bounds.label}...`);
       const chainKeys = selectedChainKeys();
       state.chainTotal = chainKeys.length;
-      const [chainResults, balanceReplay] = await Promise.all([
+      const [chainResults, balanceReplay, vedoloActivity] = await Promise.all([
         mapLimit(chainKeys, HISTORY_CHAIN_CONCURRENCY, async chainKey => {
           const result = await fetchChainHistory(chainKey, address, bounds);
           if (runId === state.runId) {
@@ -1362,10 +1373,12 @@
           return result;
         }),
         fetchBorrowReplayBalances(chainKeys, address, bounds),
+        fetchVedoloHistoryActivity(chainKeys, address, bounds),
       ]);
       if (runId !== state.runId) return;
-      const allEvents = chainResults.flatMap(result => result.events || []);
-      state.warnings = chainResults.flatMap(result => result.warnings || []).concat(balanceReplay.warnings || []);
+      const allEvents = chainResults.flatMap(result => result.events || []).concat(vedoloActivity.events || []);
+      state.warnings = chainResults.flatMap(result => result.warnings || [])
+        .concat(balanceReplay.warnings || [], vedoloActivity.warnings || []);
       state.rows = groupEvents(allEvents, { currentBalances: balanceReplay.balances, currentBalanceReplay: balanceReplay.currentBalanceReplay });
       markReceiptClassificationPendingRows(state.rows);
       recordLoadedHistoryScope(address, chainKeys);
@@ -2658,7 +2671,18 @@
     const borrowSource = borrowClassificationSourceForEvent(event);
     if (borrowSource) return borrowSource;
     if (isSwapLikeEvent(event) && rowHasSwapRouteWithoutBorrowLifecycle(row)) return "Swap route; no borrow lifecycle signal";
-    return event ? "Dolomite subgraph" : "";
+    return historyDataSourceLabelForEvent(event);
+  }
+
+  function historyDataSourceLabelForEvent(event) {
+    if (!event) return "";
+    const sourceLabel = String(event.sourceLabel || "").trim();
+    if (sourceLabel) return sourceLabel;
+    if (event.sourceEntity === "odoloRewardClaimEvents" || event.sourceEntity === "rewardClaimEvents") {
+      return "Dolomite RewardClaimed log";
+    }
+    if (event.sourceEntity === VEDOLO_RPC_SOURCE_ENTITY) return VEDOLO_RPC_SOURCE_LABEL;
+    return "Dolomite subgraph";
   }
 
   function borrowClassificationSourceForEvent(event) {
@@ -3479,6 +3503,41 @@
     } catch (error) {
       return { payload: null, error: error.message || String(error) };
     }
+  }
+
+  async function fetchVedoloHistoryActivity(chainKeys, address, bounds) {
+    if (!(chainKeys || []).includes("berachain")) return { events: [], warnings: [] };
+    const result = await fetchVedoloFlowsPayload();
+    if (result.error || result.payload === null) {
+      return {
+        events: [],
+        warnings: [`Berachain veDOLO position activity unavailable: ${result.error || "vedolo_flows.json was not found"}`],
+      };
+    }
+    const buildHistoryActivityEvents = window.VeDoloPositionActivity?.buildHistoryActivityEvents;
+    if (typeof buildHistoryActivityEvents !== "function") {
+      return {
+        events: [],
+        warnings: ["Berachain veDOLO position activity classifier is unavailable."],
+      };
+    }
+    const flows = result.payload || {};
+    const events = buildHistoryActivityEvents(flows.locks, flows.transfers, address, bounds);
+    return { events: Array.isArray(events) ? events : [], warnings: [] };
+  }
+
+  function fetchVedoloFlowsPayload() {
+    if (vedoloFlowsPayloadPromise) return vedoloFlowsPayloadPromise;
+    const request = fetchOptionalJson("vedolo_flows.json");
+    vedoloFlowsPayloadPromise = request;
+    request.then(result => {
+      if ((result.error || result.payload === null) && vedoloFlowsPayloadPromise === request) {
+        vedoloFlowsPayloadPromise = null;
+      }
+    }, () => {
+      if (vedoloFlowsPayloadPromise === request) vedoloFlowsPayloadPromise = null;
+    });
+    return request;
   }
 
   async function fetchEarnYearYields(earn, address, bounds, runId) {
@@ -4378,11 +4437,16 @@
     const displayEvents = events.filter(event => !isBorrowPositionLifecycleEvent(event));
     const sourceEvents = displayEvents.length ? displayEvents : events;
     if (sourceEvents.length <= 1) return sourceEvents;
-    const vestingEvents = sourceEvents.filter(event => event?.action === "vesting");
-    if (vestingEvents.length) return uniqueDetailEvents(vestingEvents);
-    const primary = primaryTransactionEvent(sourceEvents);
-    if (primary) return [primary];
-    return uniqueDetailEvents(sourceEvents);
+    const positionEvents = sourceEvents.filter(event => event?.isPositionManagement);
+    const otherEvents = sourceEvents.filter(event => !event?.isPositionManagement);
+    const vestingEvents = otherEvents.filter(event => event?.action === "vesting");
+    const primary = primaryTransactionEvent(otherEvents);
+    const primaryEvents = vestingEvents.length
+      ? uniqueDetailEvents(vestingEvents)
+      : primary
+        ? [primary]
+        : uniqueDetailEvents(otherEvents);
+    return uniqueDetailEvents(primaryEvents.concat(positionEvents));
   }
 
   function isBorrowPositionLifecycleEvent(event) {
@@ -4394,6 +4458,9 @@
     return (Array.isArray(events) ? events : []).filter(event => {
       const key = [
         event?.action || "",
+        event?.serialId || "",
+        event?.sourceTokenId || "",
+        event?.targetTokenId || "",
         event?.borrowSemanticAction || "",
         event?.vestingFlowLabel || "",
         detailEventFlowLabel(event),
@@ -6011,14 +6078,8 @@
   }
 
   function cleanHistoryTransactionSource(gas, chain, row = null) {
-    const sourceEntities = new Set((row?.events || []).map(event => event?.sourceEntity).filter(Boolean));
-    const hasRewardClaimSource = sourceEntities.has("odoloRewardClaimEvents") || sourceEntities.has("rewardClaimEvents");
-    const sources = hasRewardClaimSource
-      ? ["Dolomite RewardClaimed log"]
-      : ["Dolomite subgraph"];
-    if (sourceEntities.size > 1 && hasRewardClaimSource) {
-      sources.unshift("Dolomite subgraph");
-    }
+    const sources = Array.from(new Set((row?.events || []).map(historyDataSourceLabelForEvent).filter(Boolean)));
+    if (!sources.length) sources.push("Dolomite subgraph");
     if (gas?.status && gas.status !== "pending" && gas.status !== FAST_GAS_STATUS) sources.push("RPC receipt gas");
     if (gas?.paidByWallet && Number.isFinite(Number(gas.historicalPrice))) {
       sources.push(`${chain.priceId || "native asset"} historical gas price`);

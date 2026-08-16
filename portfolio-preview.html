@@ -12,6 +12,7 @@
 <script defer src="shared-hover-tooltips.js?v=20260812-row-focusout"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
+<script src="vedolo-position-activity.js?v=20260816-portfolio-activity"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (premium, restrained)
@@ -1680,6 +1681,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 #pf-exercises-section .pf-ex-usdc{color:var(--pf-ex-green)}
 #pf-exercises-section .pf-ex-pair{color:var(--fg-1)}
 #pf-exercises-section .pf-ex-price{color:#9ab7c2}
+#pf-exercises-section .pf-ex-position{color:var(--fg-2);font-size:11px;white-space:nowrap}
 #pf-exercises-section .pf-ex-muted{font-family:var(--mono);font-size:13px;color:var(--fg-4)}
 #pf-exercises-section .pf-ex-lock{
   display:inline-flex;
@@ -2828,7 +2830,34 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   function pairedDoloAmount(tx){
     return Number(tx?.dolo_paid ?? tx?.doloPaid ?? tx?.dolo_paired ?? tx?.pairedDolo ?? tx?.vedolo ?? 0) || 0;
   }
+  function portfolioActivityIdentity(row){
+    const hash = String(row && (row.hash || row.txHash) || "").trim().toLowerCase();
+    if (!hash) return "";
+    const route = String(row && row.route || "");
+    const source = String((row && (row.sourceTokenId ?? row.tokenId)) ?? "");
+    const target = String((row && (row.targetTokenId ?? row.tokenId)) ?? "");
+    return `${hash}:${route}:${source}:${target}`;
+  }
+  function appendPortfolioActivityRows(rows, activityRows){
+    const seen = new Set();
+    const uniqueRows = rows.filter(row => {
+      const identity = portfolioActivityIdentity(row);
+      if (!identity) return true;
+      if (seen.has(identity)) return false;
+      seen.add(identity);
+      return true;
+    });
+    rows.splice(0, rows.length, ...uniqueRows);
+    (activityRows || []).forEach(row => {
+      const identity = portfolioActivityIdentity(row);
+      if (identity && seen.has(identity)) return;
+      rows.push(row);
+      if (identity) seen.add(identity);
+    });
+  }
   function buildExerciseRows(exer, flows, addr, currentVedolo){
+    const buildPortfolioActivityRows = window.VeDoloPositionActivity && window.VeDoloPositionActivity.buildPortfolioActivityRows;
+    const isExternalLock = window.VeDoloPositionActivity && window.VeDoloPositionActivity.isExternalLock;
     const seen = new Set();
     const seenTokenIds = new Set();
     const flowLocks = (flows && flows.locks) || [];
@@ -2875,6 +2904,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     });
     const a = normAddr(addr);
     flowLocks.forEach(lock => {
+      if (isExternalLock && !isExternalLock(lock)) return;
       const hash = lock.txHash || "";
       const tokenId = lock && lock.tokenId != null ? String(lock.tokenId) : "";
       if (!hash || seen.has(hash.toLowerCase())) return;
@@ -2920,6 +2950,8 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
         transferDirection: direction,
         from,
         to,
+        sourceTokenId: tokenId,
+        targetTokenId: tokenId,
         tokenId,
         vedolo: Number(lock && lock.dolo) || Number(transfer.dolo) || 0,
         lockDays: Number(lock && lock.lockDays) || 0,
@@ -2965,6 +2997,10 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       });
       seenTokenIds.add(tokenId);
     });
+    const semanticRows = buildPortfolioActivityRows
+      ? buildPortfolioActivityRows(flowLocks, (flows && flows.transfers) || [], a)
+      : [];
+    appendPortfolioActivityRows(rows, semanticRows);
     return rows;
   }
 
@@ -3085,6 +3121,9 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     { key: "airdrop", label: "Airdrop", svg: AIRDROP_ICON, cls: "airdrop", title: "DOLO Airdrop Claim", body: "Wallet claimed a DOLO allocation where part was minted as 2-year locked veDOLO." },
     { key: "direct", label: "Direct", icon: "", cls: "up", title: "Direct veDOLO", body: "Wallet created a new veDOLO position by locking DOLO directly. This is a mint/deposit, not a wallet-to-wallet transfer." },
     { key: "transfer", label: "Transfer", svg: TRANSFER_ICON, cls: "gold", title: "veDOLO Transfer", body: "Existing veDOLO position moved between wallets. USDC price is not shown because this is not an exercise or purchase." },
+    { key: "merge", label: "Merge", icon: "", cls: "gold", title: "Merge veDOLO Positions", body: "One veDOLO position was merged into another. No new DOLO is locked." },
+    { key: "split", label: "Split", icon: "", cls: "pair", title: "Split veDOLO Position", body: "One veDOLO position was split into another position. No new DOLO is locked." },
+    { key: "extend", label: "Extend", icon: "", cls: "up", title: "Extend veDOLO Lock", body: "The position lock duration was extended. No new DOLO is locked." },
   ];
   const EXERCISE_ROUTE_BY_KEY = Object.fromEntries(EXERCISE_ROUTES.map(r => [r.key, r]));
   function defaultExerciseRoutes(){ return new Set(EXERCISE_ROUTES.map(r => r.key)); }
@@ -3105,10 +3144,18 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const meta = EXERCISE_ROUTE_BY_KEY[route] || EXERCISE_ROUTES[0];
     const isTransfer = route === "transfer";
     const label = isTransfer ? `Transfer ${row && row.transferDirection === "out" ? "Out" : "In"}` : meta.label;
+    const transition = row && row.isPositionManagement ? positionTransitionLabel(row) : "";
     const tip = isTransfer
       ? `${label}: ${meta.body}`
-      : `${meta.title}: ${meta.body}`;
+      : `${meta.title}: ${meta.body}${transition ? ` ${transition}.` : ""}`;
     return `<span class="tag flow-source-tag pf-route-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(tip)}" aria-label="${esc(tip)}">${esc(label)}</span>`;
+  }
+  function positionTransitionLabel(row){
+    const source = String((row && (row.sourceTokenId ?? row.tokenId)) ?? "");
+    const target = String((row && (row.targetTokenId ?? row.tokenId)) ?? "");
+    if ((row.route === "merge" || row.route === "split") && source && target) return `#${source} → #${target}`;
+    const tokenId = target || source;
+    return tokenId ? `Position ${tokenId}` : "Position update";
   }
   function chainLabel(f, present){
     if (f.chains.size === 0 || f.chains.size === present.length) return "All Chains";
@@ -3440,7 +3487,8 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const claimVe = claimRows.reduce((s, r) => s + r.vedolo, 0);
     const claimPaid = claimRows.reduce((s, r) => s + r.paid, 0);
     const avgClaimPrice = claimVe ? claimPaid / claimVe : 0;
-    const activityLocked = rows.filter(r => r.route !== "transfer" && r.route !== "pair").reduce((s, r) => s + r.vedolo, 0);
+    const positionManagementRoutes = new Set(["transfer", "merge", "split", "extend"]);
+    const activityLocked = rows.filter(r => !positionManagementRoutes.has(r.route) && r.route !== "pair").reduce((s, r) => s + r.vedolo, 0);
     const lockedVe = currentVe || activityLocked;
     el.innerHTML = [
       exerciseSummaryItem(
@@ -3509,13 +3557,16 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       const pairHtml = r.isPair ? `<span class="pf-ex-val pf-ex-pair">${fmtToken(r.pairedDolo)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const priceHtml = r.price ? `<span class="pf-ex-val pf-ex-price">$${r.price.toFixed(4)}</span>` : `<span class="pf-ex-muted">—</span>`;
       const lockHtml = r.lockDays ? `<span class="pf-ex-lock ${exerciseLockBucket(r.lockDays)}">${fmtLockDays(r.lockDays)}</span>` : `<span class="pf-ex-muted">—</span>`;
+      const vedoloHtml = r.isPositionManagement
+        ? `<span class="pf-ex-val pf-ex-position">${esc(positionTransitionLabel(r))}</span>`
+        : `<span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span>`;
       const dateTop = fmtIsoDate(r.date);
       const dateMeta = r.route === "pair" ? "paired oDOLO + DOLO" : (r.fallbackCurrent && r.route === "transfer" ? "position date · tx pending" : fmtExerciseDateMeta(r));
       return `<tr class="pf-row">
         <td data-column="date"><div class="pf-latest-date"><div class="pf-latest-date-top"><strong>${dateTop}</strong>${txLink}</div><span>${esc(dateMeta)}</span></div></td>
         <td data-column="route" class="pf-route-cell">${exerciseRouteTag(r.route, r)}</td>
         <td data-column="spacer" aria-hidden="true"></td>
-        <td data-column="vedolo" class="num"><span class="pf-ex-val pf-ex-ve">${fmtToken(r.vedolo)}</span></td>
+        <td data-column="vedolo" class="num">${vedoloHtml}</td>
         <td data-column="paired" class="num">${pairHtml}</td>
         <td data-column="paid" class="num">${paidHtml}</td>
         <td data-column="price" class="num">${priceHtml}</td>
