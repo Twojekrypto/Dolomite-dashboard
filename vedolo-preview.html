@@ -14,6 +14,7 @@
 <script src="dolo-address-labels.js?v=dolo-labels-20260805-strategic-round"></script>
 <link rel="stylesheet" href="wallet-table-ux.css?v=20260815-flow-name-date">
 <script src="wallet-table-ux.js?v=20260815-flow-name-date"></script>
+<script src="vedolo-locked-history.js?v=20260816-active-holder-endpoint"></script>
 <style>
 :root{
   --up:#75b87b;
@@ -1512,7 +1513,7 @@ function lockedChartValueLabel(value){
 function buildLockedHistory(){
   const locks = state.locks || [];
   const unlocks = state.unlocks || [];
-  const snapshotMs = Date.parse(state.statsTimestamp || state.holdersTimestamp || "") || Date.now();
+  const snapshotMs = Date.parse(state.holdersTimestamp || state.statsTimestamp || "") || Date.now();
   const snapshotSec = Math.floor(snapshotMs / 1000);
   const daily = new Map();
   const tokenEnd = new Map();
@@ -1549,13 +1550,15 @@ function buildLockedHistory(){
     return [lockedChartDaySecFromKey(key), running];
   }).filter(p => p[0] > 0 && Number.isFinite(p[1]));
 
-  const currentLocked = num(state.stats?.total_locked_dolo);
+  // The chart measures active, unexpired positions. Contract custody also
+  // includes expired positions waiting to be withdrawn, so it is a different metric.
+  const currentLocked = window.VeDoloLockedHistory?.activeLockedDoloTotal(
+    state.holders,
+    snapshotSec,
+  );
   const snapshotDay = lockedChartDaySecFromMs(snapshotMs);
-  if(currentLocked > 0){
+  if(currentLocked !== null && Number.isFinite(currentLocked) && currentLocked >= 0){
     if(points.length){
-      // lessons.md contract: normalize ONLY the endpoint to the live
-      // total_locked_dolo — never rescale the whole history (that invents
-      // historical values; the event reconstruction is already ~0.2% exact).
       if(points[points.length - 1][0] >= snapshotDay) points[points.length - 1][1] = currentLocked;
       else points.push([snapshotDay, currentLocked]);
     }else{
@@ -3000,6 +3003,15 @@ function emitQaReport(){
       lockedChartPathLength: lockedChartLine ? (lockedChartLine.getAttribute("d") || "").length : 0,
       lockedChartAreaPathLength: lockedChartArea ? (lockedChartArea.getAttribute("d") || "").length : 0,
       lockedHistoryPoints: state.lockedHistory.length,
+      lockedHistoryLastPoints: state.lockedHistory.slice(-5).map(([timestamp,value]) => ({
+        date:new Date(timestamp * 1000).toISOString().slice(0,10),
+        value:Number(value.toFixed(2))
+      })),
+      lockedActiveHolderTotal: window.VeDoloLockedHistory?.activeLockedDoloTotal(
+        state.holders,
+        Math.floor((Date.parse(state.holdersTimestamp || state.statsTimestamp || "") || Date.now()) / 1000),
+      ),
+      lockedCustodyTotal: num(state.stats?.total_locked_dolo),
       lockedRangeBadge: lockedRangeBadge ? lockedRangeBadge.textContent.trim() : "",
       lockedBrushWindowWidth: lockedBrushWindow ? Math.round(lockedBrushWindow.getBoundingClientRect().width) : 0,
       lockedBrushLabelText: lockedBrushLabel ? lockedBrushLabel.textContent.trim().replace(/\s+/g," ") : "",

@@ -138,6 +138,12 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('id="lockedChartTitle"', self.html)
         self.assertIn('aria-pressed="true"', self.html)
 
+    def test_locked_chart_endpoint_uses_active_positions_at_holder_snapshot(self):
+        self.assertIn('script src="vedolo-locked-history.js?v=20260816-active-holder-endpoint"', self.html)
+        self.assertIn('Date.parse(state.holdersTimestamp || state.statsTimestamp || "")', self.html)
+        self.assertIn('window.VeDoloLockedHistory?.activeLockedDoloTotal(', self.html)
+        self.assertNotIn('const currentLocked = num(state.stats?.total_locked_dolo);', self.html)
+
     def test_vedolo_segmented_controls_use_holder_distribution_pill_ux(self):
         self.assertIn('class="locked-chart-mode vedolo-pill-segment"', self.html)
         self.assertIn('class="seg vedolo-pill-segment" id="flow-source"', self.html)

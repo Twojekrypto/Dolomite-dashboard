@@ -60,7 +60,9 @@ jobs:
 
       - name: Validate generated data
         if: steps.generate.outputs.completed == 'true'
-        run: python3 validate_data.py vedolo_flows.json
+        run: |
+          python3 validate_data.py vedolo_flows.json
+          python3 validate_vedolo_locked_history.py --flows vedolo_flows.json --holders vedolo_holders.json
 
       - name: Commit and push
         if: steps.generate.outputs.completed == 'true'
