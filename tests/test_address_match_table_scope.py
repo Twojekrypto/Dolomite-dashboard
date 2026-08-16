@@ -53,6 +53,7 @@ class AddressMatchTableScopeTest(unittest.TestCase):
                 ("vedolo-preview.html", "exits-table"),
                 ("vedolo-preview.html", "locks-table"),
                 ("vedolo-preview.html", "unlocks-table"),
+                ("vedolo-preview.html", "position-activity-table"),
                 ("vedolo-preview.html", "claimable-table"),
                 ("dolo-preview.html", "dolo-lp-table"),
                 ("odolo-preview.html", "tbl-latest-ex"),
@@ -71,7 +72,7 @@ class AddressMatchTableScopeTest(unittest.TestCase):
                 )
             },
         )
-        self.assertEqual(len(records), 11)
+        self.assertEqual(len(records), 12)
 
     def test_opted_in_pages_render_canonical_full_addresses(self):
         vedolo = (ROOT / "vedolo-preview.html").read_text(encoding="utf-8")
