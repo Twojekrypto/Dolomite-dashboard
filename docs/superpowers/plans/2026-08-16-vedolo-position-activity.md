@@ -101,4 +101,3 @@
 - [ ] Serve with `python3 -m http.server` and verify 1440×900, 1024×768, 768×800, and 390×844: card rendering, every filter, transaction link, no console errors, no document overflow, and stable chart interaction.
 - [ ] Request a scoped code review and resolve all Important findings.
 - [ ] Commit only the scoped files, reconcile with the latest remote `master`, rerun the final gate, push to `master`, and verify the successful Pages deployment plus the live route.
-

@@ -54,4 +54,3 @@ The card follows existing table widths and intentionally scrolls inside its tabl
 ## Scope
 
 No RPC source, token amount, holder balance, default sort order of existing tables, or unrelated dashboard surface changes. Generated flow data gains only the token-transition annotations required for exact replay.
-
