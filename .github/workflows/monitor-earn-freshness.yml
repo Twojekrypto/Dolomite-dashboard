@@ -237,7 +237,19 @@ jobs:
             else
               echo "Triggering $workflow because EARN freshness drifted past the retry threshold."
             fi
-            "${dispatch_args[@]}"
+            dispatch_ok=false
+            for dispatch_attempt in 1 2 3 4; do
+              if "${dispatch_args[@]}"; then
+                dispatch_ok=true
+                break
+              fi
+              echo "⚠️ Dispatch attempt ${dispatch_attempt}/4 for $job_key failed (transient GitHub API error?); retrying in $((dispatch_attempt * 10))s..."
+              sleep $((dispatch_attempt * 10))
+            done
+            if [ "$dispatch_ok" != "true" ]; then
+              echo "::warning::Could not dispatch $job_key after 4 attempts — the watchdog will retry it on its next scheduled run."
+              continue
+            fi
             echo "$job_key" >> /tmp/earn-refresh-dispatched.tsv
             dispatched_count=$((dispatched_count + 1))
           done < /tmp/earn-refresh-jobs.tsv
@@ -265,5 +277,17 @@ jobs:
           if [ "${queued:-0}" -gt 0 ]; then
             echo "Skipping Pages dispatch because a deployment is already queued."
           else
-            gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref master
+            dispatch_ok=false
+            for dispatch_attempt in 1 2 3 4; do
+              if gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref master; then
+                dispatch_ok=true
+                echo "Pages deployment dispatched."
+                break
+              fi
+              echo "⚠️ Pages dispatch attempt ${dispatch_attempt}/4 failed (transient GitHub API error?); retrying in $((dispatch_attempt * 10))s..."
+              sleep $((dispatch_attempt * 10))
+            done
+            if [ "$dispatch_ok" != "true" ]; then
+              echo "::warning::Pages dispatch failed after 4 attempts — the next watchdog run (every 15 min) will retry it."
+            fi
           fi

@@ -73,10 +73,36 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url || steps.deployment_retry2.outputs.page_url }}
     steps:
+      # GitHub's deployment API intermittently returns 503; deploy-pages does
+      # not retry on its own, so retry up to two more times with a backoff.
       - name: Deploy to GitHub Pages
         id: deployment
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+        env:
+          NODE_OPTIONS: --no-deprecation
+
+      - name: Wait before deploy retry
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+
+      - name: Deploy to GitHub Pages (retry 1)
+        id: deployment_retry
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+        env:
+          NODE_OPTIONS: --no-deprecation
+
+      - name: Wait before second deploy retry
+        if: steps.deployment.outcome == 'failure' && steps.deployment_retry.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy to GitHub Pages (retry 2)
+        id: deployment_retry2
+        if: steps.deployment.outcome == 'failure' && steps.deployment_retry.outcome == 'failure'
         uses: actions/deploy-pages@v5
         env:
           NODE_OPTIONS: --no-deprecation
@@ -85,4 +111,4 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Smoke test live Pages
-        run: python3 scripts/smoke_live_pages.py "${{ steps.deployment.outputs.page_url }}"
+        run: python3 scripts/smoke_live_pages.py "${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url || steps.deployment_retry2.outputs.page_url }}"
