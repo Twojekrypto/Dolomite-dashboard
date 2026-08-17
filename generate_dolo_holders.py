@@ -152,6 +152,26 @@ def load_flow_reconciliation_candidates(path=FLOW_RECONCILE_JSON):
     return candidates
 
 
+def _is_capacity_rpc_error(error_obj):
+    """True when a JSON-RPC error means the endpoint is rate/quota limited
+    (e.g. Alchemy 429 "Monthly capacity limit exceeded") — rotate endpoints
+    instead of treating it as a block-range error."""
+    if not isinstance(error_obj, dict):
+        return False
+    code = error_obj.get("code")
+    msg = str(error_obj.get("message", "")).lower()
+    return (
+        code in (429, -32005, -32029, -32097)
+        or "capacity" in msg
+        or "rate limit" in msg
+        or "rate-limit" in msg
+        or "too many requests" in msg
+        or "quota" in msg
+        or "monthly" in msg
+        or "compute units" in msg
+    )
+
+
 def get_current_block(rpc_url):
     """Get current block number from RPC."""
     for _ in range(3):
@@ -209,6 +229,11 @@ def fetch_transfer_logs(chain_key, start_block, end_block=None):
                 r = resp.json()
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
+                    if _is_capacity_rpc_error(r["error"]):
+                        # Endpoint out of quota / rate-limited — rotate to the
+                        # next RPC, do not shrink the chunk.
+                        time.sleep(0.5)
+                        continue
                     if "range" in err_msg.lower() or "limit" in err_msg.lower():
                         # Range too large — halve chunk
                         chunk_size = max(chunk_size // 2, 1000)

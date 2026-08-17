@@ -594,6 +594,26 @@ def build_cutoff_blocks(current_block):
     return cutoffs
 
 
+def _is_capacity_rpc_error(error_obj):
+    """True when a JSON-RPC error means the endpoint is rate/quota limited
+    (e.g. Alchemy 429 "Monthly capacity limit exceeded") — rotate endpoints
+    instead of treating it as a block-range error."""
+    if not isinstance(error_obj, dict):
+        return False
+    code = error_obj.get("code")
+    msg = str(error_obj.get("message", "")).lower()
+    return (
+        code in (429, -32005, -32029, -32097)
+        or "capacity" in msg
+        or "rate limit" in msg
+        or "rate-limit" in msg
+        or "too many requests" in msg
+        or "quota" in msg
+        or "monthly" in msg
+        or "compute units" in msg
+    )
+
+
 def fetch_transfer_logs(start_block, end_block):
     chunk_size = CHUNK_SIZE
     if start_block > end_block:
@@ -628,6 +648,11 @@ def fetch_transfer_logs(start_block, end_block):
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
                     last_error = f"{_rpc_safe_host(rpc)}: {err_msg or r['error']}"
+                    if _is_capacity_rpc_error(r["error"]):
+                        # Endpoint out of quota / rate-limited — rotate to the
+                        # next RPC, do not shrink the chunk.
+                        time.sleep(0.5)
+                        continue
                     if "range" in err_msg.lower() or "limit" in err_msg.lower():
                         chunk_size = max(chunk_size // 2, 1000)
                         chunk_end = min(current + chunk_size - 1, end_block)

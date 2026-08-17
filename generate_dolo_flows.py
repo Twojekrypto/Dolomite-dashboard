@@ -335,6 +335,23 @@ def _is_rate_limit_error(message):
     return "too many" in normalized or "rate limit" in normalized or "rate-limit" in normalized
 
 
+def _is_capacity_exhausted_error(error_obj):
+    """True when the endpoint's quota is exhausted (e.g. Alchemy 429
+    "Monthly capacity limit exceeded"). Waiting will not help — rotate to the
+    next endpoint immediately, and never treat it as a block-range error."""
+    if not isinstance(error_obj, dict):
+        return False
+    code = error_obj.get("code")
+    msg = str(error_obj.get("message", "")).lower()
+    return (
+        code in (429, -32005, -32029, -32097)
+        or "capacity" in msg
+        or "quota" in msg
+        or "monthly" in msg
+        or "compute units" in msg
+    )
+
+
 def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_transfers_so_far=None):
     """Fetch ERC-20 Transfer event logs via eth_getLogs.
     Saves state progressively during long scans so timeout kills preserve progress."""
@@ -391,6 +408,13 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                     raise ValueError("RPC response was not a JSON object")
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
+                    if _is_capacity_exhausted_error(r["error"]):
+                        print(
+                            f"    ⚠️ {cfg['name']}: RPC capacity/quota exhausted "
+                            f"on this endpoint; rotating to the next one"
+                        )
+                        time.sleep(0.5)
+                        continue
                     if _is_rate_limit_error(err_msg):
                         delay = _rate_limit_retry_seconds(resp, attempt)
                         print(
