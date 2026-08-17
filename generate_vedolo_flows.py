@@ -344,6 +344,29 @@ def remap_odolo_lock_beneficiaries(locks, exerciser_lookup):
     return resolved, unresolved
 
 
+def is_capacity_error(error_obj):
+    """True when a JSON-RPC error means the endpoint is rate/quota limited.
+
+    These errors (e.g. Alchemy 429 "Monthly capacity limit exceeded") must
+    rotate to the next endpoint — they are NOT block-range errors even though
+    the message contains the word "limit".
+    """
+    if not isinstance(error_obj, dict):
+        return False
+    code = error_obj.get("code")
+    msg = str(error_obj.get("message", "")).lower()
+    return (
+        code in (429, -32005, -32029, -32097)
+        or "capacity" in msg
+        or "rate limit" in msg
+        or "rate-limit" in msg
+        or "too many requests" in msg
+        or "quota" in msg
+        or "monthly" in msg
+        or "compute units" in msg
+    )
+
+
 def rpc_call(method, params, timeout=15):
     """Call RPC with fallback across multiple endpoints."""
     for attempt in range(len(RPC_URLS) * 2):
@@ -354,9 +377,14 @@ def rpc_call(method, params, timeout=15):
             }, timeout=timeout, headers={"Content-Type": "application/json"})
             data = resp.json()
             if "error" in data:
-                err = data["error"].get("message", "")
+                err_obj = data["error"]
+                err = err_obj.get("message", "")
+                if is_capacity_error(err_obj):
+                    # Endpoint out of quota / rate-limited — try the next one.
+                    time.sleep(0.3)
+                    continue
                 if "range" in err.lower() or "limit" in err.lower():
-                    return {"error": data["error"]}
+                    return {"error": err_obj}
                 time.sleep(0.3)
                 continue
             return data
@@ -525,6 +553,11 @@ def fetch_event_logs(start_block, end_block, topic):
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
                     last_error = err_msg or str(r["error"])
+                    if is_capacity_error(r["error"]):
+                        # Endpoint out of quota / rate-limited — rotate, do
+                        # not shrink the chunk (it is not a range problem).
+                        time.sleep(0.5)
+                        continue
                     if (
                         ("range" in err_msg.lower() or "limit" in err_msg.lower())
                         and chunk_size > MIN_CHUNK_SIZE
