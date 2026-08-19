@@ -21,6 +21,7 @@
   "borrow-page-graphic": "https://app.dolomite.io/static/media/borrow-page-graphic.62829ff76e1a3122a7b4e39d1375c28f.svg",
   "BTC": "https://app.dolomite.io/static/media/BTC.ccaa294316dc68d8ecb092ef90e2c07c.svg",
   "BTCcx": "https://app.dolomite.io/static/media/BTCcx.45aa66746e8c8acfeb7ee02edfb29f1a.svg",
+  "BUSD": "https://app.dolomite.io/static/media/BUSD.85d200fbf46f5a50efe55c2b0b2ba0ed.svg",
   "BYUSD": "https://app.dolomite.io/static/media/BYUSD.8c0a1d051c4192302d739dbae5928286.svg",
   "CAP": "https://app.dolomite.io/static/media/CAP.ac9a6abdf976278407624655b95f7a45.svg",
   "CBBTC": "https://app.dolomite.io/static/media/CBBTC.fb6f792430a130d980920b6e69857bce.svg",
