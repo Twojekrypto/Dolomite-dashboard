@@ -202,8 +202,9 @@ class TestRpcEndpoints(unittest.TestCase):
         self.assertIn("https://rpc.berachain.com/", update_data.RPC_URLS)
         self.assertGreaterEqual(len(update_data.RPC_URLS), 3)
 
-    def test_update_workflow_preserves_vedolo_history_deployment_contract(self):
+    def test_update_workflow_keeps_vedolo_pipelines_independent(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-data.yml").read_text()
+        flows_workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-vedolo-flows.yml").read_text()
 
         cache_position = workflow.index("path: vedolo_vote_power_history_state.json")
         update_position = workflow.index("run: python update_data.py")
@@ -214,10 +215,6 @@ class TestRpcEndpoints(unittest.TestCase):
             "validate_data.py vedolo_holders.json vedolo_stats.json vedolo_expiry.json "
             "data/vedolo-vote-power-history.json"
         )
-        locked_history_validation_position = workflow.index(
-            "validate_vedolo_locked_history.py --flows vedolo_flows.json "
-            "--holders vedolo_holders.json"
-        )
         git_add_position = workflow.index(
             "git add vedolo_holders.json vedolo_holders.csv vedolo_stats.json "
             "vedolo_expiry.json data/vedolo-vote-power-history.json"
@@ -226,9 +223,9 @@ class TestRpcEndpoints(unittest.TestCase):
         self.assertLess(cache_position, update_position)
         self.assertLess(update_position, generator_position)
         self.assertLess(generator_position, validation_position)
-        self.assertLess(validation_position, locked_history_validation_position)
-        self.assertLess(locked_history_validation_position, git_add_position)
         self.assertLess(validation_position, git_add_position)
+        self.assertNotIn("validate_vedolo_locked_history.py", workflow)
+        self.assertIn("validate_vedolo_locked_history.py", flows_workflow)
 
     def test_update_workflow_saves_vedolo_history_state_after_a_failed_generation(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-data.yml").read_text()
