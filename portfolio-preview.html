@@ -1644,6 +1644,16 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   outline:0;
   transition:border-color .15s var(--ease),background .15s var(--ease),color .15s var(--ease),box-shadow .15s var(--ease);
 }
+#pf-exercises-section .pf-route-tag .pf-route-icon{
+  width:12px;
+  height:12px;
+  display:inline-flex;
+  flex:0 0 12px;
+  align-items:center;
+  justify-content:center;
+}
+#pf-exercises-section .pf-route-tag .pf-route-icon svg,
+#pf-exercises-section .pf-route-tag .pf-route-icon img{width:12px;height:12px;display:block}
 #pf-exercises-section .pf-route-tag:hover,
 #pf-exercises-section .pf-route-tag:focus-visible{box-shadow:0 0 0 3px rgba(201,162,39,.07)}
 #pf-exercises-section .pf-route-tag.cyan{
@@ -3127,6 +3137,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   ];
   const EXERCISE_ROUTE_BY_KEY = Object.fromEntries(EXERCISE_ROUTES.map(r => [r.key, r]));
   function defaultExerciseRoutes(){ return new Set(EXERCISE_ROUTES.map(r => r.key)); }
+  function allExerciseRoutesSelected(filterState){ return EXERCISE_ROUTES.every(route => filterState.routes.has(route.key)); }
   function exerciseRouteLabel(filterState){
     const selected = EXERCISE_ROUTES.filter(r => filterState.routes.has(r.key));
     if (selected.length === EXERCISE_ROUTES.length) return "All Routes";
@@ -3134,11 +3145,13 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     if (selected.length === 1) return selected[0].label;
     return `${selected.length} routes`;
   }
-  function exerciseRouteIcon(route){
+  function exerciseRouteIcon(route, className = "dd-ico"){
+    const sharedActivity = window.VeDoloPositionActivity;
+    if (sharedActivity && typeof sharedActivity.routeIconHtml === "function") return sharedActivity.routeIconHtml(route, false, className);
     const meta = EXERCISE_ROUTE_BY_KEY[route] || EXERCISE_ROUTES[0];
-    if (meta.icon) return `<img src="${meta.icon}" onerror="this.style.display='none'">`;
-    if (meta.svg) return `<div class="dd-ico">${meta.svg}</div>`;
-    return `<div class="dd-ico">${ROUTE_ICON}</div>`;
+    if (meta.icon) return `<img class="${className}" src="${meta.icon}" onerror="this.style.display='none'">`;
+    if (meta.svg) return `<div class="${className}">${meta.svg}</div>`;
+    return `<div class="${className}">${ROUTE_ICON}</div>`;
   }
   function exerciseRouteTag(route, row){
     const meta = EXERCISE_ROUTE_BY_KEY[route] || EXERCISE_ROUTES[0];
@@ -3148,7 +3161,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const tip = isTransfer
       ? `${label}: ${meta.body}`
       : `${meta.title}: ${meta.body}${transition ? ` ${transition}.` : ""}`;
-    return `<span class="tag flow-source-tag pf-route-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(tip)}" aria-label="${esc(tip)}">${esc(label)}</span>`;
+    return `<span class="tag flow-source-tag pf-route-tag ${esc(meta.cls)}" tabindex="0" data-tooltip="${esc(tip)}" aria-label="${esc(tip)}">${exerciseRouteIcon(route, "pf-route-icon dolo-route-icon")}<span>${esc(label)}</span></span>`;
   }
   function positionTransitionLabel(row){
     const source = String((row && (row.sourceTokenId ?? row.tokenId)) ?? "");
@@ -3238,14 +3251,15 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   }
 
   function refreshExerciseRouteDd(el, filterState){
+    const allSelected = allExerciseRoutesSelected(filterState);
     el.querySelectorAll(".dd-opt").forEach(opt => {
       const route = opt.dataset.route;
-      opt.classList.toggle("active", filterState.routes.has(route));
+      opt.classList.toggle("active", route === "all" ? allSelected : filterState.routes.has(route));
     });
     const btn = el.querySelector("[data-dd-btn]");
     if (btn){
       const selected = filterState.routes.size;
-      btn.classList.toggle("filtered", selected !== EXERCISE_ROUTES.length);
+      btn.classList.toggle("filtered", !allSelected);
       const lbl = btn.querySelector(".lbl"); if (lbl) lbl.textContent = exerciseRouteLabel(filterState);
       const cnt = btn.querySelector(".count"); if (cnt) cnt.textContent = selected;
     }
@@ -3264,11 +3278,12 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       counts[route] = (counts[route] || 0) + 1;
       return counts;
     }, {});
-    let opts = "";
+    const allSelected = allExerciseRoutesSelected(filterState);
+    let opts = `<div class="dd-opt select-all${allSelected?" active":""}" data-route="all">${DD_CHECK}${exerciseRouteIcon("all")}<span class="dd-opt-name">All Routes</span><span class="dd-opt-count">${rows.length.toLocaleString("en-US")}</span></div>`;
     EXERCISE_ROUTES.forEach(route => {
       opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span><span class="dd-opt-count">${(routeCounts[route.key] || 0).toLocaleString("en-US")}</span></div>`;
     });
-    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter"><button class="dd-btn${filterState.routes.size!==EXERCISE_ROUTES.length?" filtered":""}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
+    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
     const btn = el.querySelector("[data-dd-btn]");
     const panel = el.querySelector(".dd-panel");
     if (btn && panel){
@@ -3276,9 +3291,11 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       panel.addEventListener("click", e => e.stopPropagation());
       el.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
         const route = opt.dataset.route;
-        if (filterState.routes.has(route)) filterState.routes.delete(route);
-        else filterState.routes.add(route);
-        if (filterState.routes.size === 0) filterState.routes = defaultExerciseRoutes();
+        const routeSelector = window.DoloWalletTableUX?.routeSelectionPlan;
+        const nextRoutes = routeSelector
+          ? DoloWalletTableUX.routeSelectionPlan([...filterState.routes], route, EXERCISE_ROUTES.map(item => item.key))
+          : (route === "all" ? EXERCISE_ROUTES.map(item => item.key) : [route]);
+        filterState.routes = new Set(nextRoutes);
         refreshExerciseRouteDd(el, filterState);
         state.exPage = 0;
         onChange();

@@ -14901,11 +14901,7 @@
             document.getElementById('empty-state').style.display = 'none';
             if (filteredPositions.length === 0) {
                 const colCount = document.querySelectorAll('#positions-table thead th').length;
-                tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:48px 20px;border-bottom:none;">
-                    <div style="font-size:36px;margin-bottom:10px;">🎉</div>
-                    <div style="color:var(--text-secondary);font-size:13px;">No positions match your filters</div>
-                    <div style="color:var(--text-muted);font-size:11px;margin-top:4px;">Try adjusting the range or clearing filters</div>
-                </td></tr>`;
+                tbody.innerHTML = `<tr class="dolo-empty-state-row"><td colspan="${colCount}" class="dolo-empty-state-cell" data-dolo-empty-fixed="true"><div class="dolo-empty-state" role="status"><span>No results found</span></div></td></tr>`;
                 document.getElementById('table-footer').style.display = 'none';
                 return;
             } else {
