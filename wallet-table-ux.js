@@ -581,6 +581,10 @@
     const doc = root.document;
     if(!doc) return;
     (scope || doc).querySelectorAll(".pf-dd").forEach(dd => {
+      if(dd.dataset.doloDropdownMode === "static"){
+        if(portalState.has(dd)) restoreDropdown(dd);
+        return;
+      }
       const panel = dd.querySelector(".dd-panel");
       if(panel && panel.classList.contains("show")) portalDropdown(dd);
       else if(portalState.has(dd)) restoreDropdown(dd);

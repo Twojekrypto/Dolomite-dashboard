@@ -1130,7 +1130,10 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 
 /* ---- section / tables ---- */
-.pf-section{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:hidden}
+.pf-section{position:relative;margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:hidden}
+.pf-section.pf-dropdown-open{overflow:visible;z-index:29}
+.pf-section.pf-dropdown-open .pf-filters{position:relative;z-index:41}
+.pf-section.pf-dropdown-open .pf-dd[data-dolo-dropdown-mode="static"] .dd-panel.show{position:relative;top:auto;left:auto;margin-top:6px}
 /* section heads reuse .card-head / .card-title / .count-badge — same UX as DOLO Holders */
 .pf-section-meta{margin-left:auto;white-space:nowrap}
 .pf-section-meta .pf-meta-label{color:var(--fg-3)}
@@ -3185,7 +3188,17 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     if (f.chains.size === 1){ const ck = [...f.chains][0]; return (CHAIN_BY_KEY[ck] || { name: ck }).name; }
     return f.chains.size + " chains";
   }
-  function closeAllDd(){ document.querySelectorAll(".pf-dd .dd-panel.show").forEach(p => p.classList.remove("show")); document.querySelectorAll(".pf-dd .dd-btn.open").forEach(b => b.classList.remove("open")); }
+  function closeAllDd(){
+    document.querySelectorAll(".pf-dd .dd-panel.show").forEach(p => p.classList.remove("show"));
+    document.querySelectorAll(".pf-dd .dd-btn.open").forEach(b => b.classList.remove("open"));
+    document.querySelectorAll(".pf-section.pf-dropdown-open").forEach(section => section.classList.remove("pf-dropdown-open"));
+  }
+  function openPortfolioDd(dd, panel, btn){
+    panel.classList.add("show");
+    btn.classList.add("open");
+    const section = dd.closest(".pf-section");
+    if (section) section.classList.add("pf-dropdown-open");
+  }
   function refreshDd(el, f, present){
     el.querySelectorAll(".dd-opt").forEach(opt => {
       const net = opt.dataset.net;
@@ -3212,7 +3225,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
         const c = CHAIN_BY_KEY[ck] || { name: ck, key: ck };
         opts += `<div class="dd-opt${filterState.chains.has(ck)?" active":""}" data-net="${ck}">${DD_CHECK}<img src="${chainIcon(c.key)}" onerror="this.style.display='none'"><span class="dd-opt-name">${c.name}</span></div>`;
       });
-      dd = `<div class="dd pf-dd"><button class="dd-btn${filterState.chains.size?" filtered":""}" type="button" data-dd-btn><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="lbl">${chainLabel(filterState, present)}</span><span class="count">${filterState.chains.size||present.length}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Chain</div><div class="dd-list">${opts}</div></div></div>`;
+      dd = `<div class="dd pf-dd" data-dolo-dropdown-mode="static"><button class="dd-btn${filterState.chains.size?" filtered":""}" type="button" data-dd-btn><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="lbl">${chainLabel(filterState, present)}</span><span class="count">${filterState.chains.size||present.length}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Chain</div><div class="dd-list">${opts}</div></div></div>`;
     }
     const searchHtml = `<label class="search pf-search-tbl${filterState.q?" has-value":""}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -3229,7 +3242,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     el.innerHTML = searchHtml + dd + borrowActions;
     const btn = el.querySelector("[data-dd-btn]"), panel = el.querySelector(".dd-panel");
     if (btn && panel){
-      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open){ panel.classList.add("show"); btn.classList.add("open"); } });
+      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open) openPortfolioDd(btn.closest(".pf-dd"), panel, btn); });
       panel.addEventListener("click", e => e.stopPropagation());
       el.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
         const net = opt.dataset.net;
@@ -3295,12 +3308,12 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     EXERCISE_ROUTES.forEach(route => {
       opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span><span class="dd-opt-count">${(routeCounts[route.key] || 0).toLocaleString("en-US")}</span></div>`;
     });
-    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
+    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native" data-dolo-dropdown-mode="static"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
     const dd = el.querySelector(".pf-exercise-route-filter");
     const btn = dd && dd.querySelector("[data-dd-btn]");
     const panel = dd && dd.querySelector(".dd-panel");
     if (btn && panel){
-      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open){ panel.classList.add("show"); btn.classList.add("open"); } });
+      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open) openPortfolioDd(dd, panel, btn); });
       panel.addEventListener("click", e => e.stopPropagation());
       dd.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
         const route = opt.dataset.route;
@@ -3505,11 +3518,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   function renderExerciseSummary(rows){
     const el = $("#pf-exercises-summary");
     if (!el) return;
-    if (!rows.length){
-      el.style.display = "none";
-      el.innerHTML = "";
-      return;
-    }
+    rows = Array.isArray(rows) ? rows : [];
     const claimRows = rows.filter(r => r.isStableClaim);
     const currentVe = Number(state.vedoloCurrent && state.vedoloCurrent.total_dolo) || 0;
     const currentVote = Number(state.vedoloCurrent && state.vedoloCurrent.total_vote_weight) || 0;
@@ -3523,7 +3532,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     el.innerHTML = [
       exerciseSummaryItem(
         "Total locked",
-        `${fmtCompact(lockedVe)} <span class="unit">DOLO</span>`,
+        lockedVe > 0 ? `${fmtCompact(lockedVe)} <span class="unit">DOLO</span>` : "—",
         currentNfts ? `${currentNfts} current position${currentNfts === 1 ? "" : "s"}` : "From loaded position activity",
         true,
         false,
@@ -3532,7 +3541,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       ),
       exerciseSummaryItem(
         "oDOLO Exercises",
-        `<span class="pf-ex-pair">${fmtCompact(claimVe)}</span>`,
+        claimVe > 0 ? `<span class="pf-ex-pair">${fmtCompact(claimVe)}</span>` : "—",
         claimRows.length ? `${claimRows.length} exercises · <span class="accent-money">${fmtUSD(claimPaid)} USDC paid</span>` : "No oDOLO option exercises",
         false,
         false,
@@ -3541,7 +3550,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       ),
       exerciseSummaryItem(
         "Avg price",
-        `<span class="accent-price">${fmtExercisePrice(avgClaimPrice)}</span>`,
+        avgClaimPrice > 0 ? `<span class="accent-price">${fmtExercisePrice(avgClaimPrice)}</span>` : "—",
         claimRows.length ? "USDC per veDOLO" : "Only shown for oDOLO Exercises",
         false,
         false,
@@ -3550,7 +3559,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       ),
       exerciseSummaryItem(
         "Vote power",
-        fmtCompact(currentVote),
+        currentVote > 0 ? fmtCompact(currentVote) : "—",
         currentNfts ? "Current voting weight" : "Current snapshot unavailable",
         false,
         false,
@@ -3564,7 +3573,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const rows = sortRows(applyExerciseFilter(state.exercises, state.exFilter), state.exSort);
     $("#pf-exercises-count").textContent = rows.length ? `${rows.length.toLocaleString("en-US")} event${rows.length!==1?"s":""}` : "";
     $("#pf-exercises-count").style.display = rows.length ? "" : "none";
-    renderExerciseSummary(rows);
+    renderExerciseSummary(state.exercises);
     updateSortIndicators("ex", state.exSort);
     const body = $("#pf-exercises-body");
     if (!rows.length){
