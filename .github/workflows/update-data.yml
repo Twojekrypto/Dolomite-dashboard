@@ -86,7 +86,9 @@ jobs:
       - name: Validate generated data
         run: |
           python3 validate_data.py vedolo_holders.json vedolo_stats.json vedolo_expiry.json data/vedolo-vote-power-history.json dolo_price.json odolo_contract_data.json metrics_snapshot.json
-          python3 validate_vedolo_locked_history.py --flows vedolo_flows.json --holders vedolo_holders.json
+          # Cross-artifact reconciliation belongs to update-vedolo-flows.yml.
+          # Here holders are fresh while vedolo_flows.json can still be from the
+          # previous six-hour snapshot, which caused false failures for new locks.
 
       - name: Commit & push changes
         run: |

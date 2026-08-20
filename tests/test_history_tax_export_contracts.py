@@ -438,7 +438,7 @@ vm.runInNewContext(instrumented, sandbox);
             self.assertIn(f'action === "{custom_value}"', filter_block)
 
     def test_vedolo_position_activity_loads_the_shared_classifier_and_actions(self):
-        shared_script = '<script defer src="vedolo-position-activity.js?v=20260817-history-activity-source"></script>'
+        shared_script = '<script defer src="vedolo-position-activity.js?v=20260820-new-lock-v1"></script>'
         version = re.search(r'const HISTORY_VERSION = "([^"]+)"', self.source).group(1)
         history_script = f'<script defer src="history/history.js?v={version}"></script>'
         self.assertIn(shared_script, self.html)
