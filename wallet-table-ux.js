@@ -273,6 +273,7 @@
       if(row.classList.contains("table-spacer-row")) return;
       const cell = row.querySelector("td,th");
       if(!cell) return;
+      if(cell.dataset.doloEmptyFixed === "true") return;
       const current = cell.textContent.replace(/\s+/g, " ").trim();
       if(!current || /loading|checking|fetching/i.test(current) || /error|failed|unable/i.test(current)) return;
       const table = row.closest("table");
@@ -287,6 +288,34 @@
         cell.dataset.doloEmptyMessage = message;
         cell.innerHTML = `<div class="dolo-empty-state" role="status"><span>${escapeHtml(message)}</span></div>`;
       }
+    });
+  }
+
+  function normalizeSearchNoResults(scope){
+    const doc = root.document;
+    if(!doc) return;
+    const tableForBody = function(bodyId){
+      const body = doc.getElementById(bodyId);
+      return body ? body.closest("table") : null;
+    };
+    const configs = [
+      {table:doc.getElementById("tbl-holders"), input:doc.getElementById("q-holders")},
+      {table:doc.getElementById("dolo-lp-table"), input:doc.getElementById("dolo-lp-search")},
+      {table:doc.getElementById("tbl-cb"), input:doc.getElementById("q-cb")},
+      {table:doc.getElementById("tbl-ex"), input:doc.getElementById("q-ex")},
+      {table:tableForBody("flows-acc-body"), input:doc.getElementById("q-flows")},
+      {table:tableForBody("flows-out-body"), input:doc.getElementById("q-flows")}
+    ];
+    configs.forEach(function(config){
+      if(!config.table || !config.input || !String(config.input.value || "").trim()) return;
+      const body = config.table.tBodies && config.table.tBodies[0];
+      const rows = body ? Array.from(body.rows) : [];
+      const onlySpacerRows = rows.length > 0 && rows.every(function(row){
+        return row.classList.contains("tbl-spacer-row") || row.classList.contains("flow-spacer-row") || row.classList.contains("dolo-lp-empty");
+      });
+      if(!onlySpacerRows) return;
+      const headerCells = config.table.tHead && config.table.tHead.rows[0] ? config.table.tHead.rows[0].cells.length : 1;
+      body.innerHTML = `<tr class="dolo-empty-state-row dolo-search-empty-row"><td colspan="${headerCells}" class="dolo-empty-state-cell" data-dolo-empty-fixed="true"><div class="dolo-empty-state" role="status"><span>No results found</span></div></td></tr>`;
     });
   }
 
@@ -414,6 +443,7 @@
     const doc = root.document;
     if(!doc) return;
     (scope || doc).querySelectorAll(".pf-exercise-route-filter").forEach(dd => {
+      if(dd.dataset.routeModel === "native") return;
       const list = dd.querySelector(".dd-list");
       if(!list) return;
       let concrete = Array.from(list.querySelectorAll('.dd-opt[data-route]:not([data-route="all"])'));
@@ -447,6 +477,7 @@
     const option = event.target.closest && event.target.closest('.pf-exercise-route-filter .dd-opt[data-route]');
     if(!option) return;
     const dd = option.closest(".pf-exercise-route-filter");
+    if(dd && dd.dataset.routeModel === "native") return;
     const host = dd && dd.parentElement;
     if(!dd || !host) return;
     const key = option.dataset.route;
@@ -549,6 +580,10 @@
     const doc = root.document;
     if(!doc) return;
     (scope || doc).querySelectorAll(".pf-dd").forEach(dd => {
+      if(dd.dataset.routeModel === "native"){
+        if(portalState.has(dd)) restoreDropdown(dd);
+        return;
+      }
       const panel = dd.querySelector(".dd-panel");
       if(panel && panel.classList.contains("show")) portalDropdown(dd);
       else if(portalState.has(dd)) restoreDropdown(dd);
@@ -564,6 +599,7 @@
     if(!root.document || !root.document.body) return;
     applyAddressOverrides();
     normalizeHistoryRows(root.document);
+    normalizeSearchNoResults(root.document);
     normalizeEmptyStates(root.document);
     normalizeTableCorners(root.document);
     normalizeNewLockRows(root.document);
