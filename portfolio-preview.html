@@ -1131,9 +1131,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 
 /* ---- section / tables ---- */
 .pf-section{position:relative;margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);box-shadow:var(--sh-card);overflow:hidden}
-.pf-section.pf-dropdown-open{overflow:visible;z-index:29}
-.pf-section.pf-dropdown-open .pf-filters{position:relative;z-index:41}
-.pf-section.pf-dropdown-open .pf-dd[data-dolo-dropdown-mode="static"] .dd-panel.show{position:relative;top:auto;left:auto;margin-top:6px}
 /* section heads reuse .card-head / .card-title / .count-badge — same UX as DOLO Holders */
 .pf-section-meta{margin-left:auto;white-space:nowrap}
 .pf-section-meta .pf-meta-label{color:var(--fg-3)}
@@ -1355,12 +1352,12 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 }
 #pf-borrows-section .pf-table [data-column="collateral"],
 #pf-borrows-section .pf-table [data-column="debt"]{
-  text-align:right;
+  text-align:left;
   white-space:normal;
   overflow:visible;
 }
 .pf-borrow-positions .pf-money-cell{
-  align-items:flex-end;
+  align-items:flex-start;
   gap:4px;
 }
 .pf-borrow-positions .pf-money-main{
@@ -1374,8 +1371,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   color:#f87171;
 }
 .pf-borrow-positions .pf-token-pills{
-  align-items:flex-end;
-  justify-content:flex-end;
+  align-items:flex-start;
+  justify-content:flex-start;
   flex-direction:column;
   flex-wrap:nowrap;
   gap:3px;
@@ -1387,10 +1384,16 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   border:0;
   background:none;
   font-size:10px;
+  font-weight:500;
   color:var(--fg-3);
   gap:4px;
 }
-.pf-borrow-positions .pf-token-pill img{width:12px;height:12px}
+.pf-borrow-positions .pf-token-pill-icon,
+.pf-borrow-positions .pf-token-pill-icon img{display:block;width:12px;height:12px;border-radius:50%;object-fit:contain;flex-shrink:0}
+.pf-borrow-positions .pf-token-pill-icon.full-logo,
+.pf-borrow-positions .pf-token-pill-icon.full-logo img{border-radius:3px}
+.pf-borrow-positions .pf-token-symbol{color:var(--fg-3)}
+.pf-borrow-positions .pf-token-usd{margin-left:2px;color:var(--fg-4);font-weight:400}
 .pf-emode-cell{text-align:center!important}
 .pf-table-head-help{display:inline-flex;align-items:center;gap:5px}
 .pf-table-head-info{
@@ -2580,10 +2583,9 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const collapsible = !!options.collapsible;
     const renderToken = t => {
       const sym = t.symbol || "?";
-      const mono = sym.replace(/[^A-Za-z0-9]/g,"").slice(0,2).toUpperCase() || "?";
       const icon = tokenIcon(sym, { chain });
       const value = Number(t.usd) ? fmtUSD(t.usd) : "—";
-      return `<span class="pf-token-pill" title="${esc(sym)} ${esc(value)}"><img class="${tokenIconFrameClass(sym)}" src="${icon}" alt="" onerror="this.remove();this.parentElement.textContent='${mono} ${esc(value)}'"><span>${esc(sym)}</span><span>${esc(value)}</span></span>`;
+      return `<span class="pf-token-pill" title="${esc(sym)} ${esc(value)}"><span class="pf-token-pill-icon ${tokenIconFrameClass(sym)}"><img src="${icon}" alt="" onerror="this.remove()"></span><span class="pf-token-symbol">${esc(sym)}</span><span class="pf-token-usd">${esc(value)}</span></span>`;
     };
     if (collapsible && list.length > limit){
       const primary = list.slice(0, limit).map(renderToken).join("");
@@ -3191,20 +3193,17 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   function closeAllDd(){
     document.querySelectorAll(".pf-dd .dd-panel.show").forEach(p => p.classList.remove("show"));
     document.querySelectorAll(".pf-dd .dd-btn.open").forEach(b => b.classList.remove("open"));
-    document.querySelectorAll(".pf-section.pf-dropdown-open").forEach(section => section.classList.remove("pf-dropdown-open"));
   }
-  function openPortfolioDd(dd, panel, btn){
+  function openPortfolioDd(panel, btn){
     panel.classList.add("show");
     btn.classList.add("open");
-    const section = dd.closest(".pf-section");
-    if (section) section.classList.add("pf-dropdown-open");
   }
-  function refreshDd(el, f, present){
-    el.querySelectorAll(".dd-opt").forEach(opt => {
+  function refreshDd(dropdown, f, present){
+    dropdown.querySelectorAll(".dd-opt").forEach(opt => {
       const net = opt.dataset.net;
       opt.classList.toggle("active", net === "all" ? f.chains.size === 0 : f.chains.has(net));
     });
-    const btn = el.querySelector("[data-dd-btn]");
+    const btn = dropdown.querySelector("[data-dd-btn]");
     if (btn){
       btn.classList.toggle("filtered", f.chains.size > 0);
       const lbl = btn.querySelector(".lbl"); if (lbl) lbl.textContent = chainLabel(f, present);
@@ -3225,7 +3224,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
         const c = CHAIN_BY_KEY[ck] || { name: ck, key: ck };
         opts += `<div class="dd-opt${filterState.chains.has(ck)?" active":""}" data-net="${ck}">${DD_CHECK}<img src="${chainIcon(c.key)}" onerror="this.style.display='none'"><span class="dd-opt-name">${c.name}</span></div>`;
       });
-      dd = `<div class="dd pf-dd" data-dolo-dropdown-mode="static"><button class="dd-btn${filterState.chains.size?" filtered":""}" type="button" data-dd-btn><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="lbl">${chainLabel(filterState, present)}</span><span class="count">${filterState.chains.size||present.length}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Chain</div><div class="dd-list">${opts}</div></div></div>`;
+      dd = `<div class="dd pf-dd"><button class="dd-btn${filterState.chains.size?" filtered":""}" type="button" data-dd-btn><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="lbl">${chainLabel(filterState, present)}</span><span class="count">${filterState.chains.size||present.length}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Chain</div><div class="dd-list">${opts}</div></div></div>`;
     }
     const searchHtml = `<label class="search pf-search-tbl${filterState.q?" has-value":""}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -3240,15 +3239,16 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       <a class="pf-borrow-pill pf-alert-pill set-alert-header-btn" href="https://t.me/Dolomite_SuperGus_bot" target="_blank" rel="noopener" data-borrow-set-alert>${TELEGRAM_ICON}<span>Set Alert</span></a>
     </div>` : "";
     el.innerHTML = searchHtml + dd + borrowActions;
-    const btn = el.querySelector("[data-dd-btn]"), panel = el.querySelector(".dd-panel");
+    const dropdown = el.querySelector(".pf-dd");
+    const btn = dropdown && dropdown.querySelector("[data-dd-btn]"), panel = dropdown && dropdown.querySelector(".dd-panel");
     if (btn && panel){
-      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open) openPortfolioDd(btn.closest(".pf-dd"), panel, btn); });
+      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open) openPortfolioDd(panel, btn); });
       panel.addEventListener("click", e => e.stopPropagation());
-      el.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
+      dropdown.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
         const net = opt.dataset.net;
         if (net === "all") filterState.chains.clear();
         else { if (filterState.chains.has(net)) filterState.chains.delete(net); else filterState.chains.add(net); if (filterState.chains.size === present.length) filterState.chains.clear(); }
-        refreshDd(el, filterState, present); onChange();
+        refreshDd(dropdown, filterState, present); onChange();
       }));
     }
     const ts = el.querySelector("[data-token-search]");
@@ -3308,12 +3308,12 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     EXERCISE_ROUTES.forEach(route => {
       opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span><span class="dd-opt-count">${(routeCounts[route.key] || 0).toLocaleString("en-US")}</span></div>`;
     });
-    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native" data-dolo-dropdown-mode="static"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
+    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
     const dd = el.querySelector(".pf-exercise-route-filter");
     const btn = dd && dd.querySelector("[data-dd-btn]");
     const panel = dd && dd.querySelector(".dd-panel");
     if (btn && panel){
-      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open) openPortfolioDd(dd, panel, btn); });
+      btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open) openPortfolioDd(panel, btn); });
       panel.addEventListener("click", e => e.stopPropagation());
       dd.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
         const route = opt.dataset.route;
