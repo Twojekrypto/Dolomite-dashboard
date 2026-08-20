@@ -22,4 +22,72 @@
 .wallet-flow-table .wallet-identity-cell{gap:3px}
 .wallet-flow-table .wallet-address-actions .addr-copy,.wallet-flow-table .wallet-address-actions .addr-debank{width:20px!important;height:20px!important}
 .wallet-flow-table .type-tag{padding-top:1px;padding-bottom:1px}
-@media(max-width:620px){.wallet-primary{font-size:12px}.wallet-secondary,.wallet-address{font-size:10px}.wallet-identity-cell{gap:4px}}
+
+/* Shared table empty state — veDOLO Holders is the visual reference. */
+.dolo-empty-state-row>td,.dolo-empty-state-cell{height:112px!important;padding:0!important;text-align:center!important;vertical-align:middle!important;background:transparent!important}
+.dolo-empty-state{display:flex;align-items:center;justify-content:center;min-height:112px;width:100%;padding:24px;color:var(--fg-3,#8c8c92);font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:500;line-height:1.45;letter-spacing:0;text-align:center}
+.dolo-empty-state span{max-width:460px}
+
+/* Shared action/route badge system. */
+.history-table .action-list{align-items:center;gap:6px}
+.history-table .action-chip.dolo-route-badge,.dolo-route-badge{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:24px;padding:4px 8px;border:1px solid var(--line-2,rgba(255,255,255,.1));border-radius:999px;background:rgba(255,255,255,.025);font-family:Inter,system-ui,sans-serif;font-size:9.5px;font-weight:700;line-height:1;letter-spacing:.35px;white-space:nowrap;vertical-align:middle}
+.dolo-route-icon{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;flex:0 0 13px}
+.dolo-route-icon svg{display:block;width:13px;height:13px}
+.history-table .action-chip.deposit{color:var(--up,#75b87b);border-color:rgba(117,184,123,.30);background:rgba(117,184,123,.08)}
+.history-table .action-chip.withdraw,.history-table .action-chip.liquidation{color:var(--down,#b4796b);border-color:rgba(180,121,107,.30);background:rgba(180,121,107,.08)}
+.history-table .action-chip.transfer,.history-table .action-chip.trade,.history-table .action-chip.zap{color:var(--cyan,#8fb7c8);border-color:rgba(143,183,200,.28);background:rgba(143,183,200,.08)}
+.history-table .action-chip.borrow,.history-table .action-chip.repay{color:var(--gold,#c9a227);border-color:var(--gold-line,rgba(201,162,39,.28));background:var(--gold-wash,rgba(201,162,39,.08))}
+
+/* Body portal for filters — prevents clipping by empty or scrollable tables. */
+.dolo-dropdown-placeholder{flex:0 0 auto;visibility:hidden;pointer-events:none}
+.pf-dd.dolo-dropdown-portal{margin:0!important;max-width:none!important;transform:none!important}
+.pf-dd.dolo-dropdown-portal .dd-panel{z-index:10060!important;max-height:min(360px,calc(100vh - 96px));overflow:auto;box-shadow:0 18px 48px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.035)}
+
+/* All Routes follows the All Chains interaction model while keeping the app's internal all-selected Set. */
+.pf-exercise-route-filter .dolo-all-routes-option{border-bottom:1px solid rgba(117,184,123,.12)}
+.pf-exercise-route-filter .dolo-all-routes-icon{display:inline-flex;align-items:center;justify-content:center}
+.pf-exercise-route-filter .dolo-all-routes-icon svg{width:14px;height:14px}
+.pf-exercise-route-filter.dolo-all-routes-mode .dd-opt[data-route]:not([data-route="all"]){color:var(--fg-3)!important;background:transparent!important}
+.pf-exercise-route-filter.dolo-all-routes-mode .dd-opt[data-route]:not([data-route="all"]) .dd-opt-check{color:transparent!important;background:transparent!important;border-color:var(--line-3)!important}
+.pf-exercise-route-filter.dolo-all-routes-mode .dd-opt[data-route]:not([data-route="all"]) .dd-opt-count{color:var(--fg-4)!important}
+
+/* veDOLO table alignment and NEW LOCK marker. */
+#position-activity-table .activity-action-head,#position-activity-table .activity-action-cell{text-align:center!important}
+#position-activity-table .activity-action-cell>.flow-source-tag{margin-inline:auto;justify-content:center}
+#position-activity-table .dolo-new-lock-badge{color:var(--up,#75b87b);border-color:rgba(117,184,123,.30);background:rgba(117,184,123,.08)}
+#position-activity-table .dolo-lock-end-cell{display:table-cell!important;text-align:right!important;vertical-align:middle!important}
+#position-activity-table .dolo-lock-end-date,#position-activity-table .dolo-new-lock-label{display:block;text-align:right}
+#position-activity-table .dolo-new-lock-label{margin-top:5px;color:var(--up,#75b87b);font-family:Inter,system-ui,sans-serif;font-size:9px;font-weight:700;line-height:1;letter-spacing:.7px;text-transform:uppercase}
+
+/* Rounded lower table edges without removing horizontal scrolling. */
+.dolo-rounded-table-wrap{border-radius:0 0 var(--r-xl,12px) var(--r-xl,12px)}
+.dolo-rounded-table tbody tr:last-child>td:first-child{border-bottom-left-radius:var(--r-xl,12px)}
+.dolo-rounded-table tbody tr:last-child>td:last-child{border-bottom-right-radius:var(--r-xl,12px)}
+
+@media(max-width:620px){.wallet-primary{font-size:12px}.wallet-secondary,.wallet-address{font-size:10px}.wallet-identity-cell{gap:4px}.dolo-empty-state{min-height:96px;padding:20px 14px}.history-table .action-chip.dolo-route-badge{min-height:23px;padding:4px 7px;font-size:9px}}
+
+/* Shared route icon geometry across veDOLO activity badges and Portfolio filters. */
+.exercise-route-icon.dolo-shared-route-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px;border:1px solid var(--line-2,rgba(255,255,255,.10));border-radius:6px;background:rgba(255,255,255,.025);color:var(--fg-3,#8c8c92)}
+.exercise-route-icon.dolo-shared-route-icon svg{display:block;width:14px;height:14px}
+.dd-opt.active .exercise-route-icon.dolo-shared-route-icon{color:var(--up,#75b87b);border-color:rgba(117,184,123,.30);background:rgba(117,184,123,.08)}
+.pf-exercise-route-filter .dd-opt{min-height:42px;align-items:center;gap:9px;padding:8px 10px}
+.pf-exercise-route-filter .dd-opt-check{flex:0 0 auto}
+.pf-exercise-route-filter .dd-opt-name{line-height:1.2}
+#position-activity-table .activity-action-cell .dolo-route-badge{min-width:92px}
+
+/* Preserve route-filter styling when its wrapper is temporarily portaled to body. */
+.pf-exercise-route-filter.dolo-dropdown-portal .dd-btn{min-width:210px;border-color:rgba(117,184,123,.20);background:rgba(117,184,123,.045)}
+.pf-exercise-route-filter.dolo-dropdown-portal .dd-btn:hover,.pf-exercise-route-filter.dolo-dropdown-portal .dd-btn.open,.pf-exercise-route-filter.dolo-dropdown-portal .dd-btn.filtered{border-color:rgba(117,184,123,.30);background:rgba(117,184,123,.075)}
+.pf-exercise-route-filter.dolo-dropdown-portal .dd-panel{min-width:210px;border-color:rgba(117,184,123,.20);background:linear-gradient(180deg,rgba(18,28,20,.99),rgba(12,14,13,.99))}
+.pf-exercise-route-filter.dolo-dropdown-portal .dd-panel-head{color:var(--up,#75b87b)}
+.pf-exercise-route-filter.dolo-dropdown-portal .dd-opt+.dd-opt{border-top-color:rgba(117,184,123,.10)}
+.pf-exercise-route-filter.dolo-dropdown-portal .dd-opt:hover{background:rgba(117,184,123,.055);color:var(--fg-1,#f2f2f3)}
+.pf-exercise-route-filter.dolo-dropdown-portal .dd-opt.active{background:rgba(117,184,123,.075);color:var(--fg-1,#f2f2f3)}
+.pf-exercise-route-filter.dolo-dropdown-portal .dd-opt.active .dd-opt-check{background:var(--up,#75b87b);border-color:var(--up,#75b87b)}
+
+/* The three veDOLO tables own their rounded clipping surface. */
+.dolo-rounded-table-wrap{overflow-x:auto;overflow-y:hidden}
+
+/* Flip long menus above their trigger when the viewport has more room there. */
+.pf-dd.dolo-dropdown-portal.dolo-dropdown-up .dd-panel{top:auto!important;bottom:calc(100% + 6px)!important}
+.pf-dd.dolo-dropdown-portal:not(.dolo-dropdown-up) .dd-panel{top:calc(100% + 6px)!important;bottom:auto!important}

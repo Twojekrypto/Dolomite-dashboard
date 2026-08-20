@@ -37,15 +37,15 @@ const transfers = [
 ];
 
 const activities = buildActivityRows(locks, transfers);
-assert.deepEqual(activities.map(row => row.kind), ["transfer", "split", "merge", "extend"]);
-assert.deepEqual(activities.map(row => row.timestamp), [500, 400, 300, 200]);
+assert.deepEqual(activities.map(row => row.kind), ["transfer", "split", "merge", "extend", "create"]);
+assert.deepEqual(activities.map(row => row.timestamp), [500, 400, 300, 200, 100]);
 assert.equal(activities[0].address, "0xto");
 assert.equal(activities[0].from, "0xfrom");
 assert.equal(activities[1].sourceTokenId, 2);
 assert.equal(activities[1].targetTokenId, 3);
 assert.equal(activities[2].dolo, 100);
 assert.equal(activities[3].locktime, 900);
-assert.equal(activities.some(row => row.kind === "create"), false);
+assert.equal(activities.some(row => row.kind === "create"), true);
 
 const sharedActivityRows = buildActivityRows([
   { depositType: 3, tokenId: 7, timestamp: 100, address: "0xOWNER", txHash: "0xextend", block: 1 },

@@ -1,8 +1,8 @@
 /*
  * Shared route loader for all Dolomite dashboard entry points.
  * Each <route>/index.html defines a small config and calls loadDoloRoute(config).
- * Single source of truth for the mobile-nav / mobile-polish / protocol-footer
- * asset injection (previously copy-pasted into 12 loaders).
+ * Single source of truth for shared navigation, table UX, mobile polish, and
+ * protocol footer assets (previously copy-pasted into route loaders).
  *
  * Config:
  *   label    – user-facing name for the error message ("DOLO", "Earn", ...)
@@ -20,6 +20,8 @@
     polish: "mobile-polish-safari-details-20260805",
     footer: "protocol-footer-20260619-links-mobile"
   };
+  var TABLE_UX_VERSION = "20260820-table-ux-v1";
+  var POSITION_ACTIVITY_VERSION = "20260820-new-lock-v1";
   var CLOUDFLARE_ANALYTICS = {
     src: "https://static.cloudflareinsights.com/beacon.min.js",
     token: "930335c0b8864fdf8d9748c2432adaed"
@@ -32,6 +34,30 @@
       '<script defer src="mobile-nav.js?v=' + NAV_VERSIONS.nav + '"><' + '/script>' +
       '<script defer src="mobile-polish.js?v=' + NAV_VERSIONS.polish + '"><' + '/script>' +
       '<script defer src="protocol-footer.js?v=' + NAV_VERSIONS.footer + '"><' + '/script>';
+  }
+
+  function replaceAssetVersion(html, assetName, version) {
+    var escaped = assetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return html.replace(new RegExp(escaped + "\\?v=[^\\\"'\\s>]+", "g"), assetName + "?v=" + version);
+  }
+
+  function prepareSharedTableUx(html) {
+    var normalized = replaceAssetVersion(html, "wallet-table-ux.css", TABLE_UX_VERSION);
+    normalized = replaceAssetVersion(normalized, "wallet-table-ux.js", TABLE_UX_VERSION);
+    normalized = replaceAssetVersion(normalized, "vedolo-position-activity.js", POSITION_ACTIVITY_VERSION);
+    normalized = replaceAssetVersion(normalized, "dolo-address-overrides.js", TABLE_UX_VERSION);
+
+    var assets = "";
+    if (!/wallet-table-ux\.css(?:\?v=|[\"'])/.test(normalized)) {
+      assets += '<link rel="stylesheet" href="wallet-table-ux.css?v=' + TABLE_UX_VERSION + '" data-dolo-table-ux-version="' + TABLE_UX_VERSION + '">';
+    }
+    if (!/dolo-address-overrides\.js(?:\?v=|[\"'])/.test(normalized)) {
+      assets += '<script src="dolo-address-overrides.js?v=' + TABLE_UX_VERSION + '" data-dolo-address-overrides-version="' + TABLE_UX_VERSION + '"><' + '/script>';
+    }
+    if (!/wallet-table-ux\.js(?:\?v=|[\"'])/.test(normalized)) {
+      assets += '<script src="wallet-table-ux.js?v=' + TABLE_UX_VERSION + '" data-dolo-table-ux-version="' + TABLE_UX_VERSION + '"><' + '/script>';
+    }
+    return { html: normalized, assets: assets };
   }
 
   function installAnalyticsBeacon() {
@@ -52,6 +78,8 @@
       var response = await fetch(config.target + "?v=" + config.version, { cache: "no-cache" });
       if (!response.ok) throw new Error("HTTP " + response.status);
       var html = await response.text();
+      var prepared = prepareSharedTableUx(html);
+      html = prepared.html;
 
       var headParts = ['<base href="' + (config.base || "../") + '">'];
       if (config.route) {
@@ -75,7 +103,7 @@
       document.write(
         html
           .replace("<head>", "<head>" + headParts.join(""))
-          .replace("</head>", buildNavAssets() + "</head>")
+          .replace("</head>", prepared.assets + buildNavAssets() + "</head>")
       );
       document.close();
       setTimeout(installAnalyticsBeacon, 0);

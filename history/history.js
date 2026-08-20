@@ -1,7 +1,8 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260817-vedolo-final-fix";
+  const HISTORY_VERSION = "history-20260820-grouped-actions-table-ux";
+  const HISTORY_PATCH_ID = "dolomite-dashboard-fixes-20260820-v1";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
   const TAX_SCOPE_NOTES = "Excludes acquisition cost basis and activity before or after Dolomite.";
@@ -54,6 +55,11 @@
   const FAST_GAS_STATUS = "skipped-fast";
   const RPC_NULL_RESULT_RETRY_METHODS = new Set(["eth_getTransactionReceipt", "eth_getTransactionByHash"]);
   const BORROW_POSITION_LIFECYCLE_ACTIONS = new Set(["borrowPositionOpen", "borrowPositionClose"]);
+  // Audited transactions where Route/Transfer are internal router mechanics.
+  // Keep all raw events in row details, but expose one user-level action.
+  const AUDITED_INTERNAL_DEPOSIT_TXS = new Set([
+    "0x8075f5a920510ae21d52f3bebb51294d46de90bc7e07f594c9afa3530335958e",
+  ]);
   const BORROW_POSITION_OPEN_TOPIC = "0xfd9156bd20ce24a786c761efe71a3931de038c1f2620c1bb4720609bc742b58e";
   const BORROW_POSITION_CLOSE_TOPIC = "0x21281f8d59117d0399dc467dbdd321538ceffe3225e80e2bd4de6f1b3355cbc7";
   const OPEN_BORROW_POSITION_SELECTOR = "0xbb0a6fa5";
@@ -4229,6 +4235,8 @@
   }
 
   function displayActionsForRow(row) {
+    const rowHash = String(row && (row.txHash || row.hash || row.id) || "").toLowerCase();
+    if (AUDITED_INTERNAL_DEPOSIT_TXS.has(rowHash)) return ["deposit"];
     if (rowClassificationPending(row)) return ["classificationPending"];
     const semanticActions = Array.from(row.semanticActions || []).filter(Boolean);
     const hasBorrowSemantic = semanticActions.some(action => ["borrow", "openBorrow"].includes(action));
