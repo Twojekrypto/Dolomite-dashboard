@@ -11,6 +11,25 @@ const walletUxSource = fs.readFileSync(path.join(root, "wallet-table-ux.js"), "u
 const walletUxCss = fs.readFileSync(path.join(root, "wallet-table-ux.css"), "utf8");
 const assetsSource = fs.readFileSync(path.join(root, "assets-preview.html"), "utf8");
 
+function portfolioTokenPills() {
+  const start = portfolioSource.indexOf("  function tokenPills(tokens, chain, options = {}){");
+  const end = portfolioSource.indexOf("\n  function shortAccountNumber", start);
+  assert.notEqual(start, -1, "portfolio token-pill renderer must exist");
+  assert.notEqual(end, -1, "portfolio token-pill renderer must have a stable boundary");
+  const sandbox = {
+    Array,
+    Number,
+    esc(value) { return String(value); },
+    fmtUSD(value) { return value === 1234 ? "$1.23K" : String(value); },
+    tokenIcon(symbol, { chain }) { return `icons/${chain}-${symbol}.svg`; },
+    tokenIconFrameClass(symbol) { return symbol === "WETH" ? "round-logo" : ""; },
+  };
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(`${portfolioSource.slice(start, end)}\nglobalThis.api = { tokenPills };`, sandbox);
+  return sandbox.api.tokenPills;
+}
+
 function portfolioRiskLoader(fetchImpl) {
   const start = portfolioSource.indexOf("  const normAddr = a =>");
   const end = portfolioSource.indexOf("  async function sgQuery", start);
@@ -122,19 +141,33 @@ test("a real wallet transfer is not hidden merely because the transaction also c
   assert.equal(api.rowMatchesActionFilter(row, "swap"), true);
 });
 
-test("Portfolio filters remain in their card while open and the activity summary uses all loaded rows", () => {
+test("Portfolio filters use the shared floating dropdown without resizing their table", () => {
   const syncStart = walletUxSource.indexOf("  function syncDropdownPortals(scope){");
   const syncEnd = walletUxSource.indexOf("\n  function runEnhancements()", syncStart);
   const sync = walletUxSource.slice(syncStart, syncEnd);
 
-  assert.match(portfolioSource, /data-dolo-dropdown-mode="static"/);
-  assert.match(portfolioSource, /\.pf-section\.pf-dropdown-open\{[^}]*overflow:visible/);
-  assert.match(portfolioSource, /\.pf-dd\[data-dolo-dropdown-mode="static"\] \.dd-panel\.show\{position:relative/);
-  assert.match(sync, /doloDropdownMode === "static"[\s\S]{0,240}return;/);
+  assert.doesNotMatch(portfolioSource, /data-dolo-dropdown-mode="static"/);
+  assert.doesNotMatch(portfolioSource, /\.pf-section\.pf-dropdown-open\{/);
+  assert.doesNotMatch(portfolioSource, /\.pf-dd\[data-dolo-dropdown-mode="static"\] \.dd-panel\.show/);
+  assert.match(sync, /panel && panel\.classList\.contains\("show"\)\) portalDropdown\(dd\)/);
+  assert.match(portfolioSource, /refreshDd\(dropdown, filterState, present\);/);
   assert.match(portfolioSource, /refreshExerciseRouteDd\(dd, filterState\)/);
   assert.match(portfolioSource, /renderExerciseSummary\(state\.exercises\)/);
   assert.doesNotMatch(portfolioSource, /renderExerciseSummary\(rows\);/);
   assert.match(walletUxCss, /\.pf-exercise-route-filter\.dolo-dropdown-portal \.dd-btn\.filtered\{[^}]*background:rgba\(117,184,123,\.075\)/);
+});
+
+test("Portfolio Open Borrows renders Collateral and Debt like Lending Positions", () => {
+  const tokenPills = portfolioTokenPills();
+  const html = tokenPills([{ symbol: "WETH", usd: 1234 }], "ethereum");
+
+  assert.match(html, /class="pf-token-pill-icon round-logo"/);
+  assert.match(html, /<img src="icons\/ethereum-WETH\.svg"/);
+  assert.match(html, /class="pf-token-symbol">WETH</);
+  assert.match(html, /class="pf-token-usd">\$1\.23K</);
+  assert.match(portfolioSource, /#pf-borrows-section \.pf-table \[data-column="collateral"\],[\s\S]*?text-align:left;/);
+  assert.match(portfolioSource, /\.pf-borrow-positions \.pf-money-cell\{[\s\S]*?align-items:flex-start;/);
+  assert.match(portfolioSource, /\.pf-borrow-positions \.pf-token-pills\{[\s\S]*?align-items:flex-start;[\s\S]*?justify-content:flex-start;/);
 });
 
 test("Assets reuses the dashboard empty-state shell for an unmatched address", () => {

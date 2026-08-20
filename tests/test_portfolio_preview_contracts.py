@@ -140,8 +140,8 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
     def test_wallet_summary_alignment_uses_context_status_and_numeric_lanes(self):
         self.assertIn('#pf-borrows-section .pf-table [data-column="chain"]{\n  text-align:left;', self.html)
         self.assertIn('#pf-borrows-section .pf-table [data-column="account"],\n#pf-borrows-section .pf-table [data-column="health"],\n#pf-borrows-section .pf-table [data-column="emode"]{\n  text-align:center;', self.html)
-        self.assertIn('#pf-borrows-section .pf-table [data-column="collateral"],\n#pf-borrows-section .pf-table [data-column="debt"]{\n  text-align:right;', self.html)
-        self.assertIn('.pf-borrow-positions .pf-money-cell{\n  align-items:flex-end;', self.html)
+        self.assertIn('#pf-borrows-section .pf-table [data-column="collateral"],\n#pf-borrows-section .pf-table [data-column="debt"]{\n  text-align:left;', self.html)
+        self.assertIn('.pf-borrow-positions .pf-money-cell{\n  align-items:flex-start;', self.html)
         self.assertIn('#pf-exercises-section .flow-route-head,#pf-exercises-section .pf-route-cell,#pf-exercises-section .pf-table [data-column="lock"]{text-align:center}', self.html)
 
     def test_vedolo_activity_uses_distinct_asset_colors(self):
