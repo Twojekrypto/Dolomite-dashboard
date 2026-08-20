@@ -2401,9 +2401,19 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const manifest = await loadJson(`${base}/manifest.json`);
     const chains = Object.keys((manifest && manifest.chains) || {});
     const shards = await Promise.all(chains.map(chain => loadJson(`${base}/${chain}/${prefix}.json`)));
+    const positions = shards.flatMap(shard => ((shard && shard.positions) || []).filter(position => normAddr(position.address) === address));
+    if (positions.length){
+      return {
+        positions,
+        updatedAt: manifest && (manifest.generatedAtISO || manifest.generatedAt),
+      };
+    }
+    // Lending Positions reads this current payload. Shards are a fast path, but
+    // a stale shard must never hide a wallet's still-open borrow from Portfolio.
+    const lendingPayload = await loadJson("liquidation_risk.json");
     return {
-      positions: shards.flatMap(shard => ((shard && shard.positions) || []).filter(position => normAddr(position.address) === address)),
-      updatedAt: manifest && (manifest.generatedAtISO || manifest.generatedAt),
+      positions: ((lendingPayload && lendingPayload.positions) || []).filter(position => normAddr(position.address) === address),
+      updatedAt: (lendingPayload && (lendingPayload.generatedAtISO || lendingPayload.generatedAt)) || (manifest && (manifest.generatedAtISO || manifest.generatedAt)),
     };
   }
   async function sgQuery(endpoint, query){
@@ -3251,12 +3261,14 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   }
 
   function refreshExerciseRouteDd(el, filterState){
+    const dd = el && el.matches && el.matches(".pf-exercise-route-filter") ? el : el && el.querySelector(".pf-exercise-route-filter");
+    if (!dd) return;
     const allSelected = allExerciseRoutesSelected(filterState);
-    el.querySelectorAll(".dd-opt").forEach(opt => {
+    dd.querySelectorAll(".dd-opt").forEach(opt => {
       const route = opt.dataset.route;
       opt.classList.toggle("active", route === "all" ? allSelected : filterState.routes.has(route));
     });
-    const btn = el.querySelector("[data-dd-btn]");
+    const btn = dd.querySelector("[data-dd-btn]");
     if (btn){
       const selected = filterState.routes.size;
       btn.classList.toggle("filtered", !allSelected);
@@ -3284,19 +3296,20 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span><span class="dd-opt-count">${(routeCounts[route.key] || 0).toLocaleString("en-US")}</span></div>`;
     });
     el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
-    const btn = el.querySelector("[data-dd-btn]");
-    const panel = el.querySelector(".dd-panel");
+    const dd = el.querySelector(".pf-exercise-route-filter");
+    const btn = dd && dd.querySelector("[data-dd-btn]");
+    const panel = dd && dd.querySelector(".dd-panel");
     if (btn && panel){
       btn.addEventListener("click", e => { e.stopPropagation(); const open = panel.classList.contains("show"); closeAllDd(); if (!open){ panel.classList.add("show"); btn.classList.add("open"); } });
       panel.addEventListener("click", e => e.stopPropagation());
-      el.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
+      dd.querySelectorAll(".dd-opt").forEach(opt => opt.addEventListener("click", () => {
         const route = opt.dataset.route;
         const routeSelector = window.DoloWalletTableUX?.routeSelectionPlan;
         const nextRoutes = routeSelector
           ? DoloWalletTableUX.routeSelectionPlan([...filterState.routes], route, EXERCISE_ROUTES.map(item => item.key))
           : (route === "all" ? EXERCISE_ROUTES.map(item => item.key) : [route]);
         filterState.routes = new Set(nextRoutes);
-        refreshExerciseRouteDd(el, filterState);
+        refreshExerciseRouteDd(dd, filterState);
         state.exPage = 0;
         onChange();
       }));

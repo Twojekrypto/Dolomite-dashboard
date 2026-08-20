@@ -589,9 +589,6 @@ body::before{
 .assets-table-wrap #tbl thead th[data-column="details"]{padding-left:4px;padding-right:4px!important;text-align:center}
 .tbl tbody tr.data > td,
 .tbl tbody tr.loading-row > td{height:var(--asset-table-row-h)}
-.assets-empty-row td{height:112px;padding:0!important;text-align:center}
-.assets-empty{display:inline-flex;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.01em}
-.assets-empty svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
 .tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
 .tbl tbody td.details-cell{width:112px;text-align:center}
 .tbl tbody tr:hover td{background:var(--bg-3)}
@@ -2415,7 +2412,7 @@ function render(){
     return dir==="asc"?va-vb:vb-va;
   });
   if(!rows.length){
-    tb.innerHTML = `<tr class="assets-empty-row"><td colspan="6" data-dolo-empty-fixed="true"><div class="assets-empty" role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="m16 16 4 4"></path></svg><span>No assets found</span></div></td></tr>`;
+    tb.innerHTML = `<tr class="dolo-empty-state-row assets-empty-row"><td colspan="6" class="dolo-empty-state-cell" data-dolo-empty-fixed="true"><div class="dolo-empty-state" role="status"><span>No assets found</span></div></td></tr>`;
     return;
   }
   document.body.classList.toggle("assets-detail-open", rows.some(r => state.expanded.has(marketKey(r))));

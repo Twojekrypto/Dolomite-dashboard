@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260820-grouped-actions-table-ux";
+  const HISTORY_VERSION = "history-20260820-close-borrow-actions";
   const HISTORY_PATCH_ID = "dolomite-dashboard-fixes-20260820-v1";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
@@ -4239,6 +4239,8 @@
     if (AUDITED_INTERNAL_DEPOSIT_TXS.has(rowHash)) return ["deposit"];
     if (rowClassificationPending(row)) return ["classificationPending"];
     const semanticActions = Array.from(row.semanticActions || []).filter(Boolean);
+    const lifecycleAction = receiptBorrowLifecycleAction(row);
+    if (lifecycleAction && !rowHasExplicitZap(row)) return [lifecycleAction];
     const hasBorrowSemantic = semanticActions.some(action => ["borrow", "openBorrow"].includes(action));
     const hasRepaySemantic = semanticActions.some(action => ["repay", "closeBorrow"].includes(action));
     const hasCollateralSemantic = semanticActions.some(action => ["addCollateral", "withdrawCollateral"].includes(action));
@@ -4265,6 +4267,25 @@
       ...ammChips,
       ...(vestingChips.length ? vestingChips : [{ key: "vesting", className: "vesting", label: ACTION_TABLE_LABELS.vesting }]),
     ];
+  }
+
+  function primaryBorrowLifecycleAction(actions = []) {
+    const values = actions instanceof Set ? actions : new Set(actions || []);
+    if (values.has("closeBorrow")) return "closeBorrow";
+    if (values.has("openBorrow")) return "openBorrow";
+    return "";
+  }
+
+  function receiptBorrowLifecycleAction(row) {
+    const transferSemantics = (row?.events || [])
+      .filter(event => event?.action === "transfer")
+      .map(event => event?.borrowSemanticAction)
+      .filter(action => action === "openBorrow" || action === "closeBorrow");
+    return primaryBorrowLifecycleAction(transferSemantics);
+  }
+
+  function rowHasExplicitZap(row) {
+    return (row?.events || []).some(event => event?.action === "zap");
   }
 
   function semanticAssetFlowClass(row) {
@@ -4303,6 +4324,7 @@
     if (rowClassificationPending(row)) return false;
     const rowActions = row.actions || new Set();
     const semanticActions = row.semanticActions || new Set();
+    const lifecycleAction = receiptBorrowLifecycleAction(row);
     const hasSwapLikeAction = rowActions.has("trade")
       || rowActions.has("zap")
       || (row.events || []).some(event => event?.taxCategory === "swap" || event?.taxCategory === "zap");
@@ -4314,6 +4336,7 @@
     if (action === "withdraw" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "deposit" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
+    if (action === "swap" && lifecycleAction && !rowHasExplicitZap(row)) return false;
     if (action === "transfer" && hasSwapLikeAction) return false;
     if (action === "swap") {
       return hasSwapLikeAction;
@@ -5803,6 +5826,8 @@
   }
 
   function cleanTransactionAction(row) {
+    const lifecycleAction = receiptBorrowLifecycleAction(row);
+    if (lifecycleAction && !rowHasExplicitZap(row)) return ACTION_LABELS[lifecycleAction] || lifecycleAction;
     const primary = primaryTransactionEvent(row.events);
     const semanticLabels = Array.from(row.semanticActions || [])
       .map(action => ACTION_LABELS[action] || action)

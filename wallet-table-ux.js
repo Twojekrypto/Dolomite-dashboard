@@ -473,6 +473,7 @@
     if(routeMutationInProgress) return;
     const anyOption = event.target.closest && event.target.closest('.pf-dd .dd-opt');
     const anyDropdown = anyOption && anyOption.closest('.pf-dd');
+    if(anyDropdown && anyDropdown.dataset.routeModel === "native") return;
     if(anyDropdown && portalState.has(anyDropdown)) restoreDropdown(anyDropdown);
     const option = event.target.closest && event.target.closest('.pf-exercise-route-filter .dd-opt[data-route]');
     if(!option) return;
@@ -580,10 +581,6 @@
     const doc = root.document;
     if(!doc) return;
     (scope || doc).querySelectorAll(".pf-dd").forEach(dd => {
-      if(dd.dataset.routeModel === "native"){
-        if(portalState.has(dd)) restoreDropdown(dd);
-        return;
-      }
       const panel = dd.querySelector(".dd-panel");
       if(panel && panel.classList.contains("show")) portalDropdown(dd);
       else if(portalState.has(dd)) restoreDropdown(dd);
