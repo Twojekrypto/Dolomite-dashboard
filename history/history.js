@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260820-close-borrow-actions";
+  const HISTORY_VERSION = "history-20260820-trade-over-internal-transfer";
   const HISTORY_PATCH_ID = "dolomite-dashboard-fixes-20260820-v1";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
@@ -4238,6 +4238,7 @@
     const rowHash = String(row && (row.txHash || row.hash || row.id) || "").toLowerCase();
     if (AUDITED_INTERNAL_DEPOSIT_TXS.has(rowHash)) return ["deposit"];
     if (rowClassificationPending(row)) return ["classificationPending"];
+    if (rowHasTradeWithTechnicalTransfer(row) && !rowHasExplicitZap(row)) return ["trade"];
     const semanticActions = Array.from(row.semanticActions || []).filter(Boolean);
     const lifecycleAction = receiptBorrowLifecycleAction(row);
     if (lifecycleAction && !rowHasExplicitZap(row)) return [lifecycleAction];
@@ -4288,6 +4289,15 @@
     return (row?.events || []).some(event => event?.action === "zap");
   }
 
+  function rowHasTradeWithTechnicalTransfer(row) {
+    const events = Array.isArray(row?.events) ? row.events : [];
+    const hasTrade = events.some(event => event?.action === "trade"
+      || (event?.taxCategory === "swap" && event?.action !== "amm"));
+    const hasTechnicalTransfer = events.some(event => event?.action === "transfer"
+      && (event?.isSelfTransfer || event?.isTransferForMarginPosition));
+    return hasTrade && hasTechnicalTransfer;
+  }
+
   function semanticAssetFlowClass(row) {
     const actions = row?.semanticActions || new Set();
     if (actions.has("addCollateral")) return "collateral-up";
@@ -4328,6 +4338,7 @@
     const hasSwapLikeAction = rowActions.has("trade")
       || rowActions.has("zap")
       || (row.events || []).some(event => event?.taxCategory === "swap" || event?.taxCategory === "zap");
+    if (rowHasTradeWithTechnicalTransfer(row) && !rowHasExplicitZap(row)) return action === "swap";
     if (action === "borrow") return semanticActions.has("borrow") || semanticActions.has("openBorrow");
     if (action === "repay") return semanticActions.has("repay");
     if (action === "closeBorrow") return semanticActions.has("closeBorrow");
@@ -4337,7 +4348,7 @@
     if (action === "deposit" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "transfer" && (semanticActions.has("borrow") || semanticActions.has("openBorrow") || semanticActions.has("repay") || semanticActions.has("closeBorrow") || semanticActions.has("addCollateral") || semanticActions.has("withdrawCollateral"))) return false;
     if (action === "swap" && lifecycleAction && !rowHasExplicitZap(row)) return false;
-    if (action === "transfer" && hasSwapLikeAction) return false;
+    if (action === "transfer" && hasSwapLikeAction && (rowHasTradeWithTechnicalTransfer(row) || rowHasExplicitZap(row))) return false;
     if (action === "swap") {
       return hasSwapLikeAction;
     }
@@ -5826,6 +5837,7 @@
   }
 
   function cleanTransactionAction(row) {
+    if (rowHasTradeWithTechnicalTransfer(row) && !rowHasExplicitZap(row)) return ACTION_LABELS.trade;
     const lifecycleAction = receiptBorrowLifecycleAction(row);
     if (lifecycleAction && !rowHasExplicitZap(row)) return ACTION_LABELS[lifecycleAction] || lifecycleAction;
     const primary = primaryTransactionEvent(row.events);

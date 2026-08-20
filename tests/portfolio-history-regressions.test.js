@@ -82,35 +82,58 @@ test("Portfolio falls back to the current Lending Positions payload when a walle
   ]);
 });
 
-test("a receipt-confirmed Close Borrow suppresses its internal transfer and trade from History actions", () => {
+test("a technical margin transfer paired with a Trade stays in details and renders one Trade action", () => {
+  const api = historyApi();
+  for (const technicalTransfer of [
+    { isSelfTransfer: true },
+    { isTransferForMarginPosition: true },
+  ]) {
+    const row = {
+      actions: new Set(["transfer", "trade"]),
+      semanticActions: new Set(["closeBorrow"]),
+      events: [
+        { action: "transfer", taxCategory: "protocol_transfer", borrowSemanticAction: "closeBorrow", legs: [], ...technicalTransfer },
+        { action: "trade", taxCategory: "swap", legs: [] },
+      ],
+    };
+
+    assert.deepEqual(Array.from(api.displayActionsForRow(row)), ["trade"]);
+    assert.equal(api.cleanTransactionAction(row), "Trade");
+    assert.equal(api.rowMatchesActionFilter(row, "closeBorrow"), false);
+    assert.equal(api.rowMatchesActionFilter(row, "transfer"), false);
+    assert.equal(api.rowMatchesActionFilter(row, "swap"), true);
+    assert.equal(row.events.length, 2, "technical transfer remains available in Details");
+  }
+});
+
+test("a real wallet transfer is not hidden merely because the transaction also contains a Trade", () => {
   const api = historyApi();
   const row = {
     actions: new Set(["transfer", "trade"]),
-    semanticActions: new Set(["closeBorrow"]),
+    semanticActions: new Set(),
     events: [
-      { action: "transfer", isSelfTransfer: true, taxCategory: "protocol_transfer", borrowSemanticAction: "closeBorrow", legs: [] },
+      { action: "transfer", isSelfTransfer: false, isTransferForMarginPosition: false, taxCategory: "protocol_transfer", legs: [] },
       { action: "trade", taxCategory: "swap", legs: [] },
     ],
   };
 
-  assert.deepEqual(Array.from(api.displayActionsForRow(row)), ["closeBorrow"]);
-  assert.equal(api.cleanTransactionAction(row), "Close Borrow");
-  assert.equal(api.rowMatchesActionFilter(row, "closeBorrow"), true);
-  assert.equal(api.rowMatchesActionFilter(row, "transfer"), false);
-  assert.equal(api.rowMatchesActionFilter(row, "swap"), false);
+  assert.deepEqual(Array.from(api.displayActionsForRow(row)), ["transfer", "trade"]);
+  assert.equal(api.rowMatchesActionFilter(row, "transfer"), true);
+  assert.equal(api.rowMatchesActionFilter(row, "swap"), true);
 });
 
-test("the native All Routes filter portals while open and preserves the green selected state", () => {
+test("Portfolio filters remain in their card while open and the activity summary uses all loaded rows", () => {
   const syncStart = walletUxSource.indexOf("  function syncDropdownPortals(scope){");
   const syncEnd = walletUxSource.indexOf("\n  function runEnhancements()", syncStart);
-  const routeClickStart = walletUxSource.indexOf("  function handleRouteClick(event){");
-  const routeClickEnd = walletUxSource.indexOf("\n  function portalDropdown", routeClickStart);
   const sync = walletUxSource.slice(syncStart, syncEnd);
-  const routeClick = walletUxSource.slice(routeClickStart, routeClickEnd);
 
-  assert.doesNotMatch(sync, /routeModel === "native"[\s\S]{0,120}return;/);
-  assert.match(routeClick, /if\(anyDropdown && anyDropdown\.dataset\.routeModel === "native"\) return;/);
+  assert.match(portfolioSource, /data-dolo-dropdown-mode="static"/);
+  assert.match(portfolioSource, /\.pf-section\.pf-dropdown-open\{[^}]*overflow:visible/);
+  assert.match(portfolioSource, /\.pf-dd\[data-dolo-dropdown-mode="static"\] \.dd-panel\.show\{position:relative/);
+  assert.match(sync, /doloDropdownMode === "static"[\s\S]{0,240}return;/);
   assert.match(portfolioSource, /refreshExerciseRouteDd\(dd, filterState\)/);
+  assert.match(portfolioSource, /renderExerciseSummary\(state\.exercises\)/);
+  assert.doesNotMatch(portfolioSource, /renderExerciseSummary\(rows\);/);
   assert.match(walletUxCss, /\.pf-exercise-route-filter\.dolo-dropdown-portal \.dd-btn\.filtered\{[^}]*background:rgba\(117,184,123,\.075\)/);
 });
 

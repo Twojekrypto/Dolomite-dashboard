@@ -372,7 +372,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("pf-ex-green", self.html)
         self.assertIn("txExplorer(r.chain, r.hash)", self.html)
         self.assertIn('id="pf-exercises-summary"', self.html)
-        self.assertIn("renderExerciseSummary(rows)", self.html)
+        self.assertIn("renderExerciseSummary(state.exercises)", self.html)
         self.assertIn("grid-template-columns:repeat(4,minmax(0,1fr))", self.html)
         self.assertIn("#pf-exercises-section .pf-exercise-summary-item:first-child{border-left:0}", self.html)
         self.assertNotIn("min-height:78px", self.html)
