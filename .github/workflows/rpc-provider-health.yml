@@ -16,6 +16,9 @@ jobs:
         with:
           ref: master
           fetch-depth: 1
+          sparse-checkout: |
+            scripts/report_rpc_provider_health.py
+          sparse-checkout-cone-mode: false
 
       - name: Probe new RPC providers
         env:
