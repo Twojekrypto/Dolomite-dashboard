@@ -1,5 +1,7 @@
 import unittest
 
+import validate_vedolo_locked_history as locked_history
+
 from validate_vedolo_locked_history import (
     LockedHistoryValidationError,
     active_locked_dolo_from_holders,
@@ -12,6 +14,7 @@ class ValidateVedoloLockedHistoryTests(unittest.TestCase):
     def setUp(self):
         self.flows = {
             "timestamp": "2026-08-16T00:00:00+00:00",
+            "target_block": 30,
             "total_locks": 2,
             "total_unlocks": 1,
             "total_transfers": 0,
@@ -26,6 +29,7 @@ class ValidateVedoloLockedHistoryTests(unittest.TestCase):
         }
         self.holders = {
             "timestamp": "1970-01-01T00:06:40+00:00",
+            "snapshot_block": 30,
             "holders": [
                 {"address": "0x" + "a" * 40, "token_details": [{"id": 1, "dolo": 1_000_000, "end": 500}]},
                 {"address": "0x" + "b" * 40, "token_details": [{"id": 2, "dolo": 500_000, "end": 300}]},
@@ -37,6 +41,21 @@ class ValidateVedoloLockedHistoryTests(unittest.TestCase):
         self.assertEqual(active_locked_dolo_from_holders(self.holders, 400), 1_000_000)
         result = validate_locked_history(self.flows, self.holders, max_absolute_gap=1)
         self.assertEqual(result["gap"], 0)
+
+    def test_rejects_cross_artifact_validation_at_different_snapshot_blocks(self):
+        self.holders["snapshot_block"] = 29
+
+        with self.assertRaisesRegex(LockedHistoryValidationError, "snapshot block mismatch"):
+            validate_locked_history(self.flows, self.holders)
+
+    def test_flow_only_validation_does_not_require_holder_snapshot(self):
+        validate_flow_history = getattr(locked_history, "validate_flow_history", None)
+        self.assertTrue(callable(validate_flow_history), "flow-only validator is missing")
+
+        result = validate_flow_history(self.flows)
+
+        self.assertEqual(2, result["lock_count"])
+        self.assertEqual(1, result["unlock_count"])
 
     def test_rejects_material_event_history_gap(self):
         self.flows["locks"] = self.flows["locks"][1:]

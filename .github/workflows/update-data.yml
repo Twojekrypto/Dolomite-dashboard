@@ -1,12 +1,15 @@
 name: Update veDOLO Data
 
 on:
+  workflow_run:
+    workflows: ['Update veDOLO Flows']
+    types: [completed]
   schedule:
-    - cron: '17 */6 * * *'  # Every 6 hours, staggered
+    - cron: '17 3 * * *'  # Daily safety refresh if the upstream trigger is missed
   workflow_dispatch:  # Allow manual trigger
 
 concurrency:
-  group: update-data
+  group: vedolo-data-pipeline
   cancel-in-progress: false
 
 permissions:
@@ -14,12 +17,16 @@ permissions:
 
 jobs:
   update:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -50,6 +57,8 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
           BERASCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
@@ -67,6 +76,8 @@ jobs:
         run: python3 generate_vedolo_vote_power_history.py --sync-stats
         env:
           PYTHONUNBUFFERED: '1'
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
@@ -86,9 +97,7 @@ jobs:
       - name: Validate generated data
         run: |
           python3 validate_data.py vedolo_holders.json vedolo_stats.json vedolo_expiry.json data/vedolo-vote-power-history.json dolo_price.json odolo_contract_data.json metrics_snapshot.json
-          # Cross-artifact reconciliation belongs to update-vedolo-flows.yml.
-          # Here holders are fresh while vedolo_flows.json can still be from the
-          # previous six-hour snapshot, which caused false failures for new locks.
+          python3 validate_vedolo_locked_history.py --flows vedolo_flows.json --holders vedolo_holders.json
 
       - name: Commit & push changes
         run: |

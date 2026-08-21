@@ -184,6 +184,24 @@ class TestNftTransferPagination(unittest.TestCase):
             (4, 2, 2, 30),
         ])
 
+    def test_snapshot_block_caps_explorer_ownership_history(self):
+        seen_endblocks = []
+
+        class Response:
+            def json(self):
+                return {"status": "0", "message": "No transactions found", "result": []}
+
+        def fake_get(_url, *, params, timeout):
+            seen_endblocks.append(params["endblock"])
+            return Response()
+
+        with patch.object(update_data, "API_KEY", "test-key"), \
+             patch.object(update_data, "VEDOLO_SNAPSHOT_BLOCK", 1234), \
+             patch.object(update_data.requests, "get", side_effect=fake_get):
+            self.assertEqual([], update_data.fetch_all_nft_transfers())
+
+        self.assertEqual([1234], seen_endblocks)
+
     def test_preserved_incomplete_snapshot_fails_workflow(self):
         with tempfile.TemporaryDirectory() as directory:
             output = os.path.join(directory, "vedolo_holders.json")
@@ -202,7 +220,7 @@ class TestRpcEndpoints(unittest.TestCase):
         self.assertIn("https://rpc.berachain.com/", update_data.RPC_URLS)
         self.assertGreaterEqual(len(update_data.RPC_URLS), 3)
 
-    def test_update_workflow_keeps_vedolo_pipelines_independent(self):
+    def test_update_workflow_runs_after_flows_and_reconciles_same_snapshot(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-data.yml").read_text()
         flows_workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-vedolo-flows.yml").read_text()
 
@@ -224,8 +242,12 @@ class TestRpcEndpoints(unittest.TestCase):
         self.assertLess(update_position, generator_position)
         self.assertLess(generator_position, validation_position)
         self.assertLess(validation_position, git_add_position)
-        self.assertNotIn("validate_vedolo_locked_history.py", workflow)
-        self.assertIn("validate_vedolo_locked_history.py", flows_workflow)
+        self.assertIn("workflow_run:", workflow)
+        self.assertIn("workflows: ['Update veDOLO Flows']", workflow)
+        self.assertIn("validate_vedolo_locked_history.py", workflow)
+        self.assertIn("--flows-only", flows_workflow)
+        self.assertIn("group: vedolo-data-pipeline", workflow)
+        self.assertIn("group: vedolo-data-pipeline", flows_workflow)
 
     def test_update_workflow_saves_vedolo_history_state_after_a_failed_generation(self):
         workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-data.yml").read_text()
@@ -303,6 +325,31 @@ class TestBoundedHolderRefresh(unittest.TestCase):
         self.assertEqual(fallback[24556]["end"], 1844650000)
         self.assertEqual(fallback[24556]["source"], "vedolo_flows_recent_lock")
 
+    def test_recent_flow_hints_include_split_source_position(self):
+        now_ts = 1782040000
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "vedolo_flows.json")
+            with open(path, "w") as f:
+                json.dump({
+                    "locks": [{
+                        "tokenId": 8,
+                        "sourceTokenId": 7,
+                        "targetTokenId": 8,
+                        "depositType": 5,
+                        "timestamp": now_ts - 30,
+                        "dolo": 25.0,
+                        "locktime": 1844650000,
+                    }]
+                }, f)
+
+            fallback = update_data.load_recent_flow_lock_fallbacks(
+                path=path,
+                now_ts=now_ts,
+                lookback_seconds=3600,
+            )
+
+        self.assertEqual({7, 8}, set(fallback))
+
     def test_locked_refresh_prioritizes_missing_and_defers_bulk_stale(self):
         originals = {
             "CACHE_FILE": update_data.CACHE_FILE,
@@ -362,6 +409,31 @@ class TestBoundedHolderRefresh(unittest.TestCase):
         self.assertEqual(len(fetched_ids.intersection({1, 2, 3, 4})), 2)
         self.assertEqual(cache["7"]["amount"], 35.5)
         self.assertEqual(cache["7"]["source"], "vedolo_flows_recent_lock")
+
+    def test_recently_changed_position_is_refreshed_even_when_cache_is_fresh(self):
+        seen_batches = []
+
+        def fake_batch(token_ids):
+            seen_batches.append(list(token_ids))
+            return {
+                tid: {"amount": 200.0, "end": 1900000000}
+                for tid in token_ids
+            }, []
+
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch.object(update_data, "CACHE_FILE", os.path.join(tmp, "locked_cache.json")), \
+             patch.object(update_data, "make_batch_call", side_effect=fake_batch), \
+             patch.object(update_data, "fetch_contract_dolo_balance", return_value=0), \
+             patch.object(update_data.time, "time", return_value=1782040000), \
+             patch.object(update_data.time, "sleep"):
+            update_data.save_cache({
+                "7": {"amount": 100.0, "end": 1900000000, "fetched_at": 1782039990}
+            })
+
+            cache = update_data.fetch_locked_dolo([7], priority_token_ids=[7])
+
+        self.assertEqual([[7]], seen_batches)
+        self.assertEqual(200.0, cache["7"]["amount"])
 
 
 class TestVedoloMulticall(unittest.TestCase):

@@ -77,6 +77,28 @@ CACHE_FILE = os.path.join(DATA_DIR, "locked_cache.json")
 OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_holders.json")
 OUTPUT_CSV = os.path.join(DATA_DIR, "vedolo_holders.csv")
 
+
+def _default_snapshot_block():
+    configured = env_int("VEDOLO_SNAPSHOT_BLOCK", 0)
+    if configured:
+        return configured
+    flows_path = os.path.join(DATA_DIR, "vedolo_flows.json")
+    try:
+        with open(flows_path) as handle:
+            value = json.load(handle).get("target_block", 0)
+        if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+            return value
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    return 0
+
+
+VEDOLO_SNAPSHOT_BLOCK = _default_snapshot_block()
+
+
+def vedolo_block_identifier():
+    return hex(VEDOLO_SNAPSHOT_BLOCK) if VEDOLO_SNAPSHOT_BLOCK else "latest"
+
 API_KEY = os.environ.get("BERASCAN_API_KEY", "")
 NFT_TRANSFER_PAGE_SIZE = 1_000
 NFT_TRANSFER_MAX_PAGES = 10
@@ -174,7 +196,7 @@ def fetch_all_nft_transfers():
             "action": "tokennfttx",
             "contractaddress": VEDOLO_CONTRACT,
             "startblock": start_block,
-            "endblock": 99999999,
+            "endblock": VEDOLO_SNAPSHOT_BLOCK or 99999999,
             "page": page,
             "offset": NFT_TRANSFER_PAGE_SIZE,
             "sort": "asc",
@@ -365,7 +387,9 @@ def _multicall_vedolo_reads(token_ids, selector):
             try:
                 w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": RPC_TIMEOUT_SECONDS}))
                 multicall = w3.eth.contract(address=multicall_addr, abi=MULTICALL3_AGG3_ABI)
-                results = multicall.functions.aggregate3(calls).call()
+                results = multicall.functions.aggregate3(calls).call(
+                    block_identifier=vedolo_block_identifier()
+                )
                 rpc_usage.record_request("eth_call")  # one aggregate3 == one eth_call
                 rpc_idx = (rpc_idx + attempt) % len(rpc_list)
                 break
@@ -406,7 +430,7 @@ def make_batch_call(token_ids):
         batch.append({
             "jsonrpc": "2.0",
             "method": "eth_call",
-            "params": [{"to": VEDOLO_CONTRACT, "data": LOCKED_SELECTOR + encoded}, "latest"],
+            "params": [{"to": VEDOLO_CONTRACT, "data": LOCKED_SELECTOR + encoded}, vedolo_block_identifier()],
             "id": i
         })
 
@@ -545,6 +569,20 @@ def load_recent_flow_lock_fallbacks(path=None, now_ts=None, lookback_seconds=Non
         entry["amount"] += amount
         entry["end"] = max(entry["end"], end)
         entry["flow_timestamp"] = max(entry["flow_timestamp"], ts)
+        try:
+            source_tid = int(row.get("sourceTokenId") or 0)
+        except (TypeError, ValueError):
+            source_tid = 0
+        if source_tid > 0 and source_tid != tid:
+            # Merge/split changes both positions. The zero amount is a refresh
+            # hint only; it never replaces a valid cached position.
+            fallbacks.setdefault(source_tid, {
+                "amount": 0.0,
+                "end": end,
+                "fetched_at": now_ts,
+                "source": "vedolo_flows_recent_transition",
+                "flow_timestamp": ts,
+            })
     return fallbacks
 
 
@@ -556,7 +594,7 @@ def fetch_contract_dolo_balance():
             resp = requests.post(rpc_url, json={
                 "jsonrpc": "2.0",
                 "method": "eth_call",
-                "params": [{"to": DOLO_TOKEN, "data": BALANCE_OF_SELECTOR + padded_addr}, "latest"],
+                "params": [{"to": DOLO_TOKEN, "data": BALANCE_OF_SELECTOR + padded_addr}, vedolo_block_identifier()],
                 "id": 1
             }, timeout=RPC_TIMEOUT_SECONDS)
             r = resp.json()
@@ -603,7 +641,9 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None, priority_token_ids=None,
         "fetched_at",
         LOCKED_STALE_REFRESH_LIMIT,
     )
-    to_fetch = dedupe_ids(missing, suspicious_zero, priority_stale, stale_limited)
+    # A recent Deposit, merge, or split can change a still-fresh cache entry.
+    # The 14-day priority cohort is small and Multicall keeps this bounded.
+    to_fetch = dedupe_ids(missing, suspicious_zero, priority_ids, stale_limited)
     to_fetch_set = set(to_fetch)
     deferred_stale = len([tid for tid in stale if tid not in to_fetch_set])
 
@@ -784,7 +824,7 @@ def make_vote_batch_call(token_ids):
         batch.append({
             "jsonrpc": "2.0",
             "method": "eth_call",
-            "params": [{"to": VEDOLO_CONTRACT, "data": BALANCE_OF_NFT_SELECTOR + encoded}, "latest"],
+            "params": [{"to": VEDOLO_CONTRACT, "data": BALANCE_OF_NFT_SELECTOR + encoded}, vedolo_block_identifier()],
             "id": i
         })
 
@@ -869,7 +909,7 @@ def fetch_vote_weights(all_token_ids, locked_cache=None, priority_token_ids=None
         "vote_fetched_at",
         VOTE_STALE_REFRESH_LIMIT,
     )
-    to_fetch = dedupe_ids(missing, priority_stale, stale_limited)
+    to_fetch = dedupe_ids(missing, priority_ids, stale_limited)
     deferred_stale = len([tid for tid in stale if tid not in set(to_fetch)])
 
     print(f"  Cached: {len(vote_weights):,}/{len(all_token_ids):,}")
@@ -1029,7 +1069,7 @@ def _single_rpc_vote_batch(token_ids, rpc_url):
         batch.append({
             "jsonrpc": "2.0",
             "method": "eth_call",
-            "params": [{"to": VEDOLO_CONTRACT, "data": BALANCE_OF_NFT_SELECTOR + encoded}, "latest"],
+            "params": [{"to": VEDOLO_CONTRACT, "data": BALANCE_OF_NFT_SELECTOR + encoded}, vedolo_block_identifier()],
             "id": i
         })
 
@@ -1209,6 +1249,8 @@ def main():
         "stats": stats,
         "holders": holders,
     }
+    if VEDOLO_SNAPSHOT_BLOCK:
+        output["snapshot_block"] = VEDOLO_SNAPSHOT_BLOCK
 
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, indent=2)

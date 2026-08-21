@@ -86,6 +86,7 @@ jobs:
             --output data/earn-freshness/status.json \
             --actions-output /tmp/earn-freshness-actions.json
           python3 build_earn_quality_status.py --output data/earn-quality/status.json
+          : > /tmp/earn-refresh-active-chains.txt
           cat data/earn-freshness/status.json
           cat data/earn-quality/status.json
           cat /tmp/earn-freshness-actions.json
@@ -203,6 +204,7 @@ jobs:
               else
                 echo "Skipping $workflow because $active run(s) are already queued/running."
               fi
+              printf '%s\n' "${chain:-__all__}" >> /tmp/earn-refresh-active-chains.txt
               continue
             fi
             dispatch_args=(gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref master)
@@ -251,6 +253,7 @@ jobs:
               continue
             fi
             echo "$job_key" >> /tmp/earn-refresh-dispatched.tsv
+            printf '%s\n' "${chain:-__all__}" >> /tmp/earn-refresh-active-chains.txt
             dispatched_count=$((dispatched_count + 1))
           done < /tmp/earn-refresh-jobs.tsv
 
@@ -259,6 +262,7 @@ jobs:
         run: |
           python3 scripts/check_earn_sla.py \
             data/earn-freshness/status.json \
+            --active-repairs /tmp/earn-refresh-active-chains.txt \
             --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Deploy verified EARN snapshot

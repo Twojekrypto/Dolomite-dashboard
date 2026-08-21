@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static contract tests for the independently scheduled veDOLO pipelines."""
+"""Static contract tests for the block-aligned veDOLO pipeline."""
 
 from pathlib import Path
 
@@ -14,10 +14,15 @@ update_data = update_data_path.read_text(encoding="utf-8")
 flows = flows_path.read_text(encoding="utf-8")
 validator = "validate_vedolo_locked_history.py"
 
-assert validator not in update_data, (
-    "Update veDOLO Data must not reconcile a fresh holder snapshot against a stale flows snapshot"
+assert "workflow_run:" in update_data
+assert "workflows: ['Update veDOLO Flows']" in update_data
+assert validator in update_data, (
+    "Update veDOLO Data must reconcile holders against the flow snapshot block"
 )
 assert validator in flows, (
-    "Update veDOLO Flows must retain fail-closed reconciliation after refreshing flow history"
+    "Update veDOLO Flows must retain fail-closed flow validation before publishing"
 )
+assert "--flows-only" in flows
+assert "group: vedolo-data-pipeline" in update_data
+assert "group: vedolo-data-pipeline" in flows
 print("veDOLO workflow contract tests passed")

@@ -49,9 +49,13 @@ class TestEndpoints(unittest.TestCase):
             self.assertIn(env_name, rpc_client.CHAIN_ENV_KEYS["xlayer"])
 
     def test_env_endpoint_first(self):
-        with mock.patch.dict(os.environ, {"ALCHEMY_BERACHAIN_RPC": "https://x.example/v2/key"}):
+        with mock.patch.dict(os.environ, {
+            "ALCHEMY_BERACHAIN_RPC": "https://x.example/v2/key",
+            "DRPC_BERACHAIN_RPC_ZEN": "https://drpc.example/key",
+        }):
             eps = get_endpoints("berachain")
-        self.assertEqual(eps[0], "https://x.example/v2/key")
+        self.assertEqual(eps[0], "https://drpc.example/key")
+        self.assertLess(eps.index("https://drpc.example/key"), eps.index("https://x.example/v2/key"))
         self.assertIn("https://rpc.berachain.com/", eps)
 
     def test_unknown_chain_raises(self):
@@ -114,6 +118,22 @@ class TestRpcClient(unittest.TestCase):
                                                        "error": {"code": -32000, "message": "x"}})):
             with self.assertRaises(RpcError):
                 client.call("eth_call", [])
+
+    def test_monthly_capacity_error_rotates_and_stays_off_exhausted_endpoint(self):
+        client = self._client()
+        exhausted = _response({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {"code": 429, "message": "Monthly capacity limit exceeded"},
+        })
+        ok = _response({"jsonrpc": "2.0", "id": 1, "result": "0x7"})
+
+        with mock.patch.object(rpc_client.requests, "post", side_effect=[exhausted, ok, ok]) as post:
+            self.assertEqual("0x7", client.call("eth_blockNumber", []))
+            self.assertEqual("0x7", client.call("eth_blockNumber", []))
+
+        self.assertEqual(3, post.call_count)
+        self.assertEqual("https://b.example", post.call_args.args[0])
 
     def test_batch_preserves_order(self):
         client = self._client()
