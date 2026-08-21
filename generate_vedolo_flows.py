@@ -367,6 +367,16 @@ def is_capacity_error(error_obj):
     )
 
 
+def is_rate_limited_exception(exc):
+    response = getattr(exc, "response", None)
+    if getattr(response, "status_code", None) == 429:
+        return True
+    message = str(exc).lower()
+    return any(token in message for token in (
+        "429", "rate limit", "too many", "throttl", "capacity", "quota",
+    ))
+
+
 def rpc_call(method, params, timeout=15):
     """Call RPC with fallback across multiple endpoints."""
     for attempt in range(len(RPC_URLS) * 2):
@@ -379,6 +389,10 @@ def rpc_call(method, params, timeout=15):
             if "error" in data:
                 err_obj = data["error"]
                 err = err_obj.get("message", "")
+                rpc_usage.record_provider_failure(
+                    rpc,
+                    rate_limited=is_capacity_error(err_obj),
+                )
                 if is_capacity_error(err_obj):
                     # Endpoint out of quota / rate-limited — try the next one.
                     time.sleep(0.3)
@@ -387,10 +401,17 @@ def rpc_call(method, params, timeout=15):
                     return {"error": err_obj}
                 time.sleep(0.3)
                 continue
+            rpc_usage.record_request(method)
+            rpc_usage.record_provider_success(rpc, served_methods=1)
             return data
         except requests.exceptions.Timeout:
+            rpc_usage.record_provider_failure(rpc)
             time.sleep(1)
-        except Exception:
+        except Exception as exc:
+            rpc_usage.record_provider_failure(
+                rpc,
+                rate_limited=is_rate_limited_exception(exc),
+            )
             time.sleep(0.3)
     return None
 
@@ -479,16 +500,30 @@ def get_current_block():
                 }, timeout=15, headers={"Content-Type": "application/json"})
                 data = resp.json()
                 if "error" in data:
-                    print(f"  ⚠️ RPC error from {rpc[:50]}...: {data['error']}")
+                    rpc_usage.record_provider_failure(
+                        rpc,
+                        rate_limited=is_capacity_error(data["error"]),
+                    )
+                    print(
+                        f"  ⚠️ RPC error from {rpc_usage.provider_name(rpc)}: {data['error']}"
+                    )
                     continue
                 block = int(data.get("result", "0x0"), 16)
                 if block > 0:
+                    rpc_usage.record_request("eth_blockNumber")
+                    rpc_usage.record_provider_success(rpc, served_methods=1)
                     return block
-                print(f"  ⚠️ Got block 0 from {rpc[:50]}...")
+                rpc_usage.record_provider_failure(rpc)
+                print(f"  ⚠️ Got block 0 from {rpc_usage.provider_name(rpc)}")
             except requests.exceptions.Timeout:
-                print(f"  ⚠️ Timeout from {rpc[:50]}...")
+                rpc_usage.record_provider_failure(rpc)
+                print(f"  ⚠️ Timeout from {rpc_usage.provider_name(rpc)}")
             except Exception as e:
-                print(f"  ⚠️ Error from {rpc[:50]}...: {e}")
+                rpc_usage.record_provider_failure(
+                    rpc,
+                    rate_limited=is_rate_limited_exception(e),
+                )
+                print(f"  ⚠️ Error from {rpc_usage.provider_name(rpc)}: {e}")
             time.sleep(0.5)
         if round_num < 2:
             print(f"  Retry round {round_num + 2}/3...")
@@ -553,6 +588,10 @@ def fetch_event_logs(start_block, end_block, topic):
                 if "error" in r:
                     err_msg = r["error"].get("message", "")
                     last_error = err_msg or str(r["error"])
+                    rpc_usage.record_provider_failure(
+                        rpc,
+                        rate_limited=is_capacity_error(r["error"]),
+                    )
                     if is_capacity_error(r["error"]):
                         # Endpoint out of quota / rate-limited — rotate, do
                         # not shrink the chunk (it is not a range problem).
@@ -570,10 +609,12 @@ def fetch_event_logs(start_block, end_block, topic):
 
                 logs = r.get("result")
                 if not isinstance(logs, list):
+                    rpc_usage.record_provider_failure(rpc)
                     last_error = "malformed eth_getLogs result"
                     continue
 
                 rpc_usage.record_request("eth_getLogs")
+                rpc_usage.record_provider_success(rpc, served_methods=1)
                 if logs:
                     accepted_logs = logs
                     success = True
@@ -590,9 +631,14 @@ def fetch_event_logs(start_block, end_block, topic):
                     success = True
                     break
             except requests.exceptions.Timeout as exc:
+                rpc_usage.record_provider_failure(rpc)
                 last_error = f"timeout: {exc}"
                 time.sleep(1)
             except Exception as exc:
+                rpc_usage.record_provider_failure(
+                    rpc,
+                    rate_limited=is_rate_limited_exception(exc),
+                )
                 last_error = str(exc)
                 time.sleep(0.5)
 

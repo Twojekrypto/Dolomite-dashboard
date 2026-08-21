@@ -601,9 +601,44 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
         # Both event types travel in ONE getLogs request (OR-matched topic0).
         self.assertEqual(captured["topics"], [[WITHDRAW_TOPIC, DEPOSIT_TOPIC]])
         self.assertEqual(rpc_usage.usage_summary()["by_method"].get("eth_getLogs"), 1)
+        self.assertEqual(
+            rpc_usage.usage_summary()["by_provider"]["rpc.example"]["served_methods"],
+            1,
+        )
         # Caller splits the merged result back into per-type lists (data-identical).
         self.assertEqual(_logs_with_topic0(logs, WITHDRAW_TOPIC), [w_log])
         self.assertEqual(_logs_with_topic0(logs, DEPOSIT_TOPIC), [d_log])
+
+    def test_fetch_event_logs_reports_rate_limited_provider_and_successful_failover(self):
+        class _Resp:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        real_log = {"topics": [DEPOSIT_TOPIC], "blockNumber": "0x2"}
+
+        def _fake_post(url, **_kwargs):
+            if "rpc.limited" in url:
+                return _Resp({
+                    "error": {"code": 429, "message": "Monthly capacity limit exceeded"},
+                })
+            return _Resp({"result": [real_log]})
+
+        rpc_usage.reset_usage()
+        with patch("generate_vedolo_flows.CHUNK_SIZE", 10_000_000), \
+             patch(
+                 "generate_vedolo_flows.RPC_URLS",
+                 ["https://rpc.limited/v2/secret", "https://rpc.healthy/key"],
+             ), \
+             patch("generate_vedolo_flows.requests.post", side_effect=_fake_post), \
+             patch("generate_vedolo_flows.time.sleep", return_value=None):
+            self.assertEqual(fetch_event_logs(1, 100, DEPOSIT_TOPIC), [real_log])
+
+        providers = rpc_usage.usage_summary()["by_provider"]
+        self.assertEqual(providers["rpc.limited"]["rate_limited"], 1)
+        self.assertEqual(providers["rpc.healthy"]["http_success"], 1)
 
     def test_fetch_event_logs_single_topic_stays_exact_match(self):
         captured = {}
