@@ -3,6 +3,7 @@ import json
 import os
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest.mock import patch
 
 from scripts import report_rpc_provider_health as health
@@ -23,6 +24,16 @@ class _Response:
 
 
 class RpcProviderHealthTests(unittest.TestCase):
+    def test_manual_workflow_uses_sparse_checkout_for_two_call_diagnostic(self):
+        workflow = (
+            Path(__file__).resolve().parents[1]
+            / ".github/workflows/rpc-provider-health.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("sparse-checkout:", workflow)
+        self.assertIn("scripts/report_rpc_provider_health.py", workflow)
+        self.assertNotIn("schedule:", workflow)
+
     def test_reports_each_secret_by_safe_name_without_url_or_key(self):
         env = {
             "ALCHEMY_BERACHAIN_RPC_2_JEFF": "https://bera.example/v2/BERA_SECRET",
