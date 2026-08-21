@@ -25,6 +25,15 @@ def _snapshot_seconds(payload):
     return int(parsed.timestamp())
 
 
+def _snapshot_block(payload, key):
+    value = payload.get(key)
+    if value is None:
+        return 0
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise LockedHistoryValidationError(f"invalid {key}")
+    return value
+
+
 def _event_identity(row):
     return (
         str(row.get("txHash") or "").lower(),
@@ -137,7 +146,7 @@ def _apply_locked_event(positions, event):
     positions[target_token_id] = {"amount": amount, "end": locktime or source["end"]}
 
 
-def reconstructed_active_positions(flows, snapshot_sec):
+def reconstructed_active_positions(flows, snapshot_sec, snapshot_block=0):
     locks = _validated_rows(flows, "locks")
     unlocks = _validated_rows(flows, "unlocks")
     if isinstance(snapshot_sec, bool) or not isinstance(snapshot_sec, int) or snapshot_sec <= 0:
@@ -149,7 +158,7 @@ def reconstructed_active_positions(flows, snapshot_sec):
             block = _exact_positive_int(row, "block")
             if not timestamp or not block:
                 raise LockedHistoryValidationError(f"invalid {kind} event position")
-            if timestamp <= snapshot_sec:
+            if timestamp <= snapshot_sec and (not snapshot_block or block <= snapshot_block):
                 events.append({"kind": kind, "row": row, "timestamp": timestamp, "block": block})
     events.sort(key=lambda event: (event["timestamp"], event["block"], 0 if event["kind"] == "lock" else 1))
 
@@ -163,8 +172,26 @@ def reconstructed_active_positions(flows, snapshot_sec):
     }
 
 
-def reconstructed_active_locked_dolo(flows, snapshot_sec):
-    return sum(reconstructed_active_positions(flows, snapshot_sec).values())
+def reconstructed_active_locked_dolo(flows, snapshot_sec, snapshot_block=0):
+    return sum(reconstructed_active_positions(flows, snapshot_sec, snapshot_block).values())
+
+
+def validate_flow_history(flows):
+    """Validate one flow artifact without comparing it with holder state."""
+    locks = _validated_rows(flows, "locks")
+    unlocks = _validated_rows(flows, "unlocks")
+    target_block = _snapshot_block(flows, "target_block")
+    rows = locks + unlocks
+    if rows:
+        snapshot_sec = max(_exact_positive_int(row, "timestamp") for row in rows)
+        if snapshot_sec <= 0:
+            raise LockedHistoryValidationError("invalid event timestamp")
+        reconstructed_active_positions(flows, snapshot_sec, target_block)
+    return {
+        "lock_count": len(locks),
+        "unlock_count": len(unlocks),
+        "target_block": target_block,
+    }
 
 
 def active_positions_from_holders(holders_payload, snapshot_sec):
@@ -205,7 +232,14 @@ def validate_locked_history(
     max_relative_gap=0.00000001,
 ):
     snapshot_sec = _snapshot_seconds(holders)
-    reconstructed_positions = reconstructed_active_positions(flows, snapshot_sec)
+    flow_block = _snapshot_block(flows, "target_block")
+    holder_block = _snapshot_block(holders, "snapshot_block")
+    if bool(flow_block) != bool(holder_block) or (flow_block and flow_block != holder_block):
+        raise LockedHistoryValidationError(
+            f"snapshot block mismatch: flows {flow_block or 'missing'}, "
+            f"holders {holder_block or 'missing'}"
+        )
+    reconstructed_positions = reconstructed_active_positions(flows, snapshot_sec, flow_block)
     holder_positions = active_positions_from_holders(holders, snapshot_sec)
     reconstructed = sum(reconstructed_positions.values())
     active_holders = sum(holder_positions.values())
@@ -237,6 +271,7 @@ def validate_locked_history(
             )
     return {
         "snapshot": snapshot_sec,
+        "snapshot_block": flow_block,
         "event_active_dolo": reconstructed,
         "holder_active_dolo": active_holders,
         "gap": gap,
@@ -248,9 +283,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--flows", default="vedolo_flows.json")
     parser.add_argument("--holders", default="vedolo_holders.json")
+    parser.add_argument(
+        "--flows-only",
+        action="store_true",
+        help="Validate the flow artifact without reconciling a holder snapshot.",
+    )
     args = parser.parse_args()
 
     flows = json.loads(Path(args.flows).read_text(encoding="utf-8"))
+    if args.flows_only:
+        result = validate_flow_history(flows)
+        print("✅ veDOLO flow history validated")
+        print(f"   Locks:                {result['lock_count']:,}")
+        print(f"   Unlocks:              {result['unlock_count']:,}")
+        if result["target_block"]:
+            print(f"   Target block:         {result['target_block']:,}")
+        return
     holders = json.loads(Path(args.holders).read_text(encoding="utf-8"))
     result = validate_locked_history(flows, holders)
     print("✅ veDOLO Locked DOLO history reconciled")

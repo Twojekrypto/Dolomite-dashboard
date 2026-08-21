@@ -31,7 +31,7 @@ BACKOFF_BASE_SECONDS = 0.8
 
 # Secrets injected by GitHub Actions (never hardcode keys here).
 CHAIN_ENV_KEYS = {
-    "berachain": ["ALCHEMY_BERACHAIN_RPC", "QUICKNODE_BERACHAIN_RPC_2", "DRPC_BERACHAIN_RPC_ZEN", "ALCHEMY_BERACHAIN_RPC_2", "ALCHEMY_BERACHAIN_RPC_3"],
+    "berachain": ["DRPC_BERACHAIN_RPC_ZEN", "QUICKNODE_BERACHAIN_RPC_2", "ALCHEMY_BERACHAIN_RPC", "ALCHEMY_BERACHAIN_RPC_2", "ALCHEMY_BERACHAIN_RPC_3"],
     "ethereum": ["ALCHEMY_ETHEREUM_RPC_KAT", "ALCHEMY_ETHEREUM_RPC_DAN", "ALCHEMY_ETHEREUM_RPC_ZEN", "ALCHEMY_ETHEREUM_RPC", "ALCHEMY_ETHEREUM_RPC_2", "ALCHEMY_ETHEREUM_RPC_3"],
     "arbitrum": ["ALCHEMY_ARBITRUM_RPC_KAT", "ALCHEMY_ARBITRUM_RPC_DAN", "ALCHEMY_ARBITRUM_RPC_ZEN", "ALCHEMY_ARBITRUM_RPC", "ALCHEMY_ARBITRUM_RPC_2", "ALCHEMY_ARBITRUM_RPC_3"],
     "mantle": [
@@ -175,6 +175,28 @@ def _is_rate_limited_error(entry):
     )
 
 
+def _is_capacity_exhausted_error(entry):
+    if not isinstance(entry, dict):
+        return False
+    error = entry.get("error")
+    if not isinstance(error, dict):
+        return False
+    message = str(error.get("message", "")).lower()
+    return (
+        "monthly capacity" in message
+        or "monthly quota" in message
+        or "quota exhausted" in message
+    )
+
+
+def _json_rpc_error_entries(data):
+    if isinstance(data, dict):
+        return [data] if data.get("error") else []
+    if isinstance(data, list):
+        return [entry for entry in data if isinstance(entry, dict) and entry.get("error")]
+    return []
+
+
 def rpc_single_request(endpoints, payload, timeout=DEFAULT_TIMEOUT,
                        retries_per_endpoint=DEFAULT_RETRIES_PER_ENDPOINT,
                        quiet=False, describe="request"):
@@ -191,6 +213,8 @@ def rpc_single_request(endpoints, payload, timeout=DEFAULT_TIMEOUT,
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, dict):
+                if data.get("error"):
+                    raise RpcError(f"JSON-RPC error: {data['error']}")
                 rpc_usage.record_methods(rpc_usage.methods_from_payload(payload))
                 return data
             raise ValueError("JSON-RPC response was not an object")
@@ -334,6 +358,7 @@ class RpcClient:
         self.quiet = quiet
         self._idx = 0  # sticky: keep using the endpoint that last worked
         self.last_endpoint = None
+        self._disabled_endpoints = set()
 
     def _log(self, message):
         if not self.quiet:
@@ -347,9 +372,13 @@ class RpcClient:
     def _attempts(self):
         """Yield (endpoint, attempt_no) starting from the sticky index."""
         n = len(self.endpoints)
+        if not n:
+            return
         for round_no in range(self.retries_per_endpoint):
             for offset in range(n):
-                yield self.endpoints[(self._idx + offset) % n], round_no * n + offset
+                endpoint = self.endpoints[(self._idx + offset) % n]
+                if endpoint not in self._disabled_endpoints:
+                    yield endpoint, round_no * n + offset
 
     def _request(self, payload, describe):
         last_error = None
@@ -357,6 +386,11 @@ class RpcClient:
         for url, attempt in self._attempts():
             try:
                 result = self._post(url, payload)
+                errors = _json_rpc_error_entries(result)
+                if any(_is_rate_limited_error(entry) for entry in errors):
+                    if any(_is_capacity_exhausted_error(entry) for entry in errors):
+                        self._disabled_endpoints.add(url)
+                    raise RpcError("JSON-RPC endpoint is rate limited")
                 self._idx = self.endpoints.index(url)
                 self.last_endpoint = url
                 rpc_usage.record_methods(rpc_usage.methods_from_payload(payload))

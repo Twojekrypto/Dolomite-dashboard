@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: vedolo-flows-push
+  group: vedolo-data-pipeline
   cancel-in-progress: false
 
 permissions:
@@ -42,6 +42,8 @@ jobs:
         id: generate
         env:
           PYTHONUNBUFFERED: '1'
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
@@ -62,7 +64,7 @@ jobs:
         if: steps.generate.outputs.completed == 'true'
         run: |
           python3 validate_data.py vedolo_flows.json
-          python3 validate_vedolo_locked_history.py --flows vedolo_flows.json --holders vedolo_holders.json
+          python3 validate_vedolo_locked_history.py --flows vedolo_flows.json --flows-only
 
       - name: Commit and push
         if: steps.generate.outputs.completed == 'true'

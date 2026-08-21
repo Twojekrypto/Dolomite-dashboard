@@ -1270,6 +1270,7 @@ def main():
     # Build output
     output = {
         "timestamp": datetime.utcnow().isoformat(),
+        "target_block": current_block,
         "total_unlocks": len(all_unlocks),
         "total_locks": len(all_locks),
         "total_transfers": len(all_transfers),
