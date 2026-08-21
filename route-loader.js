@@ -21,7 +21,7 @@
     footer: "protocol-footer-20260619-links-mobile"
   };
   var TABLE_UX_VERSION = "20260821-table-ux-v6";
-  var POSITION_ACTIVITY_VERSION = "20260820-new-lock-v1";
+  var POSITION_ACTIVITY_VERSION = "20260821-actions-v1";
   var CLOUDFLARE_ANALYTICS = {
     src: "https://static.cloudflareinsights.com/beacon.min.js",
     token: "930335c0b8864fdf8d9748c2432adaed"

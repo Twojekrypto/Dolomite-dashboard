@@ -12,7 +12,7 @@
 <script defer src="shared-hover-tooltips.js?v=20260812-row-focusout"></script>
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
-<script src="vedolo-position-activity.js?v=20260816-portfolio-activity"></script>
+<script src="vedolo-position-activity.js?v=20260821-actions-v1"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (premium, restrained)
@@ -1007,7 +1007,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
   .nav-item.active::after{display:none}
 }
 </style>
-<script src="count-up.js?v=20260427-countup"></script>
+<script src="count-up.js?v=20260821-smooth-resume-v1"></script>
 </head>
 <style>
 /* ============================ PORTFOLIO TAB ============================ */
@@ -1945,7 +1945,7 @@ body:not(.pf-active) #pf-results{display:none}
       <div style="overflow-x:auto">
         <table class="pf-table pf-exercise-table">
           <colgroup><col data-column="date" style="width:12.147272%"><col data-column="route" style="width:13.847996%"><col data-column="spacer" style="width:27.020602%"><col data-column="vedolo" style="width:9.34471%"><col data-column="paired" style="width:11.286907%"><col data-column="paid" style="width:10.415274%"><col data-column="price" style="width:9.076469%"><col data-column="lock" style="width:6.86077%"></colgroup>
-          <thead><tr><th data-column="date" class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th data-column="route" class="flow-route-head" data-sort="route" data-table="ex">Route<span class="pf-sort"></span></th><th data-column="spacer" aria-hidden="true"></th><th data-column="vedolo" class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th data-column="paired" class="num" data-sort="pair" data-table="ex">DOLO Paired<span class="pf-sort"></span></th><th data-column="paid" class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th data-column="price" class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th><th data-column="lock" class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th></tr></thead>
+          <thead><tr><th data-column="date" class="sort-active" data-sort="date" data-table="ex">Date<span class="pf-sort">▼</span></th><th data-column="route" class="flow-route-head" data-sort="route" data-table="ex">Action<span class="pf-sort"></span></th><th data-column="spacer" aria-hidden="true"></th><th data-column="vedolo" class="num" data-sort="vedolo" data-table="ex">veDOLO<span class="pf-sort"></span></th><th data-column="paired" class="num" data-sort="pair" data-table="ex">DOLO Paired<span class="pf-sort"></span></th><th data-column="paid" class="num" data-sort="paid" data-table="ex">USDC Paid<span class="pf-sort"></span></th><th data-column="price" class="num" data-sort="price" data-table="ex">Price<span class="pf-sort"></span></th><th data-column="lock" class="num" data-sort="lock" data-table="ex">Lock<span class="pf-sort"></span></th></tr></thead>
           <tbody id="pf-exercises-body"></tbody>
         </table>
       </div>
@@ -3172,10 +3172,10 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   function allExerciseRoutesSelected(filterState){ return EXERCISE_ROUTES.every(route => filterState.routes.has(route.key)); }
   function exerciseRouteLabel(filterState){
     const selected = EXERCISE_ROUTES.filter(r => filterState.routes.has(r.key));
-    if (selected.length === EXERCISE_ROUTES.length) return "All Routes";
-    if (!selected.length) return "No routes";
+    if (selected.length === EXERCISE_ROUTES.length) return "All Actions";
+    if (!selected.length) return "No actions";
     if (selected.length === 1) return selected[0].label;
-    return `${selected.length} routes`;
+    return `${selected.length} actions`;
   }
   function exerciseRouteIcon(route, className = "dd-ico"){
     const sharedActivity = window.VeDoloPositionActivity;
@@ -3321,11 +3321,11 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
       return counts;
     }, {});
     const allSelected = allExerciseRoutesSelected(filterState);
-    let opts = `<div class="dd-opt select-all${allSelected?" active":""}" data-route="all">${DD_CHECK}${exerciseRouteIcon("all")}<span class="dd-opt-name">All Routes</span><span class="dd-opt-count">${rows.length.toLocaleString("en-US")}</span></div>`;
+    let opts = `<div class="dd-opt select-all${allSelected?" active":""}" data-route="all">${DD_CHECK}${exerciseRouteIcon("all")}<span class="dd-opt-name">All Actions</span><span class="dd-opt-count">${rows.length.toLocaleString("en-US")}</span></div>`;
     EXERCISE_ROUTES.forEach(route => {
       opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span><span class="dd-opt-count">${(routeCounts[route.key] || 0).toLocaleString("en-US")}</span></div>`;
     });
-    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native" data-dolo-dropdown-direction="down"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
+    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native" data-dolo-dropdown-direction="down"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Action</div><div class="dd-list">${opts}</div></div></div>`;
     const dd = el.querySelector(".pf-exercise-route-filter");
     const btn = dd && dd.querySelector("[data-dd-btn]");
     const panel = dd && dd.querySelector(".dd-panel");
@@ -3595,7 +3595,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const body = $("#pf-exercises-body");
     if (!rows.length){
       $("#pf-exercises-foot").style.display = "none";
-      const emptyText = state.exercises.length ? "No activity rows match the selected route." : "No veDOLO position activity found for this wallet.";
+      const emptyText = state.exercises.length ? "No activity rows match the selected action." : "No veDOLO position activity found for this wallet.";
       body.innerHTML = `<tr><td colspan="8"><div class="pf-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>${emptyText}</div></td></tr>`;
       return;
     }

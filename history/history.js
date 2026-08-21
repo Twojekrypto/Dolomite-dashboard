@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260820-trade-over-internal-transfer";
+  const HISTORY_VERSION = "history-20260821-action-parity-v1";
   const HISTORY_PATCH_ID = "dolomite-dashboard-fixes-20260820-v1";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
@@ -196,6 +196,8 @@
     odoloClaim: "Claim oDOLO",
     rewardClaim: "Claim Rewards",
     rewardLevelUpdate: "Reward Level Update",
+    vedoloDirect: "Direct veDOLO",
+    vedoloAirdrop: "Airdrop",
     vedoloTransfer: "Transfer veDOLO",
     vedoloMerge: "Merge veDOLO positions",
     vedoloSplit: "Split veDOLO position",
@@ -234,6 +236,8 @@
     odoloClaim: "CLAIM",
     rewardClaim: "CLAIM",
     rewardLevelUpdate: "Reward Level",
+    vedoloDirect: "Direct veDOLO",
+    vedoloAirdrop: "Airdrop",
     vedoloTransfer: "veDOLO Transfer",
     vedoloMerge: "veDOLO Merge",
     vedoloSplit: "veDOLO Split",
@@ -551,8 +555,20 @@
     if (normalized === "all") {
       return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`;
     }
-    if (normalized === "vestingPair" || normalized === "exercise") {
-      return `<img class="history-action-odolo action-icon-${escapeAttr(normalized)}" src="odolo-logo-official.svg" alt="">`;
+    const sharedKinds = {
+      vedoloDirect: "direct",
+      vedoloAirdrop: "airdrop",
+      vedoloTransfer: "transfer",
+      vedoloMerge: "merge",
+      vedoloSplit: "split",
+      vedoloExtend: "extend",
+      vestingPair: "pair",
+      exercise: "odolo",
+    };
+    const sharedKind = sharedKinds[normalized];
+    const sharedIconHtml = window.VeDoloPositionActivity?.routeIconHtml;
+    if (sharedKind && typeof sharedIconHtml === "function") {
+      return sharedIconHtml(sharedKind, false, `history-action-icon action-icon-${escapeAttr(normalized)}`);
     }
     const icons = {
       deposit: `<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>`,
