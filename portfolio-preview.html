@@ -1394,6 +1394,8 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-borrow-positions .pf-token-pill-icon.full-logo img{border-radius:3px}
 .pf-borrow-positions .pf-token-symbol{color:var(--fg-3)}
 .pf-borrow-positions .pf-token-usd{margin-left:2px;color:var(--fg-4);font-weight:400}
+.pf-borrow-positions [data-column="collateral"] .pf-money-cell,
+.pf-borrow-positions [data-column="debt"] .pf-money-cell{cursor:default}
 .pf-emode-cell{text-align:center!important}
 .pf-table-head-help{display:inline-flex;align-items:center;gap:5px}
 .pf-table-head-info{
@@ -2286,6 +2288,21 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const s = a >= 1e6 ? "$" + fmtCompact(n, 2) : "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return s;
   };
+  const fmtBorrowUSD = n => {
+    n = Number(n);
+    if (!Number.isFinite(n)) return "—";
+    if (n >= 1e6) return "$" + (n / 1e6).toFixed(2) + "M";
+    if (n >= 1e3) return "$" + (n / 1e3).toFixed(2) + "K";
+    return "$" + n.toFixed(2);
+  };
+  const fmtBorrowTokenUSD = n => {
+    n = Number(n);
+    if (!Number.isFinite(n)) return "";
+    if (n >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e3) return "$" + (n / 1e3).toFixed(1) + "K";
+    if (n >= 1) return "$" + n.toFixed(0);
+    return "$" + n.toFixed(2);
+  };
   const fmtDepositUSD = n => {
     n = Number(n);
     if (!Number.isFinite(n)) return "—";
@@ -2584,8 +2601,8 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     const renderToken = t => {
       const sym = t.symbol || "?";
       const icon = tokenIcon(sym, { chain });
-      const value = Number(t.usd) ? fmtUSD(t.usd) : "—";
-      return `<span class="pf-token-pill" title="${esc(sym)} ${esc(value)}"><span class="pf-token-pill-icon ${tokenIconFrameClass(sym)}"><img src="${icon}" alt="" onerror="this.remove()"></span><span class="pf-token-symbol">${esc(sym)}</span><span class="pf-token-usd">${esc(value)}</span></span>`;
+      const value = Number.isFinite(Number(t.usd)) ? fmtBorrowTokenUSD(t.usd) : "—";
+      return `<span class="pf-token-pill"><span class="pf-token-pill-icon ${tokenIconFrameClass(sym)}"><img src="${icon}" alt="" onerror="this.remove()"></span><span class="pf-token-symbol">${esc(sym)}</span><span class="pf-token-usd">${esc(value)}</span></span>`;
     };
     if (collapsible && list.length > limit){
       const primary = list.slice(0, limit).map(renderToken).join("");
@@ -3224,7 +3241,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
         const c = CHAIN_BY_KEY[ck] || { name: ck, key: ck };
         opts += `<div class="dd-opt${filterState.chains.has(ck)?" active":""}" data-net="${ck}">${DD_CHECK}<img src="${chainIcon(c.key)}" onerror="this.style.display='none'"><span class="dd-opt-name">${c.name}</span></div>`;
       });
-      dd = `<div class="dd pf-dd"><button class="dd-btn${filterState.chains.size?" filtered":""}" type="button" data-dd-btn><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="lbl">${chainLabel(filterState, present)}</span><span class="count">${filterState.chains.size||present.length}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Chain</div><div class="dd-list">${opts}</div></div></div>`;
+      dd = `<div class="dd pf-dd" data-dolo-dropdown-direction="down"><button class="dd-btn${filterState.chains.size?" filtered":""}" type="button" data-dd-btn><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="lbl">${chainLabel(filterState, present)}</span><span class="count">${filterState.chains.size||present.length}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Chain</div><div class="dd-list">${opts}</div></div></div>`;
     }
     const searchHtml = `<label class="search pf-search-tbl${filterState.q?" has-value":""}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -3308,7 +3325,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     EXERCISE_ROUTES.forEach(route => {
       opts += `<div class="dd-opt${filterState.routes.has(route.key)?" active":""}" data-route="${route.key}">${DD_CHECK}${exerciseRouteIcon(route.key)}<span class="dd-opt-name">${route.label}</span><span class="dd-opt-count">${(routeCounts[route.key] || 0).toLocaleString("en-US")}</span></div>`;
     });
-    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
+    el.innerHTML = `<div class="dd pf-dd pf-exercise-route-filter" data-route-model="native" data-dolo-dropdown-direction="down"><button class="dd-btn${allSelected?"":" filtered"}" type="button" data-dd-btn>${ROUTE_ICON}<span class="lbl">${exerciseRouteLabel(filterState)}</span><span class="count">${filterState.routes.size}</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button><div class="dd-panel"><div class="dd-panel-head">Route</div><div class="dd-list">${opts}</div></div></div>`;
     const dd = el.querySelector(".pf-exercise-route-filter");
     const btn = dd && dd.querySelector("[data-dd-btn]");
     const panel = dd && dd.querySelector(".dd-panel");
@@ -3481,12 +3498,12 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
         <td class="pf-emode-cell" data-column="emode">${emodeCell(r.eMode)}</td>
         <td data-column="spacer" aria-hidden="true"></td>
         <td data-column="collateral"><div class="pf-money-cell">
-            <div class="pf-money-main pf-collateral-main">${fmtUSD(r.collateral)}</div>
+            <div class="pf-money-main pf-collateral-main">${fmtBorrowUSD(r.collateral)}</div>
             ${tokenPills(r.collateralTokens, r.chain, { limit: 3, expanded: isExpanded, collapsible: hasOverflow })}
           </div>
         </td>
         <td data-column="debt"><div class="pf-money-cell">
-            <div class="pf-money-main pf-debt-main">${fmtUSD(r.debt)}</div>
+            <div class="pf-money-main pf-debt-main">${fmtBorrowUSD(r.debt)}</div>
             ${tokenPills(r.debtTokens, r.chain, { limit: 3, expanded: isExpanded, collapsible: hasOverflow })}
           </div>
         </td>

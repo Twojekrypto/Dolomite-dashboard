@@ -20,7 +20,7 @@
     polish: "mobile-polish-safari-details-20260805",
     footer: "protocol-footer-20260619-links-mobile"
   };
-  var TABLE_UX_VERSION = "20260820-table-ux-v4";
+  var TABLE_UX_VERSION = "20260821-table-ux-v5";
   var POSITION_ACTIVITY_VERSION = "20260820-new-lock-v1";
   var CLOUDFLARE_ANALYTICS = {
     src: "https://static.cloudflareinsights.com/beacon.min.js",

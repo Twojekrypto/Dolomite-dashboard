@@ -540,6 +540,27 @@
       : 0;
   }
 
+  function dropdownPanelPlacement({
+    triggerTop,
+    triggerBottom,
+    viewportHeight,
+    naturalHeight,
+    creditTop,
+    forceDown,
+  }){
+    const viewportBottom = Number.isFinite(creditTop)
+      ? Math.min(viewportHeight, creditTop) - 8
+      : viewportHeight - 12;
+    const below = Math.max(0, viewportBottom - triggerBottom - 6);
+    const above = Math.max(0, triggerTop - 12);
+    const requestedHeight = naturalHeight > 0 ? naturalHeight : 360;
+    const openUp = !forceDown && requestedHeight > below && above > below;
+    return {
+      openUp,
+      maxHeight:Math.floor(Math.min(360, requestedHeight, openUp ? above : below)),
+    };
+  }
+
   function positionPortaledDropdown(dd){
     const state = portalState.get(dd);
     if(!state || !state.placeholder.isConnected) return;
@@ -552,12 +573,20 @@
     const panel = dd.querySelector(".dd-panel");
     if(panel){
       const viewportHeight = Math.max(root.innerHeight || 0, documentViewportHeight());
-      const below = Math.max(96, viewportHeight - rect.bottom - 12);
-      const above = Math.max(96, rect.top - 12);
-      const naturalHeight = Math.min(panel.scrollHeight || 0, 360);
-      const openUp = naturalHeight > below && above > below;
-      dd.classList.toggle("dolo-dropdown-up", openUp);
-      panel.style.setProperty("max-height", `${Math.floor(Math.min(360, openUp ? above : below))}px`, "important");
+      const credit = root.document.querySelector("#site-source-credit");
+      const creditRect = credit && root.getComputedStyle && root.getComputedStyle(credit).display !== "none"
+        ? credit.getBoundingClientRect()
+        : null;
+      const placement = dropdownPanelPlacement({
+        triggerTop:rect.top,
+        triggerBottom:rect.bottom,
+        viewportHeight,
+        naturalHeight:panel.scrollHeight || 0,
+        creditTop:creditRect && creditRect.height > 0 ? creditRect.top : NaN,
+        forceDown:dd.dataset.doloDropdownDirection === "down",
+      });
+      dd.classList.toggle("dolo-dropdown-up", placement.openUp);
+      panel.style.setProperty("max-height", `${placement.maxHeight}px`, "important");
     }
   }
 
@@ -650,6 +679,7 @@
     routeSelectionPlan,
     emptyStateMessage,
     actionIconSvg,
+    dropdownPanelPlacement,
     applyAddressOverrides,
     install,
     runEnhancements,
