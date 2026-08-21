@@ -1346,7 +1346,11 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("config/earn_berachain_canonical_hot_addresses.txt", workflow)
         self.assertIn("QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}", workflow)
         self.assertIn("DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}", workflow)
-        self.assertIn("QUICKNODE_BERACHAIN_RPC_2 DRPC_BERACHAIN_RPC_ZEN ALCHEMY_BERACHAIN_RPC_2", workflow)
+        self.assertIn(
+            "DRPC_BERACHAIN_RPC_ZEN QUICKNODE_BERACHAIN_RPC_2 "
+            "ALCHEMY_BERACHAIN_RPC_2_JEFF",
+            workflow,
+        )
         self.assertIn("Check Berachain RPC redundancy", workflow)
         self.assertIn("--allow-checkpoint-incomplete", workflow)
         self.assertIn('--command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS"', workflow)
@@ -1790,6 +1794,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn('os.environ.get("MANTLE_RPC_QUICKNODE_TWOJE")', scanner)
         self.assertIn('os.environ.get("DRPC_MANTLE_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRPC_MANTLE_RPC")', scanner)
+        self.assertIn('os.environ.get("ALCHEMY_MANTLE_RPC_2_JEFF")', scanner)
         self.assertIn('os.environ.get("ALCHEMY_MANTLE_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("QUICKNODE_BOTANIX_RPC")', scanner)
         self.assertIn('os.environ.get("DRPC_BOTANIX_RPC_ZEN")', scanner)
@@ -1798,6 +1803,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn('"max_block_chunk": 1_800', scanner)
         self.assertIn('os.environ.get("QUICKNODE_BERACHAIN_RPC_2")', scanner)
         self.assertIn('os.environ.get("DRPC_BERACHAIN_RPC_ZEN")', scanner)
+        self.assertIn('os.environ.get("ALCHEMY_BERACHAIN_RPC_2_JEFF")', scanner)
         self.assertIn('os.environ.get("ALCHEMY_POLYGONZKEVM_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRP_POLYGONZKEVM_RPC_TWO")', scanner)
         self.assertIn('os.environ.get("XLAYER_RPC_QUICKNODE_TWOJE")', scanner)
