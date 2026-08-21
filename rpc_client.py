@@ -103,7 +103,7 @@ def get_endpoints(chain):
     endpoints = []
     for env_key in CHAIN_ENV_KEYS.get(chain, []):
         value = os.environ.get(env_key, "").strip()
-        if value:
+        if value and not rpc_usage.is_obvious_testnet_endpoint(value):
             endpoints.append(value)
     endpoints.extend(PUBLIC_ENDPOINTS.get(chain, []))
     if not endpoints:

@@ -54,10 +54,32 @@ class ScanEarnNetflowTest(unittest.TestCase):
     def test_mantle_scanner_reads_new_private_provider_before_public_fallbacks(self):
         source = (ROOT / "scan_earn_netflow.py").read_text(encoding="utf-8")
 
-        self.assertIn('os.environ.get("ALCHEMY_MANTLE_RPC_2_JEFF")', source)
+        self.assertIn('_mainnet_rpc_from_env("ALCHEMY_MANTLE_RPC_2_JEFF")', source)
         self.assertLess(
-            source.index('os.environ.get("ALCHEMY_MANTLE_RPC_2_JEFF")'),
+            source.index('_mainnet_rpc_from_env("ALCHEMY_MANTLE_RPC_2_JEFF")'),
             source.index('"https://rpc.mantle.xyz/"'),
+        )
+
+    def test_mantle_scanner_rejects_obvious_testnet_provider(self):
+        env = os.environ.copy()
+        env["ALCHEMY_MANTLE_RPC_2_JEFF"] = (
+            "https://mantle-sepolia.g.alchemy.com/v2/secret"
+        )
+        proc = subprocess.run(
+            [sys.executable, "-c", (
+                "import json, scan_earn_netflow; "
+                "print(json.dumps(scan_earn_netflow.CHAINS['mantle']['rpcs']))"
+            )],
+            cwd=ROOT,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertNotIn(
+            "https://mantle-sepolia.g.alchemy.com/v2/secret",
+            json.loads(proc.stdout),
         )
 
     def test_workflows_expose_new_provider_secrets_where_chain_rpc_is_used(self):
