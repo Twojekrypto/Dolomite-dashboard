@@ -1794,7 +1794,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn('os.environ.get("MANTLE_RPC_QUICKNODE_TWOJE")', scanner)
         self.assertIn('os.environ.get("DRPC_MANTLE_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("DRPC_MANTLE_RPC")', scanner)
-        self.assertIn('os.environ.get("ALCHEMY_MANTLE_RPC_2_JEFF")', scanner)
+        self.assertIn('_mainnet_rpc_from_env("ALCHEMY_MANTLE_RPC_2_JEFF")', scanner)
         self.assertIn('os.environ.get("ALCHEMY_MANTLE_RPC_ZEN")', scanner)
         self.assertIn('os.environ.get("QUICKNODE_BOTANIX_RPC")', scanner)
         self.assertIn('os.environ.get("DRPC_BOTANIX_RPC_ZEN")', scanner)

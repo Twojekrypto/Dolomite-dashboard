@@ -99,6 +99,14 @@ def provider_name(endpoint):
     return host
 
 
+def is_obvious_testnet_endpoint(endpoint):
+    """Reject explicit testnet hosts before they can enter mainnet fallbacks."""
+    host = (urlparse(str(endpoint or "")).hostname or "").lower()
+    return any(marker in host for marker in (
+        "sepolia", "goerli", "holesky", "testnet",
+    ))
+
+
 def _provider_counter(endpoint):
     name = provider_name(endpoint)
     if name not in _provider_counts:

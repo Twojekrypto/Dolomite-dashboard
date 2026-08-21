@@ -49,6 +49,19 @@ class TestEndpoints(unittest.TestCase):
             eps.index("https://old.example/v2/key"),
         )
 
+    def test_mainnet_endpoint_list_rejects_obvious_testnet_hostname(self):
+        with mock.patch.dict(os.environ, {
+            "ALCHEMY_MANTLE_RPC_2_JEFF": (
+                "https://mantle-sepolia.g.alchemy.com/v2/secret"
+            ),
+        }):
+            eps = get_endpoints("mantle")
+
+        self.assertNotIn(
+            "https://mantle-sepolia.g.alchemy.com/v2/secret",
+            eps,
+        )
+
     def test_strict_replay_reads_existing_mantle_and_xlayer_secret_names(self):
         for env_name in (
             "MANTLE_RPC",

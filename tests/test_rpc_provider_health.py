@@ -40,7 +40,10 @@ class RpcProviderHealthTests(unittest.TestCase):
             "ALCHEMY_MANTLE_RPC_2_JEFF": "https://mantle.example/v2/MANTLE_SECRET",
         }
         responses = [
-            _Response({"jsonrpc": "2.0", "id": 1, "result": "0x123"}),
+            _Response([
+                {"jsonrpc": "2.0", "id": 1, "result": "0x138de"},
+                {"jsonrpc": "2.0", "id": 2, "result": "0x123"},
+            ]),
             _Response({
                 "jsonrpc": "2.0",
                 "id": 1,
@@ -53,8 +56,8 @@ class RpcProviderHealthTests(unittest.TestCase):
              patch.object(health, "urlopen", side_effect=responses), \
              redirect_stdout(output):
             result = health.main([
-                "--provider", "ALCHEMY_BERACHAIN_RPC_2_JEFF",
-                "--provider", "ALCHEMY_MANTLE_RPC_2_JEFF",
+                "--provider", "ALCHEMY_BERACHAIN_RPC_2_JEFF=80094",
+                "--provider", "ALCHEMY_MANTLE_RPC_2_JEFF=5000",
             ])
 
         text = output.getvalue()
@@ -64,11 +67,29 @@ class RpcProviderHealthTests(unittest.TestCase):
         self.assertNotIn("BERA_SECRET", text)
         self.assertNotIn("MANTLE_SECRET", text)
 
+    def test_wrong_chain_id_fails_even_when_endpoint_returns_a_block(self):
+        endpoint = "https://mantle-sepolia.g.alchemy.com/v2/SECRET"
+        response = _Response([
+            {"jsonrpc": "2.0", "id": 1, "result": "0x138b"},
+            {"jsonrpc": "2.0", "id": 2, "result": "0x123"},
+        ])
+        output = io.StringIO()
+
+        with patch.dict(os.environ, {"ALCHEMY_MANTLE_RPC_2_JEFF": endpoint}), \
+             patch.object(health, "urlopen", return_value=response), \
+             redirect_stdout(output):
+            result = health.main([
+                "--provider", "ALCHEMY_MANTLE_RPC_2_JEFF=5000",
+            ])
+
+        self.assertEqual(result, 1)
+        self.assertIn("wrong_chain expected 5000 got 5003", output.getvalue())
+
     def test_missing_secret_is_skipped_without_failing_diagnostic(self):
         with patch.dict(os.environ, {"NOT_CONFIGURED_RPC": ""}, clear=False):
             output = io.StringIO()
             with redirect_stdout(output):
-                result = health.main(["--provider", "NOT_CONFIGURED_RPC"])
+                result = health.main(["--provider", "NOT_CONFIGURED_RPC=1"])
 
         self.assertEqual(result, 0)
         self.assertIn("SKIP NOT_CONFIGURED_RPC: not configured", output.getvalue())

@@ -22,7 +22,7 @@ def _is_rate_limited(error):
     ))
 
 
-def probe_provider(env_name, timeout=12):
+def probe_provider(env_name, expected_chain_id, timeout=12):
     if not ENV_NAME_RE.fullmatch(env_name):
         raise ValueError(f"Invalid provider environment name: {env_name!r}")
     endpoint = os.environ.get(env_name, "").strip()
@@ -30,12 +30,10 @@ def probe_provider(env_name, timeout=12):
         return "skip", "not configured", "rpc"
 
     host = urlparse(endpoint).hostname or "rpc"
-    payload = json.dumps({
-        "jsonrpc": "2.0",
-        "method": "eth_blockNumber",
-        "params": [],
-        "id": 1,
-    }).encode()
+    payload = json.dumps([
+        {"jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1},
+        {"jsonrpc": "2.0", "method": "eth_blockNumber", "params": [], "id": 2},
+    ]).encode()
     request = Request(
         endpoint,
         data=payload,
@@ -53,13 +51,47 @@ def probe_provider(env_name, timeout=12):
     if isinstance(data, dict) and data.get("error"):
         category = "rate_limited" if _is_rate_limited(data["error"]) else "json_rpc_error"
         return "fail", category, host
+    if not isinstance(data, list):
+        return "fail", "invalid_batch_response", host
+    by_id = {
+        entry.get("id"): entry
+        for entry in data
+        if isinstance(entry, dict)
+    }
+    for request_id in (1, 2):
+        entry = by_id.get(request_id) or {}
+        if entry.get("error"):
+            category = "rate_limited" if _is_rate_limited(entry["error"]) else "json_rpc_error"
+            return "fail", category, host
     try:
-        block = int(data.get("result") or "0x0", 16)
+        chain_id = int((by_id.get(1) or {}).get("result") or "0x0", 16)
+        block = int((by_id.get(2) or {}).get("result") or "0x0", 16)
     except (AttributeError, TypeError, ValueError):
         return "fail", "invalid_block_number", host
+    if chain_id != expected_chain_id:
+        return (
+            "fail",
+            f"wrong_chain expected {expected_chain_id} got {chain_id}",
+            host,
+        )
     if block <= 0:
         return "fail", "invalid_block_number", host
-    return "ok", f"block {block:,}", host
+    return "ok", f"chain {chain_id}, block {block:,}", host
+
+
+def parse_provider_spec(spec):
+    env_name, separator, chain_id_text = str(spec or "").partition("=")
+    if not separator:
+        raise ValueError(f"Provider must use ENV_NAME=CHAIN_ID format: {spec!r}")
+    if not ENV_NAME_RE.fullmatch(env_name):
+        raise ValueError(f"Invalid provider environment name: {env_name!r}")
+    try:
+        chain_id = int(chain_id_text)
+    except ValueError as exc:
+        raise ValueError(f"Invalid expected chain ID: {chain_id_text!r}") from exc
+    if chain_id <= 0:
+        raise ValueError(f"Invalid expected chain ID: {chain_id_text!r}")
+    return env_name, chain_id
 
 
 def main(argv=None):
@@ -69,8 +101,13 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     failed = 0
-    for env_name in args.provider:
-        status, detail, host = probe_provider(env_name, timeout=max(1, args.timeout))
+    for provider_spec in args.provider:
+        env_name, expected_chain_id = parse_provider_spec(provider_spec)
+        status, detail, host = probe_provider(
+            env_name,
+            expected_chain_id,
+            timeout=max(1, args.timeout),
+        )
         if status == "skip":
             print(f"SKIP {env_name}: {detail}")
             continue
