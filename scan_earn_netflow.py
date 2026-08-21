@@ -21,6 +21,8 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
+import rpc_usage
+
 # --- Chain configs ---
 CHAINS = {
     "arbitrum": {
@@ -63,10 +65,11 @@ CHAINS = {
     "berachain": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
         "rpcs": [
-            *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC") else [os.environ["ALCHEMY_BERACHAIN_RPC"]]),
-            *([] if not os.environ.get("QUICKNODE_BERACHAIN_RPC_2") else [os.environ["QUICKNODE_BERACHAIN_RPC_2"]]),
             *([] if not os.environ.get("DRPC_BERACHAIN_RPC_ZEN") else [os.environ["DRPC_BERACHAIN_RPC_ZEN"]]),
+            *([] if not os.environ.get("QUICKNODE_BERACHAIN_RPC_2") else [os.environ["QUICKNODE_BERACHAIN_RPC_2"]]),
+            *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_2_JEFF") else [os.environ["ALCHEMY_BERACHAIN_RPC_2_JEFF"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_2") else [os.environ["ALCHEMY_BERACHAIN_RPC_2"]]),
+            *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC") else [os.environ["ALCHEMY_BERACHAIN_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_BERACHAIN_RPC_3") else [os.environ["ALCHEMY_BERACHAIN_RPC_3"]]),
             "https://rpc.berachain.com/",
             "https://berachain-rpc.publicnode.com/",
@@ -87,14 +90,15 @@ CHAINS = {
             *([] if not os.environ.get("MANTLE_RPC_QUICKNODE_TWOJE") else [os.environ["MANTLE_RPC_QUICKNODE_TWOJE"]]),
             *([] if not os.environ.get("DRPC_MANTLE_RPC") else [os.environ["DRPC_MANTLE_RPC"]]),
             *([] if not os.environ.get("DRPC_MANTLE_RPC_ZEN") else [os.environ["DRPC_MANTLE_RPC_ZEN"]]),
+            *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_2_JEFF") else [os.environ["ALCHEMY_MANTLE_RPC_2_JEFF"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_ZEN") else [os.environ["ALCHEMY_MANTLE_RPC_ZEN"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_DANU") else [os.environ["ALCHEMY_MANTLE_RPC_DANU"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC") else [os.environ["ALCHEMY_MANTLE_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_2") else [os.environ["ALCHEMY_MANTLE_RPC_2"]]),
             *([] if not os.environ.get("ALCHEMY_MANTLE_RPC_3") else [os.environ["ALCHEMY_MANTLE_RPC_3"]]),
-            "https://mantle.api.onfinality.io/public",
             "https://rpc.mantle.xyz/",
             "https://mantle-rpc.publicnode.com/",
+            "https://mantle.api.onfinality.io/public",
             "https://1rpc.io/mantle",
         ],
         "start_block": 64_046_000,
@@ -242,7 +246,9 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
             cap = _endpoint_block_cap(rpc_url)
             span = _getlogs_span(params)
             if cap is not None and span is not None and span > cap:
-                recent_errors.append(f"{rpc_url}: getLogs range {span} exceeds cap {cap}")
+                recent_errors.append(
+                    f"{rpc_usage.provider_name(rpc_url)}: getLogs range {span} exceeds cap {cap}"
+                )
                 rpc_idx_ref[0] += 1
                 continue
         payload = json.dumps({
@@ -261,12 +267,22 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
             with urlopen(req, timeout=_rpc_timeout_seconds(method)) as response:
                 data = json.loads(response.read())
                 if "error" in data:
-                    message = f"RPC error from {rpc_url}: {data['error']}"
+                    error = data["error"]
+                    error_text = str(error).lower()
+                    rate_limited = (
+                        isinstance(error, dict) and error.get("code") == 429
+                    ) or any(token in error_text for token in (
+                        "rate limit", "too many", "throttl", "capacity", "quota",
+                    ))
+                    rpc_usage.record_provider_failure(rpc_url, rate_limited=rate_limited)
+                    message = f"RPC error from {rpc_usage.provider_name(rpc_url)}: {error}"
                     recent_errors.append(message)
                     print(f"  {message}", file=sys.stderr)
                     rpc_idx_ref[0] += 1
                     time.sleep(0.5)
                     continue
+                rpc_usage.record_request(method)
+                rpc_usage.record_provider_success(rpc_url, served_methods=1)
                 return data.get("result")
         except HTTPError as e:
             body = ""
@@ -276,13 +292,15 @@ def rpc_call(rpcs, method, params, rpc_idx_ref):
                 body = ""
             body = body.strip()
             body_tail = f" body={body[-500:]}" if body else ""
-            message = f"RPC failed ({rpc_url}): {e}{body_tail}"
+            rpc_usage.record_provider_failure(rpc_url, rate_limited=e.code == 429)
+            message = f"RPC failed ({rpc_usage.provider_name(rpc_url)}): {e}{body_tail}"
             recent_errors.append(message)
             print(f"  {message}", file=sys.stderr)
             rpc_idx_ref[0] += 1
             time.sleep(1)
         except (URLError, TimeoutError, OSError) as e:
-            message = f"RPC failed ({rpc_url}): {e}"
+            rpc_usage.record_provider_failure(rpc_url)
+            message = f"RPC failed ({rpc_usage.provider_name(rpc_url)}): {e}"
             recent_errors.append(message)
             print(f"  {message}", file=sys.stderr)
             rpc_idx_ref[0] += 1

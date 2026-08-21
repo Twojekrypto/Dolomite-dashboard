@@ -34,6 +34,7 @@ import sys
 import threading
 import time
 from collections import Counter
+from urllib.parse import urlparse
 
 # Approximate Alchemy CU costs for EVM standard JSON-RPC methods.
 _CU_COST = {
@@ -54,6 +55,7 @@ _CU_COST = {
 _CU_DEFAULT_COST = 20  # unknown methods: assume a standard read
 
 _usage_counts = Counter()
+_provider_counts = {}
 _usage_lock = threading.Lock()
 
 
@@ -82,19 +84,58 @@ def record_request(method, count=1):
         _usage_counts[method] += int(count)
 
 
+def provider_name(endpoint):
+    """Return a key-safe provider identifier suitable for public CI logs."""
+    return urlparse(str(endpoint or "")).hostname or "rpc"
+
+
+def _provider_counter(endpoint):
+    name = provider_name(endpoint)
+    if name not in _provider_counts:
+        _provider_counts[name] = Counter({
+            "http_success": 0,
+            "http_failure": 0,
+            "rate_limited": 0,
+            "served_methods": 0,
+        })
+    return _provider_counts[name]
+
+
+def record_provider_success(endpoint, served_methods=1):
+    """Record one successful HTTP RPC request and its logical method count."""
+    with _usage_lock:
+        counts = _provider_counter(endpoint)
+        counts["http_success"] += 1
+        counts["served_methods"] += max(0, int(served_methods))
+
+
+def record_provider_failure(endpoint, *, rate_limited=False):
+    """Record one failed provider attempt without retaining its secret URL."""
+    with _usage_lock:
+        counts = _provider_counter(endpoint)
+        counts["http_failure"] += 1
+        if rate_limited:
+            counts["rate_limited"] += 1
+
+
 def estimate_cu(counts):
     """Estimated Alchemy compute units for a {method: count} mapping."""
     return sum(_CU_COST.get(method, _CU_DEFAULT_COST) * n for method, n in counts.items())
 
 
 def usage_summary():
-    """Snapshot of RPC usage so far: requests, estimated CU, per-method counts."""
+    """Snapshot of logical usage plus key-safe per-provider failover counts."""
     with _usage_lock:
         counts = dict(_usage_counts)
+        providers = {
+            name: dict(provider_counts)
+            for name, provider_counts in _provider_counts.items()
+        }
     return {
         "requests": sum(counts.values()),
         "estimated_cu": estimate_cu(counts),
         "by_method": counts,
+        "by_provider": providers,
     }
 
 
@@ -102,6 +143,7 @@ def reset_usage():
     """Clear the in-process usage tally (mainly for tests)."""
     with _usage_lock:
         _usage_counts.clear()
+        _provider_counts.clear()
 
 
 def _script_name():
@@ -115,6 +157,7 @@ def _append_usage_log(path, summary):
         "requests": summary["requests"],
         "estimated_cu": summary["estimated_cu"],
         "by_method": summary["by_method"],
+        "by_provider": summary["by_provider"],
     }
     try:
         history = []
@@ -136,19 +179,25 @@ def _append_usage_log(path, summary):
 def emit_usage_summary():
     """Print a one-line RPC/CU summary; optionally append a trend record."""
     summary = usage_summary()
-    if not summary["requests"]:
+    if not summary["requests"] and not summary["by_provider"]:
         return
     if os.environ.get("RPC_USAGE_QUIET", "").strip().lower() not in ("1", "true", "yes"):
         top = ", ".join(
             f"{method}×{count}"
             for method, count in sorted(summary["by_method"].items(), key=lambda kv: -kv[1])
         )
+        provider_top = ", ".join(
+            f"{name}: ok {counts['http_success']}, fail {counts['http_failure']}, "
+            f"429 {counts['rate_limited']}, served {counts['served_methods']}"
+            for name, counts in sorted(summary["by_provider"].items())
+        )
+        provider_suffix = f" | providers [{provider_top}]" if provider_top else ""
         # Write to stderr, never stdout: several pipelines capture a child
         # process's stdout and json.loads() it (e.g. run_earn_canonical_history_
         # refresh.py), so a summary line on stdout would corrupt that JSON.
         print(
             f"📊 RPC usage [{_script_name()}]: {summary['requests']} requests, "
-            f"~{summary['estimated_cu']:,} CU est. [{top}]",
+            f"~{summary['estimated_cu']:,} CU est. [{top}]{provider_suffix}",
             file=sys.stderr,
             flush=True,
         )

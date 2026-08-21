@@ -31,7 +31,7 @@ BACKOFF_BASE_SECONDS = 0.8
 
 # Secrets injected by GitHub Actions (never hardcode keys here).
 CHAIN_ENV_KEYS = {
-    "berachain": ["DRPC_BERACHAIN_RPC_ZEN", "QUICKNODE_BERACHAIN_RPC_2", "ALCHEMY_BERACHAIN_RPC", "ALCHEMY_BERACHAIN_RPC_2", "ALCHEMY_BERACHAIN_RPC_3"],
+    "berachain": ["DRPC_BERACHAIN_RPC_ZEN", "QUICKNODE_BERACHAIN_RPC_2", "ALCHEMY_BERACHAIN_RPC_2_JEFF", "ALCHEMY_BERACHAIN_RPC_2", "ALCHEMY_BERACHAIN_RPC", "ALCHEMY_BERACHAIN_RPC_3"],
     "ethereum": ["ALCHEMY_ETHEREUM_RPC_KAT", "ALCHEMY_ETHEREUM_RPC_DAN", "ALCHEMY_ETHEREUM_RPC_ZEN", "ALCHEMY_ETHEREUM_RPC", "ALCHEMY_ETHEREUM_RPC_2", "ALCHEMY_ETHEREUM_RPC_3"],
     "arbitrum": ["ALCHEMY_ARBITRUM_RPC_KAT", "ALCHEMY_ARBITRUM_RPC_DAN", "ALCHEMY_ARBITRUM_RPC_ZEN", "ALCHEMY_ARBITRUM_RPC", "ALCHEMY_ARBITRUM_RPC_2", "ALCHEMY_ARBITRUM_RPC_3"],
     "mantle": [
@@ -42,6 +42,7 @@ CHAIN_ENV_KEYS = {
         "MANTLE_RPC_QUICKNODE_TWOJE",
         "DRPC_MANTLE_RPC",
         "DRPC_MANTLE_RPC_ZEN",
+        "ALCHEMY_MANTLE_RPC_2_JEFF",
         "ALCHEMY_MANTLE_RPC_ZEN",
         "ALCHEMY_MANTLE_RPC_DANU",
         "ALCHEMY_MANTLE_RPC",
@@ -197,6 +198,16 @@ def _json_rpc_error_entries(data):
     return []
 
 
+def _is_rate_limited_exception(exc):
+    response = getattr(exc, "response", None)
+    if getattr(response, "status_code", None) == 429:
+        return True
+    message = sanitize_error(exc).lower()
+    return any(token in message for token in (
+        "429", "rate limit", "too many", "throttl", "capacity", "quota exhausted",
+    ))
+
+
 def rpc_single_request(endpoints, payload, timeout=DEFAULT_TIMEOUT,
                        retries_per_endpoint=DEFAULT_RETRIES_PER_ENDPOINT,
                        quiet=False, describe="request"):
@@ -215,11 +226,17 @@ def rpc_single_request(endpoints, payload, timeout=DEFAULT_TIMEOUT,
             if isinstance(data, dict):
                 if data.get("error"):
                     raise RpcError(f"JSON-RPC error: {data['error']}")
-                rpc_usage.record_methods(rpc_usage.methods_from_payload(payload))
+                methods = rpc_usage.methods_from_payload(payload)
+                rpc_usage.record_methods(methods)
+                rpc_usage.record_provider_success(url, served_methods=len(methods))
                 return data
             raise ValueError("JSON-RPC response was not an object")
         except Exception as exc:
             last_error = exc
+            rpc_usage.record_provider_failure(
+                url,
+                rate_limited=_is_rate_limited_exception(exc),
+            )
             if not quiet:
                 print(
                     f"⚠️ RPC {describe} failed on {safe_host(url)} "
@@ -301,10 +318,13 @@ def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
                 ]
                 if by_id and not error_entries:
                     chunk_responses = {**fallback_responses, **by_id}
+                    rpc_usage.record_provider_success(url, served_methods=len(by_id))
                     break
                 if error_entries:
                     last_error = RpcError("JSON-RPC batch contained error entries")
-                    if any(_is_rate_limited_error(item) for item in error_entries):
+                    rate_limited = any(_is_rate_limited_error(item) for item in error_entries)
+                    rpc_usage.record_provider_failure(url, rate_limited=rate_limited)
+                    if rate_limited:
                         delay = _retry_after_seconds(resp, attempt, rate_limited=True)
                         if delay is not None:
                             time.sleep(delay)
@@ -315,6 +335,10 @@ def rpc_batch_requests(endpoints, payloads, timeout=DEFAULT_TIMEOUT,
                 raise ValueError("JSON-RPC batch response contained no matching ids")
             except Exception as exc:
                 last_error = exc
+                rpc_usage.record_provider_failure(
+                    url,
+                    rate_limited=_is_rate_limited_exception(exc),
+                )
                 if not quiet:
                     print(
                         f"⚠️ RPC {describe} failed on {safe_host(url)} "
@@ -393,10 +417,16 @@ class RpcClient:
                     raise RpcError("JSON-RPC endpoint is rate limited")
                 self._idx = self.endpoints.index(url)
                 self.last_endpoint = url
-                rpc_usage.record_methods(rpc_usage.methods_from_payload(payload))
+                methods = rpc_usage.methods_from_payload(payload)
+                rpc_usage.record_methods(methods)
+                rpc_usage.record_provider_success(url, served_methods=len(methods))
                 return result
             except Exception as exc:  # requests errors, JSON errors, HTTP errors
                 last_error = exc
+                rpc_usage.record_provider_failure(
+                    url,
+                    rate_limited=_is_rate_limited_exception(exc),
+                )
                 # NOTE: never log the raw exception — requests' connection errors
                 # embed the full request URL (incl. the API key path segment),
                 # and GitHub's secret masking won't catch a partial-URL leak.

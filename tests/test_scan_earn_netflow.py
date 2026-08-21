@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+import sys
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import BytesIO, StringIO
@@ -14,6 +16,80 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ScanEarnNetflowTest(unittest.TestCase):
+    def test_berachain_prefers_independent_rpc_then_new_jeff_capacity(self):
+        env = os.environ.copy()
+        for name in (
+            "DRPC_BERACHAIN_RPC_ZEN",
+            "QUICKNODE_BERACHAIN_RPC_2",
+            "ALCHEMY_BERACHAIN_RPC_2_JEFF",
+            "ALCHEMY_BERACHAIN_RPC",
+            "ALCHEMY_BERACHAIN_RPC_2",
+            "ALCHEMY_BERACHAIN_RPC_3",
+        ):
+            env.pop(name, None)
+        env.update({
+            "DRPC_BERACHAIN_RPC_ZEN": "https://drpc.example/key",
+            "ALCHEMY_BERACHAIN_RPC_2_JEFF": "https://jeff.example/v2/key",
+            "ALCHEMY_BERACHAIN_RPC": "https://old.example/v2/key",
+        })
+        proc = subprocess.run(
+            [sys.executable, "-c", (
+                "import json, scan_earn_netflow; "
+                "print(json.dumps(scan_earn_netflow.CHAINS['berachain']['rpcs']))"
+            )],
+            cwd=ROOT,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        rpcs = json.loads(proc.stdout)
+
+        self.assertEqual(rpcs[:3], [
+            "https://drpc.example/key",
+            "https://jeff.example/v2/key",
+            "https://old.example/v2/key",
+        ])
+
+    def test_mantle_scanner_reads_new_private_provider_before_public_fallbacks(self):
+        source = (ROOT / "scan_earn_netflow.py").read_text(encoding="utf-8")
+
+        self.assertIn('os.environ.get("ALCHEMY_MANTLE_RPC_2_JEFF")', source)
+        self.assertLess(
+            source.index('os.environ.get("ALCHEMY_MANTLE_RPC_2_JEFF")'),
+            source.index('"https://rpc.mantle.xyz/"'),
+        )
+
+    def test_workflows_expose_new_provider_secrets_where_chain_rpc_is_used(self):
+        berachain_workflows = sorted((ROOT / ".github/workflows").glob("*.yml"))
+        berachain_workflows = [
+            path for path in berachain_workflows
+            if "secrets.ALCHEMY_BERACHAIN_RPC" in path.read_text(encoding="utf-8")
+        ]
+        mantle_workflows = sorted((ROOT / ".github/workflows").glob("*.yml"))
+        mantle_workflows = [
+            path for path in mantle_workflows
+            if any(secret in path.read_text(encoding="utf-8") for secret in (
+                "secrets.MANTLE_RPC",
+                "secrets.ALCHEMY_MANTLE_RPC",
+            ))
+        ]
+
+        for path in berachain_workflows:
+            with self.subTest(workflow=path.name, chain="berachain"):
+                self.assertIn(
+                    "ALCHEMY_BERACHAIN_RPC_2_JEFF: "
+                    "${{ secrets.ALCHEMY_BERACHAIN_RPC_2_JEFF }}",
+                    path.read_text(encoding="utf-8"),
+                )
+        for path in mantle_workflows:
+            with self.subTest(workflow=path.name, chain="mantle"):
+                self.assertIn(
+                    "ALCHEMY_MANTLE_RPC_2_JEFF: "
+                    "${{ secrets.ALCHEMY_MANTLE_RPC_2_JEFF }}",
+                    path.read_text(encoding="utf-8"),
+                )
+
     def test_cycle_metadata_rejects_a_small_nonzero_reset(self):
         netflows = {
             "0x1111111111111111111111111111111111111111": {

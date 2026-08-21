@@ -25,6 +25,30 @@ def _response(json_data, status=200):
 
 
 class TestEndpoints(unittest.TestCase):
+    def test_shared_rpc_client_reads_new_jeff_provider_secrets(self):
+        self.assertIn(
+            "ALCHEMY_BERACHAIN_RPC_2_JEFF",
+            rpc_client.CHAIN_ENV_KEYS["berachain"],
+        )
+        self.assertIn(
+            "ALCHEMY_MANTLE_RPC_2_JEFF",
+            rpc_client.CHAIN_ENV_KEYS["mantle"],
+        )
+
+    def test_new_berachain_capacity_precedes_exhausted_primary_alchemy(self):
+        with mock.patch.dict(os.environ, {
+            "DRPC_BERACHAIN_RPC_ZEN": "https://drpc.example/key",
+            "ALCHEMY_BERACHAIN_RPC_2_JEFF": "https://jeff.example/v2/key",
+            "ALCHEMY_BERACHAIN_RPC": "https://old.example/v2/key",
+        }):
+            eps = get_endpoints("berachain")
+
+        self.assertEqual(eps[0], "https://drpc.example/key")
+        self.assertLess(
+            eps.index("https://jeff.example/v2/key"),
+            eps.index("https://old.example/v2/key"),
+        )
+
     def test_strict_replay_reads_existing_mantle_and_xlayer_secret_names(self):
         for env_name in (
             "MANTLE_RPC",
