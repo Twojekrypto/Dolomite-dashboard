@@ -63,6 +63,19 @@ class RpcUsageOutputStreamTests(unittest.TestCase):
         self.assertNotIn("VERY_SECRET_KEY", err.getvalue())
         rpc_usage.reset_usage()
 
+    def test_provider_name_uses_safe_environment_label_for_same_host_endpoints(self):
+        endpoint = "https://berachain-mainnet.g.alchemy.com/v2/VERY_SECRET_KEY"
+        with patch.dict(os.environ, {
+            "ALCHEMY_BERACHAIN_RPC_2_JEFF": endpoint,
+        }):
+            label = rpc_usage.provider_name(endpoint)
+
+        self.assertEqual(
+            label,
+            "berachain-mainnet.g.alchemy.com (ALCHEMY_BERACHAIN_RPC_2_JEFF)",
+        )
+        self.assertNotIn("VERY_SECRET_KEY", label)
+
 
 if __name__ == "__main__":
     unittest.main()

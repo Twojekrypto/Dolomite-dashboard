@@ -86,7 +86,17 @@ def record_request(method, count=1):
 
 def provider_name(endpoint):
     """Return a key-safe provider identifier suitable for public CI logs."""
-    return urlparse(str(endpoint or "")).hostname or "rpc"
+    endpoint = str(endpoint or "").strip()
+    host = urlparse(endpoint).hostname or "rpc"
+    matching_env_names = sorted(
+        env_name
+        for env_name, value in os.environ.items()
+        if (env_name.endswith("_RPC") or "_RPC_" in env_name)
+        and str(value or "").strip() == endpoint
+    )
+    if matching_env_names:
+        return f"{host} ({matching_env_names[0]})"
+    return host
 
 
 def _provider_counter(endpoint):
