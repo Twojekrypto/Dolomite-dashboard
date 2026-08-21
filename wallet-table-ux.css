@@ -38,10 +38,8 @@
 .history-table .action-chip.transfer,.history-table .action-chip.trade,.history-table .action-chip.zap{color:var(--cyan,#8fb7c8);border-color:rgba(143,183,200,.28);background:rgba(143,183,200,.08)}
 .history-table .action-chip.borrow,.history-table .action-chip.repay{color:var(--gold,#c9a227);border-color:var(--gold-line,rgba(201,162,39,.28));background:var(--gold-wash,rgba(201,162,39,.08))}
 
-/* Body portal for filters — prevents clipping by empty or scrollable tables. */
-.dolo-dropdown-placeholder{flex:0 0 auto;visibility:hidden;pointer-events:none}
-.pf-dd.dolo-dropdown-portal{margin:0!important;max-width:none!important;transform:none!important}
-.pf-dd.dolo-dropdown-portal .dd-panel{z-index:10060!important;max-height:min(360px,calc(100vh - 96px));overflow:auto;box-shadow:0 18px 48px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.035)}
+/* Float only the menu panel. The trigger stays in its toolbar and scrolls beneath the fixed footer like DOLO Flows. */
+.pf-dd.dolo-dropdown-panel-floating .dd-panel{position:fixed!important;max-height:min(360px,calc(100vh - 96px));overflow:auto;box-shadow:0 18px 48px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.035)}
 
 /* All Routes follows the All Chains interaction model while keeping the app's internal all-selected Set. */
 .pf-exercise-route-filter .dolo-all-routes-option{border-bottom:1px solid rgba(117,184,123,.12)}
@@ -75,19 +73,15 @@
 .pf-exercise-route-filter .dd-opt-name{line-height:1.2}
 #position-activity-table .activity-action-cell .dolo-route-badge{min-width:92px}
 
-/* Preserve route-filter styling when its wrapper is temporarily portaled to body. */
-.pf-exercise-route-filter.dolo-dropdown-portal .dd-btn{min-width:210px;border-color:rgba(117,184,123,.20);background:rgba(117,184,123,.045)}
-.pf-exercise-route-filter.dolo-dropdown-portal .dd-btn:hover,.pf-exercise-route-filter.dolo-dropdown-portal .dd-btn.open,.pf-exercise-route-filter.dolo-dropdown-portal .dd-btn.filtered{border-color:rgba(117,184,123,.30);background:rgba(117,184,123,.075)}
-.pf-exercise-route-filter.dolo-dropdown-portal .dd-panel{min-width:210px;border-color:rgba(117,184,123,.20);background:linear-gradient(180deg,rgba(18,28,20,.99),rgba(12,14,13,.99))}
-.pf-exercise-route-filter.dolo-dropdown-portal .dd-panel-head{color:var(--up,#75b87b)}
-.pf-exercise-route-filter.dolo-dropdown-portal .dd-opt+.dd-opt{border-top-color:rgba(117,184,123,.10)}
-.pf-exercise-route-filter.dolo-dropdown-portal .dd-opt:hover{background:rgba(117,184,123,.055);color:var(--fg-1,#f2f2f3)}
-.pf-exercise-route-filter.dolo-dropdown-portal .dd-opt.active{background:rgba(117,184,123,.075);color:var(--fg-1,#f2f2f3)}
-.pf-exercise-route-filter.dolo-dropdown-portal .dd-opt.active .dd-opt-check{background:var(--up,#75b87b);border-color:var(--up,#75b87b)}
+/* Preserve route-filter styling while only its menu panel is floating. */
+.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-btn{min-width:210px;border-color:rgba(117,184,123,.20);background:rgba(117,184,123,.045)}
+.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-btn:hover,.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-btn.open,.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-btn.filtered{border-color:rgba(117,184,123,.30);background:rgba(117,184,123,.075)}
+.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-panel{min-width:210px;border-color:rgba(117,184,123,.20);background:linear-gradient(180deg,rgba(18,28,20,.99),rgba(12,14,13,.99))}
+.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-panel-head{color:var(--up,#75b87b)}
+.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-opt+.dd-opt{border-top-color:rgba(117,184,123,.10)}
+.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-opt:hover{background:rgba(117,184,123,.055);color:var(--fg-1,#f2f2f3)}
+.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-opt.active{background:rgba(117,184,123,.075);color:var(--fg-1,#f2f2f3)}
+.pf-exercise-route-filter.dolo-dropdown-panel-floating .dd-opt.active .dd-opt-check{background:var(--up,#75b87b);border-color:var(--up,#75b87b)}
 
 /* The three veDOLO tables own their rounded clipping surface. */
 .dolo-rounded-table-wrap{overflow-x:auto;overflow-y:hidden}
-
-/* Flip long menus above their trigger when the viewport has more room there. */
-.pf-dd.dolo-dropdown-portal.dolo-dropdown-up .dd-panel{top:auto!important;bottom:calc(100% + 6px)!important}
-.pf-dd.dolo-dropdown-portal:not(.dolo-dropdown-up) .dd-panel{top:calc(100% + 6px)!important;bottom:auto!important}

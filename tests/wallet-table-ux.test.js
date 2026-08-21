@@ -120,3 +120,70 @@ test("forced-down Portfolio dropdowns stay below the trigger and stop above the 
   assert.deepEqual(nearFooter, { openUp: false, maxHeight: 281 });
   assert.deepEqual(afterScroll, { openUp: false, maxHeight: 330 });
 });
+
+test("Portfolio floats only the dropdown panel while its trigger stays in the natural toolbar", () => {
+  assert.equal(typeof walletUx.positionFloatingDropdownPanel, "function");
+
+  const styleBag = () => {
+    const values = new Map();
+    return {
+      setProperty(name, value) { values.set(name, String(value)); },
+      removeProperty(name) { values.delete(name); },
+      getPropertyValue(name) { return values.get(name) || ""; },
+    };
+  };
+  const classes = new Set();
+  const trigger = {
+    parentNode: null,
+    getBoundingClientRect() {
+      return { left: 51, right: 261, top: 342, bottom: 378, width: 210, height: 36 };
+    },
+  };
+  const panel = { parentNode: null, scrollHeight: 330, style: styleBag() };
+  const dropdown = {
+    dataset: { doloDropdownDirection: "down" },
+    style: styleBag(),
+    classList: {
+      add(name) { classes.add(name); },
+      toggle(name, enabled) { enabled ? classes.add(name) : classes.delete(name); },
+      contains(name) { return classes.has(name); },
+    },
+    querySelector(selector) {
+      if (selector === ".dd-panel") return panel;
+      if (selector === "[data-dd-btn]") return trigger;
+      return null;
+    },
+  };
+  trigger.parentNode = dropdown;
+  panel.parentNode = dropdown;
+  const credit = {
+    getBoundingClientRect() { return { top: 673, bottom: 720, height: 47 }; },
+  };
+  const environment = {
+    innerHeight: 720,
+    document: {
+      documentElement: { clientHeight: 720 },
+      querySelector(selector) { return selector === "#site-source-credit" ? credit : null; },
+    },
+    getComputedStyle(node) {
+      return node === credit ? { display: "flex", zIndex: "1350" } : {};
+    },
+  };
+
+  walletUx.positionFloatingDropdownPanel(dropdown, environment);
+
+  assert.equal(trigger.parentNode, dropdown);
+  assert.equal(panel.parentNode, dropdown);
+  assert.equal(dropdown.style.getPropertyValue("position"), "");
+  assert.equal(dropdown.style.getPropertyValue("z-index"), "");
+  assert.equal(panel.style.getPropertyValue("position"), "fixed");
+  assert.equal(panel.style.getPropertyValue("left"), "51px");
+  assert.equal(panel.style.getPropertyValue("top"), "384px");
+  assert.equal(panel.style.getPropertyValue("max-height"), "281px");
+  assert.equal(panel.style.getPropertyValue("z-index"), "1349");
+  assert.equal(dropdown.classList.contains("dolo-dropdown-panel-floating"), true);
+
+  Object.assign(window, environment);
+  walletUx.positionFloatingDropdownPanel(dropdown, 0);
+  assert.equal(panel.style.getPropertyValue("z-index"), "1349");
+});
