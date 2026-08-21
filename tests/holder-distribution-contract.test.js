@@ -385,10 +385,10 @@ test("each CEX exchange row visibly advertises its expandable address list", () 
   assert.match(preview, /\.cex-wallet-disclosure\[open\] \.cex-exchange-expand svg\{transform:rotate\(180deg\)\}/);
 });
 
-test("holder distribution excludes potential CEX/MM and bots from the chart", () => {
+test("holder distribution states both its included and excluded wallet scope", () => {
   const scopeRenderer = preview.slice(preview.indexOf("function holderScopeHtml"), preview.indexOf("function holderCexStatHtml"));
-  assert.match(scopeRenderer, /Market \+ Team\/Investor/);
-  assert.match(scopeRenderer, /CEX &amp; protocol excluded/);
+  assert.match(scopeRenderer, /Includes: Market \+ Team\/Investor/);
+  assert.match(scopeRenderer, /Excludes: CEX, protocol &amp; custody\/MM/);
   assert.match(scopeRenderer, /potential custody\/MM and bot wallets remain excluded/);
 });
 
