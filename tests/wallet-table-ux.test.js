@@ -96,3 +96,27 @@ test("Flow wallet renderer places exact transaction metadata beside the wallet n
   assert.doesNotMatch(html, /wallet-secondary-tx/);
   assert.doesNotMatch(html, /wallet-meta-separator/);
 });
+
+test("forced-down Portfolio dropdowns stay below the trigger and stop above the fixed credit bar", () => {
+  assert.equal(typeof walletUx.dropdownPanelPlacement, "function");
+
+  const nearFooter = walletUx.dropdownPanelPlacement({
+    triggerTop: 342,
+    triggerBottom: 378,
+    viewportHeight: 720,
+    naturalHeight: 330,
+    creditTop: 673,
+    forceDown: true,
+  });
+  const afterScroll = walletUx.dropdownPanelPlacement({
+    triggerTop: 92,
+    triggerBottom: 128,
+    viewportHeight: 720,
+    naturalHeight: 330,
+    creditTop: 673,
+    forceDown: true,
+  });
+
+  assert.deepEqual(nearFooter, { openUp: false, maxHeight: 281 });
+  assert.deepEqual(afterScroll, { openUp: false, maxHeight: 330 });
+});

@@ -11,23 +11,22 @@ const walletUxSource = fs.readFileSync(path.join(root, "wallet-table-ux.js"), "u
 const walletUxCss = fs.readFileSync(path.join(root, "wallet-table-ux.css"), "utf8");
 const assetsSource = fs.readFileSync(path.join(root, "assets-preview.html"), "utf8");
 
-function portfolioTokenPills() {
-  const start = portfolioSource.indexOf("  function tokenPills(tokens, chain, options = {}){");
+function portfolioBorrowMoney() {
+  const start = portfolioSource.indexOf("  const fmtBorrowUSD = n => {");
   const end = portfolioSource.indexOf("\n  function shortAccountNumber", start);
-  assert.notEqual(start, -1, "portfolio token-pill renderer must exist");
-  assert.notEqual(end, -1, "portfolio token-pill renderer must have a stable boundary");
+  assert.notEqual(start, -1, "portfolio borrow formatter must exist");
+  assert.notEqual(end, -1, "portfolio borrow formatter must have a stable boundary");
   const sandbox = {
     Array,
     Number,
     esc(value) { return String(value); },
-    fmtUSD(value) { return value === 1234 ? "$1.23K" : String(value); },
     tokenIcon(symbol, { chain }) { return `icons/${chain}-${symbol}.svg`; },
     tokenIconFrameClass(symbol) { return symbol === "WETH" ? "round-logo" : ""; },
   };
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
-  vm.runInContext(`${portfolioSource.slice(start, end)}\nglobalThis.api = { tokenPills };`, sandbox);
-  return sandbox.api.tokenPills;
+  vm.runInContext(`${portfolioSource.slice(start, end)}\nglobalThis.api = { fmtBorrowUSD, fmtBorrowTokenUSD, tokenPills };`, sandbox);
+  return sandbox.api;
 }
 
 function portfolioRiskLoader(fetchImpl) {
@@ -149,6 +148,7 @@ test("Portfolio filters use the shared floating dropdown without resizing their 
   assert.doesNotMatch(portfolioSource, /data-dolo-dropdown-mode="static"/);
   assert.doesNotMatch(portfolioSource, /\.pf-section\.pf-dropdown-open\{/);
   assert.doesNotMatch(portfolioSource, /\.pf-dd\[data-dolo-dropdown-mode="static"\] \.dd-panel\.show/);
+  assert.equal((portfolioSource.match(/data-dolo-dropdown-direction="down"/g) || []).length, 2);
   assert.match(sync, /panel && panel\.classList\.contains\("show"\)\) portalDropdown\(dd\)/);
   assert.match(portfolioSource, /refreshDd\(dropdown, filterState, present\);/);
   assert.match(portfolioSource, /refreshExerciseRouteDd\(dd, filterState\)/);
@@ -158,16 +158,20 @@ test("Portfolio filters use the shared floating dropdown without resizing their 
 });
 
 test("Portfolio Open Borrows renders Collateral and Debt like Lending Positions", () => {
-  const tokenPills = portfolioTokenPills();
+  const { fmtBorrowUSD, fmtBorrowTokenUSD, tokenPills } = portfolioBorrowMoney();
   const html = tokenPills([{ symbol: "WETH", usd: 1234 }], "ethereum");
 
+  assert.equal(fmtBorrowUSD(123456.789), "$123.46K");
+  assert.equal(fmtBorrowTokenUSD(123456.789), "$123.5K");
   assert.match(html, /class="pf-token-pill-icon round-logo"/);
   assert.match(html, /<img src="icons\/ethereum-WETH\.svg"/);
   assert.match(html, /class="pf-token-symbol">WETH</);
-  assert.match(html, /class="pf-token-usd">\$1\.23K</);
+  assert.match(html, /class="pf-token-usd">\$1\.2K</);
+  assert.doesNotMatch(html, /title=/);
   assert.match(portfolioSource, /#pf-borrows-section \.pf-table \[data-column="collateral"\],[\s\S]*?text-align:left;/);
   assert.match(portfolioSource, /\.pf-borrow-positions \.pf-money-cell\{[\s\S]*?align-items:flex-start;/);
   assert.match(portfolioSource, /\.pf-borrow-positions \.pf-token-pills\{[\s\S]*?align-items:flex-start;[\s\S]*?justify-content:flex-start;/);
+  assert.match(portfolioSource, /\.pf-borrow-positions \[data-column="collateral"\] \.pf-money-cell,[\s\S]*?cursor:default;/);
 });
 
 test("Assets reuses the dashboard empty-state shell for an unmatched address", () => {
