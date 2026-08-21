@@ -517,26 +517,16 @@
 
   function portalDropdown(dd){
     const doc = root.document;
-    if(!doc || portalState.has(dd) || dd.classList.contains("dolo-dropdown-portal")) return;
-    const rect = dd.getBoundingClientRect();
-    const placeholder = doc.createElement("span");
-    const computed = root.getComputedStyle ? root.getComputedStyle(dd) : null;
-    placeholder.className = "dolo-dropdown-placeholder";
-    placeholder.style.display = computed && computed.display === "inline-flex" ? "inline-block" : (computed && computed.display) || "block";
-    placeholder.style.width = `${Math.max(rect.width, 1)}px`;
-    placeholder.style.height = `${Math.max(rect.height, 1)}px`;
-    const parent = dd.parentNode;
-    const nextSibling = dd.nextSibling;
-    parent.insertBefore(placeholder, dd);
-    doc.body.appendChild(dd);
-    portalState.set(dd, {placeholder, parent, nextSibling});
-    dd.classList.add("dolo-dropdown-portal");
-    positionPortaledDropdown(dd);
+    const panel = dd && dd.querySelector(".dd-panel");
+    if(!doc || !panel || portalState.has(dd) || dd.classList.contains("dolo-dropdown-panel-floating")) return;
+    portalState.set(dd, {panel});
+    dd.classList.add("dolo-dropdown-panel-floating");
+    positionFloatingDropdownPanel(dd);
   }
 
-  function documentViewportHeight(){
-    return root.document && root.document.documentElement
-      ? root.document.documentElement.clientHeight
+  function documentViewportHeight(environment = root){
+    return environment.document && environment.document.documentElement
+      ? environment.document.documentElement.clientHeight
       : 0;
   }
 
@@ -561,22 +551,18 @@
     };
   }
 
-  function positionPortaledDropdown(dd){
-    const state = portalState.get(dd);
-    if(!state || !state.placeholder.isConnected) return;
-    const rect = state.placeholder.getBoundingClientRect();
-    dd.style.setProperty("position", "fixed", "important");
-    dd.style.setProperty("left", `${Math.round(rect.left)}px`, "important");
-    dd.style.setProperty("top", `${Math.round(rect.top)}px`, "important");
-    dd.style.setProperty("width", `${Math.max(Math.round(rect.width), 1)}px`, "important");
-    dd.style.setProperty("z-index", "10050", "important");
+  function positionFloatingDropdownPanel(dd, environment = root){
+    if(!environment || typeof environment !== "object" || !environment.document) environment = root;
+    dd.classList.add("dolo-dropdown-panel-floating");
     const panel = dd.querySelector(".dd-panel");
-    if(panel){
-      const viewportHeight = Math.max(root.innerHeight || 0, documentViewportHeight());
-      const credit = root.document.querySelector("#site-source-credit");
-      const creditRect = credit && root.getComputedStyle && root.getComputedStyle(credit).display !== "none"
-        ? credit.getBoundingClientRect()
-        : null;
+    const trigger = dd.querySelector("[data-dd-btn]");
+    if(panel && trigger){
+      const rect = trigger.getBoundingClientRect();
+      const viewportHeight = Math.max(environment.innerHeight || 0, documentViewportHeight(environment));
+      const credit = environment.document && environment.document.querySelector("#site-source-credit");
+      const creditStyle = credit && environment.getComputedStyle ? environment.getComputedStyle(credit) : null;
+      const creditRect = credit && (!creditStyle || creditStyle.display !== "none") ? credit.getBoundingClientRect() : null;
+      const creditZ = Number.parseInt(creditStyle && creditStyle.zIndex, 10);
       const placement = dropdownPanelPlacement({
         triggerTop:rect.top,
         triggerBottom:rect.bottom,
@@ -586,6 +572,14 @@
         forceDown:dd.dataset.doloDropdownDirection === "down",
       });
       dd.classList.toggle("dolo-dropdown-up", placement.openUp);
+      const panelTop = placement.openUp
+        ? Math.max(12, rect.top - placement.maxHeight - 6)
+        : rect.bottom + 6;
+      panel.style.setProperty("position", "fixed", "important");
+      panel.style.setProperty("left", `${Math.round(rect.left)}px`, "important");
+      panel.style.setProperty("top", `${Math.round(panelTop)}px`, "important");
+      panel.style.setProperty("bottom", "auto", "important");
+      panel.style.setProperty("z-index", `${Number.isFinite(creditZ) ? Math.max(1, creditZ - 1) : 10050}`, "important");
       panel.style.setProperty("max-height", `${placement.maxHeight}px`, "important");
     }
   }
@@ -593,16 +587,9 @@
   function restoreDropdown(dd){
     const state = portalState.get(dd);
     if(!state) return;
-    dd.classList.remove("dolo-dropdown-portal","dolo-dropdown-up");
-    ["position","left","top","width","z-index"].forEach(prop => dd.style.removeProperty(prop));
-    const panel = dd.querySelector(".dd-panel");
-    if(panel) panel.style.removeProperty("max-height");
-    if(state.placeholder.parentNode){
-      state.placeholder.parentNode.insertBefore(dd, state.placeholder);
-      state.placeholder.remove();
-    }else if(state.parent){
-      state.parent.insertBefore(dd, state.nextSibling && state.nextSibling.parentNode === state.parent ? state.nextSibling : null);
-    }
+    dd.classList.remove("dolo-dropdown-panel-floating","dolo-dropdown-up");
+    const panel = state.panel || dd.querySelector(".dd-panel");
+    if(panel) ["position","left","top","bottom","z-index","max-height"].forEach(prop => panel.style.removeProperty(prop));
     portalState.delete(dd);
   }
 
@@ -617,10 +604,6 @@
       const panel = dd.querySelector(".dd-panel");
       if(panel && panel.classList.contains("show")) portalDropdown(dd);
       else if(portalState.has(dd)) restoreDropdown(dd);
-    });
-    doc.querySelectorAll("body > .pf-dd.dolo-dropdown-portal").forEach(dd => {
-      const panel = dd.querySelector(".dd-panel");
-      if(!panel || !panel.classList.contains("show")) restoreDropdown(dd);
     });
   }
 
@@ -654,10 +637,10 @@
       const observer = new root.MutationObserver(scheduleEnhancements);
       observer.observe(root.document.body, {subtree:true, childList:true, attributes:true, attributeFilter:["class","style"]});
       root.addEventListener("resize", () => {
-        root.document.querySelectorAll(".dolo-dropdown-portal").forEach(positionPortaledDropdown);
+        root.document.querySelectorAll(".dolo-dropdown-panel-floating").forEach(dd => positionFloatingDropdownPanel(dd));
       }, {passive:true});
       root.addEventListener("scroll", () => {
-        root.document.querySelectorAll(".dolo-dropdown-portal").forEach(positionPortaledDropdown);
+        root.document.querySelectorAll(".dolo-dropdown-panel-floating").forEach(dd => positionFloatingDropdownPanel(dd));
       }, {passive:true, capture:true});
     };
     if(root.document.readyState === "loading") root.document.addEventListener("DOMContentLoaded", start, {once:true});
@@ -680,6 +663,7 @@
     emptyStateMessage,
     actionIconSvg,
     dropdownPanelPlacement,
+    positionFloatingDropdownPanel,
     applyAddressOverrides,
     install,
     runEnhancements,

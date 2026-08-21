@@ -154,7 +154,7 @@ test("Portfolio filters use the shared floating dropdown without resizing their 
   assert.match(portfolioSource, /refreshExerciseRouteDd\(dd, filterState\)/);
   assert.match(portfolioSource, /renderExerciseSummary\(state\.exercises\)/);
   assert.doesNotMatch(portfolioSource, /renderExerciseSummary\(rows\);/);
-  assert.match(walletUxCss, /\.pf-exercise-route-filter\.dolo-dropdown-portal \.dd-btn\.filtered\{[^}]*background:rgba\(117,184,123,\.075\)/);
+  assert.match(walletUxCss, /\.pf-exercise-route-filter\.dolo-dropdown-panel-floating \.dd-btn\.filtered\{[^}]*background:rgba\(117,184,123,\.075\)/);
 });
 
 test("Portfolio Open Borrows renders Collateral and Debt like Lending Positions", () => {
