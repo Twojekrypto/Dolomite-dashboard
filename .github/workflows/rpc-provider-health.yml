@@ -1,0 +1,27 @@
+name: RPC Provider Health Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe-new-providers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Probe new RPC providers
+        env:
+          ALCHEMY_BERACHAIN_RPC_2_JEFF: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2_JEFF }}
+          ALCHEMY_MANTLE_RPC_2_JEFF: ${{ secrets.ALCHEMY_MANTLE_RPC_2_JEFF }}
+        run: |
+          python3 scripts/report_rpc_provider_health.py \
+            --provider ALCHEMY_BERACHAIN_RPC_2_JEFF \
+            --provider ALCHEMY_MANTLE_RPC_2_JEFF
