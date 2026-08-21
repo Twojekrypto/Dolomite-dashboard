@@ -47,7 +47,7 @@ async function renderPreview(previewHtml) {
   </head><body></body></html>`);
   assert.match(existing, /wallet-table-ux\.css\?v=20260821-table-ux-v6/);
   assert.match(existing, /wallet-table-ux\.js\?v=20260821-table-ux-v6/);
-  assert.match(existing, /vedolo-position-activity\.js\?v=20260820-new-lock-v1/);
+  assert.match(existing, /vedolo-position-activity\.js\?v=20260821-actions-v1/);
   assert.equal((existing.match(/wallet-table-ux\.css/g) || []).length, 1, "existing shared CSS must not be duplicated");
   assert.equal((existing.match(/wallet-table-ux\.js/g) || []).length, 1, "existing shared JS must not be duplicated");
   assert.equal((existing.match(/vedolo-position-activity\.js/g) || []).length, 1, "existing helper must not be duplicated");

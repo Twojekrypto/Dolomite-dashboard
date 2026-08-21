@@ -145,4 +145,41 @@ assert.deepEqual(
 );
 assert.ok(ownerHistoryEvents.every(event => event.sourceEntity === "vedoloFlowsRpcLogs"));
 
-console.log("veDOLO position-activity contracts: 48 passed");
+const classificationWallet = "0x1111111111111111111111111111111111111111";
+const classifiedHistoryEvents = buildHistoryActivityEvents([
+  {
+    depositType:1,
+    tokenId:21,
+    timestamp:600,
+    dolo:125,
+    address:classificationWallet,
+    txHash:"0xdirect",
+    block:6,
+  },
+  {
+    depositType:1,
+    tokenId:22,
+    timestamp:700,
+    dolo:250,
+    address:"0xa3f079292cc35ba64996fe0bce3049928a838bc9",
+    beneficiaryAddress:classificationWallet,
+    txHash:"0xairdrop",
+    block:7,
+  },
+  {
+    depositType:1,
+    tokenId:23,
+    timestamp:800,
+    dolo:500,
+    address:classificationWallet,
+    isOdolo:true,
+    txHash:"0xodolo",
+    block:8,
+  },
+], [], classificationWallet);
+
+assert.deepEqual(classifiedHistoryEvents.map(event => event.action), ["vedoloAirdrop", "vedoloDirect"]);
+assert.ok(classifiedHistoryEvents.every(event => event.amount === "0" && event.principalDelta === 0));
+assert.equal(classifiedHistoryEvents.some(event => event.txHash === "0xodolo"), false, "oDOLO exercises stay with the canonical exercise source");
+
+console.log("veDOLO position-activity contracts: 52 passed");

@@ -41,7 +41,12 @@ assert.equal(historyRows.some(row => row.route === "create"), false, "History al
 assert.equal(historyRows.some(row => row.route === "extend"), true, "position-management activity must remain in History details");
 
 assert.equal(activity.routeLabel("create"), "New Lock");
-assert.equal(activity.routeIconSvg("direct"), activity.routeIconSvg("create"), "direct locks must use the same icon as NEW LOCK");
+assert.equal(activity.routeLabel("all"), "All Actions");
+assert.notEqual(activity.routeIconSvg("direct"), activity.routeIconSvg("create"), "direct locks need a distinct action icon");
 assert.match(activity.routeIconHtml("merge", true, "route-icon"), /route-icon active/);
+
+const actionIcons = ["odolo", "pair", "airdrop", "direct", "transfer", "merge", "split", "extend"]
+  .map(kind => activity.routeIconSvg(kind));
+assert.equal(new Set(actionIcons).size, actionIcons.length, "every Portfolio action needs a distinct icon");
 
 console.log("vedolo-position-activity tests passed");

@@ -17,8 +17,13 @@
     5:"split",
   });
   const ACTIVITY_KINDS = new Set(["create", "extend", "merge", "split"]);
+  const AIRDROP_CLAIM_CONTRACTS = new Set(["0xa3f079292cc35ba64996fe0bce3049928a838bc9"]);
   const ROUTE_LABELS = Object.freeze({
-    all:"All Routes",
+    all:"All Actions",
+    odolo:"Exercise",
+    pair:"Pair",
+    airdrop:"Airdrop",
+    direct:"Direct",
     create:"New Lock",
     extend:"Extend",
     merge:"Merge",
@@ -59,6 +64,14 @@
     return (kind === "deposit" || kind === "create" || kind === "increase")
       && Number.isFinite(amount)
       && amount > 0;
+  }
+
+  function isAirdropLock(row){
+    if(!row) return false;
+    return !!row.isAirdropClaim
+      || row.claimSource === "airdrop"
+      || AIRDROP_CLAIM_CONTRACTS.has(normalizedAddress(row.address))
+      || AIRDROP_CLAIM_CONTRACTS.has(normalizedAddress(row.protocolAddress));
   }
 
   function buildActivityRows(locks, transfers){
@@ -187,11 +200,14 @@
   }
 
   function routeIconSvg(kind, direction){
-    const rawKey = String(kind || "");
-    const key = ({odolo:"create", pair:"create", airdrop:"create", direct:"create"})[rawKey] || rawKey;
+    const key = String(kind || "");
     const icons = {
       all:'<path d="M5 5h5a3 3 0 0 1 3 3v8a3 3 0 0 0 3 3h3"/><path d="m16 16 3 3-3 3"/><circle cx="5" cy="5" r="2"/>',
       create:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 13v5"/><path d="M9.5 15.5h5"/>',
+      odolo:'<circle cx="12" cy="12" r="9"/><path d="m13.5 5.5-5 7h4l-2 6 5-7h-4l2-6Z"/>',
+      pair:'<path d="M9.5 14.5 14.5 9.5"/><path d="m7 17-1.5 1.5a3.54 3.54 0 0 1-5-5L4 10a3.54 3.54 0 0 1 5 0" transform="translate(4)"/><path d="m17 7 1.5-1.5a3.54 3.54 0 0 0-5-5L10 4a3.54 3.54 0 0 0 0 5" transform="translate(0 4)"/>',
+      airdrop:'<path d="M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5A2.5 2.5 0 1 1 12 4.5V7z"/><path d="M12 7h4.5A2.5 2.5 0 1 0 12 4.5V7z"/>',
+      direct:'<path d="M12 3v10"/><path d="m8 9 4 4 4-4"/><rect x="5" y="15" width="14" height="6" rx="2"/>',
       extend:'<circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/><path d="M18.5 5.5 20 4v4h-4"/>',
       merge:'<path d="M5 5h3a4 4 0 0 1 4 4v10"/><path d="M19 5h-3a4 4 0 0 0-4 4"/><path d="m9 16 3 3 3-3"/>',
       split:'<path d="M12 5v5a4 4 0 0 1-4 4H5"/><path d="M12 10a4 4 0 0 0 4 4h3"/><path d="m7 11-3 3 3 3"/><path d="m17 11 3 3-3 3"/>',
@@ -250,7 +266,7 @@
   }
 
   function buildHistoryActivityEvents(locks, transfers, address, options){
-    return buildPortfolioActivityRows(locks, transfers, address, options)
+    const managementEvents = buildPortfolioActivityRows(locks, transfers, address, options)
       .map(row => {
         const action = `vedolo${row.route.charAt(0).toUpperCase()}${row.route.slice(1)}`;
         return {
@@ -279,11 +295,52 @@
           targetTokenId:row.targetTokenId,
         };
       });
+    const classifiedLockEvents = dedupeSemanticRows(filterActivityRows(
+      Array.isArray(locks) ? locks : [],
+      {...(options || {}), address},
+    )).filter(row => isExternalLock(row) && !row.isOdolo).map(row => {
+      const airdrop = isAirdropLock(row);
+      const route = airdrop ? "airdrop" : "direct";
+      const action = airdrop ? "vedoloAirdrop" : "vedoloDirect";
+      const tokenId = String(row.tokenId ?? row.targetTokenId ?? "");
+      return {
+        chainKey:"berachain",
+        txHash:String(row.txHash || row.hash || "").toLowerCase(),
+        timestamp:timestampBound(row.timestamp, 0),
+        blockNumber:String(row.blockNumber ?? row.block ?? ""),
+        action,
+        role:"neutral",
+        serialId:`${action}:${tokenId}:${tokenId}`,
+        label:tokenId ? `${airdrop ? "Airdrop lock" : "Direct lock"} #${tokenId}` : (airdrop ? "Airdrop veDOLO lock" : "Direct veDOLO lock"),
+        asset:"veDOLO position",
+        amount:"0",
+        usd:0,
+        taxCategory:"vedolo_lock_classification",
+        reviewFlag:"not_applicable",
+        reviewReason:"",
+        sourceEntity:"vedoloFlowsRpcLogs",
+        sourceLabel:"Berachain veDOLO RPC log history",
+        principalDelta:0,
+        isPositionManagement:false,
+        isNewLock:true,
+        route,
+        from:"",
+        to:normalizedAddress(row.beneficiaryAddress || row.address),
+        sourceTokenId:tokenId,
+        targetTokenId:tokenId,
+      };
+    });
+    return classifiedLockEvents.concat(managementEvents).sort((a,b) =>
+      (b.timestamp - a.timestamp)
+      || ((Number(b.blockNumber) || 0) - (Number(a.blockNumber) || 0))
+      || String(a.txHash || "").localeCompare(String(b.txHash || ""))
+    );
   }
 
   return {
     depositKind,
     isExternalLock,
+    isAirdropLock,
     buildActivityRows,
     activityTouchesAddress,
     filterActivityRows,

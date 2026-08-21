@@ -28,6 +28,15 @@ test("portfolio owns the shared route-selection model and uses shared route icon
   assert.match(portfolio, /pf-route-icon/);
 });
 
+test("Portfolio presents the veDOLO selector and table column as actions", () => {
+  assert.match(portfolio, /return "All Actions"/);
+  assert.match(portfolio, /return "No actions"/);
+  assert.match(portfolio, /`\$\{selected\.length\} actions`/);
+  assert.match(portfolio, /dd-opt-name">All Actions</);
+  assert.match(portfolio, /dd-panel-head">Action</);
+  assert.match(portfolio, /data-column="route"[^>]*>Action<span class="pf-sort">/);
+});
+
 test("all requested address-table searches expose the shared no-results state", () => {
   assert.match(walletUx.emptyStateMessage("", "No results found"), /No results found/);
   assert.match(walletUxSource, /function normalizeSearchNoResults/);

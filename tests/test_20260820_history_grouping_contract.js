@@ -13,6 +13,6 @@ assert.ok(historyJs.includes(tx), "the audited router transaction must be explic
 assert.match(historyJs, /AUDITED_INTERNAL_DEPOSIT_TXS\.has\(rowHash\)\) return \["deposit"\]/);
 assert.ok(historyIndex.includes("wallet-table-ux.css?v=20260820-table-ux-v4"));
 assert.ok(historyIndex.includes("wallet-table-ux.js?v=20260820-table-ux-v4"));
-assert.ok(historyIndex.includes("history-20260820-trade-over-internal-transfer"));
+assert.ok(historyIndex.includes("history-20260821-action-parity-v1"));
 
 console.log("history grouping contract tests passed");

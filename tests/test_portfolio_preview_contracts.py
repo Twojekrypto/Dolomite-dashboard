@@ -323,7 +323,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("#pf-exercises-section .pf-route-tag.gold", self.html)
         self.assertIn("#pf-exercises-section .pf-route-tag.airdrop", self.html)
         self.assertIn('data-sort="vedolo" data-table="ex">veDOLO', self.html)
-        self.assertIn('data-sort="route" data-table="ex">Route', self.html)
+        self.assertIn('data-sort="route" data-table="ex">Action', self.html)
         self.assertNotIn('data-sort="action" data-table="ex">Action', self.html)
         self.assertIn('data-sort="pair" data-table="ex">DOLO Paired', self.html)
         self.assertIn('"date","vedolo","pair","lock"', self.html)
@@ -352,7 +352,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertIn("Transfer", self.html)
         self.assertIn("allExerciseRoutesSelected(filterState)", self.html)
         self.assertIn('data-route="all"', self.html)
-        self.assertIn('dd-opt-name">All Routes', self.html)
+        self.assertIn('dd-opt-name">All Actions', self.html)
         self.assertIn("DoloWalletTableUX.routeSelectionPlan", self.html)
         self.assertIn("pf-ex-val pf-ex-ve", self.html)
         self.assertIn("pf-ex-val pf-ex-usdc", self.html)
@@ -405,7 +405,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertNotIn("Not mixed with paired DOLO", self.html)
 
     def test_vedolo_position_management_uses_shared_semantic_rows(self):
-        self.assertIn('<script src="vedolo-position-activity.js?v=20260816-portfolio-activity"></script>', self.html)
+        self.assertIn('<script src="vedolo-position-activity.js?v=20260821-actions-v1"></script>', self.html)
         self.assertIn("window.VeDoloPositionActivity.buildPortfolioActivityRows", self.html)
         self.assertIn("window.VeDoloPositionActivity.isExternalLock", self.html)
         self.assertIn("buildPortfolioActivityRows(flowLocks, (flows && flows.transfers) || [], a)", self.html)

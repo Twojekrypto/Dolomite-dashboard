@@ -54,15 +54,19 @@
     const current = STORE.get(el);
     if(current) cancelAnimationFrame(current.raf);
     if(!spec || reducedMotion() || document.hidden || !window.requestAnimationFrame){
+      STORE.delete(el);
       el.textContent = String(value ?? "");
       if(spec) el.dataset.countValue = String(spec.number);
       return;
     }
 
     const stored = Number(el.dataset.countValue);
-    const start = Number.isFinite(stored) ? stored : 0;
+    const start = Number.isFinite(current?.value)
+      ? current.value
+      : Number.isFinite(stored) ? stored : 0;
     const end = spec.number;
     if(Math.abs(end - start) < 0.000001){
+      STORE.delete(el);
       setFinal(el, spec);
       return;
     }
@@ -71,17 +75,17 @@
     const started = performance.now();
     el.textContent = formatMetric(start, spec);
     const tick = now => {
-      const t = Math.min(1, (now - started) / duration);
+      const t = Math.max(0, Math.min(1, (now - started) / duration));
       const valueNow = start + (end - start) * easeOutCubic(t);
       el.textContent = formatMetric(valueNow, spec);
       if(t < 1){
-        STORE.set(el, {raf: requestAnimationFrame(tick)});
+        STORE.set(el, {raf: requestAnimationFrame(tick), value:valueNow});
       } else {
         STORE.delete(el);
         setFinal(el, spec);
       }
     };
-    STORE.set(el, {raf: requestAnimationFrame(tick)});
+    STORE.set(el, {raf: requestAnimationFrame(tick), value:start});
   }
 
   function id(id, value, opts){

@@ -111,7 +111,7 @@ class HeroMetricChipContractsTest(unittest.TestCase):
         ):
             source = (ROOT / filename).read_text(encoding="utf-8")
             with self.subTest(page=filename):
-                self.assertIn('src="count-up.js?v=20260427-countup"', source)
+                self.assertIn('src="count-up.js?v=20260821-smooth-resume-v1"', source)
                 self.assertIn(setter, source)
                 self.assertIn("window.CountUpMetric", source)
 

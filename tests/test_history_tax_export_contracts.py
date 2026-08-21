@@ -438,7 +438,7 @@ vm.runInNewContext(instrumented, sandbox);
             self.assertIn(f'action === "{custom_value}"', filter_block)
 
     def test_vedolo_position_activity_loads_the_shared_classifier_and_actions(self):
-        shared_script = '<script defer src="vedolo-position-activity.js?v=20260820-new-lock-v1"></script>'
+        shared_script = '<script defer src="vedolo-position-activity.js?v=20260821-actions-v1"></script>'
         version = re.search(r'const HISTORY_VERSION = "([^"]+)"', self.source).group(1)
         history_script = f'<script defer src="history/history.js?v={version}"></script>'
         self.assertIn(shared_script, self.html)
@@ -446,8 +446,10 @@ vm.runInNewContext(instrumented, sandbox);
 
         options = dict(re.findall(r'<option value="([^"]+)">([^<]+)</option>', self.html))
         self.assertEqual(
-            {key: options.get(key) for key in ("vedoloTransfer", "vedoloMerge", "vedoloSplit", "vedoloExtend")},
+            {key: options.get(key) for key in ("vedoloDirect", "vedoloAirdrop", "vedoloTransfer", "vedoloMerge", "vedoloSplit", "vedoloExtend")},
             {
+                "vedoloDirect": "Direct veDOLO",
+                "vedoloAirdrop": "Airdrop",
                 "vedoloTransfer": "Transfer veDOLO",
                 "vedoloMerge": "Merge veDOLO positions",
                 "vedoloSplit": "Split veDOLO position",
@@ -520,18 +522,20 @@ const api = sandbox.__historyVedoloTest;
   if (builderCalls.length !== 1 || builderCalls[0].address !== wallet || builderCalls[0].bounds.start !== 100 || builderCalls[0].bounds.end !== 200) {
     throw new Error(`wrong shared API call: ${JSON.stringify(builderCalls)}`);
   }
-  const expectedActions = ["vedoloExtend", "vedoloMerge", "vedoloSplit", "vedoloTransfer"];
+  const expectedActions = ["vedoloDirect", "vedoloExtend", "vedoloMerge", "vedoloSplit", "vedoloTransfer"];
   const actions = result.events.map(event => event.action).sort();
   if (actions.join(",") !== expectedActions.join(",")) throw new Error(`wrong scoped actions: ${JSON.stringify(result.events)}`);
   if (result.events.some(event => event.timestamp < 100 || event.timestamp > 200)) throw new Error(`date bounds escaped: ${JSON.stringify(result.events)}`);
 
   const reportLabels = {
+    vedoloDirect: "Direct veDOLO",
     vedoloTransfer: "Transfer veDOLO",
     vedoloMerge: "Merge veDOLO positions",
     vedoloSplit: "Split veDOLO position",
     vedoloExtend: "Extend veDOLO lock",
   };
   const tableLabels = {
+    vedoloDirect: "Direct veDOLO",
     vedoloTransfer: "veDOLO Transfer",
     vedoloMerge: "veDOLO Merge",
     vedoloSplit: "veDOLO Split",
@@ -539,10 +543,12 @@ const api = sandbox.__historyVedoloTest;
   };
   for (const event of result.events) {
     const profile = api.taxProfileForEvent(event);
-    if (event.chainKey !== "berachain" || event.role !== "neutral" || event.amount !== "0" || event.usd !== 0 || event.principalDelta !== 0 || event.isPositionManagement !== true) {
+    if (event.chainKey !== "berachain" || event.role !== "neutral" || event.amount !== "0" || event.usd !== 0 || event.principalDelta !== 0) {
       throw new Error(`non-neutral event: ${JSON.stringify(event)}`);
     }
-    if (profile.taxCategory !== "vedolo_position_management" || profile.reviewFlag !== "not_applicable" || profile.reviewReason !== "") {
+    const expectedCategory = event.action === "vedoloDirect" ? "vedolo_lock_classification" : "vedolo_position_management";
+    const expectedManagement = event.action !== "vedoloDirect";
+    if (event.isPositionManagement !== expectedManagement || profile.taxCategory !== expectedCategory || profile.reviewFlag !== "not_applicable" || profile.reviewReason !== "") {
       throw new Error(`review metadata changed: ${JSON.stringify(profile)}`);
     }
     if (api.reviewReasonForTaxProfile(profile) !== "" || api.cleanHistoryReviewStatus([profile], { status: "ok" }, "") !== "ok") {
@@ -3506,7 +3512,9 @@ if (api.historySortValue(rows[0], "details") !== "") throw new Error("details co
         self.assertIn('if (action === "trade" || action === "zap") return "swap";', self.source)
         self.assertIn('if (action === "odoloClaim" || action === "rewardClaim") return "claim";', self.source)
         self.assertIn('if (action === "vestingClaim") return "exercise";', self.source)
-        self.assertIn('class="history-action-odolo action-icon-${escapeAttr(normalized)}"', self.source)
+        self.assertIn("window.VeDoloPositionActivity?.routeIconHtml", self.source)
+        self.assertIn('vestingPair: "pair"', self.source)
+        self.assertIn('exercise: "odolo"', self.source)
         self.assertIn('class="history-action-icon action-icon-${escapeAttr(normalized)}"', self.source)
         self.assertIn('.history-action-icon.action-icon-exercise', self.css)
         self.assertIn('<option value="exercise">Exercise</option>', self.html)
