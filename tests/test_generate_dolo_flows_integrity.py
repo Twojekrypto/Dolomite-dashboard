@@ -23,6 +23,7 @@ DOLOMITE_GNOSIS_SAFE = "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4"
 CHAINLINK_REWARDS_CLAIM = "0x2f41d42de3eab9e75f3d417259f24421771fb700"
 ECOSYSTEM_INCENTIVES_2 = "0x06265db7ecd9c5724a97bd4909146625d2e2619c"
 CROSS_CHAIN_WALLET = "0x15762db764826c219f1385c028e7e043a27e1891"
+ENSO_AGGREGATOR_TRADER = "0x40e816361e9eceb4ded402def58cc77e9f097914"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
@@ -426,6 +427,47 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
 
         self.assertNotIn(COINBASE_10, excluded)
         self.assertIn(UNLABELED_CONTRACT, excluded)
+
+    def test_contract_detection_candidates_include_balanced_custody_intermediary(self):
+        amount_wei = 1_041_767 * 10**18
+        transfers = [
+            (SOURCE, ENSO_AGGREGATOR_TRADER, amount_wei, 100),
+            (ENSO_AGGREGATOR_TRADER, SHARED_DOLOMITE_MARGIN, amount_wei, 100),
+        ]
+        raw_flows = flows.calculate_flows(transfers, set())
+
+        candidates = flows.contract_detection_candidates(
+            transfers,
+            "eth",
+            raw_flows,
+            top_n=1,
+        )
+
+        self.assertAlmostEqual(raw_flows.get(ENSO_AGGREGATOR_TRADER, 0), 0)
+        self.assertIn(ENSO_AGGREGATOR_TRADER, candidates)
+
+    def test_verified_enso_aggregator_is_always_excluded_from_market_flows(self):
+        self.assertIn(ENSO_AGGREGATOR_TRADER, flows.EXCLUDED_ADDRS)
+
+        amount_wei = 1_041_767 * 10**18
+        transfers = [
+            (SOURCE, ENSO_AGGREGATOR_TRADER, amount_wei, 100),
+            (ENSO_AGGREGATOR_TRADER, SHARED_DOLOMITE_MARGIN, amount_wei, 100),
+        ]
+        raw = flows.calculate_flows(transfers, flows.EXCLUDED_ADDRS)
+        components = flows.calculate_flow_components(transfers)
+        market, _ = flows.neutralize_protocol_custody_transfers(
+            raw,
+            components,
+            transfers,
+            "eth",
+        )
+
+        rows = (
+            flows.get_top(market, {}, 10, "accumulator", flows.EXCLUDED_ADDRS)
+            + flows.get_top(market, {}, 10, "seller", flows.EXCLUDED_ADDRS)
+        )
+        self.assertNotIn(ENSO_AGGREGATOR_TRADER, {row["address"] for row in rows})
 
     def test_protocol_transfer_keeps_both_visible_flow_sides(self):
         excluded = flows.select_dynamic_flow_exclusions(

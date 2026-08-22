@@ -44,6 +44,10 @@ DOLO_MARKET_IDS = {"eth": 16, "bera": 35}
 # DOLO to this adapter and burns the same amount before the destination mint.
 BERACHAIN_DOLO_CCIP_ADAPTER = "0x9e7728077f753dfdf53c2236097e27c743890992"
 BRIDGE_ADAPTER_ADDRS = {BERACHAIN_DOLO_CCIP_ADAPTER}
+# Verified trading infrastructure. EnsoAggregatorTrader can finish a period
+# with zero net DOLO while routing large custody legs, so net-flow-only
+# contract discovery cannot reliably remove it from wallet leaderboards.
+ENSO_AGGREGATOR_TRADER = "0x40e816361e9eceb4ded402def58cc77e9f097914"
 # Multicall3 (same address on every EVM chain) batches many balanceOf reads into
 # ONE eth_call. JSON-RPC batching does NOT cut compute units; Multicall3 does.
 MULTICALL3_ADDR = "0xcA11bde05977b3631167028862bE2a173976CA11"
@@ -93,6 +97,7 @@ EXCLUDED_ADDRS = {
     ZERO,
     DOLO_CONTRACT,
     "0x0000000000000000000000000000000000000001",
+    ENSO_AGGREGATOR_TRADER,
     # --- Berachain contracts (verified via eth_getCode, 2026-03-06) ---
     # oDOLO Vester
     "0x3e9b9a16743551da49b5e136c716bba7932d2cec",
@@ -845,6 +850,54 @@ def protocol_custody_addresses(chain_key):
         for address in (DOLO_DEPOSIT_WITHDRAWAL_ROUTER, margin)
         if address
     }
+
+
+def contract_detection_candidates(transfers, chain_key, raw_flows, top_n=30):
+    """Return high-signal addresses for contract detection.
+
+    Net flow catches ordinary routers but misses balanced intermediaries. Add
+    the largest direct Dolomite-custody counterparties by gross transferred
+    value so a contract such as EnsoAggregatorTrader is still inspected while
+    keeping RPC usage bounded.
+    """
+    limit = max(0, int(top_n or 0))
+    top_by_net = sorted(
+        (raw_flows or {}).items(),
+        key=lambda item: abs(item[1]),
+        reverse=True,
+    )[:limit]
+    candidates = {str(address or "").lower() for address, _ in top_by_net if address}
+
+    custody = protocol_custody_addresses(chain_key)
+    custody_volume = {}
+    if custody:
+        for transfer in transfers or []:
+            if not isinstance(transfer, (list, tuple)) or len(transfer) < 3:
+                continue
+            from_addr = str(transfer[0] or "").lower()
+            to_addr = str(transfer[1] or "").lower()
+            from_custody = from_addr in custody
+            to_custody = to_addr in custody
+            if from_custody == to_custody:
+                continue
+            counterparty = to_addr if from_custody else from_addr
+            if not re.fullmatch(r"0x[a-f0-9]{40}", counterparty):
+                continue
+            try:
+                value_wei = int(transfer[2])
+            except (TypeError, ValueError):
+                continue
+            if value_wei <= 0:
+                continue
+            custody_volume[counterparty] = custody_volume.get(counterparty, 0) + value_wei
+
+    top_by_custody_volume = sorted(
+        custody_volume.items(),
+        key=lambda item: item[1],
+        reverse=True,
+    )[:limit]
+    candidates.update(address for address, _ in top_by_custody_volume)
+    return sorted(candidates)
 
 
 def neutralize_protocol_custody_transfers(flows, components, transfers, chain_key):
@@ -3053,11 +3106,16 @@ def main():
             addr_set.add(from_addr)
             addr_set.add(to_addr)
 
-        # Get flows to find the most active addresses
+        # Check top net-flow actors plus high-volume direct custody
+        # counterparties. The second group catches balanced routers whose net
+        # flow is close to zero without scanning every depositor via RPC.
         flows = calculate_flows(all_transfers[chain_key], EXCLUDED_ADDRS)
-        # Check top 30 by absolute flow for contracts
-        top_by_flow = sorted(flows.items(), key=lambda x: abs(x[1]), reverse=True)[:30]
-        addrs_to_check = [addr for addr, _ in top_by_flow]
+        addrs_to_check = contract_detection_candidates(
+            all_transfers[chain_key],
+            chain_key,
+            flows,
+            top_n=30,
+        )
 
         contracts = detect_contracts_batch(addrs_to_check, chain_key)
         dynamic_exclusions = select_dynamic_flow_exclusions(contracts, address_labels)

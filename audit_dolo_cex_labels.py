@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit DOLO holder/flow addresses against Etherscan nametag metadata.
+"""Audit DOLO holder/flow addresses against Etherscan and DeBank labels.
 
 The nametag endpoint is a paid Etherscan endpoint. This script is intentionally
 safe when a free key is used: it still builds a ranked candidate report, records
@@ -12,8 +12,11 @@ import html
 import json
 import os
 import re
+import shutil
+import subprocess
 import time
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +33,11 @@ ETHERSCAN_ADDRESS_PAGE = "https://etherscan.io/address/{address}"
 PUBLIC_EXPLORER_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+)
+DEBANK_PROFILE_PAGE = "https://debank.com/profile/{address}"
+DEBANK_RENDER_TIMEOUT = int(os.environ.get("DOLO_CEX_DEBANK_RENDER_TIMEOUT", "25"))
+DEBANK_VIRTUAL_TIME_BUDGET_MS = int(
+    os.environ.get("DOLO_CEX_DEBANK_VIRTUAL_TIME_BUDGET_MS", "7000")
 )
 
 CEX_KEYWORDS = (
@@ -230,6 +238,162 @@ def clean_suggestion_label(meta: dict[str, Any]) -> str:
     return nametag[:80] if nametag else ""
 
 
+class _DeBankCexTagParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.nametag = ""
+
+    def handle_starttag(self, _tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if self.nametag:
+            return
+        values = {str(key).lower(): (value or "") for key, value in attrs}
+        classes = set(values.get("class", "").split())
+        if {"db-user-tag", "is-cex"}.issubset(classes):
+            self.nametag = html.unescape(values.get("title", "")).strip()
+
+
+def extract_debank_cex_metadata(page_html: str) -> dict[str, Any]:
+    """Extract only DeBank's explicit CEX entity badge.
+
+    Text such as "Funded By Coinbase" is deliberately ignored because it
+    describes transaction provenance, not ownership of the inspected wallet.
+    """
+    parser = _DeBankCexTagParser()
+    try:
+        parser.feed(page_html or "")
+    except (TypeError, ValueError):
+        return {}
+    nametag = parser.nametag
+    if not nametag:
+        return {}
+    metadata = {
+        "nametag": nametag,
+        "url": "",
+        "shortdescription": "",
+        "labels": ["cex"],
+        "labels_slug": ["cex"],
+    }
+    # `is-cex` is DeBank's explicit entity classification. Do not limit it to
+    # our current keyword vocabulary or newly listed exchanges would be lost.
+    return metadata
+
+
+def find_chrome_binary() -> str:
+    configured = os.environ.get("DOLO_CEX_DEBANK_CHROME", "").strip()
+    candidates = [
+        configured,
+        shutil.which("google-chrome"),
+        shutil.which("google-chrome-stable"),
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    ]
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            return candidate
+    return ""
+
+
+def fetch_debank_cex_metadata(
+    address: str,
+    chrome_binary: str,
+) -> tuple[dict[str, Any] | None, str | None]:
+    if not chrome_binary:
+        return None, "chrome_unavailable"
+    try:
+        proc = subprocess.run(
+            [
+                chrome_binary,
+                "--headless=new",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                f"--virtual-time-budget={DEBANK_VIRTUAL_TIME_BUDGET_MS}",
+                "--dump-dom",
+                DEBANK_PROFILE_PAGE.format(address=address),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=DEBANK_RENDER_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return None, "debank_timeout"
+    except OSError as exc:
+        return None, f"debank_browser_error: {exc}"
+    if proc.returncode != 0:
+        return None, f"debank_chrome_exit_{proc.returncode}"
+    metadata = extract_debank_cex_metadata(proc.stdout)
+    return (metadata or None), None
+
+
+def run_debank_page_audit(
+    candidates: list[dict[str, Any]],
+    delay: float,
+    chrome_binary: str,
+) -> dict[str, Any]:
+    """Audit explicit DeBank CEX badges; suggestions remain review-only."""
+    confirmed: list[dict[str, Any]] = []
+    no_tag: list[str] = []
+    errors: dict[str, str] = {}
+    for idx, candidate in enumerate(candidates, start=1):
+        address = candidate["address"]
+        metadata, error = fetch_debank_cex_metadata(address, chrome_binary)
+        if error:
+            errors[address] = error
+        elif metadata:
+            confirmed.append(
+                {
+                    **candidate,
+                    "suggestedLabel": clean_suggestion_label(metadata),
+                    "source": "debank-public-label",
+                    "debank": {"nametag": metadata.get("nametag")},
+                }
+            )
+        else:
+            no_tag.append(address)
+        if idx < len(candidates):
+            time.sleep(delay)
+    return {
+        "confirmedCexSuggestions": confirmed,
+        "nonCexTagged": [],
+        "noPublicTag": no_tag,
+        "errors": errors,
+        "queriedCount": len(confirmed) + len(no_tag) + len(errors),
+    }
+
+
+def merge_audit_reports(primary: dict[str, Any], secondary: dict[str, Any]) -> dict[str, Any]:
+    confirmed_by_address = {
+        row.get("address"): row
+        for row in primary.get("confirmedCexSuggestions", [])
+        if row.get("address")
+    }
+    for row in secondary.get("confirmedCexSuggestions", []):
+        if row.get("address"):
+            confirmed_by_address.setdefault(row["address"], row)
+    confirmed_addresses = set(confirmed_by_address)
+    non_cex = [
+        row for row in primary.get("nonCexTagged", []) + secondary.get("nonCexTagged", [])
+        if row.get("address") not in confirmed_addresses
+    ]
+    errors = dict(primary.get("errors", {}))
+    errors.update({f"debank:{key}": value for key, value in secondary.get("errors", {}).items()})
+    return {
+        "confirmedCexSuggestions": list(confirmed_by_address.values()),
+        "nonCexTagged": non_cex,
+        "noPublicTag": sorted(
+            address
+            for address in set(primary.get("noPublicTag", []) + secondary.get("noPublicTag", []))
+            if address not in confirmed_addresses
+        ),
+        "errors": errors,
+        "queriedCount": int(primary.get("queriedCount", 0)) + int(secondary.get("queriedCount", 0)),
+        "debankQueriedCount": int(secondary.get("queriedCount", 0)),
+    }
+
+
 def extract_public_explorer_metadata(page_html: str) -> dict[str, Any]:
     """Extract the public nametag from an Etherscan address-page title."""
     title_match = re.search(r"<title[^>]*>(.*?)</title>", page_html or "", re.I | re.S)
@@ -416,6 +580,12 @@ def main() -> int:
     parser.add_argument("--delay", type=float, default=float(os.environ.get("DOLO_CEX_AUDIT_DELAY", "0.55")))
     parser.add_argument("--include-known-cex", action="store_true")
     parser.add_argument("--no-api", action="store_true", help="Build only the local candidate report.")
+    parser.add_argument("--no-debank", action="store_true", help="Skip rendered DeBank CEX badge checks.")
+    parser.add_argument(
+        "--debank-max-candidates",
+        type=int,
+        default=int(os.environ.get("DOLO_CEX_DEBANK_MAX_CANDIDATES", "20")),
+    )
     args = parser.parse_args()
 
     labels = load_labels()
@@ -453,8 +623,10 @@ def main() -> int:
         "queriedCount": 0,
     }
     api_status = "skipped"
+    debank_status = "skipped"
     if args.no_api:
         api_status = "disabled_by_flag"
+        debank_status = "disabled_with_api"
     else:
         if api_key:
             api_status = "attempted"
@@ -475,6 +647,35 @@ def main() -> int:
         elif api_report["queriedCount"]:
             api_status = "completed"
 
+        if not args.no_debank and args.debank_max_candidates > 0:
+            confirmed_addresses = {
+                row.get("address") for row in api_report.get("confirmedCexSuggestions", [])
+            }
+            debank_candidates = [
+                row for row in candidates
+                if row.get("address") not in confirmed_addresses
+            ][:args.debank_max_candidates]
+            chrome_binary = find_chrome_binary()
+            if chrome_binary and debank_candidates:
+                debank_report = run_debank_page_audit(
+                    debank_candidates,
+                    delay=args.delay,
+                    chrome_binary=chrome_binary,
+                )
+                api_report = merge_audit_reports(api_report, debank_report)
+                api_status = f"{api_status}_plus_debank"
+                debank_status = "completed"
+            elif not chrome_binary:
+                debank_status = "browser_missing"
+            else:
+                debank_status = "no_candidates"
+        elif args.no_debank:
+            debank_status = "disabled_by_flag"
+        else:
+            debank_status = "candidate_limit_zero"
+
+    api_report["debankStatus"] = debank_status
+
     report = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "sourceFiles": {
@@ -489,9 +690,9 @@ def main() -> int:
             "includeKnownCex": args.include_known_cex,
         },
         "api": {
-            "provider": "Etherscan V2 nametag + public address pages",
+            "provider": "Etherscan V2 nametag + public address pages + DeBank direct CEX badges",
             "status": api_status,
-            "note": "The public-page fallback keeps the report useful when the paid nametag endpoint is unavailable; suggestions remain advisory.",
+            "note": "Only direct entity labels are candidates. Funded-by relationships and behavioral heuristics never promote a wallet; suggestions remain advisory.",
             **api_report,
         },
         "existingCexLabels": existing_cex,
