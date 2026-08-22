@@ -4813,6 +4813,16 @@ function effectiveGrossOutflow(r){
   if(state.flowsChain === "berachain") return r.grossOutBera;
   return r.grossOutEth + r.grossOutBera;
 }
+function effectiveProtocolDeposit(r){
+  if(state.flowsChain === "ethereum")  return r.protocolDepositEth;
+  if(state.flowsChain === "berachain") return r.protocolDepositBera;
+  return r.protocolDepositEth + r.protocolDepositBera;
+}
+function effectiveProtocolWithdrawal(r){
+  if(state.flowsChain === "ethereum")  return r.protocolWithdrawalEth;
+  if(state.flowsChain === "berachain") return r.protocolWithdrawalBera;
+  return r.protocolWithdrawalEth + r.protocolWithdrawalBera;
+}
 function effectiveFlowBalance(r){
   if(Number.isFinite(Number(r.balance))) return Number(r.balance);
   const holder = HOLDERS.find(h => h.addr.toLowerCase() === r.addr.toLowerCase());
@@ -4915,7 +4925,12 @@ function renderFlow(target, kind){
     const sign = r.chg > 0 ? "+" : "";
     const grossIn = Math.max(0, safeHolderNum(effectiveGrossInflow(r)));
     const grossOut = Math.max(0, safeHolderNum(effectiveGrossOutflow(r)));
-    const flowBreakdown = `In ${fmtNum(grossIn)} · Out ${fmtNum(grossOut)} · Net ${sign}${fmtNum(r.chg)}`;
+    const protocolDeposit = Math.max(0, safeHolderNum(effectiveProtocolDeposit(r)));
+    const protocolWithdrawal = Math.max(0, safeHolderNum(effectiveProtocolWithdrawal(r)));
+    const flowParts = [`In ${fmtNum(grossIn)}`, `Out ${fmtNum(grossOut)}`, `Net ${sign}${fmtNum(r.chg)}`];
+    if(protocolDeposit > 0) flowParts.push(`Deposited to Dolomite ${fmtNum(protocolDeposit)} (excluded from outflow)`);
+    if(protocolWithdrawal > 0) flowParts.push(`Withdrawn from Dolomite ${fmtNum(protocolWithdrawal)} (excluded from inflow)`);
+    const flowBreakdown = flowParts.join(" · ");
     const balance = effectiveFlowBalance(r);
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const addrAttr = escHtml(r.addr);
@@ -5993,14 +6008,18 @@ renderCexSupplyChart();
           grossOutEth:0,
           grossInBera:0,
           grossOutBera:0,
+          protocolDepositEth:0,
+          protocolWithdrawalEth:0,
+          protocolDepositBera:0,
+          protocolWithdrawalBera:0,
         });
       }
       return byAddr.get(key);
     };
     [
-      ["eth","chgEth","grossInEth","grossOutEth"],
-      ["bera","chgBera","grossInBera","grossOutBera"],
-    ].forEach(([chainKey, prop, grossInProp, grossOutProp]) => {
+      ["eth","chgEth","grossInEth","grossOutEth","protocolDepositEth","protocolWithdrawalEth"],
+      ["bera","chgBera","grossInBera","grossOutBera","protocolDepositBera","protocolWithdrawalBera"],
+    ].forEach(([chainKey, prop, grossInProp, grossOutProp, protocolDepositProp, protocolWithdrawalProp]) => {
       const cd = periodData[chainKey] || {};
       (cd.accumulators || []).forEach(item => {
         const row = ensure(item.address);
@@ -6008,6 +6027,8 @@ renderCexSupplyChart();
         row[prop] += safeNum(item.net_flow);
         row[grossInProp] += safeNum(item.gross_inflow);
         row[grossOutProp] += safeNum(item.gross_outflow);
+        row[protocolDepositProp] += safeNum(item.protocol_deposit);
+        row[protocolWithdrawalProp] += safeNum(item.protocol_withdrawal);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
@@ -6017,6 +6038,8 @@ renderCexSupplyChart();
         row[prop] -= safeNum(item.net_flow);
         row[grossInProp] += safeNum(item.gross_inflow);
         row[grossOutProp] += safeNum(item.gross_outflow);
+        row[protocolDepositProp] += safeNum(item.protocol_deposit);
+        row[protocolWithdrawalProp] += safeNum(item.protocol_withdrawal);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
