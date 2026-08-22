@@ -77,6 +77,60 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
         self.assertEqual(metadata["status"], "complete")
         self.assertEqual(metadata["chains"]["eth"]["blockNumber"], 123)
 
+    def test_fetch_dolomite_dolo_balances_without_wallet_filter_returns_every_positive_owner(self):
+        class Response:
+            status_code = 200
+
+            def __init__(self, payload):
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        def payload(block_number, timestamp, supply_index, rows):
+            return {
+                "data": {
+                    "_meta": {"block": {"number": block_number, "timestamp": timestamp}},
+                    "interestIndexes": [{
+                        "id": flows.DOLO_CONTRACT,
+                        "supplyIndex": supply_index,
+                        "token": {"id": flows.DOLO_CONTRACT, "symbol": "DOLO", "marketId": "16"},
+                    }],
+                    "marginAccountTokenValues": rows,
+                }
+            }
+
+        payloads = {
+            "https://subgraph.example/eth": payload(123, 1_700_000_000, "1.25", [
+                {"valuePar": "10", "marginAccount": {"effectiveUser": {"id": ALICE}, "user": {"id": ALICE}}},
+                {"valuePar": "3", "marginAccount": {"effectiveUser": {"id": BOB}, "user": {"id": BOB}}},
+            ]),
+            "https://subgraph.example/bera": payload(456, 1_700_000_100, "1", [
+                {"valuePar": "2", "marginAccount": {"effectiveUser": {"id": ALICE}, "user": {"id": ALICE}}},
+            ]),
+        }
+
+        def request(url, **_kwargs):
+            return Response(payloads[url])
+
+        subgraphs = {
+            "eth": {"name": "Ethereum", "url": "https://subgraph.example/eth"},
+            "bera": {"name": "Berachain", "url": "https://subgraph.example/bera"},
+        }
+        balances, metadata = flows.fetch_dolomite_dolo_balances(
+            None, request_fn=request, subgraphs=subgraphs,
+            attempts=1, now_ts=1_700_000_200,
+        )
+
+        self.assertEqual(set(balances), {ALICE, BOB})
+        self.assertEqual(balances[ALICE], {"eth": 12.5, "bera": 2.0, "total": 14.5})
+        self.assertEqual(balances[BOB], {"eth": 3.75, "bera": 0.0, "total": 3.75})
+        self.assertEqual(metadata["scope"], "all-positive-effective-users")
+        self.assertEqual(
+            metadata["chains"]["eth"]["custodyAddress"],
+            flows.DOLOMITE_MARGIN_ADDRS["eth"],
+        )
+
     def test_fetch_dolomite_dolo_balances_does_not_publish_partial_totals(self):
         class Response:
             status_code = 200

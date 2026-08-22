@@ -122,9 +122,10 @@ class ValidateDoloFlowsTest(unittest.TestCase):
             "status": status,
             "failedChains": [],
             "chains": {
-                "eth": {"blockNumber": 1, "blockTimestamp": 1_786_406_400, "matchedWallets": 1},
-                "bera": {"blockNumber": 2, "blockTimestamp": 1_786_406_401, "matchedWallets": 1},
+                "eth": {"blockNumber": 1, "blockTimestamp": 1_786_406_400, "matchedWallets": 1, "custodyAddress": "0x" + "a" * 40},
+                "bera": {"blockNumber": 2, "blockTimestamp": 1_786_406_401, "matchedWallets": 1, "custodyAddress": "0x" + "a" * 40},
             },
+            "scope": "all-positive-effective-users",
         }
         if status == "unavailable":
             balances = {}
@@ -141,6 +142,12 @@ class ValidateDoloFlowsTest(unittest.TestCase):
                 self._dolomite_balance_payload()
             )
         )
+
+    def test_complete_dolomite_snapshot_requires_verified_custody_addresses(self):
+        payload = self._dolomite_balance_payload()
+        payload["dolomite_balance_meta"]["chains"]["eth"].pop("custodyAddress")
+
+        self.assertFalse(validate_data._flow_dolomite_balances_are_valid(payload))
 
     def test_dolomite_protocol_balance_rejects_partial_or_invalid_amounts(self):
         for key, value in (
