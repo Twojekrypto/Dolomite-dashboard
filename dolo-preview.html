@@ -2101,6 +2101,7 @@ const holderAudience = "holders";
 let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
 let DOLO_BALANCE_CHANGES = {};
+let DOLOMITE_FLOW_BALANCES = {};
 let DOLO_FRESH_HOLDERS = {};
 let DOLO_HOLDER_HISTORY_POINTS = [];
 let DOLO_HOLDER_BUCKET_HISTORY = [];
@@ -5965,6 +5966,7 @@ renderCexSupplyChart();
   function applyDoloFlows(flows){
     if(!flows) return;
     DOLO_BALANCE_CHANGES = flows.balance_changes || {};
+    DOLOMITE_FLOW_BALANCES = flows.dolomite_balances || {};
     DOLO_FRESH_HOLDERS = flows.fresh_holders || flows.fresh_wallets || {};
     DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
     DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
@@ -6020,6 +6022,7 @@ renderCexSupplyChart();
       if(!byAddr.has(key)){
         const holder = holderByAddr.get(key);
         const info = addressInfo(addr, holder);
+        const dolomiteBalance = DOLOMITE_FLOW_BALANCES[key] || {};
         byAddr.set(key, {
           addr,
           label: labelFor(addr, holder),
@@ -6036,9 +6039,9 @@ renderCexSupplyChart();
           protocolWithdrawalEth:0,
           protocolDepositBera:0,
           protocolWithdrawalBera:0,
-          dolomiteBalance:0,
-          dolomiteBalanceEth:0,
-          dolomiteBalanceBera:0,
+          dolomiteBalance:safeNum(dolomiteBalance.total),
+          dolomiteBalanceEth:safeNum(dolomiteBalance.eth),
+          dolomiteBalanceBera:safeNum(dolomiteBalance.bera),
         });
       }
       return byAddr.get(key);
@@ -6057,9 +6060,6 @@ renderCexSupplyChart();
         row[protocolDepositProp] += safeNum(item.protocol_deposit);
         row[protocolWithdrawalProp] += safeNum(item.protocol_withdrawal);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
-        row.dolomiteBalance = Math.max(safeNum(row.dolomiteBalance), safeNum(item.dolomite_balance));
-        row.dolomiteBalanceEth = Math.max(safeNum(row.dolomiteBalanceEth), safeNum(item.dolomite_balance_eth));
-        row.dolomiteBalanceBera = Math.max(safeNum(row.dolomiteBalanceBera), safeNum(item.dolomite_balance_bera));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
       (cd.sellers || []).forEach(item => {
@@ -6071,9 +6071,6 @@ renderCexSupplyChart();
         row[protocolDepositProp] += safeNum(item.protocol_deposit);
         row[protocolWithdrawalProp] += safeNum(item.protocol_withdrawal);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
-        row.dolomiteBalance = Math.max(safeNum(row.dolomiteBalance), safeNum(item.dolomite_balance));
-        row.dolomiteBalanceEth = Math.max(safeNum(row.dolomiteBalanceEth), safeNum(item.dolomite_balance_eth));
-        row.dolomiteBalanceBera = Math.max(safeNum(row.dolomiteBalanceBera), safeNum(item.dolomite_balance_bera));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
     });

@@ -995,22 +995,6 @@ def fetch_dolomite_dolo_balances(
     }
 
 
-def add_dolomite_dolo_balances_to_periods(periods, balances):
-    """Attach current protocol-held DOLO without changing liquid balances."""
-    normalized = {
-        str(address or "").lower(): values
-        for address, values in (balances or {}).items()
-    }
-    for period_data in (periods or {}).values():
-        for chain_data in (period_data or {}).values():
-            for key in ("accumulators", "sellers"):
-                for entry in chain_data.get(key) or []:
-                    values = normalized.get(str(entry.get("address") or "").lower(), {})
-                    entry["dolomite_balance"] = round(float(values.get("total") or 0), 6)
-                    entry["dolomite_balance_eth"] = round(float(values.get("eth") or 0), 6)
-                    entry["dolomite_balance_bera"] = round(float(values.get("bera") or 0), 6)
-
-
 def calculate_flows(transfers, excluded):
     """Calculate net flow per address from transfer list.
     Positive = accumulator, Negative = seller.
@@ -3497,7 +3481,6 @@ def main():
 
     print("\n🏦 Fetching current DOLO positions inside Dolomite...")
     dolomite_balances, dolomite_balance_meta = fetch_dolomite_dolo_balances(all_addrs)
-    add_dolomite_dolo_balances_to_periods(output_periods, dolomite_balances)
     if dolomite_balance_meta.get("status") == "complete":
         positioned_wallets = sum(
             1 for values in dolomite_balances.values()
@@ -3625,6 +3608,7 @@ def main():
             "unresolvedGapCount": 0,
         },
         "dolomite_balance_meta": dolomite_balance_meta,
+        "dolomite_balances": dolomite_balances,
         "dolo_price": dolo_price,
         "periods": output_periods,
         "balance_changes": balance_changes,

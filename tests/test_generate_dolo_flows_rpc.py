@@ -114,30 +114,6 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
         self.assertEqual(metadata["status"], "unavailable")
         self.assertEqual(metadata["failedChains"], ["bera"])
 
-    def test_dolomite_balances_are_attached_without_overwriting_liquid_balance(self):
-        periods = {
-            "7d": {
-                "eth": {
-                    "accumulators": [{"address": ALICE, "balance": 25}],
-                    "sellers": [{"address": BOB, "balance": 0}],
-                }
-            }
-        }
-        positions = {
-            ALICE: {"eth": 150, "bera": 5, "total": 155},
-            BOB: {"eth": 10, "bera": 0, "total": 10},
-        }
-
-        flows.add_dolomite_dolo_balances_to_periods(periods, positions)
-
-        alice = periods["7d"]["eth"]["accumulators"][0]
-        bob = periods["7d"]["eth"]["sellers"][0]
-        self.assertEqual(alice["balance"], 25)
-        self.assertEqual(alice["dolomite_balance"], 155)
-        self.assertEqual(alice["dolomite_balance_eth"], 150)
-        self.assertEqual(alice["dolomite_balance_bera"], 5)
-        self.assertEqual(bob["dolomite_balance"], 10)
-
     def test_detect_contracts_batch_uses_batch_results(self):
         contract = ALICE
         wallet = BOB
