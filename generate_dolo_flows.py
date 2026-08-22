@@ -29,6 +29,10 @@ BERASCAN_API_KEY = os.environ.get("BERASCAN_API_KEY", "").strip()
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ZERO = "0x0000000000000000000000000000000000000000"
+# Canonical DOLO CCIP adapter on Berachain. A bridge-out transaction transfers
+# DOLO to this adapter and burns the same amount before the destination mint.
+BERACHAIN_DOLO_CCIP_ADAPTER = "0x9e7728077f753dfdf53c2236097e27c743890992"
+BRIDGE_ADAPTER_ADDRS = {BERACHAIN_DOLO_CCIP_ADAPTER}
 # Multicall3 (same address on every EVM chain) batches many balanceOf reads into
 # ONE eth_call. JSON-RPC batching does NOT cut compute units; Multicall3 does.
 MULTICALL3_ADDR = "0xcA11bde05977b3631167028862bE2a173976CA11"
@@ -117,7 +121,7 @@ EXCLUDED_ADDRS = {
     "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3",  # EOA bot, 35k nonce
     "0x278d858f05b94576c1e6f73285886876ff6ef8d2",  # Contract bot, 53k DOLO txs
     "0xf10f81795b359f8a72682cc2a39444bf818ef4ca",  # EOA Bot/MM, 13.9k nonce, 1.9k DOLO transfer rows (2026-06-24)
-    "0x9e7728077f753dfdf53c2236097e27c743890992",  # DEX/router contract, 327M throughput
+    BERACHAIN_DOLO_CCIP_ADAPTER,
     # --- MM / CEX relay cluster (verified 2026-03-24) ---
     "0x0002810d2b1d621f3ae6c8a7af9e2f09efa1f8bb",  # MM relay: receives DOLO from CEX → sends to bridge
     "0x81879c14fe0efd4c8f6a99a34ce414190be8dbab",  # Bridge relay: CCIP bridges DOLO ETH→Bera
@@ -821,7 +825,7 @@ def calculate_flow_components(transfers):
 
 
 def calculate_bridge_flows(transfers):
-    """Calculate flows from mint/burn transfers only (from/to 0x0).
+    """Calculate flows from canonical bridge mint/burn transfers.
     These are invisible to calculate_flows() but critical for cross-chain
     bridge detection. Bridges use burn (to 0x0) on the source chain and
     mint (from 0x0) on the destination chain.
@@ -838,6 +842,17 @@ def calculate_bridge_flows(transfers):
             # Burn: sender sent tokens to bridge
             bridge_flows[from_addr] = bridge_flows.get(from_addr, 0) - value
     return bridge_flows
+
+
+def calculate_bridge_adapter_outflows(transfers):
+    """Return user outflows into a canonical bridge adapter."""
+    outflows = {}
+    for from_addr, to_addr, value_wei, _ in transfers:
+        if to_addr not in BRIDGE_ADAPTER_ADDRS or from_addr in BRIDGE_ADAPTER_ADDRS:
+            continue
+        value = value_wei / (10 ** 18)
+        outflows[from_addr] = outflows.get(from_addr, 0) + value
+    return outflows
 
 
 def neutralize_cross_chain_flows(flows_by_chain):
@@ -950,22 +965,30 @@ def build_holder_history_schedule(base_ts):
 def calculate_neutralized_flows_for_cutoffs(all_transfers, cutoff_by_chain):
     raw_flows = {}
     bridge_flows_by_chain = {}
+    adapter_outflows_by_chain = {}
     for chain_key in CHAINS:
         cutoff = cutoff_by_chain[chain_key]
         period_transfers = [t for t in all_transfers[chain_key] if t[3] >= cutoff]
         raw_flows[chain_key] = calculate_flows(period_transfers, EXCLUDED_ADDRS)
         bridge_flows_by_chain[chain_key] = calculate_bridge_flows(period_transfers)
-    return neutralize_raw_and_bridge_flows(raw_flows, bridge_flows_by_chain)
+        adapter_outflows_by_chain[chain_key] = calculate_bridge_adapter_outflows(
+            period_transfers
+        )
+    return neutralize_raw_and_bridge_flows(
+        raw_flows,
+        bridge_flows_by_chain,
+        adapter_outflows_by_chain,
+    )
 
 
-def neutralize_raw_and_bridge_flows(raw_flows, bridge_flows_by_chain):
+def _legacy_neutralize_raw_and_bridge_flows(raw_flows, bridge_flows_by_chain):
     augmented_flows = {}
     for chain_key in CHAINS:
         augmented_flows[chain_key] = dict(raw_flows[chain_key])
         for addr, bflow in bridge_flows_by_chain[chain_key].items():
             augmented_flows[chain_key][addr] = augmented_flows[chain_key].get(addr, 0) + bflow
 
-    neutralized_aug, _, _ = neutralize_cross_chain_flows(augmented_flows)
+    neutralized_aug, count, volume = neutralize_cross_chain_flows(augmented_flows)
     neutralized = {}
     for chain_key in CHAINS:
         neutralized[chain_key] = dict(raw_flows[chain_key])
@@ -975,7 +998,129 @@ def neutralize_raw_and_bridge_flows(raw_flows, bridge_flows_by_chain):
             delta = neutralized_aug_val - original_aug
             if abs(delta) > 0.01:
                 neutralized[chain_key][addr] = raw_flows[chain_key][addr] + delta
+    return neutralized, count, volume
+
+
+def neutralize_raw_and_bridge_flows(
+    raw_flows,
+    bridge_flows_by_chain,
+    adapter_outflows_by_chain=None,
+):
+    neutralized, _, _, _ = neutralize_raw_and_bridge_flows_with_stats(
+        raw_flows,
+        bridge_flows_by_chain,
+        adapter_outflows_by_chain,
+    )
     return neutralized
+
+
+def neutralize_raw_and_bridge_flows_with_stats(
+    raw_flows,
+    bridge_flows_by_chain,
+    adapter_outflows_by_chain=None,
+):
+    """Remove same-wallet CCIP legs while preserving cross-wallet transfers."""
+    adapter_outflows_by_chain = adapter_outflows_by_chain or {
+        chain_key: {} for chain_key in CHAINS
+    }
+    neutralized = {
+        chain_key: dict(raw_flows[chain_key])
+        for chain_key in CHAINS
+    }
+    cancellations = {chain_key: {} for chain_key in CHAINS}
+    matched_addresses = set()
+    matched_volume = 0.0
+
+    bridge_mints = {
+        chain_key: {
+            addr: amount
+            for addr, amount in bridge_flows_by_chain[chain_key].items()
+            if amount > 0.01
+        }
+        for chain_key in CHAINS
+    }
+    source_addresses = set()
+    for chain_outflows in adapter_outflows_by_chain.values():
+        source_addresses.update(chain_outflows)
+
+    for addr in source_addresses:
+        for source_chain in CHAINS:
+            remaining = float(
+                adapter_outflows_by_chain.get(source_chain, {}).get(addr, 0) or 0
+            )
+            if remaining <= 0.01:
+                continue
+            for destination_chain in CHAINS:
+                if destination_chain == source_chain:
+                    continue
+                available_mint = bridge_mints[destination_chain].get(addr, 0)
+                if available_mint <= 0.01:
+                    continue
+                cancel_amount = min(remaining, available_mint)
+                neutralized[source_chain][addr] = (
+                    neutralized[source_chain].get(addr, 0) + cancel_amount
+                )
+                cancellations[source_chain][addr] = (
+                    cancellations[source_chain].get(addr, 0) + cancel_amount
+                )
+                bridge_mints[destination_chain][addr] -= cancel_amount
+                remaining -= cancel_amount
+                matched_addresses.add(addr)
+                matched_volume += cancel_amount
+                if remaining <= 0.01:
+                    break
+
+    # Preserve the legacy heuristic for routes without canonical adapter
+    # evidence, but do not let it re-net genuine activity for a matched wallet.
+    legacy_raw = {
+        chain_key: {
+            addr: amount
+            for addr, amount in raw_flows[chain_key].items()
+            if addr not in matched_addresses
+        }
+        for chain_key in CHAINS
+    }
+    legacy_bridge = {
+        chain_key: {
+            addr: amount
+            for addr, amount in bridge_flows_by_chain[chain_key].items()
+            if addr not in matched_addresses
+        }
+        for chain_key in CHAINS
+    }
+    legacy_neutralized, legacy_count, legacy_volume = (
+        _legacy_neutralize_raw_and_bridge_flows(legacy_raw, legacy_bridge)
+    )
+    for chain_key in CHAINS:
+        neutralized[chain_key].update(legacy_neutralized[chain_key])
+
+    return (
+        neutralized,
+        len(matched_addresses) + legacy_count,
+        matched_volume + legacy_volume,
+        cancellations,
+    )
+
+
+def apply_bridge_outflow_cancellations(components_by_chain, cancellations_by_chain):
+    adjusted = {
+        chain_key: {
+            addr: dict(component)
+            for addr, component in chain_components.items()
+        }
+        for chain_key, chain_components in components_by_chain.items()
+    }
+    for chain_key, cancellations in cancellations_by_chain.items():
+        for addr, amount in cancellations.items():
+            component = adjusted.get(chain_key, {}).get(addr)
+            if not component:
+                continue
+            component["gross_outflow"] = max(
+                0.0,
+                float(component.get("gross_outflow") or 0) - amount,
+            )
+            component["net_flow"] = float(component.get("net_flow") or 0) + amount
+    return adjusted
 
 
 def neutralize_holder_balance_flows(raw_flows, bridge_flows_by_chain):
@@ -2848,32 +2993,28 @@ def main():
         # but needed for neutralization to detect opposing cross-chain patterns.
         # We add them as supplementary flows that only affect neutralization.
         bridge_flows_by_chain = {}
+        adapter_outflows_by_chain = {}
         for chain_key in CHAINS:
             bridge_flows_by_chain[chain_key] = calculate_bridge_flows(
                 period_transfers_by_chain[chain_key]
             )
-        
-        # Merge bridge flows into raw_flows for neutralization
-        augmented_flows = {}
-        for chain_key in CHAINS:
-            augmented_flows[chain_key] = dict(raw_flows[chain_key])  # copy
-            for addr, bflow in bridge_flows_by_chain[chain_key].items():
-                augmented_flows[chain_key][addr] = augmented_flows[chain_key].get(addr, 0) + bflow
-        
-        # Step 3: Neutralize cross-chain bridge transfers using augmented flows
-        neutralized_aug, n_count, n_volume = neutralize_cross_chain_flows(augmented_flows)
-        
-        # Apply the neutralization delta back to the ORIGINAL raw_flows
-        # (so mints/burns don't pollute the final output, only cancellations do)
-        neutralized = {}
-        for chain_key in CHAINS:
-            neutralized[chain_key] = dict(raw_flows[chain_key])  # start from original
-            for addr in raw_flows[chain_key]:
-                original_aug = raw_flows[chain_key].get(addr, 0) + bridge_flows_by_chain[chain_key].get(addr, 0)
-                neutralized_aug_val = neutralized_aug[chain_key].get(addr, 0)
-                delta = neutralized_aug_val - original_aug
-                if abs(delta) > 0.01:
-                    neutralized[chain_key][addr] = raw_flows[chain_key][addr] + delta
+            adapter_outflows_by_chain[chain_key] = calculate_bridge_adapter_outflows(
+                period_transfers_by_chain[chain_key]
+            )
+
+        # Step 3: Remove canonical bridge legs only when the same wallet receives
+        # the matching destination mint. Cross-wallet bridges remain real flows.
+        neutralized, n_count, n_volume, bridge_cancellations = (
+            neutralize_raw_and_bridge_flows_with_stats(
+                raw_flows,
+                bridge_flows_by_chain,
+                adapter_outflows_by_chain,
+            )
+        )
+        flow_components_by_chain = apply_bridge_outflow_cancellations(
+            flow_components_by_chain,
+            bridge_cancellations,
+        )
         
         neutralized_flows_cache[period] = neutralized
         if n_count > 0:
