@@ -836,13 +836,15 @@ def fetch_dolomite_dolo_balances(
     subgraphs = subgraphs or DOLOMITE_DOLO_POSITION_SUBGRAPHS
     attempts = max(1, int(attempts or 1))
     now_ts = int(now_ts if now_ts is not None else time.time())
+    include_all_positive_users = addresses is None
     targets = {
         str(address or "").lower()
         for address in addresses or []
         if re.fullmatch(r"0x[a-fA-F0-9]{40}", str(address or ""))
     }
-    if not targets:
-        return {}, {"status": "complete", "failedChains": [], "chains": {}}
+    scope = "all-positive-effective-users" if include_all_positive_users else "selected-wallets"
+    if not include_all_positive_users and not targets:
+        return {}, {"status": "complete", "failedChains": [], "chains": {}, "scope": scope}
 
     balances = {
         address: {chain_key: Decimal(0) for chain_key in subgraphs}
@@ -956,7 +958,9 @@ def fetch_dolomite_dolo_balances(
             account = row.get("marginAccount") or {}
             owner = account.get("effectiveUser") or account.get("user") or {}
             address = str(owner.get("id") or "").lower()
-            if address not in targets:
+            if not re.fullmatch(r"0x[a-f0-9]{40}", address):
+                continue
+            if not include_all_positive_users and address not in targets:
                 continue
             try:
                 value_par = Decimal(str(row.get("valuePar") or "0"))
@@ -964,6 +968,11 @@ def fetch_dolomite_dolo_balances(
                 continue
             if value_par <= 0:
                 continue
+            if address not in balances:
+                balances[address] = {
+                    active_chain_key: Decimal(0)
+                    for active_chain_key in subgraphs
+                }
             balances[address][chain_key] += value_par * supply_index
             seen_wallets.add(address)
 
@@ -971,6 +980,7 @@ def fetch_dolomite_dolo_balances(
             "blockNumber": block_number,
             "blockTimestamp": block_timestamp,
             "matchedWallets": len(seen_wallets),
+            "custodyAddress": DOLOMITE_MARGIN_ADDRS[chain_key],
         }
 
     if failed_chains:
@@ -978,6 +988,7 @@ def fetch_dolomite_dolo_balances(
             "status": "unavailable",
             "failedChains": sorted(failed_chains),
             "chains": chain_metadata,
+            "scope": scope,
         }
 
     output = {}
@@ -992,6 +1003,7 @@ def fetch_dolomite_dolo_balances(
         "status": "complete",
         "failedChains": [],
         "chains": chain_metadata,
+        "scope": scope,
     }
 
 
@@ -3480,13 +3492,13 @@ def main():
                 entry["balance"] = balances.get(entry["address"], 0)
 
     print("\n🏦 Fetching current DOLO positions inside Dolomite...")
-    dolomite_balances, dolomite_balance_meta = fetch_dolomite_dolo_balances(all_addrs)
+    dolomite_balances, dolomite_balance_meta = fetch_dolomite_dolo_balances(None)
     if dolomite_balance_meta.get("status") == "complete":
         positioned_wallets = sum(
             1 for values in dolomite_balances.values()
             if float(values.get("total") or 0) > 0
         )
-        print(f"  ✅ Current Dolomite DOLO found for {positioned_wallets} flow wallet(s)")
+        print(f"  ✅ Current Dolomite DOLO found for {positioned_wallets} wallet(s)")
     else:
         print("  ⚠️ Current Dolomite DOLO is omitted because cross-chain coverage is incomplete")
 

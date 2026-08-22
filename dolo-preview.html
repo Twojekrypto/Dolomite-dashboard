@@ -809,6 +809,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 
 .bal-cell{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums}
 .bal-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
+.bal-val.dolomite{color:var(--gold)}
 .bal-chg{font-family:var(--mono);font-size:11px;color:var(--fg-3)}
 .bal-chg.up{color:var(--up)}
 .bal-chg.down{color:var(--down)}
@@ -1390,9 +1391,10 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
             <th data-sort="addr"><span class="wallet-sort-content">Address<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
             <th data-sort="balEth" class="num" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><span class="dot dot-ethereum"></span>ETH</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
             <th data-sort="balBera" class="num" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><span class="dot dot-berachain"></span>BERA</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="dolomite" class="num col-dolomite" style="width:140px" data-tooltip="Current positive DOLO supplied or held as collateral across all Dolomite subaccounts on Ethereum and Berachain"><span class="wallet-sort-content">In Dolomite<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
             <th data-sort="locked" class="num col-vedolo" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><img src="vedolo-logo.svg" alt="" style="width:11px;height:11px;border-radius:50%" onerror="this.style.display='none'">veDOLO</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
-            <th data-sort="total" class="num sorted" style="width:140px"><span class="wallet-sort-content">Total<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
-            <th data-sort="share" class="num" style="padding-right:32px;width:140px"><span class="wallet-sort-content">Share<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="total" class="num sorted" style="width:150px" data-tooltip="Liquid DOLO + DOLO in Dolomite + optional locked veDOLO"><span class="wallet-sort-content">Total Exposure<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
+            <th data-sort="share" class="num" style="padding-right:32px;width:140px" data-tooltip="Wallet exposure divided by the 1B DOLO fixed supply"><span class="wallet-sort-content">Exposure Share<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
           </tr>
         </thead>
         <tbody id="holders-body"></tbody>
@@ -2102,6 +2104,7 @@ let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
 let DOLO_BALANCE_CHANGES = {};
 let DOLOMITE_FLOW_BALANCES = {};
+let DOLOMITE_CUSTODY_ADDRESSES = new Set();
 let DOLO_FRESH_HOLDERS = {};
 let DOLO_HOLDER_HISTORY_POINTS = [];
 let DOLO_HOLDER_BUCKET_HISTORY = [];
@@ -4145,8 +4148,8 @@ function escHtml(value){
 }
 function holderWalletChainKeys(row){
   const chains = [];
-  if(safeHolderNum(row.balEth) > 0) chains.push("ethereum");
-  if(safeHolderNum(row.balBera) > 0 || safeHolderNum(row.locked) > 0) chains.push("berachain");
+  if(safeHolderNum(row.balEth) > 0 || safeHolderNum(row.inDolomiteEth) > 0) chains.push("ethereum");
+  if(safeHolderNum(row.balBera) > 0 || safeHolderNum(row.inDolomiteBera) > 0 || safeHolderNum(row.locked) > 0) chains.push("berachain");
   return chains;
 }
 function holderWalletChainHtml(row){
@@ -4604,38 +4607,70 @@ function allocationWalletInlinePanelHtml(series, model = null){
   `;
 }
 const VEDOLO_CONTRACT_ADDRESS = "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4";
-// When the veDOLO toggle is on:
-//  - fold each wallet's locked DOLO into its total,
-//  - include wallets that hold ONLY veDOLO (no liquid DOLO),
-//  - exclude the veDOLO contract row (its balance IS the pooled locks, now
-//    attributed to their owners — keeping it would double-count supply).
-function holdersView(){
-  if(!state.holdersIncludeVeDolo) return HOLDERS;
+// Build the current wallet-level exposure view without double-counting protocol
+// custody. DolomiteMargin custody is replaced by positive effective-user
+// positions; optional veDOLO locks similarly replace the pooled veDOLO contract.
+function buildHolderExposureRows(holders, dolomiteBalances, custodyAddresses, veLocks, includeVeDolo, resolveRow){
   const seen = new Set();
   const out = [];
-  for(const h of HOLDERS){
-    const key = h.addr.toLowerCase();
-    if(key === VEDOLO_CONTRACT_ADDRESS) continue;
+  const addRow = base => {
+    const key = String(base?.addr || "").toLowerCase();
+    if(!key || custodyAddresses.has(key) || (includeVeDolo && key === VEDOLO_CONTRACT_ADDRESS)) return;
     seen.add(key);
-    const locked = VEDOLO_LOCKS.get(key) || 0;
-    out.push(locked > 0 ? {...h, locked, total: h.total + locked} : h);
-  }
-  VEDOLO_LOCKS.forEach((locked, key) => {
+    const position = dolomiteBalances[key] || {};
+    const balEth = Math.max(0, safeHolderNum(base.balEth));
+    const balBera = Math.max(0, safeHolderNum(base.balBera));
+    const inDolomiteEth = Math.max(0, safeHolderNum(position.eth));
+    const inDolomiteBera = Math.max(0, safeHolderNum(position.bera));
+    const inDolomite = inDolomiteEth + inDolomiteBera;
+    const locked = includeVeDolo ? Math.max(0, safeHolderNum(veLocks.get(key))) : 0;
+    out.push({
+      ...base,
+      addr:key,
+      balEth,
+      balBera,
+      inDolomiteEth,
+      inDolomiteBera,
+      inDolomite,
+      locked,
+      total:balEth + balBera + inDolomite + locked,
+    });
+  };
+
+  holders.forEach(addRow);
+  Object.entries(dolomiteBalances).forEach(([key, position]) => {
+    if(seen.has(key) || custodyAddresses.has(key) || !(safeHolderNum(position?.total) > 0)) return;
+    addRow({...resolveRow(key), dolomiteOnly:true});
+  });
+  if(!includeVeDolo) return out;
+  veLocks.forEach((locked, key) => {
     if(seen.has(key) || !(locked > 0) || key === VEDOLO_CONTRACT_ADDRESS) return;
-    const info = sharedAddressInfo(key);
-    const mapped = holderDistributionType(key, null);
-    const type = TYPE_LABELS[mapped] ? mapped : "eoa";
-    out.push({addr: key, label: info?.label || "", type, balEth: 0, balBera: 0, locked, total: locked, veOnly: true});
+    addRow({...resolveRow(key), veOnly:true});
   });
   return out;
+}
+function holdersView(){
+  return buildHolderExposureRows(
+    HOLDERS,
+    DOLOMITE_FLOW_BALANCES,
+    DOLOMITE_CUSTODY_ADDRESSES,
+    VEDOLO_LOCKS,
+    state.holdersIncludeVeDolo,
+    key => {
+      const info = sharedAddressInfo(key);
+      const mapped = holderDistributionType(key, null);
+      const type = TYPE_LABELS[mapped] ? mapped : "eoa";
+      return {addr:key, label:info?.label || "", type, balEth:0, balBera:0};
+    },
+  );
 }
 function filterHolders({includeSearch = true} = {}){
   const q = includeSearch ? state.q.trim().toLowerCase() : "";
   return holdersView().filter(h=>{
     // Chain filter (single-select): "all" = no filter; otherwise hide
     // rows that don't have any balance on the chosen chain
-    if(state.chain === "ethereum"  && h.balEth  === 0) return false;
-    if(state.chain === "berachain" && h.balBera === 0) return false;
+    if(state.chain === "ethereum"  && h.balEth === 0 && h.inDolomiteEth === 0) return false;
+    if(state.chain === "berachain" && h.balBera === 0 && h.inDolomiteBera === 0 && h.locked === 0) return false;
     if(!state.types.has(typeFilterKey(h.type))) return false;
     if(q && !`${h.addr || ""} ${h.label || ""} ${h.type || ""} ${TYPE_LABELS[h.type] || ""}`.toLowerCase().includes(q)) return false;
     return true;
@@ -4646,6 +4681,7 @@ function sortHolders(rows){
   return [...rows].sort((a,b)=>{
     let va,vb;
     if(key==="rank"||key==="total"||key==="share"){va=a.total;vb=b.total}
+    else if(key==="dolomite"){va=a.inDolomite||0;vb=b.inDolomite||0}
     else if(key==="locked"){va=a.locked||0;vb=b.locked||0}
     else if(key==="balEth"){va=a.balEth;vb=b.balEth}
     else if(key==="balBera"){va=a.balBera;vb=b.balBera}
@@ -4659,7 +4695,9 @@ function holderExplorerUrl(row){
   const ethBalance = safeHolderNum(row?.balEth ?? row?.balance_eth);
   const beraBalance = safeHolderNum(row?.balBera ?? row?.balance_bera)
     + safeHolderNum(row?.locked ?? row?.locked_balance);
-  const explorer = beraBalance > ethBalance ? "https://berascan.com/address/" : "https://etherscan.io/address/";
+  const ethExposure = ethBalance + safeHolderNum(row?.inDolomiteEth);
+  const beraExposure = beraBalance + safeHolderNum(row?.inDolomiteBera);
+  const explorer = beraExposure > ethExposure ? "https://berascan.com/address/" : "https://etherscan.io/address/";
   return `${explorer}${encodeURIComponent(address)}`;
 }
 function renderHolders(){
@@ -4707,6 +4745,7 @@ function renderHolders(){
         </td>
         <td class="num">${h.balEth>0 ? `<span class="bal-val">${fmtNum(h.balEth)}</span>` : `<span class="bal-zero">—</span>`}</td>
         <td class="num">${h.balBera>0 ? `<span class="bal-val">${fmtNum(h.balBera)}</span>` : `<span class="bal-zero">—</span>`}</td>
+        <td class="num col-dolomite">${h.inDolomite > 0 ? `<span class="bal-val dolomite" data-tooltip="Ethereum ${fmtNum(h.inDolomiteEth)} · Berachain ${fmtNum(h.inDolomiteBera)}">${fmtNum(h.inDolomite)}</span>` : `<span class="bal-zero">—</span>`}</td>
         <td class="num col-vedolo">${h.locked > 0 ? `<span class="bal-val">${fmtNum(h.locked)}</span>` : `<span class="bal-zero">—</span>`}</td>
         <td class="num"><span class="bal-val total">${fmtNum(h.total)}</span></td>
         <td class="num" style="padding-right:32px">
@@ -4735,6 +4774,7 @@ function renderHolders(){
         </td>
         <td class="num"><span class="bal-val">0</span></td>
         <td class="num"><span class="bal-zero">—</span></td>
+        <td class="num col-dolomite"><span class="bal-zero">—</span></td>
         <td class="num col-vedolo"><span class="bal-zero">—</span></td>
         <td class="num"><span class="bal-val total">0</span></td>
         <td class="num" style="padding-right:32px">
@@ -5967,6 +6007,10 @@ renderCexSupplyChart();
     if(!flows) return;
     DOLO_BALANCE_CHANGES = flows.balance_changes || {};
     DOLOMITE_FLOW_BALANCES = flows.dolomite_balances || {};
+    const dolomiteMeta = flows.dolomite_balance_meta || {};
+    DOLOMITE_CUSTODY_ADDRESSES = dolomiteMeta.status === "complete"
+      ? new Set(Object.values(dolomiteMeta.chains || {}).map(chain => lower(chain?.custodyAddress)).filter(Boolean))
+      : new Set();
     DOLO_FRESH_HOLDERS = flows.fresh_holders || flows.fresh_wallets || {};
     DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
     DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
@@ -5982,6 +6026,7 @@ renderCexSupplyChart();
     doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
     liveFlowsData = flows;
     liveFlowTimestamp = flows.timestamp;
+    renderHolders();
     renderHolderDistributionChart();
     renderCexSupplyChart();
   }
@@ -6089,7 +6134,7 @@ renderCexSupplyChart();
     originalRenderHolders();
     const shown = filterHolders().length;
     const countEl = document.getElementById("holders-count");
-    if(countEl && liveHolderStats) countEl.textContent = liveHolderStats.total_holders.toLocaleString("en-US") + " holders · showing " + shown.toLocaleString("en-US");
+    if(countEl && liveHolderStats) countEl.textContent = holdersView().length.toLocaleString("en-US") + " holders · showing " + shown.toLocaleString("en-US");
     const stats = document.querySelectorAll(".hero-stat");
     if(stats[3] && liveHolderStats){
       setMetricElement(stats[3].querySelector(".val"), liveHolderStats.total_holders.toLocaleString("en-US"));

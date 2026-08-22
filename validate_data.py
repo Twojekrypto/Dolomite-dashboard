@@ -1827,8 +1827,14 @@ def _flow_dolomite_balances_are_valid(data):
             or chain_meta["blockTimestamp"] <= 0
             or not _is_exact_integer(chain_meta.get("matchedWallets"))
             or chain_meta["matchedWallets"] < 0
+            or not isinstance(chain_meta.get("custodyAddress"), str)
+            or chain_meta["custodyAddress"] != chain_meta["custodyAddress"].lower()
+            or not re.fullmatch(r"0x[a-f0-9]{40}", chain_meta["custodyAddress"])
         ):
             return False
+
+    if status == "complete" and meta.get("scope") != "all-positive-effective-users":
+        return False
 
     balances = data.get("dolomite_balances")
     if not isinstance(balances, dict):
