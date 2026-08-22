@@ -104,6 +104,27 @@ console.log(JSON.stringify({known, unknown}));
                 self.assertEqual(info["source"], "coingecko-tokenomics")
                 self.assertEqual(info["confidence"], "confirmed")
 
+    def test_confirmed_coinbase_and_enso_labels_are_shared(self):
+        expected = {
+            "0x906bd3aff2700f0d1aaf937d9c8dbf6024102e19": (
+                "Coinbase Wallet",
+                "cex",
+                "debank-public-label",
+            ),
+            "0x40e816361e9eceb4ded402def58cc77e9f097914": (
+                "Dolomite: Enso Aggregator Trader",
+                "contract",
+                "etherscan-verified-contract",
+            ),
+        }
+        for address, (label, label_type, source) in expected.items():
+            with self.subTest(address=address):
+                info = self.labels[address]
+                self.assertEqual(info["label"], label)
+                self.assertEqual(info["type"], label_type)
+                self.assertEqual(info["source"], source)
+                self.assertEqual(info["confidence"], "confirmed")
+
     def test_all_core_team_wallets_are_independent_confirmed_labels(self):
         team_addresses = [
             "0x185000fb4d98acea1a771db3714a431f7fe51cac",

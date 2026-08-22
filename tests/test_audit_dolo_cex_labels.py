@@ -45,6 +45,80 @@ class AuditDoloCexLabelsTest(unittest.TestCase):
         self.assertEqual("etherscan-public-page", suggestion["source"])
         self.assertEqual("", candidate["labelType"])
 
+    def test_debank_direct_cex_badge_extracts_coinbase(self):
+        module = self.audit_module()
+        html = '''
+        <div class="db-user-tag is-cex" title="Coinbase">
+          <span class="db-user-tag-content">Coinbase</span>
+        </div>
+        '''
+
+        metadata = module.extract_debank_cex_metadata(html)
+
+        self.assertEqual("Coinbase", metadata["nametag"])
+        self.assertTrue(module.is_cex_metadata(metadata))
+
+    def test_funded_by_coinbase_is_not_a_direct_cex_badge(self):
+        module = self.audit_module()
+        html = '<div class="funded-by">Funded By Coinbase 10</div>'
+
+        metadata = module.extract_debank_cex_metadata(html)
+
+        self.assertEqual({}, metadata)
+
+    def test_debank_direct_cex_badge_accepts_new_exchange_names(self):
+        module = self.audit_module()
+        html = '<div class="is-cex db-user-tag" title="New Exchange"></div>'
+
+        metadata = module.extract_debank_cex_metadata(html)
+
+        self.assertEqual("New Exchange", metadata["nametag"])
+
+    def test_debank_audit_is_advisory_and_preserves_candidate_label_type(self):
+        module = self.audit_module()
+        candidate = {
+            "address": "0x906bd3aff2700f0d1aaf937d9c8dbf6024102e19",
+            "label": "",
+            "labelType": "",
+        }
+        with mock.patch.object(
+            module,
+            "fetch_debank_cex_metadata",
+            return_value=({"nametag": "Coinbase"}, None),
+        ):
+            report = module.run_debank_page_audit(
+                [candidate],
+                delay=0,
+                chrome_binary="chrome",
+            )
+
+        self.assertEqual(1, report["queriedCount"])
+        self.assertEqual("Coinbase", report["confirmedCexSuggestions"][0]["suggestedLabel"])
+        self.assertEqual("debank-public-label", report["confirmedCexSuggestions"][0]["source"])
+        self.assertEqual("", candidate["labelType"])
+
+    def test_merged_report_removes_confirmed_address_from_no_tag_rows(self):
+        module = self.audit_module()
+        address = "0x906bd3aff2700f0d1aaf937d9c8dbf6024102e19"
+        primary = {
+            "confirmedCexSuggestions": [],
+            "nonCexTagged": [],
+            "noPublicTag": [address],
+            "errors": {},
+            "queriedCount": 1,
+        }
+        secondary = {
+            "confirmedCexSuggestions": [{"address": address, "suggestedLabel": "Coinbase"}],
+            "nonCexTagged": [],
+            "noPublicTag": [],
+            "errors": {},
+            "queriedCount": 1,
+        }
+
+        merged = module.merge_audit_reports(primary, secondary)
+
+        self.assertEqual([], merged["noPublicTag"])
+
 
 if __name__ == "__main__":
     unittest.main()
