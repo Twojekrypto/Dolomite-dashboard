@@ -7,6 +7,7 @@ calculates net inflow/outflow per address, outputs top 5 each.
 import json, time, os, sys, signal, re, shutil, subprocess
 import requests
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 
 from rpc_client import (
     RpcError,
@@ -162,6 +163,22 @@ CHAINS = {
         "deploy_block": 2_900_000,   # DOLO deployed on Berachain ~block 2,925,727 (Mar 2025)
     },
 }
+
+DOLOMITE_SUBGRAPH_BASE = (
+    "https://subgraph.api.dolomite.io/api/public/"
+    "1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs"
+)
+DOLOMITE_DOLO_POSITION_SUBGRAPHS = {
+    "eth": {
+        "name": "Ethereum",
+        "url": f"{DOLOMITE_SUBGRAPH_BASE}/dolomite-ethereum/latest/gn",
+    },
+    "bera": {
+        "name": "Berachain",
+        "url": f"{DOLOMITE_SUBGRAPH_BASE}/dolomite-berachain-mainnet/latest/gn",
+    },
+}
+DOLOMITE_POSITION_MAX_AGE_SECONDS = 6 * 3600
 
 # Re-read one normal getLogs chunk on every incremental run and replace that
 # cached range authoritatively. This repairs silent checkpoint holes (including
@@ -799,6 +816,199 @@ def fetch_dolo_balances(addresses):
     for addr, value in totals.items():
         balances[addr] = round(value, 2)
     return balances, failures, failed_addrs
+
+
+def fetch_dolomite_dolo_balances(
+    addresses,
+    request_fn=None,
+    subgraphs=None,
+    attempts=3,
+    now_ts=None,
+):
+    """Return current positive DOLO balances held inside Dolomite.
+
+    Positive Par is aggregated by effective user across every subaccount, then
+    converted with the current supply index. Results are published only when
+    both active DOLO-market subgraphs respond with fresh, complete snapshots;
+    a partial cross-chain total would be misleading in the Balance column.
+    """
+    request_fn = request_fn or requests.post
+    subgraphs = subgraphs or DOLOMITE_DOLO_POSITION_SUBGRAPHS
+    attempts = max(1, int(attempts or 1))
+    now_ts = int(now_ts if now_ts is not None else time.time())
+    targets = {
+        str(address or "").lower()
+        for address in addresses or []
+        if re.fullmatch(r"0x[a-fA-F0-9]{40}", str(address or ""))
+    }
+    if not targets:
+        return {}, {"status": "complete", "failedChains": [], "chains": {}}
+
+    balances = {
+        address: {chain_key: Decimal(0) for chain_key in subgraphs}
+        for address in targets
+    }
+    chain_metadata = {}
+    failed_chains = []
+    page_size = 1000
+
+    for chain_key, config in subgraphs.items():
+        chain_rows = []
+        supply_index = None
+        block_number = 0
+        block_timestamp = 0
+        error = None
+        skip = 0
+
+        while True:
+            query = f'''{{
+              _meta {{ block {{ number timestamp }} }}
+              interestIndexes(first: 1000) {{
+                id
+                supplyIndex
+                token {{ id symbol marketId }}
+              }}
+              marginAccountTokenValues(
+                first: {page_size},
+                skip: {skip},
+                where: {{ token: "{DOLO_CONTRACT}", valuePar_gt: "0" }},
+                orderBy: id,
+                orderDirection: asc
+              ) {{
+                valuePar
+                marginAccount {{
+                  effectiveUser {{ id }}
+                  user {{ id }}
+                }}
+              }}
+            }}'''
+            payload = None
+            for attempt in range(attempts):
+                try:
+                    response = request_fn(
+                        config["url"],
+                        json={"query": query},
+                        timeout=30,
+                        headers={"Content-Type": "application/json"},
+                    )
+                    status_code = int(getattr(response, "status_code", 200) or 0)
+                    if status_code >= 400:
+                        raise RuntimeError(f"HTTP {status_code}")
+                    payload = response.json()
+                    if not isinstance(payload, dict):
+                        raise RuntimeError("invalid JSON response")
+                    if payload.get("errors"):
+                        raise RuntimeError(str(payload["errors"][0]))
+                    break
+                except (OSError, ValueError, RuntimeError, requests.RequestException) as exc:
+                    error = exc
+                    payload = None
+                    if attempt + 1 < attempts:
+                        time.sleep(min(2 ** attempt, 4))
+
+            if payload is None:
+                break
+            data = payload.get("data")
+            if not isinstance(data, dict):
+                error = RuntimeError("missing GraphQL data")
+                break
+
+            meta_block = ((data.get("_meta") or {}).get("block") or {})
+            block_number = int(meta_block.get("number") or block_number or 0)
+            block_timestamp = int(meta_block.get("timestamp") or block_timestamp or 0)
+            if not block_timestamp or now_ts - block_timestamp > DOLOMITE_POSITION_MAX_AGE_SECONDS:
+                error = RuntimeError("stale subgraph snapshot")
+                break
+
+            if supply_index is None:
+                for index_row in data.get("interestIndexes") or []:
+                    token = index_row.get("token") or {}
+                    if str(token.get("id") or index_row.get("id") or "").lower() != DOLO_CONTRACT:
+                        continue
+                    try:
+                        supply_index = Decimal(str(index_row.get("supplyIndex") or ""))
+                    except InvalidOperation:
+                        supply_index = None
+                    break
+                if supply_index is None or supply_index <= 0:
+                    error = RuntimeError("missing DOLO supply index")
+                    break
+
+            rows = data.get("marginAccountTokenValues")
+            if not isinstance(rows, list):
+                error = RuntimeError("missing DOLO position rows")
+                break
+            chain_rows.extend(rows)
+            if len(rows) < page_size:
+                break
+            skip += page_size
+
+        if error is not None:
+            failed_chains.append(chain_key)
+            print(
+                f"  ⚠️ {config.get('name', chain_key)} Dolomite DOLO positions unavailable: {error}",
+                flush=True,
+            )
+            continue
+
+        seen_wallets = set()
+        for row in chain_rows:
+            account = row.get("marginAccount") or {}
+            owner = account.get("effectiveUser") or account.get("user") or {}
+            address = str(owner.get("id") or "").lower()
+            if address not in targets:
+                continue
+            try:
+                value_par = Decimal(str(row.get("valuePar") or "0"))
+            except InvalidOperation:
+                continue
+            if value_par <= 0:
+                continue
+            balances[address][chain_key] += value_par * supply_index
+            seen_wallets.add(address)
+
+        chain_metadata[chain_key] = {
+            "blockNumber": block_number,
+            "blockTimestamp": block_timestamp,
+            "matchedWallets": len(seen_wallets),
+        }
+
+    if failed_chains:
+        return {}, {
+            "status": "unavailable",
+            "failedChains": sorted(failed_chains),
+            "chains": chain_metadata,
+        }
+
+    output = {}
+    for address, chain_values in balances.items():
+        row = {
+            chain_key: round(float(chain_values.get(chain_key, Decimal(0))), 6)
+            for chain_key in subgraphs
+        }
+        row["total"] = round(sum(row.values()), 6)
+        output[address] = row
+    return output, {
+        "status": "complete",
+        "failedChains": [],
+        "chains": chain_metadata,
+    }
+
+
+def add_dolomite_dolo_balances_to_periods(periods, balances):
+    """Attach current protocol-held DOLO without changing liquid balances."""
+    normalized = {
+        str(address or "").lower(): values
+        for address, values in (balances or {}).items()
+    }
+    for period_data in (periods or {}).values():
+        for chain_data in (period_data or {}).values():
+            for key in ("accumulators", "sellers"):
+                for entry in chain_data.get(key) or []:
+                    values = normalized.get(str(entry.get("address") or "").lower(), {})
+                    entry["dolomite_balance"] = round(float(values.get("total") or 0), 6)
+                    entry["dolomite_balance_eth"] = round(float(values.get("eth") or 0), 6)
+                    entry["dolomite_balance_bera"] = round(float(values.get("bera") or 0), 6)
 
 
 def calculate_flows(transfers, excluded):
@@ -3284,6 +3494,19 @@ def main():
         for chain_data in period_data.values():
             for entry in chain_data["accumulators"] + chain_data["sellers"]:
                 entry["balance"] = balances.get(entry["address"], 0)
+
+    print("\n🏦 Fetching current DOLO positions inside Dolomite...")
+    dolomite_balances, dolomite_balance_meta = fetch_dolomite_dolo_balances(all_addrs)
+    add_dolomite_dolo_balances_to_periods(output_periods, dolomite_balances)
+    if dolomite_balance_meta.get("status") == "complete":
+        positioned_wallets = sum(
+            1 for values in dolomite_balances.values()
+            if float(values.get("total") or 0) > 0
+        )
+        print(f"  ✅ Current Dolomite DOLO found for {positioned_wallets} flow wallet(s)")
+    else:
+        print("  ⚠️ Current Dolomite DOLO is omitted because cross-chain coverage is incomplete")
+
     # Build balance_changes: address -> net_flow for ALL addresses per period
     # Uses already-neutralized flows from the cache (bridge transfers cancelled out)
     balance_changes = {}
@@ -3401,6 +3624,7 @@ def main():
             "status": "complete",
             "unresolvedGapCount": 0,
         },
+        "dolomite_balance_meta": dolomite_balance_meta,
         "dolo_price": dolo_price,
         "periods": output_periods,
         "balance_changes": balance_changes,

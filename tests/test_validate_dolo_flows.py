@@ -112,6 +112,69 @@ class ValidateDoloFlowsTest(unittest.TestCase):
             dict(validate_data.RULES["dolo_flows.json"]["checks"]),
         )
 
+    @staticmethod
+    def _dolomite_balance_payload(status="complete"):
+        row = {
+            "address": "0x" + "1" * 40,
+            "dolomite_balance": 20.75,
+            "dolomite_balance_eth": 18.75,
+            "dolomite_balance_bera": 2.0,
+        }
+        meta = {
+            "status": status,
+            "failedChains": [],
+            "chains": {
+                "eth": {"blockNumber": 1, "blockTimestamp": 1_786_406_400, "matchedWallets": 1},
+                "bera": {"blockNumber": 2, "blockTimestamp": 1_786_406_401, "matchedWallets": 1},
+            },
+        }
+        if status == "unavailable":
+            row.update({
+                "dolomite_balance": 0,
+                "dolomite_balance_eth": 0,
+                "dolomite_balance_bera": 0,
+            })
+            meta.update({"failedChains": ["bera"], "chains": {"eth": meta["chains"]["eth"]}})
+        return {
+            "dolomite_balance_meta": meta,
+            "periods": {"7d": {"all": {"accumulators": [row], "sellers": []}}},
+        }
+
+    def test_dolomite_protocol_balance_snapshot_reconciles(self):
+        self.assertTrue(
+            validate_data._flow_dolomite_balances_are_valid(
+                self._dolomite_balance_payload()
+            )
+        )
+
+    def test_dolomite_protocol_balance_rejects_partial_or_invalid_amounts(self):
+        for key, value in (
+            ("dolomite_balance", 20.74),
+            ("dolomite_balance_eth", -1),
+            ("dolomite_balance_bera", float("nan")),
+            ("dolomite_balance", True),
+        ):
+            with self.subTest(key=key, value=value):
+                payload = self._dolomite_balance_payload()
+                payload["periods"]["7d"]["all"]["accumulators"][0][key] = value
+                self.assertFalse(validate_data._flow_dolomite_balances_are_valid(payload))
+
+    def test_unavailable_dolomite_snapshot_cannot_publish_partial_balances(self):
+        payload = self._dolomite_balance_payload("unavailable")
+        self.assertTrue(validate_data._flow_dolomite_balances_are_valid(payload))
+
+        payload["periods"]["7d"]["all"]["accumulators"][0]["dolomite_balance_eth"] = 18.75
+        self.assertFalse(validate_data._flow_dolomite_balances_are_valid(payload))
+
+    def test_dolo_flow_rule_requires_and_validates_dolomite_balance_snapshot(self):
+        rules = validate_data.RULES["dolo_flows.json"]
+
+        self.assertIn("dolomite_balance_meta", rules["required_keys"])
+        self.assertIn(
+            "Dolomite DOLO balances must be complete and reconcile",
+            dict(rules["checks"]),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

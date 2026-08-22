@@ -41,6 +41,11 @@ class PagesWorkflowContractTests(unittest.TestCase):
         self.assertLess(generated, validated)
         self.assertLess(validated, committed)
 
+    def test_dolo_flows_workflow_runs_protocol_balance_rpc_tests(self):
+        workflow = DOLO_FLOWS_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn("tests/test_generate_dolo_flows_rpc.py", workflow)
+
     def test_earn_pages_deploy_is_dispatched_only_after_freshness_sla(self):
         pages = PAGES_WORKFLOW.read_text(encoding="utf-8")
         monitor = (ROOT / ".github/workflows/monitor-earn-freshness.yml").read_text(encoding="utf-8")

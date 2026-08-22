@@ -853,7 +853,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .flows-wrap{border-radius:0;background:rgba(9,9,11,.12);flex:1;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 .flows-tbl{width:100%;min-width:520px;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:12.5px;--stable-row-height:71px}
 .flows-tbl thead th{font-family:'Inter',system-ui,sans-serif;font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:var(--fg-3);text-align:left;padding:11px 12px;background:rgba(9,9,11,.38);border-bottom:1px solid var(--line-1);user-select:none;cursor:default}
-.flows-tbl thead th.num{text-align:right}
+.flows-tbl thead th.num{text-align:center}
+.flows-tbl thead th.num .wallet-sort-content{width:100%;justify-content:center}
 .flows-tbl thead th[data-flow-sort]{cursor:pointer;transition:color .15s var(--ease)}
 .flows-tbl thead th[data-flow-sort]:hover{color:var(--fg-1)}
 .flows-tbl thead th.sorted{color:var(--gold)}
@@ -867,13 +868,18 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .flow-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:12px 14px;border-top:1px solid var(--line-1);gap:12px;background:rgba(9,9,11,.16)}
 .flows-tbl tbody tr:hover td{background:rgba(255,255,255,.026)}
 .flows-tbl tbody td{padding:12px;color:var(--fg-1);border-bottom:1px solid var(--line-1);font-variant-numeric:tabular-nums;position:relative;vertical-align:middle;height:var(--stable-row-height,58px)}
-.flows-tbl tbody td.num{text-align:right;font-family:var(--mono);font-weight:500}
+.flows-tbl tbody td.num{text-align:center;font-family:var(--mono);font-weight:500}
 .flows-tbl tbody tr:last-child td{border-bottom:0}
 .flows-tbl tbody tr:hover td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;border-radius:0 2px 2px 0}
 .flows-col.acc .flows-tbl tbody tr:hover td:first-child::before{background:var(--up)}
 .flows-col.out .flows-tbl tbody tr:hover td:first-child::before{background:var(--down)}
 .flows-net.up{color:var(--up)}
 .flows-net.down{color:var(--down)}
+.flow-balance-cell{display:inline-flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.08;cursor:default}
+.flow-balance-main{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);white-space:nowrap}
+.flow-dolomite-primary{font-family:var(--mono);font-size:13px;font-weight:650;color:var(--gold);white-space:nowrap}
+.flow-dolomite-secondary{font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--gold);white-space:nowrap;letter-spacing:-.1px}
+.flow-dolomite-label{font-family:'Inter',system-ui,sans-serif;font-size:9px;font-weight:650;line-height:1;text-transform:uppercase;letter-spacing:.55px;color:rgba(201,162,39,.78);white-space:nowrap}
 
 /* PROTOCOL INFO */
 .proto{margin-top:24px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-xl);overflow:hidden;box-shadow:var(--sh-card);position:relative}
@@ -4824,9 +4830,28 @@ function effectiveProtocolWithdrawal(r){
   return r.protocolWithdrawalEth + r.protocolWithdrawalBera;
 }
 function effectiveFlowBalance(r){
-  if(Number.isFinite(Number(r.balance))) return Number(r.balance);
+  const liquid = effectiveFlowLiquidBalance(r);
+  return liquid + Math.max(0, safeHolderNum(r.dolomiteBalance));
+}
+function effectiveFlowLiquidBalance(r){
+  if(Number.isFinite(Number(r.balance))) return Math.max(0, Number(r.balance));
   const holder = HOLDERS.find(h => h.addr.toLowerCase() === r.addr.toLowerCase());
-  return holder ? holder.total : 0;
+  return holder ? Math.max(0, safeHolderNum(holder.total)) : 0;
+}
+function flowBalanceCellHtml(row){
+  const liquid = Math.max(0, safeHolderNum(row?.balance));
+  const inDolomite = Math.max(0, safeHolderNum(row?.dolomiteBalance));
+  if(liquid <= 0 && inDolomite <= 0){
+    return `<span class="flow-balance-cell"><span class="bal-zero">—</span></span>`;
+  }
+  const tooltip = `Current wallet balance: ${fmtNum(liquid)} DOLO · Current DOLO in Dolomite: ${fmtNum(inDolomite)} DOLO · Dolomite supply or collateral remains beneficially owned by this wallet and is not counted as a token outflow.`;
+  if(liquid <= 0){
+    return `<span class="flow-balance-cell" data-tooltip="${tooltip}" aria-label="${tooltip}"><span class="flow-dolomite-primary">${fmtNum(inDolomite)}</span><span class="flow-dolomite-label">in Dolomite</span></span>`;
+  }
+  if(inDolomite > 0){
+    return `<span class="flow-balance-cell" data-tooltip="${tooltip}" aria-label="${tooltip}"><span class="flow-balance-main">${fmtNum(liquid)}</span><span class="flow-dolomite-secondary">+${fmtNum(inDolomite)} in Dolomite</span></span>`;
+  }
+  return `<span class="flow-balance-cell"><span class="flow-balance-main">${fmtNum(liquid)}</span></span>`;
 }
 function effectiveFlowTx(r){
   if(state.flowsChain === "ethereum") return r.latestTxEth || null;
@@ -4931,7 +4956,6 @@ function renderFlow(target, kind){
     if(protocolDeposit > 0) flowParts.push(`Deposited to Dolomite ${fmtNum(protocolDeposit)} (excluded from outflow)`);
     if(protocolWithdrawal > 0) flowParts.push(`Withdrawn from Dolomite ${fmtNum(protocolWithdrawal)} (excluded from inflow)`);
     const flowBreakdown = flowParts.join(" · ");
-    const balance = effectiveFlowBalance(r);
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const addrAttr = escHtml(r.addr);
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
@@ -4947,7 +4971,7 @@ function renderFlow(target, kind){
       <tr data-addr="${addrAttr}">
         <td class="rank wallet-rank-col">${rank}</td>
         <td>${walletHtml}</td>
-        <td class="num"><span class="bal-val">${balance>0 ? fmtNum(balance) : "—"}</span></td>
+        <td class="num">${flowBalanceCellHtml(r)}</td>
         <td class="num"><span class="flows-net ${cls}" data-tooltip="${flowBreakdown}" aria-label="${flowBreakdown}">${sign}${fmtNum(r.chg)}</span></td>
       </tr>
     `;
@@ -6012,6 +6036,9 @@ renderCexSupplyChart();
           protocolWithdrawalEth:0,
           protocolDepositBera:0,
           protocolWithdrawalBera:0,
+          dolomiteBalance:0,
+          dolomiteBalanceEth:0,
+          dolomiteBalanceBera:0,
         });
       }
       return byAddr.get(key);
@@ -6030,6 +6057,9 @@ renderCexSupplyChart();
         row[protocolDepositProp] += safeNum(item.protocol_deposit);
         row[protocolWithdrawalProp] += safeNum(item.protocol_withdrawal);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
+        row.dolomiteBalance = Math.max(safeNum(row.dolomiteBalance), safeNum(item.dolomite_balance));
+        row.dolomiteBalanceEth = Math.max(safeNum(row.dolomiteBalanceEth), safeNum(item.dolomite_balance_eth));
+        row.dolomiteBalanceBera = Math.max(safeNum(row.dolomiteBalanceBera), safeNum(item.dolomite_balance_bera));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
       (cd.sellers || []).forEach(item => {
@@ -6041,6 +6071,9 @@ renderCexSupplyChart();
         row[protocolDepositProp] += safeNum(item.protocol_deposit);
         row[protocolWithdrawalProp] += safeNum(item.protocol_withdrawal);
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
+        row.dolomiteBalance = Math.max(safeNum(row.dolomiteBalance), safeNum(item.dolomite_balance));
+        row.dolomiteBalanceEth = Math.max(safeNum(row.dolomiteBalanceEth), safeNum(item.dolomite_balance_eth));
+        row.dolomiteBalanceBera = Math.max(safeNum(row.dolomiteBalanceBera), safeNum(item.dolomite_balance_bera));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
     });
