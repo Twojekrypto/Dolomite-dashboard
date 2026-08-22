@@ -19,9 +19,138 @@ OVERLAP = "0x3333333333333333333333333333333333333333"
 DOLOMITE_GNOSIS_SAFE = "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4"
 CHAINLINK_REWARDS_CLAIM = "0x2f41d42de3eab9e75f3d417259f24421771fb700"
 ECOSYSTEM_INCENTIVES_2 = "0x06265db7ecd9c5724a97bd4909146625d2e2619c"
+CROSS_CHAIN_WALLET = "0x15762db764826c219f1385c028e7e043a27e1891"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
+    def test_berachain_ccip_bridge_then_ethereum_outflow_counts_once(self):
+        bridge_amount = 283_000.05056654825
+        prior_bera_inflow = 74_597.85219008963
+        other_bera_outflow = 877.0
+        peer = "0x4444444444444444444444444444444444444444"
+        bridge_adapter = flows.BERACHAIN_DOLO_CCIP_ADAPTER
+        transfers = {
+            "eth": [
+                (flows.ZERO, CROSS_CHAIN_WALLET, int(bridge_amount * 10**18), 200),
+                (CROSS_CHAIN_WALLET, peer, int(bridge_amount * 10**18), 201),
+            ],
+            "bera": [
+                (peer, CROSS_CHAIN_WALLET, int(prior_bera_inflow * 10**18), 90),
+                (CROSS_CHAIN_WALLET, peer, int(other_bera_outflow * 10**18), 95),
+                (CROSS_CHAIN_WALLET, bridge_adapter, int(bridge_amount * 10**18), 100),
+                (bridge_adapter, flows.ZERO, int(bridge_amount * 10**18), 100),
+            ],
+        }
+        raw_flows = {
+            chain: flows.calculate_flows(rows, flows.EXCLUDED_ADDRS)
+            for chain, rows in transfers.items()
+        }
+        bridge_flows = {
+            chain: flows.calculate_bridge_flows(rows)
+            for chain, rows in transfers.items()
+        }
+        adapter_outflows = {
+            chain: flows.calculate_bridge_adapter_outflows(rows)
+            for chain, rows in transfers.items()
+        }
+
+        neutralized = flows.neutralize_raw_and_bridge_flows(
+            raw_flows,
+            bridge_flows,
+            adapter_outflows,
+        )
+
+        self.assertAlmostEqual(neutralized["eth"][CROSS_CHAIN_WALLET], -bridge_amount)
+        self.assertAlmostEqual(
+            neutralized["bera"][CROSS_CHAIN_WALLET],
+            prior_bera_inflow - other_bera_outflow,
+        )
+        self.assertAlmostEqual(
+            sum(chain[CROSS_CHAIN_WALLET] for chain in neutralized.values()),
+            prior_bera_inflow - other_bera_outflow - bridge_amount,
+        )
+
+    def test_gross_outflow_excludes_the_neutralized_source_bridge_leg(self):
+        bridge_amount = 283_000.05056654825
+        other_bera_outflow = 877.0
+        peer = "0x4444444444444444444444444444444444444444"
+        bridge_adapter = flows.BERACHAIN_DOLO_CCIP_ADAPTER
+
+        transfers = {
+            "eth": [
+                (flows.ZERO, CROSS_CHAIN_WALLET, int(bridge_amount * 10**18), 200),
+            ],
+            "bera": [
+                (CROSS_CHAIN_WALLET, bridge_adapter, int(bridge_amount * 10**18), 100),
+                (bridge_adapter, flows.ZERO, int(bridge_amount * 10**18), 100),
+                (CROSS_CHAIN_WALLET, peer, int(other_bera_outflow * 10**18), 101),
+            ],
+        }
+        raw_flows = {
+            chain: flows.calculate_flows(rows, flows.EXCLUDED_ADDRS)
+            for chain, rows in transfers.items()
+        }
+        bridge_flows = {
+            chain: flows.calculate_bridge_flows(rows)
+            for chain, rows in transfers.items()
+        }
+        adapter_outflows = {
+            chain: flows.calculate_bridge_adapter_outflows(rows)
+            for chain, rows in transfers.items()
+        }
+        _, _, _, cancellations = flows.neutralize_raw_and_bridge_flows_with_stats(
+            raw_flows,
+            bridge_flows,
+            adapter_outflows,
+        )
+        components = flows.apply_bridge_outflow_cancellations(
+            {
+                chain: flows.calculate_flow_components(rows)
+                for chain, rows in transfers.items()
+            },
+            cancellations,
+        )
+
+        self.assertAlmostEqual(
+            components["bera"][CROSS_CHAIN_WALLET]["gross_outflow"],
+            other_bera_outflow,
+        )
+
+    def test_bridge_to_a_different_recipient_remains_a_source_wallet_outflow(self):
+        amount = 251_764.0
+        source_wallet = "0x70c69520eb6595d102bfd8aed8fc58428489c4e4"
+        destination_wallet = "0x26c2448c0038874f68cc0d388d96f8d218af3bdf"
+        bridge_adapter = flows.BERACHAIN_DOLO_CCIP_ADAPTER
+        transfers = {
+            "eth": [
+                (flows.ZERO, destination_wallet, int(amount * 10**18), 200),
+            ],
+            "bera": [
+                (source_wallet, bridge_adapter, int(amount * 10**18), 100),
+                (bridge_adapter, flows.ZERO, int(amount * 10**18), 100),
+            ],
+        }
+        raw_flows = {
+            chain: flows.calculate_flows(rows, flows.EXCLUDED_ADDRS)
+            for chain, rows in transfers.items()
+        }
+        bridge_flows = {
+            chain: flows.calculate_bridge_flows(rows)
+            for chain, rows in transfers.items()
+        }
+        adapter_outflows = {
+            chain: flows.calculate_bridge_adapter_outflows(rows)
+            for chain, rows in transfers.items()
+        }
+
+        neutralized = flows.neutralize_raw_and_bridge_flows(
+            raw_flows,
+            bridge_flows,
+            adapter_outflows,
+        )
+
+        self.assertAlmostEqual(neutralized["bera"][source_wallet], -amount)
+
     def test_holder_audience_includes_team_and_investors_in_balance_ranges(self):
         balances = {
             EARLY_ONLY: 2_000_000,
