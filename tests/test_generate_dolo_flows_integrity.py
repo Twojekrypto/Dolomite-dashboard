@@ -11,6 +11,9 @@ SOURCE = "0xabe44baf180ac426565503bbc3ecf71a0459456e"
 SILENTLY_MISSED_BLOCK = 25_482_810
 UNLABELED_CONTRACT = "0xcccccccccccccccccccccccccccccccccccccccc"
 OUTSIDE = "0xdddddddddddddddddddddddddddddddddddddddd"
+RECIPIENT = "0x3e5041d44c9ad13f661bcb49bf37e44eca973c5d"
+DOLO_DEPOSIT_ROUTER = "0xf8b2c637a68cf6a17b1df9f8992eebeff63d2dff"
+SHARED_DOLOMITE_MARGIN = "0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d"
 STRATEGIC_INVESTOR_CLAIMS = "0x7efd088ae500598a19a242d6d48b9f7e0d061176"
 INVESTOR_CLAIMS = "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07"
 EARLY_ONLY = "0x1111111111111111111111111111111111111111"
@@ -23,6 +26,100 @@ CROSS_CHAIN_WALLET = "0x15762db764826c219f1385c028e7e043a27e1891"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
+    def test_wallet_receipt_remains_market_inflow_after_ethereum_protocol_deposit(self):
+        amount = 283_000.05056654825
+        amount_wei = int(amount * 10**18)
+        transfers = [
+            (SOURCE, RECIPIENT, amount_wei, 25_806_192),
+            (RECIPIENT, DOLO_DEPOSIT_ROUTER, amount_wei, 25_806_203),
+            (DOLO_DEPOSIT_ROUTER, SHARED_DOLOMITE_MARGIN, amount_wei, 25_806_203),
+        ]
+        raw = flows.calculate_flows(transfers, set())
+        components = flows.calculate_flow_components(transfers)
+
+        market, market_components = flows.neutralize_protocol_custody_transfers(
+            raw,
+            components,
+            transfers,
+            "eth",
+        )
+
+        self.assertAlmostEqual(market[RECIPIENT], amount)
+        self.assertAlmostEqual(market[SOURCE], -amount)
+        self.assertAlmostEqual(market_components[RECIPIENT]["gross_inflow"], amount)
+        self.assertAlmostEqual(market_components[RECIPIENT]["gross_outflow"], 0)
+        self.assertAlmostEqual(market_components[RECIPIENT]["protocol_deposit"], amount)
+        self.assertAlmostEqual(market.get(DOLO_DEPOSIT_ROUTER, 0), 0)
+        self.assertAlmostEqual(market.get(SHARED_DOLOMITE_MARGIN, 0), 0)
+        self.assertAlmostEqual(sum(market.values()), 0)
+
+    def test_berachain_protocol_deposit_uses_the_same_verified_router(self):
+        amount_wei = 125_000 * 10**18
+        transfers = [
+            (RECIPIENT, DOLO_DEPOSIT_ROUTER, amount_wei, 25_000_000),
+            (DOLO_DEPOSIT_ROUTER, SHARED_DOLOMITE_MARGIN, amount_wei, 25_000_000),
+        ]
+        raw = flows.calculate_flows(transfers, set())
+        components = flows.calculate_flow_components(transfers)
+
+        market, market_components = flows.neutralize_protocol_custody_transfers(
+            raw,
+            components,
+            transfers,
+            "bera",
+        )
+
+        self.assertAlmostEqual(market.get(RECIPIENT, 0), 0)
+        self.assertAlmostEqual(market_components[RECIPIENT]["gross_outflow"], 0)
+        self.assertAlmostEqual(market_components[RECIPIENT]["protocol_deposit"], 125_000)
+        self.assertAlmostEqual(market.get(DOLO_DEPOSIT_ROUTER, 0), 0)
+        self.assertAlmostEqual(market.get(SHARED_DOLOMITE_MARGIN, 0), 0)
+        self.assertAlmostEqual(sum(market.values()), 0)
+
+    def test_protocol_withdrawal_does_not_create_a_false_market_accumulator(self):
+        amount_wei = 40_000 * 10**18
+        transfers = [
+            (SHARED_DOLOMITE_MARGIN, DOLO_DEPOSIT_ROUTER, amount_wei, 25_000_001),
+            (DOLO_DEPOSIT_ROUTER, RECIPIENT, amount_wei, 25_000_001),
+        ]
+        raw = flows.calculate_flows(transfers, set())
+        components = flows.calculate_flow_components(transfers)
+
+        market, market_components = flows.neutralize_protocol_custody_transfers(
+            raw,
+            components,
+            transfers,
+            "eth",
+        )
+
+        self.assertAlmostEqual(market.get(RECIPIENT, 0), 0)
+        self.assertAlmostEqual(market_components[RECIPIENT]["gross_inflow"], 0)
+        self.assertAlmostEqual(market_components[RECIPIENT]["protocol_withdrawal"], 40_000)
+        self.assertAlmostEqual(market.get(DOLO_DEPOSIT_ROUTER, 0), 0)
+        self.assertAlmostEqual(market.get(SHARED_DOLOMITE_MARGIN, 0), 0)
+        self.assertAlmostEqual(sum(market.values()), 0)
+
+    def test_unknown_contract_transfer_remains_a_real_market_flow(self):
+        amount_wei = 5_000 * 10**18
+        transfers = [(RECIPIENT, UNLABELED_CONTRACT, amount_wei, 25_000_002)]
+        raw = flows.calculate_flows(transfers, set())
+        components = flows.calculate_flow_components(transfers)
+
+        market, market_components = flows.neutralize_protocol_custody_transfers(
+            raw,
+            components,
+            transfers,
+            "eth",
+        )
+
+        self.assertEqual(market[RECIPIENT], -5_000)
+        self.assertEqual(market[UNLABELED_CONTRACT], 5_000)
+        self.assertEqual(market_components[RECIPIENT]["gross_outflow"], 5_000)
+
+    def test_arbitrum_token_presence_is_not_treated_as_an_active_dolo_market(self):
+        self.assertEqual(flows.DOLO_MARKET_IDS, {"eth": 16, "bera": 35})
+        self.assertNotIn("arb", flows.CHAINS)
+
     def test_berachain_ccip_bridge_then_ethereum_outflow_counts_once(self):
         bridge_amount = 283_000.05056654825
         prior_bera_inflow = 74_597.85219008963
@@ -482,6 +579,14 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertIn("effectiveGrossOutflow", source)
         self.assertIn("In ${fmtNum(grossIn)}", source)
         self.assertIn("Out ${fmtNum(grossOut)}", source)
+
+    def test_dashboard_flow_hover_explains_protocol_custody_adjustments(self):
+        source = (Path(__file__).resolve().parents[1] / "dolo-preview.html").read_text()
+
+        self.assertIn("protocolDepositEth", source)
+        self.assertIn("protocolWithdrawalBera", source)
+        self.assertIn("Deposited to Dolomite", source)
+        self.assertIn("Withdrawn from Dolomite", source)
 
     def test_holder_audiences_separate_verified_market_from_potential_and_bots(self):
         market = "0x1111111111111111111111111111111111111111"

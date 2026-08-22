@@ -29,6 +29,17 @@ BERASCAN_API_KEY = os.environ.get("BERASCAN_API_KEY", "").strip()
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ZERO = "0x0000000000000000000000000000000000000000"
+# Official Core router is deployed at the same deterministic address across
+# Dolomite networks. DOLO itself is currently a Dolomite market on Ethereum
+# and Berachain only; the Arbitrum token contract exists, but is not listed as
+# a Dolomite market and must not activate protocol-flow attribution there.
+DOLO_DEPOSIT_WITHDRAWAL_ROUTER = "0xf8b2c637a68cf6a17b1df9f8992eebeff63d2dff"
+DOLOMITE_MARGIN_ADDRS = {
+    "eth": "0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d",
+    "bera": "0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d",
+    "arb": "0x6bd780e7fdf01d77e4d475c821f1e7ae05409072",
+}
+DOLO_MARKET_IDS = {"eth": 16, "bera": 35}
 # Canonical DOLO CCIP adapter on Berachain. A bridge-out transaction transfers
 # DOLO to this adapter and burns the same amount before the destination mint.
 BERACHAIN_DOLO_CCIP_ADAPTER = "0x9e7728077f753dfdf53c2236097e27c743890992"
@@ -822,6 +833,98 @@ def calculate_flow_components(transfers):
         receiver["gross_inflow"] += value
         receiver["net_flow"] += value
     return components
+
+
+def protocol_custody_addresses(chain_key):
+    """Return verified Dolomite custody endpoints for an active DOLO market."""
+    if chain_key not in DOLO_MARKET_IDS:
+        return set()
+    margin = DOLOMITE_MARGIN_ADDRS.get(chain_key)
+    return {
+        address
+        for address in (DOLO_DEPOSIT_WITHDRAWAL_ROUTER, margin)
+        if address
+    }
+
+
+def neutralize_protocol_custody_transfers(flows, components, transfers, chain_key):
+    """Remove wallet↔Dolomite custody legs from market-behavior flow totals.
+
+    ERC-20 transfers into Dolomite custody move tokens out of the wallet, but
+    do not transfer beneficial ownership or prove selling. The inverse applies
+    to withdrawals. Raw transfers remain untouched for holder-balance history;
+    this adjusted view is used only by the DOLO Flow leaderboards.
+    """
+    custody = protocol_custody_addresses(chain_key)
+    adjusted_flows = dict(flows or {})
+    adjusted_components = {
+        address: dict(values)
+        for address, values in (components or {}).items()
+    }
+    if not custody:
+        return adjusted_flows, adjusted_components
+
+    def ensure_component(address):
+        return adjusted_components.setdefault(
+            address,
+            {
+                "gross_inflow": 0.0,
+                "gross_outflow": 0.0,
+                "net_flow": 0.0,
+            },
+        )
+
+    for transfer in transfers or []:
+        if not isinstance(transfer, (list, tuple)) or len(transfer) < 4:
+            continue
+        from_addr = str(transfer[0] or "").lower()
+        to_addr = str(transfer[1] or "").lower()
+        if from_addr in FLOW_SKIP_ADDRS or to_addr in FLOW_SKIP_ADDRS:
+            continue
+        try:
+            value = int(transfer[2]) / (10 ** 18)
+        except (TypeError, ValueError):
+            continue
+        if value <= 0:
+            continue
+
+        from_custody = from_addr in custody
+        to_custody = to_addr in custody
+        if from_custody == to_custody:
+            continue
+
+        if to_custody:
+            # Undo the raw wallet outflow. The wallet still beneficially owns
+            # the supplied DOLO inside Dolomite.
+            adjusted_flows[from_addr] = adjusted_flows.get(from_addr, 0.0) + value
+            entry = ensure_component(from_addr)
+            entry["gross_outflow"] = max(0.0, entry.get("gross_outflow", 0.0) - value)
+            entry["net_flow"] = entry.get("net_flow", 0.0) + value
+            entry["protocol_deposit"] = entry.get("protocol_deposit", 0.0) + value
+        else:
+            # Undo the raw wallet inflow from custody. It is a protocol
+            # withdrawal/borrow leg, not evidence of a market acquisition.
+            adjusted_flows[to_addr] = adjusted_flows.get(to_addr, 0.0) - value
+            entry = ensure_component(to_addr)
+            entry["gross_inflow"] = max(0.0, entry.get("gross_inflow", 0.0) - value)
+            entry["net_flow"] = entry.get("net_flow", 0.0) - value
+            entry["protocol_withdrawal"] = entry.get("protocol_withdrawal", 0.0) + value
+
+    # Custody endpoints are accounting infrastructure, not market actors. A
+    # complete deposit normally ends with router→Margin and a withdrawal starts
+    # with Margin→router; leaving the Margin leg in the adjusted map would emit
+    # the protocol itself as an accumulator/seller and break conservation.
+    for address in custody:
+        adjusted_flows[address] = 0.0
+        if address in adjusted_components:
+            adjusted_components[address]["gross_inflow"] = 0.0
+            adjusted_components[address]["gross_outflow"] = 0.0
+            adjusted_components[address]["net_flow"] = 0.0
+
+    for address, value in list(adjusted_flows.items()):
+        if abs(value) < 0.000001:
+            adjusted_flows[address] = 0.0
+    return adjusted_flows, adjusted_components
 
 
 def calculate_bridge_flows(transfers):
@@ -3015,6 +3118,21 @@ def main():
             flow_components_by_chain,
             bridge_cancellations,
         )
+
+        # Keep raw bridge-neutralized flows for balance-history reconstruction,
+        # but remove wallet↔Dolomite custody legs from the market-behavior
+        # leaderboards. Depositing collateral is not selling; withdrawing from
+        # custody is not a market purchase.
+        market_flows_by_chain = {}
+        for chain_key in CHAINS:
+            market_flows, market_components = neutralize_protocol_custody_transfers(
+                neutralized[chain_key],
+                flow_components_by_chain[chain_key],
+                period_transfers_by_chain[chain_key],
+                chain_key,
+            )
+            market_flows_by_chain[chain_key] = market_flows
+            flow_components_by_chain[chain_key] = market_components
         
         neutralized_flows_cache[period] = neutralized
         if n_count > 0:
@@ -3023,7 +3141,7 @@ def main():
         # Step 3: Build output using neutralized flows. Exact transaction metadata
         # is optional presentation provenance and never participates in arithmetic.
         for chain_key, cfg in CHAINS.items():
-            flows = neutralized[chain_key]
+            flows = market_flows_by_chain[chain_key]
             tx_counts = tx_counts_by_chain[chain_key]
 
             accumulators = get_top(flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS)
@@ -3033,6 +3151,8 @@ def main():
                 components = flow_components_by_chain[chain_key].get(entry["address"], {})
                 entry["gross_inflow"] = round(components.get("gross_inflow", 0), 2)
                 entry["gross_outflow"] = round(components.get("gross_outflow", 0), 2)
+                entry["protocol_deposit"] = round(components.get("protocol_deposit", 0), 2)
+                entry["protocol_withdrawal"] = round(components.get("protocol_withdrawal", 0), 2)
 
             def load_flow_evidence(blocks, _chain_key=chain_key, _cfg=cfg):
                 cache = flow_metadata_cache[_chain_key]
