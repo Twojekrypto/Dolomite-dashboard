@@ -48,3 +48,9 @@ test("an address with no current DOLO exposure keeps the muted dash", () => {
   assert.match(html, />—</);
   assert.doesNotMatch(html, /in Dolomite/);
 });
+
+test("current Dolomite balances are loaded once from the root address map", () => {
+  assert.match(preview, /DOLOMITE_FLOW_BALANCES\s*=\s*flows\.dolomite_balances\s*\|\|\s*\{\}/);
+  assert.match(preview, /DOLOMITE_FLOW_BALANCES\[key\]/);
+  assert.doesNotMatch(preview, /item\.dolomite_balance/);
+});

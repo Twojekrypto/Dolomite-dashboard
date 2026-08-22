@@ -114,11 +114,9 @@ class ValidateDoloFlowsTest(unittest.TestCase):
 
     @staticmethod
     def _dolomite_balance_payload(status="complete"):
-        row = {
-            "address": "0x" + "1" * 40,
-            "dolomite_balance": 20.75,
-            "dolomite_balance_eth": 18.75,
-            "dolomite_balance_bera": 2.0,
+        address = "0x" + "1" * 40
+        balances = {
+            address: {"total": 20.75, "eth": 18.75, "bera": 2.0},
         }
         meta = {
             "status": status,
@@ -129,15 +127,12 @@ class ValidateDoloFlowsTest(unittest.TestCase):
             },
         }
         if status == "unavailable":
-            row.update({
-                "dolomite_balance": 0,
-                "dolomite_balance_eth": 0,
-                "dolomite_balance_bera": 0,
-            })
+            balances = {}
             meta.update({"failedChains": ["bera"], "chains": {"eth": meta["chains"]["eth"]}})
         return {
             "dolomite_balance_meta": meta,
-            "periods": {"7d": {"all": {"accumulators": [row], "sellers": []}}},
+            "dolomite_balances": balances,
+            "periods": {"7d": {"all": {"accumulators": [{"address": address}], "sellers": []}}},
         }
 
     def test_dolomite_protocol_balance_snapshot_reconciles(self):
@@ -156,20 +151,22 @@ class ValidateDoloFlowsTest(unittest.TestCase):
         ):
             with self.subTest(key=key, value=value):
                 payload = self._dolomite_balance_payload()
-                payload["periods"]["7d"]["all"]["accumulators"][0][key] = value
+                address = "0x" + "1" * 40
+                payload["dolomite_balances"][address][key.replace("dolomite_balance_", "").replace("dolomite_balance", "total")] = value
                 self.assertFalse(validate_data._flow_dolomite_balances_are_valid(payload))
 
     def test_unavailable_dolomite_snapshot_cannot_publish_partial_balances(self):
         payload = self._dolomite_balance_payload("unavailable")
         self.assertTrue(validate_data._flow_dolomite_balances_are_valid(payload))
 
-        payload["periods"]["7d"]["all"]["accumulators"][0]["dolomite_balance_eth"] = 18.75
+        payload["dolomite_balances"]["0x" + "1" * 40] = {"total": 18.75, "eth": 18.75, "bera": 0}
         self.assertFalse(validate_data._flow_dolomite_balances_are_valid(payload))
 
     def test_dolo_flow_rule_requires_and_validates_dolomite_balance_snapshot(self):
         rules = validate_data.RULES["dolo_flows.json"]
 
         self.assertIn("dolomite_balance_meta", rules["required_keys"])
+        self.assertIn("dolomite_balances", rules["required_keys"])
         self.assertIn(
             "Dolomite DOLO balances must be complete and reconcile",
             dict(rules["checks"]),

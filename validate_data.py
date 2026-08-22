@@ -10,6 +10,7 @@ Usage:
 
 import json
 import math
+import re
 import sys
 import os
 from datetime import datetime, timezone
@@ -1829,53 +1830,29 @@ def _flow_dolomite_balances_are_valid(data):
         ):
             return False
 
-    canonical_by_address = {}
-
-    def containers(node):
-        if not isinstance(node, dict):
-            return
-        if any(key in node for key in ("accumulators", "sellers")):
-            yield node
-        for value in node.values():
-            if isinstance(value, dict):
-                yield from containers(value)
-
-    periods = data.get("periods")
-    if not isinstance(periods, dict):
+    balances = data.get("dolomite_balances")
+    if not isinstance(balances, dict):
         return False
-    for container in containers(periods):
-        for key in ("accumulators", "sellers"):
-            rows = container.get(key)
-            if rows is None:
-                continue
-            if not isinstance(rows, list):
-                return False
-            for row in rows:
-                if not isinstance(row, dict):
-                    return False
-                values = tuple(
-                    row.get(field)
-                    for field in (
-                        "dolomite_balance",
-                        "dolomite_balance_eth",
-                        "dolomite_balance_bera",
-                    )
-                )
-                if any(
-                    not _finite_real_json_number(value) or value < 0
-                    for value in values
-                ):
-                    return False
-                total, ethereum, berachain = values
-                if not _nearly_equal(total, ethereum + berachain, rel=0, abs_tol=0.000001):
-                    return False
-                if status == "unavailable" and any(value != 0 for value in values):
-                    return False
-                address = str(row.get("address") or "").lower()
-                if address:
-                    previous = canonical_by_address.setdefault(address, values)
-                    if previous != values:
-                        return False
+    if status == "unavailable":
+        return not balances
+    for address, row in balances.items():
+        if (
+            not isinstance(address, str)
+            or address != address.lower()
+            or not re.fullmatch(r"0x[a-f0-9]{40}", address)
+            or not isinstance(row, dict)
+            or set(row) != {"total", "eth", "bera"}
+        ):
+            return False
+        values = (row.get("total"), row.get("eth"), row.get("bera"))
+        if any(
+            not _finite_real_json_number(value) or value < 0
+            for value in values
+        ):
+            return False
+        total, ethereum, berachain = values
+        if not _nearly_equal(total, ethereum + berachain, rel=0, abs_tol=0.000001):
+            return False
     return True
 
 
@@ -1889,7 +1866,7 @@ RULES = {
         "min_bytes": 500,
     },
     "dolo_flows.json": {
-        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history", "dolomite_balance_meta"],
+        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history", "dolomite_balance_meta", "dolomite_balances"],
         "checks": [
             ("periods must have data",     lambda d: len(d.get("periods", {})) >= 3),
             ("dolo_price must be positive", lambda d: d.get("dolo_price", 0) > 0),
