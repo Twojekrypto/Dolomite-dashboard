@@ -1793,6 +1793,92 @@ def _flow_tx_metadata_is_valid(data):
     return True
 
 
+def _flow_dolomite_balances_are_valid(data):
+    """Current Dolomite DOLO exposure must be complete, non-negative and exact."""
+    meta = data.get("dolomite_balance_meta")
+    if not isinstance(meta, dict):
+        return False
+    status = meta.get("status")
+    failed_chains = meta.get("failedChains")
+    chains = meta.get("chains")
+    expected_chains = {"eth", "bera"}
+    if (
+        status not in {"complete", "unavailable"}
+        or not isinstance(failed_chains, list)
+        or len(set(failed_chains)) != len(failed_chains)
+        or not set(failed_chains).issubset(expected_chains)
+        or not isinstance(chains, dict)
+        or not set(chains).issubset(expected_chains)
+    ):
+        return False
+    if status == "complete":
+        if failed_chains or set(chains) != expected_chains:
+            return False
+    elif not failed_chains or set(chains).union(failed_chains) != expected_chains:
+        return False
+
+    for chain_meta in chains.values():
+        if (
+            not isinstance(chain_meta, dict)
+            or not _is_exact_integer(chain_meta.get("blockNumber"))
+            or chain_meta["blockNumber"] <= 0
+            or not _is_exact_integer(chain_meta.get("blockTimestamp"))
+            or chain_meta["blockTimestamp"] <= 0
+            or not _is_exact_integer(chain_meta.get("matchedWallets"))
+            or chain_meta["matchedWallets"] < 0
+        ):
+            return False
+
+    canonical_by_address = {}
+
+    def containers(node):
+        if not isinstance(node, dict):
+            return
+        if any(key in node for key in ("accumulators", "sellers")):
+            yield node
+        for value in node.values():
+            if isinstance(value, dict):
+                yield from containers(value)
+
+    periods = data.get("periods")
+    if not isinstance(periods, dict):
+        return False
+    for container in containers(periods):
+        for key in ("accumulators", "sellers"):
+            rows = container.get(key)
+            if rows is None:
+                continue
+            if not isinstance(rows, list):
+                return False
+            for row in rows:
+                if not isinstance(row, dict):
+                    return False
+                values = tuple(
+                    row.get(field)
+                    for field in (
+                        "dolomite_balance",
+                        "dolomite_balance_eth",
+                        "dolomite_balance_bera",
+                    )
+                )
+                if any(
+                    not _finite_real_json_number(value) or value < 0
+                    for value in values
+                ):
+                    return False
+                total, ethereum, berachain = values
+                if not _nearly_equal(total, ethereum + berachain, rel=0, abs_tol=0.000001):
+                    return False
+                if status == "unavailable" and any(value != 0 for value in values):
+                    return False
+                address = str(row.get("address") or "").lower()
+                if address:
+                    previous = canonical_by_address.setdefault(address, values)
+                    if previous != values:
+                        return False
+    return True
+
+
 RULES = {
     "dolo-liquidity.json": {
         "required_keys": ["schemaVersion", "generatedAt", "summary", "sources", "pools", "activePositions", "history", "quality"],
@@ -1803,12 +1889,13 @@ RULES = {
         "min_bytes": 500,
     },
     "dolo_flows.json": {
-        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history"],
+        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history", "dolomite_balance_meta"],
         "checks": [
             ("periods must have data",     lambda d: len(d.get("periods", {})) >= 3),
             ("dolo_price must be positive", lambda d: d.get("dolo_price", 0) > 0),
             ("CEX exchange history must reconcile exactly", _dolo_cex_supply_history_valid),
             ("optional latest transaction metadata must be exact", _flow_tx_metadata_is_valid),
+            ("Dolomite DOLO balances must be complete and reconcile", _flow_dolomite_balances_are_valid),
         ],
         "min_bytes": 50_000,
     },

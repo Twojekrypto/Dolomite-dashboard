@@ -17,6 +17,127 @@ def uint256_hex(value):
 
 
 class GenerateDoloFlowsRpcTests(unittest.TestCase):
+    def test_fetch_dolomite_dolo_balances_aggregates_subaccounts_and_chains(self):
+        class Response:
+            status_code = 200
+
+            def __init__(self, payload):
+                self._payload = payload
+
+            def json(self):
+                return self._payload
+
+        payloads = {
+            "https://subgraph.example/eth": {
+                "data": {
+                    "_meta": {"block": {"number": 123, "timestamp": 1_700_000_000}},
+                    "interestIndexes": [{
+                        "id": flows.DOLO_CONTRACT,
+                        "supplyIndex": "1.25",
+                        "token": {"id": flows.DOLO_CONTRACT, "symbol": "DOLO", "marketId": "16"},
+                    }],
+                    "marginAccountTokenValues": [
+                        {"valuePar": "10", "marginAccount": {"effectiveUser": {"id": ALICE}, "user": {"id": ALICE}}},
+                        {"valuePar": "5", "marginAccount": {"effectiveUser": {"id": ALICE}, "user": {"id": ALICE}}},
+                        {"valuePar": "3", "marginAccount": {"effectiveUser": {"id": BOB}, "user": {"id": BOB}}},
+                    ],
+                }
+            },
+            "https://subgraph.example/bera": {
+                "data": {
+                    "_meta": {"block": {"number": 456, "timestamp": 1_700_000_100}},
+                    "interestIndexes": [{
+                        "id": flows.DOLO_CONTRACT,
+                        "supplyIndex": "1",
+                        "token": {"id": flows.DOLO_CONTRACT, "symbol": "DOLO", "marketId": "35"},
+                    }],
+                    "marginAccountTokenValues": [
+                        {"valuePar": "2", "marginAccount": {"effectiveUser": {"id": ALICE}, "user": {"id": ALICE}}},
+                    ],
+                }
+            },
+        }
+
+        def request(url, **_kwargs):
+            return Response(payloads[url])
+
+        subgraphs = {
+            "eth": {"name": "Ethereum", "url": "https://subgraph.example/eth"},
+            "bera": {"name": "Berachain", "url": "https://subgraph.example/bera"},
+        }
+        balances, metadata = flows.fetch_dolomite_dolo_balances(
+            [ALICE, BOB], request_fn=request, subgraphs=subgraphs,
+            attempts=1, now_ts=1_700_000_200,
+        )
+
+        self.assertEqual(balances[ALICE]["eth"], 18.75)
+        self.assertEqual(balances[ALICE]["bera"], 2)
+        self.assertEqual(balances[ALICE]["total"], 20.75)
+        self.assertEqual(balances[BOB]["total"], 3.75)
+        self.assertEqual(metadata["status"], "complete")
+        self.assertEqual(metadata["chains"]["eth"]["blockNumber"], 123)
+
+    def test_fetch_dolomite_dolo_balances_does_not_publish_partial_totals(self):
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {
+                    "data": {
+                        "_meta": {"block": {"number": 123, "timestamp": 1_700_000_000}},
+                        "interestIndexes": [{
+                            "id": flows.DOLO_CONTRACT,
+                            "supplyIndex": "1",
+                            "token": {"id": flows.DOLO_CONTRACT, "symbol": "DOLO", "marketId": "16"},
+                        }],
+                        "marginAccountTokenValues": [
+                            {"valuePar": "10", "marginAccount": {"effectiveUser": {"id": ALICE}, "user": {"id": ALICE}}},
+                        ],
+                    }
+                }
+
+        def request(url, **_kwargs):
+            if url.endswith("/bera"):
+                raise OSError("subgraph unavailable")
+            return Response()
+
+        subgraphs = {
+            "eth": {"name": "Ethereum", "url": "https://subgraph.example/eth"},
+            "bera": {"name": "Berachain", "url": "https://subgraph.example/bera"},
+        }
+        balances, metadata = flows.fetch_dolomite_dolo_balances(
+            [ALICE], request_fn=request, subgraphs=subgraphs,
+            attempts=1, now_ts=1_700_000_200,
+        )
+
+        self.assertEqual(balances, {})
+        self.assertEqual(metadata["status"], "unavailable")
+        self.assertEqual(metadata["failedChains"], ["bera"])
+
+    def test_dolomite_balances_are_attached_without_overwriting_liquid_balance(self):
+        periods = {
+            "7d": {
+                "eth": {
+                    "accumulators": [{"address": ALICE, "balance": 25}],
+                    "sellers": [{"address": BOB, "balance": 0}],
+                }
+            }
+        }
+        positions = {
+            ALICE: {"eth": 150, "bera": 5, "total": 155},
+            BOB: {"eth": 10, "bera": 0, "total": 10},
+        }
+
+        flows.add_dolomite_dolo_balances_to_periods(periods, positions)
+
+        alice = periods["7d"]["eth"]["accumulators"][0]
+        bob = periods["7d"]["eth"]["sellers"][0]
+        self.assertEqual(alice["balance"], 25)
+        self.assertEqual(alice["dolomite_balance"], 155)
+        self.assertEqual(alice["dolomite_balance_eth"], 150)
+        self.assertEqual(alice["dolomite_balance_bera"], 5)
+        self.assertEqual(bob["dolomite_balance"], 10)
+
     def test_detect_contracts_batch_uses_batch_results(self):
         contract = ALICE
         wallet = BOB
