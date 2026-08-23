@@ -1911,6 +1911,67 @@ def _flow_dolomite_balances_are_valid(data):
     return True
 
 
+def _flow_history_integrity_is_valid(data):
+    integrity = data.get("flow_history_integrity")
+    if not isinstance(integrity, dict):
+        return False
+    if (
+        integrity.get("version") != 2
+        or integrity.get("status") != "complete"
+        or integrity.get("verification") != "independent-rpc-exact-quorum"
+        or integrity.get("unresolvedGapCount") != 0
+    ):
+        return False
+
+    chains = integrity.get("chains")
+    if not isinstance(chains, dict) or set(chains) != {"eth", "bera"}:
+        return False
+    expected_deploy = {"eth": 21_500_000, "bera": 2_900_000}
+    for chain_key, deploy_block in expected_deploy.items():
+        row = chains.get(chain_key)
+        if not isinstance(row, dict):
+            return False
+        numeric_keys = (
+            "deployBlock",
+            "coverageStartBlock",
+            "verifiedThroughBlock",
+            "lastPublishedBlock",
+        )
+        if any(
+            isinstance(row.get(key), bool) or not isinstance(row.get(key), int)
+            for key in numeric_keys
+        ):
+            return False
+        if (
+            row["deployBlock"] != deploy_block
+            or row["coverageStartBlock"] > deploy_block
+            or row["verifiedThroughBlock"] < deploy_block
+            or row["lastPublishedBlock"] != row["verifiedThroughBlock"]
+            or row.get("verification") != "independent-rpc-exact-quorum"
+        ):
+            return False
+        proof = row.get("lastVerificationProof")
+        if not isinstance(proof, dict):
+            return False
+        families = proof.get("providerFamilies")
+        proof_numbers = (
+            proof.get("startBlock"),
+            proof.get("endBlock"),
+            proof.get("verifiedChunkCount"),
+            proof.get("minimumMatchingProviderFamilies"),
+        )
+        if (
+            any(isinstance(value, bool) or not isinstance(value, int) for value in proof_numbers)
+            or proof["startBlock"] > proof["endBlock"]
+            or proof["verifiedChunkCount"] < 1
+            or proof["minimumMatchingProviderFamilies"] < 2
+            or not isinstance(families, list)
+            or len(set(families)) < 2
+        ):
+            return False
+    return True
+
+
 RULES = {
     "dolo-liquidity.json": {
         "required_keys": ["schemaVersion", "generatedAt", "summary", "sources", "pools", "activePositions", "history", "quality"],
@@ -1921,10 +1982,11 @@ RULES = {
         "min_bytes": 500,
     },
     "dolo_flows.json": {
-        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history", "dolomite_balance_meta", "dolomite_balances"],
+        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history", "dolomite_balance_meta", "dolomite_balances", "flow_history_integrity"],
         "checks": [
             ("periods must have data",     lambda d: len(d.get("periods", {})) >= 3),
             ("dolo_price must be positive", lambda d: d.get("dolo_price", 0) > 0),
+            ("Transfer history must have independent RPC quorum coverage", _flow_history_integrity_is_valid),
             ("CEX exchange history must reconcile exactly", _dolo_cex_supply_history_valid),
             ("optional latest transaction metadata must be exact", _flow_tx_metadata_is_valid),
             ("optional LP activity metadata must be exact", _flow_lp_metadata_is_valid),

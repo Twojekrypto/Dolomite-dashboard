@@ -217,6 +217,60 @@ class ValidateDoloFlowsTest(unittest.TestCase):
             dict(rules["checks"]),
         )
 
+    def test_flow_history_integrity_requires_verified_full_chain_coverage(self):
+        payload = {
+            "flow_history_integrity": {
+                "version": 2,
+                "status": "complete",
+                "verification": "independent-rpc-exact-quorum",
+                "unresolvedGapCount": 0,
+                "chains": {
+                    "eth": {
+                        "coverageStartBlock": 21_500_000,
+                        "deployBlock": 21_500_000,
+                        "verifiedThroughBlock": 25_500_000,
+                        "lastPublishedBlock": 25_500_000,
+                        "verification": "independent-rpc-exact-quorum",
+                        "lastVerificationProof": {
+                            "startBlock": 25_450_000,
+                            "endBlock": 25_500_000,
+                            "verifiedChunkCount": 2,
+                            "minimumMatchingProviderFamilies": 2,
+                            "providerFamilies": ["alchemy.com", "drpc.org"],
+                        },
+                    },
+                    "bera": {
+                        "coverageStartBlock": 2_900_000,
+                        "deployBlock": 2_900_000,
+                        "verifiedThroughBlock": 25_200_000,
+                        "lastPublishedBlock": 25_200_000,
+                        "verification": "independent-rpc-exact-quorum",
+                        "lastVerificationProof": {
+                            "startBlock": 25_100_000,
+                            "endBlock": 25_200_000,
+                            "verifiedChunkCount": 1,
+                            "minimumMatchingProviderFamilies": 2,
+                            "providerFamilies": ["berachain.com", "drpc.org"],
+                        },
+                    },
+                },
+            }
+        }
+
+        self.assertTrue(validate_data._flow_history_integrity_is_valid(payload))
+
+        payload["flow_history_integrity"]["chains"]["bera"]["coverageStartBlock"] += 1
+        self.assertFalse(validate_data._flow_history_integrity_is_valid(payload))
+
+    def test_dolo_flow_rule_registers_verified_history_guard(self):
+        rules = validate_data.RULES["dolo_flows.json"]
+
+        self.assertIn("flow_history_integrity", rules["required_keys"])
+        self.assertIn(
+            "Transfer history must have independent RPC quorum coverage",
+            dict(rules["checks"]),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
