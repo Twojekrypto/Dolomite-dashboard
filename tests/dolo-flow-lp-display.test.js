@@ -1,0 +1,58 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+const preview = fs.readFileSync(path.join(__dirname, "..", "dolo-preview.html"), "utf8");
+
+function loadLpBadgeBuilder(){
+  const start = preview.indexOf("function flowLpBadgeHtml(");
+  const end = preview.indexOf("\nfunction effectiveFlowTx(", start);
+  assert.ok(start >= 0 && end > start, "LP flow badge builder should be present");
+  const source = preview.slice(start, end);
+  return new Function(
+    "safeHolderNum",
+    "fmtNum",
+    "escHtml",
+    `${source}\nreturn flowLpBadgeHtml;`,
+  )(
+    value => Number.isFinite(Number(value)) ? Number(value) : 0,
+    value => Number(value) === 1_304_943.5475313652 ? "1.3M" : "850K",
+    value => String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;"),
+  );
+}
+
+test("verified LP deposit is shown as a secondary component without replacing net outflow", () => {
+  const badge = loadLpBadgeBuilder()({
+    direction: "deposit",
+    amount: "1304943.547531365190891539",
+    pair: "DOLO/USDC",
+    adapter: "uniswap-v4",
+    confidence: "verified_same_tx",
+  }, "out");
+
+  assert.match(badge, /1\.3M → LP/);
+  assert.match(badge, /Verified LP deposit/);
+  assert.match(badge, /Uniswap v4/);
+  assert.match(badge, /DOLO\/USDC/);
+  assert.match(badge, /not a sale/);
+});
+
+test("verified LP withdrawal is shown only for accumulator rows", () => {
+  const activity = {
+    direction: "withdrawal",
+    amount: "850000",
+    pair: "DOLO/WBERA",
+    adapter: "kodiak-v3",
+    confidence: "verified_same_tx",
+  };
+
+  const badge = loadLpBadgeBuilder();
+  assert.match(badge(activity, "acc"), /850K ← LP/);
+  assert.match(badge(activity, "acc"), /Verified LP withdrawal/);
+  assert.equal(badge(activity, "out"), "");
+});

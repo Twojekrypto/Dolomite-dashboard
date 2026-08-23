@@ -1794,6 +1794,55 @@ def _flow_tx_metadata_is_valid(data):
     return True
 
 
+def _flow_lp_metadata_is_valid(data):
+    """Optional LP attribution must be exact and bound to the row's latest tx."""
+    required = {"direction", "amount", "pair", "adapter", "confidence", "tx_hash"}
+
+    def row_is_valid(row):
+        if not isinstance(row, dict):
+            return False
+        activity = row.get("latest_lp_activity")
+        if activity is None:
+            return True
+        if not isinstance(activity, dict) or not required.issubset(activity):
+            return False
+        amount = activity.get("amount")
+        tx_hash = activity.get("tx_hash")
+        if (
+            activity.get("direction") not in {"deposit", "withdrawal"}
+            or activity.get("confidence") != "verified_same_tx"
+            or not isinstance(amount, str)
+            or not re.fullmatch(r"(?:0|[1-9][0-9]*)(?:\.[0-9]+)?", amount)
+            or Decimal(amount) <= 0
+            or not isinstance(activity.get("pair"), str)
+            or not activity["pair"].strip()
+            or not isinstance(activity.get("adapter"), str)
+            or not activity["adapter"].strip()
+            or tx_hash != row.get("latest_tx_hash")
+            or not isinstance(tx_hash, str)
+            or not re.fullmatch(r"0x[a-f0-9]{64}", tx_hash)
+        ):
+            return False
+        return True
+
+    periods = data.get("periods", {})
+    if not isinstance(periods, dict):
+        return False
+    for period in periods.values():
+        if not isinstance(period, dict):
+            return False
+        for container in period.values():
+            if not isinstance(container, dict):
+                continue
+            for key in ("accumulators", "sellers", "claimer_sellers"):
+                rows = container.get(key)
+                if rows is None:
+                    continue
+                if not isinstance(rows, list) or not all(row_is_valid(row) for row in rows):
+                    return False
+    return True
+
+
 def _flow_dolomite_balances_are_valid(data):
     """Current Dolomite DOLO exposure must be complete, non-negative and exact."""
     meta = data.get("dolomite_balance_meta")
@@ -1878,6 +1927,7 @@ RULES = {
             ("dolo_price must be positive", lambda d: d.get("dolo_price", 0) > 0),
             ("CEX exchange history must reconcile exactly", _dolo_cex_supply_history_valid),
             ("optional latest transaction metadata must be exact", _flow_tx_metadata_is_valid),
+            ("optional LP activity metadata must be exact", _flow_lp_metadata_is_valid),
             ("Dolomite DOLO balances must be complete and reconcile", _flow_dolomite_balances_are_valid),
         ],
         "min_bytes": 50_000,
