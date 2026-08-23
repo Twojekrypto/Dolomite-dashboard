@@ -19,7 +19,9 @@ from rpc_client import (
 
 import rpc_usage
 from flow_tx_metadata import (
+    attach_latest_lp_metadata,
     attach_latest_flow_metadata,
+    fetch_transaction_receipts,
     fetch_token_block_evidence,
 )
 
@@ -251,6 +253,7 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
 # dolo_flows.json stays small for first render; the UI lazy-loads this one.
 WALLET_HISTORY_JSON = os.path.join(DATA_DIR, "dolo_holder_wallet_history.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_flows_state.json")
+LIQUIDITY_REGISTRY_JSON = os.path.join(DATA_DIR, "data", "dolo-liquidity-pools.json")
 RPC_BATCH_SIZE = int(os.environ.get("DOLO_FLOWS_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT", "2"))
 RPC_LOG_RETRIES_PER_ENDPOINT = int(
@@ -292,6 +295,20 @@ def load_state():
         except Exception as exc:
             print(f"⚠️ load_state: failed to read {STATE_FILE} ({exc}); starting full resync", flush=True)
     return {}
+
+
+def load_liquidity_registry():
+    """Load tracked LP contracts used only for optional flow attribution."""
+    try:
+        with open(LIQUIDITY_REGISTRY_JSON) as f:
+            registry = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"  ⚠️ LP flow attribution unavailable: {exc}")
+        return {}
+    if not isinstance(registry, dict) or not isinstance(registry.get("chains"), dict) or not isinstance(registry.get("pools"), list):
+        print("  ⚠️ LP flow attribution unavailable: invalid liquidity registry")
+        return {}
+    return registry
 
 
 def save_state(state):
@@ -3339,6 +3356,8 @@ def main():
     output_periods = {}
     neutralized_flows_cache = {}  # {period: {chain: flows_dict}} — reused for balance_changes
     flow_metadata_cache = {"eth": {}, "bera": {}}
+    lp_receipt_cache = {"eth": {}, "bera": {}}
+    liquidity_registry = load_liquidity_registry()
     for period, seconds in PERIODS.items():
         output_periods[period] = {}
 
@@ -3436,6 +3455,25 @@ def main():
             )
             attach_latest_flow_metadata(
                 sellers, period_transfers_by_chain[chain_key], "outbound", chain_name, load_flow_evidence,
+            )
+
+            def load_lp_receipts(tx_hashes, _chain_key=chain_key, _cfg=cfg):
+                cache = lp_receipt_cache[_chain_key]
+                missing = set(tx_hashes) - set(cache)
+                if missing:
+                    cache.update(fetch_transaction_receipts(
+                        _cfg["rpcs"], missing, rpc_batch_requests,
+                        retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                        batch_size=RPC_BATCH_SIZE,
+                        describe=f"{_cfg['name']} verified LP flow evidence",
+                    ))
+                return {tx_hash: cache[tx_hash] for tx_hash in tx_hashes if tx_hash in cache}
+
+            attach_latest_lp_metadata(
+                accumulators, chain_name, liquidity_registry, DOLO_CONTRACT, load_lp_receipts,
+            )
+            attach_latest_lp_metadata(
+                sellers, chain_name, liquidity_registry, DOLO_CONTRACT, load_lp_receipts,
             )
 
             # Add USD values

@@ -90,7 +90,7 @@ test("holder protocol balances promote rounded units and omit redundant zeroes",
   assert.equal(format(1_250_000), "1.25M");
 });
 
-test("DOLO Holders ends with Total Exposure and does not render Exposure Share", () => {
+test("DOLO Holders ends with compact Total and does not render Exposure Share", () => {
   const tableStart = preview.indexOf('<table class="tbl" id="tbl-holders">');
   const tableEnd = preview.indexOf("</table>", tableStart);
   assert.ok(tableStart >= 0 && tableEnd > tableStart, "DOLO Holders table should be present");
@@ -100,6 +100,6 @@ test("DOLO Holders ends with Total Exposure and does not render Exposure Share",
   const headers = [...header.matchAll(/<th\b[\s\S]*?<\/th>/g)]
     .map(match => match[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 
-  assert.deepEqual(headers, ["#", "Address", "ETH", "BERA", "In Dolomite", "veDOLO", "Total Exposure ▼"]);
+  assert.deepEqual(headers, ["#", "Address", "ETH", "BERA", "In Dolomite", "veDOLO", "Total ▼"]);
   assert.doesNotMatch(table, /Exposure Share|share-cell|share-val|share-bar/);
 });

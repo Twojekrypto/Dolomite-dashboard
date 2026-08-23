@@ -112,6 +112,44 @@ class ValidateDoloFlowsTest(unittest.TestCase):
             dict(validate_data.RULES["dolo_flows.json"]["checks"]),
         )
 
+    def test_optional_lp_activity_metadata_is_verified_and_transaction_bound(self):
+        tx_hash = "0x" + "a" * 64
+        row = {
+            "address": "0x" + "1" * 40,
+            "latest_tx_hash": tx_hash,
+            "latest_tx_timestamp": 1_786_406_400,
+            "latest_tx_chain": "ethereum",
+            "latest_lp_activity": {
+                "direction": "deposit",
+                "amount": "1304943.547531365190891539",
+                "pair": "DOLO/USDC",
+                "adapter": "uniswap-v4",
+                "confidence": "verified_same_tx",
+                "tx_hash": tx_hash,
+            },
+        }
+        payload = {"periods": {"7d": {"eth": {"accumulators": [], "sellers": [row]}}}}
+        self.assertTrue(validate_data._flow_lp_metadata_is_valid(payload))
+
+        for field, invalid in (
+            ("direction", "swap"),
+            ("amount", "-1"),
+            ("pair", ""),
+            ("adapter", ""),
+            ("confidence", "inferred"),
+            ("tx_hash", "0x" + "b" * 64),
+        ):
+            with self.subTest(field=field):
+                malformed = copy.deepcopy(payload)
+                malformed["periods"]["7d"]["eth"]["sellers"][0]["latest_lp_activity"][field] = invalid
+                self.assertFalse(validate_data._flow_lp_metadata_is_valid(malformed))
+
+    def test_dolo_flow_rule_registers_lp_activity_guard(self):
+        self.assertIn(
+            "optional LP activity metadata must be exact",
+            dict(validate_data.RULES["dolo_flows.json"]["checks"]),
+        )
+
     @staticmethod
     def _dolomite_balance_payload(status="complete"):
         address = "0x" + "1" * 40

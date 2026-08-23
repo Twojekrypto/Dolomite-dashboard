@@ -801,10 +801,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* zero balance placeholder — subtle */
 .bal-zero{color:var(--fg-4);font-family:var(--mono)}
 .bal-val.total{color:var(--fg-1);font-weight:600}
-.holder-total-cell .bal-val.total{color:#eadca8;font-weight:700;text-shadow:0 0 14px rgba(201,162,39,.14)}
-.holder-total-cell{padding-right:32px!important;background:linear-gradient(90deg,rgba(201,162,39,0),rgba(201,162,39,.05))}
-.tbl tbody tr:hover td.holder-total-cell{background:linear-gradient(90deg,rgba(201,162,39,.015),rgba(201,162,39,.085))}
-.tbl tbody tr.tbl-spacer-row td.holder-total-cell{background:transparent}
+.holder-total-cell .bal-val.total{color:#eadca8;font-weight:700}
+#tbl-holders thead th.num,#tbl-holders tbody td.num{text-align:center}
+#tbl-holders thead th.num .wallet-sort-content{width:100%;justify-content:center}
 
 .chain-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 7px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--line-2);font-weight:500}
 .chain-chip .dot{width:6px;height:6px;border-radius:50%}
@@ -876,6 +875,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .flows-col.out .flows-tbl tbody tr:hover td:first-child::before{background:var(--down)}
 .flows-net.up{color:var(--up)}
 .flows-net.down{color:var(--down)}
+.flow-net-cell{display:inline-flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:4px;line-height:1.08}
+.flow-lp-note{display:inline-flex;align-items:center;justify-content:center;min-height:18px;padding:2px 7px;border:1px solid rgba(201,162,39,.24);border-radius:999px;background:rgba(201,162,39,.055);color:#d8c477;font-family:var(--sans);font-size:9.5px;font-weight:650;letter-spacing:.15px;line-height:1;white-space:nowrap;cursor:default}
+.flow-lp-note::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);box-shadow:0 0 7px rgba(201,162,39,.34);margin-right:5px;flex-shrink:0}
 .flow-balance-cell{display:inline-flex;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.08;cursor:default}
 .flow-balance-main{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);white-space:nowrap}
 .flow-dolomite-primary{font-family:var(--mono);font-size:13px;font-weight:650;color:var(--gold);white-space:nowrap}
@@ -1393,7 +1395,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
             <th data-sort="balBera" class="num" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><span class="dot dot-berachain"></span>BERA</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
             <th data-sort="dolomite" class="num col-dolomite" style="width:160px" data-tooltip="Current positive DOLO supplied or held as collateral across all Dolomite subaccounts on Ethereum and Berachain"><span class="wallet-sort-content">In Dolomite<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
             <th data-sort="locked" class="num col-vedolo" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><img src="vedolo-logo.svg" alt="" style="width:11px;height:11px;border-radius:50%" onerror="this.style.display='none'">veDOLO</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
-            <th data-sort="total" class="num sorted" style="padding-right:32px;width:180px" data-tooltip="Liquid DOLO + DOLO in Dolomite + optional locked veDOLO"><span class="wallet-sort-content">Total Exposure<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
+            <th data-sort="total" class="num sorted" style="width:140px" data-tooltip="Liquid DOLO + DOLO in Dolomite + optional locked veDOLO"><span class="wallet-sort-content">Total<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
           </tr>
         </thead>
         <tbody id="holders-body"></tbody>
@@ -4902,6 +4904,34 @@ function flowBalanceCellHtml(row){
   }
   return `<span class="flow-balance-cell"><span class="flow-balance-main">${fmtNum(liquid)}</span></span>`;
 }
+function flowLpBadgeHtml(activity, kind){
+  if(!activity || activity.confidence !== "verified_same_tx") return "";
+  const direction = activity.direction;
+  if((kind === "out" && direction !== "deposit") || (kind === "acc" && direction !== "withdrawal")) return "";
+  const amount = Math.max(0, safeHolderNum(activity.amount));
+  if(!amount) return "";
+  const adapterLabels = {
+    "uniswap-v4":"Uniswap v4",
+    "uniswap-v3":"Uniswap v3",
+    "kodiak-v3":"Kodiak v3",
+    "kodiak-v2":"Kodiak v2",
+    "bulla-v3":"Bulla v3",
+  };
+  const adapter = adapterLabels[activity.adapter] || String(activity.adapter || "tracked DEX");
+  const pair = String(activity.pair || "DOLO pool");
+  const amountLabel = fmtNum(amount);
+  const tooltip = direction === "deposit"
+    ? `Verified LP deposit · ${amountLabel} DOLO moved into ${adapter} ${pair} in the latest transaction. It remains counted as wallet outflow; this label describes its destination, not a sale.`
+    : `Verified LP withdrawal · ${amountLabel} DOLO returned from ${adapter} ${pair} in the latest transaction. It remains counted as wallet inflow; this label describes its source, not a market purchase.`;
+  const label = direction === "deposit" ? `${amountLabel} → LP` : `${amountLabel} ← LP`;
+  return `<span class="flow-lp-note" data-tooltip="${escHtml(tooltip)}" aria-label="${escHtml(tooltip)}">${label}</span>`;
+}
+function effectiveFlowLp(r){
+  if(state.flowsChain === "ethereum") return r.latestLpEth || null;
+  if(state.flowsChain === "berachain") return r.latestLpBera || null;
+  const candidates = [r.latestLpEth, r.latestLpBera].filter(Boolean);
+  return candidates.sort((a,b)=>safeHolderNum(b.latestTxTimestamp) - safeHolderNum(a.latestTxTimestamp))[0] || null;
+}
 function effectiveFlowTx(r){
   if(state.flowsChain === "ethereum") return r.latestTxEth || null;
   if(state.flowsChain === "berachain") return r.latestTxBera || null;
@@ -5005,6 +5035,7 @@ function renderFlow(target, kind){
     if(protocolDeposit > 0) flowParts.push(`Deposited to Dolomite ${fmtNum(protocolDeposit)} (excluded from outflow)`);
     if(protocolWithdrawal > 0) flowParts.push(`Withdrawn from Dolomite ${fmtNum(protocolWithdrawal)} (excluded from inflow)`);
     const flowBreakdown = flowParts.join(" · ");
+    const lpBadge = flowLpBadgeHtml(effectiveFlowLp(r), kind);
     const rank = rankMap.get(r.addr.toLowerCase()) || (start + i + 1);
     const addrAttr = escHtml(r.addr);
     const typeHtml = `<span class="type-tag type-${r.type}" data-tooltip="${TYPE_TIPS[r.type]}">${TYPE_LABELS[r.type]}</span>`;
@@ -5021,7 +5052,7 @@ function renderFlow(target, kind){
         <td class="rank wallet-rank-col">${rank}</td>
         <td>${walletHtml}</td>
         <td class="num">${flowBalanceCellHtml(r)}</td>
-        <td class="num"><span class="flows-net ${cls}" data-tooltip="${flowBreakdown}" aria-label="${flowBreakdown}">${sign}${fmtNum(r.chg)}</span></td>
+        <td class="num"><span class="flow-net-cell"><span class="flows-net ${cls}" data-tooltip="${flowBreakdown}" aria-label="${flowBreakdown}">${sign}${fmtNum(r.chg)}</span>${lpBadge}</span></td>
       </tr>
     `;
   }).join("");
@@ -6092,6 +6123,8 @@ renderCexSupplyChart();
           protocolWithdrawalEth:0,
           protocolDepositBera:0,
           protocolWithdrawalBera:0,
+          latestLpEth:null,
+          latestLpBera:null,
           dolomiteBalance:safeNum(dolomiteBalance.total),
           dolomiteBalanceEth:safeNum(dolomiteBalance.eth),
           dolomiteBalanceBera:safeNum(dolomiteBalance.bera),
@@ -6112,6 +6145,7 @@ renderCexSupplyChart();
         row[grossOutProp] += safeNum(item.gross_outflow);
         row[protocolDepositProp] += safeNum(item.protocol_deposit);
         row[protocolWithdrawalProp] += safeNum(item.protocol_withdrawal);
+        if(item.latest_lp_activity) row[chainKey === "eth" ? "latestLpEth" : "latestLpBera"] = {...item.latest_lp_activity,latestTxTimestamp:safeNum(item.latest_tx_timestamp)};
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
@@ -6123,6 +6157,7 @@ renderCexSupplyChart();
         row[grossOutProp] += safeNum(item.gross_outflow);
         row[protocolDepositProp] += safeNum(item.protocol_deposit);
         row[protocolWithdrawalProp] += safeNum(item.protocol_withdrawal);
+        if(item.latest_lp_activity) row[chainKey === "eth" ? "latestLpEth" : "latestLpBera"] = {...item.latest_lp_activity,latestTxTimestamp:safeNum(item.latest_tx_timestamp)};
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "eth" ? "latestTxEth" : "latestTxBera"] = txMeta;
       });
