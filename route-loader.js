@@ -21,6 +21,7 @@
     footer: "protocol-footer-20260619-links-mobile"
   };
   var TABLE_UX_VERSION = "20260821-table-ux-v6";
+  var ADDRESS_OVERRIDES_VERSION = "20260823-address-type-normalization-v1";
   var POSITION_ACTIVITY_VERSION = "20260821-actions-v1";
   var CLOUDFLARE_ANALYTICS = {
     src: "https://static.cloudflareinsights.com/beacon.min.js",
@@ -45,14 +46,14 @@
     var normalized = replaceAssetVersion(html, "wallet-table-ux.css", TABLE_UX_VERSION);
     normalized = replaceAssetVersion(normalized, "wallet-table-ux.js", TABLE_UX_VERSION);
     normalized = replaceAssetVersion(normalized, "vedolo-position-activity.js", POSITION_ACTIVITY_VERSION);
-    normalized = replaceAssetVersion(normalized, "dolo-address-overrides.js", TABLE_UX_VERSION);
+    normalized = replaceAssetVersion(normalized, "dolo-address-overrides.js", ADDRESS_OVERRIDES_VERSION);
 
     var assets = "";
     if (!/wallet-table-ux\.css(?:\?v=|[\"'])/.test(normalized)) {
       assets += '<link rel="stylesheet" href="wallet-table-ux.css?v=' + TABLE_UX_VERSION + '" data-dolo-table-ux-version="' + TABLE_UX_VERSION + '">';
     }
     if (!/dolo-address-overrides\.js(?:\?v=|[\"'])/.test(normalized)) {
-      assets += '<script src="dolo-address-overrides.js?v=' + TABLE_UX_VERSION + '" data-dolo-address-overrides-version="' + TABLE_UX_VERSION + '"><' + '/script>';
+      assets += '<script src="dolo-address-overrides.js?v=' + ADDRESS_OVERRIDES_VERSION + '" data-dolo-address-overrides-version="' + ADDRESS_OVERRIDES_VERSION + '"><' + '/script>';
     }
     if (!/wallet-table-ux\.js(?:\?v=|[\"'])/.test(normalized)) {
       assets += '<script src="wallet-table-ux.js?v=' + TABLE_UX_VERSION + '" data-dolo-table-ux-version="' + TABLE_UX_VERSION + '"><' + '/script>';

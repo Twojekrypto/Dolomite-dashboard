@@ -17,7 +17,7 @@
     },
     "0x7bd27a0103e48e25acdb131cc190314562171fde": {
       label:"Automated Trading / Arbitrage",
-      type:"trader",
+      type:"bot",
       source:"behavioral-flow-audit-20260820",
       confidence:"probable",
       candidate:"automated trading, arbitrage, or market-making wallet",
