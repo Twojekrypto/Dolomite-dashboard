@@ -183,11 +183,6 @@ DOLOMITE_DOLO_POSITION_SUBGRAPHS = {
 }
 DOLOMITE_POSITION_MAX_AGE_SECONDS = 6 * 3600
 
-# Re-read one normal getLogs chunk on every incremental run and replace that
-# cached range authoritatively. This repairs silent checkpoint holes (including
-# a previously skipped single-block range) without duplicating transfer rows.
-RECENT_RESCAN_BLOCKS = {"eth": 50_000, "bera": 100_000}
-
 PERIODS = {
     "1d": 86400,
     "7d": 86400 * 7,
@@ -198,6 +193,19 @@ PERIODS = {
     # the holder-bucket chart's All range at DOLO inception instead of a rolling
     # yearly window.
     "all": 86400 * 365 * 10,
+}
+# Re-read the full visible 30D Berachain flow window on every incremental run.
+# A short tail rescan only protects the newest blocks; a provider can return an
+# incomplete historical getLogs range without an RPC error, leaving a flow row
+# permanently stale despite an otherwise complete checkpoint. Replacing the
+# whole leaderboard window makes those omissions self-healing without changing
+# the wider cached history. Ethereum keeps its smaller normal overlap because
+# its provider window is materially more expensive and no such gap is present.
+RECENT_RESCAN_BLOCKS = {
+    "eth": 50_000,
+    # `incremental_refresh_start()` is inclusive and offsets from last + 1.
+    # Keep the exact 30D cutoff block inside the replacement range.
+    "bera": (PERIODS["30d"] // CHAINS["bera"]["block_time"]) + 1,
 }
 FRESH_HOLDER_PERIODS = ("1d", "7d", "30d", "90d")
 FRESH_HOLDER_MIN_RECEIVED = 0.000001
