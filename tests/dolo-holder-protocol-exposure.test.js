@@ -20,6 +20,14 @@ function loadExposureBuilder(){
   );
 }
 
+function loadHolderAmountFormatter(){
+  const start = preview.indexOf("function fmtHolderAmount(");
+  const end = preview.indexOf("\nconst fmtPct", start);
+  assert.ok(start >= 0 && end > start, "holder amount formatter should be present");
+  const source = preview.slice(start, end);
+  return new Function(`${source}\nreturn fmtHolderAmount;`)();
+}
+
 test("holder exposure attributes Dolomite positions to owners and removes custody double counting", () => {
   const buildRows = loadExposureBuilder();
   const custody = "0x003ca23fd5f0ca87d01f6ec6cd14a8ae60c2b97d";
@@ -70,4 +78,28 @@ test("disabling veDOLO removes only locked exposure, not Dolomite positions", ()
   assert.deepEqual(rows.map(row => row.addr), [alice]);
   assert.equal(rows[0].locked, 0);
   assert.equal(rows[0].total, 600);
+});
+
+test("holder protocol balances promote rounded units and omit redundant zeroes", () => {
+  const format = loadHolderAmountFormatter();
+
+  assert.equal(format(1_000), "1K");
+  assert.equal(format(1_500), "1.5K");
+  assert.equal(format(999_950), "1M");
+  assert.equal(format(1_000_000), "1M");
+  assert.equal(format(1_250_000), "1.25M");
+});
+
+test("DOLO Holders ends with Total Exposure and does not render Exposure Share", () => {
+  const tableStart = preview.indexOf('<table class="tbl" id="tbl-holders">');
+  const tableEnd = preview.indexOf("</table>", tableStart);
+  assert.ok(tableStart >= 0 && tableEnd > tableStart, "DOLO Holders table should be present");
+
+  const table = preview.slice(tableStart, tableEnd);
+  const header = table.slice(table.indexOf("<thead>"), table.indexOf("</thead>"));
+  const headers = [...header.matchAll(/<th\b[\s\S]*?<\/th>/g)]
+    .map(match => match[0].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+
+  assert.deepEqual(headers, ["#", "Address", "ETH", "BERA", "In Dolomite", "veDOLO", "Total Exposure ▼"]);
+  assert.doesNotMatch(table, /Exposure Share|share-cell|share-val|share-bar/);
 });

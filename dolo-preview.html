@@ -801,6 +801,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* zero balance placeholder — subtle */
 .bal-zero{color:var(--fg-4);font-family:var(--mono)}
 .bal-val.total{color:var(--fg-1);font-weight:600}
+.holder-total-cell .bal-val.total{color:#eadca8;font-weight:700;text-shadow:0 0 14px rgba(201,162,39,.14)}
+.holder-total-cell{padding-right:32px!important;background:linear-gradient(90deg,rgba(201,162,39,0),rgba(201,162,39,.05))}
+.tbl tbody tr:hover td.holder-total-cell{background:linear-gradient(90deg,rgba(201,162,39,.015),rgba(201,162,39,.085))}
+.tbl tbody tr.tbl-spacer-row td.holder-total-cell{background:transparent}
 
 .chain-chip{display:inline-flex;align-items:center;gap:5px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-2);padding:3px 7px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--line-2);font-weight:500}
 .chain-chip .dot{width:6px;height:6px;border-radius:50%}
@@ -817,10 +821,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 /* veDOLO column is visible only when the holders veDOLO toggle is active */
 #tbl-holders .col-vedolo{display:none}
 #tbl-holders.vedolo-on .col-vedolo{display:table-cell}
-.share-cell{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
-.share-val{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);line-height:1.1}
-.share-bar{width:90px;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line-1)}
-.share-bar > span{display:block;height:100%;background:var(--gold);border-radius:1px;transition:width .3s var(--ease)}
 
 /* PAGINATION — info on left, pager centered */
 .tbl-foot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:14px 24px;border-top:1px solid var(--line-1);gap:12px}
@@ -1391,10 +1391,9 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
             <th data-sort="addr"><span class="wallet-sort-content">Address<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
             <th data-sort="balEth" class="num" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><span class="dot dot-ethereum"></span>ETH</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
             <th data-sort="balBera" class="num" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><span class="dot dot-berachain"></span>BERA</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
-            <th data-sort="dolomite" class="num col-dolomite" style="width:140px" data-tooltip="Current positive DOLO supplied or held as collateral across all Dolomite subaccounts on Ethereum and Berachain"><span class="wallet-sort-content">In Dolomite<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="dolomite" class="num col-dolomite" style="width:160px" data-tooltip="Current positive DOLO supplied or held as collateral across all Dolomite subaccounts on Ethereum and Berachain"><span class="wallet-sort-content">In Dolomite<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
             <th data-sort="locked" class="num col-vedolo" style="width:140px"><span class="wallet-sort-content"><span class="hd-chain"><img src="vedolo-logo.svg" alt="" style="width:11px;height:11px;border-radius:50%" onerror="this.style.display='none'">veDOLO</span><span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
-            <th data-sort="total" class="num sorted" style="width:150px" data-tooltip="Liquid DOLO + DOLO in Dolomite + optional locked veDOLO"><span class="wallet-sort-content">Total Exposure<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
-            <th data-sort="share" class="num" style="padding-right:32px;width:140px" data-tooltip="Wallet exposure divided by the 1B DOLO fixed supply"><span class="wallet-sort-content">Exposure Share<span class="wallet-sort-marker sort" aria-hidden="true"></span></span></th>
+            <th data-sort="total" class="num sorted" style="padding-right:32px;width:180px" data-tooltip="Liquid DOLO + DOLO in Dolomite + optional locked veDOLO"><span class="wallet-sort-content">Total Exposure<span class="wallet-sort-marker sort" aria-hidden="true">▼</span></span></th>
           </tr>
         </thead>
         <tbody id="holders-body"></tbody>
@@ -2057,6 +2056,28 @@ const fmtNum = (n) => {
   if(abs >= 1e3) return (n/1e3).toFixed(1) + "K";
   return n.toFixed(0);
 };
+function fmtHolderAmount(n){
+  if(!Number.isFinite(n)) return "—";
+  const units = [
+    {value:1e9,suffix:"B",decimals:2},
+    {value:1e6,suffix:"M",decimals:2},
+    {value:1e3,suffix:"K",decimals:1},
+    {value:1,suffix:"",decimals:0},
+  ];
+  const abs = Math.abs(n);
+  let index = units.findIndex(unit => abs >= unit.value);
+  if(index < 0) index = units.length - 1;
+  let unit = units[index];
+  let rounded = Number((n / unit.value).toFixed(unit.decimals));
+  while(Math.abs(rounded) >= 1000 && index > 0){
+    unit = units[--index];
+    rounded = Number((n / unit.value).toFixed(unit.decimals));
+  }
+  const numeric = unit.decimals
+    ? rounded.toFixed(unit.decimals).replace(/\.?0+$/, "")
+    : rounded.toFixed(0);
+  return `${numeric}${unit.suffix}`;
+}
 // Share % — adaptive precision: integer for big stakes, decimals only when needed
 const fmtPct = v => {
   if(v >= 10) return v.toFixed(0) + "%";
@@ -4680,7 +4701,7 @@ function sortHolders(rows){
   const {key,dir} = state.sort;
   return [...rows].sort((a,b)=>{
     let va,vb;
-    if(key==="rank"||key==="total"||key==="share"){va=a.total;vb=b.total}
+    if(key==="rank"||key==="total"){va=a.total;vb=b.total}
     else if(key==="dolomite"){va=a.inDolomite||0;vb=b.inDolomite||0}
     else if(key==="locked"){va=a.locked||0;vb=b.locked||0}
     else if(key==="balEth"){va=a.balEth;vb=b.balEth}
@@ -4724,7 +4745,6 @@ function renderHolders(){
   const tbody = document.getElementById("holders-body");
   const holderRowsHtml = pageRows.map((h,i)=>{
     const rank = rankMap.get(h.addr.toLowerCase()) || (start + i + 1);
-    const share = h.total / TOTAL_SUPPLY * 100;
     // h.addr / h.label originate from on-chain data (ENS reverse names are
     // attacker-controlled). Escape every value interpolated into innerHTML.
     const addrAttr = escHtml(h.addr);
@@ -4745,15 +4765,9 @@ function renderHolders(){
         </td>
         <td class="num">${h.balEth>0 ? `<span class="bal-val">${fmtNum(h.balEth)}</span>` : `<span class="bal-zero">—</span>`}</td>
         <td class="num">${h.balBera>0 ? `<span class="bal-val">${fmtNum(h.balBera)}</span>` : `<span class="bal-zero">—</span>`}</td>
-        <td class="num col-dolomite">${h.inDolomite > 0 ? `<span class="bal-val dolomite" data-tooltip="Ethereum ${fmtNum(h.inDolomiteEth)} · Berachain ${fmtNum(h.inDolomiteBera)}">${fmtNum(h.inDolomite)}</span>` : `<span class="bal-zero">—</span>`}</td>
+        <td class="num col-dolomite">${h.inDolomite > 0 ? `<span class="bal-val dolomite" data-tooltip="Ethereum ${fmtHolderAmount(h.inDolomiteEth)} · Berachain ${fmtHolderAmount(h.inDolomiteBera)}">${fmtHolderAmount(h.inDolomite)}</span>` : `<span class="bal-zero">—</span>`}</td>
         <td class="num col-vedolo">${h.locked > 0 ? `<span class="bal-val">${fmtNum(h.locked)}</span>` : `<span class="bal-zero">—</span>`}</td>
-        <td class="num"><span class="bal-val total">${fmtNum(h.total)}</span></td>
-        <td class="num" style="padding-right:32px">
-          <div class="share-cell">
-            <span class="share-val">${fmtPct(share)}</span>
-            <div class="share-bar"><span style="width:${Math.min(100, share*5)}%"></span></div>
-          </div>
-        </td>
+        <td class="num holder-total-cell"><span class="bal-val total">${fmtHolderAmount(h.total)}</span></td>
       </tr>
     `;
   }).join("");
@@ -4776,13 +4790,7 @@ function renderHolders(){
         <td class="num"><span class="bal-zero">—</span></td>
         <td class="num col-dolomite"><span class="bal-zero">—</span></td>
         <td class="num col-vedolo"><span class="bal-zero">—</span></td>
-        <td class="num"><span class="bal-val total">0</span></td>
-        <td class="num" style="padding-right:32px">
-          <div class="share-cell">
-            <span class="share-val">0.00%</span>
-            <div class="share-bar"><span style="width:0%"></span></div>
-          </div>
-        </td>
+        <td class="num holder-total-cell"><span class="bal-val total">0</span></td>
       </tr>
     `).join("");
   tbody.innerHTML = holderRowsHtml + spacerRowsHtml;
