@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import generate_dolo_flows as flows
+from rpc_client import PUBLIC_ENDPOINTS
 
 
 ALICE = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -32,6 +33,16 @@ def transfer_log(block, tx_hash, log_index, amount=1):
 
 
 class GenerateDoloFlowsRpcTests(unittest.TestCase):
+    def test_ethereum_public_fallbacks_include_two_archive_capable_families(self):
+        endpoints = PUBLIC_ENDPOINTS["ethereum"]
+
+        self.assertIn("https://eth.drpc.org/", endpoints)
+        self.assertIn("https://mainnet.gateway.tenderly.co", endpoints)
+        self.assertLess(
+            endpoints.index("https://mainnet.gateway.tenderly.co"),
+            endpoints.index("https://ethereum-rpc.publicnode.com/"),
+        )
+
     def test_rpc_provider_family_does_not_count_two_alchemy_keys_twice(self):
         self.assertEqual(
             flows.rpc_provider_family("https://eth-mainnet.g.alchemy.com/v2/key-one"),
