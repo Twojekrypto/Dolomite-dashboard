@@ -24,6 +24,7 @@ CHAINLINK_REWARDS_CLAIM = "0x2f41d42de3eab9e75f3d417259f24421771fb700"
 ECOSYSTEM_INCENTIVES_2 = "0x06265db7ecd9c5724a97bd4909146625d2e2619c"
 CROSS_CHAIN_WALLET = "0x15762db764826c219f1385c028e7e043a27e1891"
 ENSO_AGGREGATOR_TRADER = "0x40e816361e9eceb4ded402def58cc77e9f097914"
+AUTOMATED_TRADER = "0x7bd27a0103e48e25acdb131cc190314562171fde"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
@@ -658,6 +659,15 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(potential["trackedWallets"], 2)
         self.assertEqual(potential["trackedTotal"], 540_000)
         self.assertEqual(potential["excludedCexWallets"], 1)
+
+    def test_behavioral_trader_override_is_loaded_as_a_bot(self):
+        labels = flows.load_address_labels()
+
+        self.assertEqual(labels[AUTOMATED_TRADER]["type"], "bot")
+        self.assertEqual(
+            flows.holder_distribution_type(AUTOMATED_TRADER, {}, labels),
+            "bot",
+        )
 
 
 if __name__ == "__main__":

@@ -94,6 +94,7 @@ HOLDER_BUCKET_GROUPS = {
 HOLDER_WALLET_HISTORY_VIEWS = {"whales"}
 HOLDER_MARKET_EXCLUDED_TYPES = {"cex", "ca", "team", "investor"}
 HOLDER_POTENTIAL_TYPES = {"watch", "mm", "bot"}
+ADDRESS_TYPE_ALIASES = {"trader": "bot"}
 
 # Known contract addresses to exclude (DEX routers, LP pools, bots, etc.)
 EXCLUDED_ADDRS = {
@@ -1995,23 +1996,26 @@ def merge_vesting_labels(labels, vesting_data):
 
 
 def load_address_labels(vesting_labels=None):
-    labels_file = os.path.join(DATA_DIR, "dolo-address-labels.js")
-    if not os.path.exists(labels_file):
-        return {}
-    try:
-        text = open(labels_file).read()
-    except Exception as e:
-        print(f"  ⚠️ Could not load address labels for bucket history: {e}")
-        return {}
     labels = {}
-    for match in re.finditer(r'"(0x[a-fA-F0-9]{40})"\s*:\s*\{([^}]+)\}', text):
-        body = match.group(2)
-        label_match = re.search(r'label\s*:\s*"([^"]+)"', body)
-        type_match = re.search(r'type\s*:\s*"([^"]+)"', body)
-        labels[match.group(1).lower()] = {
-            "label": label_match.group(1) if label_match else "",
-            "type": type_match.group(1) if type_match else "",
-        }
+    for filename in ("dolo-address-labels.js", "dolo-address-overrides.js"):
+        labels_file = os.path.join(DATA_DIR, filename)
+        if not os.path.exists(labels_file):
+            continue
+        try:
+            with open(labels_file, encoding="utf-8") as handle:
+                text = handle.read()
+        except OSError as e:
+            print(f"  ⚠️ Could not load {filename} for bucket history: {e}")
+            continue
+        for match in re.finditer(r'"(0x[a-fA-F0-9]{40})"\s*:\s*\{([^}]+)\}', text):
+            body = match.group(2)
+            label_match = re.search(r'label\s*:\s*"([^"]+)"', body)
+            type_match = re.search(r'type\s*:\s*"([^"]+)"', body)
+            raw_type = type_match.group(1).lower() if type_match else ""
+            labels[match.group(1).lower()] = {
+                "label": label_match.group(1) if label_match else "",
+                "type": ADDRESS_TYPE_ALIASES.get(raw_type, raw_type),
+            }
     vesting_file = os.path.join(DATA_DIR, "vesting_investors.json")
     if os.path.exists(vesting_file):
         try:
@@ -2062,7 +2066,7 @@ def holder_distribution_type(addr, holder_rows, labels):
         return "eoa"
     if holder.get("is_contract"):
         return "ca"
-    if label_type in {"bot", "liquidator"}:
+    if label_type in {"bot", "liquidator", "trader"}:
         return "bot"
     return label_type or "eoa"
 

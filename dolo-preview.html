@@ -2205,7 +2205,10 @@ function isDelegatedEoa(source){
 }
 function holderDistributionType(addr, source){
   const info = sharedAddressInfo(addr);
-  const t = (info && info.type) || source?.type || "";
+  const rawType = (info && info.type) || source?.type || "";
+  const t = typeof window !== "undefined" && typeof window.normalizeDoloAddressType === "function"
+    ? window.normalizeDoloAddressType(rawType)
+    : rawType;
   const contractWalletType = String(source?.contract_wallet_type || source?.contractWalletType || "").toLowerCase();
   if(t === "multisig" || t === "safe" || t === "contract_wallet") return "multisig";
   if(t === "cex") return "cex";
@@ -2213,7 +2216,7 @@ function holderDistributionType(addr, source){
   if(t === "investor") return "investor";
   if(t === "watch") return "watch";
   if(t === "mm") return "mm";
-  if(t === "bot" || t === "liquidator") return "bot";
+  if(t === "bot" || t === "liquidator" || t === "trader") return "bot";
   if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || source?.type === "ca") return "ca";
   if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
   if(contractWalletType === "delegated_eoa") return "eoa";
@@ -5866,14 +5869,17 @@ renderCexSupplyChart();
     return Math.round(hrs / 24) + "d ago";
   };
   function mapType(info, holder){
-    const t = (info && info.type) || "";
+    const rawType = (info && info.type) || "";
+    const t = typeof window !== "undefined" && typeof window.normalizeDoloAddressType === "function"
+      ? window.normalizeDoloAddressType(rawType)
+      : rawType;
     const contractWalletType = String(holder?.contract_wallet_type || holder?.contractWalletType || "").toLowerCase();
     if(t === "multisig" || t === "safe" || t === "contract_wallet") return "multisig";
     if(t === "cex") return "cex";
     if(t === "investor") return "investor";
     if(t === "watch") return "watch";
     if(t === "mm") return "mm";
-    if(t === "bot" || t === "liquidator") return "bot";
+    if(t === "bot" || t === "liquidator" || t === "trader") return "bot";
     if(t === "protocol") return "protocol";
     if(t === "lp" || t === "contract" || t === "dead" || holder?.type === "ca") return "ca";
     if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";

@@ -138,19 +138,30 @@
     protocol: "dolomite-known-address",
     watch: "heuristic-flow-pattern",
   };
+  const ADDRESS_TYPE_ALIASES = {
+    trader: "bot",
+  };
   const COINGECKO_LABEL_RE = /^(Core Team|Investor|Ecosystem Incentives)\b/;
   const CONFIDENCE_BY_TYPE = { watch: "potential" };
 
+  function normalizeDoloAddressType(type){
+    const normalized = String(type || "").trim().toLowerCase();
+    return ADDRESS_TYPE_ALIASES[normalized] || normalized;
+  }
+
   function normalizeDoloAddressLabels(labels){
     return Object.fromEntries(Object.entries(labels).map(([address, info]) => {
-      const source = info.source || (COINGECKO_LABEL_RE.test(info.label || "") ? "coingecko-tokenomics" : LABEL_SOURCE_BY_TYPE[info.type] || "manual-review");
-      const confidence = info.confidence || CONFIDENCE_BY_TYPE[info.type] || "confirmed";
-      return [address.toLowerCase(), {...info, source, confidence}];
+      const type = normalizeDoloAddressType(info.type);
+      const source = info.source || (COINGECKO_LABEL_RE.test(info.label || "") ? "coingecko-tokenomics" : LABEL_SOURCE_BY_TYPE[type] || "manual-review");
+      const confidence = info.confidence || CONFIDENCE_BY_TYPE[type] || "confirmed";
+      return [address.toLowerCase(), {...info, type, source, confidence}];
     }));
   }
 
   const NORMALIZED_DOLO_ADDRESS_LABELS = normalizeDoloAddressLabels(DOLO_ADDRESS_LABELS);
-  const cloneLabels = () => JSON.parse(JSON.stringify(NORMALIZED_DOLO_ADDRESS_LABELS));
+  const cloneLabels = () => JSON.parse(JSON.stringify(normalizeDoloAddressLabels(
+    window.DOLO_ADDRESS_LABELS || NORMALIZED_DOLO_ADDRESS_LABELS,
+  )));
 
   function isDoloAddress(value){
     return /^0x[a-f0-9]{40}$/.test(String(value || "").toLowerCase());
@@ -299,6 +310,7 @@
 
   window.DOLO_ADDRESS_LABELS = NORMALIZED_DOLO_ADDRESS_LABELS;
   window.cloneDoloAddressLabels = cloneLabels;
+  window.normalizeDoloAddressType = normalizeDoloAddressType;
   window.mergeDoloVestingLabels = mergeDoloVestingLabels;
   window.loadDoloVestingLabels = loadDoloVestingLabels;
   window.resolveDoloWalletIdentity = resolveDoloWalletIdentity;
