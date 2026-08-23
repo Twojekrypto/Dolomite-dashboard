@@ -38,6 +38,9 @@ test("route loader cache-busts the behavioral address override independently", a
 });
 
 test("DOLO route requests the address-type normalization release", () => {
-  assert.match(doloRoute, /route-loader\.js\?v=route-loader-address-type-normalization-20260823/);
+  assert.match(
+    doloRoute,
+    /route-loader\.js\?v=route-loader-table-ux-20260820&release=address-type-normalization-20260823/,
+  );
   assert.match(doloRoute, /address-type-normalization-20260823/);
 });
