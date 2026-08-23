@@ -25,6 +25,9 @@ ECOSYSTEM_INCENTIVES_2 = "0x06265db7ecd9c5724a97bd4909146625d2e2619c"
 CROSS_CHAIN_WALLET = "0x15762db764826c219f1385c028e7e043a27e1891"
 ENSO_AGGREGATOR_TRADER = "0x40e816361e9eceb4ded402def58cc77e9f097914"
 AUTOMATED_TRADER = "0x7bd27a0103e48e25acdb131cc190314562171fde"
+KNOWN_BERA_FLOW_SOURCE = "0x52256ef863a713ef349ae6e97a7e8f35785145de"
+KNOWN_BERA_FLOW_RECIPIENT = "0xb490d2a5d857c0357a8c2ac23c30ba0e6e02f909"
+KNOWN_BERA_FLOW_TX = "0xcc41fb29534dc8adb1440454087a6a738fdfbeaaa2d20880d2265edbbc8997b3"
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
@@ -394,12 +397,9 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(refresh_start, 25_450_001)
         self.assertLessEqual(refresh_start, SILENTLY_MISSED_BLOCK)
 
-    def test_berachain_authoritative_rescan_covers_the_full_30d_flow_window(self):
+    def test_berachain_authoritative_rescan_uses_bounded_verified_overlap(self):
         last_block = 25_238_666
-        leaderboards_window = (
-            flows.PERIODS["30d"] // flows.CHAINS["bera"]["block_time"]
-        )
-        cutoff = last_block - leaderboards_window
+        cutoff = flows.CHAINS["bera"]["deploy_block"]
 
         refresh_start = flows.incremental_refresh_start(
             last_block,
@@ -407,7 +407,91 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
             flows.RECENT_RESCAN_BLOCKS["bera"],
         )
 
-        self.assertEqual(refresh_start, cutoff)
+        self.assertEqual(refresh_start, last_block + 1 - 100_000)
+
+    def test_failed_quorum_refresh_cannot_replace_active_cache(self):
+        cached = [(SOURCE, COINBASE_10, 10**18, 100)]
+        partial = [(SOURCE, OUTSIDE, 2 * 10**18, 100)]
+
+        with self.assertRaises(flows.TransferLogQuorumError):
+            flows.merge_verified_transfer_scan(
+                cached,
+                partial,
+                100,
+                110,
+                failed_chunks=1,
+            )
+
+        self.assertEqual(cached, [(SOURCE, COINBASE_10, 10**18, 100)])
+
+    def test_verified_scan_staging_resumes_without_touching_active_cache(self):
+        state = {
+            "bera_transfers": [[SOURCE, COINBASE_10, 10**18, 90]],
+            "bera_last_block": 90,
+            "verified_scan_staging": {
+                "bera": {
+                    "startBlock": 100,
+                    "endBlock": 200,
+                    "nextBlock": 151,
+                    "transfers": [[SOURCE, OUTSIDE, 2 * 10**18, 120]],
+                    "verification": "independent-rpc-exact-quorum",
+                }
+            },
+        }
+
+        transfers, next_block = flows.load_verified_scan_staging(
+            state, "bera", 100, 200
+        )
+
+        self.assertEqual(transfers, [(SOURCE, OUTSIDE, 2 * 10**18, 120)])
+        self.assertEqual(next_block, 151)
+        self.assertEqual(state["bera_last_block"], 90)
+        self.assertEqual(state["bera_transfers"], [[SOURCE, COINBASE_10, 10**18, 90]])
+
+    def test_verified_coverage_requires_full_baseline_then_advances_incrementally(self):
+        state = {}
+
+        with self.assertRaises(flows.TransferLogQuorumError):
+            flows.mark_verified_chain_coverage(
+                state, "bera", 25_000_000, 25_100_000, full_baseline=False
+            )
+
+        flows.mark_verified_chain_coverage(
+            state,
+            "bera",
+            flows.CHAINS["bera"]["deploy_block"],
+            25_000_000,
+            full_baseline=True,
+        )
+        flows.mark_verified_chain_coverage(
+            state, "bera", 24_900_000, 25_100_000, full_baseline=False
+        )
+
+        coverage = state["flow_log_integrity"]["chains"]["bera"]
+        self.assertEqual(coverage["coverageStartBlock"], flows.CHAINS["bera"]["deploy_block"])
+        self.assertEqual(coverage["verifiedThroughBlock"], 25_100_000)
+        self.assertEqual(coverage["verification"], "independent-rpc-exact-quorum")
+        self.assertFalse(flows.has_complete_verified_baseline(state))
+
+        flows.mark_verified_chain_coverage(
+            state,
+            "eth",
+            flows.CHAINS["eth"]["deploy_block"],
+            25_500_000,
+            full_baseline=True,
+        )
+        self.assertTrue(flows.has_complete_verified_baseline(state))
+
+    def test_flow_workflow_exposes_explicit_full_verified_backfill(self):
+        workflow = (
+            Path(__file__).resolve().parents[1]
+            / ".github"
+            / "workflows"
+            / "update-dolo-flows.yml"
+        ).read_text()
+
+        self.assertIn("full_verified_backfill:", workflow)
+        self.assertIn("DOLO_FLOWS_FULL_VERIFIED_BACKFILL:", workflow)
 
     def test_authoritative_refresh_replaces_overlap_without_duplicates(self):
         self.assertTrue(hasattr(flows, "replace_transfer_range"))
@@ -601,6 +685,7 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         success = Mock(status_code=200, headers={})
         success.json.return_value = {
             "result": [{
+                "address": flows.DOLO_CONTRACT,
                 "topics": [
                     flows.TRANSFER_TOPIC,
                     "0x" + "0" * 24 + SOURCE[2:],
@@ -608,25 +693,79 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
                 ],
                 "data": hex(10**18),
                 "blockNumber": hex(100),
+                "transactionHash": "0x" + "a" * 64,
+                "logIndex": "0x0",
             }]
         }
         chain = {
             "eth": {
                 "name": "Ethereum",
-                "rpcs": ["https://rpc.example"],
+                "rpcs": ["https://rpc-one.example", "https://rpc-two.example"],
                 "chunk_size": 1_000,
                 "deploy_block": 1,
             }
         }
 
         with patch.object(flows, "CHAINS", chain), patch.object(
-            flows.requests, "post", side_effect=[rate_limited, success]
+            flows.requests, "post", side_effect=[rate_limited, success, success]
         ), patch.object(flows.time, "sleep") as sleep:
             transfers, failed, _ = flows.fetch_transfer_logs("eth", 100, 100)
 
         self.assertEqual(failed, 0)
         self.assertEqual(transfers, [(SOURCE, COINBASE_10, 10**18, 100)])
         sleep.assert_any_call(3.0)
+
+    def test_fetch_transfer_logs_uses_independent_quorum_over_silent_empty_rpc(self):
+        log = {
+            "address": flows.DOLO_CONTRACT,
+            "topics": [
+                flows.TRANSFER_TOPIC,
+                "0x" + "0" * 24 + KNOWN_BERA_FLOW_SOURCE[2:],
+                "0x" + "0" * 24 + KNOWN_BERA_FLOW_RECIPIENT[2:],
+            ],
+            "data": hex(21_100 * 10**18),
+            "blockNumber": hex(24_990_784),
+            "transactionHash": KNOWN_BERA_FLOW_TX,
+            "logIndex": "0x0",
+        }
+
+        def response(logs):
+            result = Mock(status_code=200, headers={})
+            result.json.return_value = {"result": logs}
+            return result
+
+        chain = {
+            "bera": {
+                "name": "Berachain",
+                "rpcs": [
+                    "https://berachain-rpc.publicnode.com/",
+                    "https://rpc.berachain.com/",
+                    "https://berachain.drpc.org/",
+                ],
+                "chunk_size": 1_000,
+                "deploy_block": 1,
+            }
+        }
+        responses = {
+            "publicnode.com": response([]),
+            "berachain.com": response([log]),
+            "drpc.org": response([log]),
+        }
+
+        with patch.object(flows, "CHAINS", chain), patch.object(
+            flows.requests,
+            "post",
+            side_effect=lambda url, **_kwargs: responses[flows.rpc_provider_family(url)],
+        ), patch.object(flows.time, "sleep"):
+            transfers, failed, _ = flows.fetch_transfer_logs(
+                "bera", 24_990_784, 24_990_784
+            )
+
+        self.assertEqual(failed, 0)
+        self.assertEqual(
+            transfers,
+            [(KNOWN_BERA_FLOW_SOURCE, KNOWN_BERA_FLOW_RECIPIENT, 21_100 * 10**18, 24_990_784)],
+        )
 
     def test_dashboard_net_flow_hover_reconciles_gross_directions(self):
         source = (Path(__file__).resolve().parents[1] / "dolo-preview.html").read_text()

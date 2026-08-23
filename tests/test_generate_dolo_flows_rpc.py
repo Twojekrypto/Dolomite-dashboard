@@ -16,7 +16,63 @@ def uint256_hex(value):
     return "0x" + hex(int(value))[2:].zfill(64)
 
 
+def transfer_log(block, tx_hash, log_index, amount=1):
+    return {
+        "address": flows.DOLO_CONTRACT,
+        "blockNumber": hex(block),
+        "transactionHash": tx_hash,
+        "logIndex": hex(log_index),
+        "topics": [
+            flows.TRANSFER_TOPIC,
+            "0x" + "0" * 24 + ALICE[2:],
+            "0x" + "0" * 24 + BOB[2:],
+        ],
+        "data": uint256_hex(amount),
+    }
+
+
 class GenerateDoloFlowsRpcTests(unittest.TestCase):
+    def test_rpc_provider_family_does_not_count_two_alchemy_keys_twice(self):
+        self.assertEqual(
+            flows.rpc_provider_family("https://eth-mainnet.g.alchemy.com/v2/key-one"),
+            flows.rpc_provider_family("https://eth-mainnet.g.alchemy.com/v2/key-two"),
+        )
+        self.assertNotEqual(
+            flows.rpc_provider_family("https://rpc.berachain.com/"),
+            flows.rpc_provider_family("https://berachain.drpc.org/"),
+        )
+
+    def test_transfer_log_digest_is_order_and_hex_format_independent(self):
+        first = transfer_log(100, "0x" + "1" * 64, 0, amount=7)
+        second = transfer_log(101, "0x" + "2" * 64, 1, amount=9)
+        equivalent_first = dict(first, blockNumber="0x064", logIndex="0x00")
+
+        self.assertEqual(
+            flows.transfer_log_digest([first, second]),
+            flows.transfer_log_digest([second, equivalent_first]),
+        )
+
+    def test_log_quorum_rejects_silent_empty_provider_and_duplicate_vendor_votes(self):
+        expected = [transfer_log(100, "0x" + "1" * 64, 0, amount=21_100 * 10**18)]
+        results = [
+            ("https://bera-mainnet.g.alchemy.com/v2/key-one", expected),
+            ("https://bera-mainnet.g.alchemy.com/v2/key-two", expected),
+            ("https://berachain-rpc.publicnode.com/", []),
+        ]
+
+        with self.assertRaises(flows.TransferLogQuorumError):
+            flows.select_transfer_log_quorum(results)
+
+        selected, proof = flows.select_transfer_log_quorum([
+            *results,
+            ("https://berachain.drpc.org/", expected),
+        ])
+
+        self.assertEqual(selected, expected)
+        self.assertEqual(proof["matchingProviderFamilies"], 2)
+        self.assertEqual(proof["logCount"], 1)
+        self.assertIn("publicnode.com", proof["disagreeingProviderFamilies"])
+
     def test_fetch_dolomite_dolo_balances_aggregates_subaccounts_and_chains(self):
         class Response:
             status_code = 200

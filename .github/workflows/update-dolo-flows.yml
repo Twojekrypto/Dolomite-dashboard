@@ -9,6 +9,11 @@ on:
         description: 'Print detailed Fresh Wallet 90D candidate audit rows'
         required: false
         default: '0'
+      full_verified_backfill:
+        description: 'Rebuild DOLO Transfer history from deploy blocks with independent RPC quorum'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: update-dolo-flows
@@ -105,9 +110,12 @@ jobs:
           ALCHEMY_BERACHAIN_RPC_2_JEFF: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2_JEFF }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
           DOLO_FLOWS_RPC_BATCH_SIZE: '50'
           DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT: '2'
           DOLO_FLOWS_LOG_RETRIES_PER_ENDPOINT: '3'
+          DOLO_FLOWS_FULL_VERIFIED_BACKFILL: ${{ github.event.inputs.full_verified_backfill || 'false' }}
           FRESH_WALLET_AUDIT_VERBOSE: ${{ github.event.inputs.fresh_wallet_audit_verbose || '0' }}
         run: python3 generate_dolo_flows.py
 

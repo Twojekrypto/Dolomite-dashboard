@@ -405,3 +405,9 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
 
 **Reguła na przyszłość:** `DepositType` 4/5 w veDOLO oznacza odpowiednio merge i split, a nie nowy lock. Merge, split, extension i transfer NFT nie zwiększają locked DOLO principal; historię trzeba odtwarzać per `tokenId` jako stan pozycji, z dokładnymi `sourceTokenId`/`targetTokenId` z calldata, zamiast sumować wartości wszystkich eventów `Deposit`.
 **Reguła na przyszłość:** Incrementalny cache `eth_getLogs` może zachować historyczną dziurę mimo późniejszych zielonych runów. Semanticzny validator Locked DOLO ma porównywać dokładny zestaw aktywnych pozycji z holder snapshotem z tolerancją najwyżej 1 DOLO, a potwierdzone brakujące eventy odzyskiwać wyłącznie z dokładnego audytowanego bloku i token ID.
+
+### DOLO flow RPC quorum and cache promotion
+
+**Reguła na przyszłość:** HTTP 200 z `eth_getLogs` nie jest dowodem kompletności. Dla DOLO Flow każdy identyczny zakres bloków musi mieć dokładnie zgodny digest logów z co najmniej dwóch niezależnych rodzin RPC; dwa klucze Alchemy liczą się jako jeden dostawca, a rozbieżność wymaga trzeciej rodziny i większości 2-of-3.
+**Reguła na przyszłość:** Autorytatywne zastąpienie overlapu wolno promować do aktywnego cache dopiero po weryfikacji całego zakresu. Checkpointy długiego skanu zapisuj w osobnym stagingu; błąd quorum nie może usuwać starych transferów ani przesuwać aktywnego `last_block`.
+**Reguła na przyszłość:** Po zmianie kontraktu integralności cache uruchom jawny pełny backfill od bloków wdrożenia. Publikowany `flow_history_integrity` musi zawierać faktyczne pokrycie obu sieci i dowód niezależnych rodzin RPC, a walidator ma blokować publikację starego albo częściowego baseline'u.

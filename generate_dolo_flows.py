@@ -4,10 +4,11 @@ DOLO Token Flows — Top Accumulators & Sellers (1d / 7d / 30d)
 Fetches ERC-20 Transfer events via eth_getLogs for ETH and Berachain,
 calculates net inflow/outflow per address, outputs top 5 each.
 """
-import json, time, os, sys, signal, re, shutil, subprocess
+import hashlib, json, time, os, sys, signal, re, shutil, subprocess
 import requests
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlparse
 
 from rpc_client import (
     RpcError,
@@ -194,18 +195,12 @@ PERIODS = {
     # yearly window.
     "all": 86400 * 365 * 10,
 }
-# Re-read the full visible 30D Berachain flow window on every incremental run.
-# A short tail rescan only protects the newest blocks; a provider can return an
-# incomplete historical getLogs range without an RPC error, leaving a flow row
-# permanently stale despite an otherwise complete checkpoint. Replacing the
-# whole leaderboard window makes those omissions self-healing without changing
-# the wider cached history. Ethereum keeps its smaller normal overlap because
-# its provider window is materially more expensive and no such gap is present.
+# Re-read a bounded, quorum-verified tail on every incremental run. Historical
+# omissions are repaired by the explicit full verified backfill; expanding the
+# destructive overlap cannot make a single unverified RPC response trustworthy.
 RECENT_RESCAN_BLOCKS = {
     "eth": 50_000,
-    # `incremental_refresh_start()` is inclusive and offsets from last + 1.
-    # Keep the exact 30D cutoff block inside the replacement range.
-    "bera": (PERIODS["30d"] // CHAINS["bera"]["block_time"]) + 1,
+    "bera": 100_000,
 }
 FRESH_HOLDER_PERIODS = ("1d", "7d", "30d", "90d")
 FRESH_HOLDER_MIN_RECEIVED = 0.000001
@@ -268,6 +263,8 @@ RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_FLOWS_RPC_RETRIES_PER_ENDPOI
 RPC_LOG_RETRIES_PER_ENDPOINT = int(
     os.environ.get("DOLO_FLOWS_LOG_RETRIES_PER_ENDPOINT", str(RPC_RETRIES_PER_ENDPOINT))
 )
+RPC_LOG_QUORUM = 2
+FLOW_LOG_INTEGRITY_VERSION = 2
 
 MAX_PERIOD_SECONDS = max(PERIODS.values())  # longest period for pruning
 # Cache ALL transfers from genesis — state file lives only in Actions cache (10 GB limit),
@@ -382,6 +379,220 @@ def replace_transfer_range(transfers, replacement, start_block, end_block):
     return authoritative
 
 
+def merge_verified_transfer_scan(
+    transfers,
+    replacement,
+    start_block,
+    end_block,
+    *,
+    failed_chunks,
+):
+    if int(failed_chunks or 0) != 0:
+        raise TransferLogQuorumError(
+            f"refusing to replace blocks {int(start_block)}-{int(end_block)} "
+            f"after {int(failed_chunks)} unverified chunk(s)"
+        )
+    return replace_transfer_range(
+        transfers,
+        replacement,
+        start_block,
+        end_block,
+    )
+
+
+class TransferLogQuorumError(RuntimeError):
+    """Raised when independent RPC providers cannot agree on a log range."""
+
+
+class TransferLogRangeError(RuntimeError):
+    """Raised when an RPC requires a smaller eth_getLogs block range."""
+
+
+def mark_verified_chain_coverage(
+    state,
+    chain_key,
+    start_block,
+    end_block,
+    *,
+    full_baseline,
+):
+    integrity = state.setdefault("flow_log_integrity", {})
+    chains = integrity.setdefault("chains", {})
+    existing = chains.get(chain_key)
+    deploy_block = int(CHAINS[chain_key]["deploy_block"])
+    start_block = int(start_block)
+    end_block = int(end_block)
+
+    if full_baseline:
+        if start_block > deploy_block:
+            raise TransferLogQuorumError(
+                f"{CHAINS[chain_key]['name']}: verified baseline starts after deploy block"
+            )
+        coverage_start = start_block
+    else:
+        if (
+            int(integrity.get("version", 0)) != FLOW_LOG_INTEGRITY_VERSION
+            or not isinstance(existing, dict)
+            or existing.get("verification") != "independent-rpc-exact-quorum"
+            or int(existing.get("coverageStartBlock", deploy_block + 1)) > deploy_block
+        ):
+            raise TransferLogQuorumError(
+                f"{CHAINS[chain_key]['name']}: full verified baseline is required"
+            )
+        coverage_start = int(existing["coverageStartBlock"])
+        if end_block < int(existing.get("verifiedThroughBlock", 0)):
+            raise TransferLogQuorumError(
+                f"{CHAINS[chain_key]['name']}: verified coverage cannot rewind"
+            )
+
+    integrity.update({
+        "version": FLOW_LOG_INTEGRITY_VERSION,
+        "verification": "independent-rpc-exact-quorum",
+    })
+    chains[chain_key] = {
+        "deployBlock": deploy_block,
+        "coverageStartBlock": coverage_start,
+        "verifiedThroughBlock": end_block,
+        "lastPublishedBlock": end_block,
+        "lastVerifiedRange": [start_block, end_block],
+        "verification": "independent-rpc-exact-quorum",
+        "verifiedAt": datetime.utcnow().isoformat() + "Z",
+        "lastVerificationProof": dict(
+            (state.get("verified_scan_proofs", {}) or {}).get(chain_key, {})
+        ),
+    }
+    integrity["status"] = (
+        "complete"
+        if all(
+            isinstance(chains.get(key), dict)
+            and int(chains[key].get("coverageStartBlock", CHAINS[key]["deploy_block"] + 1))
+            <= int(CHAINS[key]["deploy_block"])
+            for key in CHAINS
+        )
+        else "building"
+    )
+    integrity["unresolvedGapCount"] = 0
+
+
+def has_complete_verified_baseline(state):
+    integrity = (state or {}).get("flow_log_integrity")
+    if not isinstance(integrity, dict):
+        return False
+    if (
+        integrity.get("version") != FLOW_LOG_INTEGRITY_VERSION
+        or integrity.get("status") != "complete"
+        or integrity.get("verification") != "independent-rpc-exact-quorum"
+        or integrity.get("unresolvedGapCount") != 0
+    ):
+        return False
+    chains = integrity.get("chains")
+    if not isinstance(chains, dict):
+        return False
+    for chain_key, cfg in CHAINS.items():
+        row = chains.get(chain_key)
+        deploy_block = int(cfg["deploy_block"])
+        if (
+            not isinstance(row, dict)
+            or row.get("verification") != "independent-rpc-exact-quorum"
+            or int(row.get("coverageStartBlock", deploy_block + 1)) > deploy_block
+            or int(row.get("verifiedThroughBlock", 0)) < deploy_block
+        ):
+            return False
+    return True
+
+
+def rpc_provider_family(url):
+    """Return a vendor identity so two keys from one provider count once."""
+    hostname = (urlparse(str(url or "")).hostname or "").lower().rstrip(".")
+    vendor_suffixes = (
+        "alchemy.com",
+        "drpc.org",
+        "publicnode.com",
+        "quicknode.pro",
+        "quiknode.pro",
+        "ankr.com",
+        "infura.io",
+        "berachain.com",
+    )
+    for suffix in vendor_suffixes:
+        if hostname == suffix or hostname.endswith("." + suffix):
+            return suffix
+    return hostname or "unknown"
+
+
+def _canonical_transfer_log(log):
+    if not isinstance(log, dict):
+        raise ValueError("transfer log must be an object")
+    topics = log.get("topics")
+    if not isinstance(topics, list) or len(topics) < 3:
+        raise ValueError("transfer log is missing indexed topics")
+    return (
+        int(log.get("blockNumber", "0x0"), 16),
+        str(log.get("transactionHash") or "").lower(),
+        int(log.get("logIndex", "0x0"), 16),
+        str(log.get("address") or "").lower(),
+        tuple(str(topic).lower() for topic in topics),
+        int(log.get("data", "0x0"), 16),
+    )
+
+
+def transfer_log_digest(logs):
+    """Digest an eth_getLogs result independently of provider ordering/hex padding."""
+    canonical = sorted(_canonical_transfer_log(log) for log in (logs or []))
+    payload = json.dumps(canonical, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def select_transfer_log_quorum(endpoint_results, required=RPC_LOG_QUORUM):
+    """Choose an exact result agreed by independent provider families."""
+    by_family = {}
+    inconsistent_families = set()
+    for endpoint, logs in endpoint_results:
+        family = rpc_provider_family(endpoint)
+        digest = transfer_log_digest(logs)
+        prior = by_family.get(family)
+        if prior is not None and prior[0] != digest:
+            inconsistent_families.add(family)
+            continue
+        by_family.setdefault(family, (digest, list(logs or [])))
+
+    for family in inconsistent_families:
+        by_family.pop(family, None)
+
+    by_digest = {}
+    for family, (digest, logs) in by_family.items():
+        entry = by_digest.setdefault(digest, {"families": [], "logs": logs})
+        entry["families"].append(family)
+
+    ranked = sorted(
+        by_digest.items(),
+        key=lambda item: (-len(item[1]["families"]), item[0]),
+    )
+    if not ranked or len(ranked[0][1]["families"]) < int(required):
+        counts = {digest: len(entry["families"]) for digest, entry in ranked}
+        raise TransferLogQuorumError(
+            f"independent RPC quorum unavailable; family vote counts={counts}"
+        )
+    if len(ranked) > 1 and len(ranked[0][1]["families"]) == len(ranked[1][1]["families"]):
+        raise TransferLogQuorumError("independent RPC quorum is ambiguous")
+
+    selected_digest, selected = ranked[0]
+    agreeing = sorted(selected["families"])
+    disagreeing = sorted(
+        family
+        for family, (digest, _logs) in by_family.items()
+        if digest != selected_digest
+    )
+    proof = {
+        "digest": selected_digest,
+        "logCount": len(selected["logs"]),
+        "matchingProviderFamilies": len(agreeing),
+        "providerFamilies": agreeing,
+        "disagreeingProviderFamilies": disagreeing,
+    }
+    return selected["logs"], proof
+
+
 def _rate_limit_retry_seconds(response, attempt):
     """Honor an RPC Retry-After hint, with a bounded exponential fallback."""
     headers = getattr(response, "headers", {}) or {}
@@ -415,9 +626,110 @@ def _is_capacity_exhausted_error(error_obj):
     )
 
 
+def _rpc_families(rpcs):
+    grouped = {}
+    for endpoint in rpcs or []:
+        grouped.setdefault(rpc_provider_family(endpoint), []).append(endpoint)
+    return list(grouped.items())
+
+
+def _request_transfer_logs(endpoint, cfg, start_block, end_block):
+    for attempt in range(max(2, RPC_LOG_RETRIES_PER_ENDPOINT)):
+        try:
+            resp = requests.post(endpoint, json={
+                "jsonrpc": "2.0", "method": "eth_getLogs",
+                "params": [{
+                    "address": DOLO_CONTRACT,
+                    "topics": [TRANSFER_TOPIC],
+                    "fromBlock": hex(start_block),
+                    "toBlock": hex(end_block),
+                }], "id": 1
+            }, timeout=60, headers={"Content-Type": "application/json"})
+
+            if resp.status_code == 429:
+                delay = _rate_limit_retry_seconds(resp, attempt)
+                print(
+                    f"    ⚠️ {cfg['name']}: RPC rate-limited block "
+                    f"{start_block:,}-{end_block:,}; waiting {delay:.1f}s before retry"
+                )
+                time.sleep(delay)
+                continue
+
+            resp.raise_for_status()
+            payload = resp.json()
+            if not isinstance(payload, dict):
+                raise ValueError("RPC response was not a JSON object")
+            error = payload.get("error")
+            if error:
+                message = str(error.get("message", ""))
+                if _is_capacity_exhausted_error(error):
+                    return None
+                if _is_rate_limit_error(message):
+                    delay = _rate_limit_retry_seconds(resp, attempt)
+                    print(
+                        f"    ⚠️ {cfg['name']}: RPC rate-limited block "
+                        f"{start_block:,}-{end_block:,}; waiting {delay:.1f}s before retry"
+                    )
+                    time.sleep(delay)
+                    continue
+                if "range" in message.lower() or "limit" in message.lower():
+                    raise TransferLogRangeError(message)
+                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+                continue
+
+            logs = payload.get("result")
+            if not isinstance(logs, list):
+                raise ValueError("RPC eth_getLogs result was not a list")
+            # Validate the canonical shape before this provider receives a vote.
+            transfer_log_digest(logs)
+            return logs
+        except TransferLogRangeError:
+            raise
+        except requests.exceptions.Timeout:
+            if attempt + 1 < max(2, RPC_LOG_RETRIES_PER_ENDPOINT):
+                time.sleep(1)
+        except requests.exceptions.RequestException as exc:
+            print(
+                f"    ⚠️ {cfg['name']}: RPC request failed for block "
+                f"{start_block:,}-{end_block:,} ({type(exc).__name__}); retrying"
+            )
+            time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+        except ValueError as exc:
+            print(
+                f"    ⚠️ {cfg['name']}: RPC response was invalid for block "
+                f"{start_block:,}-{end_block:,} ({type(exc).__name__}); retrying"
+            )
+            time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+    return None
+
+
+def load_verified_scan_staging(state, chain_key, start_block, end_block):
+    staging = (state or {}).get("verified_scan_staging", {}).get(chain_key)
+    if not isinstance(staging, dict):
+        return [], int(start_block)
+    if (
+        staging.get("verification") != "independent-rpc-exact-quorum"
+        or int(staging.get("startBlock", -1)) != int(start_block)
+        or int(staging.get("endBlock", -1)) != int(end_block)
+    ):
+        return [], int(start_block)
+    try:
+        next_block = int(staging.get("nextBlock"))
+        transfers = [tuple(transfer) for transfer in staging.get("transfers", [])]
+    except (TypeError, ValueError):
+        return [], int(start_block)
+    if next_block < int(start_block) or next_block > int(end_block) + 1:
+        return [], int(start_block)
+    return transfers, next_block
+
+
 def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_transfers_so_far=None):
-    """Fetch ERC-20 Transfer event logs via eth_getLogs.
-    Saves state progressively during long scans so timeout kills preserve progress."""
+    """Fetch Transfer logs only after independent RPC providers agree exactly.
+
+    Progressive checkpoints are written to a staging namespace. The active
+    transfer cache and last-block cursor are promoted only by the caller after
+    the entire requested range succeeds.
+    """
     cfg = CHAINS[chain_key]
     rpcs = cfg["rpcs"]
     chunk_size = cfg["chunk_size"]
@@ -429,109 +741,110 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
     total_expected_chunks = max(1, (total_blocks + chunk_size - 1) // chunk_size)
     print(f"  {cfg['name']}: scanning blocks {start_block:,} → {end_block:,} ({total_blocks:,} blocks, ~{total_expected_chunks} chunks)")
 
-    if not rpcs:
-        print(f"  ⚠️ {cfg['name']}: NO RPCs configured! Skipping.")
+    families = _rpc_families(rpcs)
+    if len(families) < RPC_LOG_QUORUM:
+        print(
+            f"  ⚠️ {cfg['name']}: requires {RPC_LOG_QUORUM} independent RPC "
+            f"families, found {len(families)}."
+        )
         return [], total_expected_chunks, total_expected_chunks
 
-    all_transfers = []
-    current = start_block
-    chunks_done = 0
+    all_transfers, current = load_verified_scan_staging(
+        state, chain_key, start_block, end_block
+    )
+    staged = (state or {}).get("verified_scan_staging", {}).get(chain_key, {})
+    if current > start_block:
+        print(
+            f"  {cfg['name']}: resuming verified staging at block "
+            f"{current:,} ({len(all_transfers):,} transfers retained)"
+        )
+    chunks_done = int(staged.get("verifiedChunkCount", 0) or 0) if current > start_block else 0
     chunks_failed = 0
     skipped_ranges = []  # [start, end] of block ranges lost to persistent RPC failure
+    agreeing_provider_families = set(staged.get("providerFamilies", [])) if current > start_block else set()
+    disagreeing_provider_families = set(staged.get("disagreeingProviderFamilies", [])) if current > start_block else set()
+    minimum_matching_families = staged.get("minimumMatchingProviderFamilies") if current > start_block else None
 
     while current <= end_block:
         chunk_end = min(current + chunk_size - 1, end_block)
 
-        success = False
-        for attempt in range(len(rpcs) * max(2, RPC_LOG_RETRIES_PER_ENDPOINT)):
-            rpc = rpcs[attempt % len(rpcs)]
-            try:
-                resp = requests.post(rpc, json={
-                    "jsonrpc": "2.0", "method": "eth_getLogs",
-                    "params": [{
-                        "address": DOLO_CONTRACT,
-                        "topics": [TRANSFER_TOPIC],
-                        "fromBlock": hex(current),
-                        "toBlock": hex(chunk_end),
-                    }], "id": 1
-                }, timeout=60, headers={"Content-Type": "application/json"})
-
-                if resp.status_code == 429:
-                    delay = _rate_limit_retry_seconds(resp, attempt)
-                    print(
-                        f"    ⚠️ {cfg['name']}: RPC rate-limited block "
-                        f"{current:,}-{chunk_end:,}; waiting {delay:.1f}s before retry"
+        selected_logs = None
+        selected_proof = None
+        endpoint_results = []
+        shrink_range = False
+        for _family, endpoints in families:
+            family_result = None
+            family_endpoint = None
+            for endpoint in endpoints:
+                try:
+                    family_result = _request_transfer_logs(
+                        endpoint, cfg, current, chunk_end
                     )
-                    time.sleep(delay)
-                    continue
-
-                resp.raise_for_status()
-                r = resp.json()
-                if not isinstance(r, dict):
-                    raise ValueError("RPC response was not a JSON object")
-                if "error" in r:
-                    err_msg = r["error"].get("message", "")
-                    if _is_capacity_exhausted_error(r["error"]):
-                        print(
-                            f"    ⚠️ {cfg['name']}: RPC capacity/quota exhausted "
-                            f"on this endpoint; rotating to the next one"
-                        )
-                        time.sleep(0.5)
-                        continue
-                    if _is_rate_limit_error(err_msg):
-                        delay = _rate_limit_retry_seconds(resp, attempt)
-                        print(
-                            f"    ⚠️ {cfg['name']}: RPC rate-limited block "
-                            f"{current:,}-{chunk_end:,}; waiting {delay:.1f}s before retry"
-                        )
-                        time.sleep(delay)
-                        continue
-                    if "range" in err_msg.lower() or "limit" in err_msg.lower():
-                        chunk_size = max(chunk_size // 2, 1000)
-                        chunk_end = min(current + chunk_size - 1, end_block)
-                        continue
-                    time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
-                    continue
-
-                logs = r.get("result", [])
-                for log in logs:
-                    if len(log.get("topics", [])) < 3:
-                        continue
-                    from_addr = "0x" + log["topics"][1][26:].lower()
-                    to_addr = "0x" + log["topics"][2][26:].lower()
-                    value_wei = int(log["data"], 16)
-                    block_num = int(log["blockNumber"], 16)
-                    all_transfers.append((from_addr, to_addr, value_wei, block_num))
-
-                success = True
+                except TransferLogRangeError:
+                    shrink_range = True
+                    break
+                if family_result is not None:
+                    family_endpoint = endpoint
+                    break
+            if shrink_range:
                 break
-            except requests.exceptions.Timeout:
+            if family_result is None:
+                continue
+
+            endpoint_results.append((family_endpoint, family_result))
+            if len(endpoint_results) >= RPC_LOG_QUORUM:
+                try:
+                    selected_logs, selected_proof = select_transfer_log_quorum(
+                        endpoint_results
+                    )
+                    break
+                except TransferLogQuorumError:
+                    pass
+
+        if shrink_range:
+            if chunk_size > 1000:
                 chunk_size = max(chunk_size // 2, 1000)
-                chunk_end = min(current + chunk_size - 1, end_block)
-                time.sleep(1)
-            except requests.exceptions.RequestException as exc:
                 print(
-                    f"    ⚠️ {cfg['name']}: RPC request failed for block "
-                    f"{current:,}-{chunk_end:,} ({type(exc).__name__}); retrying"
+                    f"    ⚠️ Retrying block {current:,} with smaller chunk "
+                    f"({chunk_size:,} blocks)"
                 )
-                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
-            except ValueError as exc:
-                print(
-                    f"    ⚠️ {cfg['name']}: RPC response was invalid for block "
-                    f"{current:,}-{chunk_end:,} ({type(exc).__name__}); retrying"
-                )
-                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+                continue
+            selected_logs = None
+
+        success = selected_logs is not None
+        if success:
+            agreeing_provider_families.update(selected_proof["providerFamilies"])
+            disagreeing_provider_families.update(
+                selected_proof["disagreeingProviderFamilies"]
+            )
+            matched = int(selected_proof["matchingProviderFamilies"])
+            minimum_matching_families = (
+                matched
+                if minimum_matching_families is None
+                else min(minimum_matching_families, matched)
+            )
+            for log in selected_logs:
+                from_addr = "0x" + log["topics"][1][26:].lower()
+                to_addr = "0x" + log["topics"][2][26:].lower()
+                value_wei = int(log["data"], 16)
+                block_num = int(log["blockNumber"], 16)
+                all_transfers.append((from_addr, to_addr, value_wei, block_num))
 
         if not success:
             if chunk_size > 1000:
                 chunk_size = max(chunk_size // 2, 1000)
-                print(f"    ⚠️ Retrying block {current:,} with smaller chunk ({chunk_size:,} blocks)")
+                print(
+                    f"    ⚠️ {cfg['name']}: no independent RPC quorum for "
+                    f"{current:,}-{chunk_end:,}; retrying with {chunk_size:,} blocks"
+                )
                 continue
             chunks_failed += 1
             skipped_ranges.append([current, chunk_end])
-            print(f"    ⚠️ Failed at block {current}, skipping chunk {current}-{chunk_end} ({chunks_failed} failures so far)")
-            current = chunk_end + 1
-            continue
+            print(
+                f"    ⚠️ Failed quorum at block {current}; stopping before "
+                f"the active cache can be changed"
+            )
+            break
 
         current = chunk_end + 1
         chunks_done += 1
@@ -540,9 +853,21 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
             pct = min(100, (current - start_block) * 100 // max(total_blocks, 1))
             print(f"    {cfg['name']}: {pct}% (block {current:,}/{end_block:,}, {len(all_transfers):,} txs)", flush=True)
 
-        # Progressive state save every 20 chunks — ensures timeout kills preserve progress
+        # Checkpoint only staged, quorum-verified rows. Never move the active
+        # cache cursor until the whole requested range succeeds.
         if state is not None and chunks_done % 20 == 0:
-            _save_scan_progress(state, chain_key, current - 1, all_transfers, cached_transfers_so_far)
+            _save_verified_scan_staging(
+                state,
+                chain_key,
+                start_block,
+                end_block,
+                current,
+                all_transfers,
+                verified_chunk_count=chunks_done,
+                provider_families=agreeing_provider_families,
+                disagreeing_provider_families=disagreeing_provider_families,
+                minimum_matching_provider_families=minimum_matching_families,
+            )
 
         if chunk_size < cfg["chunk_size"]:
             chunk_size = min(chunk_size * 2, cfg["chunk_size"])
@@ -562,8 +887,51 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
         gaps = state.setdefault(f"skipped_ranges_{chain_key}", [])
         gaps.extend(skipped_ranges)
 
+    if state is not None and chunks_failed == 0:
+        state.setdefault("verified_scan_proofs", {})[chain_key] = {
+            "startBlock": int(start_block),
+            "endBlock": int(end_block),
+            "verifiedChunkCount": int(chunks_done),
+            "logCount": len(all_transfers),
+            "minimumMatchingProviderFamilies": int(
+                minimum_matching_families or RPC_LOG_QUORUM
+            ),
+            "providerFamilies": sorted(agreeing_provider_families),
+            "disagreeingProviderFamilies": sorted(disagreeing_provider_families),
+        }
+
     print(f"  ✅ {cfg['name']}: {len(all_transfers):,} transfers found")
     return all_transfers, chunks_failed, total_chunks_attempted
+
+
+def _save_verified_scan_staging(
+    state,
+    chain_key,
+    start_block,
+    end_block,
+    next_block,
+    transfers,
+    *,
+    verified_chunk_count,
+    provider_families,
+    disagreeing_provider_families,
+    minimum_matching_provider_families,
+):
+    staging = state.setdefault("verified_scan_staging", {})
+    staging[chain_key] = {
+        "startBlock": int(start_block),
+        "endBlock": int(end_block),
+        "nextBlock": int(next_block),
+        "transfers": [list(transfer) for transfer in transfers],
+        "verification": "independent-rpc-exact-quorum",
+        "verifiedChunkCount": int(verified_chunk_count),
+        "providerFamilies": sorted(provider_families),
+        "disagreeingProviderFamilies": sorted(disagreeing_provider_families),
+        "minimumMatchingProviderFamilies": int(
+            minimum_matching_provider_families or RPC_LOG_QUORUM
+        ),
+    }
+    save_state(state)
 
 
 def _save_scan_progress(state, chain_key, last_block_scanned, new_transfers, cached_transfers_so_far):
@@ -3139,6 +3507,11 @@ def main():
     if "--rebuild-holder-history-only" in sys.argv[1:]:
         rebuild_holder_history_from_cached_transfers()
         return
+    force_full_verified_backfill = (
+        "--full-verified-backfill" in sys.argv[1:]
+        or os.environ.get("DOLO_FLOWS_FULL_VERIFIED_BACKFILL", "").lower()
+        in {"1", "true", "yes"}
+    )
     print("=" * 60)
     print("🔄 DOLO Token Flows — Top Accumulators & Sellers")
     print(f"   {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
@@ -3149,7 +3522,23 @@ def main():
     state = load_state()
     _global_state = state  # Allow signal handler to save on kill
     is_incremental = bool(state)
-    if is_incremental:
+    if force_full_verified_backfill:
+        state["flow_log_integrity"] = {
+            "version": FLOW_LOG_INTEGRITY_VERSION,
+            "status": "building",
+            "verification": "independent-rpc-exact-quorum",
+            "unresolvedGapCount": 0,
+            "chains": {},
+        }
+        for chain_key in CHAINS:
+            state[f"skipped_ranges_{chain_key}"] = []
+        print("🔐 Full verified backfill requested — active transfer cache will be replaced only after quorum")
+    elif is_incremental and not has_complete_verified_baseline(state):
+        raise RuntimeError(
+            "Existing DOLO flow cache predates independent RPC verification; "
+            "run with --full-verified-backfill before publishing again"
+        )
+    elif is_incremental:
         print("📦 Found previous state — running incremental sync")
     else:
         print("🆕 No previous state — running full sync (first run)")
@@ -3166,7 +3555,11 @@ def main():
     current_blocks = {}
     for chain_key, cfg in CHAINS.items():
         blk = get_current_block(cfg["rpcs"])
-        previous_last_block = int(state.get(f"{chain_key}_last_block") or 0)
+        previous_last_block = (
+            0
+            if force_full_verified_backfill
+            else int(state.get(f"{chain_key}_last_block") or 0)
+        )
         buffered = validated_scan_end(
             chain_key,
             blk,
@@ -3201,11 +3594,12 @@ def main():
         cached_key = f"{chain_key}_transfers"
         last_block_key = f"{chain_key}_last_block"
         history_start_key = f"{chain_key}_history_start_block"
-        cached_transfers = state.get(cached_key, [])
-        last_block = state.get(last_block_key, 0)
+        cached_transfers = [] if force_full_verified_backfill else state.get(cached_key, [])
+        last_block = 0 if force_full_verified_backfill else state.get(last_block_key, 0)
         history_coverage_start = None
+        full_baseline = force_full_verified_backfill or not (last_block > 0 and cached_transfers)
 
-        if is_incremental and last_block > 0 and cached_transfers:
+        if not force_full_verified_backfill and is_incremental and last_block > 0 and cached_transfers:
             # Replace a recent overlap authoritatively on every run. The old
             # `last_block + 1` path could silently miss a single block when
             # fetch_start equaled the buffered chain tip.
@@ -3223,11 +3617,13 @@ def main():
                 backfill_end = coverage_min_block - 1
                 print(f"  {CHAINS[chain_key]['name']}: backfilling All history blocks {oldest_needed:,} → {backfill_end:,}")
                 backfill_transfers, backfill_failed, _ = fetch_transfer_logs(
-                    chain_key, oldest_needed, backfill_end
+                    chain_key, oldest_needed, backfill_end, state=state
                 )
                 if backfill_failed:
-                    print(f"  ⚠️ {CHAINS[chain_key]['name']}: {backfill_failed} historical backfill chunks failed")
-            history_coverage_start = oldest_needed if backfill_failed == 0 else coverage_min_block
+                    raise TransferLogQuorumError(
+                        f"{CHAINS[chain_key]['name']}: historical backfill did not reach RPC quorum"
+                    )
+            history_coverage_start = oldest_needed
             if not block_range_has_work(fetch_start, end):
                 print(f"  {CHAINS[chain_key]['name']}: already up to date (block {last_block:,})")
                 new_transfers = []
@@ -3246,13 +3642,18 @@ def main():
                 new_transfers, chunks_failed, _ = fetch_transfer_logs(
                     chain_key, fetch_start, end, state=state, cached_transfers_so_far=cached_as_lists
                 )
+                if chunks_failed:
+                    raise TransferLogQuorumError(
+                        f"{CHAINS[chain_key]['name']}: recent refresh did not reach RPC quorum"
+                    )
 
             # Merge: historical backfill + authoritative recent replacement.
-            merged = backfill_transfers + replace_transfer_range(
+            merged = backfill_transfers + merge_verified_transfer_scan(
                 restored,
                 new_transfers,
                 fetch_start,
                 end,
+                failed_chunks=chunks_failed,
             )
 
             # Prune: drop transfers from blocks older than the oldest needed
@@ -3273,8 +3674,11 @@ def main():
             fresh_transfers, chunks_failed, total_chunks = fetch_transfer_logs(
                 chain_key, scan_start, end, state=state, cached_transfers_so_far=cached_as_lists
             )
-            if chunks_failed == 0:
-                history_coverage_start = oldest_needed
+            if chunks_failed:
+                raise TransferLogQuorumError(
+                    f"{CHAINS[chain_key]['name']}: full scan did not reach RPC quorum"
+                )
+            history_coverage_start = oldest_needed
 
             # Merge with any cached partial data
             if cached_as_lists:
@@ -3302,6 +3706,8 @@ def main():
             end,
         )
         unresolved_history_gaps[chain_key] = unresolved_gaps
+        if unresolved_gaps:
+            require_complete_flow_history({chain_key: unresolved_gaps})
         if repaired_count:
             print(
                 f"  🩹 {CHAINS[chain_key]['name']}: restored "
@@ -3325,6 +3731,14 @@ def main():
             list(t) for t in all_transfers[chain_key]
             if t[3] >= cache_cutoff
         ]
+        mark_verified_chain_coverage(
+            state,
+            chain_key,
+            oldest_needed if full_baseline else fetch_start,
+            end,
+            full_baseline=full_baseline,
+        )
+        state.get("verified_scan_staging", {}).pop(chain_key, None)
         # Save state after each chain completes
         save_state(state)
         print(f"  💾 State saved for {CHAINS[chain_key]['name']} (up to block {end:,})")
@@ -3665,10 +4079,7 @@ def main():
             chain_key: state.get(f"skipped_ranges_{chain_key}", [])
             for chain_key in CHAINS
         },
-        "flow_history_integrity": {
-            "status": "complete",
-            "unresolvedGapCount": 0,
-        },
+        "flow_history_integrity": state.get("flow_log_integrity", {}),
         "dolomite_balance_meta": dolomite_balance_meta,
         "dolomite_balances": dolomite_balances,
         "dolo_price": dolo_price,
