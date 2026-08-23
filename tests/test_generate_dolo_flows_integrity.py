@@ -394,6 +394,21 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(refresh_start, 25_450_001)
         self.assertLessEqual(refresh_start, SILENTLY_MISSED_BLOCK)
 
+    def test_berachain_authoritative_rescan_covers_the_full_30d_flow_window(self):
+        last_block = 25_238_666
+        leaderboards_window = (
+            flows.PERIODS["30d"] // flows.CHAINS["bera"]["block_time"]
+        )
+        cutoff = last_block - leaderboards_window
+
+        refresh_start = flows.incremental_refresh_start(
+            last_block,
+            cutoff,
+            flows.RECENT_RESCAN_BLOCKS["bera"],
+        )
+
+        self.assertEqual(refresh_start, cutoff)
+
     def test_authoritative_refresh_replaces_overlap_without_duplicates(self):
         self.assertTrue(hasattr(flows, "replace_transfer_range"))
         before = (SOURCE, OUTSIDE, 1 * 10**18, 99)
