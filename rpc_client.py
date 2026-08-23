@@ -69,6 +69,10 @@ PUBLIC_ENDPOINTS = {
     ],
     "ethereum": [
         "https://eth.drpc.org/",
+        # Independent archive-capable fallbacks. Verified against historical
+        # DOLO Transfer ranges; PublicNode now requires a personal archive token.
+        "https://mainnet.gateway.tenderly.co",
+        "https://rpc.mevblocker.io",
         "https://ethereum-rpc.publicnode.com/",
         "https://rpc.ankr.com/eth",
     ],
