@@ -4704,6 +4704,31 @@ def _build_uniswap_v4_live_source(
     partitioned = partition_v4_modifications(all_modifications, position_manager)
     modifications = partitioned["canonical"]
     noncanonical_modifications = partitioned["noncanonical"]
+    if context["incremental"]:
+        # Canonical NFT positions are reconciled against PositionManager below,
+        # but non-canonical manager positions have no enumerable current-state
+        # API. Replaying only the overlap can begin with a removal and create a
+        # false negative balance, so always rebuild that small custody subset
+        # from the configured discovery boundary.
+        replay_logs = _routescan_logs(
+            chain["chainId"],
+            pool_manager,
+            event_topic(V4_EVENT_SIGNATURES["modify_liquidity"]),
+            chain["discoveryStartBlock"],
+            latest_block,
+            indexed_topics={
+                1: pool["identifier"],
+            },
+        )
+        replay_modifications = [
+            event
+            for event in (decode_v4_pool_manager_log(log) for log in replay_logs)
+            if event is not None and event.get("kind") == "modify_liquidity"
+        ]
+        noncanonical_modifications = partition_v4_modifications(
+            replay_modifications,
+            position_manager,
+        )["noncanonical"]
     canonical_pool_logs = [
         log
         for log, event in zip(pool_logs, decoded_logs)
