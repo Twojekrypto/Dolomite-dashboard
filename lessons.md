@@ -420,3 +420,7 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   blocks can contain more than 20K logs in 500 blocks, exceeding common public
   RPC result caps. Reconcile a bounded archive-RPC range against every page of
   Etherscan Logs API; never accept a truncated first page as a quorum vote.
+- **An explorer's hard row cap is not pagination.** Blockscout's public Logs
+  endpoint returns at most 1,000 rows and ignores Etherscan-style `page` input.
+  Treat a full page as ambiguous and recursively split the block range until
+  every accepted leaf is below the cap; reject a capped single block.

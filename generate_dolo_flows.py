@@ -33,6 +33,8 @@ BERASCAN_API_KEY = os.environ.get("BERASCAN_API_KEY", "").strip()
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 ETHERSCAN_LOG_ENDPOINT = "etherscan://logs"
+BLOCKSCOUT_LOG_ENDPOINT = "blockscout://logs"
+BLOCKSCOUT_LOG_API = "https://eth.blockscout.com/api"
 ZERO = "0x0000000000000000000000000000000000000000"
 # Official Core router is deployed at the same deterministic address across
 # Dolomite networks. DOLO itself is currently a Dolomite market on Ethereum
@@ -155,7 +157,7 @@ EXCLUDED_ADDRS = {
 CHAINS = {
     "eth": {
         "name": "Ethereum",
-        "rpcs": _rpc_endpoints("ethereum") + (
+        "rpcs": _rpc_endpoints("ethereum") + [BLOCKSCOUT_LOG_ENDPOINT] + (
             [ETHERSCAN_LOG_ENDPOINT] if ETHERSCAN_API_KEY else []
         ),
         "block_time": 12,   # ~12 seconds per block
@@ -275,6 +277,10 @@ RPC_LOG_CHUNK_DELAY_SECONDS = max(
 ETHERSCAN_LOG_PAGE_DELAY_SECONDS = max(
     0.05,
     float(os.environ.get("DOLO_FLOWS_ETHERSCAN_PAGE_DELAY_SECONDS", "0.4")),
+)
+BLOCKSCOUT_LOG_REQUEST_DELAY_SECONDS = max(
+    0.05,
+    float(os.environ.get("DOLO_FLOWS_BLOCKSCOUT_REQUEST_DELAY_SECONDS", "0.3")),
 )
 RPC_LOG_QUORUM = 2
 FLOW_LOG_INTEGRITY_VERSION = 2
@@ -518,6 +524,8 @@ def rpc_provider_family(url):
     """Return a vendor identity so two keys from one provider count once."""
     if str(url or "").lower() == ETHERSCAN_LOG_ENDPOINT:
         return "etherscan.io"
+    if str(url or "").lower() == BLOCKSCOUT_LOG_ENDPOINT:
+        return "blockscout.com"
     hostname = (urlparse(str(url or "")).hostname or "").lower().rstrip(".")
     vendor_suffixes = (
         "alchemy.com",
@@ -712,6 +720,98 @@ def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
     return None
 
 
+def _normalize_blockscout_transfer_log(log):
+    """Remove Blockscout's non-EVM trailing topic placeholders."""
+    normalized = dict(log or {})
+    topics = list(normalized.get("topics") or [])
+    while topics and (
+        topics[-1] is None
+        or str(topics[-1]).strip().lower() in {"", "none", "null"}
+    ):
+        topics.pop()
+    normalized["topics"] = topics
+    return normalized
+
+
+def _request_blockscout_transfer_logs(cfg, start_block, end_block):
+    """Fetch a complete range from Blockscout without trusting its 1K cap.
+
+    The per-instance Logs API does not paginate. A full 1,000-row response is
+    therefore ambiguous and is recursively split by block until every accepted
+    leaf is strictly below the documented cap. A capped single block is
+    rejected because completeness cannot be proven.
+    """
+    result_cap = 1_000
+    pending_ranges = [(int(start_block), int(end_block))]
+    all_logs = []
+    requests_used = 0
+
+    while pending_ranges:
+        range_start, range_end = pending_ranges.pop()
+        range_logs = None
+        for attempt in range(max(2, RPC_LOG_RETRIES_PER_ENDPOINT)):
+            try:
+                response = requests.get(
+                    BLOCKSCOUT_LOG_API,
+                    params={
+                        "module": "logs",
+                        "action": "getLogs",
+                        "fromBlock": range_start,
+                        "toBlock": range_end,
+                        "address": DOLO_CONTRACT,
+                        "topic0": TRANSFER_TOPIC,
+                    },
+                    timeout=60,
+                )
+                if response.status_code == 429:
+                    time.sleep(_rate_limit_retry_seconds(response, attempt))
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                result = payload.get("result") if isinstance(payload, dict) else None
+                message = str(payload.get("message", "")) if isinstance(payload, dict) else ""
+                if isinstance(result, list):
+                    range_logs = [
+                        _normalize_blockscout_transfer_log(log)
+                        for log in result
+                    ]
+                    break
+                detail = f"{message} {result}".lower()
+                if "no records found" in detail:
+                    range_logs = []
+                    break
+                if _is_rate_limit_error(detail):
+                    time.sleep(min(8.0, 1.0 * (2 ** min(attempt, 3))))
+                    continue
+            except requests.exceptions.RequestException:
+                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+            except ValueError:
+                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+
+        if range_logs is None:
+            return None
+
+        # Validate the canonical shape before this source receives a vote.
+        transfer_log_digest(range_logs)
+        if len(range_logs) < result_cap:
+            all_logs.extend(range_logs)
+        else:
+            if range_start >= range_end:
+                return None
+            midpoint = (range_start + range_end) // 2
+            # Stack order keeps the final rows grouped from older to newer
+            # blocks, though quorum hashing itself is order-independent.
+            pending_ranges.append((midpoint + 1, range_end))
+            pending_ranges.append((range_start, midpoint))
+
+        requests_used += 1
+        if requests_used > 100_000:
+            return None
+        time.sleep(BLOCKSCOUT_LOG_REQUEST_DELAY_SECONDS)
+
+    return all_logs
+
+
 def _rpc_families(rpcs, chain_key=None):
     grouped = {}
     for endpoint in rpcs or []:
@@ -724,17 +824,20 @@ def _rpc_families(rpcs, chain_key=None):
         # before trying the archive endpoints on every chunk.
         priority = {
             "eth.api.onfinality.io": 0,
-            "etherscan.io": 1,
-            "mainnet.gateway.tenderly.co": 2,
-            "rpc.mevblocker.io": 3,
-            "drpc.org": 4,
-            "alchemy.com": 5,
+            "blockscout.com": 1,
+            "etherscan.io": 2,
+            "mainnet.gateway.tenderly.co": 3,
+            "rpc.mevblocker.io": 4,
+            "drpc.org": 5,
+            "alchemy.com": 6,
         }
         families.sort(key=lambda item: priority.get(item[0], 100))
     return families
 
 
 def _request_transfer_logs(endpoint, cfg, start_block, end_block):
+    if endpoint == BLOCKSCOUT_LOG_ENDPOINT:
+        return _request_blockscout_transfer_logs(cfg, start_block, end_block)
     if endpoint == ETHERSCAN_LOG_ENDPOINT:
         return _request_etherscan_transfer_logs(cfg, start_block, end_block)
     for attempt in range(max(2, RPC_LOG_RETRIES_PER_ENDPOINT)):
