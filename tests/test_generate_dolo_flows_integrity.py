@@ -133,7 +133,7 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertTrue(KNOWN_TRADING_BOTS.isdisjoint(flows.EXCLUDED_ADDRS))
         self.assertEqual(excluded, set())
 
-    def test_bridge_audit_separates_canonical_and_legacy_cancellations(self):
+    def test_bridge_audit_applies_only_canonical_cancellations(self):
         exact = "0x1111111111111111111111111111111111111111"
         legacy = "0x2222222222222222222222222222222222222222"
         raw = {
@@ -149,7 +149,7 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
             "bera": {exact: 100.0},
         }
 
-        _neutralized, audit, _cancellations = (
+        neutralized, audit, _cancellations = (
             flows.neutralize_raw_and_bridge_flows_with_audit(
                 raw,
                 bridge,
@@ -159,10 +159,31 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
 
         self.assertEqual(audit["canonicalAdapter"]["addressCount"], 1)
         self.assertEqual(audit["canonicalAdapter"]["dolo"], 100.0)
-        self.assertEqual(audit["legacyHeuristic"]["addressCount"], 1)
-        self.assertEqual(audit["legacyHeuristic"]["dolo"], 75.0)
-        self.assertEqual(audit["total"]["addressCount"], 2)
-        self.assertEqual(audit["total"]["dolo"], 175.0)
+        self.assertEqual(audit["legacyHeuristic"], {"addressCount": 0, "dolo": 0.0})
+        self.assertEqual(
+            audit["legacyHeuristicObserved"],
+            {"addressCount": 1, "dolo": 75.0},
+        )
+        self.assertEqual(audit["total"]["addressCount"], 1)
+        self.assertEqual(audit["total"]["dolo"], 100.0)
+        self.assertEqual(neutralized["eth"][legacy], 0.0)
+        self.assertEqual(neutralized["bera"][legacy], 0.0)
+
+    def test_flow_snapshot_timestamp_uses_the_oldest_tracked_chain_head(self):
+        boundaries = {
+            "eth": {"all": {"endTimestamp": 1_700_000_000}},
+            "bera": {"all": {"endTimestamp": 1_700_000_041}},
+        }
+        snapshot_timestamp = getattr(
+            flows,
+            "flow_snapshot_timestamp",
+            lambda _boundaries: None,
+        )
+
+        self.assertEqual(
+            snapshot_timestamp(boundaries),
+            "2023-11-14T22:13:20Z",
+        )
 
     def test_wallet_receipt_remains_market_inflow_after_ethereum_protocol_deposit(self):
         amount = 283_000.05056654825

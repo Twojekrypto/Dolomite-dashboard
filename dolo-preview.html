@@ -6154,7 +6154,10 @@ renderCexSupplyChart();
       }
       return byAddr.get(key);
     };
-    const useCompleteSearchRows = Boolean(String(state.qFlows || "").trim());
+    const hasTypeFilter = state.flowsTypes instanceof Set
+      && state.flowsTypes.size !== ADDRESS_TYPES.length;
+    const useCompleteSearchRows = Boolean(String(state.qFlows || "").trim())
+      || hasTypeFilter;
     const sources = state.flowsChain === "all" && periodData.all
       ? [["all","chgAll","grossInAll","grossOutAll","protocolDepositAll","protocolWithdrawalAll"]]
       : [
