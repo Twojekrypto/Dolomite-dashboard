@@ -21,6 +21,7 @@ test('six-hour DOLO liquidity workflow is fail-closed and publishes only validat
   assert.match(yaml, /pip install -r requirements\.txt/);
   assert.match(yaml, /tests\.test_generate_dolo_liquidity tests\.test_validate_dolo_liquidity/);
   assert.match(yaml, /ALCHEMY_ETHEREUM_RPC:/);
+  assert.match(yaml, /DRPC_ETHEREUM_RPC_2_JEFF: \$\{\{ secrets\.DRPC_ETHEREUM_RPC_2_JEFF \}\}/);
   assert.match(yaml, /ALCHEMY_BERACHAIN_RPC:/);
   assert.match(yaml, /generate_dolo_liquidity\.py --registry data\/dolo-liquidity-pools\.json --output data\/dolo-liquidity\.json/);
   assert.match(yaml, /--full-history/);

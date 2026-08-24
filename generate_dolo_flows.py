@@ -3930,6 +3930,21 @@ def get_top(flows, tx_counts, n, mode="accumulator", excluded=None):
     return result
 
 
+def build_searchable_flow_rows(flows, components, tx_counts, excluded=None):
+    """Build the complete, post-neutralization flow index used by address search."""
+    accumulators = get_top(flows, tx_counts, None, "accumulator", excluded)
+    sellers = get_top(flows, tx_counts, None, "seller", excluded)
+    for entry in accumulators + sellers:
+        row_components = components.get(entry["address"], {})
+        entry["gross_inflow"] = round(row_components.get("gross_inflow", 0), 2)
+        entry["gross_outflow"] = round(row_components.get("gross_outflow", 0), 2)
+        entry["protocol_deposit"] = round(row_components.get("protocol_deposit", 0), 2)
+        entry["protocol_withdrawal"] = round(
+            row_components.get("protocol_withdrawal", 0), 2
+        )
+    return accumulators, sellers
+
+
 def get_dolo_price():
     """Fetch current DOLO price from DeFiLlama / CoinGecko."""
     try:
@@ -4429,15 +4444,14 @@ def main():
             flows = market_flows_by_chain[chain_key]
             tx_counts = tx_counts_by_chain[chain_key]
 
-            accumulators = get_top(flows, tx_counts, TOP_N, "accumulator", EXCLUDED_ADDRS)
-            sellers = get_top(flows, tx_counts, TOP_N, "seller", EXCLUDED_ADDRS)
-
-            for entry in accumulators + sellers:
-                components = flow_components_by_chain[chain_key].get(entry["address"], {})
-                entry["gross_inflow"] = round(components.get("gross_inflow", 0), 2)
-                entry["gross_outflow"] = round(components.get("gross_outflow", 0), 2)
-                entry["protocol_deposit"] = round(components.get("protocol_deposit", 0), 2)
-                entry["protocol_withdrawal"] = round(components.get("protocol_withdrawal", 0), 2)
+            search_accumulators, search_sellers = build_searchable_flow_rows(
+                flows,
+                flow_components_by_chain[chain_key],
+                tx_counts,
+                EXCLUDED_ADDRS,
+            )
+            accumulators = search_accumulators[:TOP_N]
+            sellers = search_sellers[:TOP_N]
 
             def load_flow_evidence(blocks, _chain_key=chain_key, _cfg=cfg):
                 cache = flow_metadata_cache[_chain_key]
@@ -4486,6 +4500,8 @@ def main():
             output_periods[period][chain_key] = {
                 "accumulators": accumulators,
                 "sellers": sellers,
+                "search_accumulators": search_accumulators,
+                "search_sellers": search_sellers,
                 "total_transfers": len(period_transfers_by_chain[chain_key]),
             }
 
@@ -4499,28 +4515,14 @@ def main():
         combined_flows = merge_chain_flow_maps(market_flows_by_chain)
         combined_components = merge_chain_flow_components(flow_components_by_chain)
         combined_counts = merge_chain_counts(tx_counts_by_chain)
-        combined_accumulators = get_top(
+        combined_search_accumulators, combined_search_sellers = build_searchable_flow_rows(
             combined_flows,
+            combined_components,
             combined_counts,
-            TOP_N,
-            "accumulator",
             EXCLUDED_ADDRS,
         )
-        combined_sellers = get_top(
-            combined_flows,
-            combined_counts,
-            TOP_N,
-            "seller",
-            EXCLUDED_ADDRS,
-        )
-        for entry in combined_accumulators + combined_sellers:
-            components = combined_components.get(entry["address"], {})
-            entry["gross_inflow"] = round(components.get("gross_inflow", 0), 2)
-            entry["gross_outflow"] = round(components.get("gross_outflow", 0), 2)
-            entry["protocol_deposit"] = round(components.get("protocol_deposit", 0), 2)
-            entry["protocol_withdrawal"] = round(
-                components.get("protocol_withdrawal", 0), 2
-            )
+        combined_accumulators = combined_search_accumulators[:TOP_N]
+        combined_sellers = combined_search_sellers[:TOP_N]
 
         # Reuse exact per-chain presentation evidence when the combined row is
         # also present in a chain ranking. Evidence remains optional and never
@@ -4550,6 +4552,8 @@ def main():
         output_periods[period]["all"] = {
             "accumulators": combined_accumulators,
             "sellers": combined_sellers,
+            "search_accumulators": combined_search_accumulators,
+            "search_sellers": combined_search_sellers,
             "total_transfers": sum(
                 len(rows) for rows in period_transfers_by_chain.values()
             ),
@@ -4694,7 +4698,7 @@ def main():
         pass
 
     output = {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "timestamp": datetime.utcnow().isoformat(),
         "tracked_flow_chains": ["ethereum", "berachain"],
         "period_boundaries": period_boundaries,

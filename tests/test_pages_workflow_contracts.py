@@ -46,6 +46,16 @@ class PagesWorkflowContractTests(unittest.TestCase):
 
         self.assertIn("tests/test_generate_dolo_flows_rpc.py", workflow)
 
+    def test_dolo_flows_workflow_exposes_new_ethereum_drpc_to_both_generators(self):
+        workflow = DOLO_FLOWS_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertEqual(
+            workflow.count(
+                "DRPC_ETHEREUM_RPC_2_JEFF: ${{ secrets.DRPC_ETHEREUM_RPC_2_JEFF }}"
+            ),
+            2,
+        )
+
     def test_dolo_flows_workflow_guards_holder_protocol_exposure_ui(self):
         workflow = DOLO_FLOWS_WORKFLOW.read_text(encoding="utf-8")
 
