@@ -39,6 +39,30 @@ KNOWN_TRADING_BOTS = {
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
+    def test_searchable_rows_keep_verified_wallets_below_leaderboard_cutoff(self):
+        flows_by_address = {
+            "0x1111111111111111111111111111111111111111": 100_000.0,
+            "0xa3aef439e6b69125cdbfd946ab1d8a9d012e1c46": 24_678.68,
+            "0x51b85c18b8a94081cd5af25cb3c4bce5750a0b19": 25_335.15,
+        }
+        build_rows = getattr(flows, "build_searchable_flow_rows", lambda *_: ([], []))
+        accumulators, sellers = build_rows(
+            flows_by_address,
+            {},
+            {},
+            set(),
+        )
+
+        self.assertEqual(
+            [row["address"] for row in accumulators],
+            [
+                "0x1111111111111111111111111111111111111111",
+                "0x51b85c18b8a94081cd5af25cb3c4bce5750a0b19",
+                "0xa3aef439e6b69125cdbfd946ab1d8a9d012e1c46",
+            ],
+        )
+        self.assertEqual(sellers, [])
+
     def test_brownfi_pool_uses_the_shared_verified_lp_label(self):
         label = flows.load_address_labels()[BROWNFI_DOLO_BUSD_POOL]
 

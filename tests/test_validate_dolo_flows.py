@@ -67,6 +67,27 @@ class ValidateDoloFlowsTest(unittest.TestCase):
             )
         )
 
+    def test_v4_search_rows_allow_complete_address_lookup_beyond_top_100(self):
+        payload = self._reconciliation_payload()
+        payload["schemaVersion"] = 4
+        searched = "0xa3aef439e6b69125cdbfd946ab1d8a9d012e1c46"
+        for period_data in payload["periods"].values():
+            for scope in ("eth", "bera", "all"):
+                period_data[scope]["search_accumulators"] = [
+                    {
+                        "address": searched,
+                        "net_flow": 24_678.68,
+                        "tx_count": 2,
+                        "gross_inflow": 25_000.0,
+                        "gross_outflow": 321.32,
+                        "protocol_deposit": 0.0,
+                        "protocol_withdrawal": 0.0,
+                    }
+                ]
+                period_data[scope]["search_sellers"] = []
+
+        self.assertTrue(validate_data._flow_reconciliation_v3_is_valid(payload))
+
     def test_v3_combined_flow_contract_rejects_missing_combined_rows(self):
         payload = self._reconciliation_payload()
         payload["periods"]["180d"].pop("all")
@@ -84,7 +105,7 @@ class ValidateDoloFlowsTest(unittest.TestCase):
 
     def test_dolo_flow_rule_registers_v3_reconciliation_guard(self):
         self.assertIn(
-            "v3 combined flow rows, exact boundaries and bridge audit must reconcile",
+            "v3/v4 combined flow rows, complete search index, exact boundaries and bridge audit must reconcile",
             dict(validate_data.RULES["dolo_flows.json"]["checks"]),
         )
 

@@ -1430,13 +1430,13 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
         <div class="dd" id="dd-flows-chain">
           <button class="dd-btn" data-dd="flows-chain">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            <span class="lbl">Ethereum + Berachain</span>
+            <span class="lbl">All chains</span>
             <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="dd-panel">
             <div class="dd-panel-head">Chain</div>
             <div class="dd-list">
-              <div class="dd-opt active" data-chain="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><div class="dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><span class="dd-opt-name">Ethereum + Berachain</span></div>
+              <div class="dd-opt active" data-chain="all"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><div class="dd-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><span class="dd-opt-name">All chains</span></div>
               <div class="dd-opt" data-chain="ethereum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Ethereum</span></div>
               <div class="dd-opt" data-chain="berachain"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Berachain</span></div>
             </div>
@@ -6146,6 +6146,7 @@ renderCexSupplyChart();
           latestLpEth:null,
           latestLpBera:null,
           latestLpAll:null,
+          balance:safeNum(holder?.total),
           dolomiteBalance:safeNum(dolomiteBalance.total),
           dolomiteBalanceEth:safeNum(dolomiteBalance.eth),
           dolomiteBalanceBera:safeNum(dolomiteBalance.bera),
@@ -6153,6 +6154,7 @@ renderCexSupplyChart();
       }
       return byAddr.get(key);
     };
+    const useCompleteSearchRows = Boolean(String(state.qFlows || "").trim());
     const sources = state.flowsChain === "all" && periodData.all
       ? [["all","chgAll","grossInAll","grossOutAll","protocolDepositAll","protocolWithdrawalAll"]]
       : [
@@ -6161,7 +6163,13 @@ renderCexSupplyChart();
         ];
     sources.forEach(([chainKey, prop, grossInProp, grossOutProp, protocolDepositProp, protocolWithdrawalProp]) => {
       const cd = periodData[chainKey] || {};
-      (cd.accumulators || []).forEach(item => {
+      const accumulators = useCompleteSearchRows && Array.isArray(cd.search_accumulators)
+        ? cd.search_accumulators
+        : (cd.accumulators || []);
+      const sellers = useCompleteSearchRows && Array.isArray(cd.search_sellers)
+        ? cd.search_sellers
+        : (cd.sellers || []);
+      accumulators.forEach(item => {
         const row = ensure(item.address);
         if(chainKey === "all") row.hasCombinedFlow = true;
         const txMeta = {latestTxHash:item.latest_tx_hash,latestTxTimestamp:item.latest_tx_timestamp,latestTxChain:item.latest_tx_chain};
@@ -6174,7 +6182,7 @@ renderCexSupplyChart();
         row.balance = Math.max(safeNum(row.balance), safeNum(item.balance));
         if(txMeta.latestTxHash && txMeta.latestTxTimestamp && txMeta.latestTxChain) row[chainKey === "all" ? "latestTxAll" : (chainKey === "eth" ? "latestTxEth" : "latestTxBera")] = txMeta;
       });
-      (cd.sellers || []).forEach(item => {
+      sellers.forEach(item => {
         const row = ensure(item.address);
         if(chainKey === "all") row.hasCombinedFlow = true;
         const txMeta = {latestTxHash:item.latest_tx_hash,latestTxTimestamp:item.latest_tx_timestamp,latestTxChain:item.latest_tx_chain};

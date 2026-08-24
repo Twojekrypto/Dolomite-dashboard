@@ -127,12 +127,63 @@ test("combined DOLO Flows consumes the generator's pre-ranked all-chain rows", (
   assert.equal(effectiveChg(rows[0]), 100);
 });
 
-test("DOLO Flows names the combined scope explicitly", () => {
+test("DOLO Flows exact-address search reaches verified rows below the Top 100", () => {
+  const start = preview.indexOf("  function flowRowsForPeriod(){");
+  const end = preview.indexOf("  renderFlows = function(){", start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const rows = [];
+  const searchedAddress = "0xa3aef439e6b69125cdbfd946ab1d8a9d012e1c46";
+  const flowRowsForPeriod = new Function(
+    "liveFlowsData",
+    "state",
+    "FLOWS",
+    "HOLDERS",
+    "DOLOMITE_FLOW_BALANCES",
+    "lower",
+    "addressInfo",
+    "labelFor",
+    "mapType",
+    "isSafeWallet",
+    "safeNum",
+    `${preview.slice(start, end)}\nreturn flowRowsForPeriod;`,
+  )(
+    {
+      periods: {
+        all: {
+          all: {
+            accumulators: [{ address: "0xtop", net_flow: 100_000 }],
+            sellers: [],
+            search_accumulators: [{ address: searchedAddress, net_flow: 24_678.68 }],
+            search_sellers: [],
+          },
+        },
+      },
+    },
+    { flowsPeriod: "all", flowsChain: "all", qFlows: searchedAddress },
+    rows,
+    [{ addr: searchedAddress, total: 24_678.684, contract_wallet_type: "delegated_eoa" }],
+    {},
+    value => String(value || "").toLowerCase(),
+    () => ({}),
+    value => value,
+    () => "eoa",
+    () => false,
+    value => Number(value || 0),
+  );
+
+  flowRowsForPeriod.call(null);
+  assert.deepEqual(rows.map(row => row.addr), [searchedAddress]);
+  assert.equal(rows[0].chgAll, 24_678.68);
+  assert.equal(rows[0].balance, 24_678.684);
+});
+
+test("DOLO Flows labels the combined scope as All chains", () => {
   const filterStart = preview.indexOf('<div class="dd" id="dd-flows-chain">');
   const filterEnd = preview.indexOf('<div class="dd" id="dd-flows-types">', filterStart);
   assert.notEqual(filterStart, -1);
   assert.notEqual(filterEnd, -1);
   const filter = preview.slice(filterStart, filterEnd);
-  assert.match(filter, /Ethereum \+ Berachain/);
-  assert.doesNotMatch(filter, />All [Cc]hains</);
+  assert.match(filter, />All chains</);
+  assert.doesNotMatch(filter, /Ethereum \+ Berachain/);
 });

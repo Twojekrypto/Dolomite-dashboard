@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import generate_dolo_flows as flows
-from rpc_client import PUBLIC_ENDPOINTS
+from rpc_client import PUBLIC_ENDPOINTS, get_endpoints
 
 
 ALICE = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -33,6 +33,13 @@ def transfer_log(block, tx_hash, log_index, amount=1):
 
 
 class GenerateDoloFlowsRpcTests(unittest.TestCase):
+    def test_new_ethereum_drpc_secret_is_preferred_before_public_fallbacks(self):
+        endpoint = "https://lb.drpc.org/ogrpc?network=ethereum&dkey=test-secret"
+        with patch.dict(os.environ, {"DRPC_ETHEREUM_RPC_2_JEFF": endpoint}, clear=True):
+            endpoints = get_endpoints("ethereum")
+
+        self.assertEqual(endpoints[0], endpoint)
+
     def test_exact_period_cutoff_uses_irregular_block_timestamps(self):
         timestamps = {
             100: 1_000,

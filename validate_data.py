@@ -1974,12 +1974,12 @@ def _flow_history_integrity_is_valid(data):
 
 
 def _flow_reconciliation_v3_is_valid(data):
-    """Validate the post-merge leaderboard, exact time bounds and bridge audit."""
+    """Validate post-merge leaderboards, complete search rows and audit bounds."""
     schema_version = data.get("schemaVersion")
     if schema_version is None:
         # Transitional compatibility for the currently deployed v2 artifact.
         return True
-    if not _is_exact_integer(schema_version) or schema_version != 3:
+    if not _is_exact_integer(schema_version) or schema_version not in (3, 4):
         return False
 
     periods = ("1d", "7d", "30d", "90d", "180d", "all")
@@ -1998,7 +1998,7 @@ def _flow_reconciliation_v3_is_valid(data):
     ):
         return False
 
-    def leaderboard_is_valid(container):
+    def leaderboard_is_valid(container, max_rows=100):
         if not isinstance(container, dict):
             return False
         total_transfers = container.get("total_transfers")
@@ -2007,7 +2007,10 @@ def _flow_reconciliation_v3_is_valid(data):
         seen = set()
         for kind in ("accumulators", "sellers"):
             rows = container.get(kind)
-            if not isinstance(rows, list) or len(rows) > 100:
+            if (
+                not isinstance(rows, list)
+                or (max_rows is not None and len(rows) > max_rows)
+            ):
                 return False
             prior_net = float("inf")
             for row in rows:
@@ -2036,12 +2039,37 @@ def _flow_reconciliation_v3_is_valid(data):
                         return False
         return True
 
+    def complete_search_rows_are_valid(container):
+        if schema_version < 4:
+            return True
+        search_container = {
+            "total_transfers": container.get("total_transfers"),
+            "accumulators": container.get("search_accumulators"),
+            "sellers": container.get("search_sellers"),
+        }
+        if not leaderboard_is_valid(search_container, max_rows=None):
+            return False
+        for kind in ("accumulators", "sellers"):
+            searchable = {
+                str(row.get("address") or "").lower(): float(row["net_flow"])
+                for row in search_container[kind]
+            }
+            for row in container[kind]:
+                address = str(row.get("address") or "").lower()
+                if (
+                    address not in searchable
+                    or abs(searchable[address] - float(row["net_flow"])) > 0.01
+                ):
+                    return False
+        return True
+
     for period in periods:
         period_data = period_rows.get(period)
         if not isinstance(period_data, dict) or not {"eth", "bera", "all"}.issubset(period_data):
             return False
         if not all(
             leaderboard_is_valid(period_data[scope])
+            and complete_search_rows_are_valid(period_data[scope])
             for scope in ("eth", "bera", "all")
         ):
             return False
@@ -2113,7 +2141,7 @@ RULES = {
             ("optional latest transaction metadata must be exact", _flow_tx_metadata_is_valid),
             ("optional LP activity metadata must be exact", _flow_lp_metadata_is_valid),
             ("Dolomite DOLO balances must be complete and reconcile", _flow_dolomite_balances_are_valid),
-            ("v3 combined flow rows, exact boundaries and bridge audit must reconcile", _flow_reconciliation_v3_is_valid),
+            ("v3/v4 combined flow rows, complete search index, exact boundaries and bridge audit must reconcile", _flow_reconciliation_v3_is_valid),
         ],
         "min_bytes": 50_000,
     },
