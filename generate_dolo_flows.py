@@ -171,7 +171,11 @@ CHAINS = {
         "name": "Berachain",
         "rpcs": _rpc_endpoints("berachain"),
         "block_time": 2,    # ~2 seconds per block
-        "chunk_size": 100_000,  # Berachain: keep ranges small enough to avoid dropped log chunks
+        # The independent official + dRPC archive pair is reliable through
+        # 6,250 blocks. Larger ranges are rejected by one or more providers;
+        # regrowing above that cap caused every verified chunk to pay for a
+        # guaranteed failed 12,500-block attempt before retrying.
+        "chunk_size": 6_250,
         "deploy_block": 2_900_000,   # DOLO deployed on Berachain ~block 2,925,727 (Mar 2025)
     },
 }
@@ -833,6 +837,27 @@ def _rpc_families(rpcs, chain_key=None):
             "alchemy.com": 6,
         }
         families.sort(key=lambda item: priority.get(item[0], 100))
+    elif chain_key == "bera":
+        # Start with the two independent public archive endpoints that return
+        # exact matching DOLO logs for historical and recent ranges. This
+        # avoids spending retry/backoff time on exhausted keyed endpoints
+        # before quorum can be reached. Keyed vendors remain fallbacks.
+        priority = {
+            "berachain.com": 0,
+            "drpc.org": 1,
+            "quicknode.pro": 2,
+            "quiknode.pro": 2,
+            "alchemy.com": 3,
+            "publicnode.com": 4,
+        }
+        families.sort(key=lambda item: priority.get(item[0], 100))
+        for family, endpoints in families:
+            if family == "drpc.org":
+                endpoints.sort(
+                    key=lambda endpoint: (
+                        0 if endpoint.rstrip("/") == "https://berachain.drpc.org" else 1
+                    )
+                )
     return families
 
 
