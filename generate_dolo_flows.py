@@ -32,6 +32,7 @@ BERASCAN_API_KEY = os.environ.get("BERASCAN_API_KEY", "").strip()
 # ===== CONFIG =====
 DOLO_CONTRACT = "0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654".lower()
 TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+ETHERSCAN_LOG_ENDPOINT = "etherscan://logs"
 ZERO = "0x0000000000000000000000000000000000000000"
 # Official Core router is deployed at the same deterministic address across
 # Dolomite networks. DOLO itself is currently a Dolomite market on Ethereum
@@ -154,9 +155,13 @@ EXCLUDED_ADDRS = {
 CHAINS = {
     "eth": {
         "name": "Ethereum",
-        "rpcs": _rpc_endpoints("ethereum"),
+        "rpcs": _rpc_endpoints("ethereum") + (
+            [ETHERSCAN_LOG_ENDPOINT] if ETHERSCAN_API_KEY else []
+        ),
         "block_time": 12,   # ~12 seconds per block
-        "chunk_size": 50_000,
+        # Dense distribution blocks can contain tens of thousands of DOLO
+        # logs. Keep pages bounded for exact RPC/Etherscan reconciliation.
+        "chunk_size": 1_000,
         "deploy_block": 21_500_000,  # DOLO deployed ~Jan 2025
     },
     "bera": {
@@ -262,6 +267,14 @@ RPC_BATCH_SIZE = int(os.environ.get("DOLO_FLOWS_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT", "2"))
 RPC_LOG_RETRIES_PER_ENDPOINT = int(
     os.environ.get("DOLO_FLOWS_LOG_RETRIES_PER_ENDPOINT", str(RPC_RETRIES_PER_ENDPOINT))
+)
+RPC_LOG_CHUNK_DELAY_SECONDS = max(
+    0.05,
+    float(os.environ.get("DOLO_FLOWS_LOG_CHUNK_DELAY_SECONDS", "0.25")),
+)
+ETHERSCAN_LOG_PAGE_DELAY_SECONDS = max(
+    0.05,
+    float(os.environ.get("DOLO_FLOWS_ETHERSCAN_PAGE_DELAY_SECONDS", "0.4")),
 )
 RPC_LOG_QUORUM = 2
 FLOW_LOG_INTEGRITY_VERSION = 2
@@ -503,6 +516,8 @@ def has_complete_verified_baseline(state):
 
 def rpc_provider_family(url):
     """Return a vendor identity so two keys from one provider count once."""
+    if str(url or "").lower() == ETHERSCAN_LOG_ENDPOINT:
+        return "etherscan.io"
     hostname = (urlparse(str(url or "")).hostname or "").lower().rstrip(".")
     vendor_suffixes = (
         "alchemy.com",
@@ -626,14 +641,102 @@ def _is_capacity_exhausted_error(error_obj):
     )
 
 
-def _rpc_families(rpcs):
+def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
+    """Fetch one exact log range through Etherscan's paginated Logs API."""
+    api_key = str(api_key if api_key is not None else ETHERSCAN_API_KEY).strip()
+    if not api_key:
+        return None
+
+    offset = 1_000
+    page = 1
+    all_logs = []
+    previous_page_digest = None
+    while page <= 100_000:
+        page_logs = None
+        for attempt in range(max(2, RPC_LOG_RETRIES_PER_ENDPOINT)):
+            try:
+                response = requests.get(
+                    ETHERSCAN_V2_API,
+                    params={
+                        "chainid": "1",
+                        "module": "logs",
+                        "action": "getLogs",
+                        "fromBlock": int(start_block),
+                        "toBlock": int(end_block),
+                        "address": DOLO_CONTRACT,
+                        "topic0": TRANSFER_TOPIC,
+                        "page": page,
+                        "offset": offset,
+                        "apikey": api_key,
+                    },
+                    timeout=60,
+                )
+                if response.status_code == 429:
+                    time.sleep(_rate_limit_retry_seconds(response, attempt))
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                result = payload.get("result") if isinstance(payload, dict) else None
+                message = str(payload.get("message", "")) if isinstance(payload, dict) else ""
+                if isinstance(result, list):
+                    page_logs = result
+                    break
+                detail = f"{message} {result}".lower()
+                if "no records found" in detail:
+                    page_logs = []
+                    break
+                if _is_rate_limit_error(detail) or "rate limit" in detail:
+                    time.sleep(min(8.0, 1.0 * (2 ** min(attempt, 3))))
+                    continue
+            except requests.exceptions.RequestException:
+                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+            except ValueError:
+                time.sleep(min(8.0, 0.5 * (2 ** min(attempt, 4))))
+
+        if page_logs is None:
+            return None
+        if not page_logs:
+            return all_logs
+
+        # Validate every page before it can participate in an independent vote.
+        page_digest = transfer_log_digest(page_logs)
+        if page_digest == previous_page_digest:
+            return None
+        previous_page_digest = page_digest
+        all_logs.extend(page_logs)
+        if len(page_logs) < offset:
+            return all_logs
+        page += 1
+        time.sleep(ETHERSCAN_LOG_PAGE_DELAY_SECONDS)
+
+    return None
+
+
+def _rpc_families(rpcs, chain_key=None):
     grouped = {}
     for endpoint in rpcs or []:
         grouped.setdefault(rpc_provider_family(endpoint), []).append(endpoint)
-    return list(grouped.items())
+    families = list(grouped.items())
+    if chain_key == "eth":
+        # Public archive providers are independent and have materially more
+        # headroom for historical eth_getLogs than the shared Alchemy quota.
+        # Keep Alchemy as a fallback family, but do not burn through every key
+        # before trying the archive endpoints on every chunk.
+        priority = {
+            "eth.api.onfinality.io": 0,
+            "etherscan.io": 1,
+            "mainnet.gateway.tenderly.co": 2,
+            "rpc.mevblocker.io": 3,
+            "drpc.org": 4,
+            "alchemy.com": 5,
+        }
+        families.sort(key=lambda item: priority.get(item[0], 100))
+    return families
 
 
 def _request_transfer_logs(endpoint, cfg, start_block, end_block):
+    if endpoint == ETHERSCAN_LOG_ENDPOINT:
+        return _request_etherscan_transfer_logs(cfg, start_block, end_block)
     for attempt in range(max(2, RPC_LOG_RETRIES_PER_ENDPOINT)):
         try:
             resp = requests.post(endpoint, json={
@@ -707,10 +810,12 @@ def load_verified_scan_staging(state, chain_key, start_block, end_block):
     staging = (state or {}).get("verified_scan_staging", {}).get(chain_key)
     if not isinstance(staging, dict):
         return [], int(start_block)
+    staged_end_block = int(staging.get("endBlock", -1))
     if (
         staging.get("verification") != "independent-rpc-exact-quorum"
         or int(staging.get("startBlock", -1)) != int(start_block)
-        or int(staging.get("endBlock", -1)) != int(end_block)
+        or staged_end_block < int(start_block)
+        or staged_end_block > int(end_block)
     ):
         return [], int(start_block)
     try:
@@ -741,7 +846,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
     total_expected_chunks = max(1, (total_blocks + chunk_size - 1) // chunk_size)
     print(f"  {cfg['name']}: scanning blocks {start_block:,} → {end_block:,} ({total_blocks:,} blocks, ~{total_expected_chunks} chunks)")
 
-    families = _rpc_families(rpcs)
+    families = _rpc_families(rpcs, chain_key=chain_key)
     if len(families) < RPC_LOG_QUORUM:
         print(
             f"  ⚠️ {cfg['name']}: requires {RPC_LOG_QUORUM} independent RPC "
@@ -838,6 +943,19 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                     f"{current:,}-{chunk_end:,}; retrying with {chunk_size:,} blocks"
                 )
                 continue
+            if state is not None:
+                _save_verified_scan_staging(
+                    state,
+                    chain_key,
+                    start_block,
+                    end_block,
+                    current,
+                    all_transfers,
+                    verified_chunk_count=chunks_done,
+                    provider_families=agreeing_provider_families,
+                    disagreeing_provider_families=disagreeing_provider_families,
+                    minimum_matching_provider_families=minimum_matching_families,
+                )
             chunks_failed += 1
             skipped_ranges.append([current, chunk_end])
             print(
@@ -872,7 +990,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
         if chunk_size < cfg["chunk_size"]:
             chunk_size = min(chunk_size * 2, cfg["chunk_size"])
 
-        time.sleep(0.05)
+        time.sleep(RPC_LOG_CHUNK_DELAY_SECONDS)
 
     total_chunks_attempted = chunks_done + chunks_failed
     if chunks_failed > 0:

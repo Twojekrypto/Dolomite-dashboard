@@ -115,6 +115,8 @@ jobs:
           DOLO_FLOWS_RPC_BATCH_SIZE: '50'
           DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT: '2'
           DOLO_FLOWS_LOG_RETRIES_PER_ENDPOINT: '3'
+          DOLO_FLOWS_LOG_CHUNK_DELAY_SECONDS: '0.5'
+          DOLO_FLOWS_ETHERSCAN_PAGE_DELAY_SECONDS: '0.4'
           DOLO_FLOWS_FULL_VERIFIED_BACKFILL: ${{ github.event.inputs.full_verified_backfill || 'false' }}
           FRESH_WALLET_AUDIT_VERBOSE: ${{ github.event.inputs.fresh_wallet_audit_verbose || '0' }}
         run: python3 generate_dolo_flows.py

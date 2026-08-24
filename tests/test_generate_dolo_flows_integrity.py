@@ -448,6 +448,63 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(state["bera_last_block"], 90)
         self.assertEqual(state["bera_transfers"], [[SOURCE, COINBASE_10, 10**18, 90]])
 
+    def test_verified_scan_staging_resumes_when_chain_tip_advances(self):
+        state = {
+            "verified_scan_staging": {
+                "eth": {
+                    "startBlock": 100,
+                    "endBlock": 200,
+                    "nextBlock": 151,
+                    "transfers": [[SOURCE, OUTSIDE, 2 * 10**18, 120]],
+                    "verification": "independent-rpc-exact-quorum",
+                }
+            },
+        }
+
+        transfers, next_block = flows.load_verified_scan_staging(
+            state, "eth", 100, 250
+        )
+
+        self.assertEqual(transfers, [(SOURCE, OUTSIDE, 2 * 10**18, 120)])
+        self.assertEqual(next_block, 151)
+
+    def test_failed_quorum_checkpoints_all_verified_chunks_before_stopping(self):
+        state = {}
+        log = {
+            "address": flows.DOLO_CONTRACT,
+            "topics": [
+                flows.TRANSFER_TOPIC,
+                "0x" + "0" * 24 + SOURCE[2:],
+                "0x" + "0" * 24 + OUTSIDE[2:],
+            ],
+            "data": hex(2 * 10**18),
+            "blockNumber": hex(100),
+            "transactionHash": "0x" + "a" * 64,
+            "logIndex": "0x0",
+        }
+        chain = {
+            "eth": {
+                "name": "Ethereum",
+                "rpcs": ["https://rpc-one.example", "https://rpc-two.example"],
+                "chunk_size": 1,
+                "deploy_block": 1,
+            }
+        }
+
+        with patch.object(flows, "CHAINS", chain), patch.object(
+            flows,
+            "_request_transfer_logs",
+            side_effect=[[log], [log], None, None],
+        ), patch.object(flows, "save_state"), patch.object(flows.time, "sleep"):
+            _transfers, failed, _attempted = flows.fetch_transfer_logs(
+                "eth", 100, 101, state=state
+            )
+
+        self.assertEqual(failed, 1)
+        staged = state["verified_scan_staging"]["eth"]
+        self.assertEqual(staged["nextBlock"], 101)
+        self.assertEqual(staged["transfers"], [[SOURCE, OUTSIDE, 2 * 10**18, 100]])
+
     def test_verified_coverage_requires_full_baseline_then_advances_incrementally(self):
         state = {}
 

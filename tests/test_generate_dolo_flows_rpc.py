@@ -37,7 +37,12 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
         endpoints = PUBLIC_ENDPOINTS["ethereum"]
 
         self.assertIn("https://eth.drpc.org/", endpoints)
+        self.assertIn("https://eth.api.onfinality.io/public", endpoints)
         self.assertIn("https://mainnet.gateway.tenderly.co", endpoints)
+        self.assertLess(
+            endpoints.index("https://eth.api.onfinality.io/public"),
+            endpoints.index("https://mainnet.gateway.tenderly.co"),
+        )
         self.assertLess(
             endpoints.index("https://mainnet.gateway.tenderly.co"),
             endpoints.index("https://ethereum-rpc.publicnode.com/"),
@@ -52,6 +57,55 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
             flows.rpc_provider_family("https://rpc.berachain.com/"),
             flows.rpc_provider_family("https://berachain.drpc.org/"),
         )
+        self.assertEqual(
+            flows.rpc_provider_family("etherscan://logs"),
+            "etherscan.io",
+        )
+
+    def test_ethereum_log_quorum_prefers_independent_archive_fallbacks(self):
+        families = flows._rpc_families([
+            "https://eth-mainnet.g.alchemy.com/v2/key-one",
+            "https://eth-mainnet.g.alchemy.com/v2/key-two",
+            "https://eth.drpc.org/",
+            "https://mainnet.gateway.tenderly.co",
+            "https://rpc.mevblocker.io",
+        ], chain_key="eth")
+
+        self.assertEqual(
+            [family for family, _endpoints in families[:3]],
+            ["mainnet.gateway.tenderly.co", "rpc.mevblocker.io", "drpc.org"],
+        )
+
+    def test_etherscan_log_source_paginates_without_truncating_results(self):
+        first_page = [
+            transfer_log(100 + index // 100, "0x" + f"{index:064x}", index)
+            for index in range(1_000)
+        ]
+        second_page = [transfer_log(110, "0x" + "f" * 64, 1_000)]
+
+        def response(rows):
+            result = Mock(status_code=200, headers={})
+            result.json.return_value = {
+                "status": "1",
+                "message": "OK",
+                "result": rows,
+            }
+            return result
+
+        with patch.object(
+            flows.requests,
+            "get",
+            side_effect=[response(first_page), response(second_page)],
+        ) as request_get, patch.object(flows.time, "sleep"):
+            logs = flows._request_etherscan_transfer_logs(
+                {"name": "Ethereum"}, 100, 110, api_key="test-key"
+            )
+
+        self.assertEqual(len(logs), 1_001)
+        self.assertEqual(request_get.call_count, 2)
+        self.assertEqual(request_get.call_args_list[0].kwargs["params"]["page"], 1)
+        self.assertEqual(request_get.call_args_list[1].kwargs["params"]["page"], 2)
+        self.assertEqual(request_get.call_args_list[0].kwargs["params"]["offset"], 1_000)
 
     def test_transfer_log_digest_is_order_and_hex_format_independent(self):
         first = transfer_log(100, "0x" + "1" * 64, 0, amount=7)

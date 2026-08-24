@@ -68,9 +68,10 @@ PUBLIC_ENDPOINTS = {
         "https://berachain.drpc.org/",
     ],
     "ethereum": [
-        "https://eth.drpc.org/",
         # Independent archive-capable fallbacks. Verified against historical
         # DOLO Transfer ranges; PublicNode now requires a personal archive token.
+        "https://eth.api.onfinality.io/public",
+        "https://eth.drpc.org/",
         "https://mainnet.gateway.tenderly.co",
         "https://rpc.mevblocker.io",
         "https://ethereum-rpc.publicnode.com/",

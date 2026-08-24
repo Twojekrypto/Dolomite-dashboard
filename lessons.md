@@ -411,3 +411,12 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
 **Reguła na przyszłość:** HTTP 200 z `eth_getLogs` nie jest dowodem kompletności. Dla DOLO Flow każdy identyczny zakres bloków musi mieć dokładnie zgodny digest logów z co najmniej dwóch niezależnych rodzin RPC; dwa klucze Alchemy liczą się jako jeden dostawca, a rozbieżność wymaga trzeciej rodziny i większości 2-of-3.
 **Reguła na przyszłość:** Autorytatywne zastąpienie overlapu wolno promować do aktywnego cache dopiero po weryfikacji całego zakresu. Checkpointy długiego skanu zapisuj w osobnym stagingu; błąd quorum nie może usuwać starych transferów ani przesuwać aktywnego `last_block`.
 **Reguła na przyszłość:** Po zmianie kontraktu integralności cache uruchom jawny pełny backfill od bloków wdrożenia. Publikowany `flow_history_integrity` musi zawierać faktyczne pokrycie obu sieci i dowód niezależnych rodzin RPC, a walidator ma blokować publikację starego albo częściowego baseline'u.
+- **Full-history RPC scans must resume across a moving chain tip.** A staged,
+  quorum-verified prefix remains valid when the requested end block advances;
+  requiring an identical old end block discards safe progress. Prefer archive
+  RPC families before exhausted shared-provider keys and pace successful log
+  chunks so a long backfill does not consume public-provider burst limits.
+- **Dense event ranges need a paginated independent source.** DOLO distribution
+  blocks can contain more than 20K logs in 500 blocks, exceeding common public
+  RPC result caps. Reconcile a bounded archive-RPC range against every page of
+  Etherscan Logs API; never accept a truncated first page as a quorum vote.
