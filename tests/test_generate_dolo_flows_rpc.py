@@ -80,6 +80,27 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
             ["mainnet.gateway.tenderly.co", "rpc.mevblocker.io", "drpc.org"],
         )
 
+    def test_berachain_log_quorum_prefers_fast_independent_public_sources(self):
+        paid_drpc = "https://lb.drpc.org/ogrpc?network=berachain&dkey=test-key"
+        public_drpc = "https://berachain.drpc.org/"
+        families = flows._rpc_families([
+            paid_drpc,
+            "https://example.quiknode.pro/test-key/",
+            "https://berachain-mainnet.g.alchemy.com/v2/test-key",
+            "https://rpc.berachain.com/",
+            "https://berachain-rpc.publicnode.com/",
+            public_drpc,
+        ], chain_key="bera")
+
+        self.assertEqual(
+            [family for family, _endpoints in families[:2]],
+            ["berachain.com", "drpc.org"],
+        )
+        self.assertEqual(families[1][1][0], public_drpc)
+
+    def test_berachain_log_chunks_stay_within_verified_provider_limit(self):
+        self.assertLessEqual(flows.CHAINS["bera"]["chunk_size"], 6_250)
+
     def test_etherscan_log_source_paginates_without_truncating_results(self):
         first_page = [
             transfer_log(100 + index // 100, "0x" + f"{index:064x}", index)
