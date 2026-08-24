@@ -37,6 +37,7 @@
     "0x003896387666c5c11458eeb3f927b72a11b19783": {label:"Uniswap V3 DOLO/USDC", type:"lp"},
     "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3": {label:"Kodiak DOLO/WBERA", type:"lp"},
     "0x8991017b74f9f8070bff5b322802dd26e05e0cc7": {label:"Bulla DOLO/HONEY LP Pool", type:"lp", chain:"berachain", source:"routescan-verified-algebra-pool", confidence:"confirmed"},
+    "0x16b3a5e95db753fe5195244fa208301e38beae2a": {label:"BrownFi DOLO/BUSD LP Pool", type:"lp", chain:"berachain", source:"berachain-onchain-pool-interface", confidence:"confirmed"},
 
     "0x185000fb4d98acea1a771db3714a431f7fe51cac": {label:"Core Team 1", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
     "0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1": {label:"Core Team 2", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},

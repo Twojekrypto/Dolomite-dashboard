@@ -33,6 +33,60 @@ def transfer_log(block, tx_hash, log_index, amount=1):
 
 
 class GenerateDoloFlowsRpcTests(unittest.TestCase):
+    def test_exact_period_cutoff_uses_irregular_block_timestamps(self):
+        timestamps = {
+            100: 1_000,
+            101: 1_007,
+            102: 1_021,
+            103: 1_028,
+            104: 1_041,
+        }
+
+        selected = flows.find_first_block_at_or_after_timestamp(
+            100,
+            104,
+            1_010,
+            timestamps.__getitem__,
+        )
+
+        self.assertEqual(selected, 102)
+        self.assertEqual(timestamps[selected], 1_021)
+
+    def test_exact_period_cutoff_pins_to_deploy_when_target_is_older(self):
+        timestamps = {100: 1_000, 101: 1_007, 102: 1_021}
+
+        selected = flows.find_first_block_at_or_after_timestamp(
+            100,
+            102,
+            900,
+            timestamps.__getitem__,
+        )
+
+        self.assertEqual(selected, 100)
+
+    def test_exact_period_cutoff_fails_closed_for_future_target(self):
+        timestamps = {100: 1_000, 101: 1_007, 102: 1_021}
+
+        with self.assertRaises(ValueError):
+            flows.find_first_block_at_or_after_timestamp(
+                100,
+                102,
+                1_022,
+                timestamps.__getitem__,
+            )
+
+    def test_period_timestamp_lookup_skips_log_only_endpoints_and_rate_limited_first_choice(self):
+        response = {
+            "result": {"timestamp": hex(1_700_000_000)},
+        }
+        with patch.object(flows, "rpc_single_request", return_value=response) as request:
+            timestamp = flows.load_block_timestamp("eth", 21_500_000, {})
+
+        endpoints = request.call_args.args[0]
+        self.assertEqual(timestamp, 1_700_000_000)
+        self.assertEqual(endpoints[0], "https://eth.drpc.org/")
+        self.assertTrue(all(endpoint.startswith("http") for endpoint in endpoints))
+
     def test_ethereum_public_fallbacks_include_two_archive_capable_families(self):
         endpoints = PUBLIC_ENDPOINTS["ethereum"]
 

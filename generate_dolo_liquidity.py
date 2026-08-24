@@ -47,6 +47,7 @@ SUPPORTED_ADAPTERS = {
     "bulla-v2",
     "bulla-v3",
     "beraswap-v2",
+    "brownfi-v3",
 }
 
 ADDRESS_RE = re.compile(r"^0x[0-9a-f]{40}$")
@@ -60,6 +61,7 @@ V2_EVENT_SIGNATURES = {
     "burn": "Burn(address,uint256,uint256,address)",
     "sync": "Sync(uint112,uint112)",
 }
+BROWNFI_MINT_SIGNATURE = "Mint(address,uint256,uint256,uint256,uint256,uint256,address)"
 V3_EVENT_SIGNATURES = {
     "pool_created": "PoolCreated(address,address,uint24,int24,address)",
     "increase": "IncreaseLiquidity(uint256,uint128,uint256,uint256)",
@@ -839,6 +841,21 @@ def decode_v2_log(log: dict[str, Any]) -> dict[str, Any] | None:
             **base,
             "kind": "mint",
             "sender": _address_from_topic(topics[1], "mint sender"),
+            "amount0Raw": int(amount0),
+            "amount1Raw": int(amount1),
+        }
+    if signature_topic == event_topic(BROWNFI_MINT_SIGNATURE):
+        if len(topics) != 3:
+            raise ValueError("BrownFi Mint must have indexed sender and recipient")
+        amount0, amount1, _price0, _price1, _amm_price = decode(
+            ["uint256", "uint256", "uint256", "uint256", "uint256"],
+            data,
+        )
+        return {
+            **base,
+            "kind": "mint",
+            "sender": _address_from_topic(topics[1], "BrownFi mint sender"),
+            "to": _address_from_topic(topics[2], "BrownFi mint recipient"),
             "amount0Raw": int(amount0),
             "amount1Raw": int(amount1),
         }
@@ -3516,7 +3533,16 @@ def _build_v2_live_source(
     chain = registry["chains"][chain_key]
     address = pool["identifier"]
     logs = []
-    for signature in (V2_EVENT_SIGNATURES["transfer"], V2_EVENT_SIGNATURES["mint"], V2_EVENT_SIGNATURES["burn"]):
+    mint_signature = (
+        BROWNFI_MINT_SIGNATURE
+        if pool.get("adapter") == "brownfi-v3"
+        else V2_EVENT_SIGNATURES["mint"]
+    )
+    for signature in (
+        V2_EVENT_SIGNATURES["transfer"],
+        mint_signature,
+        V2_EVENT_SIGNATURES["burn"],
+    ):
         logs.extend(
             _routescan_logs(
                 chain["chainId"],
@@ -4873,6 +4899,7 @@ def build_registered_source(
         "kodiak-v2": _build_v2_live_source,
         "bulla-v2": _build_v2_live_source,
         "beraswap-v2": _build_v2_live_source,
+        "brownfi-v3": _build_v2_live_source,
     }
     builder = available.get(adapter)
     if builder is None:
@@ -5108,7 +5135,7 @@ def replay_v2_pool(
         raise ValueError("V2 pool must use a contract identifier")
     chain_key = str(pool.get("chainKey") or "").strip().lower()
     adapter = str(pool.get("adapter") or "").strip().lower()
-    if adapter not in {"kodiak-v2", "bulla-v2", "beraswap-v2"}:
+    if adapter not in {"kodiak-v2", "bulla-v2", "beraswap-v2", "brownfi-v3"}:
         raise ValueError("V2 replay requires a supported V2 adapter")
     pool_address = _normalized_address(pool.get("identifier"), "V2 pool")
     source_key = f"{chain_key}:{adapter}"

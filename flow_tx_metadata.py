@@ -20,6 +20,7 @@ V3_DECREASE_LIQUIDITY_TOPIC = "0x26f6a048ee9138f2c0ce266f322cb99228e8d619ae2bff3
 V4_MODIFY_LIQUIDITY_TOPIC = "0xf208f4912782fd25c7f114ca3723a2d5dd6f3bcc3ac8db5af63baa85f711d5ec"
 V2_MINT_TOPIC = "0x4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f"
 V2_BURN_TOPIC = "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496"
+BROWNFI_MINT_TOPIC = "0x0c73bcc7a24ee727c66b44bd2e65a101ab83354fdaaf63f78c1c272765b4250a"
 BULLA_INCREASE_LIQUIDITY_TOPIC = "0x8a82de7fe9b33e0e6bca0e26f5bd14a74f1164ffe236d50e0a36c3ea70f2b814"
 
 
@@ -235,14 +236,17 @@ def classify_lp_receipt(receipt, wallet, chain, registry, token_address):
                     candidates.append({**pool, "direction": "withdrawal", "amount": amount})
 
     for pool_address, pool in index["contractPools"].items():
-        if pool["adapter"] not in {"kodiak-v2", "uniswap-v2"}:
+        if pool["adapter"] not in {"kodiak-v2", "uniswap-v2", "brownfi-v3"}:
             continue
         pool_topics = {
             _normalized_topic((log.get("topics") or [""])[0])
             for log in logs
             if _normalized_address(log.get("address")) == pool_address
         }
-        if V2_MINT_TOPIC in pool_topics:
+        mint_topics = {V2_MINT_TOPIC}
+        if pool["adapter"] == "brownfi-v3":
+            mint_topics.add(BROWNFI_MINT_TOPIC)
+        if pool_topics & mint_topics:
             amount = sum(
                 transfer["amount"] for transfer in transfers
                 if transfer["from"] == owner and transfer["to"] == pool_address

@@ -158,6 +158,60 @@ class FlowTransactionMetadataTests(unittest.TestCase):
         self.assertEqual(activity["pair"], "DOLO/USDC")
         self.assertEqual(activity["adapter"], "uniswap-v3")
 
+    def test_brownfi_pool_mint_receipt_verifies_exact_lp_deposit(self):
+        pool = "0x" + "6" * 40
+        registry = {
+            "chains": {
+                "berachain": {
+                    "adapters": {
+                        "brownfi-v3": {
+                            "factory": "0x" + "7" * 40,
+                        },
+                    },
+                },
+            },
+            "pools": [{
+                "chainKey": "berachain",
+                "adapter": "brownfi-v3",
+                "identifierType": "contract",
+                "identifier": pool,
+                "pair": "DOLO/BUSD",
+            }],
+        }
+        receipt = {
+            "status": "0x1",
+            "transactionHash": "0x" + "9" * 64,
+            "logs": [
+                {
+                    "address": self.DOLO,
+                    "topics": [
+                        flow_tx_metadata.TRANSFER_TOPIC,
+                        self._topic_address(self.WALLET),
+                        self._topic_address(pool),
+                    ],
+                    "data": hex(12_500 * 10**18),
+                },
+                {
+                    "address": pool,
+                    "topics": [flow_tx_metadata.BROWNFI_MINT_TOPIC],
+                    "data": "0x",
+                },
+            ],
+        }
+
+        activity = flow_tx_metadata.classify_lp_receipt(
+            receipt,
+            self.WALLET,
+            "berachain",
+            registry,
+            self.DOLO,
+        )
+
+        self.assertEqual(activity["direction"], "deposit")
+        self.assertEqual(activity["amount"], "12500")
+        self.assertEqual(activity["pair"], "DOLO/BUSD")
+        self.assertEqual(activity["adapter"], "brownfi-v3")
+
     def test_latest_lp_metadata_fails_closed_without_a_verified_receipt(self):
         tx_hash = "0x" + "f" * 64
         rows = [{"address": self.WALLET, "latest_tx_hash": tx_hash}]
