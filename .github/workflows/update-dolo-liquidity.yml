@@ -27,6 +27,19 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: master
+          sparse-checkout: |
+            requirements.txt
+            generate_dolo_liquidity.py
+            rpc_client.py
+            rpc_usage.py
+            safe_wallets.py
+            validate_data.py
+            data/dolo-liquidity-pools.json
+            data/dolo-liquidity.json
+            tests/test_generate_dolo_liquidity.py
+            tests/test_validate_dolo_liquidity.py
+            tests/fixtures/dolo-liquidity
+          sparse-checkout-cone-mode: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
