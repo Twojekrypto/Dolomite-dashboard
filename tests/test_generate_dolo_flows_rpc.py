@@ -61,6 +61,10 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
             flows.rpc_provider_family("etherscan://logs"),
             "etherscan.io",
         )
+        self.assertEqual(
+            flows.rpc_provider_family("blockscout://logs"),
+            "blockscout.com",
+        )
 
     def test_ethereum_log_quorum_prefers_independent_archive_fallbacks(self):
         families = flows._rpc_families([
@@ -106,6 +110,70 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
         self.assertEqual(request_get.call_args_list[0].kwargs["params"]["page"], 1)
         self.assertEqual(request_get.call_args_list[1].kwargs["params"]["page"], 2)
         self.assertEqual(request_get.call_args_list[0].kwargs["params"]["offset"], 1_000)
+
+    def test_blockscout_log_source_splits_capped_ranges_until_complete(self):
+        capped_parent = [
+            transfer_log(100 + index // 500, "0x" + f"{index:064x}", index)
+            for index in range(1_000)
+        ]
+        left = [
+            transfer_log(100, "0x" + f"{index + 2_000:064x}", index)
+            for index in range(600)
+        ]
+        right = [
+            transfer_log(101, "0x" + f"{index + 3_000:064x}", index)
+            for index in range(500)
+        ]
+
+        def response(rows):
+            result = Mock(status_code=200, headers={})
+            result.json.return_value = {
+                "status": "1",
+                "message": "OK",
+                "result": [
+                    dict(row, topics=list(row["topics"]) + ["none"])
+                    for row in rows
+                ],
+            }
+            return result
+
+        with patch.object(
+            flows.requests,
+            "get",
+            side_effect=[response(capped_parent), response(left), response(right)],
+        ) as request_get, patch.object(flows.time, "sleep"):
+            logs = flows._request_blockscout_transfer_logs(
+                {"name": "Ethereum"}, 100, 101
+            )
+
+        self.assertEqual(logs, left + right)
+        self.assertEqual(request_get.call_count, 3)
+        requested_ranges = [
+            (call.kwargs["params"]["fromBlock"], call.kwargs["params"]["toBlock"])
+            for call in request_get.call_args_list
+        ]
+        self.assertEqual(requested_ranges, [(100, 101), (100, 100), (101, 101)])
+
+    def test_blockscout_log_source_rejects_a_capped_single_block(self):
+        capped = [
+            transfer_log(100, "0x" + f"{index:064x}", index)
+            for index in range(1_000)
+        ]
+        response = Mock(status_code=200, headers={})
+        response.json.return_value = {
+            "status": "1",
+            "message": "OK",
+            "result": capped,
+        }
+
+        with patch.object(flows.requests, "get", return_value=response), patch.object(
+            flows.time, "sleep"
+        ):
+            logs = flows._request_blockscout_transfer_logs(
+                {"name": "Ethereum"}, 100, 100
+            )
+
+        self.assertIsNone(logs)
 
     def test_transfer_log_digest_is_order_and_hex_format_independent(self):
         first = transfer_log(100, "0x" + "1" * 64, 0, amount=7)
