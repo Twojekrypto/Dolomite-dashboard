@@ -719,7 +719,17 @@ def assert_refresh_not_degraded(
             raise ValueError("candidate liquidity sources must be objects")
         errors = source.get("errors")
         if source.get("status") == "stale" or (isinstance(errors, list) and errors):
-            failed_sources.append(str(source.get("key") or "unknown"))
+            source_key = str(source.get("key") or "unknown")
+            error_details = [
+                sanitize_error(error)
+                for error in (errors if isinstance(errors, list) else [])
+                if str(error or "").strip()
+            ]
+            failed_sources.append(
+                f"{source_key} ({'; '.join(error_details)})"
+                if error_details
+                else source_key
+            )
     if failed_sources:
         raise RuntimeError(
             "degraded liquidity refresh rejected; failed sources: "

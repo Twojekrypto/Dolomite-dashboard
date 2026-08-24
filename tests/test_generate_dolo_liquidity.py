@@ -828,7 +828,10 @@ class LiveSourceRecoveryTests(unittest.TestCase):
             ],
         }
 
-        with self.assertRaisesRegex(RuntimeError, "degraded liquidity refresh"):
+        with self.assertRaisesRegex(
+            RuntimeError,
+            r"ethereum:uniswap-v3 \(429 Too Many Requests\)",
+        ):
             liquidity.assert_refresh_not_degraded(previous, candidate)
         liquidity.assert_refresh_not_degraded(candidate, previous)
 
