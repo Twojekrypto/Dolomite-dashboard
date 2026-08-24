@@ -486,6 +486,27 @@ def calculate_exact_period_cutoffs(current_blocks):
     return cutoff_blocks, boundaries
 
 
+def flow_snapshot_timestamp(period_boundaries):
+    """Return the oldest verified chain head represented by the snapshot."""
+    end_timestamps = []
+    for chain_key in CHAINS:
+        chain_boundaries = period_boundaries.get(chain_key, {})
+        all_boundary = chain_boundaries.get("all", {})
+        end_timestamp = all_boundary.get("endTimestamp")
+        if not isinstance(end_timestamp, int) or isinstance(end_timestamp, bool):
+            raise RuntimeError(
+                f"{CHAINS[chain_key]['name']}: missing exact all-time end timestamp"
+            )
+        end_timestamps.append(end_timestamp)
+    if not end_timestamps:
+        raise RuntimeError("No tracked chain head timestamps are available")
+    return (
+        datetime.fromtimestamp(min(end_timestamps), timezone.utc)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
 def block_range_has_work(start_block, end_block):
     return int(start_block) <= int(end_block)
 
@@ -2253,9 +2274,10 @@ def neutralize_raw_and_bridge_flows_with_audit(
                 if remaining <= 0.01:
                     break
 
-    # This compatibility path has no transaction/message identity. Keep its
-    # arithmetic for historical routes, but expose its volume separately so it
-    # can never be mistaken for canonical adapter evidence.
+    # This compatibility path has no transaction/message identity. Observe it
+    # for diagnostics only: applying it can cancel unrelated opposing flows.
+    # Only exact adapter-outflow -> same-wallet destination-mint evidence is
+    # allowed to change published flow arithmetic.
     legacy_raw = {
         chain_key: {
             addr: amount
@@ -2272,11 +2294,9 @@ def neutralize_raw_and_bridge_flows_with_audit(
         }
         for chain_key in CHAINS
     }
-    legacy_neutralized, legacy_count, legacy_volume = (
+    _legacy_neutralized, legacy_count, legacy_volume = (
         _legacy_neutralize_raw_and_bridge_flows(legacy_raw, legacy_bridge)
     )
-    for chain_key in CHAINS:
-        neutralized[chain_key].update(legacy_neutralized[chain_key])
 
     audit = {
         "canonicalAdapter": {
@@ -2284,12 +2304,16 @@ def neutralize_raw_and_bridge_flows_with_audit(
             "dolo": round(matched_volume, 6),
         },
         "legacyHeuristic": {
+            "addressCount": 0,
+            "dolo": 0.0,
+        },
+        "legacyHeuristicObserved": {
             "addressCount": legacy_count,
             "dolo": round(legacy_volume, 6),
         },
         "total": {
-            "addressCount": len(matched_addresses) + legacy_count,
-            "dolo": round(matched_volume + legacy_volume, 6),
+            "addressCount": len(matched_addresses),
+            "dolo": round(matched_volume, 6),
         },
     }
     return neutralized, audit, cancellations
@@ -4698,8 +4722,9 @@ def main():
         pass
 
     output = {
-        "schemaVersion": 4,
-        "timestamp": datetime.utcnow().isoformat(),
+        "schemaVersion": 5,
+        "timestamp": flow_snapshot_timestamp(period_boundaries),
+        "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "tracked_flow_chains": ["ethereum", "berachain"],
         "period_boundaries": period_boundaries,
         "bridge_neutralization_audit": bridge_neutralization_audit,

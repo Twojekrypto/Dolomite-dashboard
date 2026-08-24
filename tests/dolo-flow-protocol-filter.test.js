@@ -178,6 +178,65 @@ test("DOLO Flows exact-address search reaches verified rows below the Top 100", 
   assert.equal(rows[0].balance, 24_678.684);
 });
 
+test("DOLO Flows type filters use the complete flow index without a search query", () => {
+  const start = preview.indexOf("  function flowRowsForPeriod(){");
+  const end = preview.indexOf("  renderFlows = function(){", start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const rows = [];
+  const investorAddress = "0x2222222222222222222222222222222222222222";
+  const flowRowsForPeriod = new Function(
+    "liveFlowsData",
+    "state",
+    "FLOWS",
+    "HOLDERS",
+    "DOLOMITE_FLOW_BALANCES",
+    "lower",
+    "addressInfo",
+    "labelFor",
+    "mapType",
+    "isSafeWallet",
+    "safeNum",
+    "ADDRESS_TYPES",
+    `${preview.slice(start, end)}\nreturn flowRowsForPeriod;`,
+  )(
+    {
+      periods: {
+        all: {
+          all: {
+            accumulators: [{ address: "0xtop", net_flow: 100_000 }],
+            sellers: [],
+            search_accumulators: [
+              { address: "0xtop", net_flow: 100_000 },
+              { address: investorAddress, net_flow: 250 },
+            ],
+            search_sellers: [],
+          },
+        },
+      },
+    },
+    {
+      flowsPeriod: "all",
+      flowsChain: "all",
+      qFlows: "",
+      flowsTypes: new Set(["investor"]),
+    },
+    rows,
+    [],
+    {},
+    value => String(value || "").toLowerCase(),
+    address => ({ type: address === investorAddress ? "investor" : "eoa" }),
+    value => value,
+    info => info.type,
+    () => false,
+    value => Number(value || 0),
+    typeModel.ADDRESS_TYPES,
+  );
+
+  flowRowsForPeriod.call(null);
+  assert.deepEqual(rows.map(row => row.addr), ["0xtop", investorAddress]);
+});
+
 test("DOLO Flows labels the combined scope as All chains", () => {
   const filterStart = preview.indexOf('<div class="dd" id="dd-flows-chain">');
   const filterEnd = preview.indexOf('<div class="dd" id="dd-flows-types">', filterStart);
