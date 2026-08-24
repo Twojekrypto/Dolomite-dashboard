@@ -161,9 +161,10 @@ CHAINS = {
             [ETHERSCAN_LOG_ENDPOINT] if ETHERSCAN_API_KEY else []
         ),
         "block_time": 12,   # ~12 seconds per block
-        # Dense distribution blocks can contain tens of thousands of DOLO
-        # logs. Keep pages bounded for exact RPC/Etherscan reconciliation.
-        "chunk_size": 1_000,
+        # Sparse history is scanned in wider ranges to reduce RPC load. Dense
+        # distribution ranges automatically shrink to 1K blocks, while the
+        # Blockscout verifier recursively splits any capped response.
+        "chunk_size": 10_000,
         "deploy_block": 21_500_000,  # DOLO deployed ~Jan 2025
     },
     "bera": {
