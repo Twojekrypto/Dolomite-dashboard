@@ -17,6 +17,10 @@ test('six-hour DOLO liquidity workflow is fail-closed and publishes only validat
   assert.match(yaml, /cancel-in-progress: true/);
   assert.match(yaml, /timeout-minutes: 55/);
   assert.match(yaml, /ref: master/);
+  assert.match(yaml, /sparse-checkout:/);
+  assert.match(yaml, /generate_dolo_liquidity\.py/);
+  assert.match(yaml, /tests\/fixtures\/dolo-liquidity/);
+  assert.match(yaml, /sparse-checkout-cone-mode: false/);
   assert.match(yaml, /python-version: ['"]3\.11['"]/);
   assert.match(yaml, /pip install -r requirements\.txt/);
   assert.match(yaml, /tests\.test_generate_dolo_liquidity tests\.test_validate_dolo_liquidity/);

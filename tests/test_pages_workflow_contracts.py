@@ -16,6 +16,13 @@ class PagesWorkflowContractTests(unittest.TestCase):
         self.assertIn("cancel-in-progress: false", workflow)
         self.assertIn("with:\n          ref: master", workflow)
 
+    def test_pages_smoke_job_sparse_checks_out_only_its_script(self):
+        workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+        smoke_checkout = workflow.split("- name: Checkout smoke scripts", 1)[1]
+
+        self.assertIn("sparse-checkout: |\n            scripts/smoke_live_pages.py", smoke_checkout)
+        self.assertIn("sparse-checkout-cone-mode: false", smoke_checkout)
+
     def test_pages_redeploys_after_holder_data_workflows(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
 
