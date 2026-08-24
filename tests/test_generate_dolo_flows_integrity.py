@@ -468,6 +468,65 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(transfers, [(SOURCE, OUTSIDE, 2 * 10**18, 120)])
         self.assertEqual(next_block, 151)
 
+    def test_completed_verified_chain_can_resume_during_full_backfill(self):
+        deploy_block = flows.CHAINS["eth"]["deploy_block"]
+        last_block = deploy_block + 1_000
+        state = {
+            "flow_log_integrity": {
+                "version": flows.FLOW_LOG_INTEGRITY_VERSION,
+                "status": "building",
+                "verification": "independent-rpc-exact-quorum",
+                "unresolvedGapCount": 0,
+                "chains": {
+                    "eth": {
+                        "deployBlock": deploy_block,
+                        "coverageStartBlock": deploy_block,
+                        "verifiedThroughBlock": last_block,
+                        "lastPublishedBlock": last_block,
+                        "verification": "independent-rpc-exact-quorum",
+                        "lastVerificationProof": {
+                            "minimumMatchingProviderFamilies": 2,
+                        },
+                    },
+                },
+            },
+            "eth_history_start_block": deploy_block,
+            "eth_last_block": last_block,
+            "eth_transfers": [[SOURCE, OUTSIDE, 2 * 10**18, deploy_block + 10]],
+        }
+
+        resumable = flows.completed_verified_backfill_chains(state)
+
+        self.assertEqual(resumable, {"eth"})
+
+    def test_incomplete_or_unproven_chain_is_not_resumed_as_verified(self):
+        deploy_block = flows.CHAINS["eth"]["deploy_block"]
+        state = {
+            "flow_log_integrity": {
+                "version": flows.FLOW_LOG_INTEGRITY_VERSION,
+                "status": "building",
+                "verification": "independent-rpc-exact-quorum",
+                "unresolvedGapCount": 0,
+                "chains": {
+                    "eth": {
+                        "deployBlock": deploy_block,
+                        "coverageStartBlock": deploy_block,
+                        "verifiedThroughBlock": deploy_block + 1_000,
+                        "lastPublishedBlock": deploy_block + 1_000,
+                        "verification": "independent-rpc-exact-quorum",
+                        "lastVerificationProof": {
+                            "minimumMatchingProviderFamilies": 1,
+                        },
+                    },
+                },
+            },
+            "eth_history_start_block": deploy_block,
+            "eth_last_block": deploy_block + 1_000,
+            "eth_transfers": [[SOURCE, OUTSIDE, 2 * 10**18, deploy_block + 10]],
+        }
+
+        self.assertEqual(flows.completed_verified_backfill_chains(state), set())
+
     def test_failed_quorum_checkpoints_all_verified_chunks_before_stopping(self):
         state = {}
         log = {

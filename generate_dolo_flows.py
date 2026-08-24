@@ -525,6 +525,59 @@ def has_complete_verified_baseline(state):
     return True
 
 
+def completed_verified_backfill_chains(state):
+    """Return fully verified chain baselines safe to resume incrementally.
+
+    A full multi-chain backfill can time out after one chain has already been
+    completed. Its active cache is reusable only when the persisted coverage,
+    cursor, full-history marker, and independent quorum proof all agree.
+    """
+    integrity = (state or {}).get("flow_log_integrity")
+    if (
+        not isinstance(integrity, dict)
+        or integrity.get("version") != FLOW_LOG_INTEGRITY_VERSION
+        or integrity.get("verification") != "independent-rpc-exact-quorum"
+        or integrity.get("unresolvedGapCount") != 0
+    ):
+        return set()
+
+    chains = integrity.get("chains")
+    if not isinstance(chains, dict):
+        return set()
+
+    resumable = set()
+    for chain_key, cfg in CHAINS.items():
+        row = chains.get(chain_key)
+        deploy_block = int(cfg["deploy_block"])
+        transfers = (state or {}).get(f"{chain_key}_transfers")
+        try:
+            last_block = int((state or {}).get(f"{chain_key}_last_block") or 0)
+            history_start = int(
+                (state or {}).get(f"{chain_key}_history_start_block")
+                or deploy_block + 1
+            )
+            proof_families = int(
+                ((row or {}).get("lastVerificationProof") or {}).get(
+                    "minimumMatchingProviderFamilies", 0
+                )
+            )
+        except (TypeError, ValueError):
+            continue
+        if (
+            isinstance(row, dict)
+            and isinstance(transfers, list)
+            and row.get("verification") == "independent-rpc-exact-quorum"
+            and int(row.get("coverageStartBlock", deploy_block + 1)) <= deploy_block
+            and int(row.get("verifiedThroughBlock", 0)) == last_block
+            and int(row.get("lastPublishedBlock", 0)) == last_block
+            and history_start <= deploy_block
+            and last_block >= deploy_block
+            and proof_families >= RPC_LOG_QUORUM
+        ):
+            resumable.add(chain_key)
+    return resumable
+
+
 def rpc_provider_family(url):
     """Return a vendor identity so two keys from one provider count once."""
     if str(url or "").lower() == ETHERSCAN_LOG_ENDPOINT:
@@ -3769,17 +3822,37 @@ def main():
     state = load_state()
     _global_state = state  # Allow signal handler to save on kill
     is_incremental = bool(state)
+    resumable_verified_chains = (
+        completed_verified_backfill_chains(state)
+        if force_full_verified_backfill
+        else set()
+    )
     if force_full_verified_backfill:
+        prior_chain_integrity = dict(
+            ((state.get("flow_log_integrity") or {}).get("chains") or {})
+        )
         state["flow_log_integrity"] = {
             "version": FLOW_LOG_INTEGRITY_VERSION,
             "status": "building",
             "verification": "independent-rpc-exact-quorum",
             "unresolvedGapCount": 0,
-            "chains": {},
+            "chains": {
+                chain_key: prior_chain_integrity[chain_key]
+                for chain_key in resumable_verified_chains
+            },
         }
         for chain_key in CHAINS:
             state[f"skipped_ranges_{chain_key}"] = []
         print("🔐 Full verified backfill requested — active transfer cache will be replaced only after quorum")
+        if resumable_verified_chains:
+            labels = ", ".join(
+                CHAINS[chain_key]["name"]
+                for chain_key in sorted(resumable_verified_chains)
+            )
+            print(
+                "♻️ Reusing completed verified chain baseline(s): "
+                f"{labels}; only the confirmed recent overlap will be refreshed"
+            )
     elif is_incremental and not has_complete_verified_baseline(state):
         raise RuntimeError(
             "Existing DOLO flow cache predates independent RPC verification; "
@@ -3841,12 +3914,27 @@ def main():
         cached_key = f"{chain_key}_transfers"
         last_block_key = f"{chain_key}_last_block"
         history_start_key = f"{chain_key}_history_start_block"
-        cached_transfers = [] if force_full_verified_backfill else state.get(cached_key, [])
-        last_block = 0 if force_full_verified_backfill else state.get(last_block_key, 0)
+        rebuild_chain_from_deploy = (
+            force_full_verified_backfill
+            and chain_key not in resumable_verified_chains
+        )
+        cached_transfers = (
+            [] if rebuild_chain_from_deploy else state.get(cached_key, [])
+        )
+        last_block = (
+            0 if rebuild_chain_from_deploy else state.get(last_block_key, 0)
+        )
         history_coverage_start = None
-        full_baseline = force_full_verified_backfill or not (last_block > 0 and cached_transfers)
+        full_baseline = rebuild_chain_from_deploy or not (
+            last_block > 0 and cached_transfers
+        )
 
-        if not force_full_verified_backfill and is_incremental and last_block > 0 and cached_transfers:
+        if (
+            not rebuild_chain_from_deploy
+            and is_incremental
+            and last_block > 0
+            and cached_transfers
+        ):
             # Replace a recent overlap authoritatively on every run. The old
             # `last_block + 1` path could silently miss a single block when
             # fetch_start equaled the buffered chain tip.
