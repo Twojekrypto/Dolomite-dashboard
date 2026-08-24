@@ -140,11 +140,6 @@ EXCLUDED_ADDRS = {
     "0x4fe93ebc4ce6ae4f81601cc7ce7139023919e003",
     "0x08b14bb09ac4819c16f68d7c92f7dcc20750eaff",
     "0x74d09665900a5f29bac25befd30c73a5962d44e7",
-    # Bots / Market Makers (verified 2026-03-19)
-    "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74",  # EOA bot, 51k nonce
-    "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3",  # EOA bot, 35k nonce
-    "0x278d858f05b94576c1e6f73285886876ff6ef8d2",  # Contract bot, 53k DOLO txs
-    "0xf10f81795b359f8a72682cc2a39444bf818ef4ca",  # EOA Bot/MM, 13.9k nonce, 1.9k DOLO transfer rows (2026-06-24)
     BERACHAIN_DOLO_CCIP_ADAPTER,
     # --- MM / CEX relay cluster (verified 2026-03-24) ---
     "0x0002810d2b1d621f3ae6c8a7af9e2f09efa1f8bb",  # MM relay: receives DOLO from CEX → sends to bridge
@@ -369,6 +364,126 @@ def get_current_block(rpcs):
             except Exception:
                 time.sleep(1)
     return 0
+
+
+def find_first_block_at_or_after_timestamp(
+    start_block,
+    end_block,
+    target_timestamp,
+    timestamp_loader,
+):
+    """Return the earliest block whose exact timestamp reaches the target."""
+    low = int(start_block)
+    high = int(end_block)
+    target = int(target_timestamp)
+    if low < 0 or high < low:
+        raise ValueError("invalid block search range")
+    start_timestamp = int(timestamp_loader(low))
+    end_timestamp = int(timestamp_loader(high))
+    if start_timestamp > end_timestamp:
+        raise ValueError("block timestamps are not monotonic")
+    if target <= start_timestamp:
+        return low
+    if target > end_timestamp:
+        raise ValueError("target timestamp is newer than the confirmed head")
+
+    while low < high:
+        midpoint = (low + high) // 2
+        timestamp = int(timestamp_loader(midpoint))
+        if timestamp < start_timestamp or timestamp > end_timestamp:
+            raise ValueError("block timestamp falls outside the exact search range")
+        if timestamp < target:
+            low = midpoint + 1
+        else:
+            high = midpoint
+    return low
+
+
+def load_block_timestamp(chain_key, block_number, cache=None):
+    """Resolve one exact block timestamp through the configured RPC failover."""
+    cache = cache if cache is not None else {}
+    key = (chain_key, int(block_number))
+    if key in cache:
+        return cache[key]
+    cfg = CHAINS[chain_key]
+    eligible_rpcs = [
+        endpoint
+        for endpoint in cfg["rpcs"]
+        if str(endpoint).startswith(("https://", "http://"))
+    ]
+    if chain_key == "eth":
+        # OnFinality is useful for log quorum but currently rate-limits these
+        # repeated historical block lookups. dRPC serves the same exact block
+        # timestamps without the failed request in front of every binary step.
+        eligible_rpcs.sort(
+            key=lambda endpoint: (
+                0 if rpc_provider_family(endpoint) == "drpc.org" else 1,
+                endpoint,
+            )
+        )
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "eth_getBlockByNumber",
+        "params": [hex(int(block_number)), False],
+        "id": f"period-boundary:{chain_key}:{int(block_number)}",
+    }
+    response = rpc_single_request(
+        eligible_rpcs,
+        payload,
+        timeout=12,
+        retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+        quiet=True,
+        describe=f"{cfg['name']} period boundary block",
+    )
+    result = response.get("result") if isinstance(response, dict) else None
+    raw_timestamp = result.get("timestamp") if isinstance(result, dict) else None
+    try:
+        timestamp = int(str(raw_timestamp), 16)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"{cfg['name']}: block {int(block_number):,} has no exact timestamp"
+        ) from exc
+    if timestamp <= 0:
+        raise RuntimeError(
+            f"{cfg['name']}: block {int(block_number):,} has an invalid timestamp"
+        )
+    cache[key] = timestamp
+    return timestamp
+
+
+def calculate_exact_period_cutoffs(current_blocks):
+    """Build timestamp-exact cutoffs and their auditable chain metadata."""
+    cutoff_blocks = {}
+    boundaries = {}
+    timestamp_cache = {}
+    for chain_key, cfg in CHAINS.items():
+        start_block = int(cfg.get("deploy_block", 0))
+        end_block = int(current_blocks[chain_key])
+        timestamp_loader = lambda block, key=chain_key: load_block_timestamp(
+            key, block, timestamp_cache
+        )
+        start_timestamp = timestamp_loader(start_block)
+        end_timestamp = timestamp_loader(end_block)
+        cutoff_blocks[chain_key] = {}
+        boundaries[chain_key] = {}
+        for period, seconds in PERIODS.items():
+            target_timestamp = end_timestamp - int(seconds)
+            cutoff = find_first_block_at_or_after_timestamp(
+                start_block,
+                end_block,
+                target_timestamp,
+                timestamp_loader,
+            )
+            cutoff_timestamp = timestamp_loader(cutoff)
+            cutoff_blocks[chain_key][period] = cutoff
+            boundaries[chain_key][period] = {
+                "targetTimestamp": target_timestamp,
+                "startBlock": cutoff,
+                "startTimestamp": cutoff_timestamp,
+                "endBlock": end_block,
+                "endTimestamp": end_timestamp,
+            }
+    return cutoff_blocks, boundaries
 
 
 def block_range_has_work(start_block, end_block):
@@ -2082,12 +2197,12 @@ def neutralize_raw_and_bridge_flows(
     return neutralized
 
 
-def neutralize_raw_and_bridge_flows_with_stats(
+def neutralize_raw_and_bridge_flows_with_audit(
     raw_flows,
     bridge_flows_by_chain,
     adapter_outflows_by_chain=None,
 ):
-    """Remove same-wallet CCIP legs while preserving cross-wallet transfers."""
+    """Return neutralized flows with exact-vs-heuristic bridge telemetry."""
     adapter_outflows_by_chain = adapter_outflows_by_chain or {
         chain_key: {} for chain_key in CHAINS
     }
@@ -2138,8 +2253,9 @@ def neutralize_raw_and_bridge_flows_with_stats(
                 if remaining <= 0.01:
                     break
 
-    # Preserve the legacy heuristic for routes without canonical adapter
-    # evidence, but do not let it re-net genuine activity for a matched wallet.
+    # This compatibility path has no transaction/message identity. Keep its
+    # arithmetic for historical routes, but expose its volume separately so it
+    # can never be mistaken for canonical adapter evidence.
     legacy_raw = {
         chain_key: {
             addr: amount
@@ -2162,10 +2278,38 @@ def neutralize_raw_and_bridge_flows_with_stats(
     for chain_key in CHAINS:
         neutralized[chain_key].update(legacy_neutralized[chain_key])
 
+    audit = {
+        "canonicalAdapter": {
+            "addressCount": len(matched_addresses),
+            "dolo": round(matched_volume, 6),
+        },
+        "legacyHeuristic": {
+            "addressCount": legacy_count,
+            "dolo": round(legacy_volume, 6),
+        },
+        "total": {
+            "addressCount": len(matched_addresses) + legacy_count,
+            "dolo": round(matched_volume + legacy_volume, 6),
+        },
+    }
+    return neutralized, audit, cancellations
+
+
+def neutralize_raw_and_bridge_flows_with_stats(
+    raw_flows,
+    bridge_flows_by_chain,
+    adapter_outflows_by_chain=None,
+):
+    """Remove same-wallet CCIP legs while preserving cross-wallet transfers."""
+    neutralized, audit, cancellations = neutralize_raw_and_bridge_flows_with_audit(
+        raw_flows,
+        bridge_flows_by_chain,
+        adapter_outflows_by_chain,
+    )
     return (
         neutralized,
-        len(matched_addresses) + legacy_count,
-        matched_volume + legacy_volume,
+        audit["total"]["addressCount"],
+        audit["total"]["dolo"],
         cancellations,
     )
 
@@ -2513,6 +2657,49 @@ def merge_balance_changes(flows_by_chain):
     return {addr: round(v, 2) for addr, v in merged.items()}
 
 
+def merge_chain_flow_maps(flows_by_chain):
+    """Sum complete per-chain flow maps before any leaderboard truncation."""
+    merged = {}
+    for chain_flows in (flows_by_chain or {}).values():
+        for raw_addr, raw_value in (chain_flows or {}).items():
+            addr = str(raw_addr or "").lower()
+            if not addr:
+                continue
+            merged[addr] = merged.get(addr, 0.0) + float(raw_value or 0)
+    return merged
+
+
+def merge_chain_flow_components(components_by_chain):
+    """Sum gross and protocol components for the exact combined flow rows."""
+    fields = (
+        "gross_inflow",
+        "gross_outflow",
+        "net_flow",
+        "protocol_deposit",
+        "protocol_withdrawal",
+    )
+    merged = {}
+    for chain_components in (components_by_chain or {}).values():
+        for raw_addr, values in (chain_components or {}).items():
+            addr = str(raw_addr or "").lower()
+            if not addr:
+                continue
+            target = merged.setdefault(addr, {field: 0.0 for field in fields})
+            for field in fields:
+                target[field] += float((values or {}).get(field, 0) or 0)
+    return merged
+
+
+def merge_chain_counts(counts_by_chain):
+    merged = {}
+    for chain_counts in (counts_by_chain or {}).values():
+        for raw_addr, raw_count in (chain_counts or {}).items():
+            addr = str(raw_addr or "").lower()
+            if addr:
+                merged[addr] = merged.get(addr, 0) + int(raw_count or 0)
+    return merged
+
+
 def load_current_holder_rows():
     holders_file = os.path.join(DATA_DIR, "dolo_holders.json")
     if not os.path.exists(holders_file):
@@ -2528,6 +2715,17 @@ def load_current_holder_rows():
     except Exception as e:
         print(f"  ⚠️ Could not load holder rows for bucket history: {e}")
         return {}
+
+
+def verified_user_contract_addresses(holder_rows):
+    """Return holder contracts proven to represent a user-controlled wallet."""
+    visible_contract_wallet_types = {"safe", "multisig", "delegated_eoa"}
+    return {
+        str(addr or "").lower()
+        for addr, row in (holder_rows or {}).items()
+        if str((row or {}).get("contract_wallet_type") or "").lower()
+        in visible_contract_wallet_types
+    }
 
 
 STRATEGIC_INVESTOR_CLAIMS = "0x7efd088ae500598a19a242d6d48b9f7e0d061176"
@@ -2715,14 +2913,35 @@ def load_address_labels(vesting_labels=None):
     return labels
 
 
-def select_dynamic_flow_exclusions(detected_contracts, address_labels):
+def select_dynamic_flow_exclusions(
+    detected_contracts,
+    address_labels,
+    verified_user_contracts=None,
+):
     """Keep known custody/user contracts visible; exclude infrastructure CAs."""
-    visible_label_types = {"cex", "multisig", "safe", "contract_wallet", "protocol"}
+    visible_label_types = {
+        "cex",
+        "multisig",
+        "safe",
+        "contract_wallet",
+        "protocol",
+        "bot",
+        "mm",
+        "trader",
+    }
+    verified_user_contracts = {
+        str(address or "").lower()
+        for address in (verified_user_contracts or set())
+    }
     exclusions = set()
     for raw_addr in detected_contracts:
         addr = str(raw_addr or "").lower()
         label_type = str((address_labels.get(addr) or {}).get("type") or "").lower()
-        if addr in USER_CONTRACT_WALLET_ADDRS or label_type in visible_label_types:
+        if (
+            addr in USER_CONTRACT_WALLET_ADDRS
+            or addr in verified_user_contracts
+            or label_type in visible_label_types
+        ):
             continue
         exclusions.add(addr)
     return exclusions
@@ -3901,15 +4120,15 @@ def main():
         current_blocks[chain_key] = buffered
         print(f"  {cfg['name']}: block {blk:,} (scanning to {buffered:,}, reorg buffer)")
 
-    # Calculate cutoff blocks for each period
-    cutoff_blocks = {}
+    # Resolve every period from exact block timestamps. Average block-time
+    # arithmetic drifts materially on longer Ethereum windows.
+    cutoff_blocks, period_boundaries = calculate_exact_period_cutoffs(current_blocks)
     for chain_key, cfg in CHAINS.items():
-        cutoff_blocks[chain_key] = {}
-        deploy_block = cfg.get("deploy_block", 0)
-        for period, seconds in PERIODS.items():
-            blocks_back = seconds // cfg["block_time"]
-            cutoff = max(current_blocks[chain_key] - blocks_back, deploy_block)
-            cutoff_blocks[chain_key][period] = cutoff
+        print(
+            f"  {cfg['name']}: exact 180D boundary "
+            f"{cutoff_blocks[chain_key]['180d']:,} "
+            f"({datetime.utcfromtimestamp(period_boundaries[chain_key]['180d']['startTimestamp']).isoformat()}Z)"
+        )
 
     # Determine the oldest block we need per chain (longest period cutoff)
     max_period = max(PERIODS.keys(), key=lambda k: PERIODS[k])
@@ -4095,6 +4314,8 @@ def main():
     # Detect contracts among top addresses (to exclude DEX routers, etc.)
     print("\n🔍 Detecting contract addresses to exclude...")
     address_labels = load_address_labels()
+    holder_rows = load_current_holder_rows()
+    verified_user_contracts = verified_user_contract_addresses(holder_rows)
     # Collect all unique addresses from transfers
     for chain_key in CHAINS:
         addr_set = set()
@@ -4114,7 +4335,11 @@ def main():
         )
 
         contracts = detect_contracts_batch(addrs_to_check, chain_key)
-        dynamic_exclusions = select_dynamic_flow_exclusions(contracts, address_labels)
+        dynamic_exclusions = select_dynamic_flow_exclusions(
+            contracts,
+            address_labels,
+            verified_user_contracts,
+        )
         EXCLUDED_ADDRS.update(dynamic_exclusions)
         visible_contracts = len(contracts) - len(dynamic_exclusions)
         print(
@@ -4131,6 +4356,7 @@ def main():
     flow_metadata_cache = {"eth": {}, "bera": {}}
     lp_receipt_cache = {"eth": {}, "bera": {}}
     liquidity_registry = load_liquidity_registry()
+    bridge_neutralization_audit = {}
     for period, seconds in PERIODS.items():
         output_periods[period] = {}
 
@@ -4163,13 +4389,16 @@ def main():
 
         # Step 3: Remove canonical bridge legs only when the same wallet receives
         # the matching destination mint. Cross-wallet bridges remain real flows.
-        neutralized, n_count, n_volume, bridge_cancellations = (
-            neutralize_raw_and_bridge_flows_with_stats(
+        neutralized, bridge_audit, bridge_cancellations = (
+            neutralize_raw_and_bridge_flows_with_audit(
                 raw_flows,
                 bridge_flows_by_chain,
                 adapter_outflows_by_chain,
             )
         )
+        bridge_neutralization_audit[period] = bridge_audit
+        n_count = bridge_audit["total"]["addressCount"]
+        n_volume = bridge_audit["total"]["dolo"]
         flow_components_by_chain = apply_bridge_outflow_cancellations(
             flow_components_by_chain,
             bridge_cancellations,
@@ -4263,6 +4492,68 @@ def main():
             print(f"  {period} {cfg['name']}: {len(period_transfers_by_chain[chain_key]):,} transfers, "
                   f"top accumulator: {accumulators[0]['net_flow']:,.0f} DOLO" if accumulators else
                   f"  {period} {cfg['name']}: no data")
+
+        # Rank only after merging the complete market maps. Merging two already
+        # truncated Top 100 lists drops material opposite legs and can emit a
+        # false non-zero combined result for an address whose true net is zero.
+        combined_flows = merge_chain_flow_maps(market_flows_by_chain)
+        combined_components = merge_chain_flow_components(flow_components_by_chain)
+        combined_counts = merge_chain_counts(tx_counts_by_chain)
+        combined_accumulators = get_top(
+            combined_flows,
+            combined_counts,
+            TOP_N,
+            "accumulator",
+            EXCLUDED_ADDRS,
+        )
+        combined_sellers = get_top(
+            combined_flows,
+            combined_counts,
+            TOP_N,
+            "seller",
+            EXCLUDED_ADDRS,
+        )
+        for entry in combined_accumulators + combined_sellers:
+            components = combined_components.get(entry["address"], {})
+            entry["gross_inflow"] = round(components.get("gross_inflow", 0), 2)
+            entry["gross_outflow"] = round(components.get("gross_outflow", 0), 2)
+            entry["protocol_deposit"] = round(components.get("protocol_deposit", 0), 2)
+            entry["protocol_withdrawal"] = round(
+                components.get("protocol_withdrawal", 0), 2
+            )
+
+        # Reuse exact per-chain presentation evidence when the combined row is
+        # also present in a chain ranking. Evidence remains optional and never
+        # participates in flow arithmetic.
+        chain_evidence = {}
+        for chain_key in CHAINS:
+            chain_data = output_periods[period][chain_key]
+            for row in chain_data["accumulators"] + chain_data["sellers"]:
+                timestamp = int(row.get("latest_tx_timestamp") or 0)
+                prior = chain_evidence.get(row["address"])
+                if prior is None or timestamp > int(prior.get("latest_tx_timestamp") or 0):
+                    chain_evidence[row["address"]] = row
+        for entry in combined_accumulators + combined_sellers:
+            evidence = chain_evidence.get(entry["address"])
+            if evidence:
+                for key in (
+                    "latest_tx_hash",
+                    "latest_tx_timestamp",
+                    "latest_tx_chain",
+                    "latest_lp_activity",
+                ):
+                    if key in evidence:
+                        entry[key] = evidence[key]
+            if dolo_price:
+                entry["usd_value"] = round(entry["net_flow"] * dolo_price, 2)
+
+        output_periods[period]["all"] = {
+            "accumulators": combined_accumulators,
+            "sellers": combined_sellers,
+            "total_transfers": sum(
+                len(rows) for rows in period_transfers_by_chain.values()
+            ),
+        }
 
     # Fetch DOLO balances for all addresses across both chains
     all_addrs = set()
@@ -4403,7 +4694,11 @@ def main():
         pass
 
     output = {
+        "schemaVersion": 3,
         "timestamp": datetime.utcnow().isoformat(),
+        "tracked_flow_chains": ["ethereum", "berachain"],
+        "period_boundaries": period_boundaries,
+        "bridge_neutralization_audit": bridge_neutralization_audit,
         "holder_history_start_timestamp": datetime.utcfromtimestamp(HOLDER_HISTORY_START_TIMESTAMP).isoformat() + "Z",
         "holder_history_points": [
             {"key": point["key"], "timestamp": point["timestamp"]}

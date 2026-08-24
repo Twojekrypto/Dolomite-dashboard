@@ -59,6 +59,11 @@ SECONDARY_IDENTIFIERS = {
         "kodiak-v3",
         "0x8194ed4d6701b7a1b40e48431de37047f0248b0b",
     ),
+    (
+        "berachain",
+        "brownfi-v3",
+        "0x16b3a5e95db753fe5195244fa208301e38beae2a",
+    ),
 }
 
 
@@ -81,6 +86,16 @@ class RegistryContractTests(unittest.TestCase):
         self.assertEqual(registry["display"]["hideBelowLiquidityUsd"], 1000)
         bulla = next(row for row in registry["pools"] if row["adapter"] == "bulla-v3")
         self.assertEqual(bulla["version"], "Algebra Integral")
+        brownfi = next(row for row in registry["pools"] if row["adapter"] == "brownfi-v3")
+        self.assertEqual(brownfi["pair"], "DOLO/BUSD")
+        self.assertEqual(brownfi["dex"], "BrownFi")
+        self.assertEqual(brownfi["verification"]["method"], "onchain-interface")
+        self.assertEqual(brownfi["verification"]["token0"], DOLO)
+        self.assertEqual(brownfi["verification"]["token1Symbol"], "BUSD")
+        self.assertEqual(
+            registry["chains"]["berachain"]["adapters"]["brownfi-v3"]["factory"],
+            "0x6ccf36d3eae84b2eb608704070b90f4419bbcd28",
+        )
 
     def test_production_registry_uses_official_manager_and_factory_addresses(self):
         registry = liquidity.load_registry(REGISTRY)
@@ -1011,6 +1026,45 @@ class V2AdapterTests(unittest.TestCase):
             (burn["kind"], burn["to"], burn["amount0Raw"], burn["amount1Raw"]),
             ("burn", self.BOB, 200, 400),
         )
+
+    def test_brownfi_v3_pool_uses_verified_v2_compatible_lp_accounting(self):
+        brownfi_mint = self._log(
+            liquidity.BROWNFI_MINT_SIGNATURE,
+            [self._topic_address(self.ROUTER), self._topic_address(self.ALICE)],
+            ["uint256", "uint256", "uint256", "uint256", "uint256"],
+            [100, 200, 1, 2, 3],
+            100,
+            1,
+            "8",
+        )
+        decoded = liquidity.decode_v2_log(brownfi_mint)
+        self.assertEqual(decoded["kind"], "mint")
+        self.assertEqual(decoded["amount0Raw"], 100)
+        self.assertEqual(decoded["amount1Raw"], 200)
+        self.assertEqual(decoded["to"], self.ALICE)
+
+        result = liquidity.replay_v2_pool(
+            {
+                "chainKey": "berachain",
+                "adapter": "brownfi-v3",
+                "identifier": self.POOL,
+                "identifierType": "contract",
+                "pair": "DOLO/BUSD",
+            },
+            [brownfi_mint],
+            {
+                "token0": DOLO,
+                "token1": self.HONEY,
+                "totalSupply": 1,
+                "reserve0": 1,
+                "reserve1": 1,
+                "balances": {},
+            },
+        )
+
+        self.assertEqual(result["sourceKey"], "berachain:brownfi-v3")
+        self.assertEqual(result["sourceStatus"], "complete")
+        self.assertEqual(result["history"][0]["action"], "Added")
 
     def test_replay_v2_tracks_current_wallets_and_only_liquidity_actions(self):
         logs = [

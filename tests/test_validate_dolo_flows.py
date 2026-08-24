@@ -23,6 +23,72 @@ def valid_cex_history_payload():
 
 class ValidateDoloFlowsTest(unittest.TestCase):
     @staticmethod
+    def _reconciliation_payload():
+        periods = ("1d", "7d", "30d", "90d", "180d", "all")
+        empty = {"accumulators": [], "sellers": [], "total_transfers": 0}
+        return {
+            "schemaVersion": 3,
+            "tracked_flow_chains": ["ethereum", "berachain"],
+            "periods": {
+                period: {
+                    "eth": copy.deepcopy(empty),
+                    "bera": copy.deepcopy(empty),
+                    "all": copy.deepcopy(empty),
+                }
+                for period in periods
+            },
+            "period_boundaries": {
+                chain: {
+                    period: {
+                        "targetTimestamp": 1_000,
+                        "startBlock": 100,
+                        "startTimestamp": 1_001,
+                        "endBlock": 200,
+                        "endTimestamp": 2_000,
+                    }
+                    for period in periods
+                }
+                for chain in ("eth", "bera")
+            },
+            "bridge_neutralization_audit": {
+                period: {
+                    "canonicalAdapter": {"addressCount": 1, "dolo": 10.0},
+                    "legacyHeuristic": {"addressCount": 2, "dolo": 5.0},
+                    "total": {"addressCount": 3, "dolo": 15.0},
+                }
+                for period in periods
+            },
+        }
+
+    def test_v3_combined_flow_contract_passes_when_complete(self):
+        self.assertTrue(
+            validate_data._flow_reconciliation_v3_is_valid(
+                self._reconciliation_payload()
+            )
+        )
+
+    def test_v3_combined_flow_contract_rejects_missing_combined_rows(self):
+        payload = self._reconciliation_payload()
+        payload["periods"]["180d"].pop("all")
+
+        self.assertFalse(validate_data._flow_reconciliation_v3_is_valid(payload))
+
+    def test_v3_combined_flow_contract_rejects_bad_boundaries_and_audit_totals(self):
+        payload = self._reconciliation_payload()
+        payload["period_boundaries"]["eth"]["180d"]["startTimestamp"] = 999
+        self.assertFalse(validate_data._flow_reconciliation_v3_is_valid(payload))
+
+        payload = self._reconciliation_payload()
+        payload["bridge_neutralization_audit"]["7d"]["total"]["dolo"] = 16.0
+        self.assertFalse(validate_data._flow_reconciliation_v3_is_valid(payload))
+
+    def test_dolo_flow_rule_registers_v3_reconciliation_guard(self):
+        self.assertIn(
+            "v3 combined flow rows, exact boundaries and bridge audit must reconcile",
+            dict(validate_data.RULES["dolo_flows.json"]["checks"]),
+        )
+
+    @staticmethod
     def _check(payload):
         checks = dict(validate_data.RULES["dolo_flows.json"]["checks"])
         return checks["CEX exchange history must reconcile exactly"](payload)

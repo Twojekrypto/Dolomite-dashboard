@@ -1354,6 +1354,7 @@ DOLO_LIQUIDITY_POOLS = {
     ("berachain", "kodiak-v3", "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3"),
     ("berachain", "bulla-v3", "0x8991017b74f9f8070bff5b322802dd26e05e0cc7"),
     ("berachain", "kodiak-v3", "0x8194ed4d6701b7a1b40e48431de37047f0248b0b"),
+    ("berachain", "brownfi-v3", "0x16b3a5e95db753fe5195244fa208301e38beae2a"),
 }
 DOLO_LIQUIDITY_QUALITIES = {"verified", "partial", "stale", "unavailable"}
 DOLO_LIQUIDITY_POSITION_STATUSES = {"active", "custodied_unresolved"}
@@ -1972,6 +1973,127 @@ def _flow_history_integrity_is_valid(data):
     return True
 
 
+def _flow_reconciliation_v3_is_valid(data):
+    """Validate the post-merge leaderboard, exact time bounds and bridge audit."""
+    schema_version = data.get("schemaVersion")
+    if schema_version is None:
+        # Transitional compatibility for the currently deployed v2 artifact.
+        return True
+    if not _is_exact_integer(schema_version) or schema_version != 3:
+        return False
+
+    periods = ("1d", "7d", "30d", "90d", "180d", "all")
+    expected_chains = {"eth", "bera"}
+    if data.get("tracked_flow_chains") != ["ethereum", "berachain"]:
+        return False
+
+    period_rows = data.get("periods")
+    boundaries = data.get("period_boundaries")
+    bridge_audit = data.get("bridge_neutralization_audit")
+    if (
+        not isinstance(period_rows, dict)
+        or not isinstance(boundaries, dict)
+        or set(boundaries) != expected_chains
+        or not isinstance(bridge_audit, dict)
+    ):
+        return False
+
+    def leaderboard_is_valid(container):
+        if not isinstance(container, dict):
+            return False
+        total_transfers = container.get("total_transfers")
+        if not _is_exact_integer(total_transfers) or total_transfers < 0:
+            return False
+        seen = set()
+        for kind in ("accumulators", "sellers"):
+            rows = container.get(kind)
+            if not isinstance(rows, list) or len(rows) > 100:
+                return False
+            prior_net = float("inf")
+            for row in rows:
+                if not isinstance(row, dict):
+                    return False
+                address = str(row.get("address") or "").lower()
+                net_flow = row.get("net_flow")
+                if (
+                    not re.fullmatch(r"0x[a-f0-9]{40}", address)
+                    or address in seen
+                    or not _finite_real_json_number(net_flow)
+                    or float(net_flow) <= 0
+                    or float(net_flow) > prior_net + 0.01
+                ):
+                    return False
+                seen.add(address)
+                prior_net = float(net_flow)
+                for key in (
+                    "gross_inflow",
+                    "gross_outflow",
+                    "protocol_deposit",
+                    "protocol_withdrawal",
+                ):
+                    value = row.get(key)
+                    if not _finite_real_json_number(value) or float(value) < 0:
+                        return False
+        return True
+
+    for period in periods:
+        period_data = period_rows.get(period)
+        if not isinstance(period_data, dict) or not {"eth", "bera", "all"}.issubset(period_data):
+            return False
+        if not all(
+            leaderboard_is_valid(period_data[scope])
+            for scope in ("eth", "bera", "all")
+        ):
+            return False
+
+        audit = bridge_audit.get(period)
+        if not isinstance(audit, dict):
+            return False
+        for method in ("canonicalAdapter", "legacyHeuristic", "total"):
+            row = audit.get(method)
+            if (
+                not isinstance(row, dict)
+                or not _is_exact_integer(row.get("addressCount"))
+                or row["addressCount"] < 0
+                or not _finite_real_json_number(row.get("dolo"))
+                or float(row["dolo"]) < 0
+            ):
+                return False
+        if (
+            audit["total"]["addressCount"]
+            != audit["canonicalAdapter"]["addressCount"]
+            + audit["legacyHeuristic"]["addressCount"]
+            or abs(
+                float(audit["total"]["dolo"])
+                - float(audit["canonicalAdapter"]["dolo"])
+                - float(audit["legacyHeuristic"]["dolo"])
+            ) > 0.000002
+        ):
+            return False
+
+        for chain_key in expected_chains:
+            chain_boundaries = boundaries.get(chain_key)
+            row = chain_boundaries.get(period) if isinstance(chain_boundaries, dict) else None
+            if not isinstance(row, dict):
+                return False
+            values = [
+                row.get("targetTimestamp"),
+                row.get("startBlock"),
+                row.get("startTimestamp"),
+                row.get("endBlock"),
+                row.get("endTimestamp"),
+            ]
+            if not all(_is_exact_integer(value) for value in values):
+                return False
+            if (
+                row["startBlock"] > row["endBlock"]
+                or row["targetTimestamp"] > row["startTimestamp"]
+                or row["startTimestamp"] > row["endTimestamp"]
+            ):
+                return False
+    return True
+
+
 RULES = {
     "dolo-liquidity.json": {
         "required_keys": ["schemaVersion", "generatedAt", "summary", "sources", "pools", "activePositions", "history", "quality"],
@@ -1991,6 +2113,7 @@ RULES = {
             ("optional latest transaction metadata must be exact", _flow_tx_metadata_is_valid),
             ("optional LP activity metadata must be exact", _flow_lp_metadata_is_valid),
             ("Dolomite DOLO balances must be complete and reconcile", _flow_dolomite_balances_are_valid),
+            ("v3 combined flow rows, exact boundaries and bridge audit must reconcile", _flow_reconciliation_v3_is_valid),
         ],
         "min_bytes": 50_000,
     },

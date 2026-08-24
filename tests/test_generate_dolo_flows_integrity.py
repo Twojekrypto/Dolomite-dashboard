@@ -28,9 +28,118 @@ AUTOMATED_TRADER = "0x7bd27a0103e48e25acdb131cc190314562171fde"
 KNOWN_BERA_FLOW_SOURCE = "0x52256ef863a713ef349ae6e97a7e8f35785145de"
 KNOWN_BERA_FLOW_RECIPIENT = "0xb490d2a5d857c0357a8c2ac23c30ba0e6e02f909"
 KNOWN_BERA_FLOW_TX = "0xcc41fb29534dc8adb1440454087a6a738fdfbeaaa2d20880d2265edbbc8997b3"
+VERIFIED_USER_SAFE = "0x4cedf88d4fdefa1e460bbed10bdfef105c62fd68"
+BROWNFI_DOLO_BUSD_POOL = "0x16b3a5e95db753fe5195244fa208301e38beae2a"
+KNOWN_TRADING_BOTS = {
+    "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74",
+    "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3",
+    "0x278d858f05b94576c1e6f73285886876ff6ef8d2",
+    "0xf10f81795b359f8a72682cc2a39444bf818ef4ca",
+}
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
+    def test_brownfi_pool_uses_the_shared_verified_lp_label(self):
+        label = flows.load_address_labels()[BROWNFI_DOLO_BUSD_POOL]
+
+        self.assertEqual(label["label"], "BrownFi DOLO/BUSD LP Pool")
+        self.assertEqual(label["type"], "lp")
+
+    def test_combined_ranking_happens_after_complete_chain_merge(self):
+        target = "0x9999999999999999999999999999999999999999"
+        eth = {
+            f"0x{index:040x}": float(10_000 - index)
+            for index in range(1, 102)
+        }
+        bera = {
+            f"0x{index + 1_000:040x}": float(10_000 - index)
+            for index in range(1, 102)
+        }
+        eth[target] = 9_000.0
+        bera[target] = 9_000.0
+
+        eth_top = flows.get_top(eth, {}, 100)
+        bera_top = flows.get_top(bera, {}, 100)
+        self.assertNotIn(target, {row["address"] for row in eth_top})
+        self.assertNotIn(target, {row["address"] for row in bera_top})
+
+        combined = flows.merge_chain_flow_maps({"eth": eth, "bera": bera})
+        combined_top = flows.get_top(combined, {}, 100)
+
+        self.assertEqual(combined_top[0]["address"], target)
+        self.assertEqual(combined_top[0]["net_flow"], 18_000.0)
+
+    def test_equal_opposing_chain_legs_cancel_before_combined_ranking(self):
+        eth = {CROSS_CHAIN_WALLET: -283_000.05056654825}
+        bera = {CROSS_CHAIN_WALLET: 283_000.05056654825}
+
+        combined = flows.merge_chain_flow_maps({"eth": eth, "bera": bera})
+
+        self.assertAlmostEqual(combined[CROSS_CHAIN_WALLET], 0)
+        self.assertEqual(flows.get_top(combined, {}, 100, "accumulator"), [])
+        self.assertEqual(flows.get_top(combined, {}, 100, "seller"), [])
+
+    def test_verified_safe_holder_contract_remains_visible_in_flows(self):
+        holder_rows = {
+            VERIFIED_USER_SAFE: {
+                "address": VERIFIED_USER_SAFE,
+                "balance": 20_000_000,
+                "is_contract": True,
+                "contract_wallet_type": "safe",
+            }
+        }
+        verified_user_contracts = flows.verified_user_contract_addresses(holder_rows)
+        excluded = flows.select_dynamic_flow_exclusions(
+            {VERIFIED_USER_SAFE},
+            {},
+            verified_user_contracts,
+        )
+
+        self.assertIn(VERIFIED_USER_SAFE, verified_user_contracts)
+        self.assertNotIn(VERIFIED_USER_SAFE, excluded)
+
+    def test_known_trading_bots_remain_visible_to_the_trading_bots_filter(self):
+        labels = {address: {"type": "bot"} for address in KNOWN_TRADING_BOTS}
+        excluded = flows.select_dynamic_flow_exclusions(
+            KNOWN_TRADING_BOTS,
+            labels,
+            set(),
+        )
+
+        self.assertTrue(KNOWN_TRADING_BOTS.isdisjoint(flows.EXCLUDED_ADDRS))
+        self.assertEqual(excluded, set())
+
+    def test_bridge_audit_separates_canonical_and_legacy_cancellations(self):
+        exact = "0x1111111111111111111111111111111111111111"
+        legacy = "0x2222222222222222222222222222222222222222"
+        raw = {
+            "eth": {exact: 0.0, legacy: 0.0},
+            "bera": {exact: -100.0, legacy: 0.0},
+        }
+        bridge = {
+            "eth": {exact: 100.0, legacy: 75.0},
+            "bera": {exact: -100.0, legacy: -75.0},
+        }
+        adapter_outflows = {
+            "eth": {},
+            "bera": {exact: 100.0},
+        }
+
+        _neutralized, audit, _cancellations = (
+            flows.neutralize_raw_and_bridge_flows_with_audit(
+                raw,
+                bridge,
+                adapter_outflows,
+            )
+        )
+
+        self.assertEqual(audit["canonicalAdapter"]["addressCount"], 1)
+        self.assertEqual(audit["canonicalAdapter"]["dolo"], 100.0)
+        self.assertEqual(audit["legacyHeuristic"]["addressCount"], 1)
+        self.assertEqual(audit["legacyHeuristic"]["dolo"], 75.0)
+        self.assertEqual(audit["total"]["addressCount"], 2)
+        self.assertEqual(audit["total"]["dolo"], 175.0)
+
     def test_wallet_receipt_remains_market_inflow_after_ethereum_protocol_deposit(self):
         amount = 283_000.05056654825
         amount_wei = int(amount * 10**18)

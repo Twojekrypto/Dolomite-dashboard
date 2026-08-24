@@ -62,3 +62,77 @@ test("DOLO Flows type filter lists Investors immediately before Protocol", () =>
       flowTypeFilter.indexOf('data-type="protocol"'),
   );
 });
+
+test("combined DOLO Flows consumes the generator's pre-ranked all-chain rows", () => {
+  const start = preview.indexOf("  function flowRowsForPeriod(){");
+  const end = preview.indexOf("  renderFlows = function(){", start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  const rows = [];
+  const flowRowsForPeriod = new Function(
+    "liveFlowsData",
+    "state",
+    "FLOWS",
+    "HOLDERS",
+    "DOLOMITE_FLOW_BALANCES",
+    "lower",
+    "addressInfo",
+    "labelFor",
+    "mapType",
+    "isSafeWallet",
+    "safeNum",
+    `${preview.slice(start, end)}\nreturn flowRowsForPeriod;`,
+  )(
+    {
+      periods: {
+        "7d": {
+          all: {
+            accumulators: [{ address: "0xall", net_flow: 100 }],
+            sellers: [],
+          },
+          eth: {
+            accumulators: [{ address: "0xeth", net_flow: 60 }],
+            sellers: [],
+          },
+          bera: {
+            accumulators: [{ address: "0xbera", net_flow: 60 }],
+            sellers: [],
+          },
+        },
+      },
+    },
+    { flowsPeriod: "7d", flowsChain: "all" },
+    rows,
+    [],
+    {},
+    value => String(value || "").toLowerCase(),
+    () => ({}),
+    value => value,
+    () => "eoa",
+    () => false,
+    value => Number(value || 0),
+  );
+
+  flowRowsForPeriod.call(null);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].addr, "0xall");
+  assert.equal(rows[0].chgAll, 100);
+
+  const effectiveStart = preview.indexOf("function effectiveChg(r){");
+  const effectiveEnd = preview.indexOf("function effectiveGrossInflow", effectiveStart);
+  const effectiveChg = new Function(
+    "state",
+    `${preview.slice(effectiveStart, effectiveEnd)}\nreturn effectiveChg;`,
+  )({ flowsChain: "all" });
+  assert.equal(effectiveChg(rows[0]), 100);
+});
+
+test("DOLO Flows names the combined scope explicitly", () => {
+  const filterStart = preview.indexOf('<div class="dd" id="dd-flows-chain">');
+  const filterEnd = preview.indexOf('<div class="dd" id="dd-flows-types">', filterStart);
+  assert.notEqual(filterStart, -1);
+  assert.notEqual(filterEnd, -1);
+  const filter = preview.slice(filterStart, filterEnd);
+  assert.match(filter, /Ethereum \+ Berachain/);
+  assert.doesNotMatch(filter, />All [Cc]hains</);
+});
