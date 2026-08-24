@@ -279,6 +279,10 @@ RPC_LOG_CHUNK_DELAY_SECONDS = max(
     0.05,
     float(os.environ.get("DOLO_FLOWS_LOG_CHUNK_DELAY_SECONDS", "0.25")),
 )
+RPC_LOG_CHUNK_REGROW_SUCCESS_THRESHOLD = max(
+    1,
+    int(os.environ.get("DOLO_FLOWS_LOG_CHUNK_REGROW_SUCCESS_THRESHOLD", "8")),
+)
 ETHERSCAN_LOG_PAGE_DELAY_SECONDS = max(
     0.05,
     float(os.environ.get("DOLO_FLOWS_ETHERSCAN_PAGE_DELAY_SECONDS", "0.4")),
@@ -1047,6 +1051,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
         )
     chunks_done = int(staged.get("verifiedChunkCount", 0) or 0) if current > start_block else 0
     chunks_failed = 0
+    reduced_chunk_successes = 0
     skipped_ranges = []  # [start, end] of block ranges lost to persistent RPC failure
     agreeing_provider_families = set(staged.get("providerFamilies", [])) if current > start_block else set()
     disagreeing_provider_families = set(staged.get("disagreeingProviderFamilies", [])) if current > start_block else set()
@@ -1091,6 +1096,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
         if shrink_range:
             if chunk_size > 1000:
                 chunk_size = max(chunk_size // 2, 1000)
+                reduced_chunk_successes = 0
                 print(
                     f"    ⚠️ Retrying block {current:,} with smaller chunk "
                     f"({chunk_size:,} blocks)"
@@ -1120,6 +1126,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
         if not success:
             if chunk_size > 1000:
                 chunk_size = max(chunk_size // 2, 1000)
+                reduced_chunk_successes = 0
                 print(
                     f"    ⚠️ {cfg['name']}: no independent RPC quorum for "
                     f"{current:,}-{chunk_end:,}; retrying with {chunk_size:,} blocks"
@@ -1170,7 +1177,12 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
             )
 
         if chunk_size < cfg["chunk_size"]:
-            chunk_size = min(chunk_size * 2, cfg["chunk_size"])
+            reduced_chunk_successes += 1
+            if reduced_chunk_successes >= RPC_LOG_CHUNK_REGROW_SUCCESS_THRESHOLD:
+                chunk_size = min(chunk_size * 2, cfg["chunk_size"])
+                reduced_chunk_successes = 0
+        else:
+            reduced_chunk_successes = 0
 
         time.sleep(RPC_LOG_CHUNK_DELAY_SECONDS)
 

@@ -883,6 +883,53 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
             [(KNOWN_BERA_FLOW_SOURCE, KNOWN_BERA_FLOW_RECIPIENT, 21_100 * 10**18, 24_990_784)],
         )
 
+    def test_fetch_transfer_logs_regrows_reduced_chunks_only_after_stable_successes(self):
+        requested_ranges = []
+        chain = {
+            "bera": {
+                "name": "Berachain",
+                "rpcs": ["https://rpc-one.example", "https://rpc-two.example"],
+                "chunk_size": 2_000,
+                "deploy_block": 1,
+            }
+        }
+
+        def request_logs(_endpoint, _cfg, start_block, end_block):
+            requested_ranges.append((start_block, end_block))
+            if (start_block, end_block) == (100, 2_099):
+                return None
+            return [{
+                "address": flows.DOLO_CONTRACT,
+                "topics": [
+                    flows.TRANSFER_TOPIC,
+                    "0x" + "0" * 24 + SOURCE[2:],
+                    "0x" + "0" * 24 + OUTSIDE[2:],
+                ],
+                "data": hex(10**18),
+                "blockNumber": hex(start_block),
+                "transactionHash": "0x" + f"{start_block:064x}",
+                "logIndex": "0x0",
+            }]
+
+        with patch.object(flows, "CHAINS", chain), patch.object(
+            flows, "_request_transfer_logs", side_effect=request_logs
+        ), patch.object(
+            flows, "RPC_LOG_CHUNK_REGROW_SUCCESS_THRESHOLD", 3
+        ), patch.object(flows.time, "sleep"):
+            _transfers, failed, _ = flows.fetch_transfer_logs("bera", 100, 5_099)
+
+        self.assertEqual(failed, 0)
+        self.assertEqual(
+            list(dict.fromkeys(requested_ranges)),
+            [
+                (100, 2_099),
+                (100, 1_099),
+                (1_100, 2_099),
+                (2_100, 3_099),
+                (3_100, 5_099),
+            ],
+        )
+
     def test_dashboard_net_flow_hover_reconciles_gross_directions(self):
         source = (Path(__file__).resolve().parents[1] / "dolo-preview.html").read_text()
 
