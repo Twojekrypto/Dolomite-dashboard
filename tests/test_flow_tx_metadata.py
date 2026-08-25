@@ -100,6 +100,65 @@ class FlowTransactionMetadataTests(unittest.TestCase):
             "tx_hash": "0x" + "b" * 64,
         })
 
+    def test_verified_lp_activity_index_finds_deposit_before_flow_ranking(self):
+        block_number = 123
+        tx_hash = "0x" + "b" * 64
+        amount_wei = 1_304_943_547531365190891539
+        transfer_log = {
+            "address": self.DOLO,
+            "from": self.WALLET,
+            "to": self.V4_POOL_MANAGER,
+            "transactionHash": tx_hash,
+            "logIndex": "0x1",
+            "topics": [
+                flow_tx_metadata.TRANSFER_TOPIC,
+                self._topic_address(self.WALLET),
+                self._topic_address(self.V4_POOL_MANAGER),
+            ],
+            "data": hex(amount_wei),
+        }
+        receipt = {
+            "status": "0x1",
+            "transactionHash": tx_hash,
+            "logs": [
+                transfer_log,
+                {
+                    "address": self.V4_POOL_MANAGER,
+                    "topics": [
+                        flow_tx_metadata.V4_MODIFY_LIQUIDITY_TOPIC,
+                        self.V4_POOL_ID,
+                        self._topic_address(self.V4_POSITION_MANAGER),
+                    ],
+                    "data": "0x" + self._word(-100) + self._word(100) + self._word(99) + self._word(374940),
+                },
+            ],
+        }
+        transfers = [[
+            self.WALLET,
+            self.V4_POOL_MANAGER,
+            amount_wei / 10**18,
+            block_number,
+        ]]
+
+        activities = flow_tx_metadata.collect_verified_lp_activities(
+            transfers,
+            "ethereum",
+            self._registry(),
+            self.DOLO,
+            lambda blocks: {
+                block_number: {
+                    "timestamp": 1_787_000_091,
+                    "logs": [transfer_log],
+                }
+            },
+            lambda hashes: {tx_hash: receipt},
+        )
+
+        self.assertEqual(activities[self.WALLET]["deposit"], "1304943.547531365190891539")
+        self.assertEqual(activities[self.WALLET]["withdrawal"], "0")
+        self.assertEqual(activities[self.WALLET]["latest"]["tx_hash"], tx_hash)
+        self.assertEqual(activities[self.WALLET]["latest"]["timestamp"], 1_787_000_091)
+
     def test_v4_swap_like_transfer_without_position_event_is_not_labeled_lp(self):
         receipt = {
             "status": "0x1",

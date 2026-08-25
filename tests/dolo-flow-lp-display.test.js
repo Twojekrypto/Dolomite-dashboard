@@ -17,7 +17,9 @@ function loadLpBadgeBuilder(){
     `${source}\nreturn flowLpBadgeHtml;`,
   )(
     value => Number.isFinite(Number(value)) ? Number(value) : 0,
-    value => Number(value) === 1_304_943.5475313652 ? "1.3M" : "850K",
+    value => Number(value) === 1_304_943.5475313652
+      ? "1.3M"
+      : (Number(value) === 0.31 ? "0.31" : "850K"),
     value => String(value)
       .replaceAll("&", "&amp;")
       .replaceAll('"', "&quot;")
@@ -55,4 +57,18 @@ test("verified LP withdrawal is shown only for accumulator rows", () => {
   assert.match(badge(activity, "acc"), /850K ← LP/);
   assert.match(badge(activity, "acc"), /Verified LP withdrawal/);
   assert.equal(badge(activity, "out"), "");
+});
+
+test("period LP classification discloses the ordinary wallet transfer net", () => {
+  const badge = loadLpBadgeBuilder()({
+    direction: "deposit",
+    amount: "1304943.547531365190891539",
+    pair: "DOLO/USDC",
+    adapter: "uniswap-v4",
+    confidence: "verified_same_tx",
+    period_wallet_net_flow: 0.31,
+  }, "out");
+
+  assert.match(badge, /Wallet transfer net: \+0\.31 DOLO/);
+  assert.match(badge, /classified by verified LP movement/);
 });

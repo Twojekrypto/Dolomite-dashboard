@@ -424,3 +424,17 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   endpoint returns at most 1,000 rows and ignores Etherscan-style `page` input.
   Treat a full page as ambiguous and recursively split the block range until
   every accepted leaf is below the cap; reject a capped single block.
+- **Test shared wallet labels through the resolver, not source-code text.** A
+  confirmed Bot/MM label belongs in `dolo-address-labels.js` and must remain
+  visible to the Trading bots filter; requiring the address to be hardcoded in
+  a generator can make every unrelated data workflow fail after a correct
+  move to the shared label source.
+- **Classify LP pass-through outflows before leaderboard truncation.** When an
+  exact same-transaction receipt proves that a wallet funded and deposited
+  DOLO into a registered pool, a nearly flat wallet-transfer net may be shown
+  as the verified LP outflow. Preserve and disclose the ordinary period net;
+  never infer this from a destination address or replace a larger real outflow.
+- **Uniswap V4 vault shares are not NFT token IDs.** Incremental replay may
+  seed numeric `positionId` values only from `concentrated_nft` rows. Typed
+  vault-share or manager-custody rows use addresses and must be ignored by the
+  NFT replay cursor while legacy untyped NFT rows remain supported.

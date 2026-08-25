@@ -452,6 +452,9 @@ def incremental_pool_context(
             continue
         if row.get("sourceKey") != normalized_source or row.get("poolId") != normalized_pool:
             continue
+        position_type = str(row.get("positionType") or "").strip().lower()
+        if position_type and position_type != "concentrated_nft":
+            continue
         raw_token_id = row.get("positionId")
         if isinstance(raw_token_id, bool) or not isinstance(raw_token_id, (int, str)):
             raise ValueError("previous positionId must be a nonnegative integer")

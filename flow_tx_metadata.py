@@ -6,7 +6,7 @@ token's canonical Transfer logs.  Incomplete RPC evidence is omitted rather
 than guessed, so flow amounts and ranking remain completely independent.
 """
 import re
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from rpc_client import RpcError, rpc_single_request
 
@@ -303,6 +303,147 @@ def attach_latest_lp_metadata(rows, chain, registry, token_address, receipt_load
         if activity:
             row["latest_lp_activity"] = activity
     return rows
+
+
+def _decimal_text(value):
+    text = format(Decimal(value), "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def collect_verified_lp_activities(
+    transfers,
+    chain,
+    registry,
+    token_address,
+    evidence_loader,
+    receipt_loader,
+):
+    """Index exact LP deposits/withdrawals before aggregate flow ranking."""
+    index = _liquidity_registry_index(registry, chain)
+    if not index:
+        return {}
+    targets = set(index["contractPools"])
+    for config in index["adapters"].values():
+        pool_manager = config.get("poolManager") or ""
+        if pool_manager:
+            targets.add(pool_manager)
+    if not targets:
+        return {}
+
+    candidate_blocks = set()
+    for transfer in transfers or []:
+        if not isinstance(transfer, (list, tuple)) or len(transfer) < 4:
+            continue
+        from_addr = _normalized_address(transfer[0])
+        to_addr = _normalized_address(transfer[1])
+        if not from_addr or not to_addr or not ({from_addr, to_addr} & targets):
+            continue
+        try:
+            candidate_blocks.add(int(transfer[3]))
+        except (TypeError, ValueError):
+            continue
+
+    try:
+        evidence = evidence_loader(candidate_blocks) if candidate_blocks else {}
+    except Exception:
+        evidence = {}
+    transactions_by_wallet = {}
+    transaction_meta = {}
+    for block_number, block_evidence in (evidence or {}).items():
+        if not isinstance(block_evidence, dict):
+            continue
+        try:
+            timestamp = int(block_evidence.get("timestamp") or 0)
+            block = int(block_number)
+        except (TypeError, ValueError):
+            continue
+        if timestamp <= 0:
+            continue
+        for raw_log in block_evidence.get("logs") or []:
+            log = _normalized_log(raw_log)
+            if not log:
+                continue
+            if log["to"] in targets and log["from"] not in targets:
+                wallet = log["from"]
+            elif log["from"] in targets and log["to"] not in targets:
+                wallet = log["to"]
+            else:
+                continue
+            tx_hash = log["transactionHash"]
+            transactions_by_wallet.setdefault(wallet, set()).add(tx_hash)
+            transaction_meta[(wallet, tx_hash)] = {
+                "timestamp": timestamp,
+                "block_number": block,
+            }
+
+    tx_hashes = {
+        tx_hash
+        for hashes in transactions_by_wallet.values()
+        for tx_hash in hashes
+    }
+    try:
+        receipts = receipt_loader(tx_hashes) if tx_hashes else {}
+    except Exception:
+        receipts = {}
+
+    result = {}
+    for wallet, tx_hashes in transactions_by_wallet.items():
+        deposit = Decimal(0)
+        withdrawal = Decimal(0)
+        latest = None
+        pairs = set()
+        adapters = set()
+        for tx_hash in sorted(tx_hashes):
+            receipt = receipts.get(tx_hash) if isinstance(receipts, dict) else None
+            activity = classify_lp_receipt(
+                receipt,
+                wallet,
+                chain,
+                registry,
+                token_address,
+            )
+            if not activity:
+                continue
+            try:
+                amount = Decimal(str(activity.get("amount") or "0"))
+            except (InvalidOperation, TypeError, ValueError):
+                continue
+            if amount <= 0:
+                continue
+            if activity["direction"] == "deposit":
+                deposit += amount
+            else:
+                withdrawal += amount
+            pair = str(activity.get("pair") or "").strip()
+            adapter = str(activity.get("adapter") or "").strip()
+            if pair:
+                pairs.add(pair)
+            if adapter:
+                adapters.add(adapter)
+            meta = transaction_meta.get((wallet, tx_hash), {})
+            enriched = {
+                **activity,
+                "timestamp": int(meta.get("timestamp") or 0),
+                "block_number": int(meta.get("block_number") or 0),
+                "chain": chain,
+            }
+            if latest is None or (
+                enriched["timestamp"], enriched["block_number"], tx_hash
+            ) > (
+                int(latest.get("timestamp") or 0),
+                int(latest.get("block_number") or 0),
+                str(latest.get("tx_hash") or ""),
+            ):
+                latest = enriched
+        if latest:
+            result[wallet] = {
+                "deposit": _decimal_text(deposit),
+                "withdrawal": _decimal_text(withdrawal),
+                "pairs": sorted(pairs),
+                "adapters": sorted(adapters),
+                "latest": latest,
+            }
+    return result
 
 
 def fetch_transaction_receipts(rpcs, tx_hashes, rpc_batch_requests,
