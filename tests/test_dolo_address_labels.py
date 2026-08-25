@@ -271,8 +271,14 @@ console.log(JSON.stringify({known, unknown}));
                 self.assertEqual(info["source"], "behavioral-label")
                 self.assertEqual(info["confidence"], "confirmed")
 
-        generator = (ROOT / "generate_dolo_flows.py").read_text()
-        self.assertIn("0xf10f81795b359f8a72682cc2a39444bf818ef4ca", generator)
+        import generate_dolo_flows as flows
+
+        generator_labels = flows.load_address_labels()
+        for address, label in expected.items():
+            with self.subTest(generator_address=address):
+                self.assertEqual(generator_labels[address]["label"], label)
+                self.assertEqual(generator_labels[address]["type"], "bot")
+                self.assertNotIn(address, flows.EXCLUDED_ADDRS)
 
     def test_public_explorer_labels_are_current(self):
         expected = {

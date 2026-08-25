@@ -22,6 +22,7 @@ import rpc_usage
 from flow_tx_metadata import (
     attach_latest_lp_metadata,
     attach_latest_flow_metadata,
+    collect_verified_lp_activities,
     fetch_transaction_receipts,
     fetch_token_block_evidence,
 )
@@ -3969,6 +3970,119 @@ def build_searchable_flow_rows(flows, components, tx_counts, excluded=None):
     return accumulators, sellers
 
 
+def _flow_decimal_text(value):
+    text = format(Decimal(value), "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+def merge_verified_lp_activities(activities_by_chain):
+    merged = {}
+    for activities in (activities_by_chain or {}).values():
+        for raw_addr, summary in (activities or {}).items():
+            addr = str(raw_addr or "").lower()
+            if not addr or not isinstance(summary, dict):
+                continue
+            target = merged.setdefault(
+                addr,
+                {
+                    "deposit": Decimal(0),
+                    "withdrawal": Decimal(0),
+                    "pairs": set(),
+                    "adapters": set(),
+                    "latest": None,
+                },
+            )
+            for key in ("deposit", "withdrawal"):
+                try:
+                    target[key] += Decimal(str(summary.get(key) or "0"))
+                except InvalidOperation:
+                    continue
+            target["pairs"].update(summary.get("pairs") or [])
+            target["adapters"].update(summary.get("adapters") or [])
+            latest = summary.get("latest")
+            prior = target["latest"]
+            if isinstance(latest, dict) and (
+                prior is None
+                or (
+                    int(latest.get("timestamp") or 0),
+                    int(latest.get("block_number") or 0),
+                    str(latest.get("tx_hash") or ""),
+                )
+                > (
+                    int(prior.get("timestamp") or 0),
+                    int(prior.get("block_number") or 0),
+                    str(prior.get("tx_hash") or ""),
+                )
+            ):
+                target["latest"] = latest
+    return {
+        addr: {
+            "deposit": _flow_decimal_text(summary["deposit"]),
+            "withdrawal": _flow_decimal_text(summary["withdrawal"]),
+            "pairs": sorted(summary["pairs"]),
+            "adapters": sorted(summary["adapters"]),
+            "latest": summary["latest"],
+        }
+        for addr, summary in merged.items()
+        if summary["latest"] is not None
+    }
+
+
+def classify_verified_lp_outflows(market_flows, activities):
+    """Expose pass-through LP deposits without rewriting ordinary wallet net flow."""
+    classified = dict(market_flows or {})
+    annotations = {}
+    for raw_addr, summary in (activities or {}).items():
+        addr = str(raw_addr or "").lower()
+        if not addr or not isinstance(summary, dict):
+            continue
+        try:
+            deposit = Decimal(str(summary.get("deposit") or "0"))
+            withdrawal = Decimal(str(summary.get("withdrawal") or "0"))
+        except InvalidOperation:
+            continue
+        net_lp_deposit = deposit - withdrawal
+        if net_lp_deposit < Decimal("0.005"):
+            continue
+        market_net = float(classified.get(addr, 0) or 0)
+        latest = dict(summary.get("latest") or {})
+        if latest.get("direction") != "deposit":
+            continue
+        tolerance = max(1.0, float(net_lp_deposit) * 0.001)
+        pass_through = abs(market_net) <= tolerance
+        flow_basis = "verified_lp_deposit" if pass_through else "wallet_net"
+        if pass_through:
+            classified[addr] = -float(net_lp_deposit)
+            pairs = summary.get("pairs") or []
+            adapters = summary.get("adapters") or []
+            latest["amount"] = _flow_decimal_text(net_lp_deposit)
+            if len(pairs) > 1:
+                latest["pair"] = "Multiple DOLO pools"
+            if len(adapters) > 1:
+                latest["adapter"] = "multiple"
+        latest["period_wallet_net_flow"] = round(market_net, 2)
+        annotations[addr] = {
+            "flow_basis": flow_basis,
+            "market_net_flow": round(market_net, 2),
+            "latest_lp_activity": latest,
+            "latest_tx_hash": latest.get("tx_hash"),
+            "latest_tx_timestamp": latest.get("timestamp"),
+            "latest_tx_chain": latest.get("chain"),
+        }
+    return classified, annotations
+
+
+def apply_flow_annotations(rows, annotations):
+    for row in rows or []:
+        annotation = (annotations or {}).get(str(row.get("address") or "").lower())
+        if not annotation:
+            continue
+        for key, value in annotation.items():
+            if value is not None:
+                row[key] = value
+    return rows
+
+
 def get_dolo_price():
     """Fetch current DOLO price from DeFiLlama / CoinGecko."""
     try:
@@ -4464,18 +4578,9 @@ def main():
 
         # Step 3: Build output using neutralized flows. Exact transaction metadata
         # is optional presentation provenance and never participates in arithmetic.
+        lp_activities_by_chain = {}
         for chain_key, cfg in CHAINS.items():
-            flows = market_flows_by_chain[chain_key]
             tx_counts = tx_counts_by_chain[chain_key]
-
-            search_accumulators, search_sellers = build_searchable_flow_rows(
-                flows,
-                flow_components_by_chain[chain_key],
-                tx_counts,
-                EXCLUDED_ADDRS,
-            )
-            accumulators = search_accumulators[:TOP_N]
-            sellers = search_sellers[:TOP_N]
 
             def load_flow_evidence(blocks, _chain_key=chain_key, _cfg=cfg):
                 cache = flow_metadata_cache[_chain_key]
@@ -4489,14 +4594,6 @@ def main():
                     ))
                 return {block: cache[block] for block in blocks if block in cache}
 
-            chain_name = "ethereum" if chain_key == "eth" else "berachain"
-            attach_latest_flow_metadata(
-                accumulators, period_transfers_by_chain[chain_key], "inbound", chain_name, load_flow_evidence,
-            )
-            attach_latest_flow_metadata(
-                sellers, period_transfers_by_chain[chain_key], "outbound", chain_name, load_flow_evidence,
-            )
-
             def load_lp_receipts(tx_hashes, _chain_key=chain_key, _cfg=cfg):
                 cache = lp_receipt_cache[_chain_key]
                 missing = set(tx_hashes) - set(cache)
@@ -4509,12 +4606,48 @@ def main():
                     ))
                 return {tx_hash: cache[tx_hash] for tx_hash in tx_hashes if tx_hash in cache}
 
+            chain_name = "ethereum" if chain_key == "eth" else "berachain"
+            lp_activities = collect_verified_lp_activities(
+                period_transfers_by_chain[chain_key],
+                chain_name,
+                liquidity_registry,
+                DOLO_CONTRACT,
+                load_flow_evidence,
+                load_lp_receipts,
+            )
+            lp_activities_by_chain[chain_key] = lp_activities
+            flows, lp_annotations = classify_verified_lp_outflows(
+                market_flows_by_chain[chain_key],
+                lp_activities,
+            )
+
+            search_accumulators, search_sellers = build_searchable_flow_rows(
+                flows,
+                flow_components_by_chain[chain_key],
+                tx_counts,
+                EXCLUDED_ADDRS,
+            )
+            apply_flow_annotations(search_accumulators, lp_annotations)
+            apply_flow_annotations(search_sellers, lp_annotations)
+            accumulators = search_accumulators[:TOP_N]
+            sellers = search_sellers[:TOP_N]
+
+            chain_name = "ethereum" if chain_key == "eth" else "berachain"
+            attach_latest_flow_metadata(
+                accumulators, period_transfers_by_chain[chain_key], "inbound", chain_name, load_flow_evidence,
+            )
+            attach_latest_flow_metadata(
+                sellers, period_transfers_by_chain[chain_key], "outbound", chain_name, load_flow_evidence,
+            )
+
             attach_latest_lp_metadata(
                 accumulators, chain_name, liquidity_registry, DOLO_CONTRACT, load_lp_receipts,
             )
             attach_latest_lp_metadata(
                 sellers, chain_name, liquidity_registry, DOLO_CONTRACT, load_lp_receipts,
             )
+            apply_flow_annotations(accumulators, lp_annotations)
+            apply_flow_annotations(sellers, lp_annotations)
 
             # Add USD values
             if dolo_price:
@@ -4537,6 +4670,11 @@ def main():
         # truncated Top 100 lists drops material opposite legs and can emit a
         # false non-zero combined result for an address whose true net is zero.
         combined_flows = merge_chain_flow_maps(market_flows_by_chain)
+        combined_lp_activities = merge_verified_lp_activities(lp_activities_by_chain)
+        combined_flows, combined_lp_annotations = classify_verified_lp_outflows(
+            combined_flows,
+            combined_lp_activities,
+        )
         combined_components = merge_chain_flow_components(flow_components_by_chain)
         combined_counts = merge_chain_counts(tx_counts_by_chain)
         combined_search_accumulators, combined_search_sellers = build_searchable_flow_rows(
@@ -4545,6 +4683,8 @@ def main():
             combined_counts,
             EXCLUDED_ADDRS,
         )
+        apply_flow_annotations(combined_search_accumulators, combined_lp_annotations)
+        apply_flow_annotations(combined_search_sellers, combined_lp_annotations)
         combined_accumulators = combined_search_accumulators[:TOP_N]
         combined_sellers = combined_search_sellers[:TOP_N]
 
@@ -4572,6 +4712,8 @@ def main():
                         entry[key] = evidence[key]
             if dolo_price:
                 entry["usd_value"] = round(entry["net_flow"] * dolo_price, 2)
+        apply_flow_annotations(combined_accumulators, combined_lp_annotations)
+        apply_flow_annotations(combined_sellers, combined_lp_annotations)
 
         output_periods[period]["all"] = {
             "accumulators": combined_accumulators,

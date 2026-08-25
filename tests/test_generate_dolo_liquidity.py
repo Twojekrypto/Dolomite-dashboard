@@ -888,6 +888,39 @@ class LiveSourceRecoveryTests(unittest.TestCase):
         self.assertEqual(context["history"][0]["id"], "event-1")
         self.assertNotIn("staleSince", context["history"][0])
 
+    def test_incremental_context_ignores_non_nft_v4_vault_share_positions(self):
+        pool_id = "0x" + "ab" * 32
+        previous = {
+            "sources": [{
+                "key": "ethereum:uniswap-v4",
+                "lastScannedBlock": 2_000,
+            }],
+            "activePositions": [
+                {
+                    "sourceKey": "ethereum:uniswap-v4",
+                    "poolId": pool_id,
+                    "positionType": "concentrated_nft",
+                    "positionId": "374940",
+                },
+                {
+                    "sourceKey": "ethereum:uniswap-v4",
+                    "poolId": pool_id,
+                    "positionType": "uniswap_v4_vault_share",
+                    "positionId": "0x" + "53" * 20,
+                },
+            ],
+            "history": [],
+        }
+
+        context = liquidity.incremental_pool_context(
+            previous,
+            "ethereum:uniswap-v4",
+            pool_id,
+            100,
+        )
+
+        self.assertEqual(context["tokenIds"], {374940})
+
     def test_registered_source_passes_incremental_state_to_default_shape_builder(self):
         captured = {}
 

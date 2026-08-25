@@ -4929,9 +4929,14 @@ function flowLpBadgeHtml(activity, kind){
   const adapter = adapterLabels[activity.adapter] || String(activity.adapter || "tracked DEX");
   const pair = String(activity.pair || "DOLO pool");
   const amountLabel = fmtNum(amount);
-  const tooltip = direction === "deposit"
+  let tooltip = direction === "deposit"
     ? `Verified LP deposit · ${amountLabel} DOLO moved into ${adapter} ${pair} in the latest transaction. It remains counted as wallet outflow; this label describes its destination, not a sale.`
     : `Verified LP withdrawal · ${amountLabel} DOLO returned from ${adapter} ${pair} in the latest transaction. It remains counted as wallet inflow; this label describes its source, not a market purchase.`;
+  const walletNet = Number(activity.period_wallet_net_flow);
+  if(Number.isFinite(walletNet)){
+    const walletNetLabel = `${walletNet > 0 ? "+" : ""}${fmtNum(walletNet)}`;
+    tooltip += ` Wallet transfer net: ${walletNetLabel} DOLO; this row is classified by verified LP movement.`;
+  }
   const label = direction === "deposit" ? `${amountLabel} → LP` : `${amountLabel} ← LP`;
   return `<span class="flow-lp-note" data-tooltip="${escHtml(tooltip)}" aria-label="${escHtml(tooltip)}">${label}</span>`;
 }

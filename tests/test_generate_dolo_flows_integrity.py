@@ -133,6 +133,59 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertTrue(KNOWN_TRADING_BOTS.isdisjoint(flows.EXCLUDED_ADDRS))
         self.assertEqual(excluded, set())
 
+    def test_verified_lp_deposit_is_classified_as_outflow_when_wallet_net_is_flat(self):
+        wallet = "0xa8b4c7f8b3d91b324f815252da74884e68fb4c4c"
+        market_flows = {wallet: 0.31}
+        activities = {
+            wallet: {
+                "deposit": "1304943.547531365190891539",
+                "withdrawal": "0",
+                "latest": {
+                    "direction": "deposit",
+                    "amount": "1304943.547531365190891539",
+                    "pair": "DOLO/USDC",
+                    "adapter": "uniswap-v4",
+                    "confidence": "verified_same_tx",
+                    "tx_hash": "0x" + "b" * 64,
+                    "timestamp": 1_786_990_091,
+                    "chain": "ethereum",
+                },
+            }
+        }
+
+        classified, annotations = flows.classify_verified_lp_outflows(
+            market_flows,
+            activities,
+        )
+
+        self.assertEqual(classified[wallet], -1_304_943.5475313652)
+        self.assertEqual(annotations[wallet]["flow_basis"], "verified_lp_deposit")
+        self.assertEqual(annotations[wallet]["market_net_flow"], 0.31)
+        self.assertEqual(
+            annotations[wallet]["latest_lp_activity"]["period_wallet_net_flow"],
+            0.31,
+        )
+
+    def test_verified_lp_deposit_does_not_replace_a_larger_real_outflow(self):
+        wallet = "0xa8b4c7f8b3d91b324f815252da74884e68fb4c4c"
+        classified, annotations = flows.classify_verified_lp_outflows(
+            {wallet: -2_490_986.19},
+            {
+                wallet: {
+                    "deposit": "1304943.547531365190891539",
+                    "withdrawal": "0",
+                    "latest": {
+                        "direction": "deposit",
+                        "amount": "1304943.547531365190891539",
+                        "confidence": "verified_same_tx",
+                    },
+                }
+            },
+        )
+
+        self.assertEqual(classified[wallet], -2_490_986.19)
+        self.assertEqual(annotations[wallet]["flow_basis"], "wallet_net")
+
     def test_bridge_audit_applies_only_canonical_cancellations(self):
         exact = "0x1111111111111111111111111111111111111111"
         legacy = "0x2222222222222222222222222222222222222222"
