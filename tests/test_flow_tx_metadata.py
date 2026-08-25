@@ -159,6 +159,31 @@ class FlowTransactionMetadataTests(unittest.TestCase):
         self.assertEqual(activities[self.WALLET]["latest"]["tx_hash"], tx_hash)
         self.assertEqual(activities[self.WALLET]["latest"]["timestamp"], 1_787_000_091)
 
+    def test_verified_lp_activity_index_only_fetches_near_flat_pass_through_wallets(self):
+        other_wallet = "0x" + "6" * 40
+        excluded_router = "0x" + "7" * 40
+        requested_blocks = []
+
+        activities = flow_tx_metadata.collect_verified_lp_activities(
+            [
+                [self.WALLET, self.V4_POOL_MANAGER, 1_304_943.55, 123],
+                [other_wallet, self.V4_POOL_MANAGER, 50_000.0, 124],
+                [excluded_router, self.V4_POOL_MANAGER, 75_000.0, 125],
+            ],
+            "ethereum",
+            self._registry(),
+            self.DOLO,
+            lambda blocks: requested_blocks.extend(sorted(blocks)) or {},
+            lambda hashes: {},
+            market_flows={
+                self.WALLET: 0.31,
+                other_wallet: -40_000.0,
+            },
+        )
+
+        self.assertEqual(activities, {})
+        self.assertEqual(requested_blocks, [123])
+
     def test_v4_swap_like_transfer_without_position_event_is_not_labeled_lp(self):
         receipt = {
             "status": "0x1",

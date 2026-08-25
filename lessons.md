@@ -434,6 +434,10 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   DOLO into a registered pool, a nearly flat wallet-transfer net may be shown
   as the verified LP outflow. Preserve and disclose the ordinary period net;
   never infer this from a destination address or replace a larger real outflow.
+- **Do not receipt-scan every historical pool-manager transfer.** The exact LP
+  recovery pass is needed only for visible wallets whose ordinary period net is
+  nearly flat relative to their direct LP leg. Excluded routers and wallets
+  with a material real net flow stay out of this expensive pre-ranking scan.
 - **Uniswap V4 vault shares are not NFT token IDs.** Incremental replay may
   seed numeric `positionId` values only from `concentrated_nft` rows. Typed
   vault-share or manager-custody rows use addresses and must be ignored by the

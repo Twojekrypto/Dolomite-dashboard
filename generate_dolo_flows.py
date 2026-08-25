@@ -4614,6 +4614,7 @@ def main():
                 DOLO_CONTRACT,
                 load_flow_evidence,
                 load_lp_receipts,
+                market_flows=market_flows_by_chain[chain_key],
             )
             lp_activities_by_chain[chain_key] = lp_activities
             flows, lp_annotations = classify_verified_lp_outflows(

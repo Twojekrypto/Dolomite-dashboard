@@ -317,6 +317,7 @@ def collect_verified_lp_activities(
     token_address,
     evidence_loader,
     receipt_loader,
+    market_flows=None,
 ):
     """Index exact LP deposits/withdrawals before aggregate flow ranking."""
     index = _liquidity_registry_index(registry, chain)
@@ -330,6 +331,39 @@ def collect_verified_lp_activities(
     if not targets:
         return {}
 
+    candidate_wallets = None
+    if market_flows is not None:
+        direct_lp_net = {}
+        for transfer in transfers or []:
+            if not isinstance(transfer, (list, tuple)) or len(transfer) < 4:
+                continue
+            from_addr = _normalized_address(transfer[0])
+            to_addr = _normalized_address(transfer[1])
+            if not from_addr or not to_addr:
+                continue
+            try:
+                amount = Decimal(str(transfer[2]))
+            except (InvalidOperation, TypeError, ValueError):
+                continue
+            if amount <= 0:
+                continue
+            if to_addr in targets and from_addr not in targets:
+                direct_lp_net[from_addr] = direct_lp_net.get(from_addr, Decimal(0)) + amount
+            elif from_addr in targets and to_addr not in targets:
+                direct_lp_net[to_addr] = direct_lp_net.get(to_addr, Decimal(0)) - amount
+
+        candidate_wallets = set()
+        for wallet, net_deposit in direct_lp_net.items():
+            if net_deposit <= 0 or wallet not in market_flows:
+                continue
+            try:
+                market_net = Decimal(str((market_flows or {}).get(wallet, 0) or 0))
+            except (InvalidOperation, TypeError, ValueError):
+                continue
+            tolerance = max(Decimal(1), net_deposit * Decimal("0.001"))
+            if abs(market_net) <= tolerance:
+                candidate_wallets.add(wallet)
+
     candidate_blocks = set()
     for transfer in transfers or []:
         if not isinstance(transfer, (list, tuple)) or len(transfer) < 4:
@@ -337,6 +371,9 @@ def collect_verified_lp_activities(
         from_addr = _normalized_address(transfer[0])
         to_addr = _normalized_address(transfer[1])
         if not from_addr or not to_addr or not ({from_addr, to_addr} & targets):
+            continue
+        wallet = from_addr if to_addr in targets and from_addr not in targets else to_addr
+        if candidate_wallets is not None and wallet not in candidate_wallets:
             continue
         try:
             candidate_blocks.add(int(transfer[3]))
