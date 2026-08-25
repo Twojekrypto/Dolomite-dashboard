@@ -438,6 +438,11 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   recovery pass is needed only for visible wallets whose ordinary period net is
   nearly flat relative to their direct LP leg. Excluded routers and wallets
   with a material real net flow stay out of this expensive pre-ranking scan.
+- **Normalize cached transfer amounts before comparing them with flow totals.**
+  The DOLO transfer ledger stores raw 18-decimal wei integers, while calculated
+  market flows use whole DOLO. Candidate tolerances expressed across those two
+  units silently admit almost every pool transfer and can turn a bounded exact
+  LP evidence pass into a multi-hour RPC scan.
 - **Uniswap V4 vault shares are not NFT token IDs.** Incremental replay may
   seed numeric `positionId` values only from `concentrated_nft` rows. Typed
   vault-share or manager-custody rows use addresses and must be ignored by the

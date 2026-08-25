@@ -342,7 +342,9 @@ def collect_verified_lp_activities(
             if not from_addr or not to_addr:
                 continue
             try:
-                amount = Decimal(str(transfer[2]))
+                # Cached DOLO transfer ledgers store raw 18-decimal wei values,
+                # while market_flows is already expressed in whole DOLO.
+                amount = Decimal(int(transfer[2])) / Decimal(10**18)
             except (InvalidOperation, TypeError, ValueError):
                 continue
             if amount <= 0:

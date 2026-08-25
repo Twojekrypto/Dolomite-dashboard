@@ -136,7 +136,7 @@ class FlowTransactionMetadataTests(unittest.TestCase):
         transfers = [[
             self.WALLET,
             self.V4_POOL_MANAGER,
-            amount_wei / 10**18,
+            amount_wei,
             block_number,
         ]]
 
@@ -166,9 +166,9 @@ class FlowTransactionMetadataTests(unittest.TestCase):
 
         activities = flow_tx_metadata.collect_verified_lp_activities(
             [
-                [self.WALLET, self.V4_POOL_MANAGER, 1_304_943.55, 123],
-                [other_wallet, self.V4_POOL_MANAGER, 50_000.0, 124],
-                [excluded_router, self.V4_POOL_MANAGER, 75_000.0, 125],
+                [self.WALLET, self.V4_POOL_MANAGER, 1_304_943_550_000_000_000_000_000, 123],
+                [other_wallet, self.V4_POOL_MANAGER, 50_000_000_000_000_000_000_000, 124],
+                [excluded_router, self.V4_POOL_MANAGER, 75_000_000_000_000_000_000_000, 125],
             ],
             "ethereum",
             self._registry(),
