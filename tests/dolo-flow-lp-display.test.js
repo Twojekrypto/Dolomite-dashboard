@@ -19,7 +19,8 @@ function loadLpBadgeBuilder(){
     value => Number.isFinite(Number(value)) ? Number(value) : 0,
     value => Number(value) === 1_304_943.5475313652
       ? "1.3M"
-      : (Number(value) === 0.31 ? "0.31" : "850K"),
+      : (Math.abs(Number(value) - 2_490_986.194008284) < 1 ? "2.49M"
+      : (Number(value) === 0.31 ? "0.31" : "850K")),
     value => String(value)
       .replaceAll("&", "&amp;")
       .replaceAll('"', "&quot;")
@@ -70,5 +71,22 @@ test("period LP classification discloses the ordinary wallet transfer net", () =
   }, "out");
 
   assert.match(badge, /Wallet transfer net: \+0\.31 DOLO/);
-  assert.match(badge, /classified by verified LP movement/);
+  assert.match(badge, /Main row remains the transfer-derived wallet net flow/);
+});
+
+test("period LP badge uses aggregate net deposit instead of latest transaction amount", () => {
+  const badge = loadLpBadgeBuilder()({
+    direction: "deposit",
+    amount: "1304943.547531365190891539",
+    period_lp_deposit: "3795930.051008284105982345",
+    period_lp_withdrawal: "1304943.856999999999991187",
+    period_net_lp_deposit: "2490986.194008284105991158",
+    pair: "DOLO/USDC",
+    adapter: "uniswap-v4",
+    confidence: "verified_same_tx",
+  }, "out");
+
+  assert.match(badge, /2\.49M net → LP/);
+  assert.match(badge, /Net added to LP during the selected period: 2\.49M DOLO/);
+  assert.match(badge, /Latest verified LP deposit: 1\.3M DOLO/);
 });
