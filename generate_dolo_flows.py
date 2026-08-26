@@ -544,6 +544,108 @@ def replace_transfer_range(transfers, replacement, start_block, end_block):
     return authoritative
 
 
+TRANSFER_METADATA_VERSION = 1
+
+
+def transfer_has_transaction_metadata(transfer):
+    if not isinstance(transfer, (list, tuple)) or len(transfer) < 6:
+        return False
+    tx_hash = str(transfer[4] or "").strip().lower()
+    if not re.fullmatch(r"0x[0-9a-f]{64}", tx_hash):
+        return False
+    try:
+        return int(transfer[5]) >= 0
+    except (TypeError, ValueError):
+        return False
+
+
+def ensure_transfer_metadata_coverage(
+    chain_key,
+    transfers,
+    state,
+    start_block,
+    end_block,
+    *,
+    verified_refresh_start=None,
+    fetcher=None,
+):
+    """Guarantee tx hash/log index metadata for a bounded transfer range.
+
+    Old state files contain four-field rows. LP attribution needs the original
+    transaction hash, so refresh the recent range once and remember the
+    verified coverage. Subsequent incremental scans extend that coverage
+    without re-fetching already enriched blocks.
+    """
+    start_block = int(start_block)
+    end_block = int(end_block)
+    coverage_by_chain = state.setdefault("transfer_metadata_coverage", {})
+    coverage = coverage_by_chain.get(chain_key) or {}
+    coverage_start = int(coverage.get("startBlock") or 0)
+    coverage_end = int(coverage.get("endBlock") or -1)
+    coverage_valid = (
+        int(coverage.get("version") or 0) == TRANSFER_METADATA_VERSION
+        and coverage_start <= start_block
+        and coverage_end >= end_block
+    )
+    if coverage_valid:
+        return list(transfers)
+
+    rows_in_range = [
+        transfer for transfer in transfers
+        if start_block <= int(transfer[3]) <= end_block
+    ]
+    refreshed_from = (
+        int(verified_refresh_start)
+        if verified_refresh_start is not None
+        else None
+    )
+    range_is_already_enriched = (
+        (not rows_in_range or all(transfer_has_transaction_metadata(t) for t in rows_in_range))
+        and refreshed_from is not None
+        and refreshed_from <= start_block
+    )
+    coverage_can_extend = (
+        int(coverage.get("version") or 0) == TRANSFER_METADATA_VERSION
+        and coverage_start <= start_block
+        and refreshed_from is not None
+        and refreshed_from <= coverage_end + 1
+        and all(transfer_has_transaction_metadata(t) for t in rows_in_range)
+    )
+    if range_is_already_enriched or coverage_can_extend:
+        coverage_by_chain[chain_key] = {
+            "version": TRANSFER_METADATA_VERSION,
+            "startBlock": start_block,
+            "endBlock": end_block,
+        }
+        return list(transfers)
+
+    fetch_logs = fetcher or fetch_transfer_logs
+    replacement, failed_chunks, _ = fetch_logs(chain_key, start_block, end_block)
+    if int(failed_chunks or 0) != 0:
+        raise TransferLogQuorumError(
+            f"{CHAINS[chain_key]['name']}: transaction metadata migration "
+            f"did not reach RPC quorum"
+        )
+    if any(not transfer_has_transaction_metadata(t) for t in replacement):
+        raise RuntimeError(
+            f"{CHAINS[chain_key]['name']}: transaction metadata migration "
+            "returned legacy transfer rows"
+        )
+    migrated = merge_verified_transfer_scan(
+        transfers,
+        replacement,
+        start_block,
+        end_block,
+        failed_chunks=failed_chunks,
+    )
+    coverage_by_chain[chain_key] = {
+        "version": TRANSFER_METADATA_VERSION,
+        "startBlock": start_block,
+        "endBlock": end_block,
+    }
+    return migrated
+
+
 def merge_verified_transfer_scan(
     transfers,
     replacement,
@@ -1258,7 +1360,11 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                 to_addr = "0x" + log["topics"][2][26:].lower()
                 value_wei = int(log["data"], 16)
                 block_num = int(log["blockNumber"], 16)
-                all_transfers.append((from_addr, to_addr, value_wei, block_num))
+                tx_hash = str(log.get("transactionHash") or "").lower()
+                log_index = int(log.get("logIndex") or "0x0", 16)
+                all_transfers.append(
+                    (from_addr, to_addr, value_wei, block_num, tx_hash, log_index)
+                )
 
         if not success:
             if chunk_size > 1000:
@@ -1858,7 +1964,7 @@ def calculate_flows(transfers, excluded):
     Detected DEX/LP contracts are kept in the calculation (both legs counted)
     but filtered from the final results by get_top()."""
     flows = {}
-    for from_addr, to_addr, value_wei, _ in transfers:
+    for from_addr, to_addr, value_wei, _, *_ in transfers:
         if from_addr in FLOW_SKIP_ADDRS or to_addr in FLOW_SKIP_ADDRS:
             continue
         value = value_wei / (10 ** 18)
@@ -1870,7 +1976,7 @@ def calculate_flows(transfers, excluded):
 def calculate_flow_components(transfers):
     """Return gross directional amounts and their reconciled net per address."""
     components = {}
-    for from_addr, to_addr, value_wei, _ in transfers:
+    for from_addr, to_addr, value_wei, _, *_ in transfers:
         if from_addr in FLOW_SKIP_ADDRS or to_addr in FLOW_SKIP_ADDRS:
             continue
         value = value_wei / (10 ** 18)
@@ -2038,7 +2144,7 @@ def calculate_bridge_flows(transfers):
     Returns: {addr: net_bridge_flow} where positive = received mints,
     negative = sent burns."""
     bridge_flows = {}
-    for from_addr, to_addr, value_wei, _ in transfers:
+    for from_addr, to_addr, value_wei, _, *_ in transfers:
         value = value_wei / (10 ** 18)
         if from_addr in BRIDGE_ADDRS and to_addr not in BRIDGE_ADDRS:
             # Mint: receiver got tokens via bridge
@@ -2052,7 +2158,7 @@ def calculate_bridge_flows(transfers):
 def calculate_bridge_adapter_outflows(transfers):
     """Return user outflows into a canonical bridge adapter."""
     outflows = {}
-    for from_addr, to_addr, value_wei, _ in transfers:
+    for from_addr, to_addr, value_wei, _, *_ in transfers:
         if to_addr not in BRIDGE_ADAPTER_ADDRS or from_addr in BRIDGE_ADAPTER_ADDRS:
             continue
         value = value_wei / (10 ** 18)
@@ -3435,7 +3541,7 @@ def calculate_current_balances_by_chain(all_transfers):
     balances = {chain_key: {} for chain_key in CHAINS}
     for chain_key, transfers in all_transfers.items():
         chain_balances = balances.setdefault(chain_key, {})
-        for from_addr, to_addr, value_wei, _ in transfers:
+        for from_addr, to_addr, value_wei, _, *_ in transfers:
             value = value_wei / (10 ** 18)
             if from_addr != ZERO:
                 chain_balances[from_addr] = chain_balances.get(from_addr, 0) - value
@@ -3491,7 +3597,7 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
     }
 
     for chain_key, transfers in all_transfers.items():
-        for from_addr, to_addr, value_wei, block_number in transfers:
+        for from_addr, to_addr, value_wei, block_number, *_ in transfers:
             to_key = (to_addr or "").lower()
             from_key = (from_addr or "").lower()
             value = value_wei / (10 ** 18)
@@ -3733,7 +3839,7 @@ def detect_cex_deposit_candidates(all_transfers, vesting_labels=None,
     cex_addrs = {a for a, info in labels.items() if str(info.get("type", "")).lower() == "cex"}
     sent, tx_counts = {}, {}
     for chain_key, transfers in all_transfers.items():
-        for from_addr, to_addr, value_wei, _block in transfers:
+        for from_addr, to_addr, value_wei, _block, *_ in transfers:
             if to_addr in cex_addrs and from_addr not in cex_addrs \
                     and from_addr not in labels and from_addr not in EXCLUDED_ADDRS:
                 sent[from_addr] = sent.get(from_addr, 0.0) + value_wei / 1e18
@@ -3926,7 +4032,7 @@ def build_bucket_wallet_history_rows(
 def count_txs(transfers, excluded):
     """Count number of transactions per address."""
     counts = {}
-    for from_addr, to_addr, _, _ in transfers:
+    for from_addr, to_addr, _, _, *_ in transfers:
         counts[from_addr] = counts.get(from_addr, 0) + 1
         counts[to_addr] = counts.get(to_addr, 0) + 1
     return counts
@@ -4293,6 +4399,7 @@ def main():
     for chain_key in CHAINS:
         oldest_needed = cutoff_blocks[chain_key][max_period]
         end = current_blocks[chain_key]
+        verified_refresh_start = None
 
         # Load cached transfers for this chain
         cached_key = f"{chain_key}_transfers"
@@ -4327,6 +4434,7 @@ def main():
                 oldest_needed,
                 RECENT_RESCAN_BLOCKS.get(chain_key, 0),
             )
+            verified_refresh_start = fetch_start
             restored = [tuple(t) for t in cached_transfers]
             cached_min_block = min((t[3] for t in restored), default=last_block + 1)
             coverage_min_block = int(state.get(history_start_key) or cached_min_block)
@@ -4383,6 +4491,7 @@ def main():
         else:
             # Full scan from the oldest needed block (or resume from cached last_block)
             scan_start = oldest_needed
+            verified_refresh_start = scan_start
             cached_as_lists = None
             if last_block > 0 and last_block > oldest_needed:
                 # Resume from where we left off (partial previous scan)
@@ -4433,6 +4542,22 @@ def main():
                 f"{repaired_count:,} transfer(s) from skipped ranges"
             )
 
+        metadata_start = cutoff_blocks[chain_key]["30d"]
+        before_metadata_rows = all_transfers[chain_key]
+        all_transfers[chain_key] = ensure_transfer_metadata_coverage(
+            chain_key,
+            before_metadata_rows,
+            state,
+            metadata_start,
+            end,
+            verified_refresh_start=verified_refresh_start,
+        )
+        if all_transfers[chain_key] is not before_metadata_rows:
+            print(
+                f"  🧾 {CHAINS[chain_key]['name']}: transaction metadata "
+                f"verified for 30D blocks {metadata_start:,} → {end:,}"
+            )
+
         # Diagnostic: warn if chain has 0 transfers
         if len(all_transfers[chain_key]) == 0:
             print(f"  🚨 WARNING: {CHAINS[chain_key]['name']} has 0 transfers! Flow data will be empty for this chain.")
@@ -4472,7 +4597,7 @@ def main():
     # Collect all unique addresses from transfers
     for chain_key in CHAINS:
         addr_set = set()
-        for from_addr, to_addr, _, _ in all_transfers[chain_key]:
+        for from_addr, to_addr, _, _, *_ in all_transfers[chain_key]:
             addr_set.add(from_addr)
             addr_set.add(to_addr)
 
