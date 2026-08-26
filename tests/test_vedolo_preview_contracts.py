@@ -172,6 +172,86 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('@media (max-width:720px)', self.html)
         self.assertIn('activity-filter-table-20260816', self.route)
 
+    def test_early_unlock_simulation_table_and_details_contract(self):
+        flow_end = self.html.index('</section>', self.html.index('<section class="card flow-card">'))
+        early_start = self.html.find('<section class="card early-unlock-card"')
+        claimable_start = self.html.index('<section class="card claimable-card">')
+        self.assertGreaterEqual(early_start, 0)
+        self.assertLess(flow_end, early_start)
+        self.assertLess(early_start, claimable_start)
+        self.assertIn('<h2>Early Unlock Simulation</h2>', self.html)
+        self.assertIn('id="q-early-unlock"', self.html)
+        self.assertIn('id="early-unlock-table"', self.html)
+        self.assertIn('id="early-unlock-body"', self.html)
+        self.assertIn('id="early-unlock-info"', self.html)
+        self.assertIn('id="early-unlock-pager"', self.html)
+        self.assertIn('Available After Exit', self.html)
+        self.assertIn('Avg Weeks Until Unlock', self.html)
+        self.assertIn('fetchStaticJson("vedolo_early_unlock.json", "vedolo-early-unlock-v1")', self.html)
+
+    def test_early_unlock_table_reuses_stable_holder_interactions(self):
+        self.assertIn('earlyUnlock:{q:"",sort:"availableAfterExit"', self.html)
+        self.assertIn('perPage:10,expanded:null,detailSort:"availableAfterExit"', self.html)
+        self.assertIn('tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 7)', self.html)
+        self.assertIn('syncSortHeader("#early-unlock-table", st.sort, st.asc);', self.html)
+        self.assertIn('data-early-unlock-addr="${esc(row.address || "")}"', self.html)
+        self.assertIn('class="early-unlock-toggle"', self.html)
+        self.assertIn('function renderEarlyUnlockDetailRow(row)', self.html)
+        self.assertIn('data-early-unlock-detail-sort', self.html)
+        self.assertIn('if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;', self.html)
+        self.assertIn('earlyUnlock:state.earlyUnlock', self.html)
+        self.assertIn('table === "early-unlock-table"', self.html)
+
+    def test_early_unlock_snapshot_does_not_gate_existing_vedolo_content(self):
+        self.assertIn("earlyUnlockLoaded:false", self.html)
+        main_wait = re.search(
+            r"const \[holders, early, flows, expiry, exercises, votePower.*?Promise\.all\(\[(?P<promises>.*?)\]\)",
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(main_wait)
+        promises = main_wait.group("promises") if main_wait else ""
+        self.assertNotIn("earlyUnlockPromise", promises)
+        self.assertIn("earlyUnlockPromise.then(earlyUnlock => {", self.html)
+
+    def test_early_unlock_sort_controls_support_keyboard_activation(self):
+        self.assertIn('class="detail-sort-control" type="button"', self.html)
+        section_start = self.html.index('<section class="card early-unlock-card"')
+        section_end = self.html.index('</section>', section_start)
+        section = self.html[section_start:section_end]
+        self.assertIn('class="sort-control" type="button"', section)
+        self.assertNotIn('role="button" tabindex="0"', self.html)
+
+    def test_early_unlock_token_amount_sorting_uses_exact_wei(self):
+        self.assertIn("const EARLY_UNLOCK_WEI_SORT_KEYS", self.html)
+        self.assertIn('BigInt(a[weiKey] || "0")', self.html)
+        self.assertIn('BigInt(position[weiKey] || "0")', self.html)
+
+    def test_early_unlock_details_show_every_approved_position_metric(self):
+        section_match = re.search(
+            r'<section class="card early-unlock-card"(?P<body>.*?)</section>',
+            self.html,
+            re.S,
+        )
+        self.assertIsNotNone(section_match)
+        section = section_match.group("body") if section_match else ""
+        for label in (
+            "Unlock Date",
+            "Route",
+            "Locked DOLO",
+            "veDOLO",
+            "Available After Exit",
+            "Penalty",
+            "Remaining",
+            "Position ID",
+        ):
+            self.assertIn(label, self.html)
+        self.assertIn('data-sort="veDolo"', section)
+        self.assertIn('data-sort="lockedDolo"', section)
+        self.assertIn('data-sort="availableAfterExit"', section)
+        self.assertIn('data-sort="avgWeeksUntilUnlock"', section)
+        self.assertIn('No fee', self.html)
+
     def test_expired_claimable_table_reuses_holder_wallet_ux_contracts(self):
         self.assertIn("#claimable-table{table-layout:fixed;min-width:1040px}", self.html)
         self.assertIn("#claimable-table .holder-wallet", self.html)

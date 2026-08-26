@@ -401,6 +401,75 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table .holder-detail-lock.medium{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 #holders-table .holder-detail-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
 #holders-table .holder-detail-empty{padding:18px;color:var(--fg-3);font-size:12px}
+#early-unlock-table{table-layout:fixed;min-width:1200px;--stable-row-height:70px}
+#early-unlock-table col.early-rank-col{width:56px}
+#early-unlock-table col.early-vedolo-col{width:132px}
+#early-unlock-table col.early-locked-col{width:142px}
+#early-unlock-table col.early-available-col{width:210px}
+#early-unlock-table col.early-weeks-col{width:220px}
+#early-unlock-table col.early-actions-col{width:96px}
+#early-unlock-table td{font-size:13px}
+#early-unlock-table .early-unlock-data-row{cursor:pointer}
+#early-unlock-table .early-unlock-data-row.early-unlock-row-open td{background:rgba(201,162,39,.035);border-bottom-color:transparent}
+#early-unlock-table .holder-wallet{display:flex;flex-direction:column;gap:5px;min-width:0}
+#early-unlock-table .holder-wallet-top{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+#early-unlock-table .holder-wallet-bottom{display:flex;align-items:center;gap:7px;min-width:0;flex-wrap:wrap}
+#early-unlock-table .addr-name{font-size:13px;font-weight:600;color:var(--fg-1);letter-spacing:-.1px;line-height:1.2}
+#early-unlock-table .addr-mono{font-family:var(--mono);font-size:12px;color:var(--fg-3);font-weight:500;letter-spacing:.1px;line-height:1.2}
+#early-unlock-table tbody tr:hover .addr-mono{color:var(--fg-2)}
+#early-unlock-table .addr-copy,#early-unlock-table .addr-debank{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--fg-4);background:var(--bg-3);border:1px solid var(--line-2);flex-shrink:0;transition:all .15s var(--ease);cursor:pointer}
+#early-unlock-table .addr-copy:hover{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
+#early-unlock-table .addr-copy.copied{color:var(--up);border-color:rgba(138,163,123,.4)}
+#early-unlock-table .addr-copy svg{width:11px;height:11px;pointer-events:none}
+#early-unlock-table .addr-debank{padding:0;overflow:hidden}
+#early-unlock-table .addr-debank img{width:14px;height:14px;border-radius:3px;opacity:.7;transition:opacity .15s var(--ease)}
+#early-unlock-table .addr-debank:hover{border-color:#fe815f;background:rgba(254,129,95,.08)}
+#early-unlock-table .addr-debank:hover img{opacity:1}
+#early-unlock-table .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
+#early-unlock-table .early-unlock-value{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
+#early-unlock-table .early-unlock-value.vote,#early-unlock-table .early-unlock-value.available{color:var(--gold)}
+#early-unlock-table .early-unlock-subline{display:block;margin-top:3px;font-family:var(--mono);font-size:10px;color:var(--down)}
+#early-unlock-table .early-penalty-stack{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+#early-unlock-table .early-unlock-actions-head,#early-unlock-table .early-unlock-actions{text-align:center}
+#early-unlock-table .sort-control{display:block;width:100%;text-align:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;font-size:inherit;font-weight:inherit}
+#early-unlock-table .sort-control:focus-visible{outline:1px solid var(--gold);outline-offset:3px;color:var(--fg-1)}
+#early-unlock-table .early-unlock-toggle{height:24px;min-width:78px;padding:0 8px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:5px;color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(201,162,39,.035);transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .15s var(--ease);cursor:pointer}
+#early-unlock-table .early-unlock-toggle svg{width:12px;height:12px;transition:transform .18s var(--ease);pointer-events:none}
+#early-unlock-table .early-unlock-toggle span{font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;line-height:1;pointer-events:none}
+#early-unlock-table .early-unlock-toggle:hover{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.08);transform:translateY(-1px)}
+#early-unlock-table .early-unlock-row-open .early-unlock-toggle{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.18);box-shadow:0 0 0 3px rgba(201,162,39,.08)}
+#early-unlock-table .early-unlock-row-open .early-unlock-toggle svg{transform:rotate(180deg)}
+#early-unlock-table .early-unlock-detail-row{cursor:default}
+#early-unlock-table .early-unlock-detail-row > td{padding:0 14px 18px!important;background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px);border-bottom:1px solid rgba(201,162,39,.18)}
+#early-unlock-table .early-unlock-detail-row:hover > td{background:linear-gradient(90deg,rgba(201,162,39,.06),var(--bg-1) 38px)}
+#early-unlock-table .early-unlock-detail-row:hover > td:first-child::before{display:none}
+#early-unlock-table .early-unlock-detail-panel{margin:0;border:1px solid rgba(201,162,39,.2);border-top:1px solid rgba(201,162,39,.48);border-radius:0 0 var(--r-lg) var(--r-lg);background:linear-gradient(180deg,rgba(18,18,20,.985),rgba(12,12,14,.985));overflow:hidden;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.045),0 0 0 1px rgba(201,162,39,.055),0 18px 44px rgba(0,0,0,.22)}
+#early-unlock-table .early-unlock-detail-panel::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--gold),rgba(201,162,39,.18));box-shadow:0 0 18px rgba(201,162,39,.28);pointer-events:none}
+#early-unlock-table .early-unlock-detail-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 22px 12px}
+#early-unlock-table .early-unlock-detail-eyebrow{font-size:9.5px;letter-spacing:1.45px;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:6px}
+#early-unlock-table .early-unlock-detail-title{font-size:15px;font-weight:700;color:var(--fg-1);line-height:1.25}
+#early-unlock-table .early-unlock-detail-meta{font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap}
+#early-unlock-table .early-unlock-detail-scroll{max-height:360px;overflow:auto;position:relative;margin:0 12px 14px 14px;border:1px solid rgba(201,162,39,.14);border-radius:8px;background:rgba(0,0,0,.16);scrollbar-color:rgba(201,162,39,.34) rgba(255,255,255,.055);scrollbar-width:thin}
+#early-unlock-table .early-unlock-detail-table{width:100%;min-width:1080px;border-collapse:separate;border-spacing:0;font-size:12px;table-layout:fixed}
+#early-unlock-table .early-unlock-detail-table th{position:sticky;top:0;z-index:4;padding:10px 12px;background:#101012;border-bottom:1px solid var(--line-2);color:var(--fg-3);font-size:9.5px;font-weight:600;letter-spacing:1.05px;text-transform:uppercase;text-align:left;white-space:nowrap;box-shadow:0 10px 18px rgba(0,0,0,.18)}
+#early-unlock-table .early-unlock-detail-table th[data-early-unlock-detail-sort]{cursor:pointer;user-select:none;transition:color .15s var(--ease)}
+#early-unlock-table .early-unlock-detail-table th[data-early-unlock-detail-sort]:hover{color:var(--fg-1)}
+#early-unlock-table .detail-sort-control{display:inline-flex;align-items:center;width:100%;color:inherit;text-align:inherit;text-transform:inherit;letter-spacing:inherit;font-size:inherit;font-weight:inherit}
+#early-unlock-table .early-unlock-detail-table th.num .detail-sort-control{justify-content:flex-end}
+#early-unlock-table .early-unlock-detail-table th.center .detail-sort-control{justify-content:center}
+#early-unlock-table .detail-sort-control:focus-visible{outline:1px solid var(--gold);outline-offset:2px;color:var(--fg-1)}
+#early-unlock-table .early-unlock-detail-table th.sorted{color:var(--gold)}
+#early-unlock-table .early-unlock-detail-table .detail-sort{display:inline-flex;min-width:16px;margin-left:6px;font-size:9px;justify-content:center}
+#early-unlock-table .early-unlock-detail-table th.num,#early-unlock-table .early-unlock-detail-table td.num{text-align:right}
+#early-unlock-table .early-unlock-detail-table th.center,#early-unlock-table .early-unlock-detail-table td.center{text-align:center}
+#early-unlock-table .early-unlock-detail-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,.055);font-variant-numeric:tabular-nums;color:var(--fg-2);vertical-align:middle;white-space:nowrap;position:relative;background:transparent}
+#early-unlock-table .early-unlock-detail-table tr:nth-child(even) td{background:rgba(255,255,255,.014)}
+#early-unlock-table .early-unlock-detail-table tr:last-child td{border-bottom:0}
+#early-unlock-table .early-unlock-detail-table > tbody > tr:hover > td{background:rgba(255,255,255,.026);color:var(--fg-1)}
+#early-unlock-table .early-unlock-detail-table > tbody > tr:hover > td:first-child::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gold)}
+#early-unlock-table .early-position-id{display:inline-flex;align-items:center;justify-content:center;min-width:54px;padding:4px 7px;border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-wash);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--gold)}
+#early-unlock-table .early-remaining{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--fg-2)}
+#early-unlock-table .early-remaining.expired{color:var(--up)}
 #claimable-table{table-layout:fixed;min-width:1040px}
 #claimable-table{--stable-row-height:70px}
 #claimable-table col.claimable-rank-col{width:56px}
@@ -790,6 +859,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .exit-suite #dd-exit-period .dd-btn{width:auto;min-width:96px}
   .exit-suite #dd-exit-period .dd-panel{left:auto;right:0}
   .holders-card .toolbar .tb-left{width:auto;flex:1 1 220px;min-width:200px}
+  .early-unlock-card .toolbar .tb-left{width:auto;flex:1 1 220px;min-width:200px}
   #holders-table .holder-detail-row > td{padding:0!important}
   #holders-table .holder-detail-panel{width:100%;max-width:none}
   #holders-table .holder-detail-head{padding:15px 16px}
@@ -804,6 +874,20 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   #holders-table .holder-detail-table td{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:center;gap:12px;padding:5px 0!important;border-bottom:0!important;background:transparent!important;white-space:normal;text-align:right}
   #holders-table .holder-detail-table td::before{content:attr(data-label);font-size:9px;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);font-weight:700;text-align:left}
   #holders-table .holder-detail-table td > *{justify-self:end}
+  #early-unlock-table .early-unlock-detail-row > td{padding:0 8px 14px!important}
+  #early-unlock-table .early-unlock-detail-panel{width:calc(100vw - 56px);max-width:calc(100vw - 56px)}
+  #early-unlock-table .early-unlock-detail-head{padding:15px 16px}
+  #early-unlock-table .early-unlock-detail-head{align-items:flex-start;flex-direction:column}
+  #early-unlock-table .early-unlock-detail-meta{white-space:normal}
+  #early-unlock-table .early-unlock-detail-scroll{max-height:460px;margin:0 10px 14px 12px;padding:12px 0}
+  #early-unlock-table .early-unlock-detail-table{min-width:0}
+  #early-unlock-table .early-unlock-detail-table thead{display:none}
+  #early-unlock-table .early-unlock-detail-table,#early-unlock-table .early-unlock-detail-table tbody,#early-unlock-table .early-unlock-detail-table tr{display:block}
+  #early-unlock-table .early-unlock-detail-table tr{margin:0 12px 10px;padding:12px 14px;border:1px solid var(--line-1);border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,.01))}
+  #early-unlock-table .early-unlock-detail-table td{display:grid;width:100%;grid-template-columns:110px minmax(140px,1fr);align-items:center;gap:12px;padding:5px 0!important;border-bottom:0!important;background:transparent!important;white-space:normal;text-align:right}
+  #early-unlock-table .early-unlock-detail-table td:first-child{width:100%!important}
+  #early-unlock-table .early-unlock-detail-table td::before{content:attr(data-label);font-size:9px;letter-spacing:1.15px;text-transform:uppercase;color:var(--fg-4);font-weight:700;text-align:left}
+  #early-unlock-table .early-unlock-detail-table td > *{justify-self:end}
   .tbl-foot{grid-template-columns:1fr;justify-items:center;gap:10px}
   .tbl-foot-info{grid-column:1;text-align:center}
   .pager{grid-column:1}
@@ -819,6 +903,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   .flow-col .tbl{min-width:480px}
   #unlocks-table{min-width:360px}
   #holders-table{--stable-row-height:64px}
+  #early-unlock-table{--stable-row-height:64px}
   #claimable-table{--stable-row-height:64px}
   #exits-table{--stable-row-height:64px}
   .flow-col .tbl{--stable-row-height:70.25px}
@@ -1204,6 +1289,34 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     </div>
   </section>
 
+  <section class="card early-unlock-card">
+    <div class="card-head">
+      <div class="card-title"><h2>Early Unlock Simulation</h2><span class="count-badge" id="early-unlock-count">--</span></div>
+      <div class="card-meta"><span class="pulse"></span><span id="early-unlock-meta">Loading data update...</span></div>
+    </div>
+    <div class="toolbar">
+      <div class="tb-left">
+        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-early-unlock" type="text" placeholder="Search address or position ID…" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl" id="early-unlock-table">
+        <colgroup>
+          <col class="early-rank-col">
+          <col>
+          <col class="early-vedolo-col">
+          <col class="early-locked-col">
+          <col class="early-available-col">
+          <col class="early-weeks-col">
+          <col class="early-actions-col">
+        </colgroup>
+        <thead><tr><th class="sortable" data-sort="rank"><button class="sort-control" type="button" aria-label="Sort by rank"><span class="th-content"># <span class="sort-arrow"></span></span></button></th><th class="sortable" data-sort="address"><button class="sort-control" type="button" aria-label="Sort by wallet"><span class="th-content">Wallet <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="veDolo"><button class="sort-control" type="button" aria-label="Sort by veDOLO"><span class="th-content">veDOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="lockedDolo"><button class="sort-control" type="button" aria-label="Sort by locked DOLO"><span class="th-content">Locked DOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable sorted" data-sort="availableAfterExit"><button class="sort-control" type="button" aria-label="Sort by available after exit"><span class="th-content">Available After Exit <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="avgWeeksUntilUnlock"><button class="sort-control" type="button" aria-label="Sort by average weeks until unlock"><span class="th-content">Avg Weeks Until Unlock <span class="sort-arrow"></span></span></button></th><th class="early-unlock-actions-head">Details</th></tr></thead>
+        <tbody id="early-unlock-body"><tr class="loading-row"><td colspan="7">Loading early unlock simulation...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="tbl-foot"><div class="tbl-foot-info" id="early-unlock-info">--</div><div class="pager" id="early-unlock-pager"></div></div>
+  </section>
+
   <section class="card position-activity-card" id="position-activity-card">
     <div class="card-head">
       <div class="card-title"><h2>veDOLO Position Activity</h2><span class="count-badge" id="position-activity-count">--</span></div>
@@ -1344,11 +1457,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 </div>
 <script>
 const state = {
-  stats:{}, holders:[], exits:[], locks:[], unlocks:[], transfers:[], activityRows:[], expiry:null, price:null,
-  statsTimestamp:null, holdersTimestamp:null, flowsTimestamp:null,
+  stats:{}, holders:[], earlyUnlockRows:[], exits:[], locks:[], unlocks:[], transfers:[], activityRows:[], expiry:null, price:null,
+  statsTimestamp:null, holdersTimestamp:null, earlyUnlockTimestamp:null, earlyUnlockLoaded:false, flowsTimestamp:null,
   lockEventsByToken:new Map(), transferEventsByToken:new Map(), exerciseEventsByToken:new Map(),
   lockedHistory:[], votePowerHistory:[], lockedChartMode:"locked", lockedBrush:{from:0,to:0}, lockedBrushReady:false, lockedBrushListenersBound:false,
   holder:{q:"",sort:"rank",asc:true,page:1,perPage:10,expanded:null,detailSort:"dolo",detailAsc:false},
+  earlyUnlock:{q:"",sort:"availableAfterExit",asc:false,page:1,perPage:10,expanded:null,detailSort:"availableAfterExit",detailAsc:false},
   claimable:{q:"",sort:"dolo",asc:false,page:1,perPage:10},
   exitsUi:{q:"",period:"30",sort:"date",asc:false,page:1,perPage:10},
   expiryUi:{q:""},
@@ -1366,6 +1480,12 @@ const DURATION_BUCKETS = [
   {label:"1-2Y",min:365,max:730},
   {label:"2Y+",min:730,max:Infinity}
 ];
+const EARLY_UNLOCK_WEI_SORT_KEYS = {
+  veDolo:"veDoloWei",
+  lockedDolo:"lockedDoloWei",
+  availableAfterExit:"availableAfterExitWei",
+  penalty:"penaltyWei"
+};
 
 const qs = s => document.querySelector(s);
 const qsa = s => [...document.querySelectorAll(s)];
@@ -1472,6 +1592,7 @@ function syncVedoloTableMetadata(){
   setText("holders-meta", dataUpdatedLabel(state.holdersTimestamp));
   setText("flows-meta", dataUpdatedLabel(state.flowsTimestamp));
   setText("position-activity-meta", dataUpdatedLabel(state.flowsTimestamp));
+  setText("early-unlock-meta", state.earlyUnlockLoaded ? dataUpdatedLabel(state.earlyUnlockTimestamp) : "Loading data update...");
   setText("claimable-meta", dataUpdatedLabel(state.holdersTimestamp));
   setText("duration-meta", dataUpdatedLabel(state.flowsTimestamp));
   setText("expiry-meta", dataUpdatedLabel(state.expiry?.timestamp));
@@ -2223,15 +2344,16 @@ function wireCopyButtons(){
 }
 function updatePager(kind,total,page,perPage){
   const pages = Math.max(1, Math.ceil(total/perPage));
-  const pager = document.getElementById(`${kind}-pager`);
+  const pagerId = kind === "earlyUnlock" ? "early-unlock-pager" : `${kind}-pager`;
+  const pager = document.getElementById(pagerId);
   if(pager) pager.innerHTML = pagerHtml(page,pages,kind);
 }
 function pageChange(kind, action){
-  const map = {holders:state.holder, exits:state.exitsUi, locks:state.flows, unlocks:state.flows, claimable:state.claimable, "position-activity":state.activity};
+  const map = {holders:state.holder, earlyUnlock:state.earlyUnlock, exits:state.exitsUi, locks:state.flows, unlocks:state.flows, claimable:state.claimable, "position-activity":state.activity};
   const st = map[kind];
   const prop = kind === "locks" ? "locksPage" : kind === "unlocks" ? "unlocksPage" : "page";
-  const total = kind === "holders" ? getFilteredHolders().length : kind === "claimable" ? getFilteredClaimable().length : kind === "exits" ? getFilteredExits().length : kind === "locks" ? getFilteredLocks().length : kind === "unlocks" ? getFilteredUnlocks().length : getFilteredPositionActivity().length;
-  const per = kind === "holders" ? state.holder.perPage : kind === "claimable" ? state.claimable.perPage : kind === "exits" ? state.exitsUi.perPage : kind === "position-activity" ? state.activity.perPage : state.flows.perPage;
+  const total = kind === "holders" ? getFilteredHolders().length : kind === "earlyUnlock" ? getFilteredEarlyUnlockRows().length : kind === "claimable" ? getFilteredClaimable().length : kind === "exits" ? getFilteredExits().length : kind === "locks" ? getFilteredLocks().length : kind === "unlocks" ? getFilteredUnlocks().length : getFilteredPositionActivity().length;
+  const per = kind === "holders" ? state.holder.perPage : kind === "earlyUnlock" ? state.earlyUnlock.perPage : kind === "claimable" ? state.claimable.perPage : kind === "exits" ? state.exitsUi.perPage : kind === "position-activity" ? state.activity.perPage : state.flows.perPage;
   const pages = Math.max(1, Math.ceil(total/per));
   if(action === "first") st[prop] = 1;
   if(action === "prev") st[prop] = Math.max(1, st[prop]-1);
@@ -2661,6 +2783,176 @@ function wireHolderDetails(){
     });
   });
 }
+function earlyUnlockPositionSortValue(position, row, key){
+  if(key === "id") return num(position.id);
+  if(key === "unlock" || key === "remaining") return num(position.end);
+  if(key === "route") return holderPositionRoute(row, position).label.toLowerCase();
+  const weiKey = EARLY_UNLOCK_WEI_SORT_KEYS[key];
+  if(weiKey) return BigInt(position[weiKey] || "0");
+  return num(position[key]);
+}
+function sortedEarlyUnlockPositions(row){
+  const st = state.earlyUnlock;
+  return [...(row.positions || [])].sort((a,b) => {
+    const va = earlyUnlockPositionSortValue(a, row, st.detailSort);
+    const vb = earlyUnlockPositionSortValue(b, row, st.detailSort);
+    let diff = 0;
+    if(typeof va === "bigint" || typeof vb === "bigint") diff = va === vb ? 0 : va < vb ? -1 : 1;
+    else if(typeof va === "string" || typeof vb === "string") diff = String(va).localeCompare(String(vb));
+    else diff = va - vb;
+    if(diff) return st.detailAsc ? diff : -diff;
+    return num(a.id) - num(b.id);
+  });
+}
+function earlyUnlockDetailSortHeader(key, label, cls=""){
+  const st = state.earlyUnlock;
+  const active = st.detailSort === key;
+  const className = [cls, active ? "sorted" : ""].filter(Boolean).join(" ");
+  const aria = active ? ` aria-sort="${st.detailAsc ? "ascending" : "descending"}"` : "";
+  const sort = active ? `<span class="detail-sort">${st.detailAsc ? "▲" : "▼"}</span>` : "";
+  return `<th class="${className}" data-early-unlock-detail-sort="${key}"${aria}><button class="detail-sort-control" type="button" aria-label="Sort by ${esc(label)}">${esc(label)}${sort}</button></th>`;
+}
+function earlyUnlockWeeksLabel(value){
+  const weeks = Math.max(0, num(value));
+  if(weeks === 0) return "0 wk";
+  if(weeks < 0.1) return "<0.1 wk";
+  return `${weeks.toFixed(1).replace(/\.0$/, "")} wk`;
+}
+function renderEarlyUnlockDetailRow(row){
+  const rows = sortedEarlyUnlockPositions(row).map(position => {
+    const route = holderPositionRoute(row, position);
+    const expired = position.status === "expired";
+    const penalty = expired
+      ? '<span class="tag up">No fee</span>'
+      : `<span class="early-penalty-stack"><span class="early-unlock-value">${fmtDolo(position.penalty)}</span><span class="early-unlock-subline">${pct(position.penaltyPct)}</span></span>`;
+    return `<tr>
+      <td class="mono" data-label="Unlock Date">${esc(holderEndDate(position.end))}</td>
+      <td class="holder-detail-route center" data-label="Route">${flowSourceTag(route.kind, route.tooltip)}</td>
+      <td class="num mono" data-label="Locked DOLO"><span class="early-unlock-value">${fmtDolo(position.lockedDolo)}</span></td>
+      <td class="num mono" data-label="veDOLO"><span class="early-unlock-value vote">${fmtCompact(position.veDolo)}</span></td>
+      <td class="num mono" data-label="Available After Exit"><span class="early-unlock-value available">${fmtDolo(position.availableAfterExit)}</span></td>
+      <td class="num mono" data-label="Penalty">${penalty}</td>
+      <td class="num mono" data-label="Remaining"><span class="early-remaining ${expired ? "expired" : ""}">${esc(holderRemainingLabel(position.end))}</span></td>
+      <td class="center mono" data-label="Position ID"><span class="early-position-id">#${esc(position.id)}</span></td>
+    </tr>`;
+  }).join("");
+  return `<tr class="early-unlock-detail-row" data-detail-for="${esc(row.address || "")}">
+    <td colspan="7">
+      <div class="early-unlock-detail-panel">
+        <div class="early-unlock-detail-head">
+          <div>
+            <div class="early-unlock-detail-eyebrow">Exit simulation</div>
+            <div class="early-unlock-detail-title">veDOLO position breakdown</div>
+          </div>
+          <div class="early-unlock-detail-meta">${fmtInt((row.positions || []).length)} positions · detach/unvote first · gas excluded</div>
+        </div>
+        <div class="early-unlock-detail-scroll">
+          <table class="early-unlock-detail-table">
+            <thead><tr>
+              ${earlyUnlockDetailSortHeader("unlock", "Unlock Date")}
+              ${earlyUnlockDetailSortHeader("route", "Route", "center")}
+              ${earlyUnlockDetailSortHeader("lockedDolo", "Locked DOLO", "num")}
+              ${earlyUnlockDetailSortHeader("veDolo", "veDOLO", "num")}
+              ${earlyUnlockDetailSortHeader("availableAfterExit", "Available After Exit", "num")}
+              ${earlyUnlockDetailSortHeader("penalty", "Penalty", "num")}
+              ${earlyUnlockDetailSortHeader("remaining", "Remaining", "num")}
+              ${earlyUnlockDetailSortHeader("id", "Position ID", "center")}
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+    </td>
+  </tr>`;
+}
+function getFilteredEarlyUnlockRows(){
+  const st = state.earlyUnlock;
+  const q = st.q.toLowerCase();
+  let rows = state.earlyUnlockRows.filter(row => {
+    if(!q) return true;
+    return String(row.address || "").toLowerCase().includes(q)
+      || (row.positions || []).some(position => String(position.id || "").toLowerCase().includes(q));
+  });
+  rows = rows.slice().sort((a,b) => {
+    const weiKey = EARLY_UNLOCK_WEI_SORT_KEYS[st.sort];
+    if(weiKey){
+      const va = BigInt(a[weiKey] || "0");
+      const vb = BigInt(b[weiKey] || "0");
+      const diff = va === vb ? 0 : va < vb ? -1 : 1;
+      if(diff) return st.asc ? diff : -diff;
+      return num(a.rank) - num(b.rank);
+    }
+    const va = st.sort === "address" ? String(a.address || "") : num(a[st.sort]);
+    const vb = st.sort === "address" ? String(b.address || "") : num(b[st.sort]);
+    if(typeof va === "string") return st.asc ? va.localeCompare(vb) : vb.localeCompare(va);
+    const diff = va - vb;
+    if(diff) return st.asc ? diff : -diff;
+    return num(a.rank) - num(b.rank);
+  });
+  return rows;
+}
+function renderEarlyUnlock(){
+  const st = state.earlyUnlock;
+  if(!state.earlyUnlockLoaded){
+    qs("#early-unlock-body").innerHTML = '<tr class="loading-row table-empty-row"><td colspan="7">Loading early unlock simulation...</td></tr>' + tableSpacerRows(st.perPage - 1, 7);
+    setText("early-unlock-count", "--");
+    setText("early-unlock-info", "--");
+    updatePager("earlyUnlock", 0, 1, st.perPage);
+    return;
+  }
+  const rows = getFilteredEarlyUnlockRows();
+  const pages = Math.max(1, Math.ceil(rows.length / st.perPage));
+  if(st.page > pages) st.page = pages;
+  const start = (st.page - 1) * st.perPage;
+  const pageRows = rows.slice(start, start + st.perPage);
+  const bodyRows = pageRows.length ? pageRows.map((row, index) => {
+    const addressKey = String(row.address || "").toLowerCase();
+    const isExpanded = st.expanded === addressKey;
+    const toggle = `<button class="early-unlock-toggle" type="button" aria-label="${isExpanded ? "Hide position details" : "Show position details"}" aria-expanded="${isExpanded}"><span>${isExpanded ? "Hide" : "Details"}</span>${chevDownSvg}</button>`;
+    return `<tr class="early-unlock-data-row stable-data-row ${isExpanded ? "early-unlock-row-open" : ""}" data-early-unlock-addr="${esc(row.address || "")}" aria-expanded="${isExpanded}">
+      <td><span class="rank">${fmtInt(start + index + 1)}</span></td>
+      <td>${holderCell(row)}</td>
+      <td class="num"><span class="early-unlock-value vote">${fmtCompact(row.veDolo)}</span></td>
+      <td class="num"><span class="early-unlock-value">${fmtDolo(row.lockedDolo)}</span></td>
+      <td class="num"><span class="early-unlock-value available">${fmtDolo(row.availableAfterExit)}</span><span class="early-unlock-subline">Penalty ${fmtDolo(row.penalty)} · ${pct(row.penaltyPct)}</span></td>
+      <td class="num"><span class="early-unlock-value">${esc(earlyUnlockWeeksLabel(row.avgWeeksUntilUnlock))}</span></td>
+      <td class="early-unlock-actions">${toggle}</td>
+    </tr>${isExpanded ? renderEarlyUnlockDetailRow(row) : ""}`;
+  }).join("") : '<tr class="loading-row table-empty-row"><td colspan="7">No early unlock simulations match the current filters.</td></tr>';
+  qs("#early-unlock-body").innerHTML = bodyRows + tableSpacerRows(st.perPage - Math.max(pageRows.length, 1), 7);
+  setText("early-unlock-count", rows.length === state.earlyUnlockRows.length ? fmtInt(rows.length) : `${fmtInt(rows.length)} / ${fmtInt(state.earlyUnlockRows.length)}`);
+  setText("early-unlock-info", rows.length ? `${fmtInt(start + 1)}-${fmtInt(Math.min(start + st.perPage, rows.length))} of ${fmtInt(rows.length)}` : "0 of 0");
+  updatePager("earlyUnlock", rows.length, st.page, st.perPage);
+  syncSortHeader("#early-unlock-table", st.sort, st.asc);
+  qsa("#early-unlock-table > thead th.sortable").forEach(th => {
+    if(th.dataset.sort === st.sort) th.setAttribute("aria-sort", st.asc ? "ascending" : "descending");
+    else th.removeAttribute("aria-sort");
+  });
+  wireEarlyUnlockDetails();
+}
+function wireEarlyUnlockDetails(){
+  qsa("#early-unlock-body [data-early-unlock-detail-sort]").forEach(th => {
+    th.addEventListener("click", event => {
+      event.stopPropagation();
+      const st = state.earlyUnlock;
+      const key = th.dataset.earlyUnlockDetailSort;
+      if(st.detailSort === key) st.detailAsc = !st.detailAsc;
+      else { st.detailSort = key; st.detailAsc = key === "id" || key === "unlock" || key === "remaining" || key === "route"; }
+      renderEarlyUnlock();
+      wireCopyButtons();
+    });
+  });
+  qsa("#early-unlock-body tr.early-unlock-data-row").forEach(tr => {
+    tr.addEventListener("click", e => {
+      if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
+      const address = String(tr.dataset.earlyUnlockAddr || "").toLowerCase();
+      state.earlyUnlock.expanded = state.earlyUnlock.expanded === address ? null : address;
+      renderEarlyUnlock();
+      wireCopyButtons();
+      resetExpandedTableScroll("#early-unlock-table");
+    });
+  });
+}
 function buildExpiredClaimableRows(){
   const nowSec = Math.floor(Date.now() / 1000);
   const rows = [];
@@ -2964,6 +3256,7 @@ function syncSortHeader(tableSel, key, asc){
 }
 function renderAllTables(){
   renderHolders();
+  renderEarlyUnlock();
   renderExpiredClaimable();
   renderExits();
   renderLocks();
@@ -3322,6 +3615,7 @@ function emitQaReport(){
 }
 function bindUi(){
   qs("#q-holders").addEventListener("input", e => { state.holder.q = e.target.value.trim(); state.holder.page = 1; renderHolders(); wireCopyButtons(); });
+  qs("#q-early-unlock").addEventListener("input", e => { state.earlyUnlock.q = e.target.value.trim(); state.earlyUnlock.page = 1; renderEarlyUnlock(); wireCopyButtons(); });
   qs("#q-claimable").addEventListener("input", e => { state.claimable.q = e.target.value.trim(); state.claimable.page = 1; renderExpiredClaimable(); wireCopyButtons(); });
   qs("#q-exits").addEventListener("input", e => { state.exitsUi.q = e.target.value.trim(); state.exitsUi.page = 1; renderExits(); wireCopyButtons(); });
   qs("#q-expiry").addEventListener("input", e => { state.expiryUi.q = e.target.value.trim(); renderExpiry(); });
@@ -3394,6 +3688,9 @@ function bindUi(){
     if(table === "holders-table"){
       if(state.holder.sort === key) state.holder.asc = !state.holder.asc; else { state.holder.sort = key; state.holder.asc = key === "rank" || key === "address"; }
       state.holder.page = 1; renderHolders();
+    } else if(table === "early-unlock-table"){
+      if(state.earlyUnlock.sort === key) state.earlyUnlock.asc = !state.earlyUnlock.asc; else { state.earlyUnlock.sort = key; state.earlyUnlock.asc = key === "rank" || key === "address" || key === "avgWeeksUntilUnlock"; }
+      state.earlyUnlock.page = 1; renderEarlyUnlock();
     } else if(table === "claimable-table"){
       if(state.claimable.sort === key) state.claimable.asc = !state.claimable.asc; else { state.claimable.sort = key; state.claimable.asc = key === "rank" || key === "address" || key === "route" || key === "lock" || key === "expired" || key === "id"; }
       state.claimable.page = 1; renderExpiredClaimable();
@@ -3467,6 +3764,7 @@ async function boot(){
     const expiryPromise = fetchJson("vedolo_expiry.json").catch(() => null);
     const exercisesPromise = fetchJson("exercisers_by_address.json").catch(() => null);
     const votePowerPromise = fetchStaticJson("data/vedolo-vote-power-history.json", "vedolo-vote-power-history-20260714").catch(() => null);
+    const earlyUnlockPromise = fetchStaticJson("vedolo_early_unlock.json", "vedolo-early-unlock-v1").catch(() => null);
 
     const [stats, price] = await Promise.all([statsPromise, pricePromise]);
     state.stats = stats?.stats || {};
@@ -3500,6 +3798,15 @@ async function boot(){
     renderStatic();
     renderAllTables();
     emitQaReport();
+    earlyUnlockPromise.then(earlyUnlock => {
+      state.earlyUnlockRows = earlyUnlock?.wallets || [];
+      state.earlyUnlockTimestamp = earlyUnlock?.sourceTimestamp || earlyUnlock?.generatedAt;
+      state.earlyUnlockLoaded = true;
+      renderEarlyUnlock();
+      syncVedoloTableMetadata();
+      wireCopyButtons();
+      emitQaReport();
+    });
   }catch(err){
     console.error(err);
     document.body.insertAdjacentHTML("afterbegin", `<div style="padding:12px 20px;background:#3a1616;color:#f7d4d4;font-family:system-ui">Unable to load veDOLO data: ${esc(err.message)}</div>`);

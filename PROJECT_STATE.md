@@ -57,6 +57,7 @@ Adresy kontraktowe protokołu: wspólna stopka (`protocol-footer.js`) na każdej
 | `generate_dolo_holders.py` | DOLO holder list | Subgraph |
 | `generate_dolo_flows.py` | DOLO transfer flows | Subgraph |
 | `generate_vedolo_flows.py` | veDOLO lock/unlock flows | Subgraph |
+| `generate_vedolo_early_unlock.py` | Early-unlock quotes per wallet/position → `vedolo_early_unlock.json` | Pinned-block RPC + onchain fee calculator |
 | `generate_odolo_flows.py` | oDOLO flows | Subgraph |
 | `generate_exercisers.py` | oDOLO→DOLO exercisers | Subgraph |
 | `fetch_early_exits.py` | Early exit transactions | Subgraph + RPC (z cache!) |

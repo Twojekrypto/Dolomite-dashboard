@@ -172,6 +172,23 @@ class TestRpcClient(unittest.TestCase):
         self.assertEqual(3, post.call_count)
         self.assertEqual("https://b.example", post.call_args.args[0])
 
+    def test_call_rotates_on_json_rpc_rate_limit(self):
+        client = self._client()
+        rate_limited = _response({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "error": {"code": 429, "message": "rate limit"},
+        })
+        recovered = _response({"jsonrpc": "2.0", "id": 1, "result": "0x5"})
+        with mock.patch.object(
+            rpc_client.requests,
+            "post",
+            side_effect=[rate_limited, recovered],
+        ) as post:
+            self.assertEqual(client.call("eth_blockNumber", []), "0x5")
+        self.assertEqual(post.call_count, 2)
+        self.assertEqual(client.last_endpoint, "https://b.example")
+
     def test_batch_preserves_order(self):
         client = self._client()
         shuffled = [
