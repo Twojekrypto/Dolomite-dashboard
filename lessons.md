@@ -447,3 +447,8 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   seed numeric `positionId` values only from `concentrated_nft` rows. Typed
   vault-share or manager-custody rows use addresses and must be ignored by the
   NFT replay cursor while legacy untyped NFT rows remain supported.
+
+### veDOLO early-unlock snapshots
+
+**Reguła na przyszłość:** Symulacja early unlock nie może przypisywać pozycji według starszego pliku holderów. W jednym przypiętym bloku odczytaj globalny `tokenId`, `ownerOf`, `locked`, `balanceOfNFT`, adres `feeCalculator` i jego quote; dopiero potem grupuj tokeny po aktualnym właścicielu. To obejmuje transfery i minty wykonane po poprzednim holder snapshotcie.
+**Reguła na przyszłość:** Wielopaczkowy odczyt Multicall musi korzystać ze wspólnego `RpcClient`, aby HTTP 429 przełączał endpoint z retry/backoff. Wybrany endpoint może się zmieniać między paczkami, ale numer bloku nie; nie publikuj częściowego JSON-u po nierozwiązanym callu.

@@ -327,6 +327,95 @@ def _vedolo_vote_power_history_valid(data):
     )
 
 
+def _vedolo_early_unlock_valid(data):
+    if not isinstance(data, dict) or data.get("schemaVersion") != 1:
+        return False
+    if not _is_exact_integer(data.get("sourceBlock")) or data.get("sourceBlock") < 0:
+        return False
+    if not _is_iso_datetime(data.get("sourceTimestamp")) or not _is_iso_datetime(data.get("generatedAt")):
+        return False
+    fee_calculator = str(data.get("feeCalculator") or "")
+    wallets = data.get("wallets")
+    if len(fee_calculator) != 42 or not fee_calculator.startswith("0x") or not isinstance(wallets, list):
+        return False
+    try:
+        snapshot_timestamp = int(datetime.fromisoformat(data["sourceTimestamp"].replace("Z", "+00:00")).timestamp())
+    except (TypeError, ValueError, KeyError):
+        return False
+
+    position_count = 0
+    previous_available = None
+    for expected_rank, wallet in enumerate(wallets, start=1):
+        if not isinstance(wallet, dict) or wallet.get("rank") != expected_rank:
+            return False
+        address = str(wallet.get("address") or "")
+        positions = wallet.get("positions")
+        if len(address) != 42 or not address.startswith("0x") or not isinstance(positions, list) or not positions:
+            return False
+
+        locked_total = vote_total = available_total = penalty_total = weighted_remaining = 0
+        has_active = False
+        for position in positions:
+            if not isinstance(position, dict):
+                return False
+            locked = _nonnegative_integer(position.get("lockedDoloWei"))
+            vote = _nonnegative_integer(position.get("veDoloWei"))
+            available = _nonnegative_integer(position.get("availableAfterExitWei"))
+            burn = _nonnegative_integer(position.get("burnFeeWei"))
+            recoup = _nonnegative_integer(position.get("recoupFeeWei"))
+            penalty = _nonnegative_integer(position.get("penaltyWei"))
+            remaining = position.get("remainingSeconds")
+            end = position.get("end")
+            if None in (locked, vote, available, burn, recoup, penalty):
+                return False
+            if not _is_exact_integer(remaining) or not _is_exact_integer(end):
+                return False
+            expected_remaining = max(end - snapshot_timestamp, 0)
+            expected_status = "early_exit" if expected_remaining else "expired"
+            if remaining != expected_remaining or position.get("status") != expected_status:
+                return False
+            if burn + recoup != penalty or available + penalty != locked:
+                return False
+            if any(
+                _decimal_to_wei(position.get(decimal_key)) != raw_value
+                for decimal_key, raw_value in (
+                    ("lockedDolo", locked),
+                    ("veDolo", vote),
+                    ("availableAfterExit", available),
+                    ("penalty", penalty),
+                )
+            ):
+                return False
+            locked_total += locked
+            vote_total += vote
+            available_total += available
+            penalty_total += penalty
+            weighted_remaining += locked * remaining
+            has_active = has_active or expected_status == "early_exit"
+            position_count += 1
+
+        wallet_values = (
+            ("lockedDoloWei", "lockedDolo", locked_total),
+            ("veDoloWei", "veDolo", vote_total),
+            ("availableAfterExitWei", "availableAfterExit", available_total),
+            ("penaltyWei", "penalty", penalty_total),
+        )
+        if not has_active or any(
+            _nonnegative_integer(wallet.get(raw_key)) != total
+            or _decimal_to_wei(wallet.get(decimal_key)) != total
+            for raw_key, decimal_key, total in wallet_values
+        ):
+            return False
+        expected_weeks = weighted_remaining / (locked_total * 7 * 24 * 60 * 60) if locked_total else 0
+        if not math.isclose(_safe_number(wallet.get("avgWeeksUntilUnlock")), expected_weeks, rel_tol=1e-12, abs_tol=1e-12):
+            return False
+        if previous_available is not None and available_total > previous_available:
+            return False
+        previous_available = available_total
+
+    return data.get("walletCount") == len(wallets) and data.get("positionCount") == position_count
+
+
 def _odolo_circulating_reconciles(data):
     try:
         total_supply = float(data.get("totalSupply"))
@@ -2217,6 +2306,14 @@ RULES = {
             ("holders must have entries", lambda d: len(d.get("holders", [])) >= 10),
         ],
         "min_bytes": 100_000,
+    },
+    "vedolo_early_unlock.json": {
+        "required_keys": ["schemaVersion", "sourceBlock", "sourceTimestamp", "generatedAt", "feeCalculator", "walletCount", "positionCount", "wallets"],
+        "checks": [
+            ("early-unlock simulation must reconcile exact wei totals", _vedolo_early_unlock_valid),
+            ("early-unlock simulation must have wallet rows", lambda d: len(d.get("wallets", [])) >= 10),
+        ],
+        "min_bytes": 10_000,
     },
     "vedolo-vote-power-history.json": {
         "required_keys": ["schemaVersion", "metric", "chain", "contract", "source", "targetBlock", "targetTimestamp", "totalSupplyWei", "lockedSupplyWei", "lastPointWei", "coverage", "points"],
