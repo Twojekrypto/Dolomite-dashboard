@@ -155,7 +155,7 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertTrue(KNOWN_TRADING_BOTS.isdisjoint(flows.EXCLUDED_ADDRS))
         self.assertEqual(excluded, set())
 
-    def test_verified_lp_deposit_is_classified_as_outflow_when_wallet_net_is_flat(self):
+    def test_verified_lp_activity_does_not_rewrite_flat_wallet_net(self):
         wallet = "0xa8b4c7f8b3d91b324f815252da74884e68fb4c4c"
         market_flows = {wallet: 0.31}
         activities = {
@@ -180,8 +180,8 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
             activities,
         )
 
-        self.assertEqual(classified[wallet], -1_304_943.5475313652)
-        self.assertEqual(annotations[wallet]["flow_basis"], "verified_lp_deposit")
+        self.assertEqual(classified[wallet], 0.31)
+        self.assertEqual(annotations[wallet]["flow_basis"], "wallet_net")
         self.assertEqual(annotations[wallet]["market_net_flow"], 0.31)
         self.assertEqual(
             annotations[wallet]["latest_lp_activity"]["period_wallet_net_flow"],
