@@ -4916,8 +4916,8 @@ function flowLpBadgeHtml(activity, kind){
   if(!activity || activity.confidence !== "verified_same_tx") return "";
   const direction = activity.direction;
   if((kind === "out" && direction !== "deposit") || (kind === "acc" && direction !== "withdrawal")) return "";
-  const amount = Math.max(0, safeHolderNum(activity.amount));
-  if(!amount) return "";
+  const latestAmount = Math.max(0, safeHolderNum(activity.amount));
+  if(!latestAmount) return "";
   const adapterLabels = {
     "uniswap-v4":"Uniswap v4",
     "uniswap-v3":"Uniswap v3",
@@ -4928,16 +4928,31 @@ function flowLpBadgeHtml(activity, kind){
   };
   const adapter = adapterLabels[activity.adapter] || String(activity.adapter || "tracked DEX");
   const pair = String(activity.pair || "DOLO pool");
-  const amountLabel = fmtNum(amount);
-  let tooltip = direction === "deposit"
-    ? `Verified LP deposit · ${amountLabel} DOLO moved into ${adapter} ${pair} in the latest transaction. It remains counted as wallet outflow; this label describes its destination, not a sale.`
-    : `Verified LP withdrawal · ${amountLabel} DOLO returned from ${adapter} ${pair} in the latest transaction. It remains counted as wallet inflow; this label describes its source, not a market purchase.`;
+  const latestAmountLabel = fmtNum(latestAmount);
+  const periodNetRaw = direction === "deposit"
+    ? activity.period_net_lp_deposit
+    : activity.period_net_lp_withdrawal;
+  const periodNet = Math.max(0, safeHolderNum(periodNetRaw));
+  const hasPeriodNet = periodNet > 0;
+  const amountLabel = fmtNum(hasPeriodNet ? periodNet : latestAmount);
+  let tooltip;
+  if(hasPeriodNet){
+    tooltip = direction === "deposit"
+      ? `Verified LP activity · Net added to LP during the selected period: ${amountLabel} DOLO across verified tracked pools. Latest verified LP deposit: ${latestAmountLabel} DOLO into ${adapter} ${pair}. This is liquidity provision, not a sale.`
+      : `Verified LP activity · Net withdrawn from LP during the selected period: ${amountLabel} DOLO across verified tracked pools. Latest verified LP withdrawal: ${latestAmountLabel} DOLO from ${adapter} ${pair}. This describes the source, not a market purchase.`;
+  }else{
+    tooltip = direction === "deposit"
+      ? `Verified LP deposit · ${latestAmountLabel} DOLO moved into ${adapter} ${pair} in the latest transaction. It remains counted as wallet outflow; this label describes its destination, not a sale.`
+      : `Verified LP withdrawal · ${latestAmountLabel} DOLO returned from ${adapter} ${pair} in the latest transaction. It remains counted as wallet inflow; this label describes its source, not a market purchase.`;
+  }
   const walletNet = Number(activity.period_wallet_net_flow);
   if(Number.isFinite(walletNet)){
     const walletNetLabel = `${walletNet > 0 ? "+" : ""}${fmtNum(walletNet)}`;
-    tooltip += ` Wallet transfer net: ${walletNetLabel} DOLO; this row is classified by verified LP movement.`;
+    tooltip += ` Wallet transfer net: ${walletNetLabel} DOLO. Main row remains the transfer-derived wallet net flow.`;
   }
-  const label = direction === "deposit" ? `${amountLabel} → LP` : `${amountLabel} ← LP`;
+  const label = direction === "deposit"
+    ? `${amountLabel}${hasPeriodNet ? " net" : ""} → LP`
+    : `${amountLabel}${hasPeriodNet ? " net" : ""} ← LP`;
   return `<span class="flow-lp-note" data-tooltip="${escHtml(tooltip)}" aria-label="${escHtml(tooltip)}">${label}</span>`;
 }
 function effectiveFlowLp(r){

@@ -22,6 +22,7 @@ import rpc_usage
 from flow_tx_metadata import (
     attach_latest_lp_metadata,
     attach_latest_flow_metadata,
+    collect_verified_lp_activities,
     fetch_transaction_receipts,
     fetch_token_block_evidence,
 )
@@ -4173,6 +4174,29 @@ def apply_flow_annotations(rows, annotations):
         for key, value in annotation.items():
             if value is not None:
                 row[key] = value
+
+
+def apply_period_lp_totals(rows, activities):
+    """Attach period-wide verified LP totals to an already verified latest LP row."""
+    for row in rows or []:
+        activity = row.get("latest_lp_activity")
+        summary = (activities or {}).get(str(row.get("address") or "").lower())
+        if not isinstance(activity, dict) or not isinstance(summary, dict):
+            continue
+        try:
+            deposit = Decimal(str(summary.get("deposit") or "0"))
+            withdrawal = Decimal(str(summary.get("withdrawal") or "0"))
+        except InvalidOperation:
+            continue
+        if deposit < 0 or withdrawal < 0:
+            continue
+        activity["period_lp_deposit"] = _flow_decimal_text(deposit)
+        activity["period_lp_withdrawal"] = _flow_decimal_text(withdrawal)
+        net = deposit - withdrawal
+        if net > 0:
+            activity["period_net_lp_deposit"] = _flow_decimal_text(net)
+        elif net < 0:
+            activity["period_net_lp_withdrawal"] = _flow_decimal_text(-net)
     return rows
 
 
@@ -4690,6 +4714,8 @@ def main():
 
         # Step 3: Build output using neutralized flows. Exact transaction metadata
         # is optional presentation provenance and never participates in arithmetic.
+        flow_evidence_loaders = {}
+        lp_receipt_loaders = {}
         for chain_key, cfg in CHAINS.items():
             tx_counts = tx_counts_by_chain[chain_key]
 
@@ -4716,6 +4742,9 @@ def main():
                         describe=f"{_cfg['name']} verified LP flow evidence",
                     ))
                 return {tx_hash: cache[tx_hash] for tx_hash in tx_hashes if tx_hash in cache}
+
+            flow_evidence_loaders[chain_key] = load_flow_evidence
+            lp_receipt_loaders[chain_key] = load_lp_receipts
 
             chain_name = "ethereum" if chain_key == "eth" else "berachain"
             # Net flow must remain the exact transfer-derived wallet balance
@@ -4809,9 +4838,50 @@ def main():
                     "latest_lp_activity",
                 ):
                     if key in evidence:
-                        entry[key] = evidence[key]
+                        value = evidence[key]
+                        # The combined row is enriched with all-chain LP totals
+                        # later. Keep its activity metadata independent so that
+                        # those totals cannot overwrite a single-chain row.
+                        if key == "latest_lp_activity" and isinstance(value, dict):
+                            value = dict(value)
+                        entry[key] = value
             if dolo_price:
                 entry["usd_value"] = round(entry["net_flow"] * dolo_price, 2)
+
+        # Aggregate exact LP activity only for rows that can actually be shown.
+        # This keeps the badge scoped to the selected period without scanning
+        # receipts for every swapper that touched a shared pool manager.
+        displayed_wallets = {
+            row["address"]
+            for chain_key in CHAINS
+            for row in (
+                output_periods[period][chain_key]["accumulators"]
+                + output_periods[period][chain_key]["sellers"]
+            )
+        }
+        displayed_wallets.update(
+            row["address"] for row in combined_accumulators + combined_sellers
+        )
+        lp_activities_by_chain = {}
+        for chain_key in CHAINS:
+            chain_name = "ethereum" if chain_key == "eth" else "berachain"
+            lp_activities = collect_verified_lp_activities(
+                period_transfers_by_chain[chain_key],
+                chain_name,
+                liquidity_registry,
+                DOLO_CONTRACT,
+                flow_evidence_loaders[chain_key],
+                lp_receipt_loaders[chain_key],
+                wallet_filter=displayed_wallets,
+            )
+            lp_activities_by_chain[chain_key] = lp_activities
+            chain_rows = output_periods[period][chain_key]
+            apply_period_lp_totals(chain_rows["accumulators"], lp_activities)
+            apply_period_lp_totals(chain_rows["sellers"], lp_activities)
+
+        combined_lp_activities = merge_verified_lp_activities(lp_activities_by_chain)
+        apply_period_lp_totals(combined_accumulators, combined_lp_activities)
+        apply_period_lp_totals(combined_sellers, combined_lp_activities)
         apply_flow_annotations(combined_accumulators, combined_lp_annotations)
         apply_flow_annotations(combined_sellers, combined_lp_annotations)
 

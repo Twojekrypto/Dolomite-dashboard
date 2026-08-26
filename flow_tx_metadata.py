@@ -318,6 +318,7 @@ def collect_verified_lp_activities(
     evidence_loader,
     receipt_loader,
     market_flows=None,
+    wallet_filter=None,
 ):
     """Index exact LP deposits/withdrawals before aggregate flow ranking."""
     index = _liquidity_registry_index(registry, chain)
@@ -332,7 +333,13 @@ def collect_verified_lp_activities(
         return {}
 
     candidate_wallets = None
-    if market_flows is not None:
+    if wallet_filter is not None:
+        candidate_wallets = {
+            address
+            for address in (_normalized_address(value) for value in wallet_filter)
+            if address
+        }
+    elif market_flows is not None:
         direct_lp_net = {}
         for transfer in transfers or []:
             if not isinstance(transfer, (list, tuple)) or len(transfer) < 4:

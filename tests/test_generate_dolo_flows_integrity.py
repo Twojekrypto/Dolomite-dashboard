@@ -208,6 +208,30 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(classified[wallet], -2_490_986.19)
         self.assertEqual(annotations[wallet]["flow_basis"], "wallet_net")
 
+    def test_period_lp_totals_use_full_period_net_instead_of_latest_tx_amount(self):
+        wallet = "0xa8b4c7f8b3d91b324f815252da74884e68fb4c4c"
+        rows = [{
+            "address": wallet,
+            "net_flow": 2_490_986.19,
+            "latest_lp_activity": {
+                "direction": "deposit",
+                "amount": "1304943.547531365190891539",
+                "confidence": "verified_same_tx",
+            },
+        }]
+
+        flows.apply_period_lp_totals(rows, {
+            wallet: {
+                "deposit": "3795930.051008284105982345",
+                "withdrawal": "1304943.856999999999991187",
+            },
+        })
+
+        activity = rows[0]["latest_lp_activity"]
+        self.assertEqual(activity["period_lp_deposit"], "3795930.051008284105982345")
+        self.assertEqual(activity["period_lp_withdrawal"], "1304943.856999999999991187")
+        self.assertEqual(activity["period_net_lp_deposit"], "2490986.194008284105991158")
+
     def test_bridge_audit_applies_only_canonical_cancellations(self):
         exact = "0x1111111111111111111111111111111111111111"
         legacy = "0x2222222222222222222222222222222222222222"
