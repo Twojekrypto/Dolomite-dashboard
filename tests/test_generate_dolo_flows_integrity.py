@@ -39,6 +39,28 @@ KNOWN_TRADING_BOTS = {
 
 
 class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
+    def test_holder_history_accumulator_accepts_transfer_metadata(self):
+        sender = "0x1111111111111111111111111111111111111111"
+        recipient = "0x2222222222222222222222222222222222222222"
+        raw_flows = {}
+        bridge_flows = {}
+
+        flows.add_transfer_to_running_flows(
+            raw_flows,
+            bridge_flows,
+            (
+                sender,
+                recipient,
+                5 * 10**18,
+                123,
+                "0x" + "a" * 64,
+                7,
+            ),
+        )
+
+        self.assertEqual(raw_flows[sender], -5)
+        self.assertEqual(raw_flows[recipient], 5)
+
     def test_searchable_rows_keep_verified_wallets_below_leaderboard_cutoff(self):
         flows_by_address = {
             "0x1111111111111111111111111111111111111111": 100_000.0,
