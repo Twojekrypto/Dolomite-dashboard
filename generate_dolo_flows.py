@@ -2485,7 +2485,7 @@ def neutralize_holder_balance_flows(raw_flows, bridge_flows_by_chain):
 
 
 def add_transfer_to_running_flows(raw_flows, bridge_flows, transfer):
-    from_addr, to_addr, value_wei, _ = transfer
+    from_addr, to_addr, value_wei, _, *_ = transfer
     value = value_wei / (10 ** 18)
     if from_addr not in FLOW_SKIP_ADDRS and to_addr not in FLOW_SKIP_ADDRS:
         raw_flows[from_addr] = raw_flows.get(from_addr, 0) - value
