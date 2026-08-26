@@ -258,6 +258,82 @@ class FlowTransactionMetadataTests(unittest.TestCase):
         self.assertEqual(set(activities), {self.WALLET})
         self.assertEqual(activities[self.WALLET]["latest"]["timestamp"], 1_787_000_091)
 
+    def test_ranked_wallet_filter_collects_full_period_lp_net(self):
+        other_wallet = "0x" + "6" * 40
+        deposit_hash = "0x" + "b" * 64
+        withdrawal_hash = "0x" + "c" * 64
+        other_hash = "0x" + "d" * 64
+        deposit_amount = 3_000_000 * 10**18
+        withdrawal_amount = 500_000 * 10**18
+        requested_hashes = set()
+
+        def receipt(tx_hash, wallet, amount, direction):
+            from_addr, to_addr = (
+                (wallet, self.V4_POOL_MANAGER)
+                if direction == "deposit"
+                else (self.V4_POOL_MANAGER, wallet)
+            )
+            transfer_log = {
+                "address": self.DOLO,
+                "topics": [
+                    flow_tx_metadata.TRANSFER_TOPIC,
+                    self._topic_address(from_addr),
+                    self._topic_address(to_addr),
+                ],
+                "data": hex(amount),
+                "transactionHash": tx_hash,
+                "logIndex": "0x1",
+            }
+            liquidity_delta = 1 if direction == "deposit" else -1
+            return {
+                "status": "0x1",
+                "transactionHash": tx_hash,
+                "logs": [
+                    transfer_log,
+                    {
+                        "address": self.V4_POOL_MANAGER,
+                        "topics": [
+                            flow_tx_metadata.V4_MODIFY_LIQUIDITY_TOPIC,
+                            self.V4_POOL_ID,
+                            self._topic_address(self.V4_POSITION_MANAGER),
+                        ],
+                        "data": "0x" + self._word(-100) + self._word(100) + self._word(liquidity_delta) + self._word(1),
+                    },
+                ],
+            }
+
+        receipts = {
+            deposit_hash: receipt(deposit_hash, self.WALLET, deposit_amount, "deposit"),
+            withdrawal_hash: receipt(withdrawal_hash, self.WALLET, withdrawal_amount, "withdrawal"),
+            other_hash: receipt(other_hash, other_wallet, 1_000 * 10**18, "deposit"),
+        }
+
+        def load_receipts(hashes):
+            requested_hashes.update(hashes)
+            return {tx_hash: receipts[tx_hash] for tx_hash in hashes}
+
+        activities = flow_tx_metadata.collect_verified_lp_activities(
+            [
+                [self.WALLET, self.V4_POOL_MANAGER, deposit_amount, 200, deposit_hash, 1],
+                [self.V4_POOL_MANAGER, self.WALLET, withdrawal_amount, 190, withdrawal_hash, 1],
+                [other_wallet, self.V4_POOL_MANAGER, 1_000 * 10**18, 210, other_hash, 1],
+            ],
+            "ethereum",
+            self._registry(),
+            self.DOLO,
+            lambda blocks: {
+                block: {"timestamp": 1_787_000_000 + block, "logs": []}
+                for block in blocks
+            },
+            load_receipts,
+            wallet_filter={self.WALLET},
+        )
+
+        self.assertEqual(requested_hashes, {deposit_hash, withdrawal_hash})
+        self.assertEqual(activities[self.WALLET]["deposit"], "3000000")
+        self.assertEqual(activities[self.WALLET]["withdrawal"], "500000")
+        self.assertEqual(activities[self.WALLET]["latest"]["tx_hash"], deposit_hash)
+
     def test_v4_swap_like_transfer_without_position_event_is_not_labeled_lp(self):
         receipt = {
             "status": "0x1",
