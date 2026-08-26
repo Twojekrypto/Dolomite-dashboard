@@ -185,9 +185,53 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('id="early-unlock-body"', self.html)
         self.assertIn('id="early-unlock-info"', self.html)
         self.assertIn('id="early-unlock-pager"', self.html)
-        self.assertIn('Available After Exit', self.html)
-        self.assertIn('Avg Weeks Until Unlock', self.html)
+        self.assertIn('Exit Value', self.html)
+        self.assertIn('Avg Lock', self.html)
         self.assertIn('fetchStaticJson("vedolo_early_unlock.json", "vedolo-early-unlock-v1")', self.html)
+
+    def test_early_unlock_summary_matches_liquidity_provider_rail_contract(self):
+        section_start = self.html.index('<section class="card early-unlock-card"')
+        section_end = self.html.index('</section>', section_start)
+        section = self.html[section_start:section_end]
+        summary_index = section.index('id="early-unlock-summary"')
+        self.assertLess(section.index('class="card-head"'), summary_index)
+        self.assertLess(summary_index, section.index('class="toolbar"'))
+        self.assertIn('class="early-unlock-summary selected-market-rail"', section)
+        for label, element_id in (
+            ("Exit Value", "early-unlock-summary-exit-value"),
+            ("Locked DOLO", "early-unlock-summary-locked"),
+            ("Exit Penalty", "early-unlock-summary-penalty"),
+            ("Avg Lock", "early-unlock-summary-lock"),
+        ):
+            self.assertIn(label, section)
+            self.assertIn(f'id="{element_id}"', section)
+        self.assertIn('.early-unlock-summary.selected-market-rail{', self.html)
+        self.assertIn('grid-template-columns:repeat(4,minmax(0,1fr))', self.html)
+        self.assertIn('@media (max-width:760px)', self.html)
+        self.assertIn('.early-unlock-summary.selected-market-rail{grid-template-columns:1fr}', self.html)
+
+    def test_early_unlock_summary_uses_filtered_rows_and_exact_raw_amounts(self):
+        self.assertIn('function renderEarlyUnlockSummary(rows)', self.html)
+        self.assertIn('BigInt(row.lockedDoloWei || "0")', self.html)
+        self.assertIn('BigInt(row.availableAfterExitWei || "0")', self.html)
+        self.assertIn('BigInt(row.penaltyWei || "0")', self.html)
+        self.assertIn('BigInt(position.lockedDoloWei || "0")', self.html)
+        self.assertIn('BigInt(Math.max(0, Math.round(num(position.remainingSeconds))))', self.html)
+        render_start = self.html.index('function renderEarlyUnlock(){')
+        render_end = self.html.index('function wireEarlyUnlockDetails(){', render_start)
+        self.assertIn('renderEarlyUnlockSummary(rows);', self.html[render_start:render_end])
+
+    def test_early_unlock_rows_use_compact_exit_and_odolo_lock_ux(self):
+        self.assertIn('earlyUnlockPenaltyLabel(row.penaltyPct)', self.html)
+        self.assertNotIn('Penalty ${fmtDolo(row.penalty)}', self.html)
+        self.assertIn('earlyUnlockLockCell(row.avgWeeksUntilUnlock, lockMaxWeeks)', self.html)
+        self.assertIn('.early-unlock-lock-cell{', self.html)
+        self.assertIn('.early-unlock-lock-bar{', self.html)
+        self.assertIn('function earlyUnlockLockLabel(value)', self.html)
+        self.assertIn('function earlyUnlockLockBucket(value)', self.html)
+        self.assertIn('class="early-unlock-value available loss"', self.html)
+        self.assertIn('#early-unlock-table .early-unlock-value.available.loss{color:var(--down)}', self.html)
+        self.assertIn('early-unlock-summary-ux-20260826', self.route)
 
     def test_early_unlock_table_reuses_stable_holder_interactions(self):
         self.assertIn('earlyUnlock:{q:"",sort:"availableAfterExit"', self.html)
@@ -240,7 +284,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
             "Route",
             "Locked DOLO",
             "veDOLO",
-            "Available After Exit",
+            "Exit Value",
             "Penalty",
             "Remaining",
             "Position ID",
