@@ -184,6 +184,80 @@ class FlowTransactionMetadataTests(unittest.TestCase):
         self.assertEqual(activities, {})
         self.assertEqual(requested_blocks, [123])
 
+    def test_embedded_transfer_hash_fetches_block_evidence_only_after_lp_receipt_verification(self):
+        swap_wallet = "0x" + "6" * 40
+        legacy_wallet = "0x" + "7" * 40
+        lp_tx_hash = "0x" + "b" * 64
+        swap_tx_hash = "0x" + "c" * 64
+        lp_amount = 1_304_943_547531365190891539
+        swap_amount = 50_000 * 10**18
+        requested_blocks = []
+
+        def transfer_log(wallet, tx_hash, amount):
+            return {
+                "address": self.DOLO,
+                "topics": [
+                    flow_tx_metadata.TRANSFER_TOPIC,
+                    self._topic_address(wallet),
+                    self._topic_address(self.V4_POOL_MANAGER),
+                ],
+                "data": hex(amount),
+                "transactionHash": tx_hash,
+                "logIndex": "0x1",
+            }
+
+        lp_log = transfer_log(self.WALLET, lp_tx_hash, lp_amount)
+        swap_log = transfer_log(swap_wallet, swap_tx_hash, swap_amount)
+        lp_receipt = {
+            "status": "0x1",
+            "transactionHash": lp_tx_hash,
+            "logs": [
+                lp_log,
+                {
+                    "address": self.V4_POOL_MANAGER,
+                    "topics": [
+                        flow_tx_metadata.V4_MODIFY_LIQUIDITY_TOPIC,
+                        self.V4_POOL_ID,
+                        self._topic_address(self.V4_POSITION_MANAGER),
+                    ],
+                    "data": "0x" + self._word(-100) + self._word(100) + self._word(99) + self._word(374940),
+                },
+            ],
+        }
+        swap_receipt = {
+            "status": "0x1",
+            "transactionHash": swap_tx_hash,
+            "logs": [swap_log],
+        }
+
+        def load_evidence(blocks):
+            requested_blocks.extend(sorted(blocks))
+            return {
+                123: {"timestamp": 1_787_000_091, "logs": [lp_log]},
+                124: {"timestamp": 1_787_000_092, "logs": [swap_log]},
+            }
+
+        activities = flow_tx_metadata.collect_verified_lp_activities(
+            [
+                [self.WALLET, self.V4_POOL_MANAGER, lp_amount, 123, lp_tx_hash, 1],
+                [swap_wallet, self.V4_POOL_MANAGER, swap_amount, 124, swap_tx_hash, 1],
+                [legacy_wallet, self.V4_POOL_MANAGER, 10_000 * 10**18, 125],
+            ],
+            "ethereum",
+            self._registry(),
+            self.DOLO,
+            load_evidence,
+            lambda hashes: {
+                lp_tx_hash: lp_receipt,
+                swap_tx_hash: swap_receipt,
+            },
+            market_flows={self.WALLET: 0.31, swap_wallet: 0.2, legacy_wallet: 0.1},
+        )
+
+        self.assertEqual(requested_blocks, [123])
+        self.assertEqual(set(activities), {self.WALLET})
+        self.assertEqual(activities[self.WALLET]["latest"]["timestamp"], 1_787_000_091)
+
     def test_v4_swap_like_transfer_without_position_event_is_not_labeled_lp(self):
         receipt = {
             "status": "0x1",

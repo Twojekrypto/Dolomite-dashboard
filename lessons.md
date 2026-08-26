@@ -443,6 +443,14 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   market flows use whole DOLO. Candidate tolerances expressed across those two
   units silently admit almost every pool transfer and can turn a bounded exact
   LP evidence pass into a multi-hour RPC scan.
+- **Preserve transaction identity in the canonical transfer ledger.** Store
+  `transactionHash` and `logIndex` together with every quorum-verified transfer;
+  LP verification must batch receipts from those hashes instead of re-querying
+  all token logs for every candidate block and every display period.
+- **Fetch block evidence only after a receipt proves LP activity.** Timestamps
+  are presentation metadata and may be loaded for the small verified subset.
+  A bounded one-time migration may enrich the recent cache, but one legacy row
+  in a mixed ledger must never reactivate a full block-by-block fallback scan.
 - **Uniswap V4 vault shares are not NFT token IDs.** Incremental replay may
   seed numeric `positionId` values only from `concentrated_nft` rows. Typed
   vault-share or manager-custody rows use addresses and must be ignored by the

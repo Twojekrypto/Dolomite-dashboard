@@ -769,7 +769,14 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(failed, 1)
         staged = state["verified_scan_staging"]["eth"]
         self.assertEqual(staged["nextBlock"], 101)
-        self.assertEqual(staged["transfers"], [[SOURCE, OUTSIDE, 2 * 10**18, 100]])
+        self.assertEqual(staged["transfers"], [[
+            SOURCE,
+            OUTSIDE,
+            2 * 10**18,
+            100,
+            "0x" + "a" * 64,
+            0,
+        ]])
 
     def test_verified_coverage_requires_full_baseline_then_advances_incrementally(self):
         state = {}
@@ -831,6 +838,43 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         )
 
         self.assertEqual(replaced, [before, authoritative, after])
+
+    def test_transfer_metadata_coverage_refresh_replaces_legacy_rows_once(self):
+        tx_hash = "0x" + "a" * 64
+        legacy = (SOURCE, COINBASE_10, 10**18, 105)
+        enriched = (SOURCE, COINBASE_10, 10**18, 105, tx_hash, 7)
+        state = {}
+        fetcher = Mock(return_value=([enriched], 0, 1))
+
+        migrated = flows.ensure_transfer_metadata_coverage(
+            "eth",
+            [legacy],
+            state,
+            100,
+            120,
+            fetcher=fetcher,
+        )
+
+        self.assertEqual(migrated, [enriched])
+        self.assertEqual(state["transfer_metadata_coverage"]["eth"], {
+            "version": 1,
+            "startBlock": 100,
+            "endBlock": 120,
+        })
+        fetcher.assert_called_once_with("eth", 100, 120)
+
+        fetcher.reset_mock()
+        unchanged = flows.ensure_transfer_metadata_coverage(
+            "eth",
+            migrated,
+            state,
+            100,
+            120,
+            fetcher=fetcher,
+        )
+
+        self.assertEqual(unchanged, migrated)
+        fetcher.assert_not_called()
 
     def test_scan_tip_cannot_rewind_when_rpc_is_unavailable_or_stale(self):
         self.assertTrue(hasattr(flows, "validated_scan_end"))
@@ -1035,7 +1079,14 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
             transfers, failed, _ = flows.fetch_transfer_logs("eth", 100, 100)
 
         self.assertEqual(failed, 0)
-        self.assertEqual(transfers, [(SOURCE, COINBASE_10, 10**18, 100)])
+        self.assertEqual(transfers, [(
+            SOURCE,
+            COINBASE_10,
+            10**18,
+            100,
+            "0x" + "a" * 64,
+            0,
+        )])
         sleep.assert_any_call(3.0)
 
     def test_fetch_transfer_logs_uses_independent_quorum_over_silent_empty_rpc(self):
@@ -1087,7 +1138,14 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(failed, 0)
         self.assertEqual(
             transfers,
-            [(KNOWN_BERA_FLOW_SOURCE, KNOWN_BERA_FLOW_RECIPIENT, 21_100 * 10**18, 24_990_784)],
+            [(
+                KNOWN_BERA_FLOW_SOURCE,
+                KNOWN_BERA_FLOW_RECIPIENT,
+                21_100 * 10**18,
+                24_990_784,
+                KNOWN_BERA_FLOW_TX,
+                0,
+            )],
         )
 
     def test_fetch_transfer_logs_regrows_reduced_chunks_only_after_stable_successes(self):
