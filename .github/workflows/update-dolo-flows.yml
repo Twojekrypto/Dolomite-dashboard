@@ -14,6 +14,11 @@ on:
         required: false
         type: boolean
         default: false
+      skip_holders:
+        description: 'Reuse published holder data for an urgent flow-only refresh'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: update-dolo-flows
@@ -76,6 +81,7 @@ jobs:
             dolo-flows-state-
 
       - name: Generate DOLO holders data (sync with flows)
+        if: ${{ !inputs.skip_holders }}
         env:
           PYTHONUNBUFFERED: '1'
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
@@ -133,7 +139,7 @@ jobs:
           key: dolo-flows-state-${{ github.run_number }}
 
       - name: Save holders state cache (even on timeout)
-        if: always()
+        if: ${{ always() && !inputs.skip_holders }}
         uses: actions/cache/save@v5
         with:
           path: dolo_holders_state.json
