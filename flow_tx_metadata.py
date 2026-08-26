@@ -367,6 +367,8 @@ def collect_verified_lp_activities(
                 candidate_wallets.add(wallet)
 
     candidate_blocks = set()
+    transactions_by_wallet = {}
+    transaction_meta = {}
     for transfer in transfers or []:
         if not isinstance(transfer, (list, tuple)) or len(transfer) < 4:
             continue
@@ -378,16 +380,28 @@ def collect_verified_lp_activities(
         if candidate_wallets is not None and wallet not in candidate_wallets:
             continue
         try:
-            candidate_blocks.add(int(transfer[3]))
+            block_number = int(transfer[3])
         except (TypeError, ValueError):
             continue
+        tx_hash = str(transfer[4] or "").strip().lower() if len(transfer) >= 5 else ""
+        if TX_RE.fullmatch(tx_hash):
+            transactions_by_wallet.setdefault(wallet, set()).add(tx_hash)
+            transaction_meta[(wallet, tx_hash)] = {
+                "timestamp": 0,
+                "block_number": block_number,
+            }
+        else:
+            candidate_blocks.add(block_number)
 
-    try:
-        evidence = evidence_loader(candidate_blocks) if candidate_blocks else {}
-    except Exception:
-        evidence = {}
-    transactions_by_wallet = {}
-    transaction_meta = {}
+    # Legacy four-field ledgers do not carry transaction hashes. Preserve a
+    # bounded fallback for an entirely legacy input, but never let a stray old
+    # row reactivate the expensive block-by-block scan after migration.
+    evidence = {}
+    if candidate_blocks and not transactions_by_wallet:
+        try:
+            evidence = evidence_loader(candidate_blocks)
+        except Exception:
+            evidence = {}
     for block_number, block_evidence in (evidence or {}).items():
         if not isinstance(block_evidence, dict):
             continue
@@ -426,6 +440,7 @@ def collect_verified_lp_activities(
         receipts = {}
 
     result = {}
+    verified_blocks = set()
     for wallet, tx_hashes in transactions_by_wallet.items():
         deposit = Decimal(0)
         withdrawal = Decimal(0)
@@ -460,17 +475,20 @@ def collect_verified_lp_activities(
             if adapter:
                 adapters.add(adapter)
             meta = transaction_meta.get((wallet, tx_hash), {})
+            block_number = int(meta.get("block_number") or 0)
+            if block_number > 0:
+                verified_blocks.add(block_number)
             enriched = {
                 **activity,
                 "timestamp": int(meta.get("timestamp") or 0),
-                "block_number": int(meta.get("block_number") or 0),
+                "block_number": block_number,
                 "chain": chain,
             }
             if latest is None or (
-                enriched["timestamp"], enriched["block_number"], tx_hash
+                enriched["block_number"], enriched["timestamp"], tx_hash
             ) > (
-                int(latest.get("timestamp") or 0),
                 int(latest.get("block_number") or 0),
+                int(latest.get("timestamp") or 0),
                 str(latest.get("tx_hash") or ""),
             ):
                 latest = enriched
@@ -482,6 +500,24 @@ def collect_verified_lp_activities(
                 "adapters": sorted(adapters),
                 "latest": latest,
             }
+
+    missing_evidence_blocks = verified_blocks - set(evidence)
+    if missing_evidence_blocks:
+        try:
+            verified_evidence = evidence_loader(missing_evidence_blocks)
+        except Exception:
+            verified_evidence = {}
+        for block_number, block_evidence in (verified_evidence or {}).items():
+            if isinstance(block_evidence, dict):
+                evidence[int(block_number)] = block_evidence
+
+    for row in result.values():
+        latest = row.get("latest") or {}
+        block_evidence = evidence.get(int(latest.get("block_number") or 0)) or {}
+        try:
+            latest["timestamp"] = int(block_evidence.get("timestamp") or 0)
+        except (TypeError, ValueError):
+            latest["timestamp"] = 0
     return result
 
 
