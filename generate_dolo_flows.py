@@ -22,7 +22,6 @@ import rpc_usage
 from flow_tx_metadata import (
     attach_latest_lp_metadata,
     attach_latest_flow_metadata,
-    collect_verified_lp_activities,
     fetch_transaction_receipts,
     fetch_token_block_evidence,
 )
@@ -4135,7 +4134,7 @@ def merge_verified_lp_activities(activities_by_chain):
 
 
 def classify_verified_lp_outflows(market_flows, activities):
-    """Expose pass-through LP deposits without rewriting ordinary wallet net flow."""
+    """Annotate verified LP deposits without changing transfer-derived net flow."""
     classified = dict(market_flows or {})
     annotations = {}
     for raw_addr, summary in (activities or {}).items():
@@ -4154,21 +4153,9 @@ def classify_verified_lp_outflows(market_flows, activities):
         latest = dict(summary.get("latest") or {})
         if latest.get("direction") != "deposit":
             continue
-        tolerance = max(1.0, float(net_lp_deposit) * 0.001)
-        pass_through = abs(market_net) <= tolerance
-        flow_basis = "verified_lp_deposit" if pass_through else "wallet_net"
-        if pass_through:
-            classified[addr] = -float(net_lp_deposit)
-            pairs = summary.get("pairs") or []
-            adapters = summary.get("adapters") or []
-            latest["amount"] = _flow_decimal_text(net_lp_deposit)
-            if len(pairs) > 1:
-                latest["pair"] = "Multiple DOLO pools"
-            if len(adapters) > 1:
-                latest["adapter"] = "multiple"
         latest["period_wallet_net_flow"] = round(market_net, 2)
         annotations[addr] = {
-            "flow_basis": flow_basis,
+            "flow_basis": "wallet_net",
             "market_net_flow": round(market_net, 2),
             "latest_lp_activity": latest,
             "latest_tx_hash": latest.get("tx_hash"),
@@ -4703,7 +4690,6 @@ def main():
 
         # Step 3: Build output using neutralized flows. Exact transaction metadata
         # is optional presentation provenance and never participates in arithmetic.
-        lp_activities_by_chain = {}
         for chain_key, cfg in CHAINS.items():
             tx_counts = tx_counts_by_chain[chain_key]
 
@@ -4732,20 +4718,12 @@ def main():
                 return {tx_hash: cache[tx_hash] for tx_hash in tx_hashes if tx_hash in cache}
 
             chain_name = "ethereum" if chain_key == "eth" else "berachain"
-            lp_activities = collect_verified_lp_activities(
-                period_transfers_by_chain[chain_key],
-                chain_name,
-                liquidity_registry,
-                DOLO_CONTRACT,
-                load_flow_evidence,
-                load_lp_receipts,
-                market_flows=market_flows_by_chain[chain_key],
-            )
-            lp_activities_by_chain[chain_key] = lp_activities
-            flows, lp_annotations = classify_verified_lp_outflows(
-                market_flows_by_chain[chain_key],
-                lp_activities,
-            )
+            # Net flow must remain the exact transfer-derived wallet balance
+            # change. LP receipts are presentation evidence for rows that are
+            # already ranked; they must never promote a flat rebalance into a
+            # synthetic outflow.
+            flows = dict(market_flows_by_chain[chain_key])
+            lp_annotations = {}
 
             search_accumulators, search_sellers = build_searchable_flow_rows(
                 flows,
@@ -4796,11 +4774,7 @@ def main():
         # truncated Top 100 lists drops material opposite legs and can emit a
         # false non-zero combined result for an address whose true net is zero.
         combined_flows = merge_chain_flow_maps(market_flows_by_chain)
-        combined_lp_activities = merge_verified_lp_activities(lp_activities_by_chain)
-        combined_flows, combined_lp_annotations = classify_verified_lp_outflows(
-            combined_flows,
-            combined_lp_activities,
-        )
+        combined_lp_annotations = {}
         combined_components = merge_chain_flow_components(flow_components_by_chain)
         combined_counts = merge_chain_counts(tx_counts_by_chain)
         combined_search_accumulators, combined_search_sellers = build_searchable_flow_rows(
