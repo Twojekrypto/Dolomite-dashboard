@@ -401,12 +401,20 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #holders-table .holder-detail-lock.medium{color:var(--gold);border-color:var(--gold-line);background:var(--gold-wash)}
 #holders-table .holder-detail-lock.long{color:var(--up);border-color:rgba(138,163,123,.32);background:rgba(138,163,123,.08)}
 #holders-table .holder-detail-empty{padding:18px;color:var(--fg-3);font-size:12px}
-#early-unlock-table{table-layout:fixed;min-width:1200px;--stable-row-height:70px}
+.early-unlock-summary.selected-market-rail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-bottom:1px solid var(--line-1);background:transparent}
+.early-unlock-summary.selected-market-rail .early-unlock-stat{padding:20px 24px;border-left:1px solid var(--line-1);min-width:0}
+.early-unlock-summary.selected-market-rail .early-unlock-stat:first-child{border-left:0}
+.early-unlock-summary .label{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.early-unlock-summary .label svg{width:13px;height:13px;flex:0 0 13px;opacity:.85}
+.early-unlock-summary .value{margin-top:10px;font-family:var(--mono);font-size:24px;font-weight:600;line-height:1;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
+.early-unlock-summary .sub{margin-top:7px;font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.early-unlock-summary .early-unlock-stat.loss .value,.early-unlock-summary .early-unlock-stat.loss .sub{color:var(--down)}
+#early-unlock-table{table-layout:fixed;min-width:1100px;--stable-row-height:70px}
 #early-unlock-table col.early-rank-col{width:56px}
 #early-unlock-table col.early-vedolo-col{width:132px}
 #early-unlock-table col.early-locked-col{width:142px}
-#early-unlock-table col.early-available-col{width:210px}
-#early-unlock-table col.early-weeks-col{width:220px}
+#early-unlock-table col.early-available-col{width:168px}
+#early-unlock-table col.early-weeks-col{width:156px}
 #early-unlock-table col.early-actions-col{width:96px}
 #early-unlock-table td{font-size:13px}
 #early-unlock-table .early-unlock-data-row{cursor:pointer}
@@ -428,7 +436,15 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #early-unlock-table .debank-fallback{font-family:var(--mono);font-size:11px;font-weight:700;color:#fe815f}
 #early-unlock-table .early-unlock-value{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1)}
 #early-unlock-table .early-unlock-value.vote,#early-unlock-table .early-unlock-value.available{color:var(--gold)}
-#early-unlock-table .early-unlock-subline{display:block;margin-top:3px;font-family:var(--mono);font-size:10px;color:var(--down)}
+#early-unlock-table .early-unlock-value.available.loss{color:var(--down)}
+#early-unlock-table .early-unlock-subline{display:block;margin-top:4px;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--down)}
+#early-unlock-table .early-unlock-lock-cell{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+#early-unlock-table .early-unlock-lock-value{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--fg-1);line-height:1.1}
+#early-unlock-table .early-unlock-lock-bar{width:74px;height:4px;border-radius:2px;background:var(--bg-3);overflow:hidden;border:1px solid var(--line-1)}
+#early-unlock-table .early-unlock-lock-bar>span{display:block;height:100%;border-radius:2px}
+#early-unlock-table .early-unlock-lock-bar>span.short{background:var(--down)}
+#early-unlock-table .early-unlock-lock-bar>span.medium{background:var(--gold)}
+#early-unlock-table .early-unlock-lock-bar>span.long{background:var(--up)}
 #early-unlock-table .early-penalty-stack{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
 #early-unlock-table .early-unlock-actions-head,#early-unlock-table .early-unlock-actions{text-align:center}
 #early-unlock-table .sort-control{display:block;width:100%;text-align:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;font-size:inherit;font-weight:inherit}
@@ -819,6 +835,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 }
 @media (max-width:1180px){
   .flow-grid{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .early-unlock-summary.selected-market-rail{grid-template-columns:1fr}
+  .early-unlock-summary.selected-market-rail .early-unlock-stat{border-left:0;border-top:1px solid var(--line-1);padding:13px 16px}
+  .early-unlock-summary.selected-market-rail .early-unlock-stat:first-child{border-top:0}
 }
 @media (max-width:720px){
   .wrap{padding:24px 14px 72px}
@@ -1294,6 +1315,12 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
       <div class="card-title"><h2>Early Unlock Simulation</h2><span class="count-badge" id="early-unlock-count">--</span></div>
       <div class="card-meta"><span class="pulse"></span><span id="early-unlock-meta">Loading data update...</span></div>
     </div>
+    <div class="early-unlock-summary selected-market-rail" id="early-unlock-summary" aria-label="Early unlock summary">
+      <div class="early-unlock-stat selected-market-metric primary"><div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>Exit Value</div><div class="value" id="early-unlock-summary-exit-value">--</div><div class="sub">available immediately · gas excluded</div></div>
+      <div class="early-unlock-stat selected-market-metric"><div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Locked DOLO</div><div class="value" id="early-unlock-summary-locked">--</div><div class="sub" id="early-unlock-summary-locked-sub">principal across matched wallets</div></div>
+      <div class="early-unlock-stat selected-market-metric loss"><div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="m7 10 5 5 5-5"/><path d="M12 15v6"/></svg>Exit Penalty</div><div class="value" id="early-unlock-summary-penalty">--</div><div class="sub" id="early-unlock-summary-penalty-sub">share of locked DOLO</div></div>
+      <div class="early-unlock-stat selected-market-metric"><div class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Avg Lock</div><div class="value" id="early-unlock-summary-lock">--</div><div class="sub">DOLO-weighted remaining</div></div>
+    </div>
     <div class="toolbar">
       <div class="tb-left">
         <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input id="q-early-unlock" type="text" placeholder="Search address or position ID…" autocomplete="off" spellcheck="false"><button class="search-clear" type="button" aria-label="Clear search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button></label>
@@ -1310,7 +1337,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
           <col class="early-weeks-col">
           <col class="early-actions-col">
         </colgroup>
-        <thead><tr><th class="sortable" data-sort="rank"><button class="sort-control" type="button" aria-label="Sort by rank"><span class="th-content"># <span class="sort-arrow"></span></span></button></th><th class="sortable" data-sort="address"><button class="sort-control" type="button" aria-label="Sort by wallet"><span class="th-content">Wallet <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="veDolo"><button class="sort-control" type="button" aria-label="Sort by veDOLO"><span class="th-content">veDOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="lockedDolo"><button class="sort-control" type="button" aria-label="Sort by locked DOLO"><span class="th-content">Locked DOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable sorted" data-sort="availableAfterExit"><button class="sort-control" type="button" aria-label="Sort by available after exit"><span class="th-content">Available After Exit <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="avgWeeksUntilUnlock"><button class="sort-control" type="button" aria-label="Sort by average weeks until unlock"><span class="th-content">Avg Weeks Until Unlock <span class="sort-arrow"></span></span></button></th><th class="early-unlock-actions-head">Details</th></tr></thead>
+        <thead><tr><th class="sortable" data-sort="rank"><button class="sort-control" type="button" aria-label="Sort by rank"><span class="th-content"># <span class="sort-arrow"></span></span></button></th><th class="sortable" data-sort="address"><button class="sort-control" type="button" aria-label="Sort by wallet"><span class="th-content">Wallet <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="veDolo"><button class="sort-control" type="button" aria-label="Sort by veDOLO"><span class="th-content">veDOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="lockedDolo"><button class="sort-control" type="button" aria-label="Sort by locked DOLO"><span class="th-content">Locked DOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable sorted" data-sort="availableAfterExit"><button class="sort-control" type="button" aria-label="Sort by exit value"><span class="th-content">Exit Value <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="avgWeeksUntilUnlock"><button class="sort-control" type="button" aria-label="Sort by average remaining lock"><span class="th-content">Avg Lock <span class="sort-arrow"></span></span></button></th><th class="early-unlock-actions-head">Details</th></tr></thead>
         <tbody id="early-unlock-body"><tr class="loading-row"><td colspan="7">Loading early unlock simulation...</td></tr></tbody>
       </table>
     </div>
@@ -1486,6 +1513,7 @@ const EARLY_UNLOCK_WEI_SORT_KEYS = {
   availableAfterExit:"availableAfterExitWei",
   penalty:"penaltyWei"
 };
+const EARLY_UNLOCK_WAD = 10n ** 18n;
 
 const qs = s => document.querySelector(s);
 const qsa = s => [...document.querySelectorAll(s)];
@@ -2812,11 +2840,79 @@ function earlyUnlockDetailSortHeader(key, label, cls=""){
   const sort = active ? `<span class="detail-sort">${st.detailAsc ? "▲" : "▼"}</span>` : "";
   return `<th class="${className}" data-early-unlock-detail-sort="${key}"${aria}><button class="detail-sort-control" type="button" aria-label="Sort by ${esc(label)}">${esc(label)}${sort}</button></th>`;
 }
-function earlyUnlockWeeksLabel(value){
+function earlyUnlockPenaltyLabel(value){
+  const penalty = Math.max(0, num(value));
+  return penalty > 0 ? `−${pct(penalty)}` : "0.0%";
+}
+function earlyUnlockLockLabel(value){
   const weeks = Math.max(0, num(value));
-  if(weeks === 0) return "0 wk";
-  if(weeks < 0.1) return "<0.1 wk";
-  return `${weeks.toFixed(1).replace(/\.0$/, "")} wk`;
+  const days = weeks * 7;
+  if(days <= 0) return "--";
+  if(days < 1/24) return `${Math.max(1, Math.round(days * 1440))}m`;
+  if(days < 1) return `${(days * 24).toFixed(1)}h`;
+  if(days >= 365) return `${(days / 365).toFixed(2)}y`;
+  if(days >= 30) return `${(days / 30).toFixed(1)}mo`;
+  if(days >= 7) return `${(days / 7).toFixed(1)}w`;
+  return `${days.toFixed(1)}d`;
+}
+function earlyUnlockLockBucket(value){
+  const days = Math.max(0, num(value)) * 7;
+  return days < 30 ? "short" : days < 180 ? "medium" : "long";
+}
+function earlyUnlockLockCell(value, maxWeeks){
+  const weeks = Math.max(0, num(value));
+  const bucket = earlyUnlockLockBucket(weeks);
+  const width = Math.min(100, (weeks / Math.max(1, num(maxWeeks))) * 100);
+  return `<div class="early-unlock-lock-cell"><span class="early-unlock-lock-value ${bucket}">${esc(earlyUnlockLockLabel(weeks))}</span><div class="early-unlock-lock-bar"><span class="${bucket}" style="width:${width.toFixed(1)}%"></span></div></div>`;
+}
+function earlyUnlockCompactWei(wei){
+  const amount = BigInt(wei || "0");
+  const negative = amount < 0n;
+  const absolute = negative ? -amount : amount;
+  if(absolute > 0n && absolute < EARLY_UNLOCK_WAD / 100n) return `${negative ? "−" : ""}<0.01 DOLO`;
+  const units = [
+    {minimum:1_000_000_000n * EARLY_UNLOCK_WAD, divisor:1_000_000_000n * EARLY_UNLOCK_WAD, suffix:"B", places:2},
+    {minimum:1_000_000n * EARLY_UNLOCK_WAD, divisor:1_000_000n * EARLY_UNLOCK_WAD, suffix:"M", places:2},
+    {minimum:1_000n * EARLY_UNLOCK_WAD, divisor:1_000n * EARLY_UNLOCK_WAD, suffix:"K", places:1},
+    {minimum:0n, divisor:EARLY_UNLOCK_WAD, suffix:"", places:2}
+  ];
+  const unit = units.find(candidate => absolute >= candidate.minimum) || units[units.length - 1];
+  const scale = 10n ** BigInt(unit.places);
+  const rounded = (absolute * scale + unit.divisor / 2n) / unit.divisor;
+  const whole = rounded / scale;
+  const fraction = (rounded % scale).toString().padStart(unit.places, "0").replace(/0+$/, "");
+  const number = fraction ? `${whole}.${fraction}` : whole.toString();
+  return `${negative ? "−" : ""}${number}${unit.suffix} DOLO`;
+}
+function earlyUnlockWeiPercent(partWei, totalWei){
+  if(totalWei <= 0n) return "0.0%";
+  const tenths = (partWei * 1000n + totalWei / 2n) / totalWei;
+  return `${tenths / 10n}.${tenths % 10n}%`;
+}
+function renderEarlyUnlockSummary(rows){
+  let lockedWei = 0n;
+  let exitValueWei = 0n;
+  let penaltyWei = 0n;
+  let weightedRemainingWei = 0n;
+  let weightedLockWei = 0n;
+  rows.forEach(row => {
+    lockedWei += BigInt(row.lockedDoloWei || "0");
+    exitValueWei += BigInt(row.availableAfterExitWei || "0");
+    penaltyWei += BigInt(row.penaltyWei || "0");
+    (row.positions || []).forEach(position => {
+      const positionLockedWei = BigInt(position.lockedDoloWei || "0");
+      const remainingSeconds = BigInt(Math.max(0, Math.round(num(position.remainingSeconds))));
+      weightedRemainingWei += remainingSeconds * positionLockedWei;
+      weightedLockWei += positionLockedWei;
+    });
+  });
+  const avgRemainingSeconds = weightedLockWei > 0n ? Number(weightedRemainingWei / weightedLockWei) : 0;
+  setText("early-unlock-summary-exit-value", earlyUnlockCompactWei(exitValueWei));
+  setText("early-unlock-summary-locked", earlyUnlockCompactWei(lockedWei));
+  setText("early-unlock-summary-locked-sub", `${fmtInt(rows.length)} wallets · principal`);
+  setText("early-unlock-summary-penalty", earlyUnlockCompactWei(penaltyWei));
+  setText("early-unlock-summary-penalty-sub", `${earlyUnlockWeiPercent(penaltyWei, lockedWei)} of locked DOLO`);
+  setText("early-unlock-summary-lock", avgRemainingSeconds > 0 ? earlyUnlockLockLabel(avgRemainingSeconds / 604800) : "--");
 }
 function renderEarlyUnlockDetailRow(row){
   const rows = sortedEarlyUnlockPositions(row).map(position => {
@@ -2830,7 +2926,7 @@ function renderEarlyUnlockDetailRow(row){
       <td class="holder-detail-route center" data-label="Route">${flowSourceTag(route.kind, route.tooltip)}</td>
       <td class="num mono" data-label="Locked DOLO"><span class="early-unlock-value">${fmtDolo(position.lockedDolo)}</span></td>
       <td class="num mono" data-label="veDOLO"><span class="early-unlock-value vote">${fmtCompact(position.veDolo)}</span></td>
-      <td class="num mono" data-label="Available After Exit"><span class="early-unlock-value available">${fmtDolo(position.availableAfterExit)}</span></td>
+      <td class="num mono" data-label="Exit Value"><span class="early-unlock-value available loss">${fmtDolo(position.availableAfterExit)}</span></td>
       <td class="num mono" data-label="Penalty">${penalty}</td>
       <td class="num mono" data-label="Remaining"><span class="early-remaining ${expired ? "expired" : ""}">${esc(holderRemainingLabel(position.end))}</span></td>
       <td class="center mono" data-label="Position ID"><span class="early-position-id">#${esc(position.id)}</span></td>
@@ -2853,7 +2949,7 @@ function renderEarlyUnlockDetailRow(row){
               ${earlyUnlockDetailSortHeader("route", "Route", "center")}
               ${earlyUnlockDetailSortHeader("lockedDolo", "Locked DOLO", "num")}
               ${earlyUnlockDetailSortHeader("veDolo", "veDOLO", "num")}
-              ${earlyUnlockDetailSortHeader("availableAfterExit", "Available After Exit", "num")}
+              ${earlyUnlockDetailSortHeader("availableAfterExit", "Exit Value", "num")}
               ${earlyUnlockDetailSortHeader("penalty", "Penalty", "num")}
               ${earlyUnlockDetailSortHeader("remaining", "Remaining", "num")}
               ${earlyUnlockDetailSortHeader("id", "Position ID", "center")}
@@ -2901,10 +2997,12 @@ function renderEarlyUnlock(){
     return;
   }
   const rows = getFilteredEarlyUnlockRows();
+  renderEarlyUnlockSummary(rows);
   const pages = Math.max(1, Math.ceil(rows.length / st.perPage));
   if(st.page > pages) st.page = pages;
   const start = (st.page - 1) * st.perPage;
   const pageRows = rows.slice(start, start + st.perPage);
+  const lockMaxWeeks = rows.reduce((maximum, row) => Math.max(maximum, num(row.avgWeeksUntilUnlock)), 1);
   const bodyRows = pageRows.length ? pageRows.map((row, index) => {
     const addressKey = String(row.address || "").toLowerCase();
     const isExpanded = st.expanded === addressKey;
@@ -2914,8 +3012,8 @@ function renderEarlyUnlock(){
       <td>${holderCell(row)}</td>
       <td class="num"><span class="early-unlock-value vote">${fmtCompact(row.veDolo)}</span></td>
       <td class="num"><span class="early-unlock-value">${fmtDolo(row.lockedDolo)}</span></td>
-      <td class="num"><span class="early-unlock-value available">${fmtDolo(row.availableAfterExit)}</span><span class="early-unlock-subline">Penalty ${fmtDolo(row.penalty)} · ${pct(row.penaltyPct)}</span></td>
-      <td class="num"><span class="early-unlock-value">${esc(earlyUnlockWeeksLabel(row.avgWeeksUntilUnlock))}</span></td>
+      <td class="num"><span class="early-unlock-value available">${fmtDolo(row.availableAfterExit)}</span><span class="early-unlock-subline">${earlyUnlockPenaltyLabel(row.penaltyPct)}</span></td>
+      <td class="num">${earlyUnlockLockCell(row.avgWeeksUntilUnlock, lockMaxWeeks)}</td>
       <td class="early-unlock-actions">${toggle}</td>
     </tr>${isExpanded ? renderEarlyUnlockDetailRow(row) : ""}`;
   }).join("") : '<tr class="loading-row table-empty-row"><td colspan="7">No early unlock simulations match the current filters.</td></tr>';
