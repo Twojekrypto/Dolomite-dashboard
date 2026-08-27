@@ -1181,7 +1181,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
 }
 </style>
 <script src="count-up.js?v=20260821-smooth-resume-v1"></script>
-<script src="dolo-address-labels.js?v=dolo-labels-20260827-debank-ca"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260827-ca-owner-structure"></script>
 <script src="wallet-table-ux.js?v=20260815-flow-name-date"></script>
 </head>
 <body>
@@ -1332,7 +1332,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
               <div class="rw-item active" data-type="multisig">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src multisig"></span>
-                <div class="rw-name">Safe wallets (multisig)</div>
+                <div class="rw-name">Smart wallets / multisig</div>
               </div>
               <div class="rw-item active" data-type="ca">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1465,7 +1465,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
               <div class="rw-item active" data-type="multisig">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-dot-src multisig"></span>
-                <div class="rw-name">Safe wallets (multisig)</div>
+                <div class="rw-name">Smart wallets / multisig</div>
               </div>
               <div class="rw-item active" data-type="ca">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1977,7 +1977,7 @@ const HOLDERS = [];
 // total = balEth + balBera; share = total / TOTAL_SUPPLY
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
-const TYPE_LABELS = {eoa:"EOA", multisig:"Safe", ca:"CA", protocol:"Protocol", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
+const TYPE_LABELS = {eoa:"EOA", multisig:"Smart Wallet", ca:"CA", protocol:"Protocol", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
 // MM wallets are filtered together with "Potential custody/MM" (watch) —
 // one dropdown entry controls both; row tags still show the precise type.
 const TYPE_FILTER_ALIAS = {mm: "watch"};
@@ -1985,7 +1985,7 @@ const typeFilterKey = (t)=> TYPE_FILTER_ALIAS[t] || t;
 const ADDRESS_TYPES = Object.keys(TYPE_LABELS).filter(t=>!(t in TYPE_FILTER_ALIAS));
 const TYPE_TIPS = {
   eoa: "Externally Owned Account — regular wallet",
-  multisig: "Smart contract wallet / multisig controlled by user signers",
+  multisig: "User-controlled smart-contract wallet, including Safe and multisig wallets",
   ca:  "Contract address (CA) — smart contract, LP, or aggregator",
   protocol: "Verified Dolomite protocol, treasury, rewards, or distribution address",
   cex: "Verified centralized exchange custody address",

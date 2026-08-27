@@ -127,7 +127,6 @@ console.log(JSON.stringify({known, unknown}));
 
     def test_confirmed_debank_public_labels_are_shared(self):
         expected = {
-            "0xbb317c75f7ca98f830dd6f7eb1981852ebe6f839": ("BitGo Multisig", "contract"),
             "0x33305665f69b4642d1275f4ce81c23651674d21c": ("Pendle V2", "contract"),
             "0x1e411fb98d9a6273d5b63dedd09dac2fe7cf16ea": ("Definitive", "contract"),
             "0x7e9f37bbe81d3e17ff61ac67f7f2e7aac8b5c453": ("Kodiak DOLO/USD₮0 LP", "lp"),
@@ -141,7 +140,6 @@ console.log(JSON.stringify({known, unknown}));
             "0x71355972c9e332f73ff6921f9b3a02f349ff9752": ("Kodiak oDOLO/DOLO LP", "lp"),
             "0x4e6d3691a30b35a0a4fb714a14e4a9f752a9d5ad": ("Arbera", "contract"),
             "0x8194ed4d6701b7a1b40e48431de37047f0248b0b": ("Kodiak DOLO/USDC.e LP", "lp"),
-            "0x344289238bc44f238cb0a16306c78c94aa3380f2": ("Argent Wallet", "contract"),
         }
         for address, (label, label_type) in expected.items():
             with self.subTest(address=address):
@@ -150,6 +148,41 @@ console.log(JSON.stringify({known, unknown}));
                 self.assertEqual(info["type"], label_type)
                 self.assertEqual(info["source"], "debank-public-label")
                 self.assertEqual(info["confidence"], "confirmed")
+
+    def test_confirmed_contract_wallet_identity_separates_owner_from_structure(self):
+        bitkub = self.labels["0xbb317c75f7ca98f830dd6f7eb1981852ebe6f839"]
+        self.assertEqual(bitkub["label"], "Bitkub 23")
+        self.assertEqual(bitkub["type"], "cex")
+        self.assertEqual(bitkub["accountStructure"], "BitGo Multisig")
+        self.assertEqual(bitkub["source"], "etherscan-public-label")
+        self.assertEqual(bitkub["confidence"], "confirmed")
+
+        argent = self.labels["0x344289238bc44f238cb0a16306c78c94aa3380f2"]
+        self.assertEqual(argent["label"], "Argent Vault")
+        self.assertEqual(argent["type"], "contract_wallet")
+        self.assertEqual(argent["accountStructure"], "Argent Smart Wallet")
+        self.assertEqual(argent["source"], "etherscan-public-label")
+        self.assertEqual(argent["confidence"], "confirmed")
+
+    def test_unverified_contracts_do_not_receive_canonical_identity_labels(self):
+        unverified = {
+            "0xbd225c09e4b032e41d5e8aea5f81efff45f20f7b",
+            "0x27ad186bb115a2b41fb64553efd4ba5a74b83b08",
+            "0xabfa4ad57e283758e9ec3e21147793745091c618",
+            "0x965dc72531bc322cab5537d432bb14451cabb30d",
+            "0x4ff1d40fb7b56665bf95d8d8e3a5320de46709a1",
+            "0xd4c318cc6977c4808caa91e07fad12d80c9c9e97",
+            "0xa3222357a0eccf60c73606170be6c99adecb59b3",
+            "0x96cef62810036947023b29e78b2fa2e30e35c926",
+            "0x90cbe4bdd538d6e9b379bff5fe72c3d67a521de5",
+            "0x0faeb60e1b406c2f84454f169a2512a5792e1aa8",
+            "0xd862cdcfeb856c32b3c4f7563f4811d8ddfd42e2",
+            "0x1103fc560de8b710983e7f3ec09d587f3f848566",
+            "0x278d858f05b94576c1e6f73285886876ff6ef8d2",
+        }
+        for address in unverified:
+            with self.subTest(address=address):
+                self.assertNotIn(address, self.labels)
 
     def test_all_core_team_wallets_are_independent_confirmed_labels(self):
         team_addresses = [
@@ -286,7 +319,6 @@ console.log(JSON.stringify({known, unknown}));
             "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3": "Bot / MM",
             "0x601d9ad1b431577e3635a23b7eb3bcc46bcc648b": "Bot / MM",
             "0xf10f81795b359f8a72682cc2a39444bf818ef4ca": "Bot / MM",
-            "0x278d858f05b94576c1e6f73285886876ff6ef8d2": "Bot (CA)",
             "0x9cb677f2a8daa9511ae79c2ba56395552b5d030d": "Active Trader/Bot",
         }
         for address, label in expected.items():
