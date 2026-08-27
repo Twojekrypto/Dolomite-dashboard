@@ -45,6 +45,12 @@ test("EIP-7702 delegated accounts remain user wallets despite legacy contract fl
   assert.equal(holderDistributionType("0xabc", holder), "eoa");
 });
 
+test("verified account-abstraction wallets remain users despite contract bytecode", () => {
+  const holder = { is_contract: true, contract_wallet_type: "smart_account" };
+  assert.equal(mapType(null, holder), "eoa");
+  assert.equal(holderDistributionType("0xabc", holder), "eoa");
+});
+
 test("legacy trader labels remain visible through the Trading bots filter", () => {
   assert.equal(mapType({ type: "trader" }, {}), "bot");
   assert.equal(holderDistributionType("0xabc", { type: "trader" }), "bot");

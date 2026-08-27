@@ -146,6 +146,31 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertIn(VERIFIED_USER_SAFE, verified_user_contracts)
         self.assertNotIn(VERIFIED_USER_SAFE, excluded)
 
+    def test_verified_smart_account_remains_visible_in_flows(self):
+        smart_account = "0xdaca2619d2d0dd76849689436867fccc158f20ce"
+        holder_rows = {
+            smart_account: {
+                "address": smart_account,
+                "balance": 1_895.6627,
+                "is_contract": True,
+                "contract_wallet_type": "smart_account",
+            }
+        }
+
+        verified_user_contracts = flows.verified_user_contract_addresses(holder_rows)
+        excluded = flows.select_dynamic_flow_exclusions(
+            {smart_account},
+            {},
+            verified_user_contracts,
+        )
+
+        self.assertIn(smart_account, verified_user_contracts)
+        self.assertNotIn(smart_account, excluded)
+        self.assertEqual(
+            flows.holder_distribution_type(smart_account, holder_rows, {}),
+            "eoa",
+        )
+
     def test_known_trading_bots_remain_visible_to_the_trading_bots_filter(self):
         labels = {address: {"type": "bot"} for address in KNOWN_TRADING_BOTS}
         excluded = flows.select_dynamic_flow_exclusions(
