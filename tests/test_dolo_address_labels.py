@@ -125,6 +125,32 @@ console.log(JSON.stringify({known, unknown}));
                 self.assertEqual(info["source"], source)
                 self.assertEqual(info["confidence"], "confirmed")
 
+    def test_confirmed_debank_public_labels_are_shared(self):
+        expected = {
+            "0xbb317c75f7ca98f830dd6f7eb1981852ebe6f839": ("BitGo Multisig", "contract"),
+            "0x33305665f69b4642d1275f4ce81c23651674d21c": ("Pendle V2", "contract"),
+            "0x1e411fb98d9a6273d5b63dedd09dac2fe7cf16ea": ("Definitive", "contract"),
+            "0x7e9f37bbe81d3e17ff61ac67f7f2e7aac8b5c453": ("Kodiak DOLO/USD₮0 LP", "lp"),
+            "0xbdb3ba9ffe392549e1f8658dd2630c141fdf47b6": ("MEV Bot", "bot"),
+            "0x67fbb8a61d6d6433f3428d1f10cfb09babc1a4d5": ("BrownFi DOLO/BUSD LP", "lp"),
+            "0x9008d19f58aabd9ed0d60971565aa8510560ab41": ("CoW Swap", "contract"),
+            "0x7447c8f55c41b100781485be12fae928d0fcba7c": ("Kodiak DOLO/WBERA LP", "lp"),
+            "0x4be03f781c497a489e3cb0287833452ca9b9e80b": ("BEX", "contract"),
+            "0x79cbe94f46ba64ce2258d9fcb733a82f83e13270": ("Kodiak DOLO/WBERA LP", "lp"),
+            "0x9f88571c46b9b961ef1463d74dc29523056604f3": ("Kodiak oDOLO/DOLO LP", "lp"),
+            "0x71355972c9e332f73ff6921f9b3a02f349ff9752": ("Kodiak oDOLO/DOLO LP", "lp"),
+            "0x4e6d3691a30b35a0a4fb714a14e4a9f752a9d5ad": ("Arbera", "contract"),
+            "0x8194ed4d6701b7a1b40e48431de37047f0248b0b": ("Kodiak DOLO/USDC.e LP", "lp"),
+            "0x344289238bc44f238cb0a16306c78c94aa3380f2": ("Argent Wallet", "contract"),
+        }
+        for address, (label, label_type) in expected.items():
+            with self.subTest(address=address):
+                info = self.labels[address]
+                self.assertEqual(info["label"], label)
+                self.assertEqual(info["type"], label_type)
+                self.assertEqual(info["source"], "debank-public-label")
+                self.assertEqual(info["confidence"], "confirmed")
+
     def test_all_core_team_wallets_are_independent_confirmed_labels(self):
         team_addresses = [
             "0x185000fb4d98acea1a771db3714a431f7fe51cac",

@@ -2236,7 +2236,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("addr-mono addr-tooltip-wrap", html)
         self.assertIn("addr-copy", html)
         self.assertIn("addr-debank", html)
-        self.assertIn("dolo-address-labels.js?v=dolo-labels-20260805-strategic-round", html)
+        self.assertIn("dolo-address-labels.js?v=dolo-labels-20260827-debank-ca", html)
         self.assertIn("VEBORROW_WALLET_LABELS", html)
         self.assertIn("veBorrowWalletDisplayName", html)
         self.assertIn("window.resolveDoloWalletIdentity", html)
