@@ -4935,7 +4935,7 @@ function flowLpBadgeHtml(activity, kind){
     const netWalletChange = periodWithdrawal - periodDeposit;
     const netWalletLabel = `${netWalletChange > 0 ? "+" : netWalletChange < 0 ? "−" : ""}${fmtNum(Math.abs(netWalletChange))}`;
     const tooltip = `Verified LP rebalance · ${fmtNum(periodWithdrawal)} DOLO withdrawn from LP and ${fmtNum(periodDeposit)} DOLO redeposited into LP during the selected period. Net wallet change from LP activity: ${netWalletLabel} DOLO. Latest verified LP transaction: ${latestAmountLabel} DOLO via ${adapter} ${pair}.`;
-    return `<span class="flow-lp-note flow-lp-note-rebalance" data-tooltip="${escHtml(tooltip)}" aria-label="${escHtml(tooltip)}">LP rebal. · ${fmtNum(rebalanceAmount)}</span>`;
+    return `<span class="flow-lp-note flow-lp-note-rebalance" data-tooltip="${escHtml(tooltip)}" aria-label="${escHtml(tooltip)}">LP reb. · ${fmtNum(rebalanceAmount)}</span>`;
   }
   const periodDirection = safeHolderNum(activity.period_net_lp_deposit) > 0
     ? "deposit"
