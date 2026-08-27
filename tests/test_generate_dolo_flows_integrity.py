@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import flow_tx_metadata
 import generate_dolo_flows as flows
 
 
@@ -30,6 +31,7 @@ KNOWN_BERA_FLOW_RECIPIENT = "0xb490d2a5d857c0357a8c2ac23c30ba0e6e02f909"
 KNOWN_BERA_FLOW_TX = "0xcc41fb29534dc8adb1440454087a6a738fdfbeaaa2d20880d2265edbbc8997b3"
 VERIFIED_USER_SAFE = "0x4cedf88d4fdefa1e460bbed10bdfef105c62fd68"
 BROWNFI_DOLO_BUSD_POOL = "0x16b3a5e95db753fe5195244fa208301e38beae2a"
+LEGACY_DOLO_USDC_V4_POOL = "0x330d0f19c6ef4559d2cbfaa48a2d18fe55efe642337257e3a4ebd62f5de56f18"
 KNOWN_TRADING_BOTS = {
     "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74",
     "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3",
@@ -232,6 +234,34 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(activity["period_lp_withdrawal"], "1304943.856999999999991187")
         self.assertEqual(activity["period_net_lp_deposit"], "2490986.194008284105991158")
 
+    def test_period_lp_totals_attach_search_row_and_mark_neutral_rebalance(self):
+        wallet = "0xa8b4c7f8b3d91b324f815252da74884e68fb4c4c"
+        rows = [{"address": wallet, "net_flow": 0.31}]
+
+        flows.apply_period_lp_totals(rows, {
+            wallet: {
+                "deposit": "1304943.547531365190891539",
+                "withdrawal": "1304943.856999999999991187",
+                "latest": {
+                    "direction": "deposit",
+                    "amount": "1304943.547531365190891539",
+                    "pair": "DOLO/USDC",
+                    "adapter": "uniswap-v4",
+                    "confidence": "verified_same_tx",
+                    "tx_hash": "0x" + "b" * 64,
+                    "timestamp": 1_786_990_091,
+                    "chain": "ethereum",
+                },
+            },
+        })
+
+        activity = rows[0]["latest_lp_activity"]
+        self.assertEqual(activity["period_lp_deposit"], "1304943.547531365190891539")
+        self.assertEqual(activity["period_lp_withdrawal"], "1304943.856999999999991187")
+        self.assertEqual(activity["period_lp_rebalance"], "1304943.547531365190891539")
+        self.assertEqual(activity["period_net_lp_withdrawal"], "0.309468634809099648")
+        self.assertEqual(rows[0]["latest_tx_hash"], "0x" + "b" * 64)
+
     def test_lp_period_scan_targets_only_rows_with_verified_latest_activity(self):
         lp_wallet = "0x" + "1" * 40
         ordinary_wallet = "0x" + "2" * 40
@@ -254,6 +284,105 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         ])
 
         self.assertEqual(wallets, {lp_wallet})
+
+    def test_global_lp_candidates_propagate_from_long_period_to_search_periods(self):
+        wallet = "0x" + "1" * 40
+        output_periods = {
+            "30d": {
+                "all": {
+                    "accumulators": [{"address": wallet, "net_flow": 0.31}],
+                    "sellers": [],
+                },
+            },
+            "90d": {
+                "ethereum": {
+                    "accumulators": [],
+                    "sellers": [{
+                        "address": wallet,
+                        "latest_lp_activity": {"confidence": "verified_same_tx"},
+                    }],
+                },
+            },
+        }
+
+        self.assertEqual(flows.lp_global_candidate_wallets(output_periods), {wallet})
+
+    def test_liquidity_provider_candidates_use_beneficial_owner_not_custodian(self):
+        provider = "0x" + "1" * 40
+        custodian = "0x" + "2" * 40
+        closed_provider = "0x" + "3" * 40
+        payload = {
+            "activePositions": [{
+                "beneficialOwner": provider,
+                "custodian": custodian,
+            }],
+            "history": [{"beneficialOwner": closed_provider}],
+        }
+
+        self.assertEqual(
+            flows.lp_liquidity_provider_wallets(payload),
+            {provider, closed_provider},
+        )
+
+    def test_global_lp_candidates_include_liquidity_provider_index(self):
+        provider = "0x" + "4" * 40
+
+        self.assertEqual(
+            flows.lp_global_candidate_wallets({}, {provider}),
+            {provider},
+        )
+
+    def test_legacy_dolo_usdc_v4_pool_is_classified_from_shared_pool_manager(self):
+        wallet = "0x" + "1" * 40
+        amount_wei = 1_304_943_856999999999991187
+        registry = flows.load_liquidity_registry()
+        manager = registry["chains"]["ethereum"]["adapters"]["uniswap-v4"]["poolManager"]
+        position_manager = registry["chains"]["ethereum"]["adapters"]["uniswap-v4"]["positionManager"]
+
+        def topic_address(address):
+            return "0x" + "0" * 24 + address[2:].lower()
+
+        def word(value):
+            if value < 0:
+                value = (1 << 256) + value
+            return f"{value:064x}"
+
+        receipt = {
+            "status": "0x1",
+            "transactionHash": "0x" + "b" * 64,
+            "logs": [
+                {
+                    "address": flows.DOLO_CONTRACT,
+                    "topics": [
+                        flow_tx_metadata.TRANSFER_TOPIC,
+                        topic_address(wallet),
+                        topic_address(manager),
+                    ],
+                    "data": hex(amount_wei),
+                },
+                {
+                    "address": manager,
+                    "topics": [
+                        flow_tx_metadata.V4_MODIFY_LIQUIDITY_TOPIC,
+                        LEGACY_DOLO_USDC_V4_POOL,
+                        topic_address(position_manager),
+                    ],
+                    "data": "0x" + word(-100) + word(100) + word(99) + word(1),
+                },
+            ],
+        }
+
+        activity = flow_tx_metadata.classify_lp_receipt(
+            receipt,
+            wallet,
+            "ethereum",
+            registry,
+            flows.DOLO_CONTRACT,
+        )
+
+        self.assertEqual(activity["direction"], "deposit")
+        self.assertEqual(activity["pair"], "DOLO/USDC")
+        self.assertEqual(activity["amount"], "1304943.856999999999991187")
 
     def test_bridge_audit_applies_only_canonical_cancellations(self):
         exact = "0x1111111111111111111111111111111111111111"
