@@ -401,10 +401,12 @@ def collect_verified_lp_activities(
             candidate_blocks.add(block_number)
 
     # Legacy four-field ledgers do not carry transaction hashes. Preserve a
-    # bounded fallback for an entirely legacy input, but never let a stray old
-    # row reactivate the expensive block-by-block scan after migration.
+    # bounded fallback for an entirely legacy input. When the caller supplies
+    # an explicit ranked-wallet filter, also recover those wallets' legacy
+    # blocks from a mixed cache; otherwise one newer hashed transfer can hide
+    # every earlier LP leg in the selected period.
     evidence = {}
-    if candidate_blocks and not transactions_by_wallet:
+    if candidate_blocks and (wallet_filter is not None or not transactions_by_wallet):
         try:
             evidence = evidence_loader(candidate_blocks)
         except Exception:
