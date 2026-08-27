@@ -51,6 +51,11 @@ test("verified account-abstraction wallets remain users despite contract bytecod
   assert.equal(holderDistributionType("0xabc", holder), "eoa");
 });
 
+test("named user contract wallets use the Smart Wallet category instead of CA", () => {
+  assert.equal(typeModel.TYPE_LABELS.multisig, "Smart Wallet");
+  assert.equal(mapType({ type: "contract_wallet" }, { is_contract: true }), "multisig");
+});
+
 test("legacy trader labels remain visible through the Trading bots filter", () => {
   assert.equal(mapType({ type: "trader" }, {}), "bot");
   assert.equal(holderDistributionType("0xabc", { type: "trader" }), "bot");
