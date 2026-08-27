@@ -334,6 +334,85 @@ class FlowTransactionMetadataTests(unittest.TestCase):
         self.assertEqual(activities[self.WALLET]["withdrawal"], "500000")
         self.assertEqual(activities[self.WALLET]["latest"]["tx_hash"], deposit_hash)
 
+    def test_ranked_wallet_filter_recovers_legacy_lp_legs_from_mixed_cache(self):
+        legacy_hash = "0x" + "b" * 64
+        modern_hash = "0x" + "c" * 64
+        legacy_block = 190
+        modern_block = 200
+        legacy_amount = 1_186_042_646476918915099618
+        modern_amount = 1_304_943_547531365190891539
+        requested_blocks = set()
+        requested_hashes = set()
+
+        def transfer_log(tx_hash, amount):
+            return {
+                "address": self.DOLO,
+                "topics": [
+                    flow_tx_metadata.TRANSFER_TOPIC,
+                    self._topic_address(self.WALLET),
+                    self._topic_address(self.V4_POOL_MANAGER),
+                ],
+                "data": hex(amount),
+                "transactionHash": tx_hash,
+                "logIndex": "0x1",
+            }
+
+        def receipt(tx_hash, amount):
+            return {
+                "status": "0x1",
+                "transactionHash": tx_hash,
+                "logs": [
+                    transfer_log(tx_hash, amount),
+                    {
+                        "address": self.V4_POOL_MANAGER,
+                        "topics": [
+                            flow_tx_metadata.V4_MODIFY_LIQUIDITY_TOPIC,
+                            self.V4_POOL_ID,
+                            self._topic_address(self.V4_POSITION_MANAGER),
+                        ],
+                        "data": "0x" + self._word(-100) + self._word(100) + self._word(1) + self._word(1),
+                    },
+                ],
+            }
+
+        receipts = {
+            legacy_hash: receipt(legacy_hash, legacy_amount),
+            modern_hash: receipt(modern_hash, modern_amount),
+        }
+
+        def load_evidence(blocks):
+            requested_blocks.update(blocks)
+            return {
+                legacy_block: {
+                    "timestamp": 1_786_000_000,
+                    "logs": [transfer_log(legacy_hash, legacy_amount)],
+                },
+            }
+
+        def load_receipts(hashes):
+            requested_hashes.update(hashes)
+            return {tx_hash: receipts[tx_hash] for tx_hash in hashes}
+
+        activities = flow_tx_metadata.collect_verified_lp_activities(
+            [
+                [self.WALLET, self.V4_POOL_MANAGER, legacy_amount, legacy_block],
+                [self.WALLET, self.V4_POOL_MANAGER, modern_amount, modern_block, modern_hash, 1],
+            ],
+            "ethereum",
+            self._registry(),
+            self.DOLO,
+            load_evidence,
+            load_receipts,
+            wallet_filter={self.WALLET},
+        )
+
+        self.assertEqual(requested_blocks, {legacy_block, modern_block})
+        self.assertEqual(requested_hashes, {legacy_hash, modern_hash})
+        self.assertEqual(
+            activities[self.WALLET]["deposit"],
+            "2490986.194008284105991157",
+        )
+
     def test_v4_swap_like_transfer_without_position_event_is_not_labeled_lp(self):
         receipt = {
             "status": "0x1",
