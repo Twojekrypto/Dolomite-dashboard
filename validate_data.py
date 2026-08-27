@@ -1440,6 +1440,7 @@ DOLO_LIQUIDITY_POOLS = {
     ("ethereum", "uniswap-v3", "0x003896387666c5c11458eeb3f927b72a11b19783"),
     ("ethereum", "uniswap-v4", "0x6f6f24b5a1cd819382379eb032466b8bac7ea0697cfcf31b7350b55ff4f1c472"),
     ("ethereum", "uniswap-v4", "0x728e6e3b736e28f6b52f72ecec16a056b8ac6d9e05736a84e6b6128df9b1a12a"),
+    ("ethereum", "uniswap-v4", "0x330d0f19c6ef4559d2cbfaa48a2d18fe55efe642337257e3a4ebd62f5de56f18"),
     ("berachain", "kodiak-v3", "0xd5980e98a89e2d2361b3be657e8a003c6d3514e3"),
     ("berachain", "bulla-v3", "0x8991017b74f9f8070bff5b322802dd26e05e0cc7"),
     ("berachain", "kodiak-v3", "0x8194ed4d6701b7a1b40e48431de37047f0248b0b"),
