@@ -104,7 +104,7 @@ test("near-flat period LP churn renders a neutral rebalance badge", () => {
     confidence: "verified_same_tx",
   }, "acc");
 
-  assert.match(badge, /LP rebal\. · 1\.3M/);
+  assert.match(badge, /LP reb\. · 1\.3M/);
   assert.doesNotMatch(badge, />LP rebalance ·/);
   assert.match(badge, /1\.3M DOLO withdrawn from LP/);
   assert.match(badge, /1\.3M DOLO redeposited into LP/);
