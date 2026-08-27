@@ -69,11 +69,45 @@ HOLDER_CHART_CONTRACT_VERIFY_BATCH_SIZE = int(
 RPC_BATCH_SIZE = int(os.environ.get("DOLO_HOLDERS_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_HOLDERS_RPC_RETRIES_PER_ENDPOINT", "2"))
 
+# ERC-1967 implementation slot. A proxy-shaped runtime is not enough to call an
+# address a user wallet: protocol contracts use the same proxy standard. Only
+# implementations independently verified as account-abstraction wallets belong
+# in this allowlist.
+ERC1967_IMPLEMENTATION_SLOT = (
+    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+)
+VERIFIED_SMART_ACCOUNT_IMPLEMENTATIONS = {
+    # Coinbase Smart Wallet implementations verified on Etherscan. Both expose
+    # IAccount.validateUserOp() and entryPoint(); the second is also used by
+    # EIP-7702 authorizations, while deployed accounts use the audited proxy.
+    "0x00000110dcdedc9581cb5ecb8467282f2926534d",
+    "0x000100abaad02f1cfc8bbe32bd5a564817339e72",
+    # Unverified source on Etherscan, but the deployed bytecode exposes the
+    # ERC-4337 entryPoint() selector and SmartWallet ERC-7201 storage metadata.
+    # Accounts using it are deployed through an Account Abstraction bundler.
+    "0x36d3cbd83961868398d056efbf50f5ce15528c0d",
+}
+ERC4337_ENTRY_POINT_CALLDATA = "0xb0d691fe"  # entryPoint()
+KNOWN_ERC4337_ENTRY_POINTS = {
+    "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789",  # v0.6
+    "0x0000000071727de22e5e9d8baf0edac6f37da032",  # v0.7
+}
+ERC1967_SMART_ACCOUNT_PROXY_RE = re.compile(
+    r"0x363d3d373d3d363d7f360894a13ba1a3210667c828492db98dca3e2076cc3735a"
+    r"920a3ca505d382bbc545af43d6000803e6038573d6000fd5b3d6000f3"
+    r"(?:[0-9a-fA-F]{64})?"
+)
+
 
 def eip7702_delegation_address(code):
     """Return the delegate for an exact EIP-7702 designator, else None."""
     match = re.fullmatch(r"0xef0100([0-9a-fA-F]{40})", str(code or ""))
     return "0x" + match.group(1).lower() if match else None
+
+
+def is_erc1967_smart_account_proxy(code):
+    """Return True only for the audited immutable-owner AA proxy runtime."""
+    return bool(ERC1967_SMART_ACCOUNT_PROXY_RE.fullmatch(str(code or "")))
 
 
 ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
@@ -644,6 +678,8 @@ def detect_contracts(holders, max_check=200, min_balance=None):
 
     contract_addrs = set()
     contract_wallet_types = {}
+    contract_wallet_implementations = {}
+    contract_wallet_entry_points = {}
     delegated_eoa_addrs = {}
 
     for chain, rpcs in RPC_URLS:
@@ -674,6 +710,7 @@ def detect_contracts(holders, max_check=200, min_balance=None):
             code_responses, code_missing = {}, [payload["id"] for payload in code_payloads]
 
         chain_contract_addrs = []
+        chain_smart_account_candidates = set()
         for payload in code_payloads:
             request_id = payload["id"]
             addr = meta_by_id[request_id]
@@ -699,18 +736,87 @@ def detect_contracts(holders, max_check=200, min_balance=None):
                 key = addr.lower()
                 contract_addrs.add(key)
                 chain_contract_addrs.append(addr)
+                if is_erc1967_smart_account_proxy(code):
+                    chain_smart_account_candidates.add(key)
+
+        entry_point_payloads = []
+        entry_point_meta = {}
+        chain_entry_points = {}
+        for idx, addr in enumerate(chain_contract_addrs):
+            if addr.lower() not in chain_smart_account_candidates:
+                continue
+            request_id = f"{chain}:entrypoint:{idx}"
+            entry_point_payloads.append({
+                "jsonrpc": "2.0",
+                "method": "eth_call",
+                "params": [{"to": addr, "data": ERC4337_ENTRY_POINT_CALLDATA}, "latest"],
+                "id": request_id,
+            })
+            entry_point_meta[request_id] = addr.lower()
+
+        if entry_point_payloads:
+            try:
+                entry_point_responses, entry_point_missing = rpc_batch_requests(
+                    rpcs,
+                    entry_point_payloads,
+                    timeout=5,
+                    retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                    batch_size=RPC_BATCH_SIZE,
+                    quiet=True,
+                    describe=f"{chain} ERC-4337 entryPoint",
+                )
+            except RpcError:
+                entry_point_responses, entry_point_missing = {}, [
+                    payload["id"] for payload in entry_point_payloads
+                ]
+
+            for payload in entry_point_payloads:
+                request_id = payload["id"]
+                response = entry_point_responses.get(request_id)
+                if (
+                    request_id in entry_point_missing
+                    or not isinstance(response, dict)
+                    or response.get("error")
+                    or "result" not in response
+                ):
+                    try:
+                        response = rpc_single_request(
+                            rpcs,
+                            payload,
+                            timeout=5,
+                            retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+                            quiet=True,
+                            describe=f"{chain} ERC-4337 entryPoint fallback",
+                        )
+                    except RpcError:
+                        continue
+                value = str(
+                    response.get("result", "0x") if isinstance(response, dict) else "0x"
+                ).lower()
+                entry_point = "0x" + value[-40:] if len(value) >= 42 else ""
+                if entry_point in KNOWN_ERC4337_ENTRY_POINTS:
+                    chain_entry_points[entry_point_meta[request_id]] = entry_point
 
         storage_payloads = []
         storage_meta = {}
         for idx, addr in enumerate(chain_contract_addrs):
-            request_id = f"{chain}:storage:{idx}"
+            request_id = f"{chain}:storage:safe:{idx}"
             storage_payloads.append({
                 "jsonrpc": "2.0",
                 "method": "eth_getStorageAt",
                 "params": [addr, "0x0", "latest"],
                 "id": request_id,
             })
-            storage_meta[request_id] = addr.lower()
+            storage_meta[request_id] = (addr.lower(), "safe")
+            if addr.lower() in chain_smart_account_candidates:
+                request_id = f"{chain}:storage:implementation:{idx}"
+                storage_payloads.append({
+                    "jsonrpc": "2.0",
+                    "method": "eth_getStorageAt",
+                    "params": [addr, ERC1967_IMPLEMENTATION_SLOT, "latest"],
+                    "id": request_id,
+                })
+                storage_meta[request_id] = (addr.lower(), "implementation")
 
         if storage_payloads:
             try:
@@ -741,10 +847,20 @@ def detect_contracts(holders, max_check=200, min_balance=None):
                         )
                     except RpcError:
                         continue
-                slot0 = str(response.get("result", "0x") if isinstance(response, dict) else "0x").lower()
-                singleton = "0x" + slot0[-40:] if len(slot0) >= 42 else ""
-                if singleton in SAFE_SINGLETON_ADDRS:
-                    contract_wallet_types[storage_meta[request_id]] = "safe"
+                value = str(response.get("result", "0x") if isinstance(response, dict) else "0x").lower()
+                address, storage_kind = storage_meta[request_id]
+                decoded_address = "0x" + value[-40:] if len(value) >= 42 else ""
+                if storage_kind == "safe" and decoded_address in SAFE_SINGLETON_ADDRS:
+                    contract_wallet_types[address] = "safe"
+                elif (
+                    storage_kind == "implementation"
+                    and decoded_address in VERIFIED_SMART_ACCOUNT_IMPLEMENTATIONS
+                    and address in chain_entry_points
+                    and contract_wallet_types.get(address) != "safe"
+                ):
+                    contract_wallet_types[address] = "smart_account"
+                    contract_wallet_implementations[address] = decoded_address
+                    contract_wallet_entry_points[address] = chain_entry_points[address]
 
     for h in holders:
         key = h["address"].lower()
@@ -756,6 +872,10 @@ def detect_contracts(holders, max_check=200, min_balance=None):
             h["delegation_address"] = delegated_eoa_addrs[key]
         if key in contract_wallet_types:
             h["contract_wallet_type"] = contract_wallet_types[key]
+        if key in contract_wallet_implementations:
+            h["contract_wallet_implementation"] = contract_wallet_implementations[key]
+        if key in contract_wallet_implementations and key in contract_wallet_entry_points:
+            h["contract_wallet_entry_point"] = contract_wallet_entry_points[key]
 
     print(f"  ✅ Found {len(contract_addrs)} contracts across {scope}")
     return holders

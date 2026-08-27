@@ -2877,7 +2877,12 @@ def load_current_holder_rows():
 
 def verified_user_contract_addresses(holder_rows):
     """Return holder contracts proven to represent a user-controlled wallet."""
-    visible_contract_wallet_types = {"safe", "multisig", "delegated_eoa"}
+    visible_contract_wallet_types = {
+        "safe",
+        "multisig",
+        "delegated_eoa",
+        "smart_account",
+    }
     return {
         str(addr or "").lower()
         for addr, row in (holder_rows or {}).items()
@@ -3127,7 +3132,7 @@ def holder_distribution_type(addr, holder_rows, labels):
         return "ca"
     if contract_wallet_type in {"safe", "multisig"}:
         return "multisig"
-    if contract_wallet_type == "delegated_eoa":
+    if contract_wallet_type in {"delegated_eoa", "smart_account"}:
         return "eoa"
     if holder.get("is_contract"):
         return "ca"

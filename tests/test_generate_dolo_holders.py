@@ -13,6 +13,7 @@ import generate_dolo_holders as holders
 ALICE = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 BOB = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 CHARLIE = "0xcccccccccccccccccccccccccccccccccccccccc"
+DAVE = "0xdddddddddddddddddddddddddddddddddddddddd"
 
 
 def uint256_hex(value):
@@ -202,6 +203,174 @@ class GenerateDoloHoldersRpcBatchTests(unittest.TestCase):
         self.assertNotIn("is_contract", out[0])
         self.assertEqual(out[0]["contract_wallet_type"], "delegated_eoa")
         self.assertEqual(out[0]["delegation_address"], delegate)
+
+    def test_detect_contracts_only_promotes_verified_aa_proxy_implementations(self):
+        proxy_prefix = (
+            "0x363d3d373d3d363d7f360894a13ba1a3210667c828492db98dca3e2076cc3735a"
+            "920a3ca505d382bbc545af43d6000803e6038573d6000fd5b3d6000f3"
+        )
+        verified_implementation = "0x36d3cbd83961868398d056efbf50f5ce15528c0d"
+        unknown_implementation = "0x" + "9" * 40
+        rows = [
+            {"address": ALICE},
+            {"address": BOB},
+            {"address": CHARLIE},
+        ]
+
+        def fake_batch(_rpcs, payloads, **_kwargs):
+            out = {}
+            for payload in payloads:
+                request_id = payload["id"]
+                target = payload["params"][0]
+                address = (
+                    target["to"] if isinstance(target, dict) else target
+                ).lower()
+                if payload["method"] == "eth_getCode":
+                    owner_word = {
+                        ALICE: "1" * 64,
+                        BOB: "2" * 64,
+                        CHARLIE: "3" * 64,
+                    }[address]
+                    result = proxy_prefix + owner_word
+                elif payload["method"] == "eth_call":
+                    entry_point = (
+                        "0x0000000071727de22e5e9d8baf0edac6f37da032"
+                        if address in {ALICE, BOB}
+                        else "0x" + "8" * 40
+                    )
+                    result = "0x" + ("0" * 24) + entry_point[2:]
+                elif payload["params"][1] == holders.ERC1967_IMPLEMENTATION_SLOT:
+                    implementation = (
+                        verified_implementation
+                        if address in {ALICE, CHARLIE}
+                        else unknown_implementation
+                    )
+                    result = "0x" + ("0" * 24) + implementation[2:]
+                else:
+                    result = "0x"
+                out[request_id] = {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": result,
+                }
+            return out, []
+
+        with patch.object(holders, "rpc_batch_requests", side_effect=fake_batch), \
+             patch.object(holders, "rpc_single_request") as single, \
+             patch.object(
+                 holders,
+                 "VERIFIED_SMART_ACCOUNT_IMPLEMENTATIONS",
+                 {verified_implementation},
+             ):
+            out = holders.detect_contracts(rows, max_check=3)
+
+        single.assert_not_called()
+        self.assertTrue(out[0]["is_contract"])
+        self.assertEqual(out[0]["contract_wallet_type"], "smart_account")
+        self.assertEqual(
+            out[0]["contract_wallet_implementation"],
+            verified_implementation,
+        )
+        self.assertEqual(
+            out[0]["contract_wallet_entry_point"],
+            "0x0000000071727de22e5e9d8baf0edac6f37da032",
+        )
+        self.assertTrue(out[1]["is_contract"])
+        self.assertNotIn("contract_wallet_type", out[1])
+        self.assertNotIn("contract_wallet_implementation", out[1])
+        self.assertTrue(out[2]["is_contract"])
+        self.assertNotIn("contract_wallet_type", out[2])
+        self.assertNotIn("contract_wallet_implementation", out[2])
+
+    def test_detect_contracts_recognizes_verified_coinbase_smart_wallet_proxy(self):
+        proxy_runtime = (
+            "0x363d3d373d3d363d7f360894a13ba1a3210667c828492db98dca3e2076cc3735a"
+            "920a3ca505d382bbc545af43d6000803e6038573d6000fd5b3d6000f3"
+        )
+        implementation = "0x00000110dcdedc9581cb5ecb8467282f2926534d"
+        entry_point = "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789"
+        rows = [{"address": DAVE}]
+
+        def fake_batch(_rpcs, payloads, **_kwargs):
+            out = {}
+            for payload in payloads:
+                if payload["method"] == "eth_getCode":
+                    result = proxy_runtime
+                elif payload["method"] == "eth_call":
+                    result = "0x" + ("0" * 24) + entry_point[2:]
+                elif payload["params"][1] == holders.ERC1967_IMPLEMENTATION_SLOT:
+                    result = "0x" + ("0" * 24) + implementation[2:]
+                else:
+                    result = "0x"
+                out[payload["id"]] = {
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": result,
+                }
+            return out, []
+
+        with patch.object(holders, "rpc_batch_requests", side_effect=fake_batch), \
+             patch.object(holders, "rpc_single_request") as single, \
+             patch.object(
+                 holders,
+                 "VERIFIED_SMART_ACCOUNT_IMPLEMENTATIONS",
+                 {implementation},
+             ):
+            out = holders.detect_contracts(rows, max_check=1)
+
+        single.assert_not_called()
+        self.assertEqual(out[0]["contract_wallet_type"], "smart_account")
+        self.assertEqual(out[0]["contract_wallet_implementation"], implementation)
+        self.assertEqual(out[0]["contract_wallet_entry_point"], entry_point)
+
+    def test_detect_contracts_does_not_stitch_aa_proof_across_chains(self):
+        proxy_runtime = (
+            "0x363d3d373d3d363d7f360894a13ba1a3210667c828492db98dca3e2076cc3735a"
+            "920a3ca505d382bbc545af43d6000803e6038573d6000fd5b3d6000f3"
+        )
+        verified_implementation = "0x00000110dcdedc9581cb5ecb8467282f2926534d"
+        unknown_implementation = "0x" + "9" * 40
+        known_entry_point = "0x5ff137d4b0fdcd49dca30c7cf57e578a026d2789"
+        unknown_entry_point = "0x" + "8" * 40
+        rows = [{"address": DAVE}]
+
+        def fake_batch(_rpcs, payloads, **_kwargs):
+            out = {}
+            for payload in payloads:
+                chain = payload["id"].split(":", 1)[0]
+                if payload["method"] == "eth_getCode":
+                    result = proxy_runtime
+                elif payload["method"] == "eth_call":
+                    entry_point = known_entry_point if chain == "eth" else unknown_entry_point
+                    result = "0x" + ("0" * 24) + entry_point[2:]
+                elif payload["params"][1] == holders.ERC1967_IMPLEMENTATION_SLOT:
+                    implementation = (
+                        unknown_implementation if chain == "eth" else verified_implementation
+                    )
+                    result = "0x" + ("0" * 24) + implementation[2:]
+                else:
+                    result = "0x"
+                out[payload["id"]] = {
+                    "jsonrpc": "2.0",
+                    "id": payload["id"],
+                    "result": result,
+                }
+            return out, []
+
+        with patch.object(holders, "rpc_batch_requests", side_effect=fake_batch), \
+             patch.object(holders, "rpc_single_request") as single, \
+             patch.object(
+                 holders,
+                 "VERIFIED_SMART_ACCOUNT_IMPLEMENTATIONS",
+                 {verified_implementation},
+             ):
+            out = holders.detect_contracts(rows, max_check=1)
+
+        single.assert_not_called()
+        self.assertTrue(out[0]["is_contract"])
+        self.assertNotIn("contract_wallet_type", out[0])
+        self.assertNotIn("contract_wallet_implementation", out[0])
+        self.assertNotIn("contract_wallet_entry_point", out[0])
 
     def test_detect_contracts_checks_every_holder_in_chart_range(self):
         rows = [

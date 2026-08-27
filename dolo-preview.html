@@ -2203,6 +2203,10 @@ function isSafeWallet(source, info = null){
 function isDelegatedEoa(source){
   return String(source?.contract_wallet_type || source?.contractWalletType || "").toLowerCase() === "delegated_eoa";
 }
+function isVerifiedUserSmartWallet(source){
+  const walletType = String(source?.contract_wallet_type || source?.contractWalletType || "").toLowerCase();
+  return walletType === "delegated_eoa" || walletType === "smart_account";
+}
 function holderDistributionType(addr, source){
   const info = sharedAddressInfo(addr);
   const rawType = (info && info.type) || source?.type || "";
@@ -2219,7 +2223,7 @@ function holderDistributionType(addr, source){
   if(t === "bot" || t === "liquidator" || t === "trader") return "bot";
   if(t === "protocol" || t === "lp" || t === "contract" || t === "dead" || source?.type === "ca") return "ca";
   if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
-  if(contractWalletType === "delegated_eoa") return "eoa";
+  if(contractWalletType === "delegated_eoa" || contractWalletType === "smart_account") return "eoa";
   if(source?.is_contract) return "ca";
   return "eoa";
 }
@@ -5925,7 +5929,7 @@ renderCexSupplyChart();
     if(t === "protocol") return "protocol";
     if(t === "lp" || t === "contract" || t === "dead" || holder?.type === "ca") return "ca";
     if(contractWalletType === "safe" || contractWalletType === "multisig") return "multisig";
-    if(contractWalletType === "delegated_eoa") return "eoa";
+    if(contractWalletType === "delegated_eoa" || contractWalletType === "smart_account") return "eoa";
     if(holder?.is_contract) return "ca";
     return "eoa";
   }
@@ -5942,7 +5946,7 @@ renderCexSupplyChart();
     const info = addressInfo(addr, holder);
     if(info && info.label) return info.label;
     if(holder?.contract_wallet_type === "safe" || holder?.contractWalletType === "safe" || holder?.type === "multisig") return "Safe Multisig";
-    if(isDelegatedEoa(holder)) return null;
+    if(isVerifiedUserSmartWallet(holder)) return null;
     if(holder?.is_contract || holder?.type === "ca") return "Smart Contract / CA";
     return null;
   }
@@ -5959,7 +5963,7 @@ renderCexSupplyChart();
     const candidates = new Set();
     const contractAddresses = new Set(
       (holdersData?.holders || [])
-        .filter(holder => holder?.is_contract && !isDelegatedEoa(holder))
+        .filter(holder => holder?.is_contract && !isVerifiedUserSmartWallet(holder))
         .map(holder => lower(holder.address))
     );
     const touch = (item, role) => {
