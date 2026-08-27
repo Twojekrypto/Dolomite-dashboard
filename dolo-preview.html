@@ -4914,8 +4914,7 @@ function flowBalanceCellHtml(row){
 }
 function flowLpBadgeHtml(activity, kind){
   if(!activity || activity.confidence !== "verified_same_tx") return "";
-  const direction = activity.direction;
-  if((kind === "out" && direction !== "deposit") || (kind === "acc" && direction !== "withdrawal")) return "";
+  const latestDirection = activity.direction;
   const latestAmount = Math.max(0, safeHolderNum(activity.amount));
   if(!latestAmount) return "";
   const adapterLabels = {
@@ -4929,19 +4928,34 @@ function flowLpBadgeHtml(activity, kind){
   const adapter = adapterLabels[activity.adapter] || String(activity.adapter || "tracked DEX");
   const pair = String(activity.pair || "DOLO pool");
   const latestAmountLabel = fmtNum(latestAmount);
-  const periodNetRaw = direction === "deposit"
+  const periodDeposit = Math.max(0, safeHolderNum(activity.period_lp_deposit));
+  const periodWithdrawal = Math.max(0, safeHolderNum(activity.period_lp_withdrawal));
+  const rebalanceAmount = Math.max(0, safeHolderNum(activity.period_lp_rebalance));
+  if(rebalanceAmount > 0){
+    const netWalletChange = periodWithdrawal - periodDeposit;
+    const netWalletLabel = `${netWalletChange > 0 ? "+" : netWalletChange < 0 ? "−" : ""}${fmtNum(Math.abs(netWalletChange))}`;
+    const tooltip = `Verified LP rebalance · ${fmtNum(periodWithdrawal)} DOLO withdrawn from LP and ${fmtNum(periodDeposit)} DOLO redeposited into LP during the selected period. Net wallet change from LP activity: ${netWalletLabel} DOLO. Latest verified LP transaction: ${latestAmountLabel} DOLO via ${adapter} ${pair}.`;
+    return `<span class="flow-lp-note flow-lp-note-rebalance" data-tooltip="${escHtml(tooltip)}" aria-label="${escHtml(tooltip)}">LP rebalance · ${fmtNum(rebalanceAmount)}</span>`;
+  }
+  const periodDirection = safeHolderNum(activity.period_net_lp_deposit) > 0
+    ? "deposit"
+    : safeHolderNum(activity.period_net_lp_withdrawal) > 0
+      ? "withdrawal"
+      : latestDirection;
+  const periodNetRaw = periodDirection === "deposit"
     ? activity.period_net_lp_deposit
     : activity.period_net_lp_withdrawal;
   const periodNet = Math.max(0, safeHolderNum(periodNetRaw));
   const hasPeriodNet = periodNet > 0;
+  if(!hasPeriodNet && ((kind === "out" && latestDirection !== "deposit") || (kind === "acc" && latestDirection !== "withdrawal"))) return "";
   const amountLabel = fmtNum(hasPeriodNet ? periodNet : latestAmount);
   let tooltip;
   if(hasPeriodNet){
-    tooltip = direction === "deposit"
+    tooltip = periodDirection === "deposit"
       ? `Verified LP activity · Net added to LP during the selected period: ${amountLabel} DOLO across verified tracked pools. Latest verified LP deposit: ${latestAmountLabel} DOLO into ${adapter} ${pair}. This is liquidity provision, not a sale.`
       : `Verified LP activity · Net withdrawn from LP during the selected period: ${amountLabel} DOLO across verified tracked pools. Latest verified LP withdrawal: ${latestAmountLabel} DOLO from ${adapter} ${pair}. This describes the source, not a market purchase.`;
   }else{
-    tooltip = direction === "deposit"
+    tooltip = latestDirection === "deposit"
       ? `Verified LP deposit · ${latestAmountLabel} DOLO moved into ${adapter} ${pair} in the latest transaction. It remains counted as wallet outflow; this label describes its destination, not a sale.`
       : `Verified LP withdrawal · ${latestAmountLabel} DOLO returned from ${adapter} ${pair} in the latest transaction. It remains counted as wallet inflow; this label describes its source, not a market purchase.`;
   }
@@ -4950,7 +4964,7 @@ function flowLpBadgeHtml(activity, kind){
     const walletNetLabel = `${walletNet > 0 ? "+" : ""}${fmtNum(walletNet)}`;
     tooltip += ` Wallet transfer net: ${walletNetLabel} DOLO. Main row remains the transfer-derived wallet net flow.`;
   }
-  const label = direction === "deposit"
+  const label = periodDirection === "deposit"
     ? `${amountLabel}${hasPeriodNet ? " net" : ""} → LP`
     : `${amountLabel}${hasPeriodNet ? " net" : ""} ← LP`;
   return `<span class="flow-lp-note" data-tooltip="${escHtml(tooltip)}" aria-label="${escHtml(tooltip)}">${label}</span>`;

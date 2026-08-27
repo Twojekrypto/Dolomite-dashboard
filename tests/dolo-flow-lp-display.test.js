@@ -17,10 +17,10 @@ function loadLpBadgeBuilder(){
     `${source}\nreturn flowLpBadgeHtml;`,
   )(
     value => Number.isFinite(Number(value)) ? Number(value) : 0,
-    value => Number(value) === 1_304_943.5475313652
-      ? "1.3M"
-      : (Math.abs(Number(value) - 2_490_986.194008284) < 1 ? "2.49M"
-      : (Number(value) === 0.31 ? "0.31" : "850K")),
+    value => Math.abs(Number(value) - 2_490_986.194008284) < 1
+      ? "2.49M"
+      : (Number(value) >= 1_300_000 ? "1.3M"
+      : (Math.abs(Number(value)) < 1 ? Math.abs(Number(value)).toFixed(2) : "850K")),
     value => String(value)
       .replaceAll("&", "&amp;")
       .replaceAll('"', "&quot;")
@@ -89,4 +89,38 @@ test("period LP badge uses aggregate net deposit instead of latest transaction a
   assert.match(badge, /2\.49M net → LP/);
   assert.match(badge, /Net added to LP during the selected period: 2\.49M DOLO/);
   assert.match(badge, /Latest verified LP deposit: 1\.3M DOLO/);
+});
+
+test("near-flat period LP churn renders a neutral rebalance badge", () => {
+  const badge = loadLpBadgeBuilder()({
+    direction: "deposit",
+    amount: "1304943.547531365190891539",
+    period_lp_deposit: "1304943.547531365190891539",
+    period_lp_withdrawal: "1304943.856999999999991187",
+    period_lp_rebalance: "1304943.547531365190891539",
+    period_net_lp_withdrawal: "0.309468634809099648",
+    pair: "DOLO/USDC",
+    adapter: "uniswap-v4",
+    confidence: "verified_same_tx",
+  }, "acc");
+
+  assert.match(badge, /LP rebalance · 1\.3M/);
+  assert.match(badge, /1\.3M DOLO withdrawn from LP/);
+  assert.match(badge, /1\.3M DOLO redeposited into LP/);
+  assert.match(badge, /Net wallet change from LP activity: \+0\.31 DOLO/);
+});
+
+test("all-time LP net remains visible beside a small accumulator net", () => {
+  const badge = loadLpBadgeBuilder()({
+    direction: "deposit",
+    amount: "1304943.547531365190891539",
+    period_lp_deposit: "3795930.051008284105982345",
+    period_lp_withdrawal: "1304943.856999999999991187",
+    period_net_lp_deposit: "2490986.194008284105991158",
+    pair: "DOLO/USDC",
+    adapter: "uniswap-v4",
+    confidence: "verified_same_tx",
+  }, "acc");
+
+  assert.match(badge, /2\.49M net → LP/);
 });

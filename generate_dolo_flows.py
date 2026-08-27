@@ -266,6 +266,7 @@ OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
 WALLET_HISTORY_JSON = os.path.join(DATA_DIR, "dolo_holder_wallet_history.json")
 STATE_FILE = os.path.join(DATA_DIR, "dolo_flows_state.json")
 LIQUIDITY_REGISTRY_JSON = os.path.join(DATA_DIR, "data", "dolo-liquidity-pools.json")
+LIQUIDITY_OUTPUT_JSON = os.path.join(DATA_DIR, "data", "dolo-liquidity.json")
 RPC_BATCH_SIZE = int(os.environ.get("DOLO_FLOWS_RPC_BATCH_SIZE", "50"))
 RPC_RETRIES_PER_ENDPOINT = int(os.environ.get("DOLO_FLOWS_RPC_RETRIES_PER_ENDPOINT", "2"))
 RPC_LOG_RETRIES_PER_ENDPOINT = int(
@@ -339,6 +340,32 @@ def load_liquidity_registry():
         print("  ⚠️ LP flow attribution unavailable: invalid liquidity registry")
         return {}
     return registry
+
+
+def lp_liquidity_provider_wallets(payload):
+    """Return verified beneficial LP owners from the shared liquidity artifact."""
+    wallets = set()
+    if not isinstance(payload, dict):
+        return wallets
+    for section in ("activePositions", "history"):
+        for row in payload.get(section) or []:
+            if not isinstance(row, dict):
+                continue
+            address = str(row.get("beneficialOwner") or "").strip().lower()
+            if re.fullmatch(r"0x[a-f0-9]{40}", address):
+                wallets.add(address)
+    return wallets
+
+
+def load_liquidity_provider_wallets():
+    """Load LP owners without treating protocol custodians as user wallets."""
+    try:
+        with open(LIQUIDITY_OUTPUT_JSON) as f:
+            payload = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"  ⚠️ LP provider candidate index unavailable: {exc}")
+        return set()
+    return lp_liquidity_provider_wallets(payload)
 
 
 def save_state(state):
@@ -4177,12 +4204,21 @@ def apply_flow_annotations(rows, annotations):
 
 
 def apply_period_lp_totals(rows, activities):
-    """Attach period-wide verified LP totals to an already verified latest LP row."""
+    """Attach exact period LP totals and, when needed, their latest proof."""
     for row in rows or []:
-        activity = row.get("latest_lp_activity")
         summary = (activities or {}).get(str(row.get("address") or "").lower())
-        if not isinstance(activity, dict) or not isinstance(summary, dict):
+        if not isinstance(summary, dict):
             continue
+        activity = row.get("latest_lp_activity")
+        if not isinstance(activity, dict):
+            latest = summary.get("latest")
+            if not isinstance(latest, dict) or latest.get("confidence") != "verified_same_tx":
+                continue
+            activity = dict(latest)
+            row["latest_lp_activity"] = activity
+            row["latest_tx_hash"] = latest.get("tx_hash")
+            row["latest_tx_timestamp"] = latest.get("timestamp")
+            row["latest_tx_chain"] = latest.get("chain")
         try:
             deposit = Decimal(str(summary.get("deposit") or "0"))
             withdrawal = Decimal(str(summary.get("withdrawal") or "0"))
@@ -4192,11 +4228,20 @@ def apply_period_lp_totals(rows, activities):
             continue
         activity["period_lp_deposit"] = _flow_decimal_text(deposit)
         activity["period_lp_withdrawal"] = _flow_decimal_text(withdrawal)
+        for key in (
+            "period_net_lp_deposit",
+            "period_net_lp_withdrawal",
+            "period_lp_rebalance",
+        ):
+            activity.pop(key, None)
         net = deposit - withdrawal
         if net > 0:
             activity["period_net_lp_deposit"] = _flow_decimal_text(net)
         elif net < 0:
             activity["period_net_lp_withdrawal"] = _flow_decimal_text(-net)
+        overlap = min(deposit, withdrawal)
+        if overlap > 0 and abs(net) <= max(Decimal("1"), overlap * Decimal("0.001")):
+            activity["period_lp_rebalance"] = _flow_decimal_text(overlap)
     return rows
 
 
@@ -4212,6 +4257,31 @@ def lp_period_scan_wallets(row_groups):
             if address:
                 wallets.add(address)
     return wallets
+
+
+def lp_global_candidate_wallets(output_periods, liquidity_wallets=None):
+    """Collect bounded LP candidates across every period and the LP artifact."""
+    row_groups = []
+    for period_data in (output_periods or {}).values():
+        if not isinstance(period_data, dict):
+            continue
+        for chain_data in period_data.values():
+            if not isinstance(chain_data, dict):
+                continue
+            for key in (
+                "accumulators",
+                "sellers",
+                "search_accumulators",
+                "search_sellers",
+            ):
+                row_groups.append(chain_data.get(key) or [])
+    return lp_period_scan_wallets(row_groups) | {
+        address
+        for address in (
+            str(value or "").strip().lower() for value in (liquidity_wallets or set())
+        )
+        if re.fullmatch(r"0x[a-f0-9]{40}", address)
+    }
 
 
 def get_dolo_price():
@@ -4660,6 +4730,7 @@ def main():
     lp_receipt_cache = {"eth": {}, "bera": {}}
     liquidity_registry = load_liquidity_registry()
     bridge_neutralization_audit = {}
+    period_transfers_cache = {}
     for period, seconds in PERIODS.items():
         output_periods[period] = {}
 
@@ -4675,6 +4746,7 @@ def main():
             raw_flows[chain_key] = calculate_flows(period_transfers, EXCLUDED_ADDRS)
             flow_components_by_chain[chain_key] = calculate_flow_components(period_transfers)
             tx_counts_by_chain[chain_key] = count_txs(period_transfers, EXCLUDED_ADDRS)
+        period_transfers_cache[period] = period_transfers_by_chain
 
         # Step 2: Inject bridge mint/burn flows for cross-chain detection
         # Bridge mints (from 0x0) and burns (to 0x0) are skipped by calculate_flows()
@@ -4862,37 +4934,6 @@ def main():
             if dolo_price:
                 entry["usd_value"] = round(entry["net_flow"] * dolo_price, 2)
 
-        # Aggregate exact LP activity only for rows that can actually be shown.
-        # This keeps the badge scoped to the selected period without scanning
-        # receipts for every swapper that touched a shared pool manager.
-        displayed_wallets = lp_period_scan_wallets([
-            rows
-            for chain_key in CHAINS
-            for rows in (
-                output_periods[period][chain_key]["accumulators"],
-                output_periods[period][chain_key]["sellers"],
-            )
-        ] + [combined_accumulators, combined_sellers])
-        lp_activities_by_chain = {}
-        for chain_key in CHAINS:
-            chain_name = "ethereum" if chain_key == "eth" else "berachain"
-            lp_activities = collect_verified_lp_activities(
-                period_transfers_by_chain[chain_key],
-                chain_name,
-                liquidity_registry,
-                DOLO_CONTRACT,
-                flow_evidence_loaders[chain_key],
-                lp_receipt_loaders[chain_key],
-                wallet_filter=displayed_wallets,
-            )
-            lp_activities_by_chain[chain_key] = lp_activities
-            chain_rows = output_periods[period][chain_key]
-            apply_period_lp_totals(chain_rows["accumulators"], lp_activities)
-            apply_period_lp_totals(chain_rows["sellers"], lp_activities)
-
-        combined_lp_activities = merge_verified_lp_activities(lp_activities_by_chain)
-        apply_period_lp_totals(combined_accumulators, combined_lp_activities)
-        apply_period_lp_totals(combined_sellers, combined_lp_activities)
         apply_flow_annotations(combined_accumulators, combined_lp_annotations)
         apply_flow_annotations(combined_sellers, combined_lp_annotations)
 
@@ -4905,6 +4946,53 @@ def main():
                 len(rows) for rows in period_transfers_by_chain.values()
             ),
         }
+
+    # Resolve LP evidence after every period has been ranked. A wallet that is
+    # material in 90D/All (or is a verified current/historical LP owner) must
+    # remain eligible for exact receipt attribution in a near-flat 30D window.
+    # The bounded candidate set avoids scanning receipts for every address that
+    # touched a shared v4 PoolManager.
+    liquidity_provider_wallets = load_liquidity_provider_wallets()
+    global_lp_wallets = lp_global_candidate_wallets(
+        output_periods,
+        liquidity_provider_wallets,
+    )
+    print(
+        f"  🧩 LP attribution candidates: {len(global_lp_wallets):,} "
+        f"({len(liquidity_provider_wallets):,} from liquidity index)"
+    )
+    for period in PERIODS:
+        lp_activities_by_chain = {}
+        for chain_key in CHAINS:
+            chain_name = "ethereum" if chain_key == "eth" else "berachain"
+            lp_activities = collect_verified_lp_activities(
+                period_transfers_cache[period][chain_key],
+                chain_name,
+                liquidity_registry,
+                DOLO_CONTRACT,
+                flow_evidence_loaders[chain_key],
+                lp_receipt_loaders[chain_key],
+                wallet_filter=global_lp_wallets,
+            )
+            lp_activities_by_chain[chain_key] = lp_activities
+            chain_rows = output_periods[period][chain_key]
+            for key in (
+                "accumulators",
+                "sellers",
+                "search_accumulators",
+                "search_sellers",
+            ):
+                apply_period_lp_totals(chain_rows[key], lp_activities)
+
+        combined_lp_activities = merge_verified_lp_activities(lp_activities_by_chain)
+        combined_rows = output_periods[period]["all"]
+        for key in (
+            "accumulators",
+            "sellers",
+            "search_accumulators",
+            "search_sellers",
+        ):
+            apply_period_lp_totals(combined_rows[key], combined_lp_activities)
 
     # Fetch DOLO balances for all addresses across both chains
     all_addrs = set()
