@@ -4200,6 +4200,20 @@ def apply_period_lp_totals(rows, activities):
     return rows
 
 
+def lp_period_scan_wallets(row_groups):
+    """Return only rows whose latest transaction already proved LP activity."""
+    wallets = set()
+    for rows in row_groups or []:
+        for row in rows or []:
+            activity = row.get("latest_lp_activity") if isinstance(row, dict) else None
+            if not isinstance(activity, dict) or activity.get("confidence") != "verified_same_tx":
+                continue
+            address = str(row.get("address") or "").lower()
+            if address:
+                wallets.add(address)
+    return wallets
+
+
 def get_dolo_price():
     """Fetch current DOLO price from DeFiLlama / CoinGecko."""
     try:
@@ -4851,17 +4865,14 @@ def main():
         # Aggregate exact LP activity only for rows that can actually be shown.
         # This keeps the badge scoped to the selected period without scanning
         # receipts for every swapper that touched a shared pool manager.
-        displayed_wallets = {
-            row["address"]
+        displayed_wallets = lp_period_scan_wallets([
+            rows
             for chain_key in CHAINS
-            for row in (
-                output_periods[period][chain_key]["accumulators"]
-                + output_periods[period][chain_key]["sellers"]
+            for rows in (
+                output_periods[period][chain_key]["accumulators"],
+                output_periods[period][chain_key]["sellers"],
             )
-        }
-        displayed_wallets.update(
-            row["address"] for row in combined_accumulators + combined_sellers
-        )
+        ] + [combined_accumulators, combined_sellers])
         lp_activities_by_chain = {}
         for chain_key in CHAINS:
             chain_name = "ethereum" if chain_key == "eth" else "berachain"
