@@ -62,6 +62,7 @@
     // Official long-term investor vesting contract. Recipient wallets are
     // labeled by the shared claim-provenance pipeline.
     "0x3a025c7fcf7632197ea82e64acd6ff53e1c06c07": {label:"Investor Claims", type:"protocol", treasury:true, source:"dolomite-docs-module-dolo", confidence:"confirmed"},
+    "0xbd225c09e4b032e41d5e8aea5f81efff45f20f7b": {label:"Advisor Claims", type:"protocol", treasury:true, source:"dolomite-docs-module-dolo", confidence:"confirmed"},
     "0xbf3c4e55a444ed489736c3d856b0cd0533fc2edd": {label:"Investor 2", type:"investor", treasury:true},
     "0x7efd088ae500598a19a242d6d48b9f7e0d061176": {label:"Strategic Investor Claims", type:"protocol", treasury:true, source:"dolomite-docs-module-dolo", confidence:"confirmed"},
 
@@ -75,6 +76,7 @@
     "0x9696f59e4d72e237be84ffd425dcad154bf96976": {label:"Binance 18", type:"cex", source:"etherscan-public-label"},
     "0xa9d1e08c7793af67e9d92fe308d5697fb81d3e43": {label:"Coinbase 10", type:"cex", source:"etherscan-public-label"},
     "0x906bd3aff2700f0d1aaf937d9c8dbf6024102e19": {label:"Coinbase Wallet", type:"cex", source:"debank-public-label", confidence:"confirmed"},
+    "0xabfa4ad57e283758e9ec3e21147793745091c618": {label:"CoinEx Deposit Contract", type:"cex", accountStructure:"CoinEx deposit proxy", source:"etherscan-coinex-deposit-factory", confidence:"confirmed"},
     "0x305833cadd13a6d7febc6619304a6943a9a1ed22": {label:"Binance Deposit", type:"cex"},
     "0xb46a0f71fded6ceb00b1c9278e0ac7e22c242df5": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label"},
     "0x43684d03d81d3a4c70da68febdd61029d426f042": {label:"Binance 117", type:"cex", source:"etherscan-public-label"},

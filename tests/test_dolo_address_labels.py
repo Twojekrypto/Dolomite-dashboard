@@ -164,11 +164,23 @@ console.log(JSON.stringify({known, unknown}));
         self.assertEqual(argent["source"], "etherscan-public-label")
         self.assertEqual(argent["confidence"], "confirmed")
 
+    def test_confirmed_claim_and_exchange_contracts_use_owner_labels(self):
+        advisor_claims = self.labels["0xbd225c09e4b032e41d5e8aea5f81efff45f20f7b"]
+        self.assertEqual(advisor_claims["label"], "Advisor Claims")
+        self.assertEqual(advisor_claims["type"], "protocol")
+        self.assertEqual(advisor_claims["source"], "dolomite-docs-module-dolo")
+        self.assertEqual(advisor_claims["confidence"], "confirmed")
+
+        coinex_deposit = self.labels["0xabfa4ad57e283758e9ec3e21147793745091c618"]
+        self.assertEqual(coinex_deposit["label"], "CoinEx Deposit Contract")
+        self.assertEqual(coinex_deposit["type"], "cex")
+        self.assertEqual(coinex_deposit["accountStructure"], "CoinEx deposit proxy")
+        self.assertEqual(coinex_deposit["source"], "etherscan-coinex-deposit-factory")
+        self.assertEqual(coinex_deposit["confidence"], "confirmed")
+
     def test_unverified_contracts_do_not_receive_canonical_identity_labels(self):
         unverified = {
-            "0xbd225c09e4b032e41d5e8aea5f81efff45f20f7b",
             "0x27ad186bb115a2b41fb64553efd4ba5a74b83b08",
-            "0xabfa4ad57e283758e9ec3e21147793745091c618",
             "0x965dc72531bc322cab5537d432bb14451cabb30d",
             "0x4ff1d40fb7b56665bf95d8d8e3a5320de46709a1",
             "0xd4c318cc6977c4808caa91e07fad12d80c9c9e97",
