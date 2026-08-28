@@ -10,7 +10,7 @@ const typesEnd = preview.indexOf("const TYPE_TIPS =", typesStart);
 assert.notEqual(typesStart, -1);
 assert.notEqual(typesEnd, -1);
 const typeModel = new Function(
-  `${preview.slice(typesStart, typesEnd)}\nreturn { TYPE_LABELS, ADDRESS_TYPES };`,
+  `${preview.slice(typesStart, typesEnd)}\nreturn { TYPE_LABELS, TYPE_FILTER_LABELS, TYPE_FILTER_ALIAS, typeFilterKey, ADDRESS_TYPES };`,
 )();
 
 const mapTypeStart = preview.indexOf("function mapType(info, holder)");
@@ -56,6 +56,16 @@ test("named user contract wallets use the Smart Wallet category instead of CA", 
   assert.equal(mapType({ type: "contract_wallet" }, { is_contract: true }), "multisig");
 });
 
+test("one User wallets filter includes EOA and smart wallets without changing row labels", () => {
+  assert.equal(typeModel.TYPE_LABELS.eoa, "EOA");
+  assert.equal(typeModel.TYPE_LABELS.multisig, "Smart Wallet");
+  assert.equal(typeModel.TYPE_FILTER_LABELS.eoa, "User wallets");
+  assert.equal(typeModel.TYPE_FILTER_ALIAS.multisig, "eoa");
+  assert.equal(typeModel.typeFilterKey("multisig"), "eoa");
+  assert.equal(typeModel.ADDRESS_TYPES.includes("multisig"), false);
+  assert.equal(typeModel.ADDRESS_TYPES.length, 7);
+});
+
 test("legacy trader labels remain visible through the Trading bots filter", () => {
   assert.equal(mapType({ type: "trader" }, {}), "bot");
   assert.equal(holderDistributionType("0xabc", { type: "trader" }), "bot");
@@ -83,6 +93,9 @@ test("holder and flow type filters expose an explicit All types option", () => {
     const filter = preview.slice(filterStart, filterEnd);
     assert.match(filter, /data-type="all"/);
     assert.match(filter, />All types</);
+    assert.match(filter, /data-type="eoa"[\s\S]*?>User wallets</);
+    assert.doesNotMatch(filter, /data-type="multisig"/);
+    assert.equal((filter.match(/class="rw-type-icon"/g) || []).length, 8);
   }
 });
 
