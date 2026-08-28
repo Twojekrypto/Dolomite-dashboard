@@ -113,6 +113,29 @@ test("holder and flow type filters expose an explicit All types option", () => {
   }
 });
 
+test("type dropdown highlights only the aggregate All types row when every type is selected", () => {
+  const helperStart = preview.indexOf("function addressTypeOptionIsActive(");
+  const helperEnd = preview.indexOf("// Address Type filter", helperStart);
+  assert.notEqual(helperStart, -1);
+  assert.notEqual(helperEnd, -1);
+  const addressTypeOptionIsActive = new Function(
+    "ADDRESS_TYPES",
+    `${preview.slice(helperStart, helperEnd)}\nreturn addressTypeOptionIsActive;`,
+  )(typeModel.ADDRESS_TYPES);
+
+  const allTypes = new Set(typeModel.ADDRESS_TYPES);
+  assert.equal(addressTypeOptionIsActive(allTypes, "all"), true);
+  for (const type of typeModel.ADDRESS_TYPES) {
+    assert.equal(addressTypeOptionIsActive(allTypes, type), false);
+  }
+
+  const filteredTypes = new Set(["investor", "protocol"]);
+  assert.equal(addressTypeOptionIsActive(filteredTypes, "all"), false);
+  assert.equal(addressTypeOptionIsActive(filteredTypes, "investor"), true);
+  assert.equal(addressTypeOptionIsActive(filteredTypes, "protocol"), true);
+  assert.equal(addressTypeOptionIsActive(filteredTypes, "eoa"), false);
+});
+
 test("type filters switch from All to one type, then allow a multi-selection", () => {
   const helperStart = preview.indexOf("function nextAddressTypeSelection(");
   const helperEnd = preview.indexOf("// Address Type filter", helperStart);
