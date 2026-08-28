@@ -4307,7 +4307,7 @@
                 protocol: 'Protocol Contract — smart contract owned and operated by the protocol',
                 contract: 'Smart contract — not a personal wallet',
                 dead: 'Burn address — tokens are permanently removed from circulation',
-                watch: 'Potential CEX / market maker — detected by custody-like behavior, not verified',
+                watch: 'Watchlist — behavioral flow pattern; ownership is not verified',
                 bot: 'Bot / Market Maker — automated trading wallet with high-frequency activity',
                 investor: 'Known Investor — early investor or fund allocation',
                 liquidator: 'Liquidator Bot — automated system that closes unhealthy positions to protect the protocol',

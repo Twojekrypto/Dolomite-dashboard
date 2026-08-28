@@ -661,11 +661,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dd-panel-types .rw-item{
   position:relative;
   display:flex;align-items:center;gap:10px;
-  padding:9px 10px;border-radius:6px;cursor:pointer;
-  transition:background .15s var(--ease);
+  min-height:38px;padding:9px 10px;border-radius:6px;cursor:pointer;
+  transition:background .15s var(--ease),color .15s var(--ease);
 }
 .dd-panel-types .rw-item + .rw-item{border-top:1px solid var(--line-1)}
 .dd-panel-types .rw-item:hover{background:var(--bg-3)}
+.dd-panel-types .rw-item.active{background:rgba(201,162,39,.04)}
+.dd-panel-types .rw-item.select-all{margin-bottom:4px;border:1px solid var(--line-2);background:linear-gradient(180deg,var(--bg-3),var(--bg-2))}
+.dd-panel-types .rw-item.select-all .rw-name{font-weight:600;color:var(--fg-1)}
 .dd-panel-types .rw-check{
   width:15px;height:15px;border-radius:4px;flex-shrink:0;
   background:var(--bg-4);border:1.5px solid var(--line-3);
@@ -675,9 +678,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dd-panel-types .rw-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
 .dd-panel-types .rw-item.active .rw-check{background:var(--gold);border-color:var(--gold)}
 .dd-panel-types .rw-item.active .rw-check svg{opacity:1}
-.dd-panel-types .rw-type-icon{width:18px;height:18px;display:grid;place-items:center;flex-shrink:0;color:var(--fg-3);transition:color .15s var(--ease)}
-.dd-panel-types .rw-type-icon svg{width:17px;height:17px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.dd-panel-types .rw-item.active .rw-type-icon{color:var(--fg-2)}
+.dd-panel-types .rw-type-icon{width:18px;height:18px;border-radius:50%;background:var(--bg-4);border:1px solid var(--line-2);display:grid;place-items:center;flex-shrink:0;color:var(--fg-3);transition:color .15s var(--ease),border-color .15s var(--ease)}
+.dd-panel-types .rw-type-icon svg{width:12px;height:12px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dd-panel-types .rw-item.active .rw-type-icon{color:var(--fg-2);border-color:var(--gold-line)}
+.dd-panel-types .rw-item.select-all .rw-type-icon svg{width:14px;height:14px}
 .dd-panel-types .rw-item:hover .rw-type-icon{color:var(--gold)}
 .dd-panel-types .rw-name{font-size:13px;font-weight:500;color:var(--fg-2);flex:1;min-width:0}
 .dd-panel-types .rw-item.active .rw-name{color:var(--fg-1)}
@@ -1318,7 +1322,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
           <div class="dd-panel dd-panel-types">
             <div class="dd-panel-head">Show by address type</div>
             <div class="rw-list">
-              <div class="rw-item active" data-type="all">
+              <div class="rw-item active select-all" data-type="all">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">All types</div>
@@ -1351,7 +1355,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
               <div class="rw-item active" data-type="watch">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-type-icon" aria-hidden="true"></span>
-                <div class="rw-name">Potential custody/MM</div>
+                <div class="rw-name">Watchlist</div>
               </div>
               <div class="rw-item active" data-type="bot">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1451,7 +1455,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
           <div class="dd-panel dd-panel-types">
             <div class="dd-panel-head">Show by address type</div>
             <div class="rw-list">
-              <div class="rw-item active" data-type="all">
+              <div class="rw-item active select-all" data-type="all">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">All types</div>
@@ -1484,7 +1488,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
               <div class="rw-item active" data-type="watch">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
                 <span class="rw-type-icon" aria-hidden="true"></span>
-                <div class="rw-name">Potential custody/MM</div>
+                <div class="rw-name">Watchlist</div>
               </div>
               <div class="rw-item active" data-type="bot">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
@@ -1971,10 +1975,10 @@ const HOLDERS = [];
 // total = balEth + balBera; share = total / TOTAL_SUPPLY
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
-const TYPE_LABELS = {eoa:"EOA", multisig:"Smart Wallet", ca:"CA", protocol:"Protocol", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
-const TYPE_FILTER_LABELS = {eoa:"User wallets"};
+const TYPE_LABELS = {eoa:"EOA", multisig:"Smart Wallet", ca:"CA", protocol:"Protocol", cex:"CEX", investor:"Investor", watch:"Watchlist", bot:"Bot", mm:"MM"};
+const TYPE_FILTER_LABELS = {eoa:"User wallets", watch:"Watchlist"};
 // User-controlled smart wallets stay technically distinct in row tags but
-// share one user-facing filter with EOAs. MM remains grouped with Potential.
+// share one user-facing filter with EOAs. MM remains grouped with Watchlist.
 const TYPE_FILTER_ALIAS = {multisig:"eoa", mm:"watch"};
 const typeFilterKey = (t)=> TYPE_FILTER_ALIAS[t] || t;
 const ADDRESS_TYPES = Object.keys(TYPE_LABELS).filter(t=>!(t in TYPE_FILTER_ALIAS));
@@ -2001,7 +2005,7 @@ const TYPE_TIPS = {
   protocol: "Verified Dolomite protocol, treasury, rewards, or distribution address",
   cex: "Verified centralized exchange custody address",
   investor: "CoinGecko tokenomics investor allocation address",
-  watch: "Potential custody / market maker - detected by custody-like behavior, not verified",
+  watch: "Wallets flagged by behavioral flow patterns. Ownership is not verified.",
   bot: "Automated trading / MEV bot",
   mm:  "Market maker — liquidity provider",
 };
@@ -2013,7 +2017,7 @@ const TYPE_GENERIC = {
   ca:  "Smart Contract / CA",
   cex: "Exchange",
   investor: "Investor",
-  watch: "Potential custody/MM",
+  watch: "Watchlist wallet",
   bot: "Trading bot",
   mm:  "Market maker",
 };
@@ -6007,7 +6011,7 @@ renderCexSupplyChart();
       });
     });
     candidates.forEach(key => {
-      AUTO_CEX_LABELS[key] = {label:"Potential custody/MM", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};
+      AUTO_CEX_LABELS[key] = {label:"Watchlist wallet", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};
     });
     return candidates.size;
   }

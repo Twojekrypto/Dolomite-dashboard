@@ -66,6 +66,11 @@ test("one User wallets filter includes EOA and smart wallets without changing ro
   assert.equal(typeModel.ADDRESS_TYPES.length, 7);
 });
 
+test("uncertain behavioral matches use the neutral Watchlist filter label", () => {
+  assert.equal(typeModel.TYPE_LABELS.watch, "Watchlist");
+  assert.equal(typeModel.TYPE_FILTER_LABELS.watch, "Watchlist");
+});
+
 test("legacy trader labels remain visible through the Trading bots filter", () => {
   assert.equal(mapType({ type: "trader" }, {}), "bot");
   assert.equal(holderDistributionType("0xabc", { type: "trader" }), "bot");

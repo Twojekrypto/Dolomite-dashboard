@@ -123,12 +123,13 @@
     "0x224f590a8b58f83bd2673348d6ac75a7b27f9b54": {label:"mike-tyson.eth", type:"eoa", source:"ens-reverse"},
     "0x87db27ac8459ab6602f7a6155b48f6b184065da0": {label:"atheon.eth", type:"eoa", source:"ens-reverse"},
 
-    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"Potential CEX/MM", type:"watch"},
-    "0xfc89c020774524c9d03bd5de48fec149b10bdec3": {label:"Potential CEX/MM", type:"watch"},
+    "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": {label:"Watchlist wallet", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"},
+    "0xfc89c020774524c9d03bd5de48fec149b10bdec3": {label:"Watchlist wallet", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"},
     "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"MEXC Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
     "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX Distributor", type:"cex", source:"flow-audit", confidence:"confirmed"},
-    "0x93ae9fe008636d2d6d7376198a54edb20367968f": {label:"Potential CEX/MM", type:"watch"},
-    "0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d": {label:"Potential Berachain Strategy/MM", type:"watch"},
+    "0x93ae9fe008636d2d6d7376198a54edb20367968f": {label:"Watchlist wallet", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"},
+    "0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d": {label:"Watchlist wallet", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"},
+    "0x8cb5e212e6a3b70229ac1edb56fe5e6db199dde4": {label:"coffinlol", type:"watch", source:"debank-profile-id", confidence:"potential"},
     "0xc882b111a75c0c657fc507c04fbfcd2cc984f071": {label:"Gate.io Routing Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
 
     "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109": {label:"Bot / MM", type:"bot"},
