@@ -79,7 +79,7 @@ test("reviewed market wallets bypass custody labels while unrelated qualifiers r
 
   assert.equal(learned, 1);
   assert.deepEqual(autoLabels, {
-    [unrelated]: {label: "Potential custody/MM", type: "watch", source: "heuristic-flow-pattern", confidence: "potential"},
+    [unrelated]: {label: "Watchlist wallet", type: "watch", source: "heuristic-flow-pattern", confidence: "potential"},
   });
   reviewed.forEach(address => assert.equal(autoLabels[address], undefined));
 });

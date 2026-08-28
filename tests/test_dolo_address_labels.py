@@ -317,7 +317,8 @@ console.log(JSON.stringify({known, unknown}));
             with self.subTest(label=info["label"]):
                 self.assertEqual(info["type"], "watch")
                 self.assertEqual(info["confidence"], "potential")
-                self.assertEqual(info["source"], "heuristic-flow-pattern")
+                expected_source = "debank-profile-id" if info["label"] == "coffinlol" else "heuristic-flow-pattern"
+                self.assertEqual(info["source"], expected_source)
         for info in self.labels.values():
             if info["type"] == "cex":
                 self.assertNotIn("Potential", info["label"])
@@ -431,11 +432,18 @@ console.log(JSON.stringify({known, unknown}));
                             rows.append((point_key, view, group, row.get("label"), row.get("type")))
         self.assertEqual(rows, [])
 
-    def test_active_berachain_strategy_label_is_potential(self):
+    def test_watchlist_labels_do_not_claim_unverified_custody_or_mm_ownership(self):
         info = self.labels["0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d"]
-        self.assertEqual(info["label"], "Potential Berachain Strategy/MM")
+        self.assertEqual(info["label"], "Watchlist wallet")
         self.assertEqual(info["type"], "watch")
         self.assertEqual(info["source"], "heuristic-flow-pattern")
+        self.assertEqual(info["confidence"], "potential")
+
+    def test_public_debank_id_does_not_overstate_watchlist_ownership(self):
+        info = self.labels["0x8cb5e212e6a3b70229ac1edb56fe5e6db199dde4"]
+        self.assertEqual(info["label"], "coffinlol")
+        self.assertEqual(info["type"], "watch")
+        self.assertEqual(info["source"], "debank-profile-id")
         self.assertEqual(info["confidence"], "potential")
 
     def test_chainlink_rewards_claim_contract_is_protocol_reward(self):
