@@ -76,17 +76,26 @@ test("legacy trader labels remain visible through the Trading bots filter", () =
   assert.equal(holderDistributionType("0xabc", { type: "trader" }), "bot");
 });
 
-test("DOLO Flows type filter lists Investors immediately before Protocol", () => {
-  const filterStart = preview.indexOf('<div class="dd" id="dd-flows-types">');
-  const filterEnd = preview.indexOf('      <div class="tb-right">', filterStart);
-  assert.notEqual(filterStart, -1);
-  assert.notEqual(filterEnd, -1);
+test("holder and flow type filters lead with All types, Users, Investors, and Protocol", () => {
+  for (const id of ["dd-types", "dd-flows-types"]) {
+    const filterStart = preview.indexOf(`<div class="dd" id="${id}">`);
+    const filterEnd = preview.indexOf('</div>\n        </div>', filterStart);
+    assert.notEqual(filterStart, -1);
+    assert.notEqual(filterEnd, -1);
 
-  const flowTypeFilter = preview.slice(filterStart, filterEnd);
-  assert.ok(
-    flowTypeFilter.indexOf('data-type="investor"') <
-      flowTypeFilter.indexOf('data-type="protocol"'),
-  );
+    const filter = preview.slice(filterStart, filterEnd);
+    const orderedTypes = [...filter.matchAll(/data-type="([^"]+)"/g)].map((match) => match[1]);
+    assert.deepEqual(orderedTypes, [
+      "all",
+      "eoa",
+      "investor",
+      "protocol",
+      "ca",
+      "cex",
+      "watch",
+      "bot",
+    ]);
+  }
 });
 
 test("holder and flow type filters expose an explicit All types option", () => {
