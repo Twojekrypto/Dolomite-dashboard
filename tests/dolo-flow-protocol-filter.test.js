@@ -74,6 +74,42 @@ test("DOLO Flows type filter lists Investors immediately before Protocol", () =>
   );
 });
 
+test("holder and flow type filters expose an explicit All types option", () => {
+  for (const id of ["dd-types", "dd-flows-types"]) {
+    const filterStart = preview.indexOf(`<div class="dd" id="${id}">`);
+    const filterEnd = preview.indexOf('</div>\n        </div>', filterStart);
+    assert.notEqual(filterStart, -1);
+    assert.notEqual(filterEnd, -1);
+    const filter = preview.slice(filterStart, filterEnd);
+    assert.match(filter, /data-type="all"/);
+    assert.match(filter, />All types</);
+  }
+});
+
+test("type filters switch from All to one type, then allow a multi-selection", () => {
+  const helperStart = preview.indexOf("function nextAddressTypeSelection(");
+  const helperEnd = preview.indexOf("// Address Type filter", helperStart);
+  assert.notEqual(helperStart, -1);
+  assert.notEqual(helperEnd, -1);
+  const nextAddressTypeSelection = new Function(
+    "ADDRESS_TYPES",
+    `${preview.slice(helperStart, helperEnd)}\nreturn nextAddressTypeSelection;`,
+  )(typeModel.ADDRESS_TYPES);
+
+  let selected = new Set(typeModel.ADDRESS_TYPES);
+  selected = nextAddressTypeSelection(selected, "ca");
+  assert.deepEqual([...selected], ["ca"]);
+
+  selected = nextAddressTypeSelection(selected, "cex");
+  assert.deepEqual([...selected], ["ca", "cex"]);
+
+  selected = nextAddressTypeSelection(selected, "ca");
+  assert.deepEqual([...selected], ["cex"]);
+
+  selected = nextAddressTypeSelection(selected, "all");
+  assert.deepEqual([...selected], typeModel.ADDRESS_TYPES);
+});
+
 test("combined DOLO Flows consumes the generator's pre-ranked all-chain rows", () => {
   const start = preview.indexOf("  function flowRowsForPeriod(){");
   const end = preview.indexOf("  renderFlows = function(){", start);
