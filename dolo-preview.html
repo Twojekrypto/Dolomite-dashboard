@@ -675,17 +675,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .dd-panel-types .rw-check svg{width:9px;height:9px;color:var(--bg-0);opacity:0;transition:opacity .15s var(--ease)}
 .dd-panel-types .rw-item.active .rw-check{background:var(--gold);border-color:var(--gold)}
 .dd-panel-types .rw-item.active .rw-check svg{opacity:1}
-.dd-panel-types .rw-dot-src{width:7px;height:7px;border-radius:2px;flex-shrink:0}
-.dd-panel-types .rw-dot-src.all{background:linear-gradient(135deg,var(--gold),#7fa6b7)}
-.dd-panel-types .rw-dot-src.eoa{background:var(--fg-2)}
-.dd-panel-types .rw-dot-src.multisig{background:#9ab7c2}
-.dd-panel-types .rw-dot-src.ca{background:var(--gold)}
-.dd-panel-types .rw-dot-src.protocol{background:#7fa6b7}
-.dd-panel-types .rw-dot-src.cex{background:var(--down)}
-.dd-panel-types .rw-dot-src.investor{background:#6fc49b}
-.dd-panel-types .rw-dot-src.watch{background:#c69a5b}
-.dd-panel-types .rw-dot-src.mm{background:#9ab7c2}
-.dd-panel-types .rw-dot-src.bot{background:#b4a87a}
+.dd-panel-types .rw-type-icon{width:18px;height:18px;display:grid;place-items:center;flex-shrink:0;color:var(--fg-3);transition:color .15s var(--ease)}
+.dd-panel-types .rw-type-icon svg{width:17px;height:17px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.dd-panel-types .rw-item.active .rw-type-icon{color:var(--fg-2)}
+.dd-panel-types .rw-item:hover .rw-type-icon{color:var(--gold)}
 .dd-panel-types .rw-name{font-size:13px;font-weight:500;color:var(--fg-2);flex:1;min-width:0}
 .dd-panel-types .rw-item.active .rw-name{color:var(--fg-1)}
 
@@ -1316,7 +1309,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
           <button class="dd-btn" data-dd="types">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
-            <span class="count">8/8</span>
+            <span class="count">7/7</span>
             <span class="dd-clear" data-clear="types" role="button" aria-label="Clear type filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -1327,47 +1320,42 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
             <div class="rw-list">
               <div class="rw-item active" data-type="all">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src all"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">All types</div>
               </div>
               <div class="rw-item active" data-type="eoa">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src eoa"></span>
-                <div class="rw-name">Personal wallets</div>
-              </div>
-              <div class="rw-item active" data-type="multisig">
-                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src multisig"></span>
-                <div class="rw-name">Smart wallets / multisig</div>
+                <span class="rw-type-icon" aria-hidden="true"></span>
+                <div class="rw-name">User wallets</div>
               </div>
               <div class="rw-item active" data-type="ca">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src ca"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Smart contracts / CA</div>
               </div>
               <div class="rw-item active" data-type="protocol">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src protocol"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Protocol</div>
               </div>
               <div class="rw-item active" data-type="cex">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src cex"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Exchanges</div>
               </div>
               <div class="rw-item active" data-type="investor">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src investor"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Investors</div>
               </div>
               <div class="rw-item active" data-type="watch">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src watch"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Potential custody/MM</div>
               </div>
               <div class="rw-item active" data-type="bot">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src bot"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Trading bots</div>
               </div>
             </div>
@@ -1454,7 +1442,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
           <button class="dd-btn" data-dd="flows-types">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <span class="lbl">All Types</span>
-            <span class="count">8/8</span>
+            <span class="count">7/7</span>
             <span class="dd-clear" data-clear="flows-types" role="button" aria-label="Clear flow type filter">
               <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="9.5" y2="9.5"/><line x1="9.5" y1="2.5" x2="2.5" y2="9.5"/></svg>
             </span>
@@ -1465,47 +1453,42 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
             <div class="rw-list">
               <div class="rw-item active" data-type="all">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src all"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">All types</div>
               </div>
               <div class="rw-item active" data-type="eoa">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src eoa"></span>
-                <div class="rw-name">Personal wallets</div>
-              </div>
-              <div class="rw-item active" data-type="multisig">
-                <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src multisig"></span>
-                <div class="rw-name">Smart wallets / multisig</div>
+                <span class="rw-type-icon" aria-hidden="true"></span>
+                <div class="rw-name">User wallets</div>
               </div>
               <div class="rw-item active" data-type="ca">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src ca"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Smart contracts / CA</div>
               </div>
               <div class="rw-item active" data-type="investor">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src investor"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Investors</div>
               </div>
               <div class="rw-item active" data-type="protocol">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src protocol"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Protocol</div>
               </div>
               <div class="rw-item active" data-type="cex">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src cex"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Exchanges</div>
               </div>
               <div class="rw-item active" data-type="watch">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src watch"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Potential custody/MM</div>
               </div>
               <div class="rw-item active" data-type="bot">
                 <div class="rw-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></div>
-                <span class="rw-dot-src bot"></span>
+                <span class="rw-type-icon" aria-hidden="true"></span>
                 <div class="rw-name">Trading bots</div>
               </div>
             </div>
@@ -1989,11 +1972,28 @@ const HOLDERS = [];
 HOLDERS.forEach(h => h.total = h.balEth + h.balBera);
 
 const TYPE_LABELS = {eoa:"EOA", multisig:"Smart Wallet", ca:"CA", protocol:"Protocol", cex:"CEX", investor:"Investor", watch:"Potential", bot:"Bot", mm:"MM"};
-// MM wallets are filtered together with "Potential custody/MM" (watch) —
-// one dropdown entry controls both; row tags still show the precise type.
-const TYPE_FILTER_ALIAS = {mm: "watch"};
+const TYPE_FILTER_LABELS = {eoa:"User wallets"};
+// User-controlled smart wallets stay technically distinct in row tags but
+// share one user-facing filter with EOAs. MM remains grouped with Potential.
+const TYPE_FILTER_ALIAS = {multisig:"eoa", mm:"watch"};
 const typeFilterKey = (t)=> TYPE_FILTER_ALIAS[t] || t;
 const ADDRESS_TYPES = Object.keys(TYPE_LABELS).filter(t=>!(t in TYPE_FILTER_ALIAS));
+const TYPE_FILTER_ICONS = {
+  all:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/></svg>',
+  eoa:'<svg viewBox="0 0 24 24"><path d="M5 7.5h14a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h12"/><path d="M16 12h5v4h-5a2 2 0 0 1 0-4Z"/></svg>',
+  ca:'<svg viewBox="0 0 24 24"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="m14 5-4 14"/></svg>',
+  protocol:'<svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.3 8.4-8 10-4.7-1.6-8-5-8-10V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>',
+  cex:'<svg viewBox="0 0 24 24"><path d="m3 9 9-5 9 5"/><path d="M5 10v7M9.5 10v7M14.5 10v7M19 10v7"/><path d="M3 20h18M4 17h16"/></svg>',
+  investor:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.5-4 2.4-6 5.5-6s5 2 5.5 6"/><path d="M16 6.5a3 3 0 0 1 0 5.8M16.5 14c2.4.5 3.7 2.2 4 5"/></svg>',
+  watch:'<svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>',
+  bot:'<svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 7V3M9 3h6M8 12h.01M16 12h.01M9 16h6"/></svg>',
+};
+function hydrateTypeFilterIcons(){
+  document.querySelectorAll('.dd-panel-types .rw-item').forEach(item=>{
+    const icon = item.querySelector('.rw-type-icon');
+    if(icon) icon.innerHTML = TYPE_FILTER_ICONS[item.dataset.type] || TYPE_FILTER_ICONS.all;
+  });
+}
 const TYPE_TIPS = {
   eoa: "Externally Owned Account — regular wallet",
   multisig: "User-controlled smart-contract wallet, including Safe and multisig wallets",
@@ -5618,6 +5618,7 @@ function nextAddressTypeSelection(selected, type){
 }
 
 // Address Type filter — multi-select with hover tooltips
+hydrateTypeFilterIcons();
 function syncTypesBtn(){
   const btn = document.querySelector('#dd-types .dd-btn');
   const total = ADDRESS_TYPES.length;
@@ -5631,7 +5632,8 @@ function syncTypesBtn(){
   } else if(state.types.size === 0){
     lbl.textContent = "No Types";
   } else if(state.types.size === 1){
-    lbl.textContent = TYPE_LABELS[[...state.types][0]];
+    const type = [...state.types][0];
+    lbl.textContent = TYPE_FILTER_LABELS[type] || TYPE_LABELS[type];
   } else {
     lbl.textContent = `${state.types.size} types`;
   }
@@ -5718,7 +5720,10 @@ function syncFlowsTypesBtn(){
   cnt.textContent = `${state.flowsTypes.size}/${total}`;
   if(state.flowsTypes.size === total){lbl.textContent="All Types"}
   else if(state.flowsTypes.size === 0){lbl.textContent="No Types"}
-  else if(state.flowsTypes.size === 1){lbl.textContent=TYPE_LABELS[[...state.flowsTypes][0]]}
+  else if(state.flowsTypes.size === 1){
+    const type = [...state.flowsTypes][0];
+    lbl.textContent=TYPE_FILTER_LABELS[type] || TYPE_LABELS[type];
+  }
   else {lbl.textContent=`${state.flowsTypes.size} types`}
   document.querySelectorAll('#dd-flows-types .rw-item').forEach(item=>{
     const active = item.dataset.type === "all"
