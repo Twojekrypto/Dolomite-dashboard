@@ -1179,7 +1179,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
 }
 </style>
 <script src="count-up.js?v=20260821-smooth-resume-v1"></script>
-<script src="dolo-address-labels.js?v=dolo-labels-20260828-ca-audit"></script>
+<script src="dolo-address-labels.js?v=dolo-labels-20260828-watch-audit"></script>
 <script src="wallet-table-ux.js?v=20260815-flow-name-date"></script>
 </head>
 <body>
@@ -5988,10 +5988,7 @@ renderCexSupplyChart();
     const tx = safeNum(item?.tx_count);
     const balance = safeNum(item?.balance);
     const flow = Math.abs(safeNum(item?.net_flow));
-    const hotWithdrawalWallet = role === "out" && tx >= 250 && flow >= 250_000 && balance <= 150_000;
-    const largeCustodyLike = tx >= 3 && balance >= 2_500_000 && flow >= 250_000;
-    const activeCustodyLike = role === "acc" && tx >= 100 && balance >= 500_000 && flow >= 100_000;
-    return hotWithdrawalWallet || largeCustodyLike || activeCustodyLike;
+    return role === "out" && tx >= 250 && flow >= 250_000 && balance <= 150_000;
   }
   function learnAutoCexLabels(flows, holdersData){
     const candidates = new Set();
@@ -6007,11 +6004,9 @@ renderCexSupplyChart();
       candidates.add(key);
     };
     Object.values(flows?.periods || {}).forEach(period => {
-      ["eth", "bera"].forEach(chain => {
-        const data = period?.[chain] || {};
-        (data.accumulators || []).forEach(item => touch(item, "acc"));
-        (data.sellers || []).forEach(item => touch(item, "out"));
-      });
+      const data = period?.all || {};
+      (data.accumulators || []).forEach(item => touch(item, "acc"));
+      (data.sellers || []).forEach(item => touch(item, "out"));
     });
     candidates.forEach(key => {
       AUTO_CEX_LABELS[key] = {label:"Watchlist wallet", type:"watch", source:"heuristic-flow-pattern", confidence:"potential"};

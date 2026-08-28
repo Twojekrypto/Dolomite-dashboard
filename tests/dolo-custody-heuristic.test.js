@@ -4,7 +4,7 @@ import test from "node:test";
 
 const preview = fs.readFileSync("dolo-preview.html", "utf8");
 
-test("custody inference evaluates one observed chain-period-role row at a time", () => {
+test("watchlist inference only accepts a high-activity low-balance all-chain outflow", () => {
   const start = preview.indexOf("function isPotentialCustodyObservation");
   const end = preview.indexOf("function learnAutoCexLabels", start);
   assert.notEqual(start, -1, "isPotentialCustodyObservation helper is required");
@@ -20,15 +20,50 @@ test("custody inference evaluates one observed chain-period-role row at a time",
   assert.equal(isPotentialCustodyObservation({tx_count: 4, balance: 817036, net_flow: 721189}, "acc"), false);
   assert.equal(isPotentialCustodyObservation({tx_count: 296, balance: 817036, net_flow: 12650000}, "out"), false);
 
-  // Preserve the existing high-confidence active accumulator threshold.
-  assert.equal(isPotentialCustodyObservation({tx_count: 120, balance: 750000, net_flow: 180000}, "acc"), true);
+  // Large balances and accumulation alone are not evidence of custody/MM.
+  assert.equal(isPotentialCustodyObservation({tx_count: 3, balance: 2_605_000, net_flow: 500_000}, "acc"), false);
+  assert.equal(isPotentialCustodyObservation({tx_count: 120, balance: 750000, net_flow: 180000}, "acc"), false);
+  assert.equal(isPotentialCustodyObservation({tx_count: 300, balance: 100000, net_flow: -500000}, "out"), true);
 
   const learner = preview.slice(end, preview.indexOf("function syncPriceMeta", end));
   assert.match(learner, /if\(!isPotentialCustodyObservation\(item, role\)\) return;/);
   assert.doesNotMatch(learner, /const signals = \{\}/);
 });
 
-test("reviewed market wallets bypass custody labels while unrelated qualifiers remain detected", () => {
+test("per-chain bridge legs cannot create a watchlist label after all-chain neutralization", () => {
+  const start = preview.indexOf("function isPotentialCustodyObservation");
+  const end = preview.indexOf("function learnAutoCexLabels", start);
+  const learnerEnd = preview.indexOf("function syncPriceMeta", end);
+  const helperSource = preview.slice(start, end);
+  const learnerSource = preview.slice(end, learnerEnd);
+  const isPotentialCustodyObservation = new Function(
+    "safeNum",
+    `${helperSource}\nreturn isPotentialCustodyObservation;`
+  )(value => Number(value) || 0);
+  const autoLabels = {};
+  const learnAutoCexLabels = new Function(
+    "ADDR_LABELS",
+    "AUTO_CEX_LABELS",
+    "REVIEWED_MARKET_WALLET_OVERRIDES",
+    "lower",
+    "isVerifiedUserSmartWallet",
+    "isPotentialCustodyObservation",
+    `${learnerSource}\nreturn learnAutoCexLabels;`
+  )({}, autoLabels, new Set(), address => String(address || "").toLowerCase(), () => false, isPotentialCustodyObservation);
+  const address = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const qualifyingOutflow = {address, tx_count: 300, balance: 100000, net_flow: -500000};
+  const qualifyingInflow = {address, tx_count: 300, balance: 600000, net_flow: 500000};
+  const flows = {periods: {recent: {
+    eth: {accumulators: [], sellers: [qualifyingOutflow]},
+    bera: {accumulators: [qualifyingInflow], sellers: []},
+    all: {accumulators: [], sellers: []},
+  }}};
+
+  assert.equal(learnAutoCexLabels(flows, {holders: []}), 0);
+  assert.deepEqual(autoLabels, {});
+});
+
+test("reviewed market wallets bypass watchlist labels while unrelated all-chain outflows remain detected", () => {
   const start = preview.indexOf("function isPotentialCustodyObservation");
   const end = preview.indexOf("function learnAutoCexLabels", start);
   const learnerEnd = preview.indexOf("function syncPriceMeta", end);
@@ -62,20 +97,20 @@ test("reviewed market wallets bypass custody labels while unrelated qualifiers r
     "AUTO_CEX_LABELS",
     "REVIEWED_MARKET_WALLET_OVERRIDES",
     "lower",
-    "isDelegatedEoa",
+    "isVerifiedUserSmartWallet",
     "isPotentialCustodyObservation",
     `${learnerSource}\nreturn learnAutoCexLabels;`
   )({}, autoLabels, new Set(actualOverrides), address => String(address || "").toLowerCase(), () => false, isPotentialCustodyObservation);
   const reviewed = [...actualOverrides];
   const unrelated = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-  const observation = {tx_count: 120, balance: 750000, net_flow: 180000};
-  const accumulators = reviewed.map((address, index) => ({
+  const observation = {tx_count: 300, balance: 100000, net_flow: -500000};
+  const sellers = reviewed.map((address, index) => ({
     address: index === 0 ? address.toUpperCase() : address,
     ...observation,
   }));
-  accumulators.push({address: unrelated, ...observation});
+  sellers.push({address: unrelated, ...observation});
 
-  const learned = learnAutoCexLabels({periods: {recent: {eth: {accumulators, sellers: []}, bera: {accumulators: [], sellers: []}}}}, {holders: []});
+  const learned = learnAutoCexLabels({periods: {recent: {all: {accumulators: [], sellers}}}}, {holders: []});
 
   assert.equal(learned, 1);
   assert.deepEqual(autoLabels, {

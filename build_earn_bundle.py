@@ -48,7 +48,7 @@ def render_earn_assets(html_path: Path = SOURCE_HTML, js_path: Path = SOURCE_JS)
     <link rel="dns-prefetch" href="//coins.llama.fi">
     <link rel="dns-prefetch" href="//subgraph.api.dolomite.io">
     <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
-    <script src="dolo-address-labels.js?v=dolo-labels-20260828-ca-audit"></script>
+    <script src="dolo-address-labels.js?v=dolo-labels-20260828-watch-audit"></script>
 </head>
 <body class="earn-draft-route">
     <div class="page-wrapper">
