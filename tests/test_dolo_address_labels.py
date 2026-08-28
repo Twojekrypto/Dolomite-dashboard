@@ -310,15 +310,31 @@ console.log(JSON.stringify({known, unknown}));
         self.assertNotIn('metaEl.textContent = "First on-chain tx + 10K+ exposure"', dolo_html)
         self.assertIn('setCardMeta("flows-meta", flowUpdated)', odolo_html)
 
-    def test_potential_custody_labels_are_not_confirmed_cex(self):
-        potential_rows = [info for info in self.labels.values() if "Potential" in info["label"] or info["type"] == "watch"]
-        self.assertGreaterEqual(len(potential_rows), 1)
-        for info in potential_rows:
-            with self.subTest(label=info["label"]):
-                self.assertEqual(info["type"], "watch")
+    def test_reviewed_watchlist_wallets_are_reclassified_without_claiming_cex_identity(self):
+        expected = {
+            "0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d": ("Dolomite User", "eoa", "behavioral-flow-audit"),
+            "0x399f2700ce8ba81d10fe43c1d077365dc41017d4": ("DOLO Whale", "eoa", "behavioral-flow-audit"),
+            "0x6cb90ab6c7de4028af86f15ae97c4df2b954f84c": ("Active DeFi Trader", "eoa", "behavioral-flow-audit"),
+            "0x8cb5e212e6a3b70229ac1edb56fe5e6db199dde4": ("coffinlol", "eoa", "debank-profile-id"),
+            "0xf5fcd3a63abc766ac5ada296b4a4e860dbf9ebb0": ("Dolomite Whale", "eoa", "behavioral-flow-audit"),
+            "0x478ae1099333e7535de2a3abed00b413e52914cb": ("Automated DEX Trader", "bot", "behavioral-flow-audit"),
+            "0x7a1d00de77c0162d55d84a051bdc6840852b4a60": ("Cross-Exchange Arbitrage", "bot", "behavioral-flow-audit"),
+            "0x7bd27a0103e48e25acdb131cc190314562171fde": ("Cross-Chain DEX Trader", "bot", "behavioral-flow-audit"),
+            "0x93ae9fe008636d2d6d7376198a54edb20367968f": ("Exchange Arbitrage", "bot", "behavioral-flow-audit"),
+            "0xa8736d26162c74be3908d105594ab8c18ed25225": ("DEX / Bridge Trader", "bot", "behavioral-flow-audit"),
+            "0xcae214dcc97572152a667d7c9c06b39d7790efea": ("DEX / Bridge Trader", "bot", "behavioral-flow-audit"),
+            "0xefc662fe5c73e58bddfd97015a21726d6423b088": ("Automated DEX Trader", "bot", "behavioral-flow-audit"),
+            "0xf706d8831047dcb2b2614973390287742337f718": ("DEX Aggregator Trader", "bot", "behavioral-flow-audit"),
+            "0xfc89c020774524c9d03bd5de48fec149b10bdec3": ("Probable Market Maker", "mm", "behavioral-flow-audit"),
+        }
+        for address, (label, label_type, source) in expected.items():
+            with self.subTest(address=address):
+                info = self.labels[address]
+                self.assertEqual(info["label"], label)
+                self.assertEqual(info["type"], label_type)
+                self.assertEqual(info["source"], source)
                 self.assertEqual(info["confidence"], "potential")
-                expected_source = "debank-profile-id" if info["label"] == "coffinlol" else "heuristic-flow-pattern"
-                self.assertEqual(info["source"], expected_source)
+                self.assertNotEqual(info["type"], "cex")
         for info in self.labels.values():
             if info["type"] == "cex":
                 self.assertNotIn("Potential", info["label"])
@@ -432,17 +448,17 @@ console.log(JSON.stringify({known, unknown}));
                             rows.append((point_key, view, group, row.get("label"), row.get("type")))
         self.assertEqual(rows, [])
 
-    def test_watchlist_labels_do_not_claim_unverified_custody_or_mm_ownership(self):
+    def test_reviewed_dolomite_user_is_not_left_on_watchlist(self):
         info = self.labels["0x0fb6bac552b7a29a21b4e595b1ef5c371cda4f9d"]
-        self.assertEqual(info["label"], "Watchlist wallet")
-        self.assertEqual(info["type"], "watch")
-        self.assertEqual(info["source"], "heuristic-flow-pattern")
+        self.assertEqual(info["label"], "Dolomite User")
+        self.assertEqual(info["type"], "eoa")
+        self.assertEqual(info["source"], "behavioral-flow-audit")
         self.assertEqual(info["confidence"], "potential")
 
-    def test_public_debank_id_does_not_overstate_watchlist_ownership(self):
+    def test_public_debank_id_is_a_user_label_not_a_watchlist_classification(self):
         info = self.labels["0x8cb5e212e6a3b70229ac1edb56fe5e6db199dde4"]
         self.assertEqual(info["label"], "coffinlol")
-        self.assertEqual(info["type"], "watch")
+        self.assertEqual(info["type"], "eoa")
         self.assertEqual(info["source"], "debank-profile-id")
         self.assertEqual(info["confidence"], "potential")
 
