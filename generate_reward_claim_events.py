@@ -547,9 +547,10 @@ def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distrib
                         continue
                     time.sleep(0.5)
             if not success:
-                print(f"Warning: skipped {chain_key} claim-log chunk at block {current:,}: {last_error}")
-                current = chunk_end + 1
-                continue
+                raise RuntimeError(
+                    f"{config['name']} claim-log chunk {current:,}-{chunk_end:,} "
+                    f"could not be scanned: {last_error}"
+                )
 
             current = chunk_end + 1
             if chunk_size < configured_chunk_size:
