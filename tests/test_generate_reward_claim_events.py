@@ -159,6 +159,32 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
         )
         self.assertNotIn("ALCHEMY_XLAYER_RPC_ZEN", workflow)
 
+    def test_cross_chain_workflow_uses_sparse_shallow_checkout_and_contract_tests(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "update-reward-claim-events.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("fetch-depth: 1", workflow)
+        self.assertNotIn("fetch-depth: 0", workflow)
+        self.assertIn("sparse-checkout-cone-mode: false", workflow)
+        for required_path in (
+            "requirements.txt",
+            "generate_reward_claim_events.py",
+            "validate_data.py",
+            "vedolo_vote_power.py",
+            "tests/test_generate_reward_claim_events.py",
+            ".github/workflows/update-odolo-flows.yml",
+            "data/reward-claim-events.json",
+            "data/odolo-claim-events.json",
+            "data/reward-claim-events",
+        ):
+            with self.subTest(required_path=required_path):
+                self.assertIn(required_path, workflow)
+        self.assertIn(
+            "python3 -m unittest tests.test_generate_reward_claim_events",
+            workflow,
+        )
+
     def test_sharded_manifest_events_are_reloaded_before_incremental_scan(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

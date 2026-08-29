@@ -4759,7 +4759,65 @@ def _build_uniswap_v4_live_source(
         *(int(event["salt"], 16) for event in modifications if int(event["salt"], 16) > 0),
     }
     if not token_ids and not noncanonical_modifications:
-        raise RuntimeError("Uniswap v4 pool emitted no attributable position events")
+        current_liquidity, = _eth_call_args(
+            chain_key,
+            config["stateView"],
+            "getLiquidity(bytes32)",
+            ["uint128"],
+            input_types=["bytes32"],
+            args=[bytes.fromhex(pool["identifier"][2:])],
+        )
+        current_liquidity = _exact_int(current_liquidity, "V4 current pool liquidity")
+        if current_liquidity > 0:
+            raise RuntimeError("Uniswap v4 pool emitted no attributable position events")
+
+        verification = pool.get("verification")
+        if (
+            not isinstance(verification, dict)
+            or verification.get("method") != "onchain-v4-initialize"
+        ):
+            raise RuntimeError(
+                "empty Uniswap v4 pool requires verified on-chain Initialize metadata"
+            )
+        currency0 = _normalized_address(
+            verification.get("currency0"),
+            "verified V4 currency0",
+        )
+        currency1 = _normalized_address(
+            verification.get("currency1"),
+            "verified V4 currency1",
+        )
+        fee = _exact_int(verification.get("fee"), "verified V4 fee")
+        tick_spacing = _exact_int(
+            verification.get("tickSpacing"),
+            "verified V4 tick spacing",
+        )
+        hooks = _normalized_address(
+            verification.get("hooks", ZERO_ADDRESS),
+            "verified V4 hooks",
+        )
+        if (
+            currency0 == currency1
+            or DOLO_ADDRESS not in {currency0, currency1}
+            or _v4_pool_id((currency0, currency1, fee, tick_spacing, hooks))
+            != pool["identifier"]
+        ):
+            raise RuntimeError("verified Uniswap v4 PoolKey does not match the pool id")
+        return {
+            "sourceStatus": "partial",
+            "activePositions": [],
+            "history": context["history"] if context["incremental"] else [],
+            "unresolved": [
+                {
+                    "reason": (
+                        "StateView confirms zero current liquidity; "
+                        "no attributable positions are expected"
+                    )
+                }
+            ],
+            "token0": currency0,
+            "token1": currency1,
+        }
     latest_positions = {}
     unresolved = []
     owners = set()

@@ -7,7 +7,7 @@ on:
 
 concurrency:
   group: cross-chain-reward-claim-data
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -20,7 +20,18 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: master
-          fetch-depth: 0
+          fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/workflows/update-odolo-flows.yml
+            data/odolo-claim-events.json
+            data/reward-claim-events.json
+            data/reward-claim-events
+            generate_reward_claim_events.py
+            requirements.txt
+            tests/test_generate_reward_claim_events.py
+            validate_data.py
+            vedolo_vote_power.py
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -29,6 +40,9 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Test reward claim contracts
+        run: python3 -m unittest tests.test_generate_reward_claim_events
 
       - name: Restore reward claim sync state
         uses: actions/cache@v5
