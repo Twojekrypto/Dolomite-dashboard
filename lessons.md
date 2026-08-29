@@ -459,6 +459,11 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   seed numeric `positionId` values only from `concentrated_nft` rows. Typed
   vault-share or manager-custody rows use addresses and must be ignored by the
   NFT replay cursor while legacy untyped NFT rows remain supported.
+- **A Uniswap V4 pool does not need a canonical PositionManager NFT.** A pool
+  backed only by exact `ModifyLiquidity` events from a non-canonical manager is
+  still attributable as manager custody or through a verified share vault.
+  Reject the pool only when neither canonical token IDs nor non-canonical
+  position evidence exists; do not weaken the final degraded-refresh guard.
 
 ### veDOLO early-unlock snapshots
 

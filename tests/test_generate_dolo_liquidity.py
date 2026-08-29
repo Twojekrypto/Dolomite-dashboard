@@ -2634,6 +2634,66 @@ class LiveAdapterOrchestrationTests(unittest.TestCase):
             {"canonical-row", "vault-row"},
         )
 
+    def test_uniswap_v4_live_builder_accepts_noncanonical_only_pool(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(
+            row
+            for row in registry["pools"]
+            if row["adapter"] == "uniswap-v4" and row["pair"] == "DOLO/USD1"
+        )
+        usd1 = "0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d"
+        vault = "0x" + "53" * 20
+        noncanonical = {
+            "kind": "modify_liquidity",
+            "poolId": pool["identifier"],
+            "sender": vault,
+            "tickLower": -200,
+            "tickUpper": 200,
+            "liquidityDelta": 2_000,
+            "salt": "0x" + "42" * 32,
+        }
+        vault_row = {"id": "vault-row", "custodian": vault, "beneficialOwner": None}
+
+        with (
+            patch.object(liquidity, "_routescan_logs", return_value=[noncanonical]),
+            patch.object(liquidity, "decode_v4_pool_manager_log", side_effect=lambda row: row),
+            patch.object(liquidity, "_batch_eth_call_args", return_value=({}, {})) as batch_calls,
+            patch.object(
+                liquidity,
+                "_dexscreener_pair",
+                return_value={
+                    "baseToken": {"address": DOLO},
+                    "quoteToken": {"address": usd1},
+                },
+            ),
+            patch.object(liquidity, "_eth_call_args", return_value=(1 << 96, 0, 0, 0)),
+            patch.object(liquidity, "_eth_call", return_value=(18,)),
+            patch.object(liquidity, "_contract_owners", return_value=set()),
+            patch.object(
+                liquidity,
+                "build_v4_rows",
+                return_value={
+                    "sourceStatus": "complete",
+                    "activePositions": [],
+                    "history": [],
+                    "unresolved": [],
+                },
+            ),
+            patch.object(
+                liquidity,
+                "_build_v4_noncanonical_rows",
+                return_value={"activePositions": [vault_row], "unresolved": []},
+            ) as vault_builder,
+        ):
+            result = liquidity._build_uniswap_v4_live_source(
+                registry, pool, 1_000, previous_artifact={}, full_history=True
+            )
+
+        batch_calls.assert_not_called()
+        vault_builder.assert_called_once()
+        self.assertEqual(vault_builder.call_args.args[2], [noncanonical])
+        self.assertEqual(result["activePositions"], [vault_row])
+
     def test_uniswap_v4_incremental_builder_replays_noncanonical_rows_from_discovery(self):
         registry = liquidity.load_registry(REGISTRY)
         pool = next(

@@ -4741,25 +4741,27 @@ def _build_uniswap_v4_live_source(
         *context["tokenIds"],
         *(int(event["salt"], 16) for event in modifications if int(event["salt"], 16) > 0),
     }
-    if not token_ids:
-        raise RuntimeError("Uniswap v4 pool emitted no canonical position events")
+    if not token_ids and not noncanonical_modifications:
+        raise RuntimeError("Uniswap v4 pool emitted no attributable position events")
     latest_positions = {}
     unresolved = []
     owners = set()
-    info_values, info_errors = _batch_eth_call_args(
-        chain_key,
-        [
-            {
-                "id": f"info:{token_id}",
-                "address": position_manager,
-                "signature": "getPoolAndPositionInfo(uint256)",
-                "inputTypes": ["uint256"],
-                "args": [token_id],
-                "outputTypes": ["(address,address,uint24,int24,address)", "uint256"],
-            }
-            for token_id in sorted(token_ids)
-        ],
-    )
+    info_values, info_errors = {}, {}
+    if token_ids:
+        info_values, info_errors = _batch_eth_call_args(
+            chain_key,
+            [
+                {
+                    "id": f"info:{token_id}",
+                    "address": position_manager,
+                    "signature": "getPoolAndPositionInfo(uint256)",
+                    "inputTypes": ["uint256"],
+                    "args": [token_id],
+                    "outputTypes": ["(address,address,uint24,int24,address)", "uint256"],
+                }
+                for token_id in sorted(token_ids)
+            ],
+        )
     candidates = {}
     for token_id in sorted(token_ids):
         call_id = f"info:{token_id}"
@@ -4772,20 +4774,22 @@ def _build_uniswap_v4_live_source(
             candidates[token_id] = (tuple(pool_key), int(packed_info))
         except Exception as exc:
             unresolved.append({"tokenId": token_id, "reason": sanitize_error(exc)})
-    liquidity_values, liquidity_errors = _batch_eth_call_args(
-        chain_key,
-        [
-            {
-                "id": f"liquidity:{token_id}",
-                "address": position_manager,
-                "signature": "getPositionLiquidity(uint256)",
-                "inputTypes": ["uint256"],
-                "args": [token_id],
-                "outputTypes": ["uint128"],
-            }
-            for token_id in sorted(candidates)
-        ],
-    )
+    liquidity_values, liquidity_errors = {}, {}
+    if candidates:
+        liquidity_values, liquidity_errors = _batch_eth_call_args(
+            chain_key,
+            [
+                {
+                    "id": f"liquidity:{token_id}",
+                    "address": position_manager,
+                    "signature": "getPositionLiquidity(uint256)",
+                    "inputTypes": ["uint256"],
+                    "args": [token_id],
+                    "outputTypes": ["uint128"],
+                }
+                for token_id in sorted(candidates)
+            ],
+        )
     active_candidates = {}
     for token_id, definition in candidates.items():
         call_id = f"liquidity:{token_id}"
@@ -4795,20 +4799,22 @@ def _build_uniswap_v4_live_source(
         liquidity_raw = int(liquidity_values[call_id][0])
         if liquidity_raw > 0:
             active_candidates[token_id] = (*definition, liquidity_raw)
-    owner_values, owner_errors = _batch_eth_call_args(
-        chain_key,
-        [
-            {
-                "id": f"owner:{token_id}",
-                "address": position_manager,
-                "signature": "ownerOf(uint256)",
-                "inputTypes": ["uint256"],
-                "args": [token_id],
-                "outputTypes": ["address"],
-            }
-            for token_id in sorted(active_candidates)
-        ],
-    )
+    owner_values, owner_errors = {}, {}
+    if active_candidates:
+        owner_values, owner_errors = _batch_eth_call_args(
+            chain_key,
+            [
+                {
+                    "id": f"owner:{token_id}",
+                    "address": position_manager,
+                    "signature": "ownerOf(uint256)",
+                    "inputTypes": ["uint256"],
+                    "args": [token_id],
+                    "outputTypes": ["address"],
+                }
+                for token_id in sorted(active_candidates)
+            ],
+        )
     for token_id, (pool_key, packed_info, liquidity_raw) in active_candidates.items():
         call_id = f"owner:{token_id}"
         if call_id not in owner_values:
