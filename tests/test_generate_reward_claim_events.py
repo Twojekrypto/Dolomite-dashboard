@@ -186,6 +186,34 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
             workflow,
         )
 
+    def test_reward_claim_log_scan_fails_closed_on_an_unserved_chunk(self):
+        config = {
+            "name": "X Layer",
+            "rpcUrls": ["https://xlayer.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 250_000,
+        }
+
+        with (
+            patch.object(
+                rce,
+                "rpc_request",
+                side_effect=RuntimeError("block range greater than 100 max"),
+            ),
+            patch.object(rce.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "X Layer claim-log chunk.*could not be scanned",
+            ):
+                rce.fetch_reward_claimed_logs(
+                    "xlayer",
+                    config,
+                    850_676,
+                    851_675,
+                    ["0x" + "2" * 40],
+                )
+
     def test_sharded_manifest_events_are_reloaded_before_incremental_scan(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
