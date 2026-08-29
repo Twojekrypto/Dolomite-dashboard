@@ -4856,6 +4856,12 @@ def _build_uniswap_v4_live_source(
         sample = next(iter(latest_positions.values()))
         currency0 = sample["currency0"]
         currency1 = sample["currency1"]
+    elif candidates:
+        # A closed NFT still proves the exact PoolKey even when its current
+        # liquidity is zero and the inactive pool is absent from Dexscreener.
+        pool_key = next(iter(candidates.values()))[0]
+        currency0 = str(pool_key[0]).lower()
+        currency1 = str(pool_key[1]).lower()
     else:
         pair = _dexscreener_pair(pool)
         addresses = {

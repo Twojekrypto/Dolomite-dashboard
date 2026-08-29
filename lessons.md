@@ -469,6 +469,10 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   start that pool from the configured discovery boundary. Reuse the cursor only
   when the previous artifact contains that exact pool or its position/history
   evidence.
+- **A closed V4 NFT still proves its PoolKey.** When current liquidity is zero,
+  derive pool currencies from the reconciled `getPoolAndPositionInfo` result.
+  Do not require Dexscreener to index an inactive pool merely to finish an
+  exact on-chain refresh.
 
 ### veDOLO early-unlock snapshots
 
