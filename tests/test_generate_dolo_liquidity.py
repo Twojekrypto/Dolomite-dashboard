@@ -921,6 +921,34 @@ class LiveSourceRecoveryTests(unittest.TestCase):
 
         self.assertEqual(context["tokenIds"], {374940})
 
+    def test_new_pool_does_not_inherit_an_existing_source_cursor(self):
+        tracked_pool = "0x" + "12" * 32
+        new_pool = "0x" + "34" * 32
+        previous = {
+            "sources": [{
+                "key": "ethereum:uniswap-v4",
+                "lastScannedBlock": 2_000,
+            }],
+            "pools": [{
+                "id": tracked_pool,
+                "sourceKey": "ethereum:uniswap-v4",
+            }],
+            "activePositions": [],
+            "history": [],
+        }
+
+        context = liquidity.incremental_pool_context(
+            previous,
+            "ethereum:uniswap-v4",
+            new_pool,
+            100,
+        )
+
+        self.assertFalse(context["incremental"])
+        self.assertEqual(context["scanStart"], 100)
+        self.assertEqual(context["tokenIds"], set())
+        self.assertEqual(context["history"], [])
+
     def test_registered_source_passes_incremental_state_to_default_shape_builder(self):
         captured = {}
 
