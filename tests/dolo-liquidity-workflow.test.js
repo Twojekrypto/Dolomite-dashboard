@@ -12,6 +12,7 @@ test('six-hour DOLO liquidity workflow is fail-closed and publishes only validat
   assert.match(yaml, /^name: Update DOLO Liquidity$/m);
   assert.match(yaml, /cron: ['"]17 \*\/6 \* \* \*['"]/);
   assert.match(yaml, /workflow_dispatch:/);
+  assert.match(yaml, /permissions:[\s\S]*?contents: write[\s\S]*?actions: write/);
   assert.match(yaml, /full_history:/);
   assert.match(yaml, /type: boolean/);
   assert.match(yaml, /cancel-in-progress: true/);
@@ -35,6 +36,9 @@ test('six-hour DOLO liquidity workflow is fail-closed and publishes only validat
   assert.match(yaml, /git add data\/dolo-liquidity\.json data\/dolo-liquidity-pools\.json/);
   assert.match(yaml, /for i in 1 2 3/);
   assert.match(yaml, /if \[ "\$pushed" != "true" \]/);
+  assert.match(yaml, /name: Refresh DOLO flow LP attribution/);
+  assert.match(yaml, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(yaml, /gh workflow run update-dolo-flows\.yml --ref master -f skip_holders=true/);
   assert.doesNotMatch(yaml, /if: always\(\)[\s\S]*?git add/);
 });
 

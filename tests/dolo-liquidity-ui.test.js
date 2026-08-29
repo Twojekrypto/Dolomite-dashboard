@@ -114,11 +114,12 @@ test('All pairs and All DEXes are exclusive resets', () => {
   assert.match(html, /selected:doloLpState\.dexes/);
 });
 
-test('position dust stays independently controllable below ten dollars', () => {
+test('verified small positions stay visible by default and dust remains controllable', () => {
   assert.match(html, /const POSITION_DUST_USD\s*=\s*10/);
-  assert.match(html, /hideDust:\s*true/);
+  assert.match(html, /hideDust:\s*false/);
   assert.match(html, /doloLpState\.hideDust\s*&&\s*finite\(row\.valueUsd\)\s*&&\s*row\.valueUsd\s*<\s*POSITION_DUST_USD/);
-  assert.match(html, /id="dolo-lp-hide-dust"/);
+  assert.match(html, /id="dolo-lp-hide-dust"[^>]*aria-checked="false"/);
+  assert.doesNotMatch(html, /class="dust-pill dolo-lp-toggle active" id="dolo-lp-hide-dust"/);
   assert.match(html, />Hide dust</);
 });
 
@@ -307,7 +308,7 @@ test('liquidity dropdowns and sortable headers retain dashboard parity', () => {
 });
 
 test('both production entry points use the exact shared holder-CEX-LP release cache key', () => {
-  const expected = 'dolo-label-cleanup-20260514-hero-value-chip-20260718-typography-row-address-peers-20260809-dolo-holder-cex-lp-20260814-wallet-table-ux-20260815b';
+  const expected = 'dolo-label-cleanup-20260514-hero-value-chip-20260718-typography-row-address-peers-20260809-dolo-holder-cex-lp-20260814-wallet-table-ux-20260815b-flow-sort-20260816-smooth-count-20260821-protocol-custody-flow-20260822-address-type-normalization-20260823-ca-audit-type-filter-20260828-history-selection-state-20260829-small-lp-visible';
   const routeVersion = source => source.match(/"version": "([^"]+)"/)?.[1];
 
   assert.equal(routeVersion(rootRoute), expected, 'index.html');
