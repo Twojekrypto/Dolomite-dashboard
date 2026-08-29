@@ -173,6 +173,7 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
             "validate_data.py",
             "vedolo_vote_power.py",
             "tests/test_generate_reward_claim_events.py",
+            ".github/workflows/update-reward-claim-events.yml",
             ".github/workflows/update-odolo-flows.yml",
             "data/reward-claim-events.json",
             "data/odolo-claim-events.json",
