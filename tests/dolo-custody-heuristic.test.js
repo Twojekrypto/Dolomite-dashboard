@@ -81,9 +81,10 @@ test("reviewed market wallets bypass watchlist labels while unrelated all-chain 
     "0x8c39b7cb82b9d791adcc9387098944b635c17b32",
     "0x32cd32b45277bf025c1df7bb4388e6a412b77fe5",
     "0x97d59a4cd39fec0756e067979b17207212ecd999",
+    "0x9cf69960f896f8e39efa28e9524270a22094e6c4",
   ];
-  assert.equal(actualOverrides.length, 5);
-  assert.equal(new Set(actualOverrides).size, 5);
+  assert.equal(actualOverrides.length, 6);
+  assert.equal(new Set(actualOverrides).size, 6);
   assert.deepEqual([...actualOverrides].sort(), [...expectedOverrides].sort());
   const helperSource = preview.slice(start, end);
   const learnerSource = preview.slice(end, learnerEnd);
