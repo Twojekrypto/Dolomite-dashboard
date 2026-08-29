@@ -445,7 +445,24 @@ def incremental_pool_context(
     ]
     if len(matching_sources) > 1:
         raise ValueError(f"previous artifact has duplicate source {normalized_source}")
-    previous_source = matching_sources[0] if matching_sources else None
+    pool_was_tracked = any(
+        isinstance(row, dict)
+        and str(row.get("sourceKey") or "").lower() == normalized_source
+        and str(row.get("id") or row.get("identifier") or "").lower()
+        == normalized_pool
+        for row in previous.get("pools", [])
+    ) or any(
+        isinstance(row, dict)
+        and str(row.get("sourceKey") or "").lower() == normalized_source
+        and str(row.get("poolId") or "").lower() == normalized_pool
+        for collection in ("activePositions", "history")
+        for row in previous.get(collection, [])
+    )
+    previous_source = (
+        matching_sources[0]
+        if matching_sources and pool_was_tracked
+        else None
+    )
     token_ids: set[int] = set()
     for row in previous.get("activePositions", []):
         if not isinstance(row, dict):

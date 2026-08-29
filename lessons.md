@@ -464,6 +464,11 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   still attributable as manager custody or through a verified share vault.
   Reject the pool only when neither canonical token IDs nor non-canonical
   position evidence exists; do not weaken the final degraded-refresh guard.
+- **A source cursor is not proof that every registered pool was scanned.** When
+  a pool is added after an adapter cursor has advanced past its creation block,
+  start that pool from the configured discovery boundary. Reuse the cursor only
+  when the previous artifact contains that exact pool or its position/history
+  evidence.
 
 ### veDOLO early-unlock snapshots
 
