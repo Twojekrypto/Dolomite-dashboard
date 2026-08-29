@@ -2788,6 +2788,90 @@ class LiveAdapterOrchestrationTests(unittest.TestCase):
         self.assertEqual(result["token1"], usd1)
         self.assertEqual(result["activePositions"], [])
 
+    def test_empty_v4_pool_uses_state_view_liquidity_without_dexscreener(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(
+            row
+            for row in registry["pools"]
+            if row["identifier"]
+            == "0x330d0f19c6ef4559d2cbfaa48a2d18fe55efe642337257e3a4ebd62f5de56f18"
+        )
+        config = registry["chains"]["ethereum"]["adapters"]["uniswap-v4"]
+        previous_history = [{"id": "previous-history-row"}]
+
+        def state_view_call(chain_key, address, signature, output_types, **kwargs):
+            self.assertEqual(chain_key, "ethereum")
+            self.assertEqual(address, config["stateView"])
+            self.assertEqual(signature, "getLiquidity(bytes32)")
+            self.assertEqual(output_types, ["uint128"])
+            self.assertEqual(kwargs["input_types"], ["bytes32"])
+            self.assertEqual(
+                kwargs["args"],
+                [bytes.fromhex(pool["identifier"][2:])],
+            )
+            return (0,)
+
+        with (
+            patch.object(
+                liquidity,
+                "incremental_pool_context",
+                return_value={
+                    "incremental": True,
+                    "scanStart": 900,
+                    "tokenIds": set(),
+                    "history": previous_history,
+                },
+            ),
+            patch.object(liquidity, "_routescan_logs", return_value=[]),
+            patch.object(liquidity, "_eth_call_args", side_effect=state_view_call),
+            patch.object(
+                liquidity,
+                "_dexscreener_pair",
+                side_effect=AssertionError("empty on-chain pool must not require Dexscreener"),
+            ),
+        ):
+            result = liquidity._build_uniswap_v4_live_source(
+                registry,
+                pool,
+                1_000,
+                previous_artifact={"sources": []},
+            )
+
+        self.assertEqual(result["sourceStatus"], "partial")
+        self.assertEqual(result["activePositions"], [])
+        self.assertEqual(result["history"], previous_history)
+        self.assertEqual(result["token0"], DOLO)
+        self.assertEqual(
+            result["token1"],
+            "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+        )
+        self.assertIn("zero current liquidity", result["unresolved"][0]["reason"])
+
+    def test_v4_pool_with_current_liquidity_still_fails_without_attribution(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(
+            row
+            for row in registry["pools"]
+            if row["identifier"]
+            == "0x330d0f19c6ef4559d2cbfaa48a2d18fe55efe642337257e3a4ebd62f5de56f18"
+        )
+
+        with (
+            patch.object(liquidity, "_routescan_logs", return_value=[]),
+            patch.object(liquidity, "_eth_call_args", return_value=(1,)),
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "no attributable position events",
+            ):
+                liquidity._build_uniswap_v4_live_source(
+                    registry,
+                    pool,
+                    1_000,
+                    previous_artifact={},
+                    full_history=True,
+                )
+
     def test_uniswap_v4_incremental_builder_replays_noncanonical_rows_from_discovery(self):
         registry = liquidity.load_registry(REGISTRY)
         pool = next(
