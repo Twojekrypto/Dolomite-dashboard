@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: update-dolo-liquidity
@@ -97,3 +98,12 @@ jobs:
             sleep 5
           done
           if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts"; exit 1; fi
+
+      # Scheduled flows already run 30 minutes after scheduled liquidity. A
+      # manual liquidity repair needs an explicit downstream refresh because
+      # workflow bot pushes do not start other workflows automatically.
+      - name: Refresh DOLO flow LP attribution
+        if: ${{ success() && github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run update-dolo-flows.yml --ref master -f skip_holders=true
