@@ -439,6 +439,111 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
         self.assertEqual(metadata["status"], "unavailable")
         self.assertEqual(metadata["failedChains"], ["bera"])
 
+    def test_fetch_dolomite_dolo_balances_pins_historical_query_to_requested_block(self):
+        class Response:
+            status_code = 200
+
+            def json(self):
+                return {
+                    "data": {
+                        "_meta": {"block": {"number": 123, "timestamp": 1_600_000_000}},
+                        "interestIndexes": [{
+                            "id": flows.DOLO_CONTRACT,
+                            "supplyIndex": "1.25",
+                            "token": {"id": flows.DOLO_CONTRACT, "symbol": "DOLO", "marketId": "16"},
+                        }],
+                        "marginAccountTokenValues": [
+                            {"valuePar": "10", "marginAccount": {"effectiveUser": {"id": ALICE}, "user": {"id": ALICE}}},
+                            {"valuePar": "5", "marginAccount": {"effectiveUser": {"id": ALICE}, "user": {"id": ALICE}}},
+                        ],
+                    }
+                }
+
+        queries = []
+
+        def request(_url, **kwargs):
+            queries.append(kwargs["json"]["query"])
+            return Response()
+
+        balances, metadata = flows.fetch_dolomite_dolo_balances(
+            None,
+            request_fn=request,
+            subgraphs={"eth": {"name": "Ethereum", "url": "https://subgraph.example/eth"}},
+            attempts=1,
+            now_ts=1_800_000_000,
+            block_numbers={"eth": 123},
+        )
+
+        self.assertEqual(balances[ALICE]["eth"], 18.75)
+        self.assertEqual(metadata["status"], "complete")
+        self.assertEqual(metadata["chains"]["eth"]["requestedBlock"], 123)
+        self.assertTrue(queries)
+        self.assertIn("block: { number: 123 }", queries[0])
+
+    def test_holder_dolomite_history_cache_reuses_complete_points(self):
+        state = {}
+        points = [
+            {"key": "hist_20260829", "timestamp": "2026-08-29T00:00:00Z", "ts": 1_777_075_200},
+            {"key": "hist_20260830", "timestamp": "2026-08-30T00:00:00Z", "ts": 1_777_161_600},
+        ]
+        subgraphs = {
+            "eth": {"name": "Ethereum", "url": "https://subgraph.example/eth"},
+            "bera": {"name": "Berachain", "url": "https://subgraph.example/bera"},
+        }
+        calls = []
+
+        def fetch(_addresses, **kwargs):
+            chain_key = next(iter(kwargs["subgraphs"]))
+            block = kwargs["block_numbers"][chain_key]
+            calls.append((chain_key, block))
+            return {
+                ALICE: {chain_key: 10.0 if chain_key == "eth" else 2.0, "total": 10.0 if chain_key == "eth" else 2.0}
+            }, {
+                "status": "complete",
+                "failedChains": [],
+                "chains": {chain_key: {
+                    "requestedBlock": block,
+                    "blockNumber": block,
+                    "blockTimestamp": block * 10,
+                    "matchedWallets": 1,
+                    "custodyAddress": flows.DOLOMITE_MARGIN_ADDRS[chain_key],
+                }},
+            }
+
+        with patch.object(flows, "fetch_dolomite_dolo_balances", side_effect=fetch):
+            snapshots, metadata = flows.load_holder_dolomite_history_snapshots(
+                state,
+                points,
+                {"eth": 2_000, "bera": 4_000},
+                1_777_248_000,
+                subgraphs=subgraphs,
+                checkpoint_fn=lambda _state: None,
+                request_delay_seconds=0,
+            )
+
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(snapshots["hist_20260829"][ALICE], {"eth": 10.0, "bera": 2.0, "total": 12.0})
+        self.assertEqual(metadata["status"], "complete")
+        self.assertEqual(metadata["pointCount"], 2)
+
+        with patch.object(
+            flows,
+            "fetch_dolomite_dolo_balances",
+            side_effect=AssertionError("complete cached points must not refetch"),
+        ):
+            cached, cached_metadata = flows.load_holder_dolomite_history_snapshots(
+                state,
+                points,
+                {"eth": 2_000, "bera": 4_000},
+                1_777_248_000,
+                subgraphs=subgraphs,
+                checkpoint_fn=lambda _state: None,
+                request_delay_seconds=0,
+            )
+
+        self.assertEqual(cached, snapshots)
+        self.assertEqual(cached_metadata["cachedChainSnapshots"], 4)
+
     def test_detect_contracts_batch_uses_batch_results(self):
         contract = ALICE
         wallet = BOB

@@ -220,6 +220,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .holder-chart-toggle,
 .holder-bucket-mode button,
+.holder-exposure-mode button,
 .holder-metric-mode button{
   position:relative;display:inline-flex;align-items:center;justify-content:center;height:28px;
   font-family:var(--mono);font-size:10px;color:var(--fg-3);font-weight:800;letter-spacing:.36px;cursor:pointer;
@@ -227,27 +228,31 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 }
 .holder-chart-toggle:hover,
 .holder-bucket-mode button:hover,
+.holder-exposure-mode button:hover,
 .holder-metric-mode button:hover{color:var(--fg-1)}
 .holder-chart-toggle input{position:absolute;opacity:0;pointer-events:none}
-.holder-bucket-mode,.holder-metric-mode{
+.holder-bucket-mode,.holder-exposure-mode,.holder-metric-mode{
   display:inline-grid;grid-template-columns:repeat(2,minmax(112px,1fr));height:34px;gap:0;padding:3px;
   border:1px solid rgba(255,255,255,.075);border-radius:999px;
   background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
 }
-.holder-bucket-mode button,.holder-metric-mode button{
+.holder-bucket-mode button,.holder-exposure-mode button,.holder-metric-mode button{
   min-width:112px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--fg-3)
 }
 .holder-bucket-mode button.active,
 .holder-bucket-mode button:hover,
 .holder-bucket-mode button:focus-visible,
+.holder-exposure-mode button.active,
+.holder-exposure-mode button:hover,
+.holder-exposure-mode button:focus-visible,
 .holder-metric-mode button.active,
 .holder-metric-mode button:hover,
 .holder-metric-mode button:focus-visible{
   background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
 }
-.holder-bucket-mode button:focus-visible,.holder-metric-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
+.holder-bucket-mode button:focus-visible,.holder-exposure-mode button:focus-visible,.holder-metric-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
 .holder-chart-toggle.is-active{
   border-color:rgba(201,162,39,.24);background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.16),0 7px 16px rgba(0,0,0,.12),0 0 18px rgba(201,162,39,.035)
@@ -949,6 +954,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .flows-grid{grid-template-columns:1fr}
   .flows-tbl{min-width:500px}
 }
+@media (max-width:1100px){
+  .holder-distribution-title-row{flex-direction:column;align-items:flex-start}
+  .holder-distribution-title-row .holder-chart-meta{width:100%;margin-left:0;justify-content:flex-start;flex-wrap:wrap;line-height:1.45}
+}
 @media (max-width:760px){
   .holder-flow-stats{grid-template-columns:1fr}
   .holder-flow-stat{border-left:0;padding:13px 16px}
@@ -1016,8 +1025,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
   .holder-chart-controls{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
-  .holder-bucket-mode,.holder-metric-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .holder-bucket-mode button,.holder-metric-mode button{width:100%;min-width:0}
+  .holder-bucket-mode,.holder-exposure-mode,.holder-metric-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .holder-bucket-mode button,.holder-exposure-mode button,.holder-metric-mode button{width:100%;min-width:0}
   .holder-chart-toggle{width:100%;justify-content:center;min-width:0}
   .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
   .holder-chart-source::before{margin-right:0}
@@ -1744,6 +1753,10 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
             <button type="button" class="active" data-holder-bucket-view="whales" aria-pressed="true">Top holders</button>
             <button type="button" data-holder-bucket-view="smaller" aria-pressed="false">Smaller holders</button>
           </div>
+          <div class="holder-exposure-mode" id="holder-exposure-mode" aria-label="DOLO balance scope">
+            <button type="button" class="active" data-holder-exposure="total" aria-pressed="true">Total exposure</button>
+            <button type="button" data-holder-exposure="wallet" aria-pressed="false">Wallet balance</button>
+          </div>
           <div class="holder-metric-mode" id="holder-metric-mode" aria-label="Holder chart metric">
             <button type="button" class="active" data-holder-metric="balance" aria-pressed="true">Balance</button>
             <button type="button" data-holder-metric="changePct" aria-pressed="false">Change %</button>
@@ -2137,6 +2150,7 @@ let holderDistributionMetric = "balance";
 let holderWalletPanelKey = "";
 const holderDetailsSearch = new Map();
 let holderBucketView = "whales";
+let holderExposureMode = "total";
 const holderAudience = "holders";
 let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
@@ -2386,8 +2400,9 @@ function holderCexFlow(period = "7d"){
   return {inflow, outflow, net, inflowWallets, outflowWallets};
 }
 function holderScopeHtml(){
-  const tip = "Chart lines include market wallets plus confirmed Core Team and Investor allocation wallets in their actual DOLO balance ranges. Confirmed CEX, protocol/contract/LP, potential custody/MM and bot wallets remain excluded.";
-  return `<span class="holder-source-scope">Includes: Market + Team/Investor</span><span class="holder-source-exclusion">Excludes: CEX, protocol &amp; custody/MM</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
+  const exposure = effectiveHolderExposureMode() === "total" ? "Total exposure · wallet + Dolomite" : "Wallet balance only";
+  const tip = "Chart lines include market wallets plus confirmed Core Team and Investor allocation wallets in their actual DOLO balance ranges. Total exposure adds each wallet's positive DOLO supplied inside Dolomite. Confirmed CEX, protocol/contract/LP, potential custody/MM and bot wallets remain excluded.";
+  return `<span class="holder-source-scope">${exposure}</span><span class="holder-source-scope">Includes: Market + Team/Investor</span><span class="holder-source-exclusion">Excludes: CEX, protocol &amp; custody/MM</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="Holder scope details">?</span>`;
 }
 function holderCexStatHtml(){
   const periods = [
@@ -2605,6 +2620,20 @@ function holderPrecomputedSource(point, sourceKey, audience = holderAudience){
   if(audience === "holders") return root?.market?.[holderBucketView] || null;
   return audience === "market" ? (root[holderBucketView] || null) : null;
 }
+function holderTotalExposureHistoryAvailable(){
+  return Array.isArray(DOLO_HOLDER_BUCKET_HISTORY)
+    && DOLO_HOLDER_BUCKET_HISTORY.length > 1
+    && DOLO_HOLDER_BUCKET_HISTORY.every(point => point?.total_exposure?.[holderAudience]?.[holderBucketView]);
+}
+function effectiveHolderExposureMode(){
+  return holderExposureMode === "total" && holderTotalExposureHistoryAvailable() ? "total" : "wallet";
+}
+function holderHistorySourceKey(includeVeDolo = state.includeVeDolo){
+  if(effectiveHolderExposureMode() === "total"){
+    return includeVeDolo ? "total_exposure_with_vedolo" : "total_exposure";
+  }
+  return includeVeDolo ? "with_vedolo" : "liquid";
+}
 function holderHistoryPointList(baseTs){
   const dynamicPoints = (DOLO_HOLDER_HISTORY_POINTS || [])
     .map(point => {
@@ -2623,7 +2652,7 @@ function holderHistoryPointList(baseTs){
 function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
   if(!Array.isArray(DOLO_HOLDER_BUCKET_HISTORY) || !DOLO_HOLDER_BUCKET_HISTORY.length) return null;
   const bucketDefs = activeHolderBuckets();
-  const sourceKey = includeVeDolo ? "with_vedolo" : "liquid";
+  const sourceKey = holderHistorySourceKey(includeVeDolo);
   const points = DOLO_HOLDER_BUCKET_HISTORY.map(point => {
     const source = holderPrecomputedSource(point, sourceKey);
     if(!source) return null;
@@ -2639,6 +2668,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
         allocationWallets:safeHolderNum(item.allocationWallets),
         allocationTotal:safeHolderNum(item.allocationTotal),
         allocationLiquid:safeHolderNum(item.allocationLiquid),
+        allocationProtocol:safeHolderNum(item.allocationProtocol),
         allocationLocked:safeHolderNum(item.allocationLocked),
         teamWallets:safeHolderNum(item.teamWallets),
         teamTotal:safeHolderNum(item.teamTotal),
@@ -2659,6 +2689,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       trackedWallets:safeHolderNum(source.trackedWallets),
       trackedTotal:safeHolderNum(source.trackedTotal),
       trackedLiquid:safeHolderNum(source.trackedLiquid),
+      trackedProtocol:safeHolderNum(source.trackedProtocol),
       trackedLocked:safeHolderNum(source.trackedLocked),
       excludedCexWallets:safeHolderNum(source.excludedCexWallets),
       excludedCexTotal:safeHolderNum(source.excludedCexTotal),
@@ -2669,6 +2700,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
       allocationWallets:safeHolderNum(source.allocationWallets),
       allocationTotal:safeHolderNum(source.allocationTotal),
       allocationLiquid:safeHolderNum(source.allocationLiquid),
+      allocationProtocol:safeHolderNum(source.allocationProtocol),
       allocationLocked:safeHolderNum(source.allocationLocked),
       teamWallets:safeHolderNum(source.teamWallets),
       teamTotal:safeHolderNum(source.teamTotal),
@@ -2708,6 +2740,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
     trackedWallets:current.trackedWallets,
     trackedTotal:current.trackedTotal,
     trackedLiquid:current.trackedLiquid,
+    trackedProtocol:current.trackedProtocol,
     trackedLocked:current.trackedLocked,
     excludedCexWallets:current.excludedCexWallets,
     excludedCexTotal:current.excludedCexTotal,
@@ -2718,6 +2751,7 @@ function getPrecomputedHolderHistory(includeVeDolo = state.includeVeDolo){
     allocationWallets:current.allocationWallets,
     allocationTotal:current.allocationTotal,
     allocationLiquid:current.allocationLiquid,
+    allocationProtocol:current.allocationProtocol,
     allocationLocked:current.allocationLocked,
     teamWallets:current.teamWallets,
     teamTotal:current.teamTotal,
@@ -4211,10 +4245,10 @@ function canonicalHolderLabel(addr, fallbackLabel = ""){
 }
 function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
   const key = point?.key || "";
-  if(!key || key === "now") return null;
+  if(!key) return null;
   const source = DOLO_HOLDER_WALLET_HISTORY?.[key];
   if(!source) return null;
-  const balanceKey = includeVeDolo ? "with_vedolo" : "liquid";
+  const balanceKey = holderHistorySourceKey(includeVeDolo);
   const audienceRows = source?.[balanceKey]?.[holderAudience]?.[holderBucketView];
   const viewRows = audienceRows || (holderAudience === "holders" ? source?.[balanceKey]?.market?.[holderBucketView] : (holderAudience === "market" ? source?.[balanceKey]?.[holderBucketView] : null));
   if(!Array.isArray(viewRows)) return null;
@@ -4227,6 +4261,9 @@ function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
       : safeHolderNum(item.liquid ?? item.total ?? item.balance);
     const balEth = safeHolderNum(item.balance_eth ?? item.balEth);
     const balBera = safeHolderNum(item.balance_bera ?? item.balBera);
+    const inDolomiteEth = safeHolderNum(item.in_dolomite_eth ?? item.inDolomiteEth);
+    const inDolomiteBera = safeHolderNum(item.in_dolomite_bera ?? item.inDolomiteBera);
+    const inDolomite = safeHolderNum(item.in_dolomite ?? item.inDolomite) || inDolomiteEth + inDolomiteBera;
     const type = item.type || holderDistributionType(addr, item);
     return {
       addr,
@@ -4234,12 +4271,15 @@ function holderHistoricalWalletRowsAtPoint(point, includeVeDolo = false){
       type,
       balEth,
       balBera,
-      total:liquid,
+      inDolomiteEth,
+      inDolomiteBera,
+      inDolomite,
+      total:liquid + inDolomite,
       liquid,
       locked,
       contract_wallet_type:item.contract_wallet_type || item.contractWalletType || "",
       safe:item.safe === true || info.safe === true,
-      panelTotal:liquid + locked,
+      panelTotal:liquid + inDolomite + locked,
       historicalPointKey:key,
     };
   }).filter(row => row.addr && row.panelTotal > 0);
@@ -4269,6 +4309,16 @@ function holderRowsAtPoint(point, includeVeDolo = false){
     row.balEth = safeHolderNum(row.balEth) + safeHolderNum(holder.balEth);
     row.balBera = safeHolderNum(row.balBera) + safeHolderNum(holder.balBera);
   });
+  if(sourcePoint.key === "now" && effectiveHolderExposureMode() === "total"){
+    Object.entries(DOLOMITE_FLOW_BALANCES).forEach(([addr, position]) => {
+      if(DOLOMITE_CUSTODY_ADDRESSES.has(lowerHolderAddr(addr))) return;
+      const row = ensureHolderBucketRow(byAddress, addr, null);
+      if(!row) return;
+      row.inDolomiteEth = safeHolderNum(position?.eth);
+      row.inDolomiteBera = safeHolderNum(position?.bera);
+      row.inDolomite = row.inDolomiteEth + row.inDolomiteBera;
+    });
+  }
   if(sourcePoint.key !== "now"){
     const changes = holderBalanceChangesFromPointToNow(sourcePoint);
     if(changes === null) return [];
@@ -4286,6 +4336,9 @@ function holderRowsAtPoint(point, includeVeDolo = false){
   return [...byAddress.values()].map(row => {
     const info = sharedAddressInfo(row.addr) || {};
     const liquid = Math.max(0, safeHolderNum(row.liquid));
+    const inDolomiteEth = Math.max(0, safeHolderNum(row.inDolomiteEth));
+    const inDolomiteBera = Math.max(0, safeHolderNum(row.inDolomiteBera));
+    const inDolomite = inDolomiteEth + inDolomiteBera;
     const locked = includeVeDolo ? Math.max(0, safeHolderNum(row.locked)) : 0;
     const type = holderDistributionType(row.addr, row);
     return {
@@ -4294,12 +4347,15 @@ function holderRowsAtPoint(point, includeVeDolo = false){
       type,
       balEth:safeHolderNum(row.balEth),
       balBera:safeHolderNum(row.balBera),
-      total:liquid,
+      inDolomiteEth,
+      inDolomiteBera,
+      inDolomite,
+      total:liquid + inDolomite,
       liquid,
       locked,
       contract_wallet_type:row.contract_wallet_type || "",
       safe:row.safe || info.safe === true,
-      panelTotal:liquid + locked,
+      panelTotal:liquid + inDolomite + locked,
     };
   }).filter(row => row.panelTotal > 0);
 }
@@ -4333,6 +4389,9 @@ function zeroHolderRowFrom(row){
     balBera: 0,
     total: 0,
     liquid: 0,
+    inDolomiteEth: 0,
+    inDolomiteBera: 0,
+    inDolomite: 0,
     locked: 0,
     contract_wallet_type: row?.contract_wallet_type || "",
     safe: row?.safe || false,
@@ -4582,6 +4641,7 @@ function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta = "", rows, 
                       <span class="bal-val total">${fmtNum(row.panelTotal)}</span>
                       <img class="holder-dolo-icon" src="dolo-logo.svg" alt="DOLO" onerror="this.style.display='none'">
                     </div>
+                    ${row.inDolomite > 0 ? `<div class="holder-wallet-sub">${fmtNum(row.inDolomite)} in Dolomite</div>` : ""}
                     ${row.locked > 0 ? `<div class="holder-wallet-sub">${fmtNum(row.locked)} veDOLO</div>` : ""}
                     ${row.rangeNote ? `<div class="holder-wallet-sub">${escHtml(row.rangeNote)}</div>` : ""}
                   </td>
@@ -5797,6 +5857,20 @@ document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
     renderHolderDistributionChart();
   });
 });
+document.querySelectorAll("[data-holder-exposure]").forEach(button => {
+  button.addEventListener("click", () => {
+    const next = button.dataset.holderExposure;
+    if(next !== "total" && next !== "wallet") return;
+    if(next === "total" && !holderTotalExposureHistoryAvailable()) return;
+    holderExposureMode = next;
+    document.querySelectorAll("[data-holder-exposure]").forEach(item => {
+      const active = item.dataset.holderExposure === holderExposureMode;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    renderHolderDistributionChart();
+  });
+});
 document.querySelectorAll("[data-holder-metric]").forEach(button => {
   button.addEventListener("click", () => {
     const next = button.dataset.holderMetric;
@@ -6135,6 +6209,17 @@ renderCexSupplyChart();
     DOLO_FRESH_HOLDERS = flows.fresh_holders || flows.fresh_wallets || {};
     DOLO_HOLDER_HISTORY_POINTS = Array.isArray(flows.holder_history_points) ? flows.holder_history_points : [];
     DOLO_HOLDER_BUCKET_HISTORY = Array.isArray(flows.holder_bucket_history) ? flows.holder_bucket_history : [];
+    if(!holderTotalExposureHistoryAvailable()) holderExposureMode = "wallet";
+    document.querySelectorAll("[data-holder-exposure]").forEach(item => {
+      const active = item.dataset.holderExposure === holderExposureMode;
+      const unavailable = item.dataset.holderExposure === "total" && !holderTotalExposureHistoryAvailable();
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-pressed", String(active));
+      item.disabled = unavailable;
+      item.setAttribute("aria-disabled", String(unavailable));
+      if(unavailable) item.dataset.tooltip = "Total exposure history is being generated.";
+      else delete item.dataset.tooltip;
+    });
     DOLO_HOLDER_WALLET_HISTORY = flows.holder_wallet_history || {};
     if(!flows.holder_wallet_history){
       // Wallet-level daily snapshots live in a separate ~24MB file. Record its name

@@ -370,6 +370,53 @@ class ValidateDoloFlowsTest(unittest.TestCase):
             dict(rules["checks"]),
         )
 
+    def test_holder_total_exposure_history_requires_complete_sources_and_current_point(self):
+        def model(protocol=0):
+            return {
+                "trackedTotal": 100 + protocol,
+                "trackedLiquid": 100,
+                "trackedProtocol": protocol,
+                "trackedLocked": 0,
+                "buckets": [],
+            }
+
+        def point(key, timestamp):
+            return {
+                "key": key,
+                "timestamp": timestamp,
+                "liquid": {"holders": {"whales": model()}},
+                "with_vedolo": {"holders": {"whales": model()}},
+                "total_exposure": {"holders": {"whales": model(20)}},
+                "total_exposure_with_vedolo": {"holders": {"whales": model(20)}},
+            }
+
+        payload = {
+            "holder_history_schema": "audience-exposure-v3",
+            "holder_dolomite_history_meta": {
+                "status": "complete",
+                "schemaVersion": 1,
+                "pointCount": 1,
+                "chainCount": 2,
+                "chains": ["eth", "bera"],
+            },
+            "holder_history_points": [
+                {"key": "hist_20260830", "timestamp": "2026-08-30T00:00:00Z"},
+                {"key": "now", "timestamp": "2026-08-31T00:00:00Z"},
+            ],
+            "holder_bucket_history": [
+                point("hist_20260830", "2026-08-30T00:00:00Z"),
+                point("now", "2026-08-31T00:00:00Z"),
+            ],
+        }
+
+        self.assertTrue(validate_data._holder_dolomite_exposure_history_is_valid(payload))
+        payload["holder_bucket_history"][0].pop("total_exposure")
+        self.assertFalse(validate_data._holder_dolomite_exposure_history_is_valid(payload))
+        self.assertIn(
+            "Holder total-exposure history must have complete Dolomite coverage",
+            dict(validate_data.RULES["dolo_flows.json"]["checks"]),
+        )
+
     def test_flow_history_integrity_requires_verified_full_chain_coverage(self):
         payload = {
             "flow_history_integrity": {
