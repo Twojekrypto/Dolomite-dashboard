@@ -2348,6 +2348,9 @@ RULES = {
             ("holder_wallet_history must have data", lambda d: len(d.get("holder_wallet_history", {})) >= 1),
         ],
         "min_bytes": 1_000_000,
+        # Leave headroom below GitHub's hard 100 MB blob limit so generation
+        # fails during validation instead of after a long scan at git push.
+        "max_bytes": 95_000_000,
     },
     "dolo_holders.json": {
         "required_keys": ["contract", "timestamp", "stats", "holders"],
@@ -2697,6 +2700,12 @@ def validate_file(filepath, rules, result):
         result.fail(f"File too small: {file_size:,} bytes (min: {min_bytes:,})")
         return
     result.ok(f"Size: {file_size:,} bytes (min: {min_bytes:,})")
+    max_bytes = rules.get("max_bytes")
+    if max_bytes is not None:
+        if file_size > max_bytes:
+            result.fail(f"File too large: {file_size:,} bytes (max: {max_bytes:,})")
+            return
+        result.ok(f"Size within publish limit: {file_size:,} bytes (max: {max_bytes:,})")
 
     # Parse JSON
     try:

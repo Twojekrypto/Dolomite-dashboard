@@ -2871,7 +2871,11 @@ def calculate_holder_bucket_history(
                 "total_exposure_with_vedolo",
             ):
                 row[source_key][audience] = {}
-            if HOLDER_WALLET_HISTORY_VIEWS:
+            # The UI's wallet Details panel uses the canonical "holders"
+            # audience only. Persisting the almost-identical market and
+            # potential lists for every day and every exposure mode bloats the
+            # lazy history file beyond GitHub's 100 MB blob limit.
+            if HOLDER_WALLET_HISTORY_VIEWS and audience == "holders":
                 for source_key in (
                     "liquid",
                     "with_vedolo",
@@ -2918,7 +2922,7 @@ def calculate_holder_bucket_history(
                     audience=audience,
                     protocol_balances=protocol_balances,
                 )
-                if view in HOLDER_WALLET_HISTORY_VIEWS:
+                if view in HOLDER_WALLET_HISTORY_VIEWS and audience == "holders":
                     wallet_row["liquid"][audience][view] = build_bucket_wallet_history_rows(
                         liquid_by_chain,
                         {},
@@ -4353,21 +4357,28 @@ def build_bucket_wallet_history_rows(
         holder = holder_rows.get(addr, {})
         info = address_labels.get(addr, {})
         contract_wallet_type = str(holder.get("contract_wallet_type") or "").lower()
-        rows.append({
+        row = {
             "address": addr,
             "label": info.get("label", ""),
             "type": holder_type,
             "balance": round(total, 6),
             "liquid": round(liquid, 6),
-            "in_dolomite": round(protocol, 6),
-            "in_dolomite_eth": round(protocol_eth, 6),
-            "in_dolomite_bera": round(protocol_bera, 6),
             "locked": round(locked, 6),
             "balance_eth": round(bal_eth, 6),
             "balance_bera": round(bal_bera, 6),
             "contract_wallet_type": contract_wallet_type,
             "safe": bool(contract_wallet_type in {"safe", "multisig"} or info.get("safe")),
-        })
+        }
+        # Protocol fields are sparse. Wallet-balance modes have no protocol
+        # component, so repeating three zero-valued keys across daily rows is
+        # wasted transfer and repository size.
+        if protocol > 0:
+            row["in_dolomite"] = round(protocol, 6)
+            if protocol_eth > 0:
+                row["in_dolomite_eth"] = round(protocol_eth, 6)
+            if protocol_bera > 0:
+                row["in_dolomite_bera"] = round(protocol_bera, 6)
+        rows.append(row)
     return sorted(rows, key=lambda row: row["balance"], reverse=True)
 
 
