@@ -325,6 +325,19 @@ def build_selection(
     cold_missing_history = [address for address in missing_history if address not in active_snapshot]
     active_stale_history = [address for address in stale_history if address in active_snapshot]
     cold_stale_history = [address for address in stale_history if address not in active_snapshot]
+    selection_priority = priority
+    skipped_fresh_priority: List[str] = []
+    if coverage_backfill and not strict_remediation and coverage_target > 0:
+        selection_priority = [
+            address
+            for address in priority
+            if address not in existing_history
+            or _history_last_scanned_block(history_dir, chain, address) < coverage_target
+        ]
+        eligible_priority = set(selection_priority)
+        skipped_fresh_priority = [
+            address for address in priority if address not in eligible_priority
+        ]
     strict_quality = (
         _active_strict_quality(chain, active_snapshot, ledger_dir)
         if strict_remediation
@@ -348,7 +361,7 @@ def build_selection(
     )
     if strict_remediation:
         selection_order = [
-            *priority,
+            *selection_priority,
             *active_missing_history,
             *active_stale_history,
             *active_mismatch,
@@ -357,7 +370,7 @@ def build_selection(
         ]
     elif coverage_backfill:
         selection_order = [
-            *priority,
+            *selection_priority,
             *active_missing_history,
             *active_stale_history,
             *cold_missing_history,
@@ -366,7 +379,7 @@ def build_selection(
         ]
     else:
         selection_order = [
-            *priority,
+            *selection_priority,
             *missing_history,
             *stale_history,
             *ranked_addresses,
@@ -388,6 +401,8 @@ def build_selection(
         "knownAddressCount": len(known),
         "scoredAddressCount": len(scores),
         "priorityAddressCount": len(priority),
+        "eligiblePriorityAddressCount": len(selection_priority),
+        "skippedFreshPriorityAddressCount": len(skipped_fresh_priority),
         "preferStaleHistory": bool(prefer_stale_history),
         "selectionPolicy": (
             "active-strict-blockers"

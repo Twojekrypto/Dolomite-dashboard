@@ -168,6 +168,99 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
         self.assertTrue(metadata["coverageBackfill"])
         self.assertFalse(metadata["existingHistoryOnly"])
 
+    def test_coverage_backfill_skips_fresh_priority_and_keeps_stale_or_missing_priority(self):
+        fresh = "0x1111111111111111111111111111111111111111"
+        stale = "0x2222222222222222222222222222222222222222"
+        missing = "0x3333333333333333333333333333333333333333"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_dir = root / "earn-subaccount-history"
+            chain_dir = history_dir / "berachain"
+            chain_dir.mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"berachain":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{fresh}.json").write_text(
+                '{"lastScannedBlock":100}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{stale}.json").write_text(
+                '{"lastScannedBlock":90}',
+                encoding="utf-8",
+            )
+            priority_file = root / "priority.txt"
+            priority_file.write_text(
+                f"{fresh}\n{stale}\n{missing}\n",
+                encoding="utf-8",
+            )
+
+            with (
+                patch(
+                    "select_earn_canonical_hot_addresses._load_known_addresses",
+                    return_value=[fresh, stale, missing],
+                ),
+                patch("select_earn_canonical_hot_addresses._active_snapshot_wallets", return_value=set()),
+                patch("select_earn_canonical_hot_addresses._score_snapshot_wallets", return_value=None),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, metadata = build_selection(
+                    "berachain",
+                    limit=2,
+                    priority_files=[priority_file],
+                    include_priority_even_if_unknown=True,
+                    history_dir=history_dir,
+                    coverage_backfill=True,
+                )
+
+        self.assertEqual([stale, missing], selected)
+        self.assertEqual(3, metadata["priorityAddressCount"])
+        self.assertEqual(2, metadata["eligiblePriorityAddressCount"])
+        self.assertEqual(1, metadata["skippedFreshPriorityAddressCount"])
+
+    def test_coverage_backfill_skips_fresh_priority_outside_known_universe(self):
+        unknown_but_fresh = "0x1111111111111111111111111111111111111111"
+        known_missing = "0x2222222222222222222222222222222222222222"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_dir = root / "earn-subaccount-history"
+            chain_dir = history_dir / "berachain"
+            chain_dir.mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"berachain":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            (chain_dir / f"{unknown_but_fresh}.json").write_text(
+                '{"lastScannedBlock":100}',
+                encoding="utf-8",
+            )
+            priority_file = root / "priority.txt"
+            priority_file.write_text(f"{unknown_but_fresh}\n", encoding="utf-8")
+
+            with (
+                patch(
+                    "select_earn_canonical_hot_addresses._load_known_addresses",
+                    return_value=[known_missing],
+                ),
+                patch("select_earn_canonical_hot_addresses._active_snapshot_wallets", return_value=set()),
+                patch("select_earn_canonical_hot_addresses._score_snapshot_wallets", return_value=None),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, metadata = build_selection(
+                    "berachain",
+                    limit=1,
+                    priority_files=[priority_file],
+                    include_priority_even_if_unknown=True,
+                    history_dir=history_dir,
+                    coverage_backfill=True,
+                )
+
+        self.assertEqual([known_missing], selected)
+        self.assertEqual(0, metadata["eligiblePriorityAddressCount"])
+        self.assertEqual(1, metadata["skippedFreshPriorityAddressCount"])
+
     def test_existing_history_only_keeps_steady_refresh_on_public_baseline(self):
         existing = "0x1111111111111111111111111111111111111111"
         new_hot = "0x2222222222222222222222222222222222222222"

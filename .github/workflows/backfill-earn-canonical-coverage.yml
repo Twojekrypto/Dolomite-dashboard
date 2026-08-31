@@ -53,7 +53,7 @@ jobs:
             materialize_workers: 12
           - chain: berachain
             concurrency_group: earn-berachain-canonical-history
-            limit: 120
+            limit: 200
             scan_workers: 8
             materialize_workers: 8
     env:
@@ -160,11 +160,21 @@ jobs:
             exit 0
           fi
           selection_hash="$(sha256sum "$selection_path" | cut -d' ' -f1)"
+          preexisting_count=0
+          while IFS= read -r address; do
+            [ -n "$address" ] || continue
+            if [ -f "data/earn-subaccount-history/${CHAIN}/${address}.json" ]; then
+              preexisting_count=$((preexisting_count + 1))
+            fi
+          done < "$selection_path"
+          new_candidate_count=$((selected_count - preexisting_count))
           events_dir="data/earn-coverage-runtime/${CHAIN}/${selection_hash}/events"
           history_dir="data/earn-coverage-runtime/${CHAIN}/${selection_hash}/history"
           echo "skipped=false" >> "$GITHUB_OUTPUT"
           echo "selection_path=$selection_path" >> "$GITHUB_OUTPUT"
           echo "selected_count=$selected_count" >> "$GITHUB_OUTPUT"
+          echo "new_candidate_count=$new_candidate_count" >> "$GITHUB_OUTPUT"
+          echo "preexisting_candidate_count=$preexisting_count" >> "$GITHUB_OUTPUT"
           echo "selection_hash=$selection_hash" >> "$GITHUB_OUTPUT"
           echo "events_dir=$events_dir" >> "$GITHUB_OUTPUT"
           echo "history_dir=$history_dir" >> "$GITHUB_OUTPUT"
@@ -227,19 +237,30 @@ jobs:
           echo "path=$publishable_path" >> "$GITHUB_OUTPUT"
 
       - name: Publish completed canonical histories
+        id: publish
         if: steps.coverage.outputs.scan_complete == 'true' && steps.publishable.outputs.count != '0'
         run: |
           set -euo pipefail
           source_dir="${{ steps.select.outputs.history_dir }}/${CHAIN}"
           target_dir="data/earn-subaccount-history/${CHAIN}"
           mkdir -p "$target_dir"
+          new_coverage_count=0
+          updated_coverage_count=0
           while IFS= read -r address; do
             [ -n "$address" ] || continue
             source_path="${source_dir}/${address}.json"
+            target_path="${target_dir}/${address}.json"
             [ -f "$source_path" ] || { echo "Missing completed history: $source_path"; exit 1; }
-            cp "$source_path" "${target_dir}/${address}.json"
+            if [ -f "$target_path" ]; then
+              updated_coverage_count=$((updated_coverage_count + 1))
+            else
+              new_coverage_count=$((new_coverage_count + 1))
+            fi
+            cp "$source_path" "$target_path"
           done < "${{ steps.publishable.outputs.path }}"
           python3 scripts/sync_earn_subaccount_manifest.py --chain "$CHAIN"
+          echo "new_coverage_count=$new_coverage_count" >> "$GITHUB_OUTPUT"
+          echo "updated_coverage_count=$updated_coverage_count" >> "$GITHUB_OUTPUT"
 
       - name: Build verified ledger and public shards
         if: steps.coverage.outputs.scan_complete == 'true' && steps.publishable.outputs.count != '0'
@@ -281,6 +302,22 @@ jobs:
         run: |
           rm -f "data/earn-coverage-runtime/${CHAIN}/active-selection.txt"
           rm -rf "data/earn-coverage-runtime/${CHAIN}/${{ steps.select.outputs.selection_hash }}"
+
+      - name: Summarize canonical coverage progress
+        if: always() && steps.select.outputs.skipped != 'true'
+        run: |
+          {
+            echo "## ${CHAIN} canonical coverage"
+            echo ""
+            echo "| Metric | Wallets |"
+            echo "| --- | ---: |"
+            echo "| Selected cohort | ${{ steps.select.outputs.selected_count || '0' }} |"
+            echo "| New coverage candidates | ${{ steps.select.outputs.new_candidate_count || '0' }} |"
+            echo "| Existing histories selected for refresh | ${{ steps.select.outputs.preexisting_candidate_count || '0' }} |"
+            echo "| Publishable histories | ${{ steps.publishable.outputs.count || '0' }} |"
+            echo "| New historical coverage | ${{ steps.publish.outputs.new_coverage_count || '0' }} |"
+            echo "| Existing histories refreshed | ${{ steps.publish.outputs.updated_coverage_count || '0' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report incomplete canonical coverage progress
         if: steps.coverage.outputs.complete != 'true' && steps.select.outputs.skipped != 'true'

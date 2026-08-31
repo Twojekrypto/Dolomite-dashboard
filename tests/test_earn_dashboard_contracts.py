@@ -1362,12 +1362,18 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
 
     def test_coverage_backfill_keeps_active_cohort_and_publishes_completed_histories(self):
         workflow = EARN_COVERAGE_BACKFILL_WORKFLOW.read_text(encoding="utf-8")
+        berachain_matrix = workflow.split("- chain: berachain", 1)[1].split("    env:", 1)[0]
+        self.assertIn("limit: 200", berachain_matrix)
         self.assertIn("actions/cache/restore@v5", workflow)
         self.assertIn("active-selection.txt", workflow)
         self.assertIn("scripts/select_earn_publishable_histories.py", workflow)
         self.assertIn("scan_complete", workflow)
         self.assertIn("publishable-addresses.txt", workflow)
         self.assertIn("steps.publishable.outputs.count", workflow)
+        self.assertIn("new_coverage_count", workflow)
+        self.assertIn("updated_coverage_count", workflow)
+        self.assertIn("$GITHUB_STEP_SUMMARY", workflow)
+        self.assertIn("New historical coverage", workflow)
         self.assertIn("actions/cache/save@v5", workflow)
         self.assertLess(
             workflow.index("Restore canonical coverage checkpoint"),
