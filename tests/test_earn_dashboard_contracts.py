@@ -77,7 +77,8 @@ class EarnDashboardContractsTest(unittest.TestCase):
         ):
             self.assertIn(f"concurrency_group: {group}", workflow)
         self.assertIn("python3 run_earn_audit_checks.py", workflow)
-        self.assertIn('LC_ALL=C sort -u "$selection_path" -o "$selection_path"', workflow)
+        self.assertNotIn('sort -u "$selection_path"', workflow)
+        self.assertIn('--material-usd-threshold "$MATERIAL_ACTIVE_USD_THRESHOLD"', workflow)
         self.assertIn('done < "$selection_path"', workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
@@ -1619,7 +1620,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertEqual([active_stale], selected)
         self.assertEqual(2, metadata["staleHistoryAddressCount"])
         self.assertEqual(1, metadata["activeStaleHistoryAddressCount"])
-        self.assertEqual("active-first-then-cold-watermark", metadata["selectionPolicy"])
+        self.assertEqual("material-active-first-then-cold-watermark", metadata["selectionPolicy"])
 
     def test_berachain_netflow_workflow_runs_frequent_chain_only_scan(self):
         workflow = BERACHAIN_NETFLOW_WORKFLOW.read_text(encoding="utf-8")

@@ -62,6 +62,8 @@ jobs:
       COVERAGE_LIMIT: ${{ matrix.limit }}
       SCAN_WORKERS: ${{ matrix.scan_workers }}
       MATERIALIZE_WORKERS: ${{ matrix.materialize_workers }}
+      MATERIAL_ACTIVE_USD_THRESHOLD: '10'
+      COVERAGE_POLICY_VERSION: material-active-v1
       ALCHEMY_ETHEREUM_RPC: ${{ secrets.ALCHEMY_ETHEREUM_RPC }}
       ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
       ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}
@@ -113,9 +115,9 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: data/earn-coverage-runtime/${{ matrix.chain }}
-          key: earn-canonical-coverage-${{ matrix.chain }}-${{ github.run_id }}
+          key: earn-canonical-coverage-${{ env.COVERAGE_POLICY_VERSION }}-${{ matrix.chain }}-${{ github.run_id }}
           restore-keys: |
-            earn-canonical-coverage-${{ matrix.chain }}-
+            earn-canonical-coverage-${{ env.COVERAGE_POLICY_VERSION }}-${{ matrix.chain }}-
 
       - name: Select next canonical coverage cohort
         id: select
@@ -140,6 +142,7 @@ jobs:
               --chain "$CHAIN"
               --limit "$COVERAGE_LIMIT"
               --coverage-backfill
+              --material-usd-threshold "$MATERIAL_ACTIVE_USD_THRESHOLD"
               --priority-address-file config/earn_canonical_priority_addresses.txt
               --include-priority-even-if-unknown
               --output "$selection_path"
