@@ -62,7 +62,7 @@ jobs:
       - name: Run DOLO flow and holder exposure tests
         run: |
           python3 -m unittest tests/test_fresh_wallets.py tests/test_generate_dolo_flows_integrity.py tests/test_generate_dolo_flows_rpc.py tests/test_flow_tx_metadata.py tests/test_validate_dolo_flows.py
-          node --test tests/dolo-flow-balance-display.test.js tests/dolo-flow-lp-display.test.js tests/dolo-holder-protocol-exposure.test.js tests/dolo-flow-protocol-filter.test.js
+          node --test tests/dolo-flow-balance-display.test.js tests/dolo-flow-lp-display.test.js tests/dolo-holder-protocol-exposure.test.js tests/dolo-flow-protocol-filter.test.js tests/holder-distribution-contract.test.js
 
       - name: Restore holders sync state
         uses: actions/cache@v5
@@ -129,6 +129,7 @@ jobs:
           DOLO_FLOWS_BLOCKSCOUT_REQUEST_DELAY_SECONDS: '0.3'
           DOLO_FLOWS_FULL_VERIFIED_BACKFILL: ${{ github.event.inputs.full_verified_backfill || 'false' }}
           FRESH_WALLET_AUDIT_VERBOSE: ${{ github.event.inputs.fresh_wallet_audit_verbose || '0' }}
+          DOLO_HOLDER_EXPOSURE_REQUEST_DELAY_SECONDS: '0.1'
         run: python3 generate_dolo_flows.py
 
       - name: Save flows state cache (even on timeout)

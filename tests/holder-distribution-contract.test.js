@@ -117,6 +117,12 @@ test("holder distribution exposes accessible metric controls", () => {
   assert.match(preview, /data-holder-metric="balance"/);
   assert.match(preview, /data-holder-metric="changePct"/);
   assert.match(preview, /aria-pressed="true"/);
+  assert.match(preview, /id="holder-exposure-mode"/);
+  assert.match(preview, /data-holder-exposure="total" aria-pressed="true">Total exposure/);
+  assert.match(preview, /data-holder-exposure="wallet" aria-pressed="false">Wallet balance/);
+  assert.match(preview, /let holderExposureMode = "total"/);
+  assert.match(preview, /total_exposure_with_vedolo/);
+  assert.match(preview, /total_exposure/);
 });
 
 test("Team and Investor allocations are merged into holder ranges without a standalone card", () => {
@@ -394,10 +400,11 @@ test("holder distribution states both its included and excluded wallet scope", (
 
 test("holder bucket controls share the metric UX without an active gold dot", () => {
   const controlsCss = preview.slice(
-    preview.indexOf(".holder-bucket-mode,.holder-metric-mode{"),
+    preview.indexOf(".holder-bucket-mode,.holder-exposure-mode,.holder-metric-mode{"),
     preview.indexOf(".holder-chart-toggle.is-active{")
   );
   assert.match(controlsCss, /\.holder-bucket-mode button\.active,\s*\.holder-bucket-mode button:hover,\s*\.holder-bucket-mode button:focus-visible,/);
+  assert.match(controlsCss, /\.holder-exposure-mode button\.active,\s*\.holder-exposure-mode button:hover,\s*\.holder-exposure-mode button:focus-visible,/);
   assert.doesNotMatch(controlsCss, /\.holder-bucket-mode button\.active::before/);
   assert.match(preview, /document\.querySelectorAll\("\[data-holder-bucket-view\]"\)\.forEach\(item => \{\s*const active = item\.dataset\.holderBucketView === holderBucketView;\s*item\.classList\.toggle\("active", active\);\s*item\.setAttribute\("aria-pressed", String\(active\)\);/);
 });

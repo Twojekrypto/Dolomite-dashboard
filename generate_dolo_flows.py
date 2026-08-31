@@ -4,7 +4,7 @@ DOLO Token Flows — Top Accumulators & Sellers (1d / 7d / 30d)
 Fetches ERC-20 Transfer events via eth_getLogs for ETH and Berachain,
 calculates net inflow/outflow per address, outputs top 5 each.
 """
-import hashlib, json, time, os, sys, signal, re, shutil, subprocess
+import hashlib, json, time, os, sys, signal, re, shutil, subprocess, math
 import requests
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -191,6 +191,11 @@ DOLOMITE_DOLO_POSITION_SUBGRAPHS = {
     },
 }
 DOLOMITE_POSITION_MAX_AGE_SECONDS = 6 * 3600
+HOLDER_DOLOMITE_HISTORY_CACHE_VERSION = 1
+HOLDER_DOLOMITE_HISTORY_REQUEST_DELAY_SECONDS = max(
+    0.0,
+    float(os.environ.get("DOLO_HOLDER_EXPOSURE_REQUEST_DELAY_SECONDS", "0.1")),
+)
 
 PERIODS = {
     "1d": 86400,
@@ -1800,13 +1805,15 @@ def fetch_dolomite_dolo_balances(
     subgraphs=None,
     attempts=3,
     now_ts=None,
+    block_numbers=None,
 ):
-    """Return current positive DOLO balances held inside Dolomite.
+    """Return positive DOLO balances held inside Dolomite.
 
     Positive Par is aggregated by effective user across every subaccount, then
-    converted with the current supply index. Results are published only when
-    both active DOLO-market subgraphs respond with fresh, complete snapshots;
-    a partial cross-chain total would be misleading in the Balance column.
+    converted with the supply index at the queried block. Without
+    ``block_numbers`` the snapshot must be current and fresh. Results are
+    published only when every requested DOLO-market subgraph responds with a
+    complete snapshot; a partial cross-chain total would be misleading.
     """
     request_fn = request_fn or requests.post
     subgraphs = subgraphs or DOLOMITE_DOLO_POSITION_SUBGRAPHS
@@ -1822,6 +1829,7 @@ def fetch_dolomite_dolo_balances(
     if not include_all_positive_users and not targets:
         return {}, {"status": "complete", "failedChains": [], "chains": {}, "scope": scope}
 
+    block_numbers = block_numbers or {}
     balances = {
         address: {chain_key: Decimal(0) for chain_key in subgraphs}
         for address in targets
@@ -1831,6 +1839,10 @@ def fetch_dolomite_dolo_balances(
     page_size = 1000
 
     for chain_key, config in subgraphs.items():
+        requested_block = int(block_numbers.get(chain_key) or 0)
+        historical_query = requested_block > 0
+        meta_block_arg = f"(block: {{ number: {requested_block} }})" if historical_query else ""
+        entity_block_arg = f", block: {{ number: {requested_block} }}" if historical_query else ""
         chain_rows = []
         supply_index = None
         block_number = 0
@@ -1840,8 +1852,8 @@ def fetch_dolomite_dolo_balances(
 
         while True:
             query = f'''{{
-              _meta {{ block {{ number timestamp }} }}
-              interestIndexes(first: 1000) {{
+              _meta{meta_block_arg} {{ block {{ number timestamp }} }}
+              interestIndexes(first: 1000{entity_block_arg}) {{
                 id
                 supplyIndex
                 token {{ id symbol marketId }}
@@ -1849,6 +1861,7 @@ def fetch_dolomite_dolo_balances(
               marginAccountTokenValues(
                 first: {page_size},
                 skip: {skip},
+                {"block: { number: " + str(requested_block) + " }," if historical_query else ""}
                 where: {{ token: "{DOLO_CONTRACT}", valuePar_gt: "0" }},
                 orderBy: id,
                 orderDirection: asc
@@ -1894,8 +1907,21 @@ def fetch_dolomite_dolo_balances(
             meta_block = ((data.get("_meta") or {}).get("block") or {})
             block_number = int(meta_block.get("number") or block_number or 0)
             block_timestamp = int(meta_block.get("timestamp") or block_timestamp or 0)
-            if not block_timestamp or now_ts - block_timestamp > DOLOMITE_POSITION_MAX_AGE_SECONDS:
+            if historical_query and block_number != requested_block:
+                error = RuntimeError(
+                    f"historical block mismatch ({block_number} != {requested_block})"
+                )
+                break
+            if not historical_query and (
+                not block_timestamp
+                or now_ts - block_timestamp > DOLOMITE_POSITION_MAX_AGE_SECONDS
+            ):
                 error = RuntimeError("stale subgraph snapshot")
+                break
+
+            rows = data.get("marginAccountTokenValues")
+            if not isinstance(rows, list):
+                error = RuntimeError("missing DOLO position rows")
                 break
 
             if supply_index is None:
@@ -1908,14 +1934,13 @@ def fetch_dolomite_dolo_balances(
                     except InvalidOperation:
                         supply_index = None
                     break
-                if supply_index is None or supply_index <= 0:
+                if (supply_index is None or supply_index <= 0) and rows:
                     error = RuntimeError("missing DOLO supply index")
                     break
-
-            rows = data.get("marginAccountTokenValues")
-            if not isinstance(rows, list):
-                error = RuntimeError("missing DOLO position rows")
-                break
+                if supply_index is None or supply_index <= 0:
+                    # Before the DOLO market existed, a pinned historical block
+                    # correctly has neither an index nor positive positions.
+                    supply_index = Decimal(1)
             chain_rows.extend(rows)
             if len(rows) < page_size:
                 break
@@ -1953,6 +1978,7 @@ def fetch_dolomite_dolo_balances(
             seen_wallets.add(address)
 
         chain_metadata[chain_key] = {
+            "requestedBlock": requested_block or block_number,
             "blockNumber": block_number,
             "blockTimestamp": block_timestamp,
             "matchedWallets": len(seen_wallets),
@@ -1980,6 +2006,152 @@ def fetch_dolomite_dolo_balances(
         "failedChains": [],
         "chains": chain_metadata,
         "scope": scope,
+    }
+
+
+def _holder_protocol_snapshot_from_cached_chains(chain_rows, chain_keys):
+    """Merge one point's exact per-chain protocol balances by effective owner."""
+    addresses = set()
+    for chain_key in chain_keys:
+        addresses.update((chain_rows.get(chain_key) or {}).get("balances", {}).keys())
+    snapshot = {}
+    for address in addresses:
+        row = {
+            chain_key: round(
+                float((chain_rows.get(chain_key) or {}).get("balances", {}).get(address) or 0),
+                6,
+            )
+            for chain_key in chain_keys
+        }
+        row["total"] = round(sum(row.values()), 6)
+        if row["total"] > 0:
+            snapshot[address] = row
+    return snapshot
+
+
+def _holder_cached_protocol_chain_valid(row):
+    if not isinstance(row, dict) or int(row.get("blockNumber") or 0) <= 0:
+        return False
+    balances = row.get("balances")
+    if not isinstance(balances, dict):
+        return False
+    for address, value in balances.items():
+        if (
+            not re.fullmatch(r"0x[a-f0-9]{40}", str(address or ""))
+            or isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value < 0
+        ):
+            return False
+    return True
+
+
+def load_holder_dolomite_history_snapshots(
+    state,
+    points,
+    current_blocks,
+    base_ts,
+    request_fn=None,
+    subgraphs=None,
+    checkpoint_fn=save_state,
+    request_delay_seconds=HOLDER_DOLOMITE_HISTORY_REQUEST_DELAY_SECONDS,
+):
+    """Load or fetch complete daily DOLO-in-Dolomite snapshots.
+
+    Each chain is cached independently so an interrupted initial backfill can
+    resume without repeating successful archive-subgraph requests. A public
+    combined snapshot is returned only when every requested point has every
+    active chain; partial cross-chain exposure would move wallets into the
+    wrong holder bucket.
+    """
+    subgraphs = subgraphs or DOLOMITE_DOLO_POSITION_SUBGRAPHS
+    chain_keys = tuple(subgraphs.keys())
+    cache = state.get("holder_dolomite_history")
+    if not isinstance(cache, dict) or cache.get("version") != HOLDER_DOLOMITE_HISTORY_CACHE_VERSION:
+        cache = {
+            "version": HOLDER_DOLOMITE_HISTORY_CACHE_VERSION,
+            "points": {},
+        }
+        state["holder_dolomite_history"] = cache
+    cache_points = cache.setdefault("points", {})
+    fetched = 0
+    cached = 0
+    snapshots = {}
+
+    for point in sorted(points, key=lambda item: item["ts"]):
+        point_key = point["key"]
+        point_cache = cache_points.setdefault(point_key, {
+            "timestamp": point["timestamp"],
+            "chains": {},
+        })
+        point_cache["timestamp"] = point["timestamp"]
+        chain_cache = point_cache.setdefault("chains", {})
+        for chain_key in chain_keys:
+            cached_chain = chain_cache.get(chain_key)
+            if _holder_cached_protocol_chain_valid(cached_chain):
+                cached += 1
+                continue
+
+            requested_block = holder_history_cutoff_block(
+                chain_key, point["ts"], base_ts, current_blocks
+            )
+            balances, metadata = fetch_dolomite_dolo_balances(
+                None,
+                request_fn=request_fn,
+                subgraphs={chain_key: subgraphs[chain_key]},
+                attempts=3,
+                now_ts=base_ts,
+                block_numbers={chain_key: requested_block},
+            )
+            chain_meta = (metadata.get("chains") or {}).get(chain_key) or {}
+            if metadata.get("status") != "complete" or not chain_meta:
+                raise RuntimeError(
+                    f"{subgraphs[chain_key].get('name', chain_key)} historical "
+                    f"Dolomite DOLO snapshot unavailable for {point_key}"
+                )
+            chain_cache[chain_key] = {
+                "requestedBlock": requested_block,
+                "blockNumber": int(chain_meta.get("blockNumber") or 0),
+                "blockTimestamp": int(chain_meta.get("blockTimestamp") or 0),
+                "balances": {
+                    address: round(float(values.get(chain_key) or 0), 6)
+                    for address, values in balances.items()
+                    if float(values.get(chain_key) or 0) > 0
+                },
+            }
+            fetched += 1
+            if request_delay_seconds:
+                time.sleep(request_delay_seconds)
+            if checkpoint_fn and fetched % 10 == 0:
+                checkpoint_fn(state)
+
+        missing = [chain_key for chain_key in chain_keys if chain_key not in chain_cache]
+        if missing:
+            raise RuntimeError(
+                f"Incomplete historical Dolomite DOLO coverage for {point_key}: {missing}"
+            )
+        snapshots[point_key] = _holder_protocol_snapshot_from_cached_chains(
+            chain_cache, chain_keys
+        )
+
+    keep_keys = {point["key"] for point in points}
+    cache["points"] = {
+        key: value for key, value in cache_points.items() if key in keep_keys
+    }
+    cache["updatedAt"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    if checkpoint_fn and fetched:
+        checkpoint_fn(state)
+    return snapshots, {
+        "status": "complete",
+        "schemaVersion": HOLDER_DOLOMITE_HISTORY_CACHE_VERSION,
+        "pointCount": len(points),
+        "chainCount": len(chain_keys),
+        "chains": list(chain_keys),
+        "fetchedChainSnapshots": fetched,
+        "cachedChainSnapshots": cached,
+        "startTimestamp": points[0]["timestamp"] if points else None,
+        "endTimestamp": points[-1]["timestamp"] if points else None,
     }
 
 
@@ -2555,7 +2727,15 @@ def historical_liquid_by_chain(current_liquid_by_chain, chain_changes):
     return liquid_by_chain
 
 
-def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_ts, vesting_labels=None):
+def calculate_holder_bucket_history(
+    all_transfers,
+    points,
+    current_blocks,
+    base_ts,
+    vesting_labels=None,
+    dolomite_history=None,
+    current_dolomite_balances=None,
+):
     holder_rows = load_current_holder_rows()
     address_labels = load_address_labels(vesting_labels)
     current_liquid = {
@@ -2589,7 +2769,11 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
 
     for point in sorted(points, key=lambda row: row["ts"], reverse=True):
         for chain_key in CHAINS:
-            cutoff = holder_history_cutoff_block(chain_key, point["ts"], base_ts, current_blocks)
+            cutoff = (
+                int(current_blocks[chain_key]) + 1
+                if point["key"] == "now"
+                else holder_history_cutoff_block(chain_key, point["ts"], base_ts, current_blocks)
+            )
             chain_transfers = sorted_transfers[chain_key]
             cursor = cursors[chain_key]
             while cursor >= 0 and chain_transfers[cursor][3] >= cutoff:
@@ -2615,23 +2799,58 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
 
         liquid_by_chain = historical_liquid_by_chain(current_liquid_by_chain, chain_changes)
         locked_balances = locked_map_at_holder_point(point["ts"], current_locks, vedolo_events)
+        if point["key"] == "now":
+            protocol_snapshot = current_dolomite_balances or {}
+        else:
+            protocol_snapshot = (dolomite_history or {}).get(point["key"], {})
+        if dolomite_history is not None and point["key"] != "now" and point["key"] not in dolomite_history:
+            raise RuntimeError(
+                f"Missing historical Dolomite DOLO snapshot for {point['key']}"
+            )
+        protocol_balances = {
+            address: max(0, float(values.get("total") or 0))
+            for address, values in protocol_snapshot.items()
+            if isinstance(values, dict) and float(values.get("total") or 0) > 0
+        }
+        protocol_by_chain = {
+            chain_key: {
+                address: max(0, float(values.get(chain_key) or 0))
+                for address, values in protocol_snapshot.items()
+                if isinstance(values, dict) and float(values.get(chain_key) or 0) > 0
+            }
+            for chain_key in CHAINS
+        }
         row = {
             "key": point["key"],
             "timestamp": point["timestamp"],
             "liquid": {},
             "with_vedolo": {},
+            "total_exposure": {},
+            "total_exposure_with_vedolo": {},
         }
         wallet_row = {
             "timestamp": point["timestamp"],
             "liquid": {},
             "with_vedolo": {},
+            "total_exposure": {},
+            "total_exposure_with_vedolo": {},
         }
         for audience in ("market", "holders", "potential"):
-            row["liquid"][audience] = {}
-            row["with_vedolo"][audience] = {}
+            for source_key in (
+                "liquid",
+                "with_vedolo",
+                "total_exposure",
+                "total_exposure_with_vedolo",
+            ):
+                row[source_key][audience] = {}
             if HOLDER_WALLET_HISTORY_VIEWS:
-                wallet_row["liquid"][audience] = {}
-                wallet_row["with_vedolo"][audience] = {}
+                for source_key in (
+                    "liquid",
+                    "with_vedolo",
+                    "total_exposure",
+                    "total_exposure_with_vedolo",
+                ):
+                    wallet_row[source_key][audience] = {}
             for view, bucket_defs in HOLDER_BUCKET_GROUPS.items():
                 row["liquid"][audience][view] = build_bucket_model(
                     liquid_balances,
@@ -2651,6 +2870,26 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
                     include_allocations=audience == "holders",
                     audience=audience,
                 )
+                row["total_exposure"][audience][view] = build_bucket_model(
+                    liquid_balances,
+                    {},
+                    holder_rows,
+                    address_labels,
+                    bucket_defs,
+                    include_allocations=audience == "holders",
+                    audience=audience,
+                    protocol_balances=protocol_balances,
+                )
+                row["total_exposure_with_vedolo"][audience][view] = build_bucket_model(
+                    liquid_balances,
+                    locked_balances,
+                    holder_rows,
+                    address_labels,
+                    bucket_defs,
+                    include_allocations=audience == "holders",
+                    audience=audience,
+                    protocol_balances=protocol_balances,
+                )
                 if view in HOLDER_WALLET_HISTORY_VIEWS:
                     wallet_row["liquid"][audience][view] = build_bucket_wallet_history_rows(
                         liquid_by_chain,
@@ -2667,6 +2906,24 @@ def calculate_holder_bucket_history(all_transfers, points, current_blocks, base_
                         address_labels,
                         bucket_defs,
                         audience=audience,
+                    )
+                    wallet_row["total_exposure"][audience][view] = build_bucket_wallet_history_rows(
+                        liquid_by_chain,
+                        {},
+                        holder_rows,
+                        address_labels,
+                        bucket_defs,
+                        audience=audience,
+                        protocol_by_chain=protocol_by_chain,
+                    )
+                    wallet_row["total_exposure_with_vedolo"][audience][view] = build_bucket_wallet_history_rows(
+                        liquid_by_chain,
+                        locked_balances,
+                        holder_rows,
+                        address_labels,
+                        bucket_defs,
+                        audience=audience,
+                        protocol_by_chain=protocol_by_chain,
                     )
         history.append(row)
         wallet_history[point["key"]] = wallet_row
@@ -3889,10 +4146,12 @@ def empty_bucket_model(bucket_defs, audience):
             "wallets": 0,
             "total": 0,
             "liquid": 0,
+            "protocol": 0,
             "locked": 0,
             "allocationWallets": 0,
             "allocationTotal": 0,
             "allocationLiquid": 0,
+            "allocationProtocol": 0,
             "allocationLocked": 0,
             "teamWallets": 0,
             "teamTotal": 0,
@@ -3907,6 +4166,7 @@ def empty_bucket_model(bucket_defs, audience):
         "trackedWallets": 0,
         "trackedTotal": 0,
         "trackedLiquid": 0,
+        "trackedProtocol": 0,
         "trackedLocked": 0,
         "excludedCexWallets": 0,
         "excludedCexTotal": 0,
@@ -3917,6 +4177,7 @@ def empty_bucket_model(bucket_defs, audience):
         "allocationWallets": 0,
         "allocationTotal": 0,
         "allocationLiquid": 0,
+        "allocationProtocol": 0,
         "allocationLocked": 0,
         "teamWallets": 0,
         "teamTotal": 0,
@@ -3943,13 +4204,20 @@ def build_bucket_model(
     bucket_defs,
     include_allocations=False,
     audience="market",
+    protocol_balances=None,
 ):
+    protocol_balances = protocol_balances or {}
     model = empty_bucket_model(bucket_defs, audience)
-    addresses = set(liquid_balances.keys()) | set(locked_balances.keys())
+    addresses = (
+        set(liquid_balances.keys())
+        | set(locked_balances.keys())
+        | set(protocol_balances.keys())
+    )
     for addr in addresses:
         liquid = max(0, float(liquid_balances.get(addr) or 0))
+        protocol = max(0, float(protocol_balances.get(addr) or 0))
         locked = max(0, float(locked_balances.get(addr) or 0))
-        total = liquid + locked
+        total = liquid + protocol + locked
         if total <= 0:
             continue
         holder_type = holder_distribution_type(addr, holder_rows, address_labels)
@@ -3962,6 +4230,7 @@ def build_bucket_model(
             model["allocationWallets"] += 1
             model["allocationTotal"] += total
             model["allocationLiquid"] += liquid
+            model["allocationProtocol"] += protocol
             model["allocationLocked"] += locked
             if holder_type == "team":
                 model["teamWallets"] += 1
@@ -3986,11 +4255,13 @@ def build_bucket_model(
         bucket["wallets"] += 1
         bucket["total"] += total
         bucket["liquid"] += liquid
+        bucket["protocol"] += protocol
         bucket["locked"] += locked
         if is_allocation:
             bucket["allocationWallets"] += 1
             bucket["allocationTotal"] += total
             bucket["allocationLiquid"] += liquid
+            bucket["allocationProtocol"] += protocol
             bucket["allocationLocked"] += locked
             if holder_type == "team":
                 bucket["teamWallets"] += 1
@@ -4001,17 +4272,18 @@ def build_bucket_model(
         model["trackedWallets"] += 1
         model["trackedTotal"] += total
         model["trackedLiquid"] += liquid
+        model["trackedProtocol"] += protocol
         model["trackedLocked"] += locked
     for bucket in model["buckets"]:
         for key in [
-            "total", "liquid", "locked", "allocationTotal", "allocationLiquid",
-            "allocationLocked", "teamTotal", "investorTotal",
+            "total", "liquid", "protocol", "locked", "allocationTotal", "allocationLiquid",
+            "allocationProtocol", "allocationLocked", "teamTotal", "investorTotal",
         ]:
             bucket[key] = round(bucket[key], 2)
     for key in [
-        "trackedTotal", "trackedLiquid", "trackedLocked", "excludedCexTotal",
+        "trackedTotal", "trackedLiquid", "trackedProtocol", "trackedLocked", "excludedCexTotal",
         "excludedPotentialTotal",
-        "excludedInsiderTotal", "allocationTotal", "allocationLiquid",
+        "excludedInsiderTotal", "allocationTotal", "allocationLiquid", "allocationProtocol",
         "allocationLocked", "teamTotal", "investorTotal",
     ]:
         model[key] = round(model[key], 2)
@@ -4025,17 +4297,24 @@ def build_bucket_wallet_history_rows(
     address_labels,
     bucket_defs,
     audience="market",
+    protocol_by_chain=None,
 ):
+    protocol_by_chain = protocol_by_chain or {}
     rows = []
     addresses = set(locked_balances.keys())
     for chain_balances in liquid_by_chain.values():
+        addresses.update(chain_balances.keys())
+    for chain_balances in protocol_by_chain.values():
         addresses.update(chain_balances.keys())
     for addr in addresses:
         bal_eth = max(0, float(liquid_by_chain.get("eth", {}).get(addr) or 0))
         bal_bera = max(0, float(liquid_by_chain.get("bera", {}).get(addr) or 0))
         liquid = bal_eth + bal_bera
+        protocol_eth = max(0, float(protocol_by_chain.get("eth", {}).get(addr) or 0))
+        protocol_bera = max(0, float(protocol_by_chain.get("bera", {}).get(addr) or 0))
+        protocol = protocol_eth + protocol_bera
         locked = max(0, float(locked_balances.get(addr) or 0))
-        total = liquid + locked
+        total = liquid + protocol + locked
         if total <= 0.0001:
             continue
         holder_type = holder_distribution_type(addr, holder_rows, address_labels)
@@ -4052,6 +4331,9 @@ def build_bucket_wallet_history_rows(
             "type": holder_type,
             "balance": round(total, 6),
             "liquid": round(liquid, 6),
+            "in_dolomite": round(protocol, 6),
+            "in_dolomite_eth": round(protocol_eth, 6),
+            "in_dolomite_bera": round(protocol_bera, 6),
             "locked": round(locked, 6),
             "balance_eth": round(bal_eth, 6),
             "balance_bera": round(bal_bera, 6),
@@ -4356,21 +4638,38 @@ def rebuild_holder_history_from_cached_transfers():
         )
     )
     points = build_holder_history_schedule(base_ts)
-    vesting_investors = extract_vesting_investors(all_transfers)
-    holder_bucket_history, holder_wallet_history = calculate_holder_bucket_history(
-        all_transfers,
+    dolomite_history, dolomite_history_meta = load_holder_dolomite_history_snapshots(
+        state,
         points,
         current_blocks,
         base_ts,
+    )
+    current_dolomite_balances = output.get("dolomite_balances") or {}
+    current_dolomite_meta = output.get("dolomite_balance_meta") or {}
+    if current_dolomite_meta.get("status") != "complete":
+        raise RuntimeError("Current cross-chain Dolomite DOLO snapshot is incomplete")
+    chart_points = [
+        *points,
+        {"key": "now", "timestamp": raw_timestamp, "ts": base_ts},
+    ]
+    vesting_investors = extract_vesting_investors(all_transfers)
+    holder_bucket_history, holder_wallet_history = calculate_holder_bucket_history(
+        all_transfers,
+        chart_points,
+        current_blocks,
+        base_ts,
         vesting_investors,
+        dolomite_history=dolomite_history,
+        current_dolomite_balances=current_dolomite_balances,
     )
 
     output["holder_history_points"] = [
         {"key": point["key"], "timestamp": point["timestamp"]}
-        for point in points
+        for point in chart_points
     ]
     output["holder_bucket_history"] = holder_bucket_history
-    output["holder_history_schema"] = "audience-v2"
+    output["holder_history_schema"] = "audience-exposure-v3"
+    output["holder_dolomite_history_meta"] = dolomite_history_meta
     with open(OUTPUT_JSON, "w") as f:
         json.dump(output, f, separators=(",", ":"))
     with open(WALLET_HISTORY_JSON, "w") as f:
@@ -5047,6 +5346,7 @@ def main():
         print(f"  ✅ Current Dolomite DOLO found for {positioned_wallets} wallet(s)")
     else:
         print("  ⚠️ Current Dolomite DOLO is omitted because cross-chain coverage is incomplete")
+        raise RuntimeError("Current cross-chain Dolomite DOLO snapshot is incomplete")
 
     # Build balance_changes: address -> net_flow for ALL addresses per period
     # Uses already-neutralized flows from the cache (bridge transfers cancelled out)
@@ -5091,12 +5391,30 @@ def main():
     # transfer logs as the flow tables, but add enough cutoffs for a usable hover.
     holder_history_points = build_holder_history_schedule(holder_history_base_ts)
     print(f"\n📈 Building holder bucket chart history ({len(holder_history_points)} points)...")
-    holder_bucket_history, holder_wallet_history = calculate_holder_bucket_history(
-        all_transfers,
+    holder_dolomite_history, holder_dolomite_history_meta = load_holder_dolomite_history_snapshots(
+        state,
         holder_history_points,
         current_blocks,
         holder_history_base_ts,
+    )
+    holder_chart_points = [
+        *holder_history_points,
+        {
+            "key": "now",
+            "timestamp": datetime.fromtimestamp(
+                holder_history_base_ts, timezone.utc
+            ).isoformat().replace("+00:00", "Z"),
+            "ts": holder_history_base_ts,
+        },
+    ]
+    holder_bucket_history, holder_wallet_history = calculate_holder_bucket_history(
+        all_transfers,
+        holder_chart_points,
+        current_blocks,
+        holder_history_base_ts,
         vesting_investors,
+        dolomite_history=holder_dolomite_history,
+        current_dolomite_balances=dolomite_balances,
     )
     cex_supply_history = calculate_cex_supply_history(
         all_transfers,
@@ -5105,7 +5423,7 @@ def main():
         holder_history_base_ts,
         vesting_investors,
     )
-    print(f"  ... {len(holder_history_points)}/{len(holder_history_points)} holder history points")
+    print(f"  ... {len(holder_chart_points)}/{len(holder_chart_points)} holder history points")
 
     # Checksum addresses in balance_changes
     try:
@@ -5147,9 +5465,11 @@ def main():
         "holder_history_start_timestamp": datetime.utcfromtimestamp(HOLDER_HISTORY_START_TIMESTAMP).isoformat() + "Z",
         "holder_history_points": [
             {"key": point["key"], "timestamp": point["timestamp"]}
-            for point in holder_history_points
+            for point in holder_chart_points
         ],
         "holder_bucket_history": holder_bucket_history,
+        "holder_history_schema": "audience-exposure-v3",
+        "holder_dolomite_history_meta": holder_dolomite_history_meta,
         # holder_wallet_history is written to WALLET_HISTORY_JSON (separate
         # lazy-loaded file); keep a marker so the UI knows where to find it.
         "holder_wallet_history_file": "dolo_holder_wallet_history.json",

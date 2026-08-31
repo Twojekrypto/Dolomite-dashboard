@@ -2002,6 +2002,60 @@ def _flow_dolomite_balances_are_valid(data):
     return True
 
 
+def _holder_dolomite_exposure_history_is_valid(data):
+    """Historical holder exposure must have complete cross-chain daily evidence."""
+    meta = data.get("holder_dolomite_history_meta")
+    history = data.get("holder_bucket_history")
+    points = data.get("holder_history_points")
+    if (
+        data.get("holder_history_schema") != "audience-exposure-v3"
+        or not isinstance(meta, dict)
+        or meta.get("status") != "complete"
+        or meta.get("schemaVersion") != 1
+        or meta.get("chainCount") != 2
+        or set(meta.get("chains") or []) != {"eth", "bera"}
+        or not isinstance(history, list)
+        or not isinstance(points, list)
+        or len(history) != len(points)
+        or len(history) < 2
+        or history[-1].get("key") != "now"
+        or points[-1].get("key") != "now"
+        or meta.get("pointCount") != len(history) - 1
+    ):
+        return False
+    required_sources = {
+        "liquid",
+        "with_vedolo",
+        "total_exposure",
+        "total_exposure_with_vedolo",
+    }
+    for row, point in zip(history, points):
+        if (
+            not isinstance(row, dict)
+            or row.get("key") != point.get("key")
+            or row.get("timestamp") != point.get("timestamp")
+            or not required_sources.issubset(row)
+        ):
+            return False
+        for source_key in required_sources:
+            model = (((row.get(source_key) or {}).get("holders") or {}).get("whales"))
+            if not isinstance(model, dict) or not isinstance(model.get("buckets"), list):
+                return False
+            for numeric_key in (
+                "trackedTotal",
+                "trackedLiquid",
+                "trackedLocked",
+            ):
+                value = model.get(numeric_key)
+                if not _finite_real_json_number(value) or value < 0:
+                    return False
+            if source_key.startswith("total_exposure"):
+                protocol = model.get("trackedProtocol")
+                if not _finite_real_json_number(protocol) or protocol < 0:
+                    return False
+    return True
+
+
 def _flow_history_integrity_is_valid(data):
     integrity = data.get("flow_history_integrity")
     if not isinstance(integrity, dict):
@@ -2266,7 +2320,7 @@ RULES = {
         "min_bytes": 500,
     },
     "dolo_flows.json": {
-        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history", "dolomite_balance_meta", "dolomite_balances", "flow_history_integrity"],
+        "required_keys": ["timestamp", "dolo_price", "periods", "cex_supply_history", "dolomite_balance_meta", "dolomite_balances", "holder_dolomite_history_meta", "flow_history_integrity"],
         "checks": [
             ("periods must have data",     lambda d: len(d.get("periods", {})) >= 3),
             ("dolo_price must be positive", lambda d: d.get("dolo_price", 0) > 0),
@@ -2275,6 +2329,7 @@ RULES = {
             ("optional latest transaction metadata must be exact", _flow_tx_metadata_is_valid),
             ("optional LP activity metadata must be exact", _flow_lp_metadata_is_valid),
             ("Dolomite DOLO balances must be complete and reconcile", _flow_dolomite_balances_are_valid),
+            ("Holder total-exposure history must have complete Dolomite coverage", _holder_dolomite_exposure_history_is_valid),
             ("v3/v4/v5 combined flow rows, complete search index, exact boundaries, bridge audit and freshness must reconcile", _flow_reconciliation_v3_is_valid),
         ],
         "min_bytes": 50_000,

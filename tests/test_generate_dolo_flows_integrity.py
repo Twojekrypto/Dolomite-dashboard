@@ -705,6 +705,66 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(model["buckets"][0]["teamWallets"], 1)
         self.assertEqual(model["buckets"][1]["investorWallets"], 1)
 
+    def test_holder_total_exposure_buckets_add_protocol_supply_without_changing_wallet_view(self):
+        wallet_balances = {OUTSIDE: 900_000}
+        protocol_balances = {OUTSIDE: 200_000}
+        buckets = flows.HOLDER_BUCKET_GROUPS["whales"]
+
+        wallet_only = flows.build_bucket_model(
+            wallet_balances, {}, {}, {}, buckets,
+            include_allocations=True, audience="holders",
+        )
+        total_exposure = flows.build_bucket_model(
+            wallet_balances, {}, {}, {}, buckets,
+            include_allocations=True, audience="holders",
+            protocol_balances=protocol_balances,
+        )
+
+        self.assertEqual(wallet_only["trackedTotal"], 900_000)
+        self.assertEqual(wallet_only["buckets"][0]["wallets"], 0)
+        self.assertEqual(wallet_only["buckets"][1]["wallets"], 1)
+        self.assertEqual(total_exposure["trackedTotal"], 1_100_000)
+        self.assertEqual(total_exposure["trackedProtocol"], 200_000)
+        self.assertEqual(total_exposure["buckets"][0]["wallets"], 1)
+        self.assertEqual(total_exposure["buckets"][0]["protocol"], 200_000)
+
+    def test_holder_history_emits_wallet_and_total_exposure_series_through_now(self):
+        base_ts = 1_777_248_000
+        points = [
+            {"key": "hist_20260830", "timestamp": "2026-08-30T00:00:00Z", "ts": base_ts - 86_400},
+            {"key": "now", "timestamp": "2026-08-31T00:00:00Z", "ts": base_ts},
+        ]
+        holder_rows = {
+            OUTSIDE: {"balance": 900_000, "balance_eth": 900_000, "balance_bera": 0},
+        }
+        historical_protocol = {
+            "hist_20260830": {OUTSIDE: {"eth": 200_000, "bera": 0, "total": 200_000}},
+        }
+        current_protocol = {OUTSIDE: {"eth": 300_000, "bera": 0, "total": 300_000}}
+
+        with patch.object(flows, "load_current_holder_rows", return_value=holder_rows), \
+             patch.object(flows, "load_address_labels", return_value={}), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "load_vedolo_flow_events", return_value={"locks": [], "unlocks": []}):
+            history, wallet_history = flows.calculate_holder_bucket_history(
+                {"eth": [], "bera": []},
+                points,
+                {"eth": 2_000, "bera": 4_000},
+                base_ts,
+                dolomite_history=historical_protocol,
+                current_dolomite_balances=current_protocol,
+            )
+
+        self.assertEqual([row["key"] for row in history], ["hist_20260830", "now"])
+        old = history[0]
+        now = history[1]
+        self.assertEqual(old["liquid"]["holders"]["whales"]["trackedTotal"], 900_000)
+        self.assertEqual(old["total_exposure"]["holders"]["whales"]["trackedTotal"], 1_100_000)
+        self.assertEqual(now["total_exposure"]["holders"]["whales"]["trackedTotal"], 1_200_000)
+        historical_wallet = wallet_history["hist_20260830"]["total_exposure"]["holders"]["whales"][0]
+        self.assertEqual(historical_wallet["in_dolomite"], 200_000)
+        self.assertEqual(historical_wallet["balance"], 1_100_000)
+
     def test_exact_latest_flow_metadata_uses_direction_and_last_log_index(self):
         wallet = "0x1111111111111111111111111111111111111111"
         peer = "0x2222222222222222222222222222222222222222"
