@@ -544,6 +544,57 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
         self.assertEqual(cached, snapshots)
         self.assertEqual(cached_metadata["cachedChainSnapshots"], 4)
 
+    def test_holder_dolomite_history_treats_verified_pre_market_points_as_zero(self):
+        state = {}
+        points = [
+            {"key": "hist_before_market", "timestamp": "2025-04-24T00:00:00Z", "ts": 100},
+            {"key": "hist_after_market", "timestamp": "2025-08-01T00:00:00Z", "ts": 900},
+        ]
+        subgraphs = {
+            "eth": {
+                "name": "Ethereum",
+                "url": "https://subgraph.example/eth",
+                "marketStartBlock": 500,
+            },
+        }
+        calls = []
+
+        def fetch(_addresses, **kwargs):
+            block = kwargs["block_numbers"]["eth"]
+            calls.append(block)
+            return {}, {
+                "status": "complete",
+                "failedChains": [],
+                "chains": {"eth": {
+                    "requestedBlock": block,
+                    "blockNumber": block,
+                    "blockTimestamp": 900,
+                    "matchedWallets": 0,
+                    "custodyAddress": flows.DOLOMITE_MARGIN_ADDRS["eth"],
+                }},
+            }
+
+        with patch.object(flows, "holder_history_cutoff_block", side_effect=[400, 800]), \
+             patch.object(flows, "fetch_dolomite_dolo_balances", side_effect=fetch):
+            snapshots, metadata = flows.load_holder_dolomite_history_snapshots(
+                state,
+                points,
+                {"eth": 1_000},
+                1_000,
+                subgraphs=subgraphs,
+                checkpoint_fn=lambda _state: None,
+                request_delay_seconds=0,
+            )
+
+        self.assertEqual(calls, [800])
+        self.assertEqual(snapshots["hist_before_market"], {})
+        self.assertEqual(snapshots["hist_after_market"], {})
+        cached = state["holder_dolomite_history"]["points"]["hist_before_market"]["chains"]["eth"]
+        self.assertEqual(cached["requestedBlock"], 400)
+        self.assertEqual(cached["marketStartBlock"], 500)
+        self.assertEqual(cached["evidence"], "verified-zero-before-dolo-market")
+        self.assertEqual(metadata["preMarketZeroChainSnapshots"], 1)
+
     def test_detect_contracts_batch_uses_batch_results(self):
         contract = ALICE
         wallet = BOB

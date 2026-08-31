@@ -184,10 +184,17 @@ DOLOMITE_DOLO_POSITION_SUBGRAPHS = {
     "eth": {
         "name": "Ethereum",
         "url": f"{DOLOMITE_SUBGRAPH_BASE}/dolomite-ethereum/latest/gn",
+        # Verified against the official archive subgraph on 2026-08-31:
+        # the DOLO interest index is absent at 23,523,265 and first exists at
+        # 23,523,266. Therefore positive DOLO Par cannot exist before it.
+        "marketStartBlock": 23_523_266,
     },
     "bera": {
         "name": "Berachain",
         "url": f"{DOLOMITE_SUBGRAPH_BASE}/dolomite-berachain-mainnet/latest/gn",
+        # Same boundary proof as Ethereum: absent at 4,791,097, first present
+        # at 4,791,098 on the official Dolomite archive subgraph.
+        "marketStartBlock": 4_791_098,
     },
 }
 DOLOMITE_POSITION_MAX_AGE_SECONDS = 6 * 3600
@@ -2077,6 +2084,7 @@ def load_holder_dolomite_history_snapshots(
     cache_points = cache.setdefault("points", {})
     fetched = 0
     cached = 0
+    pre_market_zero = 0
     snapshots = {}
 
     for point in sorted(points, key=lambda item: item["ts"]):
@@ -2088,14 +2096,33 @@ def load_holder_dolomite_history_snapshots(
         point_cache["timestamp"] = point["timestamp"]
         chain_cache = point_cache.setdefault("chains", {})
         for chain_key in chain_keys:
-            cached_chain = chain_cache.get(chain_key)
-            if _holder_cached_protocol_chain_valid(cached_chain):
-                cached += 1
-                continue
-
             requested_block = holder_history_cutoff_block(
                 chain_key, point["ts"], base_ts, current_blocks
             )
+            cached_chain = chain_cache.get(chain_key)
+            if (
+                _holder_cached_protocol_chain_valid(cached_chain)
+                and int(cached_chain.get("requestedBlock") or 0) == requested_block
+            ):
+                cached += 1
+                continue
+
+            market_start_block = int(subgraphs[chain_key].get("marketStartBlock") or 0)
+            if market_start_block and requested_block < market_start_block:
+                # This is not an availability fallback. The official archive
+                # subgraph proves the DOLO market/index did not yet exist, so
+                # the exact positive protocol balance at this block is zero.
+                chain_cache[chain_key] = {
+                    "requestedBlock": requested_block,
+                    "blockNumber": requested_block,
+                    "blockTimestamp": int(point["ts"]),
+                    "balances": {},
+                    "marketStartBlock": market_start_block,
+                    "evidence": "verified-zero-before-dolo-market",
+                }
+                pre_market_zero += 1
+                continue
+
             balances, metadata = fetch_dolomite_dolo_balances(
                 None,
                 request_fn=request_fn,
@@ -2150,6 +2177,7 @@ def load_holder_dolomite_history_snapshots(
         "chains": list(chain_keys),
         "fetchedChainSnapshots": fetched,
         "cachedChainSnapshots": cached,
+        "preMarketZeroChainSnapshots": pre_market_zero,
         "startTimestamp": points[0]["timestamp"] if points else None,
         "endTimestamp": points[-1]["timestamp"] if points else None,
     }
