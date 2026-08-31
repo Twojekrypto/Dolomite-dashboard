@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
 <script src="vedolo-position-activity.js?v=20260821-actions-v1"></script>
+<script src="portfolio-dolo-liquidity.js?v=20260831-portfolio-lp-v1"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (premium, restrained)
@@ -1731,6 +1732,61 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
 .pf-latest-date .pf-latest-tx:hover{opacity:.9;color:var(--gold);background:var(--gold-wash);transform:none}
 .pf-latest-date .pf-latest-tx svg{width:13px;height:13px}
 
+/* Portfolio DOLO Liquidity — active wallet positions from the canonical LP artifact */
+#pf-liquidity-section .pf-table thead th{background:var(--bg-1)}
+.pf-liquidity-table{min-width:980px}
+.pf-liquidity-table col[data-column="chain"]{width:12%}
+.pf-liquidity-table col[data-column="pair"]{width:17%}
+.pf-liquidity-table col[data-column="range"]{width:15%}
+.pf-liquidity-table col[data-column="spacer"]{width:12%}
+.pf-liquidity-table col[data-column="dolo"]{width:12%}
+.pf-liquidity-table col[data-column="paired"]{width:14%}
+.pf-liquidity-table col[data-column="value"]{width:10%}
+.pf-liquidity-table col[data-column="details"]{width:8%}
+.pf-liquidity-table [data-column="spacer"]{padding-left:0;padding-right:0}
+.pf-liquidity-table th[data-column="dolo"],.pf-liquidity-table td[data-column="dolo"],
+.pf-liquidity-table th[data-column="paired"],.pf-liquidity-table td[data-column="paired"],
+.pf-liquidity-table th[data-column="value"],.pf-liquidity-table td[data-column="value"]{text-align:right}
+.pf-liquidity-table th[data-column="details"],.pf-liquidity-table td[data-column="details"]{text-align:center}
+.pf-lp-chain{display:inline-flex;align-items:center;gap:8px;color:var(--fg-1);font-size:12.5px;font-weight:600;white-space:nowrap}
+.pf-lp-chain img{width:16px;height:16px;border-radius:50%;background:var(--bg-3);object-fit:cover}
+.pf-lp-pair{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pf-lp-pair strong,.pf-lp-pair span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-lp-pair strong{font-family:var(--mono);font-size:12px;color:var(--fg-1);font-weight:650}
+.pf-lp-pair span{font-size:10.5px;color:var(--fg-4)}
+.pf-lp-range{display:flex;flex-direction:column;gap:4px;min-width:0}
+.pf-lp-range strong{font-family:var(--mono);font-size:11.5px;font-weight:650;color:var(--fg-2);white-space:nowrap}
+.pf-lp-range span{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--fg-4);white-space:nowrap}
+.pf-lp-range.in strong{color:var(--up)}
+.pf-lp-range.out strong{color:var(--down)}
+.pf-lp-amount{display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;width:100%;font-family:var(--mono);font-size:12px;font-weight:650;color:var(--fg-1);white-space:nowrap}
+.pf-lp-amount img{width:16px;height:16px;border-radius:50%;background:var(--bg-3);object-fit:contain;flex:0 0 16px}
+.pf-lp-value{font-family:var(--mono);font-size:12.5px;font-weight:700;color:#9ab7c2;white-space:nowrap}
+.pf-lp-details-btn{height:26px;min-width:72px;padding:0 9px;border-radius:999px;border:1px solid rgba(201,162,39,.28);background:var(--gold-wash);color:var(--gold);display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:9px;font-weight:750;letter-spacing:.65px;text-transform:uppercase;transition:color .15s var(--ease),border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease)}
+.pf-lp-details-btn svg{width:11px;height:11px;transition:transform .18s var(--ease)}
+.pf-lp-details-btn:hover,.pf-lp-details-btn[aria-expanded="true"]{color:var(--fg-1);border-color:var(--gold);background:rgba(201,162,39,.16);box-shadow:0 0 0 3px rgba(201,162,39,.07)}
+.pf-lp-details-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+.pf-liquidity-table tr.pf-lp-row.expanded td{background:var(--gold-wash);border-bottom-color:transparent}
+.pf-liquidity-table tr.pf-lp-row.expanded td:first-child{box-shadow:inset 2px 0 0 var(--gold)}
+.pf-liquidity-table tr.pf-lp-detail-row td{height:auto;padding:0!important;white-space:normal;background:linear-gradient(90deg,rgba(201,162,39,.045),var(--bg-1) 42px)!important;box-shadow:inset 2px 0 0 var(--gold)}
+.pf-liquidity-table tr.pf-lp-detail-row:hover td{background:linear-gradient(90deg,rgba(201,162,39,.045),var(--bg-1) 42px)!important}
+.pf-lp-detail{padding:18px 22px 20px}
+.pf-lp-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:14px}
+.pf-lp-detail-kicker{font-size:9px;font-weight:750;letter-spacing:1.3px;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
+.pf-lp-detail-title{font-size:15px;font-weight:700;color:var(--fg-1)}
+.pf-lp-detail-pills{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+.pf-lp-detail-pill{padding:4px 8px;border:1px solid var(--line-2);border-radius:999px;background:rgba(255,255,255,.025);font-family:var(--mono);font-size:10px;font-weight:650;color:var(--fg-2);white-space:nowrap}
+.pf-lp-detail-pill.gold{border-color:var(--gold-line);background:var(--gold-wash);color:var(--gold)}
+.pf-lp-detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line-1);border-radius:8px;overflow:hidden;background:rgba(0,0,0,.14)}
+.pf-lp-detail-item{min-width:0;padding:14px 16px;border-left:1px solid var(--line-1)}
+.pf-lp-detail-item:first-child{border-left:0}
+.pf-lp-detail-label{font-size:9px;font-weight:650;letter-spacing:1px;text-transform:uppercase;color:var(--fg-3);margin-bottom:7px}
+.pf-lp-detail-value{font-family:var(--mono);font-size:12px;font-weight:600;line-height:1.45;color:var(--fg-1);overflow-wrap:anywhere}
+.pf-lp-detail-sub{margin-top:4px;font-size:10px;line-height:1.4;color:var(--fg-4)}
+.pf-lp-detail-links{display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:13px;border-top:1px solid var(--line-1);font-size:11px;color:var(--fg-3)}
+.pf-lp-detail-links a{color:var(--gold);text-decoration:none}
+.pf-lp-detail-links a:hover{color:var(--gold-hi)}
+
 .pf-empty{padding:46px 22px;text-align:center;color:var(--fg-3);font-size:13px}
 .pf-empty svg{width:34px;height:34px;color:var(--fg-4);margin-bottom:12px}
 .pf-skel-row td{padding:15px 22px}
@@ -1749,8 +1805,10 @@ body:not(.pf-active) #pf-results{display:none}
   .pf-table thead th:nth-child(1),.pf-table td:nth-child(1){display:none}
   .pf-table.pf-borrow-positions{min-width:860px}
   .pf-table.pf-exercise-table{min-width:940px}
+  .pf-table.pf-liquidity-table{min-width:920px}
   .pf-table.pf-borrow-positions thead th[data-column],.pf-table.pf-borrow-positions td[data-column],
-  .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1){display:table-cell}
+  .pf-table.pf-exercise-table thead th:nth-child(1),.pf-table.pf-exercise-table td:nth-child(1),
+  .pf-table.pf-liquidity-table thead th:nth-child(1),.pf-table.pf-liquidity-table td:nth-child(1){display:table-cell}
   .pf-table tbody tr.pf-row:hover td:first-child{box-shadow:none}
   .pf-table tbody td,.pf-table thead th{padding-left:16px;padding-right:16px}
   #pf-exercises-section .pf-exercise-summary.selected-market-rail{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1759,12 +1817,21 @@ body:not(.pf-active) #pf-results{display:none}
   .pf-filters .pf-search-tbl{width:100%}
   #pf-borrows-section .pf-borrow-actions{width:100%;margin-left:0}
   .pf-tokensearch{margin-left:0}
+  .pf-lp-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pf-lp-detail-item:nth-child(3){border-left:0;border-top:1px solid var(--line-1)}
+  .pf-lp-detail-item:nth-child(4){border-top:1px solid var(--line-1)}
 }
 @media (max-width:430px){
   #pf-exercises-section .pf-exercise-summary.selected-market-rail{grid-template-columns:1fr}
   #pf-exercises-section .pf-exercise-summary-item{border-left:0}
   #pf-exercises-section .pf-exercise-summary-item:nth-child(n+2){border-top:1px solid var(--line-1)}
   .pf-table tbody td,.pf-table thead th{padding-left:12px;padding-right:12px}
+  .pf-lp-detail{padding:16px}
+  .pf-lp-detail-head{flex-direction:column}
+  .pf-lp-detail-pills{justify-content:flex-start}
+  .pf-lp-detail-grid{grid-template-columns:1fr}
+  .pf-lp-detail-item{border-left:0;border-top:1px solid var(--line-1)}
+  .pf-lp-detail-item:first-child{border-top:0}
 }
 </style>
 <body>
@@ -1952,6 +2019,28 @@ body:not(.pf-active) #pf-results{display:none}
       <div class="tbl-foot" id="pf-exercises-foot" style="display:none">
         <div class="tbl-foot-info" id="pf-exercises-info">0–0 of 0</div>
         <div class="pager" id="pf-exercises-pager"></div>
+      </div>
+    </section>
+
+    <!-- DOLO LIQUIDITY — rendered only when this wallet owns an active LP position -->
+    <section class="pf-section" id="pf-liquidity-section" hidden>
+      <div class="card-head">
+        <div class="card-title">
+          <h2>DOLO Liquidity</h2>
+          <span class="count-badge" id="pf-liquidity-count"></span>
+        </div>
+        <div class="card-meta pf-section-meta"><span class="pulse"></span><span class="pf-meta-label">Data updated</span><span class="pf-meta-age" id="pf-liquidity-updated">· —</span></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="pf-table pf-liquidity-table">
+          <colgroup><col data-column="chain"><col data-column="pair"><col data-column="range"><col data-column="spacer"><col data-column="dolo"><col data-column="paired"><col data-column="value"><col data-column="details"></colgroup>
+          <thead><tr><th data-column="chain">Chain</th><th data-column="pair">Pair</th><th data-column="range">Price Range</th><th data-column="spacer" aria-hidden="true"></th><th data-column="dolo">DOLO</th><th data-column="paired">Paired Asset</th><th data-column="value">Value</th><th data-column="details">Details</th></tr></thead>
+          <tbody id="pf-liquidity-body"></tbody>
+        </table>
+      </div>
+      <div class="tbl-foot" id="pf-liquidity-foot">
+        <div class="tbl-foot-info" id="pf-liquidity-info">0–0 of 0</div>
+        <div class="pager" id="pf-liquidity-pager"></div>
       </div>
     </section>
   </div>
@@ -3063,6 +3152,9 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     depPage: 0,
     borPage: 0,
     exPage: 0,
+    liquidityModel: null,
+    liquidityPage: 0,
+    expandedLiquidity: null,
     expandedBorrows: new Set(),
   };
 
@@ -3639,6 +3731,133 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     renderPager($("#pf-exercises-pager"), state.exPage + 1, totalPages, p => { state.exPage = p; renderAll(); });
   }
 
+  function portfolioLpMoney(value){
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "Unavailable";
+    if (number >= 1e9) return `$${(number / 1e9).toFixed(2)}B`;
+    if (number >= 1e6) return `$${(number / 1e6).toFixed(2)}M`;
+    if (number >= 1e3) return `$${(number / 1e3).toFixed(1)}K`;
+    return `$${number.toFixed(2)}`;
+  }
+  function portfolioLpExactMoney(value){
+    const number = Number(value);
+    return Number.isFinite(number) ? `$${number.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Unavailable";
+  }
+  function portfolioLpRange(row){
+    if (row.rangeStatus === "full_range") return { label: "Full range", detail: "Always active", cls: "" };
+    if (row.rangeStatus === "in_range") return { label: "In range", detail: "Active liquidity", cls: "in" };
+    if (row.rangeStatus === "out_of_range") return { label: "Out of range", detail: "Outside active range", cls: "out" };
+    return { label: "Unavailable", detail: "Range not reported", cls: "" };
+  }
+  function portfolioLpBound(value){
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "Unavailable";
+    if (number === 0) return "0";
+    const absolute = Math.abs(number);
+    if (absolute < .000001 || absolute >= 1e12) return number.toExponential(2).replace("e+", "e");
+    return new Intl.NumberFormat("en-US", { maximumSignificantDigits: 6 }).format(number);
+  }
+  function portfolioLpBounds(row){
+    if (row.rangeStatus === "full_range") return "Protocol minimum → Protocol maximum";
+    const spacing = Number(row.tickSpacing || (Number(row.feeTier) ? Number(row.feeTier) / 50 : 1));
+    const lowerOpen = Number.isFinite(Number(row.tickLower)) && Number.isFinite(spacing) && Number(row.tickLower) <= -887272 + spacing;
+    const upperOpen = Number.isFinite(Number(row.tickUpper)) && Number.isFinite(spacing) && Number(row.tickUpper) >= 887272 - spacing;
+    const lower = lowerOpen ? "Protocol minimum" : portfolioLpBound(row.rangeLower);
+    const upper = upperOpen ? "Protocol maximum" : portfolioLpBound(row.rangeUpper);
+    return `${lower} → ${upper}`;
+  }
+  function portfolioLpChain(row){
+    const chain = CHAIN_BY_KEY[row.chainKey] || { name: row.chainKey || "Unavailable" };
+    return `<span class="pf-lp-chain"><img src="${esc(chainIcon(row.chainKey))}" alt="" onerror="this.style.display='none'">${esc(chain.name)}</span>`;
+  }
+  function portfolioLpTokenAmount(raw, decimals, symbol){
+    const compact = PortfolioDoloLiquidity.compactRawAmount(raw, decimals);
+    const exact = PortfolioDoloLiquidity.roundedRawAmount(raw, decimals, 2);
+    return `<span class="pf-lp-amount" data-tooltip="${esc(exact === "Unavailable" ? `${symbol} amount unavailable` : `${exact} ${symbol}`)}"><span>${esc(compact)}</span><img src="${esc(tokenIcon(symbol))}" alt="${esc(symbol)}" onerror="this.style.display='none'"></span>`;
+  }
+  function portfolioLpStatus(row){
+    const key = String(row.quality || row.valueStatus || "unavailable").toLowerCase();
+    const statuses = {
+      verified: ["Verified", "Ownership and current value are verified on-chain."],
+      partial: ["Partial", "The position is tracked, but part of its ownership or valuation evidence is incomplete."],
+      stale: ["Stale", "The position is waiting for a fresh on-chain verification."],
+      unavailable: ["Unavailable", "Current ownership or valuation could not be fully verified."],
+    };
+    return statuses[key] || [key.replaceAll("_", " "), "Latest status reported by the liquidity source."];
+  }
+  function portfolioLpDetailRow(row){
+    const pool = row.pool || {};
+    const range = portfolioLpRange(row);
+    const pairedSymbol = pool.pairedSymbol || "Token";
+    const pairedDecimals = Number.isInteger(Number(pool.pairedDecimals)) ? Number(pool.pairedDecimals) : 18;
+    const positionId = row.positionId || row.positionType || "Fungible LP";
+    const [status, statusText] = portfolioLpStatus(row);
+    const ownership = row.beneficialOwner && row.custodian && normAddr(row.beneficialOwner) !== normAddr(row.custodian)
+      ? `Beneficial owner verified via ${row.attributionPath || "the tracked custody path"}.`
+      : row.beneficialOwner ? "Direct ownership verified for this wallet." : "Position attributed through its current custody address.";
+    const poolUrl = row.poolExplorerUrl || row.dexscreenerUrl || pool.dexscreenerUrl || pool.sourceUrl || "";
+    const txUrl = row.txHash ? txExplorer(row.chainKey, row.txHash) : "";
+    return `<tr class="pf-lp-detail-row"><td colspan="8"><div class="pf-lp-detail">
+      <div class="pf-lp-detail-head">
+        <div><div class="pf-lp-detail-kicker">Liquidity position</div><div class="pf-lp-detail-title">${esc(pool.pair || row.pair || "DOLO liquidity")} · Position ${esc(positionId)}</div></div>
+        <div class="pf-lp-detail-pills"><span class="pf-lp-detail-pill">${esc(pool.dex ? `${pool.dex} · ${pool.version || ""}`.replace(/ · $/, "") : row.adapter || "DEX unavailable")}</span><span class="pf-lp-detail-pill gold">${esc(portfolioLpExactMoney(row.valueUsd))}</span></div>
+      </div>
+      <div class="pf-lp-detail-grid">
+        <div class="pf-lp-detail-item"><div class="pf-lp-detail-label">Current DOLO</div><div class="pf-lp-detail-value">${esc(PortfolioDoloLiquidity.roundedRawAmount(row.doloRaw, 18, 2))} DOLO</div><div class="pf-lp-detail-sub">Current token amount</div></div>
+        <div class="pf-lp-detail-item"><div class="pf-lp-detail-label">Current paired asset</div><div class="pf-lp-detail-value">${esc(PortfolioDoloLiquidity.roundedRawAmount(row.pairedRaw, pairedDecimals, 2))} ${esc(pairedSymbol)}</div><div class="pf-lp-detail-sub">Current paired amount</div></div>
+        <div class="pf-lp-detail-item"><div class="pf-lp-detail-label">Price bounds</div><div class="pf-lp-detail-value">${esc(portfolioLpBounds(row))}</div><div class="pf-lp-detail-sub">${esc(pairedSymbol)} per DOLO · ${esc(range.label)}</div></div>
+        <div class="pf-lp-detail-item"><div class="pf-lp-detail-label">Data status</div><div class="pf-lp-detail-value">${esc(status)}</div><div class="pf-lp-detail-sub">${esc(statusText)} ${esc(ownership)}</div></div>
+      </div>
+      <div class="pf-lp-detail-links"><span>Pool liquidity ${esc(portfolioLpExactMoney(pool.liquidityUsd))}</span>${poolUrl ? `<a href="${esc(poolUrl)}" target="_blank" rel="noopener">Open pool ↗</a>` : ""}${txUrl ? `<a href="${esc(txUrl)}" target="_blank" rel="noopener">Transaction ↗</a>` : ""}</div>
+    </div></td></tr>`;
+  }
+  function portfolioLpRow(row){
+    const pool = row.pool || {};
+    const pairedSymbol = pool.pairedSymbol || "Token";
+    const pairedDecimals = Number.isInteger(Number(pool.pairedDecimals)) ? Number(pool.pairedDecimals) : 18;
+    const range = portfolioLpRange(row);
+    const expanded = state.expandedLiquidity === row.id;
+    const main = `<tr class="pf-row pf-lp-row${expanded ? " expanded" : ""}">
+      <td data-column="chain">${portfolioLpChain(row)}</td>
+      <td data-column="pair"><div class="pf-lp-pair"><strong>${esc(pool.pair || row.pair || "DOLO liquidity")}</strong><span>${esc(pool.dex ? `${pool.dex} · ${pool.version || ""}`.replace(/ · $/, "") : row.adapter || "DEX unavailable")}</span></div></td>
+      <td data-column="range"><div class="pf-lp-range ${range.cls}"><strong>${esc(range.label)}</strong><span>${esc(range.detail)}</span></div></td>
+      <td data-column="spacer" aria-hidden="true"></td>
+      <td data-column="dolo">${portfolioLpTokenAmount(row.doloRaw, 18, "DOLO")}</td>
+      <td data-column="paired">${portfolioLpTokenAmount(row.pairedRaw, pairedDecimals, pairedSymbol)}</td>
+      <td data-column="value"><span class="pf-lp-value">${esc(portfolioLpMoney(row.valueUsd))}</span></td>
+      <td data-column="details"><button class="pf-lp-details-btn" type="button" data-pf-lp-details="${esc(row.id)}" aria-expanded="${expanded}" aria-label="${expanded ? "Hide" : "Show"} liquidity position details"><span>${expanded ? "Hide" : "Details"}</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button></td>
+    </tr>`;
+    return main + (expanded ? portfolioLpDetailRow(row) : "");
+  }
+  function renderPortfolioLiquidity(model){
+    state.liquidityModel = model;
+    const rows = model.positions || [];
+    const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    state.liquidityPage = Math.min(Math.max(0, state.liquidityPage), totalPages - 1);
+    const start = state.liquidityPage * PAGE_SIZE;
+    const pageRows = rows.slice(start, start + PAGE_SIZE);
+    $("#pf-liquidity-body").innerHTML = pageRows.map(portfolioLpRow).join("");
+    $("#pf-liquidity-count").textContent = `${rows.length.toLocaleString("en-US")} position${rows.length === 1 ? "" : "s"} · ${portfolioLpMoney(model.totalValueUsd)}`;
+    $("#pf-liquidity-info").textContent = `${start + 1}–${Math.min(start + PAGE_SIZE, rows.length)} of ${rows.length.toLocaleString("en-US")}`;
+    setPortfolioTableUpdated("pf-liquidity-updated", model.generatedAt);
+    renderPager($("#pf-liquidity-pager"), state.liquidityPage + 1, totalPages, page => { state.liquidityPage = page; state.expandedLiquidity = null; renderPortfolioLiquidity(state.liquidityModel); });
+  }
+  function clearPortfolioLiquidity(){
+    state.liquidityModel = null;
+    state.liquidityPage = 0;
+    state.expandedLiquidity = null;
+    $("#pf-liquidity-body").innerHTML = "";
+    $("#pf-liquidity-count").textContent = "";
+    $("#pf-liquidity-info").textContent = "0–0 of 0";
+    $("#pf-liquidity-pager").innerHTML = "";
+  }
+  const liquidityController = PortfolioDoloLiquidity.createPortfolioLiquidityController({
+    section: $("#pf-liquidity-section"),
+    loadData: () => loadJson("data/dolo-liquidity.json"),
+    render: renderPortfolioLiquidity,
+    clear: clearPortfolioLiquidity,
+  });
+
   function renderAll(){
     renderTable("#pf-deposits-body","#pf-deposits-count", state.deposits, state.depFilter, state.depSort, "dep");
     renderBorrowPositionsTable();
@@ -3691,9 +3910,12 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   async function loadWallet(addr){
     addr = normAddr(addr);
     state.expandedBorrows.clear();
+    state.liquidityPage = 0;
+    state.expandedLiquidity = null;
     document.body.classList.add("pf-active");
     $("#pf-idle").classList.remove("show");
     setLoadingTables();
+    liquidityController.showWallet(addr);
     $("#pf-deposits-filters").innerHTML = ""; $("#pf-borrows-filters").innerHTML = ""; $("#pf-exercises-filters").innerHTML = "";
 
     // off-chain JSON lookups + price
@@ -3781,6 +4003,13 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
     if (!row) return;
     e.preventDefault();
     toggleBorrowRowExpanded(row);
+  });
+  $("#pf-liquidity-section").addEventListener("click", e => {
+    const button = e.target && e.target.closest("[data-pf-lp-details]");
+    if (!button || !state.liquidityModel) return;
+    const id = button.dataset.pfLpDetails;
+    state.expandedLiquidity = state.expandedLiquidity === id ? null : id;
+    renderPortfolioLiquidity(state.liquidityModel);
   });
   document.addEventListener("click", async e => {
     const btn = e.target && e.target.closest("[data-copy]");
