@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
@@ -23,6 +24,7 @@ SNAPSHOT_DIR = ROOT / "data" / "earn-snapshots"
 NETFLOW_DIR = ROOT / "data" / "earn-netflow"
 HISTORY_DIR = ROOT / "data" / "earn-subaccount-history"
 LEDGER_DIR = ROOT / "data" / "earn-verified-ledger"
+ASSETS_LIVE_PATH = ROOT / "assets_live.json"
 
 
 def _read_addresses(path: Path) -> List[str]:
@@ -65,6 +67,70 @@ def _intish(value: object) -> int:
 
 def _digit_weight(value: int) -> int:
     return len(str(abs(int(value)))) if value else 0
+
+
+def _decimalish(value: object) -> Decimal:
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal(0)
+    return parsed if parsed.is_finite() else Decimal(0)
+
+
+def _load_market_prices(chain: str, assets_file: Path) -> Dict[str, Decimal]:
+    payload = _read_json(assets_file, {})
+    rows = payload.get("rows") or [] if isinstance(payload, dict) else []
+    prices: Dict[str, Decimal] = {}
+    for row in rows:
+        if not isinstance(row, dict) or str(row.get("chain") or "").lower() != chain.lower():
+            continue
+        market_id_raw = row.get("marketId")
+        if market_id_raw is None:
+            continue
+        price = _decimalish(row.get("price"))
+        if price > 0:
+            prices[str(market_id_raw)] = price
+    return prices
+
+
+def _active_deposit_materiality(
+    chain: str,
+    assets_file: Path,
+) -> Tuple[Dict[str, Decimal], set[str]]:
+    """Return priced positive exposure and wallets with any unpriced deposit."""
+    snapshots = _latest_snapshot_payload(chain)
+    prices = _load_market_prices(chain, assets_file)
+    exposure_usd: Dict[str, Decimal] = {}
+    unpriced_positive: set[str] = set()
+    for raw_address, row in snapshots.items():
+        address = str(raw_address).lower()
+        markets = (row.get("markets") or {}) if isinstance(row, dict) else {}
+        if not isinstance(markets, dict):
+            continue
+        total = Decimal(0)
+        has_positive = False
+        has_unpriced = False
+        for raw_market_id, market in markets.items():
+            if not isinstance(market, dict):
+                continue
+            raw_wei = _intish(market.get("wei"))
+            if raw_wei <= 0:
+                continue
+            has_positive = True
+            price = prices.get(str(raw_market_id))
+            try:
+                decimals = int(market.get("decimals"))
+            except (TypeError, ValueError):
+                decimals = -1
+            if price is None or price <= 0 or decimals < 0 or decimals > 255:
+                has_unpriced = True
+                continue
+            total += Decimal(raw_wei).scaleb(-decimals) * price
+        if has_positive:
+            exposure_usd[address] = total
+        if has_unpriced:
+            unpriced_positive.add(address)
+    return exposure_usd, unpriced_positive
 
 
 def _add_score(scores: Dict[str, int], address: str, value: int) -> None:
@@ -266,6 +332,8 @@ def build_selection(
     include_priority_even_if_unknown: bool,
     history_dir: Path = HISTORY_DIR,
     ledger_dir: Path = LEDGER_DIR,
+    assets_file: Path = ASSETS_LIVE_PATH,
+    material_usd_threshold: object = "10",
     existing_history_only: bool = False,
     prefer_stale_history: bool = False,
     coverage_backfill: bool = False,
@@ -282,6 +350,42 @@ def build_selection(
     _score_snapshot_wallets(chain, scores)
     _score_netflow_wallets(chain, scores)
     active_snapshot = _active_snapshot_wallets(chain) & known
+    threshold = _decimalish(material_usd_threshold)
+    if threshold < 0:
+        raise ValueError("material_usd_threshold must be non-negative")
+    exposure_usd, unpriced_positive = _active_deposit_materiality(chain, assets_file)
+    exposure_usd = {
+        address: value
+        for address, value in exposure_usd.items()
+        if address in active_snapshot
+    }
+    unpriced_positive &= active_snapshot
+    positive_deposit_addresses = set(exposure_usd)
+    material_active = {
+        address
+        for address, value in exposure_usd.items()
+        if value >= threshold
+    }
+    unpriced_active = unpriced_positive - material_active
+    subthreshold_active = positive_deposit_addresses - material_active - unpriced_active
+    no_positive_deposit_active = active_snapshot - positive_deposit_addresses
+
+    def active_tier(address: str) -> int:
+        if address in material_active:
+            return 0
+        if address in unpriced_active:
+            return 1
+        if address in subthreshold_active:
+            return 2
+        return 3
+
+    def active_order_key(address: str) -> tuple:
+        return (
+            active_tier(address),
+            -exposure_usd.get(address, Decimal(0)),
+            -scores.get(address, 0),
+            address,
+        )
 
     priority = _unique_preserve_order(
         address
@@ -296,6 +400,7 @@ def build_selection(
     existing_history = _existing_history_addresses(history_dir, chain) if (existing_history_only or prefer_stale_history) else set()
     coverage_target = _coverage_target_block(history_dir, chain) if prefer_stale_history else 0
     stale_history: List[str] = []
+    stale_last_scanned: Dict[str, int] = {}
     missing_history: List[str] = []
     if prefer_stale_history and coverage_target > 0:
         stale_rows = []
@@ -308,6 +413,7 @@ def build_selection(
                 continue
             last_scanned = _history_last_scanned_block(history_dir, chain, address)
             if last_scanned < coverage_target:
+                stale_last_scanned[address] = last_scanned
                 stale_rows.append((last_scanned, address))
         stale_history = [
             address
@@ -321,9 +427,15 @@ def build_selection(
         missing_history,
         key=lambda address: (-scores.get(address, 0), address),
     )
-    active_missing_history = [address for address in missing_history if address in active_snapshot]
+    active_missing_history = sorted(
+        (address for address in missing_history if address in active_snapshot),
+        key=active_order_key,
+    )
     cold_missing_history = [address for address in missing_history if address not in active_snapshot]
-    active_stale_history = [address for address in stale_history if address in active_snapshot]
+    active_stale_history = sorted(
+        (address for address in stale_history if address in active_snapshot),
+        key=lambda address: (*active_order_key(address)[:-1], stale_last_scanned.get(address, 0), address),
+    )
     cold_stale_history = [address for address in stale_history if address not in active_snapshot]
     selection_priority = priority
     skipped_fresh_priority: List[str] = []
@@ -343,9 +455,21 @@ def build_selection(
         if strict_remediation
         else {}
     )
+    skipped_nonblocking_priority: List[str] = []
+    if strict_remediation:
+        eligible_priority = [
+            address
+            for address in selection_priority
+            if address in active_snapshot and strict_quality.get(address) != "verified"
+        ]
+        eligible_set = set(eligible_priority)
+        skipped_nonblocking_priority = [
+            address for address in selection_priority if address not in eligible_set
+        ]
+        selection_priority = eligible_priority
     active_mismatch = sorted(
         (address for address, status in strict_quality.items() if status == "mismatch"),
-        key=lambda address: (-scores.get(address, 0), address),
+        key=active_order_key,
     )
     active_coverage_incomplete = sorted(
         (
@@ -353,30 +477,46 @@ def build_selection(
             for address, status in strict_quality.items()
             if status in {"coverage_incomplete", "missing"}
         ),
-        key=lambda address: (-scores.get(address, 0), address),
+        key=active_order_key,
     )
     active_inferred = sorted(
         (address for address, status in strict_quality.items() if status == "inferred"),
-        key=lambda address: (-scores.get(address, 0), address),
+        key=active_order_key,
     )
     if strict_remediation:
-        selection_order = [
-            *selection_priority,
-            *active_missing_history,
-            *active_stale_history,
-            *active_mismatch,
-            *active_coverage_incomplete,
-            *active_inferred,
-        ]
+        selection_order: List[str] = []
+        for tier in range(4):
+            for cohort in (
+                selection_priority,
+                active_missing_history,
+                active_stale_history,
+                active_mismatch,
+                active_coverage_incomplete,
+                active_inferred,
+            ):
+                selection_order.extend(
+                    address for address in cohort if active_tier(address) == tier
+                )
     elif coverage_backfill:
-        selection_order = [
-            *selection_priority,
-            *active_missing_history,
-            *active_stale_history,
-            *cold_missing_history,
-            *cold_stale_history,
-            *ranked_addresses,
-        ]
+        selection_order = []
+        for tier in range(4):
+            selection_order.extend(
+                address
+                for address in selection_priority
+                if address in active_snapshot and active_tier(address) == tier
+            )
+            selection_order.extend(
+                address for address in active_missing_history if active_tier(address) == tier
+            )
+            selection_order.extend(
+                address for address in active_stale_history if active_tier(address) == tier
+            )
+        selection_order.extend(
+            address for address in selection_priority if address not in active_snapshot
+        )
+        selection_order.extend(cold_missing_history)
+        selection_order.extend(cold_stale_history)
+        selection_order.extend(ranked_addresses)
     else:
         selection_order = [
             *selection_priority,
@@ -403,19 +543,32 @@ def build_selection(
         "priorityAddressCount": len(priority),
         "eligiblePriorityAddressCount": len(selection_priority),
         "skippedFreshPriorityAddressCount": len(skipped_fresh_priority),
+        "skippedNonblockingPriorityAddressCount": len(skipped_nonblocking_priority),
         "preferStaleHistory": bool(prefer_stale_history),
         "selectionPolicy": (
-            "active-strict-blockers"
+            "material-active-strict-blockers"
             if strict_remediation
-            else ("active-first-then-cold-watermark"
+            else ("material-active-first-then-cold-watermark"
             if coverage_backfill
             else ("missing-then-oldest-watermark" if prefer_stale_history else "score-ranked")
             )
         ),
         "coverageTargetBlock": coverage_target or None,
+        "materialUsdThreshold": format(threshold, "f"),
         "activeSnapshotAddressCount": len(active_snapshot),
+        "activePositiveDepositAddressCount": len(positive_deposit_addresses),
+        "activeMaterialAddressCount": len(material_active),
+        "activeUnpricedAddressCount": len(unpriced_active),
+        "activeSubthresholdAddressCount": len(subthreshold_active),
+        "activeWithoutPositiveDepositAddressCount": len(no_positive_deposit_active),
         "activeMissingHistoryAddressCount": len(active_missing_history),
         "activeStaleHistoryAddressCount": len(active_stale_history),
+        "activeMaterialMissingHistoryAddressCount": sum(
+            1 for address in active_missing_history if address in material_active
+        ),
+        "activeMaterialStaleHistoryAddressCount": sum(
+            1 for address in active_stale_history if address in material_active
+        ),
         "activeStrictBlockingAddressCount": sum(
             1 for status in strict_quality.values() if status != "verified"
         ),
@@ -434,6 +587,8 @@ def build_selection(
         "coldStaleHistoryAddressCount": len(cold_stale_history),
         "staleHistoryAddressCount": len(stale_history),
         "missingHistoryAddressCount": len(missing_history),
+        "selectedActiveAddressCount": sum(1 for address in selected if address in active_snapshot),
+        "selectedMaterialAddressCount": sum(1 for address in selected if address in material_active),
         "selectedAddressCount": len(selected),
     }
     return selected, metadata
@@ -447,6 +602,8 @@ def main() -> int:
     parser.add_argument("--include-priority-even-if-unknown", action="store_true")
     parser.add_argument("--history-dir", type=Path, default=HISTORY_DIR)
     parser.add_argument("--ledger-dir", type=Path, default=LEDGER_DIR)
+    parser.add_argument("--assets-file", type=Path, default=ASSETS_LIVE_PATH)
+    parser.add_argument("--material-usd-threshold", default="10")
     parser.add_argument("--existing-history-only", action="store_true")
     parser.add_argument("--prefer-stale-history", action="store_true")
     parser.add_argument("--coverage-backfill", action="store_true")
@@ -462,6 +619,8 @@ def main() -> int:
         include_priority_even_if_unknown=bool(args.include_priority_even_if_unknown),
         history_dir=args.history_dir,
         ledger_dir=args.ledger_dir,
+        assets_file=args.assets_file,
+        material_usd_threshold=args.material_usd_threshold,
         existing_history_only=bool(args.existing_history_only),
         prefer_stale_history=bool(args.prefer_stale_history),
         coverage_backfill=bool(args.coverage_backfill),

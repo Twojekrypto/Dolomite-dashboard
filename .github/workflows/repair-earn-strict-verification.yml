@@ -54,6 +54,7 @@ jobs:
       CHAIN: ${{ matrix.chain }}
       WALLET_LIMIT: ${{ github.event.inputs.wallet_limit || '25' }}
       REQUESTED_CHAIN: ${{ github.event.inputs.chain || 'all' }}
+      MATERIAL_ACTIVE_USD_THRESHOLD: '10'
       ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
       ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}
       ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}
@@ -131,6 +132,7 @@ jobs:
             --chain "$CHAIN"
             --limit "$WALLET_LIMIT"
             --strict-remediation
+            --material-usd-threshold "$MATERIAL_ACTIVE_USD_THRESHOLD"
             --priority-address-file config/earn_canonical_priority_addresses.txt
             --output "$selection_path"
             --metadata-output "$metadata_path"
@@ -140,7 +142,6 @@ jobs:
             selector_args+=(--priority-address-file "$chain_priority")
           fi
           "${selector_args[@]}"
-          LC_ALL=C sort -u "$selection_path" -o "$selection_path"
           selected_count="$(grep -c '^0x' "$selection_path" || true)"
           echo "selection_path=$selection_path" >> "$GITHUB_OUTPUT"
           echo "selected_count=$selected_count" >> "$GITHUB_OUTPUT"

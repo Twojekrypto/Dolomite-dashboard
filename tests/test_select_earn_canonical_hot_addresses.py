@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 import inspect
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -98,6 +99,8 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
                 '"replayStateAdjusted":false}}}}',
                 encoding="utf-8",
             )
+            priority_file = root / "priority.txt"
+            priority_file.write_text(f"{active_verified}\n", encoding="utf-8")
             snapshots = {
                 active_mismatch: {"markets": {"1": {"par": "10"}}},
                 active_verified: {"markets": {"1": {"par": "20"}}},
@@ -117,7 +120,7 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
                 selected, metadata = build_selection(
                     "arbitrum",
                     limit=1,
-                    priority_files=[],
+                    priority_files=[priority_file],
                     include_priority_even_if_unknown=False,
                     history_dir=history_dir,
                     ledger_dir=ledger_dir,
@@ -128,6 +131,84 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
         self.assertEqual(1, metadata["activeStrictBlockingAddressCount"])
         self.assertEqual(1, metadata["activeMismatchAddressCount"])
         self.assertEqual(1, metadata["activeStrictVerifiedAddressCount"])
+        self.assertEqual(1, metadata["skippedNonblockingPriorityAddressCount"])
+
+    def test_strict_remediation_prioritizes_material_deposit_over_raw_par_digits(self):
+        dust = "0x1111111111111111111111111111111111111111"
+        material = "0x2222222222222222222222222222222222222222"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_dir = root / "earn-subaccount-history"
+            ledger_dir = root / "earn-verified-ledger"
+            assets_file = root / "assets_live.json"
+            (history_dir / "arbitrum").mkdir(parents=True)
+            (ledger_dir / "arbitrum").mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"arbitrum":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            for address in (dust, material):
+                (history_dir / "arbitrum" / f"{address}.json").write_text(
+                    '{"lastScannedBlock":100}',
+                    encoding="utf-8",
+                )
+                (ledger_dir / "arbitrum" / f"{address}.json").write_text(
+                    '{"markets":{"1":{"strictStatus":"mismatch"}}}',
+                    encoding="utf-8",
+                )
+            assets_file.write_text(
+                json.dumps(
+                    {
+                        "rows": [
+                            {"chain": "arbitrum", "marketId": "1", "price": "0.000001"},
+                            {"chain": "arbitrum", "marketId": "2", "price": "80000"},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            snapshots = {
+                # $1, but more raw digits than the material WBTC position.
+                dust: {
+                    "markets": {
+                        "1": {"par": str(10**24), "wei": str(10**24), "decimals": 18}
+                    }
+                },
+                # 0.01 WBTC = $800.
+                material: {
+                    "markets": {
+                        "2": {"par": "1000000", "wei": "1000000", "decimals": 8}
+                    }
+                },
+            }
+
+            with (
+                patch(
+                    "select_earn_canonical_hot_addresses._load_known_addresses",
+                    return_value=[dust, material],
+                ),
+                patch(
+                    "select_earn_canonical_hot_addresses._latest_snapshot_payload",
+                    return_value=snapshots,
+                ),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, metadata = build_selection(
+                    "arbitrum",
+                    limit=1,
+                    priority_files=[],
+                    include_priority_even_if_unknown=False,
+                    history_dir=history_dir,
+                    ledger_dir=ledger_dir,
+                    assets_file=assets_file,
+                    material_usd_threshold="10",
+                    strict_remediation=True,
+                )
+
+        self.assertEqual([material], selected)
+        self.assertEqual(1, metadata["activeMaterialAddressCount"])
+        self.assertEqual(1, metadata["selectedMaterialAddressCount"])
+        self.assertEqual("10", metadata["materialUsdThreshold"])
 
     def test_coverage_backfill_adds_missing_wallet_after_public_baseline(self):
         if "coverage_backfill" not in inspect.signature(build_selection).parameters:
@@ -167,6 +248,68 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
         self.assertEqual(selected, [missing])
         self.assertTrue(metadata["coverageBackfill"])
         self.assertFalse(metadata["existingHistoryOnly"])
+
+    def test_coverage_backfill_prioritizes_material_active_deposit_before_dust(self):
+        dust = "0x1111111111111111111111111111111111111111"
+        material = "0x2222222222222222222222222222222222222222"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_dir = root / "earn-subaccount-history"
+            assets_file = root / "assets_live.json"
+            (history_dir / "arbitrum").mkdir(parents=True)
+            (history_dir / "manifest.json").write_text(
+                '{"chains":{"arbitrum":{"lastBlock":100}}}',
+                encoding="utf-8",
+            )
+            assets_file.write_text(
+                json.dumps(
+                    {
+                        "rows": [
+                            {"chain": "arbitrum", "marketId": "1", "price": "0.000001"},
+                            {"chain": "arbitrum", "marketId": "2", "price": "80000"},
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            snapshots = {
+                dust: {
+                    "markets": {
+                        "1": {"par": str(10**24), "wei": str(10**24), "decimals": 18}
+                    }
+                },
+                material: {
+                    "markets": {
+                        "2": {"par": "1000000", "wei": "1000000", "decimals": 8}
+                    }
+                },
+            }
+
+            with (
+                patch(
+                    "select_earn_canonical_hot_addresses._load_known_addresses",
+                    return_value=[dust, material],
+                ),
+                patch(
+                    "select_earn_canonical_hot_addresses._latest_snapshot_payload",
+                    return_value=snapshots,
+                ),
+                patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+            ):
+                selected, metadata = build_selection(
+                    "arbitrum",
+                    limit=1,
+                    priority_files=[],
+                    include_priority_even_if_unknown=False,
+                    history_dir=history_dir,
+                    assets_file=assets_file,
+                    material_usd_threshold="10",
+                    coverage_backfill=True,
+                )
+
+        self.assertEqual([material], selected)
+        self.assertEqual(1, metadata["activeMaterialMissingHistoryAddressCount"])
+        self.assertEqual(1, metadata["activeSubthresholdAddressCount"])
 
     def test_coverage_backfill_skips_fresh_priority_and_keeps_stale_or_missing_priority(self):
         fresh = "0x1111111111111111111111111111111111111111"
