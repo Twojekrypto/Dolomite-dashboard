@@ -471,6 +471,11 @@ class ValidateDoloFlowsTest(unittest.TestCase):
             dict(rules["checks"]),
         )
 
+    def test_holder_wallet_history_has_a_pre_push_blob_size_guard(self):
+        rules = validate_data.RULES["dolo_holder_wallet_history.json"]
+
+        self.assertLess(rules["max_bytes"], 100_000_000)
+
 
 if __name__ == "__main__":
     unittest.main()

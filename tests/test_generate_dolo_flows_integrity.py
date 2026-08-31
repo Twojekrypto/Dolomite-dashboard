@@ -761,6 +761,10 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(old["liquid"]["holders"]["whales"]["trackedTotal"], 900_000)
         self.assertEqual(old["total_exposure"]["holders"]["whales"]["trackedTotal"], 1_100_000)
         self.assertEqual(now["total_exposure"]["holders"]["whales"]["trackedTotal"], 1_200_000)
+        self.assertEqual(set(wallet_history["hist_20260830"]["liquid"]), {"holders"})
+        self.assertEqual(set(wallet_history["hist_20260830"]["total_exposure"]), {"holders"})
+        liquid_wallet = wallet_history["hist_20260830"]["liquid"]["holders"]["whales"][0]
+        self.assertNotIn("in_dolomite", liquid_wallet)
         historical_wallet = wallet_history["hist_20260830"]["total_exposure"]["holders"]["whales"][0]
         self.assertEqual(historical_wallet["in_dolomite"], 200_000)
         self.assertEqual(historical_wallet["balance"], 1_100_000)
