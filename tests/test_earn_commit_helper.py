@@ -12,11 +12,31 @@ ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "scripts" / "commit_with_fresh_earn_status.sh"
 
 
+def _test_subprocess_env(env=None):
+    effective_env = dict(os.environ)
+    if env is not None:
+        effective_env.update(env)
+
+    # Newer Git releases may detach auto-maintenance after clone/push. Keep it
+    # disabled so TemporaryDirectory cleanup cannot race a writer in .git.
+    try:
+        config_count = int(effective_env.get("GIT_CONFIG_COUNT", "0"))
+    except ValueError:
+        config_count = 0
+
+    for key, value in (("maintenance.auto", "false"), ("gc.auto", "0")):
+        effective_env[f"GIT_CONFIG_KEY_{config_count}"] = key
+        effective_env[f"GIT_CONFIG_VALUE_{config_count}"] = value
+        config_count += 1
+    effective_env["GIT_CONFIG_COUNT"] = str(config_count)
+    return effective_env
+
+
 def _run(cmd, *, cwd, env=None):
     return subprocess.run(
         cmd,
         cwd=str(cwd),
-        env=env,
+        env=_test_subprocess_env(env),
         check=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -25,6 +45,20 @@ def _run(cmd, *, cwd, env=None):
 
 
 class EarnCommitHelperIntegrationTest(unittest.TestCase):
+    def test_git_subprocesses_disable_background_maintenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            maintenance_auto = _run(
+                ["git", "config", "--bool", "--get", "--default", "true", "maintenance.auto"],
+                cwd=Path(tmp),
+            ).stdout.strip()
+            gc_auto = _run(
+                ["git", "config", "--int", "--get", "--default", "6700", "gc.auto"],
+                cwd=Path(tmp),
+            ).stdout.strip()
+
+            self.assertEqual("false", maintenance_auto)
+            self.assertEqual("0", gc_auto)
+
     def _prepare_repo(self, tmp_path: Path) -> tuple[Path, Path]:
         remote = tmp_path / "remote.git"
         work = tmp_path / "work"
