@@ -21,6 +21,7 @@ from generate_vedolo_flows import (
     decode_transfer,
     extract_odolo_receipt_beneficiary,
     fetch_event_logs,
+    fetch_indexed_transfer_logs,
     recover_missing_deposit_events,
     remap_odolo_lock_beneficiaries,
 )
@@ -300,6 +301,79 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
              patch("generate_vedolo_flows.time.sleep", return_value=None):
             with self.assertRaisesRegex(EventLogFetchError, "unconfirmed empty response"):
                 fetch_event_logs(1, 100, DEPOSIT_TOPIC)
+
+    def test_indexed_transfer_backfill_paginates_and_keeps_exact_log_identity(self):
+        def log(block, log_index, suffix):
+            return {
+                "address": VEDOLO_CONTRACT.lower(),
+                "topics": [TRANSFER_TOPIC, ZERO_TOPIC, ZERO_TOPIC, hex(suffix)],
+                "data": "0x",
+                "blockNumber": hex(block),
+                "transactionHash": "0x" + str(suffix) * 64,
+                "logIndex": hex(log_index),
+            }
+
+        pages = {
+            (1, 100, 1): [log(5, 2, 1), log(8, 3, 2)],
+            (1, 100, 2): [log(90, 4, 3)],
+            (101, 150, 1): [],
+        }
+
+        class _Resp:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self._payload
+
+        def getter(_url, params, **_kwargs):
+            key = (int(params["fromBlock"]), int(params["toBlock"]), int(params["page"]))
+            rows = pages[key]
+            if rows:
+                return _Resp({"status": "1", "message": "OK", "result": rows})
+            return _Resp({"status": "0", "message": "No records found", "result": []})
+
+        rows = fetch_indexed_transfer_logs(
+            1,
+            150,
+            getter=getter,
+            block_span=100,
+            page_size=2,
+            max_pages=10,
+        )
+
+        self.assertEqual(
+            [(int(row["blockNumber"], 16), int(row["logIndex"], 16)) for row in rows],
+            [(5, 2), (8, 3), (90, 4)],
+        )
+
+    def test_indexed_transfer_backfill_fails_closed_on_out_of_range_log(self):
+        bad_log = {
+            "address": VEDOLO_CONTRACT.lower(),
+            "topics": [TRANSFER_TOPIC, ZERO_TOPIC, ZERO_TOPIC, "0x1"],
+            "data": "0x",
+            "blockNumber": hex(101),
+            "transactionHash": "0x" + "a" * 64,
+            "logIndex": "0x1",
+        }
+
+        class _Resp:
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"status": "1", "message": "OK", "result": [bad_log]}
+
+        with self.assertRaisesRegex(EventLogFetchError, "outside requested range"):
+            fetch_indexed_transfer_logs(
+                1,
+                100,
+                getter=lambda *_args, **_kwargs: _Resp(),
+                block_span=100,
+            )
 
     def test_rejects_candidate_that_drops_finalized_lock_or_unlock(self):
         previous = {

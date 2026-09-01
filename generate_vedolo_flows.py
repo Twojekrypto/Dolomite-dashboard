@@ -27,6 +27,9 @@ ODOLO_EXERCISE_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
 TRANSFER_TOPIC = ODOLO_EXERCISE_TOPIC
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 ZERO_TOPIC = "0x" + ("0" * 64)
+ROUTESCAN_LOG_API = (
+    "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
+)
 POSITION_ACTION_SELECTORS = {
     4: "d1c2babb",  # merge(uint256,uint256)
     5: "4b19becc",  # split(uint256,uint256)
@@ -41,6 +44,9 @@ DEPLOY_BLOCK = 2_925_000  # veDOLO contract first events
 # Larger requests have returned a successful but incomplete `[]` response.
 CHUNK_SIZE = 10_000
 MIN_CHUNK_SIZE = 1_000
+INDEXER_BLOCK_SPAN = 100_000
+INDEXER_PAGE_SIZE = 1_000
+INDEXER_MAX_PAGES = 10
 FINALITY_REORG_DEPTH = 256
 BLOCK_TIME = 2  # ~2 seconds per block on Berachain
 TRANSFERS_SCHEMA_VERSION = 2
@@ -629,6 +635,157 @@ def _logs_with_topic0(logs, topic0):
         log for log in logs
         if str((log.get("topics") or [None])[0]).lower() == target
     ]
+
+
+def fetch_indexed_transfer_logs(
+    start_block,
+    end_block,
+    *,
+    getter=None,
+    block_span=INDEXER_BLOCK_SPAN,
+    page_size=INDEXER_PAGE_SIZE,
+    max_pages=INDEXER_MAX_PAGES,
+):
+    """Fetch a full veDOLO Transfer backfill from Berachain's indexed logs API.
+
+    Cold RPC scans need more than four hours for the 22M-block deployment
+    range. The indexer is used only for the one-time full Transfer rebuild;
+    normal incremental scans remain on JSON-RPC. Every returned row is checked
+    against the exact contract, topic and requested block window, and a full
+    result window is recursively split instead of accepting truncation.
+    """
+    if start_block > end_block:
+        return []
+    if block_span <= 0 or page_size <= 0 or max_pages <= 0:
+        raise ValueError("Indexer block span, page size and max pages must be positive")
+
+    request_get = getter or requests.get
+
+    def request_page(window_start, window_end, page):
+        params = {
+            "module": "logs",
+            "action": "getLogs",
+            "address": VEDOLO_CONTRACT,
+            "topic0": TRANSFER_TOPIC,
+            "fromBlock": window_start,
+            "toBlock": window_end,
+            "page": page,
+            "offset": page_size,
+        }
+        last_error = ""
+        for attempt in range(5):
+            try:
+                response = request_get(
+                    ROUTESCAN_LOG_API,
+                    params=params,
+                    timeout=45,
+                    headers={"Accept": "application/json"},
+                )
+                response.raise_for_status()
+                payload = response.json()
+                result = payload.get("result")
+                if isinstance(result, list):
+                    status = str(payload.get("status") or "")
+                    message = str(payload.get("message") or "")
+                    if status == "1":
+                        return result
+                    if not result and "no records" in message.lower():
+                        return []
+                last_error = str(payload.get("result") or payload.get("message") or payload)
+            except (requests.RequestException, ValueError, TypeError) as exc:
+                last_error = str(exc)
+            if attempt < 4:
+                time.sleep(min(8, 1 + (2 ** attempt)))
+        raise EventLogFetchError(
+            "Routescan could not return veDOLO Transfer logs for "
+            f"blocks {window_start:,}-{window_end:,}, page {page}: "
+            f"{last_error or 'unknown indexer error'}"
+        )
+
+    def validated_window(window_start, window_end):
+        rows = []
+        for page in range(1, max_pages + 1):
+            page_rows = request_page(window_start, window_end, page)
+            for raw_row in page_rows:
+                row = dict(raw_row or {})
+                try:
+                    block = int(str(row.get("blockNumber") or "0x0"), 16)
+                    raw_log_index = str(row.get("logIndex") or "0x0")
+                    log_index = int("0x0" if raw_log_index == "0x" else raw_log_index, 16)
+                except (TypeError, ValueError) as exc:
+                    raise EventLogFetchError(
+                        "Routescan returned a malformed veDOLO Transfer block/log index"
+                    ) from exc
+                topics = row.get("topics") or []
+                if block < window_start or block > window_end:
+                    raise EventLogFetchError(
+                        "Routescan returned a veDOLO Transfer log outside requested range "
+                        f"{window_start:,}-{window_end:,}: block {block:,}"
+                    )
+                if str(row.get("address") or "").lower() != VEDOLO_CONTRACT.lower():
+                    raise EventLogFetchError("Routescan returned a log for the wrong contract")
+                if not topics or str(topics[0]).lower() != TRANSFER_TOPIC.lower():
+                    raise EventLogFetchError("Routescan returned a log with the wrong topic")
+                tx_hash = str(row.get("transactionHash") or "").lower()
+                if len(tx_hash) != 66 or not tx_hash.startswith("0x"):
+                    raise EventLogFetchError("Routescan returned a malformed transaction hash")
+                row["logIndex"] = hex(log_index)
+                rows.append(row)
+
+            if len(page_rows) < page_size:
+                return rows
+
+        if window_start >= window_end:
+            raise EventLogFetchError(
+                "Routescan result window is still full for a single block; "
+                "refusing to accept a truncated Transfer history"
+            )
+        midpoint = (window_start + window_end) // 2
+        return validated_window(window_start, midpoint) + validated_window(
+            midpoint + 1, window_end
+        )
+
+    print(
+        "  Fetching indexed Transfer history "
+        f"for blocks {start_block:,} → {end_block:,}",
+        flush=True,
+    )
+    all_logs = []
+    current = start_block
+    windows_done = 0
+    while current <= end_block:
+        window_end = min(current + block_span - 1, end_block)
+        all_logs.extend(validated_window(current, window_end))
+        current = window_end + 1
+        windows_done += 1
+        if windows_done % 20 == 0 or current > end_block:
+            pct = min(
+                100,
+                (current - start_block) * 100 // max(end_block - start_block, 1),
+            )
+            print(
+                f"    {pct}% (block {current:,}/{end_block:,}, "
+                f"{len(all_logs):,} indexed events)",
+                flush=True,
+            )
+        time.sleep(0.05)
+
+    unique_logs = {}
+    for row in all_logs:
+        identity = (
+            str(row.get("transactionHash") or "").lower(),
+            int(str(row.get("logIndex") or "0x0"), 16),
+        )
+        unique_logs[identity] = row
+    result = sorted(
+        unique_logs.values(),
+        key=lambda row: (
+            int(str(row.get("blockNumber") or "0x0"), 16),
+            int(str(row.get("logIndex") or "0x0"), 16),
+        ),
+    )
+    print(f"  ✅ {len(result):,} indexed Transfer events found", flush=True)
+    return result
 
 
 def fetch_event_logs(start_block, end_block, topic):
@@ -1316,7 +1473,7 @@ def main():
 
         if transfers_need_backfill:
             print(f"\n📡 Fetching ALL veDOLO Transfer events from block {DEPLOY_BLOCK:,}...")
-            new_transfer_logs = fetch_event_logs(DEPLOY_BLOCK, current_block, TRANSFER_TOPIC)
+            new_transfer_logs = fetch_indexed_transfer_logs(DEPLOY_BLOCK, current_block)
             cached_transfers = []
         else:
             transfer_fetch_start = transfers_last_block + 1
