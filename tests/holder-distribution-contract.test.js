@@ -109,6 +109,22 @@ function extractHolderLegendRangeRows() {
   return Function(`"use strict"; ${source}`)();
 }
 
+function holderWalletRangeChangeFromFixture(current, baseline) {
+  const source = [
+    'const HOLDER_UNAVAILABLE_PERCENT_TOOLTIP = "Percentage unavailable because starting exposure was zero or negligible.";',
+    "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
+    'const fmtNum = value => Number(value).toLocaleString("en-US");',
+    'const fmtSignedHolder = value => `${Number(value) >= 0 ? "+" : "-"}${Math.abs(Number(value)).toLocaleString("en-US")}`;',
+    'const fmtSignedHolderPct = value => `${Number(value) >= 0 ? "+" : "-"}${Math.abs(Number(value)).toFixed(2)}%`;',
+    extractNamedFunctionSource("holderWalletRangeChange"),
+    "return holderWalletRangeChange;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)()(
+    {panelTotal:current},
+    {panelTotal:baseline},
+  );
+}
+
 function holderHistorySourceKeyFromFixture(includeVeDolo) {
   const source = [
     "const state = {includeVeDolo:false};",
@@ -468,7 +484,8 @@ test("holder distribution exposes a guarded change tooltip", () => {
     preview.indexOf("function renderHolderDistributionChart(options = {})"),
     preview.indexOf("function allocationPointFromSource")
   );
-  assert.match(preview, /New \/ no baseline/);
+  assert.match(preview, /const changeText = Number\.isFinite\(relativeChange\) \? fmtSignedHolderPct\(relativeChange\) : "—";/);
+  assert.doesNotMatch(holderRenderer, /New \/ no baseline/);
   assert.match(preview, /holderDistributionMetric === "changePct" \? `<span class="tt-change \$\{deltaClass\}">\$\{changeText\}<\/span> · \$\{fmtNum\(bucket\.total\)\} DOLO · \$\{fmtSignedHolder\(delta\)\} DOLO`/);
   assert.doesNotMatch(holderRenderer, /Change · \$\{holderRangeLabel\}/);
 });
@@ -571,6 +588,32 @@ test("Bucket wallets keeps Change compact without repeating the DOLO unit", () =
     preview.indexOf("function zeroHolderRowFrom")
   );
   assert.doesNotMatch(walletChange, /main:\s*[^,}]*DOLO/);
+});
+
+test("Bucket wallets show an absolute increase without calling a zero-baseline wallet New", () => {
+  const zeroBaseline = holderWalletRangeChangeFromFixture(1_200_000, 0);
+  const negligibleBaseline = holderWalletRangeChangeFromFixture(1_200_000, 0.5);
+
+  assert.equal(zeroBaseline.main, "+1,200,000");
+  assert.equal(zeroBaseline.pct, "—");
+  assert.equal(zeroBaseline.tone, "up");
+  assert.equal(
+    zeroBaseline.pctTooltip,
+    "Percentage unavailable because starting exposure was zero or negligible.",
+  );
+  assert.equal(negligibleBaseline.pct, "—");
+  assert.equal(negligibleBaseline.tone, "up");
+});
+
+test("unavailable holder percentages stay visually neutral", () => {
+  assert.match(
+    preview,
+    /\.holder-distribution-legend \.holder-legend-percent\[data-tooltip\]\{color:var\(--fg-4\)\}/,
+  );
+  assert.match(
+    preview,
+    /\.holder-wallet-change \.pct\[data-tooltip\]\{color:var\(--fg-4\)\}/,
+  );
 });
 
 test("Bucket wallets uses the same flat rows and hover contract as DOLO Holders", () => {
@@ -793,8 +836,8 @@ test("holder distribution centers Details and presents change amount above its p
 
   assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-details\{[^}]*display:grid;[^}]*place-items:center;/);
   assert.match(legendCss, /\.holder-distribution-legend \.holder-legend-details \.holder-details-btn\{[^}]*justify-self:center;/);
-  assert.match(holderRenderer, /const deltaPct = firstTotal > 0 \? `\(\$\{fmtSignedHolderPct\(delta \/ firstTotal \* 100\)\}\)` : "New";/);
-  assert.match(holderRenderer, /<strong class="holder-legend-number">\$\{fmtSignedHolder\(delta\)\}<\/strong><span class="holder-legend-percent">\$\{deltaPct\}<\/span>/);
+  assert.match(holderRenderer, /const deltaPct = deltaPctUnavailable \? "—" : `\(\$\{fmtSignedHolderPct\(delta \/ firstTotal \* 100\)\}\)`;/);
+  assert.match(holderRenderer, /<strong class="holder-legend-number">\$\{fmtSignedHolder\(delta\)\}<\/strong><span class="holder-legend-percent"\$\{deltaPctAttrs\}>\$\{deltaPct\}<\/span>/);
   assert.match(preview, /\.holder-distribution-legend \.holder-legend-percent\{[^}]*font-size:10px;[^}]*line-height:1;/);
 });
 
@@ -812,7 +855,8 @@ test("holder distribution exposes the visible change percentage to assistive tec
   );
 
   assert.match(holderRenderer, /Change \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
-  assert.match(holderRenderer, /series by change\. \$\{fmtSignedHolder\(delta\)\} DOLO \$\{deltaPct\}\."/);
+  assert.match(holderRenderer, /Percentage unavailable because starting exposure was zero/);
+  assert.match(holderRenderer, /data-tooltip="\$\{HOLDER_UNAVAILABLE_PERCENT_TOOLTIP\}" aria-label="\$\{HOLDER_UNAVAILABLE_PERCENT_TOOLTIP\}"/);
 });
 
 test("holder mini-chart handles keep a wide resize cursor hitbox", () => {
