@@ -58,6 +58,62 @@ def _validated_rows(flows, key):
     return rows
 
 
+def _validated_transfers(flows, target_block):
+    rows = flows.get("transfers")
+    total = flows.get("total_transfers")
+    if not isinstance(rows, list) or isinstance(total, bool) or not isinstance(total, int):
+        raise LockedHistoryValidationError("invalid transfers collection")
+    if total != len(rows):
+        raise LockedHistoryValidationError(
+            f"transfers total mismatch: declared {total}, found {len(rows)}"
+        )
+    schema_version = flows.get("transfers_schema_version")
+    if schema_version is None:
+        # Legacy checked-in artifacts remain readable during the one-time v2
+        # rebuild. Newly generated output always declares and validates v2.
+        return rows
+    if schema_version != 2 or not rows:
+        raise LockedHistoryValidationError("invalid veDOLO transfer schema")
+
+    seen_logs = set()
+    for row in rows:
+        block = _exact_positive_int(row, "block")
+        timestamp = _exact_positive_int(row, "timestamp")
+        token_id = _exact_positive_int(row, "tokenId")
+        log_index = row.get("logIndex")
+        tx_hash = str(row.get("txHash") or "").lower()
+        from_address = str(row.get("from") or "").lower()
+        to_address = str(row.get("to") or "").lower()
+        if not timestamp:
+            raise LockedHistoryValidationError("invalid transfer timestamp")
+        expected_date = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+        valid_address = lambda value: (
+            len(value) == 42
+            and value.startswith("0x")
+            and all(char in "0123456789abcdef" for char in value[2:])
+        )
+        if (
+            not block
+            or (target_block and block > target_block)
+            or not token_id
+            or isinstance(log_index, bool)
+            or not isinstance(log_index, int)
+            or log_index < 0
+            or len(tx_hash) != 66
+            or not tx_hash.startswith("0x")
+            or any(char not in "0123456789abcdef" for char in tx_hash[2:])
+            or not valid_address(from_address)
+            or not valid_address(to_address)
+            or str(row.get("date") or "") != expected_date
+        ):
+            raise LockedHistoryValidationError("invalid transfer replay evidence")
+        identity = (tx_hash, log_index)
+        if identity in seen_logs:
+            raise LockedHistoryValidationError("duplicate transfer event identity")
+        seen_logs.add(identity)
+    return rows
+
+
 def _exact_positive_int(row, key):
     value = row.get(key)
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
@@ -181,6 +237,7 @@ def validate_flow_history(flows):
     locks = _validated_rows(flows, "locks")
     unlocks = _validated_rows(flows, "unlocks")
     target_block = _snapshot_block(flows, "target_block")
+    transfers = _validated_transfers(flows, target_block)
     rows = locks + unlocks
     if rows:
         snapshot_sec = max(_exact_positive_int(row, "timestamp") for row in rows)
@@ -190,6 +247,7 @@ def validate_flow_history(flows):
     return {
         "lock_count": len(locks),
         "unlock_count": len(unlocks),
+        "transfer_count": len(transfers),
         "target_block": target_block,
     }
 
@@ -296,6 +354,7 @@ def main():
         print("✅ veDOLO flow history validated")
         print(f"   Locks:                {result['lock_count']:,}")
         print(f"   Unlocks:              {result['unlock_count']:,}")
+        print(f"   Transfers:            {result['transfer_count']:,}")
         if result["target_block"]:
             print(f"   Target block:         {result['target_block']:,}")
         return

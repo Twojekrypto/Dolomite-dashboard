@@ -109,7 +109,16 @@ function extractHolderLegendRangeRows() {
   return Function(`"use strict"; ${source}`)();
 }
 
-test("holder distribution exposes accessible metric controls", () => {
+function holderHistorySourceKeyFromFixture(includeVeDolo) {
+  const source = [
+    "const state = {includeVeDolo:false};",
+    extractNamedFunctionSource("holderHistorySourceKey"),
+    "return holderHistorySourceKey;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)()(includeVeDolo);
+}
+
+test("holder distribution keeps Total exposure as the permanent source", () => {
   assert.match(preview, /id="holder-bucket-mode"/);
   assert.match(preview, /data-holder-bucket-view="whales" aria-pressed="true"/);
   assert.match(preview, /data-holder-bucket-view="smaller" aria-pressed="false"/);
@@ -117,12 +126,32 @@ test("holder distribution exposes accessible metric controls", () => {
   assert.match(preview, /data-holder-metric="balance"/);
   assert.match(preview, /data-holder-metric="changePct"/);
   assert.match(preview, /aria-pressed="true"/);
-  assert.match(preview, /id="holder-exposure-mode"/);
-  assert.match(preview, /data-holder-exposure="total" aria-pressed="true">Total exposure/);
-  assert.match(preview, /data-holder-exposure="wallet" aria-pressed="false">Wallet balance/);
-  assert.match(preview, /let holderExposureMode = "total"/);
-  assert.match(preview, /total_exposure_with_vedolo/);
-  assert.match(preview, /total_exposure/);
+  const holderCard = extractStaticSections(preview).find(section => /id="holder-distribution-card"/.test(section));
+  assert.ok(holderCard);
+  assert.doesNotMatch(holderCard, /data-holder-exposure|Wallet balance/);
+  assert.equal(holderHistorySourceKeyFromFixture(false), "total_exposure");
+  assert.equal(holderHistorySourceKeyFromFixture(true), "total_exposure_with_vedolo");
+  assert.match(preview, /Entered balance range/);
+  assert.match(preview, /Positive DOLO supplied or held as collateral/);
+  assert.doesNotMatch(preview, /return "Entered range"|return "Moved out of range"/);
+  const historyResolver = preview.slice(
+    preview.indexOf("function getHolderHistory("),
+    preview.indexOf("function holderWindowLabel(")
+  );
+  assert.doesNotMatch(historyResolver, /getHolderDistributionAtPoint|getHolderDistribution\(/);
+  assert.match(historyResolver, /if\(precomputed\) return precomputed;\s*return null;/);
+  const precomputedResolver = preview.slice(
+    preview.indexOf("function getPrecomputedHolderHistory("),
+    preview.indexOf("function getHolderHistory(")
+  );
+  assert.match(precomputedResolver, /if\(rawPoints\.some\(point => !point \|\| point\.ts <= 0\)\) return null;/);
+  const chartRendererStart = preview.indexOf("function renderHolderDistributionChart(");
+  const chartRenderer = preview.slice(
+    chartRendererStart,
+    preview.indexOf("function toggleHolderDistributionPin", chartRendererStart)
+  );
+  assert.match(chartRenderer, /if\(!fullModel\)/);
+  assert.match(chartRenderer, /Total exposure history is unavailable/);
 });
 
 test("Team and Investor allocations are merged into holder ranges without a standalone card", () => {
@@ -400,11 +429,12 @@ test("holder distribution states both its included and excluded wallet scope", (
 
 test("holder bucket controls share the metric UX without an active gold dot", () => {
   const controlsCss = preview.slice(
-    preview.indexOf(".holder-bucket-mode,.holder-exposure-mode,.holder-metric-mode{"),
+    preview.indexOf(".holder-bucket-mode,.holder-metric-mode{"),
     preview.indexOf(".holder-chart-toggle.is-active{")
   );
   assert.match(controlsCss, /\.holder-bucket-mode button\.active,\s*\.holder-bucket-mode button:hover,\s*\.holder-bucket-mode button:focus-visible,/);
-  assert.match(controlsCss, /\.holder-exposure-mode button\.active,\s*\.holder-exposure-mode button:hover,\s*\.holder-exposure-mode button:focus-visible,/);
+  assert.match(controlsCss, /\.holder-metric-mode button\.active,\s*\.holder-metric-mode button:hover,\s*\.holder-metric-mode button:focus-visible/);
+  assert.doesNotMatch(controlsCss, /holder-exposure-mode/);
   assert.doesNotMatch(controlsCss, /\.holder-bucket-mode button\.active::before/);
   assert.match(preview, /document\.querySelectorAll\("\[data-holder-bucket-view\]"\)\.forEach\(item => \{\s*const active = item\.dataset\.holderBucketView === holderBucketView;\s*item\.classList\.toggle\("active", active\);\s*item\.setAttribute\("aria-pressed", String\(active\)\);/);
 });
@@ -682,6 +712,20 @@ test("historical holder rows prefer the canonical DOLO Holders wallet name", () 
     preview.slice(end, preview.indexOf("function holderWalletRowsAvailableAtPoint", end)),
     /label:canonicalHolderLabel\(addr, item\.label \|\| ""\)/
   );
+  const availability = preview.slice(
+    preview.indexOf("function holderWalletRowsAvailableAtPoint"),
+    preview.indexOf("function holderWalletBaselinePointForRange")
+  );
+  assert.doesNotMatch(availability, /holderBalanceChangesFromPointToNow/);
+  assert.match(availability, /return !!holderHistoricalWalletRowsAtPoint/);
+  const rowsResolver = preview.slice(
+    preview.indexOf("function holderRowsAtPoint"),
+    preview.indexOf("function zeroHolderRowFrom")
+  );
+  assert.match(rowsResolver, /if\(sourcePoint\.key !== "now"\) return \[\];/);
+  assert.doesNotMatch(rowsResolver, /holderBalanceChangesFromPointToNow/);
+  assert.match(preview, /Loading exact Total exposure wallet details/);
+  assert.match(preview, /Exact Total exposure wallet details are unavailable/);
 });
 
 test("holder hover marks the line nearest to the pointer", () => {
@@ -732,7 +776,7 @@ test("holder distribution places scope above the divider and veDOLO at the toolb
   );
   assert.match(
     holderCard,
-    /<div class="holder-chart-controls">[\s\S]*?<\/div>\s*<label class="holder-chart-toggle" for="holder-include-vedolo">/,
+    /<div class="holder-chart-controls">[\s\S]*?<\/div>\s*<label class="holder-chart-toggle" for="holder-include-vedolo"[^>]*>/,
   );
   assert.match(preview, /\.holder-distribution-toolbar > \.holder-chart-toggle\{margin-left:auto}/);
 });

@@ -745,6 +745,7 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         with patch.object(flows, "load_current_holder_rows", return_value=holder_rows), \
              patch.object(flows, "load_address_labels", return_value={}), \
              patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "load_current_vedolo_positions", return_value={}), \
              patch.object(flows, "load_vedolo_flow_events", return_value={"locks": [], "unlocks": []}):
             history, wallet_history = flows.calculate_holder_bucket_history(
                 {"eth": [], "bera": []},
@@ -768,6 +769,27 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         historical_wallet = wallet_history["hist_20260830"]["total_exposure"]["holders"]["whales"][0]
         self.assertEqual(historical_wallet["in_dolomite"], 200_000)
         self.assertEqual(historical_wallet["balance"], 1_100_000)
+
+    def test_holder_wallet_details_use_authoritative_cross_chain_liquid_total(self):
+        address = "0x1111111111111111111111111111111111111111"
+        rows = flows.build_bucket_wallet_history_rows(
+            {
+                "eth": {address: 125_000},
+                "bera": {address: 25_000},
+            },
+            {},
+            {address: {"balance": 100_000}},
+            {},
+            flows.HOLDER_BUCKET_GROUPS["whales"],
+            audience="holders",
+            liquid_balances={address: 100_000},
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["liquid"], 100_000)
+        self.assertEqual(rows[0]["balance_eth"], 83_333.333333)
+        self.assertEqual(rows[0]["balance_bera"], 16_666.666667)
+        self.assertEqual(rows[0]["balance"], 100_000)
 
     def test_exact_latest_flow_metadata_uses_direction_and_last_log_index(self):
         wallet = "0x1111111111111111111111111111111111111111"

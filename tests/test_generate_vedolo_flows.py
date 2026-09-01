@@ -28,8 +28,138 @@ from generate_vedolo_flows import (
 
 class GenerateVedoloFlowsTests(unittest.TestCase):
     @staticmethod
+    def _complete_transfer(**overrides):
+        row = {
+            "from": "0x" + "1" * 40,
+            "to": "0x" + "2" * 40,
+            "txHash": "0x" + "a" * 64,
+            "tokenId": 7,
+            "block": 700,
+            "logIndex": 5,
+            "timestamp": 1_753_463_628,
+            "date": "2025-07-25",
+        }
+        row.update(overrides)
+        return row
+
+    @staticmethod
     def _position_action_input(selector, first, second):
         return "0x" + selector + hex(first)[2:].zfill(64) + hex(second)[2:].zfill(64)
+
+    def test_legacy_transfer_cache_requires_one_full_rebuild(self):
+        cached = [self._complete_transfer(block=100)]
+
+        self.assertTrue(vedolo_flows.transfer_cache_needs_full_backfill(
+            {"transfers_last_block": 100}, cached
+        ))
+        self.assertFalse(vedolo_flows.transfer_cache_needs_full_backfill(
+            {
+                "transfers_last_block": 100,
+                "transfers_schema_version": vedolo_flows.TRANSFERS_SCHEMA_VERSION,
+            },
+            cached,
+        ))
+
+    def test_published_transfer_schema_bootstraps_complete_cache_coverage(self):
+        published = {
+            "target_block": 1_000,
+            "transfers_schema_version": vedolo_flows.TRANSFERS_SCHEMA_VERSION,
+            "locks": [],
+            "unlocks": [],
+            "transfers": [self._complete_transfer()],
+        }
+
+        repaired = vedolo_flows.reconcile_state_with_published_history({}, published)
+
+        self.assertEqual(
+            repaired["transfers_schema_version"],
+            vedolo_flows.TRANSFERS_SCHEMA_VERSION,
+        )
+        self.assertEqual(repaired["transfers_last_block"], 1_000)
+        self.assertFalse(vedolo_flows.transfer_cache_needs_full_backfill(
+            repaired, repaired["transfers"]
+        ))
+
+    def test_schema_v2_cache_with_incomplete_transfer_forces_full_backfill(self):
+        incomplete = self._complete_transfer(timestamp=0)
+
+        self.assertTrue(vedolo_flows.transfer_cache_needs_full_backfill(
+            {
+                "transfers_last_block": 1_000,
+                "transfers_schema_version": vedolo_flows.TRANSFERS_SCHEMA_VERSION,
+            },
+            [incomplete],
+        ))
+
+    def test_transfer_history_fails_closed_when_timestamp_hydration_is_incomplete(self):
+        incomplete = self._complete_transfer(timestamp=0, date="")
+
+        with self.assertRaisesRegex(EventLogFetchError, "timestamp"):
+            vedolo_flows.assert_complete_transfer_history([incomplete], target_block=1_000)
+
+    def test_transfer_history_fails_closed_when_finalized_published_row_disappears(self):
+        previous = {"transfers": [self._complete_transfer()]}
+
+        with self.assertRaisesRegex(EventLogFetchError, "finalized transfer"):
+            vedolo_flows.assert_no_immutable_event_regression(
+                previous,
+                {"locks": [], "unlocks": [], "transfers": []},
+                current_block=10_000,
+                reorg_depth=256,
+            )
+
+    def test_pending_sync_requires_current_transfer_schema_and_target_coverage(self):
+        base = {
+            "target_block": 1_000,
+            "locks": [],
+            "unlocks": [],
+            "transfers": [self._complete_transfer()],
+            "tx_hashes": [],
+        }
+
+        legacy_state = {"pending_vedolo_sync": dict(base)}
+        self.assertIsNone(vedolo_flows.load_pending_sync(legacy_state))
+        self.assertNotIn("pending_vedolo_sync", legacy_state)
+
+        incomplete_state = {"pending_vedolo_sync": {
+            **base,
+            "transfers_schema_version": vedolo_flows.TRANSFERS_SCHEMA_VERSION,
+            "transfers_last_block": 999,
+        }}
+        self.assertIsNone(vedolo_flows.load_pending_sync(incomplete_state))
+
+        complete = {
+            **base,
+            "transfers_schema_version": vedolo_flows.TRANSFERS_SCHEMA_VERSION,
+            "transfers_last_block": 1_000,
+        }
+        loaded = vedolo_flows.load_pending_sync({"pending_vedolo_sync": complete})
+        self.assertEqual(loaded["transfers_schema_version"], vedolo_flows.TRANSFERS_SCHEMA_VERSION)
+        self.assertEqual(loaded["transfers_last_block"], 1_000)
+
+    def test_reconcile_discards_pending_sync_older_than_published_target(self):
+        state = {
+            "pending_vedolo_sync": {
+                "target_block": 900,
+                "transfers_schema_version": vedolo_flows.TRANSFERS_SCHEMA_VERSION,
+                "transfers_last_block": 900,
+                "locks": [],
+                "unlocks": [],
+                "transfers": [self._complete_transfer()],
+                "tx_hashes": [],
+            }
+        }
+        published = {
+            "target_block": 1_000,
+            "transfers_schema_version": vedolo_flows.TRANSFERS_SCHEMA_VERSION,
+            "locks": [],
+            "unlocks": [],
+            "transfers": [self._complete_transfer()],
+        }
+
+        repaired = vedolo_flows.reconcile_state_with_published_history(state, published)
+
+        self.assertNotIn("pending_vedolo_sync", repaired)
 
     def test_parses_merge_and_split_calldata_into_exact_token_transitions(self):
         merge = vedolo_flows.parse_position_action_calldata(
@@ -534,6 +664,7 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
                 ],
                 "transactionHash": tx_hash,
                 "blockNumber": "0x2a",
+                "logIndex": "0x5",
             }
         )
 
@@ -545,6 +676,7 @@ class GenerateVedoloFlowsTests(unittest.TestCase):
                 "txHash": tx_hash,
                 "tokenId": 123,
                 "block": 42,
+                "logIndex": 5,
             },
         )
 

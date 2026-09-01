@@ -43,6 +43,7 @@ CHUNK_SIZE = 10_000
 MIN_CHUNK_SIZE = 1_000
 FINALITY_REORG_DEPTH = 256
 BLOCK_TIME = 2  # ~2 seconds per block on Berachain
+TRANSFERS_SCHEMA_VERSION = 2
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "vedolo_flows.json")
@@ -54,6 +55,75 @@ EXERCISERS_BY_ADDRESS_FILE = os.path.join(DATA_DIR, "exercisers_by_address.json"
 class EventLogFetchError(RuntimeError):
     """Raised when an event range cannot be fetched completely."""
 
+
+def _valid_address(value):
+    text = str(value or "").lower()
+    return len(text) == 42 and text.startswith("0x") and all(
+        char in "0123456789abcdef" for char in text[2:]
+    )
+
+
+def transfer_rows_are_complete(transfers, target_block=0):
+    """Return whether every transfer is safe for deterministic history replay."""
+    if not isinstance(transfers, list) or not transfers:
+        return False
+    seen_logs = set()
+    for row in transfers:
+        if not isinstance(row, dict):
+            return False
+        try:
+            block = int(row.get("block") or 0)
+            log_index = int(row["logIndex"])
+            timestamp = int(row.get("timestamp") or 0)
+            token_id = int(row.get("tokenId") or 0)
+        except (KeyError, TypeError, ValueError):
+            return False
+        tx_hash = str(row.get("txHash") or "").lower()
+        expected_date = (
+            datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+            if timestamp > 0
+            else ""
+        )
+        if (
+            block <= 0
+            or (int(target_block or 0) > 0 and block > int(target_block))
+            or log_index < 0
+            or timestamp <= 0
+            or token_id <= 0
+            or len(tx_hash) != 66
+            or not tx_hash.startswith("0x")
+            or any(char not in "0123456789abcdef" for char in tx_hash[2:])
+            or not _valid_address(row.get("from"))
+            or not _valid_address(row.get("to"))
+            or str(row.get("date") or "") != expected_date
+        ):
+            return False
+        identity = (tx_hash, log_index)
+        if identity in seen_logs:
+            return False
+        seen_logs.add(identity)
+    return True
+
+
+def assert_complete_transfer_history(transfers, target_block):
+    """Fail closed rather than certify an incomplete transfer replay cache."""
+    if transfer_rows_are_complete(transfers, target_block):
+        return
+    raise EventLogFetchError(
+        "veDOLO transfer history is incomplete (block/logIndex/timestamp/date/identity); "
+        "refusing to publish transfer schema v2"
+    )
+
+
+def transfer_cache_needs_full_backfill(state, cached_transfers):
+    return (
+        not transfer_rows_are_complete(
+            cached_transfers, int(state.get("transfers_last_block") or 0)
+        )
+        or int(state.get("transfers_last_block") or 0) <= 0
+        or int(state.get("transfers_schema_version") or 0) != TRANSFERS_SCHEMA_VERSION
+    )
+
 # Historical wallet-to-wallet veDOLO NFT transfers verified by receipt on
 # Berachain. Some public RPC log scans missed this narrow July 2025 range, so
 # keep these rows as an explicit backfill until the upstream scan is rebuilt.
@@ -64,6 +134,7 @@ MANUAL_TRANSFER_BACKFILLS = [
         "txHash": "0x46a17abc0fe071562c4c93e657c19ef19b8dbc554a0f0b300847589273fbe2eb",
         "tokenId": 414,
         "block": 8214230,
+        "logIndex": 85,
         "timestamp": 1753463628,
         "date": "2025-07-25",
     },
@@ -73,6 +144,7 @@ MANUAL_TRANSFER_BACKFILLS = [
         "txHash": "0x8c53ef65104a527aa102b47a15e606aa77333fd6efa9cdb17819da71b13553e6",
         "tokenId": 464,
         "block": 8214306,
+        "logIndex": 86,
         "timestamp": 1753463773,
         "date": "2025-07-25",
     },
@@ -82,6 +154,7 @@ MANUAL_TRANSFER_BACKFILLS = [
         "txHash": "0xb7d88e234f0563cc3e65ab90ea64b7f284723ca9629f8e2b278dc38ab87484c9",
         "tokenId": 442,
         "block": 8214373,
+        "logIndex": 168,
         "timestamp": 1753463900,
         "date": "2025-07-25",
     },
@@ -91,6 +164,7 @@ MANUAL_TRANSFER_BACKFILLS = [
         "txHash": "0xe8863306f9a4d9490f9efaa862658af2885561312a0585a3ac5841dedc60175b",
         "tokenId": 470,
         "block": 8214432,
+        "logIndex": 8,
         "timestamp": 1753464014,
         "date": "2025-07-25",
     },
@@ -100,6 +174,7 @@ MANUAL_TRANSFER_BACKFILLS = [
         "txHash": "0x566a3e5a226a577910a80ed5084c09e2fbea1abc8438d912f46115d5d0c490d6",
         "tokenId": 475,
         "block": 8214470,
+        "logIndex": 27,
         "timestamp": 1753464086,
         "date": "2025-07-25",
     },
@@ -212,6 +287,8 @@ def save_run_status(completed, **extra):
 def save_pending_sync(state, target_block, unlocks, locks, tx_hashes, transfers=None):
     state["pending_vedolo_sync"] = {
         "target_block": target_block,
+        "transfers_schema_version": TRANSFERS_SCHEMA_VERSION,
+        "transfers_last_block": target_block,
         "unlocks": unlocks,
         "locks": locks,
         "transfers": transfers if isinstance(transfers, list) else state.get("transfers", []),
@@ -231,7 +308,18 @@ def load_pending_sync(state):
     unlocks = pending.get("unlocks")
     transfers = pending.get("transfers")
     tx_hashes = pending.get("tx_hashes")
+    transfer_schema = int(pending.get("transfers_schema_version") or 0)
+    transfers_last_block = int(pending.get("transfers_last_block") or 0)
     if target_block <= 0 or not isinstance(locks, list) or not isinstance(unlocks, list):
+        return None
+    if (
+        transfer_schema != TRANSFERS_SCHEMA_VERSION
+        or transfers_last_block < target_block
+        or not transfer_rows_are_complete(transfers, target_block)
+    ):
+        # A receipt-check checkpoint created before the transfer schema upgrade
+        # cannot bypass the required full ERC-721 Transfer rebuild.
+        state.pop("pending_vedolo_sync", None)
         return None
     if not isinstance(transfers, list):
         transfers = []
@@ -240,6 +328,8 @@ def load_pending_sync(state):
 
     return {
         "target_block": target_block,
+        "transfers_schema_version": transfer_schema,
+        "transfers_last_block": transfers_last_block,
         "locks": locks,
         "unlocks": unlocks,
         "transfers": transfers,
@@ -708,6 +798,30 @@ def assert_no_immutable_event_regression(
                 f"event{'s' if len(missing) != 1 else ''}; refusing to overwrite production data"
             )
 
+    def transfer_identity(row):
+        return (
+            str(row.get("txHash") or "").lower(),
+            int(row.get("tokenId") or 0),
+            int(row.get("block") or 0),
+            str(row.get("from") or "").lower(),
+            str(row.get("to") or "").lower(),
+        )
+
+    old_transfer_ids = {
+        transfer_identity(row)
+        for row in previous.get("transfers", [])
+        if int(row.get("block") or 0) <= finalized_through
+    }
+    new_transfer_ids = {
+        transfer_identity(row) for row in candidate.get("transfers", [])
+    }
+    missing_transfers = old_transfer_ids - new_transfer_ids
+    if missing_transfers:
+        raise EventLogFetchError(
+            f"Candidate veDOLO history dropped {len(missing_transfers):,} finalized transfer "
+            f"event{'s' if len(missing_transfers) != 1 else ''}; refusing to overwrite production data"
+        )
+
 
 def _merge_event_rows(published_rows, cached_rows, *, transfer=False):
     def identity(row):
@@ -736,6 +850,17 @@ def reconcile_state_with_published_history(state, published):
     state["transfers"] = _merge_event_rows(
         published.get("transfers"), state.get("transfers"), transfer=True
     )
+    published_target_block = int(published.get("target_block") or 0)
+    published_transfer_schema = int(published.get("transfers_schema_version") or 0)
+    if (
+        published_transfer_schema == TRANSFERS_SCHEMA_VERSION
+        and transfer_rows_are_complete(published.get("transfers"), published_target_block)
+    ):
+        state["transfers_schema_version"] = TRANSFERS_SCHEMA_VERSION
+        state["transfers_last_block"] = max(
+            int(state.get("transfers_last_block") or 0),
+            published_target_block,
+        )
 
     if int(state.get("last_block") or 0) <= 0:
         history_blocks = [
@@ -753,6 +878,9 @@ def reconcile_state_with_published_history(state, published):
     pending = state.get("pending_vedolo_sync")
     if isinstance(pending, dict):
         pending = dict(pending)
+        if int(pending.get("target_block") or 0) < published_target_block:
+            state.pop("pending_vedolo_sync", None)
+            return state
         pending["locks"] = _merge_event_rows(published.get("locks"), pending.get("locks"))
         pending["unlocks"] = _merge_event_rows(published.get("unlocks"), pending.get("unlocks"))
         pending["transfers"] = _merge_event_rows(
@@ -986,7 +1114,7 @@ def decode_withdraw(log):
     value = int(data[64:128], 16) / 1e18
     ts = int(data[128:192], 16)
 
-    return {
+    row = {
         "address": provider.lower(),
         "txHash": log["transactionHash"],
         "tokenId": token_id,
@@ -995,6 +1123,9 @@ def decode_withdraw(log):
         "date": datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d"),
         "block": int(log["blockNumber"], 16),
     }
+    if log.get("logIndex") is not None:
+        row["logIndex"] = int(str(log["logIndex"]), 16)
+    return row
 
 
 def decode_deposit(log):
@@ -1010,7 +1141,7 @@ def decode_deposit(log):
 
     lock_days = max(0, round((locktime - ts) / 86400))
 
-    return {
+    row = {
         "address": provider.lower(),
         "txHash": log["transactionHash"],
         "tokenId": token_id,
@@ -1022,6 +1153,9 @@ def decode_deposit(log):
         "date": datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d"),
         "block": int(log["blockNumber"], 16),
     }
+    if log.get("logIndex") is not None:
+        row["logIndex"] = int(str(log["logIndex"]), 16)
+    return row
 
 
 def recover_missing_deposit_events(
@@ -1083,13 +1217,16 @@ def decode_transfer(log):
     except (KeyError, TypeError, ValueError):
         return None
 
-    return {
+    row = {
         "from": from_address,
         "to": to_address,
         "txHash": log.get("transactionHash", ""),
         "tokenId": token_id,
         "block": block,
     }
+    if log.get("logIndex") is not None:
+        row["logIndex"] = int(str(log["logIndex"]), 16)
+    return row
 
 
 def main():
@@ -1150,7 +1287,9 @@ def main():
         cached_locks = state.get("locks", [])
         cached_transfers = state.get("transfers", [])
         transfers_last_block = int(state.get("transfers_last_block") or 0)
-        transfers_need_backfill = not isinstance(cached_transfers, list) or transfers_last_block <= 0
+        transfers_need_backfill = transfer_cache_needs_full_backfill(
+            state, cached_transfers
+        )
 
         if is_incremental and last_block > 0:
             fetch_start = last_block + 1
@@ -1317,6 +1456,7 @@ def main():
     output = {
         "timestamp": datetime.utcnow().isoformat(),
         "target_block": current_block,
+        "transfers_schema_version": TRANSFERS_SCHEMA_VERSION,
         "total_unlocks": len(all_unlocks),
         "total_locks": len(all_locks),
         "total_transfers": len(all_transfers),
@@ -1325,6 +1465,7 @@ def main():
         "transfers": all_transfers,
     }
 
+    assert_complete_transfer_history(all_transfers, current_block)
     if previous_output is not None:
         assert_no_immutable_event_regression(previous_output, output, current_block)
 
@@ -1337,6 +1478,7 @@ def main():
     state["locks"] = all_locks
     state["transfers"] = all_transfers
     state["transfers_last_block"] = current_block
+    state["transfers_schema_version"] = TRANSFERS_SCHEMA_VERSION
     state.pop("pending_vedolo_sync", None)
     save_state(state)
     save_run_status(True, target_block=current_block)
