@@ -219,6 +219,39 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
             )
         )
 
+    def test_active_dedicated_workflow_covers_its_chain_without_dispatch_input(self):
+        rows = plan_earn_watchdog_dispatch.build_dispatch_rows(
+            {
+                "refreshJobs": [
+                    {
+                        "workflow": "update-earn-arbitrum-canonical-history.yml",
+                        "inputs": {"hot_limit": "0", "checkpoint_steps": "24"},
+                        "priority": -20,
+                        "mode": "catchup",
+                    }
+                ]
+            }
+        )
+        active_runs = {
+            "update-earn-arbitrum-canonical-history.yml": [
+                {
+                    "databaseId": 33526498821,
+                    "displayTitle": "Refresh Arbitrum Canonical EARN History",
+                    "name": "Refresh Arbitrum Canonical EARN History",
+                    "status": "in_progress",
+                }
+            ]
+        }
+        detector = getattr(
+            plan_earn_watchdog_dispatch,
+            "collect_active_repair_chains",
+            lambda *_args, **_kwargs: set(),
+        )
+
+        chains = detector(rows, lambda workflow: active_runs.get(workflow, []))
+
+        self.assertEqual({"arbitrum"}, chains)
+
 
 if __name__ == "__main__":
     unittest.main()

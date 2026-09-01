@@ -102,14 +102,19 @@ jobs:
           EARN_FRESHNESS_ACTIONS_OUTPUT=/tmp/earn-freshness-actions.json \
             bash scripts/commit_with_fresh_earn_status.sh "Update EARN freshness status - $(date -u '+%Y-%m-%d %H:%M UTC')"
 
+      - name: Detect active EARN refresh workflows
+        if: always()
+        run: |
+          python3 scripts/plan_earn_watchdog_dispatch.py \
+            /tmp/earn-freshness-actions.json \
+            /tmp/earn-refresh-jobs.tsv \
+            --active-repairs /tmp/earn-refresh-active-chains.txt \
+            --repo "$GITHUB_REPOSITORY"
+
       - name: Trigger stale EARN refresh workflows
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.allow_remediation }}
         run: |
           set -euo pipefail
-          python3 scripts/plan_earn_watchdog_dispatch.py \
-            /tmp/earn-freshness-actions.json \
-            /tmp/earn-refresh-jobs.tsv
-
           if [ ! -s /tmp/earn-refresh-jobs.tsv ]; then
             echo "No EARN refresh workflows needed."
             exit 0
