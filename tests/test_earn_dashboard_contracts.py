@@ -1687,6 +1687,8 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         # xlayer + ethereum coverage catchup) with headroom — see 2026-06 audit.
         self.assertIn("EARN_WATCHDOG_MAX_DISPATCHES: '6'", workflow)
         self.assertIn("scripts/plan_earn_watchdog_dispatch.py", workflow)
+        self.assertIn("Detect active EARN refresh workflows", workflow)
+        self.assertIn("--active-repairs /tmp/earn-refresh-active-chains.txt", workflow)
         self.assertIn("dispatched_count=0", workflow)
         self.assertIn("max_dispatches=\"${EARN_WATCHDOG_MAX_DISPATCHES:-4}\"", workflow)
         self.assertIn('if [ "${chain:-}" = "__all__" ]; then', workflow)
