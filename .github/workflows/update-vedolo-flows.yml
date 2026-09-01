@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Test veDOLO event reconstruction
+        run: python3 -m unittest tests/test_generate_vedolo_flows.py
+
       - name: Restore veDOLO flows sync state
         uses: actions/cache@v5
         with:

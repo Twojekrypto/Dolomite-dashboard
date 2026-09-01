@@ -15,9 +15,10 @@ class ValidateVedoloLockedHistoryTests(unittest.TestCase):
         self.flows = {
             "timestamp": "2026-08-16T00:00:00+00:00",
             "target_block": 30,
+            "transfers_schema_version": 2,
             "total_locks": 2,
             "total_unlocks": 1,
-            "total_transfers": 0,
+            "total_transfers": 1,
             "locks": [
                 {"txHash": "0x" + "1" * 64, "tokenId": 1, "block": 10, "timestamp": 100, "locktime": 500, "dolo": 1_000_000, "depositType": 1},
                 {"txHash": "0x" + "2" * 64, "tokenId": 2, "block": 20, "timestamp": 120, "locktime": 300, "dolo": 500_000, "depositType": 1},
@@ -25,7 +26,16 @@ class ValidateVedoloLockedHistoryTests(unittest.TestCase):
             "unlocks": [
                 {"txHash": "0x" + "3" * 64, "tokenId": 2, "block": 30, "timestamp": 200, "dolo": 500_000},
             ],
-            "transfers": [],
+            "transfers": [{
+                "from": "0x" + "a" * 40,
+                "to": "0x" + "b" * 40,
+                "txHash": "0x" + "4" * 64,
+                "tokenId": 1,
+                "block": 15,
+                "logIndex": 3,
+                "timestamp": 150,
+                "date": "1970-01-01",
+            }],
         }
         self.holders = {
             "timestamp": "1970-01-01T00:06:40+00:00",
@@ -56,6 +66,14 @@ class ValidateVedoloLockedHistoryTests(unittest.TestCase):
 
         self.assertEqual(2, result["lock_count"])
         self.assertEqual(1, result["unlock_count"])
+        self.assertEqual(1, result["transfer_count"])
+
+    def test_flow_only_validation_rejects_schema_v2_transfer_without_timestamp(self):
+        self.flows["transfers"][0]["timestamp"] = 0
+        self.flows["transfers"][0]["date"] = ""
+
+        with self.assertRaisesRegex(LockedHistoryValidationError, "transfer timestamp"):
+            locked_history.validate_flow_history(self.flows)
 
     def test_rejects_material_event_history_gap(self):
         self.flows["locks"] = self.flows["locks"][1:]

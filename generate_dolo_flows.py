@@ -270,6 +270,7 @@ USER_CONTRACT_WALLET_ADDRS = {
 }
 
 HOLDER_HISTORY_START_TIMESTAMP = int(datetime(2025, 4, 24, tzinfo=timezone.utc).timestamp())  # DOLO TGE
+HOLDER_HISTORY_CUTOFF_CACHE_VERSION = 1
 
 DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_JSON = os.path.join(DATA_DIR, "dolo_flows.json")
@@ -439,6 +440,119 @@ def find_first_block_at_or_after_timestamp(
     return low
 
 
+def find_first_blocks_at_or_after_timestamps(
+    start_block,
+    end_block,
+    target_timestamps,
+    timestamp_batch_loader,
+    nominal_block_time,
+):
+    """Resolve many timestamp cutoffs exactly with batched block lookups.
+
+    A linear block estimate gives every target a narrow initial bracket.  The
+    bracket is verified against real block timestamps and expands if needed,
+    so the final result is still the first block at-or-after each target even
+    on chains with missed slots or irregular production.
+    """
+    start = int(start_block)
+    end = int(end_block)
+    targets = [int(value) for value in target_timestamps]
+    if start < 0 or end < start:
+        raise ValueError("invalid block search range")
+    if not targets:
+        return []
+    nominal = max(1, int(nominal_block_time))
+    timestamp_cache = {}
+
+    def load_many(blocks):
+        missing = sorted({int(block) for block in blocks if int(block) not in timestamp_cache})
+        if missing:
+            loaded = timestamp_batch_loader(missing)
+            if not isinstance(loaded, dict):
+                raise ValueError("timestamp batch loader must return a block mapping")
+            for block in missing:
+                if block not in loaded:
+                    raise ValueError(f"missing timestamp for block {block}")
+                timestamp_cache[block] = int(loaded[block])
+        return {int(block): timestamp_cache[int(block)] for block in blocks}
+
+    edge_timestamps = load_many([start, end])
+    start_ts = edge_timestamps[start]
+    end_ts = edge_timestamps[end]
+    if start_ts > end_ts:
+        raise ValueError("block timestamps are not monotonic")
+    if any(target > end_ts for target in targets):
+        raise ValueError("target timestamp is newer than the confirmed head")
+
+    intervals = []
+    span_blocks = max(1, end - start)
+    span_seconds = max(1, end_ts - start_ts)
+    candidate_blocks = []
+    for target in targets:
+        if target <= start_ts:
+            intervals.append([start, start, target])
+            candidate_blocks.append(start)
+            continue
+        ratio = (target - start_ts) / span_seconds
+        candidate = max(start, min(end, start + int(ratio * span_blocks)))
+        intervals.append([candidate, candidate, target])
+        candidate_blocks.append(candidate)
+
+    candidate_timestamps = load_many(candidate_blocks)
+    for interval, candidate in zip(intervals, candidate_blocks):
+        target = interval[2]
+        if target <= start_ts:
+            continue
+        candidate_ts = candidate_timestamps[candidate]
+        distance = abs(candidate_ts - target)
+        step = max(2, (distance + nominal - 1) // nominal + 2)
+        if candidate_ts < target:
+            interval[0] = candidate
+            interval[1] = min(end, candidate + step)
+        else:
+            interval[0] = max(start, candidate - step)
+            interval[1] = candidate
+
+    # Verify and, if a chain violated the nominal-time bracket assumption,
+    # expand exponentially until every target is actually enclosed.
+    while True:
+        bounds = load_many([value for low, high, _ in intervals for value in (low, high)])
+        changed = False
+        for interval in intervals:
+            low, high, target = interval
+            if low == high:
+                continue
+            if bounds[low] >= target and low > start:
+                width = max(2, high - low + 1)
+                interval[0] = max(start, low - width * 2)
+                changed = True
+            elif bounds[high] < target and high < end:
+                width = max(2, high - low + 1)
+                interval[1] = min(end, high + width * 2)
+                changed = True
+            elif bounds[low] >= target and low == start:
+                interval[1] = low
+            elif bounds[high] < target and high == end:
+                raise ValueError("target timestamp is newer than the confirmed head")
+        if not changed:
+            break
+
+    while any(low < high for low, high, _ in intervals):
+        mids = [(low + high) // 2 for low, high, _ in intervals if low < high]
+        mid_timestamps = load_many(mids)
+        for interval in intervals:
+            low, high, target = interval
+            if low >= high:
+                continue
+            midpoint = (low + high) // 2
+            if mid_timestamps[midpoint] < target:
+                interval[0] = midpoint + 1
+            else:
+                interval[1] = midpoint
+
+    return [low for low, _high, _target in intervals]
+
+
 def load_block_timestamp(chain_key, block_number, cache=None):
     """Resolve one exact block timestamp through the configured RPC failover."""
     cache = cache if cache is not None else {}
@@ -489,6 +603,74 @@ def load_block_timestamp(chain_key, block_number, cache=None):
         )
     cache[key] = timestamp
     return timestamp
+
+
+def load_block_timestamps_batch(chain_key, block_numbers, cache=None):
+    """Resolve exact timestamps for many blocks through RPC batch failover."""
+    cache = cache if cache is not None else {}
+    blocks = sorted({int(block) for block in block_numbers})
+    resolved = {}
+    missing = []
+    for block in blocks:
+        key = (chain_key, block)
+        if key in cache:
+            resolved[block] = int(cache[key])
+        else:
+            missing.append(block)
+    if not missing:
+        return resolved
+
+    cfg = CHAINS[chain_key]
+    eligible_rpcs = [
+        endpoint
+        for endpoint in cfg["rpcs"]
+        if str(endpoint).startswith(("https://", "http://"))
+    ]
+    if chain_key == "eth":
+        eligible_rpcs.sort(
+            key=lambda endpoint: (
+                0 if rpc_provider_family(endpoint) == "drpc.org" else 1,
+                endpoint,
+            )
+        )
+    payloads = [
+        {
+            "jsonrpc": "2.0",
+            "method": "eth_getBlockByNumber",
+            "params": [hex(block), False],
+            "id": f"holder-boundary:{chain_key}:{block}",
+        }
+        for block in missing
+    ]
+    try:
+        responses, missing_ids = rpc_batch_requests(
+            eligible_rpcs,
+            payloads,
+            timeout=12,
+            retries_per_endpoint=RPC_RETRIES_PER_ENDPOINT,
+            batch_size=RPC_BATCH_SIZE,
+            quiet=True,
+            describe=f"{cfg['name']} holder boundary blocks",
+        )
+    except RpcError:
+        responses, missing_ids = {}, [payload["id"] for payload in payloads]
+
+    for block, payload in zip(missing, payloads):
+        response = responses.get(payload["id"])
+        result = response.get("result") if isinstance(response, dict) else None
+        raw_timestamp = result.get("timestamp") if isinstance(result, dict) else None
+        if payload["id"] in missing_ids:
+            timestamp = load_block_timestamp(chain_key, block, cache)
+        else:
+            try:
+                timestamp = int(str(raw_timestamp), 16)
+            except (TypeError, ValueError):
+                timestamp = 0
+            if timestamp <= 0:
+                timestamp = load_block_timestamp(chain_key, block, cache)
+        cache[(chain_key, block)] = timestamp
+        resolved[block] = timestamp
+    return resolved
 
 
 def calculate_exact_period_cutoffs(current_blocks):
@@ -2063,6 +2245,7 @@ def load_holder_dolomite_history_snapshots(
     subgraphs=None,
     checkpoint_fn=save_state,
     request_delay_seconds=HOLDER_DOLOMITE_HISTORY_REQUEST_DELAY_SECONDS,
+    cutoff_blocks_by_point=None,
 ):
     """Load or fetch complete daily DOLO-in-Dolomite snapshots.
 
@@ -2096,13 +2279,30 @@ def load_holder_dolomite_history_snapshots(
         point_cache["timestamp"] = point["timestamp"]
         chain_cache = point_cache.setdefault("chains", {})
         for chain_key in chain_keys:
-            requested_block = holder_history_cutoff_block(
-                chain_key, point["ts"], base_ts, current_blocks
+            exact_cutoff = int(
+                (cutoff_blocks_by_point or {}).get(point_key, {}).get(chain_key)
+                or 0
             )
+            if exact_cutoff > 0:
+                # ERC-20 replay removes every transfer in the first block at or
+                # after the point timestamp. Query protocol state at the prior
+                # block so wallet and Dolomite legs describe the same instant.
+                requested_block = max(
+                    int(CHAINS.get(chain_key, {}).get("deploy_block", 0)),
+                    exact_cutoff - 1,
+                )
+            else:
+                requested_block = int(holder_history_cutoff_block(
+                    chain_key, point["ts"], base_ts, current_blocks
+                ))
             cached_chain = chain_cache.get(chain_key)
             if (
                 _holder_cached_protocol_chain_valid(cached_chain)
                 and int(cached_chain.get("requestedBlock") or 0) == requested_block
+                and (
+                    exact_cutoff <= 0
+                    or int(cached_chain.get("transferCutoffBlock") or 0) == exact_cutoff
+                )
             ):
                 cached += 1
                 continue
@@ -2114,6 +2314,7 @@ def load_holder_dolomite_history_snapshots(
                 # the exact positive protocol balance at this block is zero.
                 chain_cache[chain_key] = {
                     "requestedBlock": requested_block,
+                    "transferCutoffBlock": exact_cutoff or None,
                     "blockNumber": requested_block,
                     "blockTimestamp": int(point["ts"]),
                     "balances": {},
@@ -2139,6 +2340,7 @@ def load_holder_dolomite_history_snapshots(
                 )
             chain_cache[chain_key] = {
                 "requestedBlock": requested_block,
+                "transferCutoffBlock": exact_cutoff or None,
                 "blockNumber": int(chain_meta.get("blockNumber") or 0),
                 "blockTimestamp": int(chain_meta.get("blockTimestamp") or 0),
                 "balances": {
@@ -2500,6 +2702,92 @@ def build_holder_history_schedule(base_ts):
     return sorted(points_by_day.values(), key=lambda point: point["ts"])
 
 
+def load_holder_history_cutoff_blocks(state, points, current_blocks):
+    """Return timestamp-exact daily cutoff blocks, cached permanently by day."""
+    cache = state.get("holder_history_cutoff_blocks")
+    if not isinstance(cache, dict) or cache.get("version") != HOLDER_HISTORY_CUTOFF_CACHE_VERSION:
+        cache = {
+            "version": HOLDER_HISTORY_CUTOFF_CACHE_VERSION,
+            "chains": {},
+        }
+        state["holder_history_cutoff_blocks"] = cache
+    cutoff_by_point = {point["key"]: {} for point in points}
+    fetched = 0
+    cached = 0
+    timestamp_cache = {}
+    keep_keys = {point["key"] for point in points}
+
+    for chain_key, cfg in CHAINS.items():
+        chain_cache = cache.setdefault("chains", {}).setdefault(chain_key, {})
+        unresolved = []
+        for point in points:
+            saved = chain_cache.get(point["key"])
+            block = int(saved.get("block") or 0) if isinstance(saved, dict) else 0
+            if (
+                block >= int(cfg.get("deploy_block", 0))
+                and block <= int(current_blocks[chain_key])
+                and int(saved.get("targetTimestamp") or 0) == int(point["ts"])
+            ):
+                cutoff_by_point[point["key"]][chain_key] = block
+                cached += 1
+            else:
+                unresolved.append(point)
+
+        if unresolved:
+            loader = lambda blocks, key=chain_key: load_block_timestamps_batch(
+                key, blocks, timestamp_cache
+            )
+            resolved_blocks = find_first_blocks_at_or_after_timestamps(
+                int(cfg.get("deploy_block", 0)),
+                int(current_blocks[chain_key]),
+                [point["ts"] for point in unresolved],
+                loader,
+                nominal_block_time=cfg["block_time"],
+            )
+            resolved_timestamps = loader(resolved_blocks)
+            previous_blocks = [
+                block - 1
+                for block in resolved_blocks
+                if block > int(cfg.get("deploy_block", 0))
+            ]
+            previous_timestamps = loader(previous_blocks)
+            for point, block in zip(unresolved, resolved_blocks):
+                previous_timestamp = (
+                    previous_timestamps[block - 1]
+                    if block > int(cfg.get("deploy_block", 0))
+                    else None
+                )
+                if resolved_timestamps[block] < int(point["ts"]) or (
+                    previous_timestamp is not None
+                    and previous_timestamp >= int(point["ts"])
+                ):
+                    raise RuntimeError(
+                        f"{cfg['name']}: non-exact holder cutoff for {point['key']}"
+                    )
+                chain_cache[point["key"]] = {
+                    "targetTimestamp": int(point["ts"]),
+                    "block": int(block),
+                    "blockTimestamp": int(resolved_timestamps[block]),
+                    "method": "first-block-at-or-after-timestamp",
+                }
+                cutoff_by_point[point["key"]][chain_key] = int(block)
+                fetched += 1
+
+        cache["chains"][chain_key] = {
+            key: value for key, value in chain_cache.items() if key in keep_keys
+        }
+
+    cache["updatedAt"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return cutoff_by_point, {
+        "status": "complete",
+        "method": "first-block-at-or-after-timestamp",
+        "pointCount": len(points),
+        "chainCount": len(CHAINS),
+        "fetchedChainCutoffs": fetched,
+        "cachedChainCutoffs": cached,
+    }
+
+
 def calculate_neutralized_flows_for_cutoffs(all_transfers, cutoff_by_chain):
     raw_flows = {}
     bridge_flows_by_chain = {}
@@ -2763,6 +3051,7 @@ def calculate_holder_bucket_history(
     vesting_labels=None,
     dolomite_history=None,
     current_dolomite_balances=None,
+    cutoff_blocks_by_point=None,
 ):
     holder_rows = load_current_holder_rows()
     address_labels = load_address_labels(vesting_labels)
@@ -2781,6 +3070,7 @@ def calculate_holder_bucket_history(
         },
     }
     current_locks = load_current_vedolo_locks()
+    current_vedolo_positions = load_current_vedolo_positions()
     vedolo_events = load_vedolo_flow_events()
     sorted_transfers = {
         chain_key: ensure_transfers_sorted_by_block(transfers)
@@ -2800,7 +3090,12 @@ def calculate_holder_bucket_history(
             cutoff = (
                 int(current_blocks[chain_key]) + 1
                 if point["key"] == "now"
-                else holder_history_cutoff_block(chain_key, point["ts"], base_ts, current_blocks)
+                else int(
+                    (cutoff_blocks_by_point or {}).get(point["key"], {}).get(chain_key)
+                    or holder_history_cutoff_block(
+                        chain_key, point["ts"], base_ts, current_blocks
+                    )
+                )
             )
             chain_transfers = sorted_transfers[chain_key]
             cursor = cursors[chain_key]
@@ -2826,7 +3121,12 @@ def calculate_holder_bucket_history(
                 liquid_balances.pop(addr.lower(), None)
 
         liquid_by_chain = historical_liquid_by_chain(current_liquid_by_chain, chain_changes)
-        locked_balances = locked_map_at_holder_point(point["ts"], current_locks, vedolo_events)
+        locked_balances = locked_map_at_holder_point(
+            point["ts"],
+            current_locks,
+            vedolo_events,
+            current_positions=current_vedolo_positions,
+        )
         if point["key"] == "now":
             protocol_snapshot = current_dolomite_balances or {}
         else:
@@ -2930,6 +3230,7 @@ def calculate_holder_bucket_history(
                         address_labels,
                         bucket_defs,
                         audience=audience,
+                        liquid_balances=liquid_balances,
                     )
                     wallet_row["with_vedolo"][audience][view] = build_bucket_wallet_history_rows(
                         liquid_by_chain,
@@ -2938,6 +3239,7 @@ def calculate_holder_bucket_history(
                         address_labels,
                         bucket_defs,
                         audience=audience,
+                        liquid_balances=liquid_balances,
                     )
                     wallet_row["total_exposure"][audience][view] = build_bucket_wallet_history_rows(
                         liquid_by_chain,
@@ -2947,6 +3249,7 @@ def calculate_holder_bucket_history(
                         bucket_defs,
                         audience=audience,
                         protocol_by_chain=protocol_by_chain,
+                        liquid_balances=liquid_balances,
                     )
                     wallet_row["total_exposure_with_vedolo"][audience][view] = build_bucket_wallet_history_rows(
                         liquid_by_chain,
@@ -2956,6 +3259,7 @@ def calculate_holder_bucket_history(
                         bucket_defs,
                         audience=audience,
                         protocol_by_chain=protocol_by_chain,
+                        liquid_balances=liquid_balances,
                     )
         history.append(row)
         wallet_history[point["key"]] = wallet_row
@@ -2963,7 +3267,14 @@ def calculate_holder_bucket_history(
     return sorted(history, key=lambda row: row["timestamp"]), wallet_history
 
 
-def calculate_cex_supply_history(all_transfers, points, current_blocks, base_ts, vesting_labels=None):
+def calculate_cex_supply_history(
+    all_transfers,
+    points,
+    current_blocks,
+    base_ts,
+    vesting_labels=None,
+    cutoff_blocks_by_point=None,
+):
     holder_rows = load_current_holder_rows()
     address_labels = load_address_labels(vesting_labels)
     current_liquid = {
@@ -2984,7 +3295,12 @@ def calculate_cex_supply_history(all_transfers, points, current_blocks, base_ts,
 
     for point in sorted(points, key=lambda row: row["ts"], reverse=True):
         for chain_key in CHAINS:
-            cutoff = holder_history_cutoff_block(chain_key, point["ts"], base_ts, current_blocks)
+            cutoff = int(
+                (cutoff_blocks_by_point or {}).get(point["key"], {}).get(chain_key)
+                or holder_history_cutoff_block(
+                    chain_key, point["ts"], base_ts, current_blocks
+                )
+            )
             chain_transfers = sorted_transfers[chain_key]
             cursor = cursors[chain_key]
             while cursor >= 0 and chain_transfers[cursor][3] >= cutoff:
@@ -4105,23 +4421,242 @@ def load_current_vedolo_locks():
         return {}
 
 
+def load_current_vedolo_positions():
+    """Return current veDOLO ownership and locked DOLO at token-id grain."""
+    holders_file = os.path.join(DATA_DIR, "vedolo_holders.json")
+    if not os.path.exists(holders_file):
+        return {}
+    try:
+        with open(holders_file) as f:
+            holders_data = json.load(f)
+        snapshot_block = int(holders_data.get("snapshot_block") or 0)
+        positions = {}
+        for holder in holders_data.get("holders", []):
+            owner = str(holder.get("address") or "").lower()
+            if not owner:
+                continue
+            holder_tokens = []
+            for token in holder.get("token_details") or []:
+                try:
+                    token_id = int(token.get("id"))
+                    locked = float(token.get("dolo") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if token_id >= 0 and locked > 0:
+                    positions[token_id] = {
+                        "owner": owner,
+                        "dolo": locked,
+                        "snapshot_block": snapshot_block,
+                    }
+                    holder_tokens.append(token_id)
+            if holder_tokens:
+                expected_total = float(holder.get("total_dolo") or 0)
+                observed_total = sum(positions[token_id]["dolo"] for token_id in holder_tokens)
+                residual = expected_total - observed_total
+                # token_details are rounded for publication; preserve the
+                # authoritative per-wallet total by assigning only that tiny
+                # rounding residue to its largest position.
+                if abs(residual) <= max(1.0, expected_total * 1e-8):
+                    largest = max(holder_tokens, key=lambda token_id: positions[token_id]["dolo"])
+                    positions[largest]["dolo"] += residual
+        return positions
+    except Exception as e:
+        print(f"  ⚠️ Could not load veDOLO positions for bucket history: {e}")
+        return {}
+
+
 def load_vedolo_flow_events():
     flows_file = os.path.join(DATA_DIR, "vedolo_flows.json")
     if not os.path.exists(flows_file):
-        return {"locks": [], "unlocks": []}
+        return {"locks": [], "unlocks": [], "transfers": []}
     try:
         with open(flows_file) as f:
             data = json.load(f)
         return {
             "locks": data.get("locks") or [],
             "unlocks": data.get("unlocks") or [],
+            "transfers": data.get("transfers") or [],
         }
     except Exception as e:
         print(f"  ⚠️ Could not load veDOLO flows for bucket history: {e}")
-        return {"locks": [], "unlocks": []}
+        return {"locks": [], "unlocks": [], "transfers": []}
 
 
-def locked_map_at_holder_point(point_ts, current_locks, vedolo_events):
+def locked_map_at_holder_point(
+    point_ts,
+    current_locks,
+    vedolo_events,
+    current_positions=None,
+):
+    if current_positions is not None:
+        position_snapshot_block = max(
+            (
+                int(position.get("snapshot_block") or 0)
+                for position in current_positions.values()
+                if isinstance(position, dict)
+            ),
+            default=0,
+        )
+        expected_positions = {
+            int(token_id): {
+                "owner": str(position.get("owner") or "").lower(),
+                "dolo": float(position.get("dolo") or 0),
+            }
+            for token_id, position in current_positions.items()
+            if isinstance(position, dict)
+            and str(position.get("owner") or "")
+            and float(position.get("dolo") or 0) > 0
+        }
+        if current_locks and not expected_positions:
+            raise RuntimeError(
+                "Current veDOLO token positions are unavailable; refusing partial holder history"
+            )
+        first_transfer_from = {}
+        unlock_owner = {}
+        for transfer in sorted(
+            vedolo_events.get("transfers", []),
+            key=lambda item: (
+                int(item.get("timestamp") or 0),
+                int(item.get("block") or 0),
+                int(item.get("logIndex") or 0),
+            ),
+        ):
+            try:
+                token_id = int(transfer.get("tokenId"))
+            except (TypeError, ValueError):
+                continue
+            first_transfer_from.setdefault(
+                token_id, str(transfer.get("from") or "").lower()
+            )
+        for unlock in vedolo_events.get("unlocks", []):
+            try:
+                token_id = int(unlock.get("tokenId"))
+            except (TypeError, ValueError):
+                continue
+            owner = str(unlock.get("address") or "").lower()
+            if owner:
+                unlock_owner[token_id] = owner
+
+        positions = {}
+        events = []
+        sequence = 0
+        for kind in ("locks", "unlocks", "transfers"):
+            for item in vedolo_events.get(kind, []):
+                try:
+                    timestamp = int(item.get("timestamp") or 0)
+                    token_id = int(item.get("tokenId"))
+                    block = int(item.get("block") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if timestamp >= point_ts or (
+                    position_snapshot_block > 0 and block > position_snapshot_block
+                ):
+                    continue
+                events.append((
+                    timestamp,
+                    block,
+                    int(item.get("logIndex") or 0),
+                    sequence,
+                    kind,
+                    token_id,
+                    item,
+                ))
+                sequence += 1
+        # Replay the token lifecycle forward. Withdraw events remove the full
+        # position (their emitted DOLO can be the post-penalty payout), while
+        # merge/split events move the locked principal between token IDs.
+        for _timestamp, _block, _log_index, _sequence, kind, token_id, item in sorted(events):
+            if kind == "transfers":
+                position = positions.get(token_id)
+                next_owner = str(item.get("to") or "").lower()
+                if position and next_owner and next_owner != ZERO:
+                    position["owner"] = next_owner
+                continue
+            amount = float(item.get("dolo") or 0)
+            if kind == "unlocks":
+                positions.pop(token_id, None)
+                continue
+            deposit_type = int(item.get("depositType") or 0)
+            owner = (
+                str(item.get("beneficiaryAddress") or "").lower()
+                or first_transfer_from.get(token_id, "")
+                or (expected_positions.get(token_id) or {}).get("owner", "")
+                or unlock_owner.get(token_id, "")
+                or str(item.get("address") or "").lower()
+            )
+            if deposit_type == 4:
+                source_token_id = int(item.get("sourceTokenId") or 0)
+                source = positions.pop(source_token_id, None)
+                if not source and amount > 1:
+                    raise RuntimeError(
+                        f"Cannot replay veDOLO merge from missing token {source_token_id}"
+                    )
+                moved = float(source.get("dolo") if source else amount)
+                target = positions.get(token_id)
+                if target:
+                    target["dolo"] += moved
+                elif owner and moved > 0:
+                    positions[token_id] = {"owner": owner, "dolo": moved}
+                continue
+            if deposit_type == 5:
+                source_token_id = int(item.get("sourceTokenId") or 0)
+                source = positions.get(source_token_id)
+                if not source and amount > 1:
+                    raise RuntimeError(
+                        f"Cannot replay veDOLO split from missing token {source_token_id}"
+                    )
+                if source:
+                    source["dolo"] = max(0, source["dolo"] - amount)
+                if owner and amount > 0:
+                    positions[token_id] = {"owner": owner, "dolo": amount}
+                continue
+            if deposit_type == 3 or amount <= 0:
+                continue
+            position = positions.get(token_id)
+            if position:
+                position["dolo"] += amount
+            elif owner:
+                positions[token_id] = {"owner": owner, "dolo": amount}
+
+        latest_event_ts = max(
+            (
+                int(item.get("timestamp") or 0)
+                for kind in ("locks", "unlocks", "transfers")
+                for item in vedolo_events.get(kind, [])
+                if position_snapshot_block <= 0
+                or int(item.get("block") or 0) <= position_snapshot_block
+            ),
+            default=0,
+        )
+        if point_ts > latest_event_ts and expected_positions:
+            expected_material_tokens = {
+                token_id for token_id, position in expected_positions.items()
+                if position["dolo"] > 1
+            }
+            replayed_material_tokens = {
+                token_id for token_id, position in positions.items()
+                if position["dolo"] > 1
+            }
+            mismatches = [
+                token_id for token_id in expected_material_tokens
+                if token_id not in positions
+                or positions[token_id]["owner"] != expected_positions[token_id]["owner"]
+                or abs(positions[token_id]["dolo"] - expected_positions[token_id]["dolo"]) > 1
+            ]
+            mismatches.extend(sorted(replayed_material_tokens - expected_material_tokens))
+            if mismatches:
+                raise RuntimeError(
+                    "veDOLO event ownership history is incomplete; "
+                    f"{len(mismatches)} current material position(s) do not reconcile"
+                )
+
+        locked = {}
+        for position in positions.values():
+            owner = position["owner"]
+            if owner and owner != VEDOLO_CONTRACT_ADDR:
+                locked[owner] = locked.get(owner, 0) + position["dolo"]
+        return {addr: value for addr, value in locked.items() if value > 0.0001}
+
     locked = dict(current_locks)
     for lock in vedolo_events.get("locks", []):
         ts = int(lock.get("timestamp") or 0)
@@ -4330,10 +4865,13 @@ def build_bucket_wallet_history_rows(
     bucket_defs,
     audience="market",
     protocol_by_chain=None,
+    liquid_balances=None,
 ):
     protocol_by_chain = protocol_by_chain or {}
     rows = []
     addresses = set(locked_balances.keys())
+    if liquid_balances is not None:
+        addresses.update(liquid_balances.keys())
     for chain_balances in liquid_by_chain.values():
         addresses.update(chain_balances.keys())
     for chain_balances in protocol_by_chain.values():
@@ -4341,7 +4879,29 @@ def build_bucket_wallet_history_rows(
     for addr in addresses:
         bal_eth = max(0, float(liquid_by_chain.get("eth", {}).get(addr) or 0))
         bal_bera = max(0, float(liquid_by_chain.get("bera", {}).get(addr) or 0))
-        liquid = bal_eth + bal_bera
+        split_liquid = bal_eth + bal_bera
+        liquid = (
+            max(0, float(liquid_balances.get(addr) or 0))
+            if liquid_balances is not None
+            else split_liquid
+        )
+        # Wallet-level cross-chain neutralisation is authoritative. Keep the
+        # displayed chain split proportional while reconciling Details exactly
+        # to the total used by the chart model.
+        if split_liquid > 0 and abs(split_liquid - liquid) > 0.000001:
+            scale = liquid / split_liquid
+            bal_eth *= scale
+            bal_bera *= scale
+        elif split_liquid <= 0 and liquid > 0:
+            holder = holder_rows.get(addr, {})
+            current_eth = max(0, float(holder.get("balance_eth") or 0))
+            current_bera = max(0, float(holder.get("balance_bera") or 0))
+            current_split = current_eth + current_bera
+            if current_split > 0:
+                bal_eth = liquid * current_eth / current_split
+                bal_bera = liquid * current_bera / current_split
+            else:
+                bal_eth = liquid
         protocol_eth = max(0, float(protocol_by_chain.get("eth", {}).get(addr) or 0))
         protocol_bera = max(0, float(protocol_by_chain.get("bera", {}).get(addr) or 0))
         protocol = protocol_eth + protocol_bera
@@ -4677,12 +5237,18 @@ def rebuild_holder_history_from_cached_transfers():
         )
     )
     points = build_holder_history_schedule(base_ts)
+    holder_cutoff_blocks, holder_cutoff_meta = load_holder_history_cutoff_blocks(
+        state, points, current_blocks
+    )
+    save_state(state)
     dolomite_history, dolomite_history_meta = load_holder_dolomite_history_snapshots(
         state,
         points,
         current_blocks,
         base_ts,
+        cutoff_blocks_by_point=holder_cutoff_blocks,
     )
+    dolomite_history_meta["cutoff"] = holder_cutoff_meta
     current_dolomite_balances = output.get("dolomite_balances") or {}
     current_dolomite_meta = output.get("dolomite_balance_meta") or {}
     if current_dolomite_meta.get("status") != "complete":
@@ -4700,6 +5266,7 @@ def rebuild_holder_history_from_cached_transfers():
         vesting_investors,
         dolomite_history=dolomite_history,
         current_dolomite_balances=current_dolomite_balances,
+        cutoff_blocks_by_point=holder_cutoff_blocks,
     )
 
     output["holder_history_points"] = [
@@ -5430,12 +5997,18 @@ def main():
     # transfer logs as the flow tables, but add enough cutoffs for a usable hover.
     holder_history_points = build_holder_history_schedule(holder_history_base_ts)
     print(f"\n📈 Building holder bucket chart history ({len(holder_history_points)} points)...")
+    holder_cutoff_blocks, holder_cutoff_meta = load_holder_history_cutoff_blocks(
+        state, holder_history_points, current_blocks
+    )
+    save_state(state)
     holder_dolomite_history, holder_dolomite_history_meta = load_holder_dolomite_history_snapshots(
         state,
         holder_history_points,
         current_blocks,
         holder_history_base_ts,
+        cutoff_blocks_by_point=holder_cutoff_blocks,
     )
+    holder_dolomite_history_meta["cutoff"] = holder_cutoff_meta
     holder_chart_points = [
         *holder_history_points,
         {
@@ -5454,6 +6027,7 @@ def main():
         vesting_investors,
         dolomite_history=holder_dolomite_history,
         current_dolomite_balances=dolomite_balances,
+        cutoff_blocks_by_point=holder_cutoff_blocks,
     )
     cex_supply_history = calculate_cex_supply_history(
         all_transfers,
@@ -5461,6 +6035,7 @@ def main():
         current_blocks,
         holder_history_base_ts,
         vesting_investors,
+        cutoff_blocks_by_point=holder_cutoff_blocks,
     )
     print(f"  ... {len(holder_chart_points)}/{len(holder_chart_points)} holder history points")
 

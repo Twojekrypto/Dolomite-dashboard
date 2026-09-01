@@ -482,3 +482,11 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
 
 **Reguła na przyszłość:** Symulacja early unlock nie może przypisywać pozycji według starszego pliku holderów. W jednym przypiętym bloku odczytaj globalny `tokenId`, `ownerOf`, `locked`, `balanceOfNFT`, adres `feeCalculator` i jego quote; dopiero potem grupuj tokeny po aktualnym właścicielu. To obejmuje transfery i minty wykonane po poprzednim holder snapshotcie.
 **Reguła na przyszłość:** Wielopaczkowy odczyt Multicall musi korzystać ze wspólnego `RpcClient`, aby HTTP 429 przełączał endpoint z retry/backoff. Wybrany endpoint może się zmieniać między paczkami, ale numer bloku nie; nie publikuj częściowego JSON-u po nierozwiązanym callu.
+
+### DOLO holder exposure history
+
+**Reguła na przyszłość:** Granice dziennych punktów historii holderów muszą być pierwszym rzeczywistym blokiem o timestampie równym lub późniejszym od celu. Stałe `12 s/block` na Ethereum powoduje wielogodzinny dryf w długich zakresach; dokładne cutoffs zapisuj w cache wraz z timestampem bloku i weryfikuj blok poprzedni.
+**Reguła na przyszłość:** Historyczne veDOLO trzeba odtwarzać per NFT przez pełny lifecycle lock/increase/merge/split/unlock/transfer i uzgadniać z holder snapshotem na jego przypiętym bloku. Po zmianie schematu transferów wykonaj jeden pełny backfill i publikuj jego wersję z blokiem pokrycia, aby zimny cache nie wracał do niekompletnej historii.
+**Reguła na przyszłość:** Wallet-level Details musi uzgadniać się z autorytatywnym, zneutralizowanym wynikiem cross-chain użytym przez wykres. Per-chain rozbicie może być proporcjonalnie skorygowane do tej sumy, ale nie może ponownie wprowadzać zdublowanej nogi bridge ani różnić się od agregatu.
+**Reguła na przyszłość:** Jeżeli liquid balance oznacza stan bezpośrednio przed pierwszym blokiem o timestampie punktu, historyczny snapshot Dolomite musi być pobrany z `cutoffBlock - 1`. Zapytanie obu źródeł na różne strony granicznego bloku podwójnie liczy deposit albo pomija withdrawal.
+**Reguła na przyszłość:** Wykres Total exposure nie może cicho zastępować brakującego punktu wallet-only ani usuwać niepełnej daty z serii. Przy braku któregokolwiek wymaganego źródła cały precomputed zakres ma przejść w jawny stan unavailable.

@@ -82,6 +82,179 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
                 timestamps.__getitem__,
             )
 
+    def test_exact_holder_cutoffs_resolve_multiple_irregular_timestamps(self):
+        timestamps = {
+            100: 1_000,
+            101: 1_007,
+            102: 1_021,
+            103: 1_028,
+            104: 1_041,
+            105: 1_055,
+            106: 1_062,
+        }
+
+        def load_many(blocks):
+            return {block: timestamps[block] for block in blocks}
+
+        selected = flows.find_first_blocks_at_or_after_timestamps(
+            100,
+            106,
+            [900, 1_010, 1_029, 1_062],
+            load_many,
+            nominal_block_time=7,
+        )
+
+        self.assertEqual(selected, [100, 102, 104, 106])
+
+    def test_holder_cutoff_cache_persists_exact_daily_boundaries(self):
+        state = {}
+        points = [{"key": "hist_20260830", "ts": 1_021, "timestamp": "2026-08-30T00:00:00Z"}]
+        timestamps = {100: 1_000, 101: 1_007, 102: 1_021, 103: 1_028}
+
+        with patch.object(flows, "CHAINS", {
+            "eth": {"name": "Ethereum", "deploy_block": 100, "block_time": 7},
+        }), patch.object(
+            flows,
+            "load_block_timestamps_batch",
+            side_effect=lambda _chain, blocks, _cache: {block: timestamps[block] for block in blocks},
+        ):
+            cutoffs, metadata = flows.load_holder_history_cutoff_blocks(
+                state, points, {"eth": 103}
+            )
+
+        self.assertEqual(cutoffs, {"hist_20260830": {"eth": 102}})
+        self.assertEqual(metadata["fetchedChainCutoffs"], 1)
+        self.assertEqual(
+            state["holder_history_cutoff_blocks"]["chains"]["eth"]["hist_20260830"]["method"],
+            "first-block-at-or-after-timestamp",
+        )
+
+        with patch.object(flows, "CHAINS", {
+            "eth": {"name": "Ethereum", "deploy_block": 100, "block_time": 7},
+        }), patch.object(
+            flows,
+            "load_block_timestamps_batch",
+            side_effect=AssertionError("exact cached cutoffs must not refetch"),
+        ):
+            cached, cached_metadata = flows.load_holder_history_cutoff_blocks(
+                state, points, {"eth": 103}
+            )
+
+        self.assertEqual(cached, cutoffs)
+        self.assertEqual(cached_metadata["cachedChainCutoffs"], 1)
+
+    def test_holder_vedolo_history_reassigns_transferred_nft_to_prior_owner(self):
+        current_locks = {BOB: 2_000_000}
+        current_positions = {
+            7: {"owner": BOB, "dolo": 2_000_000},
+        }
+        events = {
+            "locks": [
+                {
+                    "address": ALICE,
+                    "tokenId": 7,
+                    "dolo": 1_500_000,
+                    "depositType": 1,
+                    "timestamp": 50,
+                    "block": 5,
+                },
+                {
+                    "address": ALICE,
+                    "tokenId": 7,
+                    "dolo": 500_000,
+                    "depositType": 2,
+                    "timestamp": 150,
+                    "block": 15,
+                },
+            ],
+            "unlocks": [],
+            "transfers": [{
+                "from": ALICE,
+                "to": BOB,
+                "tokenId": 7,
+                "timestamp": 200,
+                "block": 20,
+            }],
+        }
+
+        historical = flows.locked_map_at_holder_point(
+            100,
+            current_locks,
+            events,
+            current_positions=current_positions,
+        )
+
+        self.assertEqual(historical, {ALICE: 1_500_000})
+
+    def test_holder_vedolo_current_point_stops_at_holder_snapshot_block(self):
+        events = {
+            "locks": [
+                {
+                    "address": BOB,
+                    "tokenId": 7,
+                    "dolo": 2_000_000,
+                    "depositType": 1,
+                    "timestamp": 50,
+                    "block": 20,
+                },
+                {
+                    "address": ALICE,
+                    "tokenId": 8,
+                    "dolo": 500_000,
+                    "depositType": 1,
+                    "timestamp": 210,
+                    "block": 21,
+                },
+            ],
+            "unlocks": [],
+            "transfers": [],
+        }
+
+        current = flows.locked_map_at_holder_point(
+            300,
+            {BOB: 2_000_000},
+            events,
+            current_positions={
+                7: {
+                    "owner": BOB,
+                    "dolo": 2_000_000,
+                    "snapshot_block": 20,
+                },
+            },
+        )
+
+        self.assertEqual(current, {BOB: 2_000_000})
+
+    def test_holder_vedolo_replay_orders_same_block_transfers_by_log_index(self):
+        carol = "0xcccccccccccccccccccccccccccccccccccccccc"
+        events = {
+            "locks": [{
+                "address": ALICE,
+                "tokenId": 7,
+                "dolo": 2_000_000,
+                "depositType": 1,
+                "timestamp": 50,
+                "block": 5,
+                "logIndex": 1,
+            }],
+            "unlocks": [],
+            # Published rows are newest-first, so same-block rows can arrive in
+            # reverse execution order and must be re-sorted by logIndex.
+            "transfers": [
+                {"from": BOB, "to": carol, "tokenId": 7, "timestamp": 200, "block": 20, "logIndex": 9},
+                {"from": ALICE, "to": BOB, "tokenId": 7, "timestamp": 200, "block": 20, "logIndex": 4},
+            ],
+        }
+
+        current = flows.locked_map_at_holder_point(
+            300,
+            {carol: 2_000_000},
+            events,
+            current_positions={7: {"owner": carol, "dolo": 2_000_000}},
+        )
+
+        self.assertEqual(current, {carol: 2_000_000})
+
     def test_period_timestamp_lookup_skips_log_only_endpoints_and_rate_limited_first_choice(self):
         response = {
             "result": {"timestamp": hex(1_700_000_000)},
@@ -543,6 +716,47 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
 
         self.assertEqual(cached, snapshots)
         self.assertEqual(cached_metadata["cachedChainSnapshots"], 4)
+
+    def test_exact_holder_protocol_snapshot_uses_block_before_transfer_cutoff(self):
+        state = {}
+        points = [{
+            "key": "hist_20260830",
+            "timestamp": "2026-08-30T00:00:00Z",
+            "ts": 1_777_161_600,
+        }]
+        requested = []
+
+        def fetch(_addresses, **kwargs):
+            block = kwargs["block_numbers"]["eth"]
+            requested.append(block)
+            return {}, {
+                "status": "complete",
+                "failedChains": [],
+                "chains": {"eth": {
+                    "requestedBlock": block,
+                    "blockNumber": block,
+                    "blockTimestamp": 1_777_161_599,
+                    "matchedWallets": 0,
+                    "custodyAddress": flows.DOLOMITE_MARGIN_ADDRS["eth"],
+                }},
+            }
+
+        with patch.object(flows, "fetch_dolomite_dolo_balances", side_effect=fetch):
+            flows.load_holder_dolomite_history_snapshots(
+                state,
+                points,
+                {"eth": 21_501_000},
+                1_777_248_000,
+                subgraphs={"eth": {"name": "Ethereum", "url": "https://subgraph.example/eth"}},
+                checkpoint_fn=lambda _state: None,
+                request_delay_seconds=0,
+                cutoff_blocks_by_point={"hist_20260830": {"eth": 21_500_800}},
+            )
+
+        self.assertEqual(requested, [21_500_799])
+        cached = state["holder_dolomite_history"]["points"]["hist_20260830"]["chains"]["eth"]
+        self.assertEqual(cached["transferCutoffBlock"], 21_500_800)
+        self.assertEqual(cached["requestedBlock"], 21_500_799)
 
     def test_holder_dolomite_history_treats_verified_pre_market_points_as_zero(self):
         state = {}
