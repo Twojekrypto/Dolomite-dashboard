@@ -255,6 +255,30 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
 
         self.assertEqual(current, {carol: 2_000_000})
 
+    def test_holder_vedolo_current_point_accepts_sub_dolo_event_rounding(self):
+        events = {
+            "locks": [{
+                "address": ALICE,
+                "tokenId": 7,
+                "dolo": 1.0049,
+                "depositType": 1,
+                "timestamp": 50,
+                "block": 5,
+                "logIndex": 1,
+            }],
+            "unlocks": [],
+            "transfers": [],
+        }
+
+        current = flows.locked_map_at_holder_point(
+            300,
+            {ALICE: 1.0},
+            events,
+            current_positions={7: {"owner": ALICE, "dolo": 1.0}},
+        )
+
+        self.assertEqual(current, {ALICE: 1.0})
+
     def test_period_timestamp_lookup_skips_log_only_endpoints_and_rate_limited_first_choice(self):
         response = {
             "result": {"timestamp": hex(1_700_000_000)},

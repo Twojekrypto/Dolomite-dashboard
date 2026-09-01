@@ -4629,26 +4629,38 @@ def locked_map_at_holder_point(
             default=0,
         )
         if point_ts > latest_event_ts and expected_positions:
-            expected_material_tokens = {
-                token_id for token_id, position in expected_positions.items()
-                if position["dolo"] > 1
+            reconciliation_tokens = {
+                token_id
+                for token_id in set(expected_positions) | set(positions)
+                if max(
+                    float((expected_positions.get(token_id) or {}).get("dolo") or 0),
+                    float((positions.get(token_id) or {}).get("dolo") or 0),
+                ) > 1
             }
-            replayed_material_tokens = {
-                token_id for token_id, position in positions.items()
-                if position["dolo"] > 1
-            }
-            mismatches = [
-                token_id for token_id in expected_material_tokens
-                if token_id not in positions
-                or positions[token_id]["owner"] != expected_positions[token_id]["owner"]
-                or abs(positions[token_id]["dolo"] - expected_positions[token_id]["dolo"]) > 1
-            ]
-            mismatches.extend(sorted(replayed_material_tokens - expected_material_tokens))
+            mismatches = []
+            for token_id in sorted(reconciliation_tokens):
+                expected = expected_positions.get(token_id)
+                replayed = positions.get(token_id)
+                if (
+                    not expected
+                    or not replayed
+                    or replayed["owner"] != expected["owner"]
+                    or abs(replayed["dolo"] - expected["dolo"]) > 1
+                ):
+                    mismatches.append(token_id)
             if mismatches:
                 raise RuntimeError(
                     "veDOLO event ownership history is incomplete; "
                     f"{len(mismatches)} current material position(s) do not reconcile"
                 )
+            # The event replay proves ownership continuity; the current holder
+            # snapshot is authoritative for exact principal. Canonicalizing the
+            # latest point removes sub-DOLO event/serialization dust without
+            # weakening the material (>1 DOLO) reconciliation guard.
+            positions = {
+                token_id: dict(position)
+                for token_id, position in expected_positions.items()
+            }
 
         locked = {}
         for position in positions.values():
