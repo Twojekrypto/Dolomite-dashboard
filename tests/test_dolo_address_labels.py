@@ -278,7 +278,11 @@ console.log(JSON.stringify({known, unknown}));
         self.assertIn("holder_wallet_history", html)
         self.assertIn("holderHistoricalWalletRowsAtPoint", html)
         self.assertIn("holderWalletRowsAvailableAtPoint", html)
-        self.assertIn("if(changes === null) return [];", html)
+        self.assertIn(
+            "return !!holderHistoricalWalletRowsAtPoint(point, includeVeDolo);",
+            html,
+        )
+        self.assertIn("if(sourcePoint.key !== \"now\") return [];", html)
         self.assertIn("holderWalletBaselinePointForRange(rawBaselinePoint", html)
         self.assertIn("holder_wallet_history", generator)
         self.assertIn("HOLDER_WALLET_HISTORY_VIEWS", generator)
