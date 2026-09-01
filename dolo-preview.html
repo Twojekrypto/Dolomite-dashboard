@@ -415,6 +415,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-distribution-legend .holder-legend-percent{display:block;font-size:10px;line-height:1;color:var(--fg-4);font-weight:500;white-space:nowrap}
 .holder-distribution-legend .holder-legend-metric.delta.up .holder-legend-percent{color:var(--up)}
 .holder-distribution-legend .holder-legend-metric.delta.down .holder-legend-percent{color:#c98578}
+.holder-distribution-legend .holder-legend-percent[data-tooltip]{color:var(--fg-4)}
 .holder-details-btn{
   height:24px;width:100%;max-width:72px;min-width:0;padding:0 6px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:3px;flex-shrink:0;overflow:hidden;
   color:var(--gold);background:var(--gold-wash);border:1px solid rgba(201,162,39,.28);cursor:pointer;white-space:nowrap;
@@ -479,6 +480,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-wallet-change .pct{font-size:10px;color:var(--fg-4)}
 .holder-wallet-change.up .main,.holder-wallet-change.up .pct{color:var(--up)}
 .holder-wallet-change.down .main,.holder-wallet-change.down .pct{color:var(--down)}
+.holder-wallet-change .pct[data-tooltip]{color:var(--fg-4)}
 .holder-wallet-change.flat .main{color:var(--fg-3)}
 .holder-wallet-change.new .main{color:var(--gold)}
 .holder-wallet-table .chain-cell{font-size:10px;color:var(--fg-3);white-space:nowrap;text-align:left}
@@ -2358,6 +2360,7 @@ function fmtSignedHolderPct(value){
   const n = safeHolderNum(value);
   return (n >= 0 ? "+" : "-") + fmtPct(Math.abs(n));
 }
+const HOLDER_UNAVAILABLE_PERCENT_TOOLTIP = "Percentage unavailable because starting exposure was zero or negligible.";
 function holderBucketDeltaLabel(delta, base){
   const change = safeHolderNum(delta);
   const start = safeHolderNum(base);
@@ -3121,7 +3124,11 @@ function renderHolderDistributionChart(options = {}){
   const legendRows = holderLegendRangeRows(model);
   legend.innerHTML = legendHeader + legendRows.map(({bucket, firstTotal, delta}, i) => {
     const deltaClass = delta >= 0 ? "up" : "down";
-    const deltaPct = firstTotal > 0 ? `(${fmtSignedHolderPct(delta / firstTotal * 100)})` : "New";
+    const deltaPctUnavailable = firstTotal <= 0;
+    const deltaPct = deltaPctUnavailable ? "—" : `(${fmtSignedHolderPct(delta / firstTotal * 100)})`;
+    const deltaPctAttrs = deltaPctUnavailable
+      ? ` data-tooltip="${HOLDER_UNAVAILABLE_PERCENT_TOOLTIP}" aria-label="${HOLDER_UNAVAILABLE_PERCENT_TOOLTIP}"`
+      : "";
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const open = holderWalletPanelKey === bucket.key;
     const panelId = `holder-wallet-panel-${bucket.key}`;
@@ -3133,7 +3140,7 @@ function renderHolderDistributionChart(options = {}){
           </button>
           <button class="holder-legend-cell holder-legend-pin holder-legend-metric primary" type="button" data-column="balance" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by balance"><span class="holder-legend-label">Balance</span><strong class="holder-legend-number holder-legend-token-value"><img class="holder-legend-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"><span>${fmtNum(bucket.total)}</span></strong></button>
           <button class="holder-legend-cell holder-legend-pin holder-legend-metric" type="button" data-column="wallets" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by wallet count"><span class="holder-legend-label">Wallets</span><strong class="holder-legend-number">${bucket.wallets.toLocaleString("en-US")}</strong></button>
-          <button class="holder-legend-cell holder-legend-pin holder-legend-metric delta ${deltaClass}" type="button" data-column="change" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by change. ${fmtSignedHolder(delta)} DOLO ${deltaPct}."><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong><span class="holder-legend-percent">${deltaPct}</span></button>
+          <button class="holder-legend-cell holder-legend-pin holder-legend-metric delta ${deltaClass}" type="button" data-column="change" data-pin-key="${bucket.key}" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series by change. ${fmtSignedHolder(delta)} DOLO${deltaPctUnavailable ? ". Percentage unavailable because starting exposure was zero" : ` ${deltaPct}`}."><span class="holder-legend-label">Change</span><strong class="holder-legend-number">${fmtSignedHolder(delta)}</strong><span class="holder-legend-percent"${deltaPctAttrs}>${deltaPct}</span></button>
           <div class="holder-legend-cell holder-legend-details" data-column="details"><button class="holder-details-btn" type="button" data-details-key="${bucket.key}" aria-expanded="${open ? "true" : "false"}" aria-controls="${panelId}" aria-label="${open ? "Hide" : "Show"} ${bucket.label} DOLO wallets"><span>${open ? "Hide" : "Details"}</span>${CHEVRON_DOWN_ICO}</button></div>
         </div>
         ${open ? holderWalletInlinePanelHtml(bucket, {...model, rangeBaselinePoint}) : ""}
@@ -3200,7 +3207,7 @@ function renderHolderDistributionChart(options = {}){
         const delta = bucket.total - startTotal;
         const deltaClass = delta >= 0 ? "up" : "down";
         const relativeChange = holderMetricValue(nearest, i, baselinePoint);
-        const changeText = Number.isFinite(relativeChange) ? fmtSignedHolderPct(relativeChange) : "New / no baseline";
+        const changeText = Number.isFinite(relativeChange) ? fmtSignedHolderPct(relativeChange) : "—";
         return `
           <div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${bucket.color};margin-right:6px"></i>${bucket.label}</span><b>${holderDistributionMetric === "changePct" ? `<span class="tt-change ${deltaClass}">${changeText}</span> · ${fmtNum(bucket.total)} DOLO · ${fmtSignedHolder(delta)} DOLO` : `${fmtNum(bucket.total)} DOLO <span class="tt-change ${deltaClass}">${holderBucketDeltaLabel(delta, startTotal)}</span>`}</b></div>
         `;
@@ -4339,10 +4346,10 @@ function holderWalletRangeChange(row, baselineRow){
     if(current <= epsilon){
       return {tone:"flat", main:"0", pct:"0%", delta, pctValue:0};
     }
-    return {tone:"new", main:`+${fmtNum(current)}`, pct:"New", delta, pctValue:null};
+    return {tone:"up", main:`+${fmtNum(current)}`, pct:"—", pctTooltip:HOLDER_UNAVAILABLE_PERCENT_TOOLTIP, delta, pctValue:null};
   }
   if(current > epsilon && (baseline <= 1 || baseline / current < 0.001)){
-    return {tone:"new", main:`+${fmtNum(delta)}`, pct:"New", delta, pctValue:null};
+    return {tone:"up", main:`+${fmtNum(delta)}`, pct:"—", pctTooltip:HOLDER_UNAVAILABLE_PERCENT_TOOLTIP, delta, pctValue:null};
   }
   if(Math.abs(delta) <= epsilon){
     return {tone:"flat", main:"0", pct:"0%", delta, pctValue:0};
@@ -4422,10 +4429,13 @@ function holderWalletUnionRows({point, baselinePoint, includeVeDolo, matchesRow,
 }
 function holderWalletChangeCell(row){
   const change = row.rangeChange || holderWalletRangeChange(row, row);
+  const pctAttrs = change.pctTooltip
+    ? ` data-tooltip="${escHtml(change.pctTooltip)}" aria-label="${escHtml(change.pctTooltip)}"`
+    : "";
   return `
     <div class="holder-wallet-change ${escHtml(change.tone)}">
       <span class="main">${escHtml(change.main)}</span>
-      <span class="pct">${escHtml(change.pct)}</span>
+      <span class="pct"${pctAttrs}>${escHtml(change.pct)}</span>
     </div>
   `;
 }
