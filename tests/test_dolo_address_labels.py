@@ -352,6 +352,7 @@ console.log(JSON.stringify({known, unknown}));
             "0x6a2383cff0d46d2b7d29759f17c26fba726f3ea3": "Bot / MM",
             "0x601d9ad1b431577e3635a23b7eb3bcc46bcc648b": "Bot / MM",
             "0xf10f81795b359f8a72682cc2a39444bf818ef4ca": "Bot / MM",
+            "0xbcccbff437ae872f869c2de48371d42960208209": "Bot / MM",
             "0x9cb677f2a8daa9511ae79c2ba56395552b5d030d": "Active Trader/Bot",
         }
         for address, label in expected.items():
