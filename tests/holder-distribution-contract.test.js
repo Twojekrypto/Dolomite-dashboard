@@ -134,17 +134,46 @@ function holderHistorySourceKeyFromFixture(includeVeDolo) {
   return Function(`"use strict"; ${source}`)()(includeVeDolo);
 }
 
+function buildHolderBrushSchedulerFixture() {
+  const source = [
+    "let holderBrushPaintFrame = 0;",
+    "let holderBrushChartTimer = 0;",
+    "const HOLDER_BRUSH_CHART_IDLE_MS = 120;",
+    "let nextId = 1;",
+    "const frames = new Map();",
+    "const timers = new Map();",
+    "let paintCount = 0;",
+    "let renderCount = 0;",
+    "const requestAnimationFrame = callback => { const id = nextId++; frames.set(id, callback); return id; };",
+    "const cancelAnimationFrame = id => frames.delete(id);",
+    "const setTimeout = (callback, delay) => { const id = nextId++; timers.set(id, {callback, delay}); return id; };",
+    "const clearTimeout = id => timers.delete(id);",
+    "function paintHolderBrushWindow(){ paintCount += 1; }",
+    "function renderHolderDistributionChart(){ renderCount += 1; }",
+    extractNamedFunctionSource("scheduleHolderBrushPaint"),
+    extractNamedFunctionSource("scheduleHolderBrushChartRender"),
+    `return {
+      scheduleHolderBrushPaint,
+      scheduleHolderBrushChartRender,
+      runFrame(){ const entry = frames.entries().next().value; if(entry){ frames.delete(entry[0]); entry[1](); } },
+      runTimer(){ const entry = timers.entries().next().value; if(entry){ timers.delete(entry[0]); entry[1].callback(); } },
+      counts(){ return {frames:frames.size, timers:timers.size, paintCount, renderCount}; },
+    };`,
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)();
+}
+
 test("holder distribution keeps Total exposure as the permanent source", () => {
-  assert.match(preview, /id="holder-bucket-mode"/);
-  assert.match(preview, /data-holder-bucket-view="whales" aria-pressed="true"/);
-  assert.match(preview, /data-holder-bucket-view="smaller" aria-pressed="false"/);
-  assert.match(preview, /id="holder-metric-mode"/);
-  assert.match(preview, /data-holder-metric="balance"/);
-  assert.match(preview, /data-holder-metric="changePct"/);
-  assert.match(preview, /aria-pressed="true"/);
   const holderCard = extractStaticSections(preview).find(section => /id="holder-distribution-card"/.test(section));
   assert.ok(holderCard);
+  assert.match(holderCard, /class="holder-chart-fixed-scope"[\s\S]*?>Top holders<[\s\S]*?>Balance</);
+  assert.doesNotMatch(holderCard, /id="holder-bucket-mode"|data-holder-bucket-view/);
+  assert.doesNotMatch(holderCard, /id="holder-metric-mode"|data-holder-metric|>Change %</);
   assert.doesNotMatch(holderCard, /data-holder-exposure|Wallet balance/);
+  assert.match(preview, /const holderBucketView = "whales";/);
+  assert.match(preview, /const holderDistributionMetric = "balance";/);
+  assert.doesNotMatch(preview, /document\.querySelectorAll\("\[data-holder-bucket-view\]"\)/);
+  assert.doesNotMatch(preview, /document\.querySelectorAll\("\[data-holder-metric\]"\)/);
   assert.equal(holderHistorySourceKeyFromFixture(false), "total_exposure");
   assert.equal(holderHistorySourceKeyFromFixture(true), "total_exposure_with_vedolo");
   assert.match(preview, /Entered balance range/);
@@ -443,16 +472,31 @@ test("holder distribution states both its included and excluded wallet scope", (
   assert.match(scopeRenderer, /potential custody\/MM and bot wallets remain excluded/);
 });
 
-test("holder bucket controls share the metric UX without an active gold dot", () => {
+test("holder distribution presents its fixed Top holders and Balance scope without switch controls", () => {
   const controlsCss = preview.slice(
-    preview.indexOf(".holder-bucket-mode,.holder-metric-mode{"),
+    preview.indexOf(".holder-chart-fixed-scope{"),
     preview.indexOf(".holder-chart-toggle.is-active{")
   );
-  assert.match(controlsCss, /\.holder-bucket-mode button\.active,\s*\.holder-bucket-mode button:hover,\s*\.holder-bucket-mode button:focus-visible,/);
-  assert.match(controlsCss, /\.holder-metric-mode button\.active,\s*\.holder-metric-mode button:hover,\s*\.holder-metric-mode button:focus-visible/);
-  assert.doesNotMatch(controlsCss, /holder-exposure-mode/);
-  assert.doesNotMatch(controlsCss, /\.holder-bucket-mode button\.active::before/);
-  assert.match(preview, /document\.querySelectorAll\("\[data-holder-bucket-view\]"\)\.forEach\(item => \{\s*const active = item\.dataset\.holderBucketView === holderBucketView;\s*item\.classList\.toggle\("active", active\);\s*item\.setAttribute\("aria-pressed", String\(active\)\);/);
+  assert.match(controlsCss, /\.holder-chart-fixed-scope\{[^}]*display:inline-flex/);
+  assert.match(controlsCss, /\.holder-chart-fixed-label\{[^}]*cursor:default/);
+  assert.doesNotMatch(controlsCss, /button|:hover|:focus-visible/);
+});
+
+test("holder mini-chart coalesces lightweight paint separately from debounced chart rendering", () => {
+  assert.match(preview, /const HOLDER_BRUSH_CHART_IDLE_MS = 120;/);
+  const scheduler = buildHolderBrushSchedulerFixture();
+
+  scheduler.scheduleHolderBrushPaint();
+  scheduler.scheduleHolderBrushPaint();
+  scheduler.scheduleHolderBrushChartRender();
+  scheduler.scheduleHolderBrushChartRender();
+  assert.deepEqual(scheduler.counts(), {frames:1, timers:1, paintCount:0, renderCount:0});
+
+  scheduler.runFrame();
+  assert.deepEqual(scheduler.counts(), {frames:0, timers:1, paintCount:1, renderCount:0});
+
+  scheduler.runTimer();
+  assert.deepEqual(scheduler.counts(), {frames:0, timers:0, paintCount:1, renderCount:1});
 });
 
 test("holder distribution clips its final row to the card's rounded lower corners", () => {
@@ -469,8 +513,8 @@ test("holder distribution fixes the visible chart audience to market plus alloca
   assert.match(preview, /if\(!holderBelongsToAudience\(type\)\) return false;/);
 });
 
-test("holder distribution guards relative change and renders a symmetric percent view", () => {
-  assert.match(preview, /let holderDistributionMetric = "balance"/);
+test("holder distribution keeps guarded relative-change helpers behind the fixed Balance view", () => {
+  assert.match(preview, /const holderDistributionMetric = "balance"/);
   assert.match(preview, /function holderMetricValue\(/);
   assert.match(preview, /if\(baseline <= 0\) return null/);
   assert.match(preview, /function holderMetricScale\(/);

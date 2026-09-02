@@ -218,36 +218,25 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;min-width:0;
   width:max-content;max-width:100%;padding:0
 }
-.holder-chart-toggle,
-.holder-bucket-mode button,
-.holder-metric-mode button{
+.holder-chart-toggle{
   position:relative;display:inline-flex;align-items:center;justify-content:center;height:28px;
   font-family:var(--mono);font-size:10px;color:var(--fg-3);font-weight:800;letter-spacing:.36px;cursor:pointer;
   transition:border-color .16s var(--ease),background .16s var(--ease),color .16s var(--ease),box-shadow .16s var(--ease),transform .16s var(--ease)
 }
-.holder-chart-toggle:hover,
-.holder-bucket-mode button:hover,
-.holder-metric-mode button:hover{color:var(--fg-1)}
+.holder-chart-toggle:hover{color:var(--fg-1)}
 .holder-chart-toggle input{position:absolute;opacity:0;pointer-events:none}
-.holder-bucket-mode,.holder-metric-mode{
-  display:inline-grid;grid-template-columns:repeat(2,minmax(112px,1fr));height:34px;gap:0;padding:3px;
-  border:1px solid rgba(255,255,255,.075);border-radius:999px;
-  background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.012));
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.026),0 8px 22px rgba(0,0,0,.08)
+.holder-chart-fixed-scope{
+  display:inline-flex;align-items:center;height:28px;gap:9px;padding:0;
+  color:var(--fg-3)
 }
-.holder-bucket-mode button,.holder-metric-mode button{
-  min-width:112px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--fg-3)
+.holder-chart-fixed-label{
+  display:inline-flex;align-items:center;justify-content:center;height:28px;padding:0;
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.36px;color:var(--fg-3);cursor:default;white-space:nowrap
 }
-.holder-bucket-mode button.active,
-.holder-bucket-mode button:hover,
-.holder-bucket-mode button:focus-visible,
-.holder-metric-mode button.active,
-.holder-metric-mode button:hover,
-.holder-metric-mode button:focus-visible{
-  background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
-  box-shadow:inset 0 0 0 1px rgba(201,162,39,.22),0 7px 16px rgba(0,0,0,.14)
+.holder-chart-fixed-label:first-child{
+  color:var(--fg-2)
 }
-.holder-bucket-mode button:focus-visible,.holder-metric-mode button:focus-visible{outline:1px solid var(--gold);outline-offset:1px}
+.holder-chart-fixed-divider{width:1px;height:14px;background:var(--line-2);flex:0 0 1px}
 .holder-chart-toggle.is-active{
   border-color:rgba(201,162,39,.24);background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.16),0 7px 16px rgba(0,0,0,.12),0 0 18px rgba(201,162,39,.035)
@@ -1021,9 +1010,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-distribution-legend .holder-details-btn{margin:10px 0 13px}
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
-  .holder-chart-controls{width:100%;display:grid;grid-template-columns:1fr;gap:8px}
-  .holder-bucket-mode,.holder-metric-mode{width:100%;grid-template-columns:repeat(2,minmax(0,1fr))}
-  .holder-bucket-mode button,.holder-metric-mode button{width:100%;min-width:0}
+  .holder-chart-controls{width:auto;display:flex;gap:8px}
+  .holder-chart-fixed-scope{max-width:100%}
+  .holder-chart-fixed-label{min-width:0;padding:0}
   .holder-chart-toggle{width:100%;justify-content:center;min-width:0}
   .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
   .holder-chart-source::before{margin-right:0}
@@ -1746,13 +1735,10 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
       </div>
       <div class="holder-distribution-toolbar">
         <div class="holder-chart-controls">
-          <div class="holder-bucket-mode" id="holder-bucket-mode" aria-label="Holder bucket range">
-            <button type="button" class="active" data-holder-bucket-view="whales" aria-pressed="true">Top holders</button>
-            <button type="button" data-holder-bucket-view="smaller" aria-pressed="false">Smaller holders</button>
-          </div>
-          <div class="holder-metric-mode" id="holder-metric-mode" aria-label="Holder chart metric">
-            <button type="button" class="active" data-holder-metric="balance" aria-pressed="true">Balance</button>
-            <button type="button" data-holder-metric="changePct" aria-pressed="false">Change %</button>
+          <div class="holder-chart-fixed-scope" aria-label="Top holders balance">
+            <span class="holder-chart-fixed-label">Top holders</span>
+            <span class="holder-chart-fixed-divider" aria-hidden="true"></span>
+            <span class="holder-chart-fixed-label">Balance</span>
           </div>
         </div>
         <label class="holder-chart-toggle" for="holder-include-vedolo" data-tooltip="Add DOLO principal beneficially owned through veDOLO positions, including expired positions that are ready to claim.">
@@ -2139,10 +2125,10 @@ const HOLDER_BALANCE_CHANGE_PERIODS = [
 const HOLDER_DEFAULT_WINDOW_DAYS = 30;
 const FRESH_HOLDER_MIN_BALANCE = 10_000;
 let holderDistributionActiveKey = "";
-let holderDistributionMetric = "balance";
+const holderDistributionMetric = "balance";
 let holderWalletPanelKey = "";
 const holderDetailsSearch = new Map();
-let holderBucketView = "whales";
+const holderBucketView = "whales";
 const holderAudience = "holders";
 let VEDOLO_LOCKS = new Map();
 let VEDOLO_FLOW_EVENTS = {locks:[], unlocks:[]};
@@ -2191,7 +2177,9 @@ let holderBrushDragging = null;
 let holderBrushDomainKey = "";
 let holderFullHistoryModel = null;
 let holderPrecomputedVeDoloIsDaily = false;
-let holderBrushRenderFrame = 0;
+let holderBrushPaintFrame = 0;
+let holderBrushChartTimer = 0;
+const HOLDER_BRUSH_CHART_IDLE_MS = 120;
 const ALLOCATION_CHART_SERIES = [
   {key:"total", label:"Total Allocations", valueKey:"total", walletKey:"wallets", color:"#e4c15a"},
   {key:"team", label:"Core Team", valueKey:"team", walletKey:"teamWallets", color:"#9ab7c2"},
@@ -2852,24 +2840,37 @@ function paintHolderBrushWindow(){
   dimR.style.width = (100 - rightPct) + "%";
   label.innerHTML = `<span class="v">${fmtHolderBrushDate(holderBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(holderBrushSel.to)}</span>`;
 }
-function scheduleHolderBrushChartRender(){
-  if(holderBrushRenderFrame) return;
+function scheduleHolderBrushPaint(){
+  if(holderBrushPaintFrame) return;
   const run = () => {
-    holderBrushRenderFrame = 0;
-    renderHolderDistributionChart({skipBrush:true});
+    holderBrushPaintFrame = 0;
+    paintHolderBrushWindow();
   };
   if(typeof requestAnimationFrame === "function"){
-    holderBrushRenderFrame = requestAnimationFrame(run);
+    holderBrushPaintFrame = requestAnimationFrame(run);
   } else {
-    holderBrushRenderFrame = setTimeout(run, 16);
+    holderBrushPaintFrame = setTimeout(run, 16);
   }
 }
+function scheduleHolderBrushChartRender(){
+  if(holderBrushChartTimer) clearTimeout(holderBrushChartTimer);
+  const run = () => {
+    holderBrushChartTimer = 0;
+    renderHolderDistributionChart({skipBrush:true});
+  };
+  holderBrushChartTimer = setTimeout(run, HOLDER_BRUSH_CHART_IDLE_MS);
+}
 function flushHolderBrushChartRender(){
-  if(holderBrushRenderFrame){
-    if(typeof cancelAnimationFrame === "function") cancelAnimationFrame(holderBrushRenderFrame);
-    else clearTimeout(holderBrushRenderFrame);
-    holderBrushRenderFrame = 0;
+  if(holderBrushPaintFrame){
+    if(typeof cancelAnimationFrame === "function") cancelAnimationFrame(holderBrushPaintFrame);
+    else clearTimeout(holderBrushPaintFrame);
+    holderBrushPaintFrame = 0;
   }
+  if(holderBrushChartTimer){
+    clearTimeout(holderBrushChartTimer);
+    holderBrushChartTimer = 0;
+  }
+  paintHolderBrushWindow();
   renderHolderDistributionChart({skipBrush:true});
 }
 function renderHolderBrush(fullModel){
@@ -2928,7 +2929,7 @@ function initHolderBrush(){
     } else if(holderBrushDragging.kind === "right"){
       holderBrushSel.to = Math.max(holderBrushDragging.startFrom + minWindow, Math.min(maxX, holderBrushDragging.startTo + delta));
     }
-    paintHolderBrushWindow();
+    scheduleHolderBrushPaint();
     scheduleHolderBrushChartRender();
   };
   const onDown = kind => event => {
@@ -5838,33 +5839,6 @@ if(state.holdersIncludeVeDolo){
   if(typeof requestIdleCallback === "function") requestIdleCallback(kickVeDolo, {timeout: 2000});
   else setTimeout(kickVeDolo, 600);
 }
-document.querySelectorAll("[data-holder-bucket-view]").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const next = btn.dataset.holderBucketView;
-    if(!HOLDER_BUCKET_GROUPS[next] || next === holderBucketView) return;
-    holderBucketView = next;
-    document.querySelectorAll("[data-holder-bucket-view]").forEach(item => {
-      const active = item.dataset.holderBucketView === holderBucketView;
-      item.classList.toggle("active", active);
-      item.setAttribute("aria-pressed", String(active));
-    });
-    renderHolderDistributionChart();
-  });
-});
-document.querySelectorAll("[data-holder-metric]").forEach(button => {
-  button.addEventListener("click", () => {
-    const next = button.dataset.holderMetric;
-    if(next !== "balance" && next !== "changePct") return;
-    holderDistributionMetric = next;
-    document.querySelectorAll("[data-holder-metric]").forEach(item => {
-      const active = item.dataset.holderMetric === next;
-      item.classList.toggle("active", active);
-      item.setAttribute("aria-pressed", String(active));
-    });
-    renderHolderDistributionChart({skipBrush:true});
-  });
-});
-
 // One row per (token, chain) pair — explicit even when same address.
 const CONTRACTS = [
   {token:"DOLO",   logo:"dolo-logo.svg",           chain:"Ethereum",  chainKey:"ethereum",  addr:"0x0F81001eF0A83ecCE5ccebf63EB302c70a39a654", explorer:"https://etherscan.io"},
