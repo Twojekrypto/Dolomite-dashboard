@@ -9,6 +9,7 @@ const freshRenderer = preview.slice(preview.indexOf("function freshWalletStatus(
 const freshStatusSource = preview.slice(preview.indexOf("const fmtPct = v =>"), preview.indexOf("const HOLDER_BUCKET_GROUPS")) + preview.slice(preview.indexOf("function freshWalletStatus(row)"), preview.indexOf("function freshChainCell(row)"));
 const freshWalletStatus = new Function(`${freshStatusSource}\nreturn freshWalletStatus;`)();
 const freshPageModelSource = preview.match(/function freshPageModel\(rows, page, pageSize\)\{[\s\S]*?\n\}/)?.[0];
+const freshBackendRowsSource = preview.match(/function buildFreshWalletRowsFromBackend\(period\)\{[\s\S]*?\n\}/)?.[0];
 
 test("fresh wallet table uses a Chain-first layout without a rank column", () => {
   assert.match(freshSection, /<col data-column="chain"/);
@@ -61,4 +62,40 @@ test("fresh wallet pagination renders up to ten real rows without artificial spa
   assert.deepEqual(twoRows, {page: 0, totalPages: 1, start: 0, rows: ["a", "b"]});
   assert.deepEqual(firstTwelve, {page: 0, totalPages: 2, start: 0, rows: [0,1,2,3,4,5,6,7,8,9]});
   assert.deepEqual(lastTwelve, {page: 1, totalPages: 2, start: 10, rows: [10,11]});
+});
+
+test("fresh wallet backend renderer keeps only user-controlled wallet types", () => {
+  assert.ok(freshBackendRowsSource, "Fresh Wallet backend row builder is required");
+  const buildRows = new Function(
+    "DOLO_FRESH_HOLDERS",
+    "sharedAddressInfo",
+    "holderDistributionType",
+    "parseHolderTimestamp",
+    "safeHolderNum",
+    "freshWalletChainParts",
+    "isSafeWallet",
+    "freshWalletSignal",
+    "FRESH_HOLDER_MIN_BALANCE",
+    `${freshBackendRowsSource}\nreturn buildFreshWalletRowsFromBackend;`
+  )(
+    {
+      "90d": [
+        {address:"0x1111111111111111111111111111111111111111", type:"eoa", balance:20_000, received:20_000, wallet_created_timestamp:"2026-08-20T00:00:00Z"},
+        {address:"0x2222222222222222222222222222222222222222", type:"multisig", balance:20_000, received:20_000, wallet_created_timestamp:"2026-08-20T00:00:00Z"},
+        {address:"0x3333333333333333333333333333333333333333", type:"bot", balance:20_000, received:20_000, wallet_created_timestamp:"2026-08-20T00:00:00Z"},
+        {address:"0x4444444444444444444444444444444444444444", type:"mm", balance:20_000, received:20_000, wallet_created_timestamp:"2026-08-20T00:00:00Z"},
+        {address:"0x5555555555555555555555555555555555555555", type:"investor", balance:20_000, received:20_000, wallet_created_timestamp:"2026-08-20T00:00:00Z"},
+      ],
+    },
+    () => null,
+    (_address, row) => row.type,
+    value => Math.floor(Date.parse(value) / 1000),
+    value => Number(value) || 0,
+    () => [],
+    row => row.type === "multisig",
+    () => ({label:"Received", cls:""}),
+    10_000
+  );
+
+  assert.deepEqual(buildRows("90d").map(row => row.type), ["eoa", "multisig"]);
 });

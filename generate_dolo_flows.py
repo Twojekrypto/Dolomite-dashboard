@@ -8,6 +8,7 @@ import hashlib, json, time, os, sys, signal, re, shutil, subprocess, math
 import requests
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from html import unescape
 from urllib.parse import urlparse
 
 from rpc_client import (
@@ -256,6 +257,11 @@ FRESH_DEBANK_FAILURE_CACHE_SECONDS = 6 * 3600
 FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS = int(os.getenv("FRESH_DEBANK_HEADLESS_TIMEOUT_SECONDS", "75"))
 FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS = int(os.getenv("FRESH_DEBANK_VIRTUAL_TIME_BUDGET_MS", "12000"))
 FRESH_DEBANK_CHROME_BIN = os.getenv("FRESH_DEBANK_CHROME_BIN", "").strip()
+FRESH_USER_WALLET_TYPES = {"eoa", "multisig"}
+FRESH_AUTOMATION_MIN_INBOUND_TRANSFERS = 100
+FRESH_AUTOMATION_MIN_OUTBOUND_TRANSFERS = 100
+FRESH_AUTOMATION_MIN_SIDE_DOLO = 1_000_000
+FRESH_AUTOMATION_MAX_NET_SHARE_BPS = 300
 # Single source of truth for Safe singleton addresses (all versions).
 from safe_wallets import SAFE_SINGLETON_ADDRS
 
@@ -3940,6 +3946,43 @@ def parse_debank_age_days(html):
     return age_days, raw_age
 
 
+def parse_debank_explicit_entity(page_html):
+    """Return only a direct, explicit DeBank CEX owner badge.
+
+    Funding/counterparty text such as ``Funded By Coinbase`` is deliberately
+    ignored: it describes a relationship, not ownership of the inspected
+    wallet, and is not strong enough evidence to remove a user from Fresh.
+    """
+    if not page_html:
+        return {}
+    for tag_match in re.finditer(r"<[^>]+>", page_html, flags=re.DOTALL):
+        tag = tag_match.group(0)
+        class_match = re.search(
+            r"\bclass\s*=\s*([\"'])(.*?)\1",
+            tag,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if not class_match:
+            continue
+        classes = set(re.split(r"\s+", class_match.group(2).strip().lower()))
+        if not {"db-user-tag", "is-cex"}.issubset(classes):
+            continue
+        title_match = re.search(
+            r"\btitle\s*=\s*([\"'])(.*?)\1",
+            tag,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        label = unescape(title_match.group(2)).strip() if title_match else ""
+        if label:
+            return {
+                "label": label,
+                "type": "cex",
+                "source": "debank-explicit-cex-badge",
+                "confidence": "confirmed",
+            }
+    return {}
+
+
 def _normalize_cached_debank_age(item):
     if not item or item.get("status") != "ok":
         return item
@@ -4099,6 +4142,7 @@ def fetch_debank_first_activity(address, state, base_ts):
         return {"verified": False, **item}
 
     age_days, age_max_days, raw_age = parse_debank_age_range_days(proc.stdout)
+    explicit_entity = parse_debank_explicit_entity(proc.stdout)
     if age_days is None:
         item = {
             "status": "debank_age_missing",
@@ -4108,6 +4152,8 @@ def fetch_debank_first_activity(address, state, base_ts):
             "source": "debank_age",
             "checked_at": int(base_ts),
         }
+        if explicit_entity:
+            item["entity"] = explicit_entity
         cache[addr] = item
         return {"verified": False, **item}
 
@@ -4125,6 +4171,8 @@ def fetch_debank_first_activity(address, state, base_ts):
         "debank_raw_age": raw_age,
         "checked_at": int(base_ts),
     }
+    if explicit_entity:
+        item["entity"] = explicit_entity
     cache[addr] = item
     return {"verified": True, **item}
 
@@ -4187,6 +4235,53 @@ def calculate_current_balances_by_chain(all_transfers):
     return balances
 
 
+def detect_high_confidence_fresh_automation(all_transfers):
+    """Identify balanced high-frequency DOLO actors that are not fresh users.
+
+    This is intentionally strict and only gates the Fresh Wallet cohort. It
+    does not create a permanent public wallet label: ambiguous addresses stay
+    visible until they are manually confirmed in the canonical resolver.
+    """
+    stats = {}
+    for transfers in (all_transfers or {}).values():
+        for from_addr, to_addr, value_wei, *_ in transfers:
+            from_key = str(from_addr or "").lower()
+            to_key = str(to_addr or "").lower()
+            if not from_key or not to_key or from_key == to_key:
+                continue
+            try:
+                amount_wei = int(value_wei)
+            except (TypeError, ValueError):
+                continue
+            if amount_wei <= 0:
+                continue
+            if to_key not in FLOW_SKIP_ADDRS:
+                inbound = stats.setdefault(to_key, {"in_count": 0, "out_count": 0, "in_wei": 0, "out_wei": 0})
+                inbound["in_count"] += 1
+                inbound["in_wei"] += amount_wei
+            if from_key not in FLOW_SKIP_ADDRS:
+                outbound = stats.setdefault(from_key, {"in_count": 0, "out_count": 0, "in_wei": 0, "out_wei": 0})
+                outbound["out_count"] += 1
+                outbound["out_wei"] += amount_wei
+
+    min_side_wei = FRESH_AUTOMATION_MIN_SIDE_DOLO * 10**18
+    automated = set()
+    for address, row in stats.items():
+        inbound_wei = row["in_wei"]
+        outbound_wei = row["out_wei"]
+        turnover_wei = inbound_wei + outbound_wei
+        if (
+            row["in_count"] >= FRESH_AUTOMATION_MIN_INBOUND_TRANSFERS
+            and row["out_count"] >= FRESH_AUTOMATION_MIN_OUTBOUND_TRANSFERS
+            and min(inbound_wei, outbound_wei) >= min_side_wei
+            and turnover_wei > 0
+            and abs(inbound_wei - outbound_wei) * 10_000
+            <= turnover_wei * FRESH_AUTOMATION_MAX_NET_SHARE_BPS
+        ):
+            automated.add(address)
+    return automated
+
+
 def fresh_holder_history_coverage(state, all_transfers, cutoff_blocks):
     meta = {}
     ok = True
@@ -4215,9 +4310,10 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
     current DOLO exposure including active veDOLO locks.
     """
     holder_rows = load_current_holder_rows()
-    address_labels = load_address_labels()
+    address_labels = load_address_labels(extract_vesting_investors(all_transfers))
     current_locks = load_current_vedolo_locks()
     current_balances = calculate_current_balances_by_chain(all_transfers)
+    automated_addresses = detect_high_confidence_fresh_automation(all_transfers)
     session = requests.Session()
     first_in_period = {period: {} for period in FRESH_HOLDER_PERIODS}
     preexisting_by_period = {period: set() for period in FRESH_HOLDER_PERIODS}
@@ -4229,6 +4325,9 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
             "verifiedFreshWallets": 0,
             "oldWalletsExcluded": 0,
             "unverifiedExcluded": 0,
+            "nonUserWalletsExcluded": 0,
+            "automatedWalletsExcluded": 0,
+            "explicitEntityWalletsExcluded": 0,
         }
         for period in FRESH_HOLDER_PERIODS
     }
@@ -4315,7 +4414,11 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
             if addr in EXCLUDED_ADDRS:
                 continue
             holder_type = holder_distribution_type(addr, holder_rows, address_labels)
-            if holder_type in {"cex", "ca", "watch"}:
+            if holder_type == "eoa" and addr in automated_addresses:
+                audit[period]["automatedWalletsExcluded"] += 1
+                continue
+            if holder_type not in FRESH_USER_WALLET_TYPES:
+                audit[period]["nonUserWalletsExcluded"] += 1
                 continue
             if received <= FRESH_HOLDER_MIN_RECEIVED:
                 continue
@@ -4330,6 +4433,15 @@ def build_fresh_holders(all_transfers, cutoff_blocks, current_blocks, neutralize
             if not first_activity.get("verified"):
                 emit_fresh_audit(period, "unverified", addr, received, current_exposure, liquid_balance, locked_balance, holder_type, first_activity)
                 audit[period]["unverifiedExcluded"] += 1
+                continue
+            explicit_entity = first_activity.get("entity") or (
+                first_activity.get("debank_crosscheck") or {}
+            ).get("entity") or {}
+            if (
+                explicit_entity.get("type") == "cex"
+                and explicit_entity.get("confidence") == "confirmed"
+            ):
+                audit[period]["explicitEntityWalletsExcluded"] += 1
                 continue
             wallet_created_ts = int(first_activity.get("first_timestamp") or 0)
             if not _fresh_activity_within_period(first_activity, period, base_ts):
@@ -6121,12 +6233,24 @@ def main():
         "fresh_holders": fresh_holders,
         "fresh_holders_meta": {
             "source": "full_transfer_history_plus_multichain_explorer_first_tx_plus_debank_age_fallback",
-            "definition": "address first normal on-chain transaction across tracked EVM activity sources within the selected period, plus required conservative DeBank wallet age fallback/cross-check for fresh candidates, with current liquid DOLO plus veDOLO locked exposure above 10K DOLO",
+            "definition": "user-controlled wallet first normal on-chain transaction across tracked EVM activity sources within the selected period, plus required conservative DeBank wallet age fallback/cross-check for fresh candidates, with current liquid DOLO plus veDOLO locked exposure above 10K DOLO",
+            "includedWalletTypes": sorted(FRESH_USER_WALLET_TYPES),
+            "confirmedNonUserTypesExcluded": ["bot", "ca", "cex", "investor", "liquidator", "mm", "protocol", "team", "trader", "watch"],
+            "automationExclusion": {
+                "minimumInboundTransfers": FRESH_AUTOMATION_MIN_INBOUND_TRANSFERS,
+                "minimumOutboundTransfers": FRESH_AUTOMATION_MIN_OUTBOUND_TRANSFERS,
+                "minimumGrossDoloPerSide": FRESH_AUTOMATION_MIN_SIDE_DOLO,
+                "maximumNetShareBps": FRESH_AUTOMATION_MAX_NET_SHARE_BPS,
+                "classification": "cohort-only-high-confidence-automation; no permanent wallet label",
+            },
             "walletActivitySource": "Etherscan v2 txlist + Routescan Berachain txlist + DeBank rendered wallet age fallback",
             "walletAgeBoundaryPolicy": "DeBank rendered age labels are treated as ranges; a fallback wallet is included only when the upper bound fits inside the selected period.",
             "activityChains": [source["name"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
             "activityChainKeys": [source["key"] for source in FRESH_WALLET_ACTIVITY_SOURCES],
             "fallbackSources": ["DeBank rendered wallet age"],
+            "directEntityChecks": [
+                "DeBank explicit is-cex owner badge; funding relationships ignored"
+            ],
             "periods": list(FRESH_HOLDER_PERIODS),
             "minReceivedDolo": FRESH_HOLDER_MIN_RECEIVED,
             "minExposureDolo": FRESH_HOLDER_MIN_EXPOSURE,

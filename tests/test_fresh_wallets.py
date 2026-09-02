@@ -75,6 +75,23 @@ class FreshWalletTests(unittest.TestCase):
         self.assertEqual(max_days, 89)
         self.assertEqual(range_raw, "88 days")
 
+    def test_parse_debank_entity_accepts_only_explicit_cex_badge(self):
+        parse_entity = getattr(flows, "parse_debank_explicit_entity", lambda _html: {})
+        direct_badge = '''
+        <div class="db-user-tag is-cex" title="Binance Hot Wallet"></div>
+        '''
+        funded_by_only = '''
+        <div class="counterparty">Funded By Coinbase</div>
+        '''
+
+        self.assertEqual(parse_entity(direct_badge), {
+            "label": "Binance Hot Wallet",
+            "type": "cex",
+            "source": "debank-explicit-cex-badge",
+            "confidence": "confirmed",
+        })
+        self.assertEqual(parse_entity(funded_by_only), {})
+
     def test_parse_debank_age_range_is_conservative_for_months(self):
         html = '<div class="is-age db-user-tag">3 months</div>'
         days, max_days, raw = flows.parse_debank_age_range_days(html)
@@ -500,6 +517,221 @@ class FreshWalletTests(unittest.TestCase):
         self.assertEqual(len(rows["90d"]), 1)
         self.assertEqual(rows["90d"][0]["address"], candidate)
         self.assertEqual(rows["90d"][0]["type"], "multisig")
+
+    def test_fresh_holder_excludes_every_confirmed_non_user_type(self):
+        source = "0x9999999999999999999999999999999999999999"
+        candidates = {
+            "0x1111111111111111111111111111111111111111": {"label": "Known CEX", "type": "cex"},
+            "0x2222222222222222222222222222222222222222": {"label": "Bot / MM", "type": "bot"},
+            "0x3333333333333333333333333333333333333333": {"label": "Market Maker", "type": "mm"},
+            "0x4444444444444444444444444444444444444444": {"label": "Strategic Investor", "type": "investor"},
+            "0x5555555555555555555555555555555555555555": {"label": "Core Team", "type": "protocol"},
+            "0x6666666666666666666666666666666666666666": {"label": "Potential Custody", "type": "watch"},
+        }
+        all_transfers = {
+            "eth": [
+                (source, address, int(20_000 * 10**18), 150)
+                for address in candidates
+            ],
+            "bera": [],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        neutralized = {
+            period: {
+                "eth": {address: 20_000 for address in candidates},
+                "bera": {},
+            }
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "eth",
+            "first_timestamp": 2_000_000_000 - flows.PERIODS["90d"] + 10,
+            "first_block": 140,
+            "first_tx": "0xabc",
+            "source": "normal_tx",
+        }
+
+        with patch.object(flows, "load_current_holder_rows", return_value={}), \
+             patch.object(flows, "load_address_labels", return_value=candidates), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity", return_value=first_activity):
+            rows, audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                {"eth": 200, "bera": 200},
+                neutralized,
+                2_000_000_000,
+                {},
+            )
+
+        self.assertEqual(rows["90d"], [])
+        self.assertEqual(audit["90d"]["nonUserWalletsExcluded"], len(candidates))
+
+    def test_current_scan_investor_claim_is_excluded_without_one_run_delay(self):
+        candidate = "0x1111111111111111111111111111111111111111"
+        all_transfers = {
+            "eth": [],
+            "bera": [
+                (
+                    flows.STRATEGIC_INVESTOR_CLAIMS,
+                    candidate,
+                    int(20_000 * 10**18),
+                    150,
+                ),
+            ],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        neutralized = {
+            period: {"eth": {}, "bera": {candidate: 20_000}}
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "bera",
+            "first_timestamp": 2_000_000_000 - flows.PERIODS["90d"] + 10,
+            "first_block": 140,
+            "first_tx": "0xclaim",
+            "source": "normal_tx",
+        }
+
+        def labels_for_current_claims(vesting_labels=None):
+            strategic = set((vesting_labels or {}).get("strategic_investors", []))
+            if candidate in strategic:
+                return {candidate: {"label": "Strategic Investor", "type": "investor"}}
+            return {}
+
+        with patch.object(flows, "load_current_holder_rows", return_value={}), \
+             patch.object(flows, "load_address_labels", side_effect=labels_for_current_claims), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity", return_value=first_activity):
+            rows, audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                {"eth": 200, "bera": 200},
+                neutralized,
+                2_000_000_000,
+                {},
+            )
+
+        self.assertEqual(rows["90d"], [])
+        self.assertEqual(audit["90d"]["nonUserWalletsExcluded"], 1)
+
+    def test_explicit_debank_cex_entity_is_excluded_before_publication(self):
+        candidate = "0x1111111111111111111111111111111111111111"
+        source = "0x3333333333333333333333333333333333333333"
+        all_transfers = {
+            "eth": [(source, candidate, int(20_000 * 10**18), 150)],
+            "bera": [],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        neutralized = {
+            period: {"eth": {candidate: 20_000}, "bera": {}}
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "debank",
+            "first_timestamp": 2_000_000_000 - flows.PERIODS["90d"] + 10,
+            "first_block": 0,
+            "first_tx": "",
+            "source": "debank_age",
+            "debank_age_days": 10,
+            "debank_age_max_days": 11,
+            "entity": {
+                "label": "Example Exchange",
+                "type": "cex",
+                "source": "debank-explicit-cex-badge",
+                "confidence": "confirmed",
+            },
+        }
+
+        with patch.object(flows, "load_current_holder_rows", return_value={}), \
+             patch.object(flows, "load_address_labels", return_value={}), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity", return_value=first_activity):
+            rows, audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                {"eth": 200, "bera": 200},
+                neutralized,
+                2_000_000_000,
+                {},
+            )
+
+        self.assertEqual(rows["90d"], [])
+        self.assertEqual(audit["90d"]["explicitEntityWalletsExcluded"], 1)
+
+    def test_fresh_holder_excludes_only_high_confidence_balanced_automation(self):
+        automated = "0x1111111111111111111111111111111111111111"
+        accumulator = "0x2222222222222222222222222222222222222222"
+        source = "0x3333333333333333333333333333333333333333"
+        router = flows.ENSO_AGGREGATOR_TRADER
+        automated_transfers = [
+            (source, automated, int(10_000 * 10**18), 150 + index)
+            for index in range(105)
+        ] + [
+            (automated, router, int(10_000 * 10**18), 300 + index)
+            for index in range(100)
+        ]
+        accumulator_transfers = [
+            (source, accumulator, int(10_000 * 10**18), 500 + index)
+            for index in range(110)
+        ]
+        all_transfers = {
+            "eth": automated_transfers + accumulator_transfers,
+            "bera": [],
+        }
+        cutoffs = {
+            chain: {period: 100 for period in flows.FRESH_HOLDER_PERIODS}
+            for chain in flows.CHAINS
+        }
+        neutralized = {
+            period: {
+                "eth": {automated: 50_000, accumulator: 1_100_000},
+                "bera": {},
+            }
+            for period in flows.FRESH_HOLDER_PERIODS
+        }
+        first_activity = {
+            "verified": True,
+            "status": "ok",
+            "chain": "eth",
+            "first_timestamp": 2_000_000_000 - flows.PERIODS["90d"] + 10,
+            "first_block": 140,
+            "first_tx": "0xabc",
+            "source": "normal_tx",
+        }
+
+        with patch.object(flows, "load_current_holder_rows", return_value={}), \
+             patch.object(flows, "load_address_labels", return_value={}), \
+             patch.object(flows, "load_current_vedolo_locks", return_value={}), \
+             patch.object(flows, "wallet_first_activity", return_value=first_activity):
+            rows, audit = flows.build_fresh_holders(
+                all_transfers,
+                cutoffs,
+                {"eth": 1_000, "bera": 1_000},
+                neutralized,
+                2_000_000_000,
+                {},
+            )
+
+        addresses = {row["address"] for row in rows["90d"]}
+        self.assertNotIn(automated, addresses)
+        self.assertIn(accumulator, addresses)
+        self.assertEqual(audit["90d"]["automatedWalletsExcluded"], 1)
 
     def test_named_protocol_safe_keeps_protocol_classification(self):
         candidate = "0xa75c21c5be284122a87a37a76cc6c4dd3e55a1d4"

@@ -5307,7 +5307,7 @@ function buildFreshWalletRowsFromBackend(period){
     const addr = item.address || item.addr || "";
     const info = sharedAddressInfo(addr);
     const type = holderDistributionType(addr, item);
-    if(!addr || ["cex","ca","watch"].includes(type)) return null;
+    if(!addr || !["eoa","multisig"].includes(type)) return null;
     const createdTs = parseHolderTimestamp(item.wallet_created_timestamp || item.wallet_created_at || "");
     if(!createdTs) return null;
     const liquidBalance = safeHolderNum(item.liquid_balance ?? item.liquidBalance ?? item.current_balance_liquid);
@@ -5350,7 +5350,7 @@ function buildFreshWalletRowsFromSnapshot(){
     const change = changes.get(key);
     if(!change) return;
     const type = holder.type || "eoa";
-    if(type === "cex" || type === "ca" || type === "watch") return;
+    if(!["eoa","multisig"].includes(type)) return;
     const balance = safeHolderNum(holder.total);
     const received = safeHolderNum(change.net);
     const prior = balance - received;
