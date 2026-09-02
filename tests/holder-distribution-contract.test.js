@@ -163,6 +163,52 @@ function buildHolderBrushSchedulerFixture() {
   return Function(`"use strict"; ${source}`)();
 }
 
+function buildHolderChartPanelsFixture(seriesByBucket, geometry) {
+  const source = [
+    'const holderDistributionMetric = "balance";',
+    "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
+    extractNamedFunctionSource("niceHolderChartMax"),
+    extractNamedFunctionSource("holderMetricScale"),
+    extractNamedFunctionSource("buildHolderChartPanels"),
+    extractNamedFunctionSource("holderPanelYAt"),
+    "return {buildHolderChartPanels, holderPanelYAt};",
+  ].join("\n");
+  const fixture = Function(`"use strict"; ${source}`)();
+  const panels = fixture.buildHolderChartPanels(seriesByBucket, geometry);
+  return {panels, holderPanelYAt:fixture.holderPanelYAt};
+}
+
+function buildCexSupplyBrushSchedulerFixture() {
+  const source = [
+    "let cexSupplyBrushPaintFrame = 0;",
+    "let cexSupplyBrushChartTimer = 0;",
+    "const CEX_SUPPLY_BRUSH_CHART_IDLE_MS = 120;",
+    "let nextId = 1;",
+    "const frames = new Map();",
+    "const timers = new Map();",
+    "let paintCount = 0;",
+    "let renderCount = 0;",
+    "const requestAnimationFrame = callback => { const id = nextId++; frames.set(id, callback); return id; };",
+    "const cancelAnimationFrame = id => frames.delete(id);",
+    "const setTimeout = (callback, delay) => { const id = nextId++; timers.set(id, {callback, delay}); return id; };",
+    "const clearTimeout = id => timers.delete(id);",
+    "function paintCexSupplyBrushWindow(){ paintCount += 1; }",
+    "function renderCexSupplyChart(){ renderCount += 1; }",
+    extractNamedFunctionSource("scheduleCexSupplyBrushPaint"),
+    extractNamedFunctionSource("scheduleCexSupplyChartRender"),
+    extractNamedFunctionSource("flushCexSupplyChartRender"),
+    `return {
+      scheduleCexSupplyBrushPaint,
+      scheduleCexSupplyChartRender,
+      flushCexSupplyChartRender,
+      runFrame(){ const entry = frames.entries().next().value; if(entry){ frames.delete(entry[0]); entry[1](); } },
+      runTimer(){ const entry = timers.entries().next().value; if(entry){ timers.delete(entry[0]); entry[1].callback(); } },
+      counts(){ return {frames:frames.size, timers:timers.size, paintCount, renderCount}; },
+    };`,
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)();
+}
+
 test("holder distribution keeps Total exposure as the permanent source", () => {
   const holderCard = extractStaticSections(preview).find(section => /id="holder-distribution-card"/.test(section));
   assert.ok(holderCard);
@@ -499,6 +545,42 @@ test("holder mini-chart coalesces lightweight paint separately from debounced ch
   assert.deepEqual(scheduler.counts(), {frames:0, timers:0, paintCount:1, renderCount:1});
 });
 
+test("holder balance chart isolates 1M+ in a synchronized context panel", () => {
+  const seriesByBucket = [
+    [{value:280_000_000}, {value:300_000_000}],
+    [{value:12_000_000}, {value:16_000_000}],
+    [{value:24_000_000}, {value:29_000_000}],
+  ];
+  const {panels, holderPanelYAt} = buildHolderChartPanelsFixture(seriesByBucket, {top:24, height:274});
+
+  assert.equal(panels.length, 2);
+  assert.deepEqual(panels.map(panel => panel.bucketIndexes), [[0], [1, 2]]);
+  assert.equal(panels[0].key, "context");
+  assert.equal(panels[1].key, "focus");
+  assert.equal(panels[0].scale.max, 500_000_000);
+  assert.equal(panels[1].scale.max, 50_000_000);
+  assert.ok(panels[1].height > panels[0].height, "the smaller holder groups must receive the larger panel");
+  assert.ok(panels[1].top > panels[0].top + panels[0].height, "panels must not overlap");
+  assert.equal(holderPanelYAt(panels[0], 0), panels[0].top + panels[0].height);
+  assert.equal(holderPanelYAt(panels[1], 0), panels[1].top + panels[1].height);
+});
+
+test("CEX mini-chart coalesces paint and debounces the expensive chart render", () => {
+  const scheduler = buildCexSupplyBrushSchedulerFixture();
+
+  scheduler.scheduleCexSupplyBrushPaint();
+  scheduler.scheduleCexSupplyBrushPaint();
+  scheduler.scheduleCexSupplyChartRender();
+  scheduler.scheduleCexSupplyChartRender();
+  assert.deepEqual(scheduler.counts(), {frames:1, timers:1, paintCount:0, renderCount:0});
+
+  scheduler.runFrame();
+  assert.deepEqual(scheduler.counts(), {frames:0, timers:1, paintCount:1, renderCount:0});
+
+  scheduler.flushCexSupplyChartRender();
+  assert.deepEqual(scheduler.counts(), {frames:0, timers:0, paintCount:2, renderCount:1});
+});
+
 test("holder distribution clips its final row to the card's rounded lower corners", () => {
   assert.match(preview, /\.holder-chart-card > \.holder-chart-legend:last-child\{border-radius:0 0 var\(--r-xl\) var\(--r-xl\);overflow:hidden}/);
 });
@@ -519,7 +601,7 @@ test("holder distribution keeps guarded relative-change helpers behind the fixed
   assert.match(preview, /if\(baseline <= 0\) return null/);
   assert.match(preview, /function holderMetricScale\(/);
   assert.match(preview, /return \{min:-max, max, zero:0, label:value => value\.toFixed/);
-  assert.match(preview, /const zeroY = yAt\(metricScale\.zero\)/);
+  assert.match(preview, /return holderPanelYAt\(panel, panel\.scale\.zero\)/);
   assert.match(preview, /if\(holderDistributionMetric !== "balance" \|\| model\.points\.length < 2\)\{\s*areaPath\.setAttribute\("d", ""\);/);
 });
 

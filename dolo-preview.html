@@ -311,6 +311,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-svg{width:100%;height:340px;display:block;overflow:visible}
 .holder-chart-grid line{stroke:var(--line-1);stroke-width:1}
 .holder-chart-grid text,.holder-chart-axis text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);font-weight:500}
+.holder-chart-grid .holder-chart-panel-label{font-family:var(--sans);font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;fill:var(--fg-4)}
+.holder-chart-grid .holder-chart-panel-separator{stroke:var(--line-2);stroke-dasharray:3 5;opacity:.82}
 .holder-chart-axis text{fill:var(--fg-3)}
 .holder-chart-area{fill:url(#holderChartAreaGrad);opacity:.58;pointer-events:none}
 .holder-chart-series-line{
@@ -2199,7 +2201,9 @@ let cexSupplyBrushInitialized = false;
 let cexSupplyBrushDragging = null;
 let cexSupplyBrushDomainKey = "";
 let cexSupplyFullModel = null;
-let cexSupplyBrushRenderFrame = 0;
+let cexSupplyBrushPaintFrame = 0;
+let cexSupplyBrushChartTimer = 0;
+const CEX_SUPPLY_BRUSH_CHART_IDLE_MS = 120;
 const safeHolderNum = v => Number.isFinite(Number(v)) ? Number(v) : 0;
 const lowerHolderAddr = addr => String(addr || "").toLowerCase();
 function activeHolderBuckets(){
@@ -2784,6 +2788,55 @@ function holderMetricScale(values){
   const max = niceHolderChartMax(maxAbs * 1.12);
   return {min:-max, max, zero:0, label:value => value.toFixed(value % 1 ? 1 : 0) + "%"};
 }
+function buildHolderChartPanels(seriesByBucket, geometry){
+  geometry = geometry || {};
+  const top = safeHolderNum(geometry.top);
+  const height = Math.max(1, safeHolderNum(geometry.height));
+  const allBucketIndexes = seriesByBucket.map((_, index) => index);
+  const panelScale = bucketIndexes => holderMetricScale(bucketIndexes.flatMap(index => (
+    seriesByBucket[index] || []
+  ).map(point => point.value)));
+  if(holderDistributionMetric !== "balance" || seriesByBucket.length < 3){
+    return [{
+      key:"all",
+      label:"Balance",
+      bucketIndexes:allBucketIndexes,
+      top,
+      height,
+      scale:panelScale(allBucketIndexes),
+      ticks:4,
+    }];
+  }
+  const gap = Math.min(22, height * 0.1);
+  const usableHeight = Math.max(2, height - gap);
+  const contextHeight = Math.max(1, Math.round(usableHeight * 0.32));
+  const focusHeight = Math.max(1, usableHeight - contextHeight);
+  return [
+    {
+      key:"context",
+      label:"1M+ · context scale",
+      bucketIndexes:[0],
+      top,
+      height:contextHeight,
+      scale:panelScale([0]),
+      ticks:2,
+    },
+    {
+      key:"focus",
+      label:"100K–1M · focus scale",
+      bucketIndexes:allBucketIndexes.slice(1),
+      top:top + contextHeight + gap,
+      height:focusHeight,
+      scale:panelScale(allBucketIndexes.slice(1)),
+      ticks:3,
+    },
+  ];
+}
+function holderPanelYAt(panel, value){
+  const range = Math.max(1, panel.scale.max - panel.scale.min);
+  const ratio = Math.max(0, Math.min(1, (value - panel.scale.min) / range));
+  return panel.top + (1 - ratio) * panel.height;
+}
 function holderMetricPath(series, xAt, yAt){
   let started = false;
   return series.reduce((path, point) => {
@@ -3033,12 +3086,16 @@ function renderHolderDistributionChart(options = {}){
     value:holderMetricValue(point, bucketIndex, baselinePoint),
     total:safeHolderNum(point.buckets[bucketIndex]?.total),
   })));
-  const metricScale = holderMetricScale(seriesByBucket.flatMap(series => series.map(point => point.value)));
   const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
   const chartW = W - P_L - P_R;
   const chartH = H - P_T - P_B;
-  const yAt = value => P_T + (1 - Math.max(0, Math.min(1, (value - metricScale.min) / (metricScale.max - metricScale.min)))) * chartH;
-  const zeroY = yAt(metricScale.zero);
+  const chartPanels = buildHolderChartPanels(seriesByBucket, {top:P_T, height:chartH});
+  const panelForBucketIndex = bucketIndex => chartPanels.find(panel => panel.bucketIndexes.includes(bucketIndex)) || chartPanels[0];
+  const yAtForBucketIndex = (bucketIndex, value) => holderPanelYAt(panelForBucketIndex(bucketIndex), value);
+  const zeroYForBucketIndex = bucketIndex => {
+    const panel = panelForBucketIndex(bucketIndex);
+    return holderPanelYAt(panel, panel.scale.zero);
+  };
   const xMin = model.points[0]?.ts || 0;
   const xMax = model.points[model.points.length - 1]?.ts || (xMin + 1);
   const xRange = Math.max(1, xMax - xMin);
@@ -3048,13 +3105,20 @@ function renderHolderDistributionChart(options = {}){
   // in a loop re-parses the whole subtree every iteration (O(n²)); this fires per frame
   // during a brush drag, so on the "All" range it meant ~hundreds of thousands of reparses.
   let gridHtml = "";
-  for(let i=0; i<=4; i++){
-    const value = metricScale.min + (metricScale.max - metricScale.min) * i / 4;
-    const y = yAt(value);
-    gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
-    gridHtml += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${metricScale.label(value)}</text>`;
-  }
-  gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${zeroY}" y2="${zeroY}" style="stroke:var(--line-2)"/>`;
+  chartPanels.forEach((panel, panelIndex) => {
+    for(let i=0; i<=panel.ticks; i++){
+      const value = panel.scale.min + (panel.scale.max - panel.scale.min) * i / panel.ticks;
+      const y = holderPanelYAt(panel, value);
+      gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+      gridHtml += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${panel.scale.label(value)}</text>`;
+    }
+    gridHtml += `<text class="holder-chart-panel-label" x="${W-P_R}" y="${(panel.top+12).toFixed(1)}" text-anchor="end">${panel.label}</text>`;
+    if(panelIndex < chartPanels.length - 1){
+      const nextPanel = chartPanels[panelIndex + 1];
+      const separatorY = panel.top + panel.height + (nextPanel.top - panel.top - panel.height) / 2;
+      gridHtml += `<line class="holder-chart-panel-separator" x1="${P_L}" x2="${W-P_R}" y1="${separatorY.toFixed(1)}" y2="${separatorY.toFixed(1)}"/>`;
+    }
+  });
   grid.innerHTML = gridHtml;
 
   const spanDays = xRange / 86400;
@@ -3064,8 +3128,10 @@ function renderHolderDistributionChart(options = {}){
     const focusKey = holderDistributionActiveKey || bucketDefs[0].key;
     const focusedBucketIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === focusKey));
     const areaSeries = seriesByBucket[focusedBucketIndex];
-    const areaLine = holderMetricPath(areaSeries, xAt, yAt);
-    const area = `${areaLine} L${xAt(areaSeries[areaSeries.length - 1].ts).toFixed(2)} ${zeroY.toFixed(2)} L${xAt(areaSeries[0].ts).toFixed(2)} ${zeroY.toFixed(2)} Z`;
+    const areaYAt = value => yAtForBucketIndex(focusedBucketIndex, value);
+    const areaZeroY = zeroYForBucketIndex(focusedBucketIndex);
+    const areaLine = holderMetricPath(areaSeries, xAt, areaYAt);
+    const area = `${areaLine} L${xAt(areaSeries[areaSeries.length - 1].ts).toFixed(2)} ${areaZeroY.toFixed(2)} L${xAt(areaSeries[0].ts).toFixed(2)} ${areaZeroY.toFixed(2)} Z`;
     areaPath.setAttribute("d", area);
   }
   const xTicks = 5;
@@ -3081,13 +3147,14 @@ function renderHolderDistributionChart(options = {}){
   let dotsHtml = "";
   bucketDefs.forEach((bucket, bucketIndex) => {
     const series = seriesByBucket[bucketIndex];
-    const path = holderMetricPath(series, xAt, yAt);
+    const seriesYAt = value => yAtForBucketIndex(bucketIndex, value);
+    const path = holderMetricPath(series, xAt, seriesYAt);
     const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
     const muted = holderDistributionActiveKey && bucket.key !== holderDistributionActiveKey ? " is-muted" : "";
     const interactionAttrs = path ? ` role="button" tabindex="0" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series"` : ` aria-hidden="true" pointer-events="none"`;
     linesHtml += `<path class="holder-chart-series-line${active}${muted}" data-key="${bucket.key}"${interactionAttrs} d="${path}" stroke="${bucket.color}"/>`;
     series.forEach(point => {
-      if(Number.isFinite(point.value)) dotsHtml += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point.ts).toFixed(2)}" cy="${yAt(point.value).toFixed(2)}" fill="${bucket.color}"/>`;
+      if(Number.isFinite(point.value)) dotsHtml += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point.ts).toFixed(2)}" cy="${seriesYAt(point.value).toFixed(2)}" fill="${bucket.color}"/>`;
     });
   });
   lines.innerHTML = linesHtml;
@@ -3152,8 +3219,8 @@ function renderHolderDistributionChart(options = {}){
   const hoverDot = document.getElementById("holderChartHoverDot");
   const tip = document.getElementById("holderChartTip");
   const wrap = document.getElementById("holderChartWrap");
-  hoverLine.setAttribute("y1", P_T);
-  hoverLine.setAttribute("y2", zeroY);
+  hoverLine.setAttribute("y1", chartPanels[0].top);
+  hoverLine.setAttribute("y2", chartPanels[chartPanels.length - 1].top + chartPanels[chartPanels.length - 1].height);
   const paintActive = key => {
     svg.querySelectorAll(".holder-chart-series-line").forEach(lineEl => {
       lineEl.classList.toggle("is-active", lineEl.dataset.key === key);
@@ -3184,14 +3251,14 @@ function renderHolderDistributionChart(options = {}){
     const hoveredSeries = seriesByBucket.reduce((closest, series, index) => {
       const point = series.find(candidate => candidate.ts === nearest.ts);
       if(!Number.isFinite(point?.value)) return closest;
-      const distance = Math.abs(yAt(point.value) - py);
+      const distance = Math.abs(yAtForBucketIndex(index, point.value) - py);
       return !closest || distance < closest.distance ? {index, distance} : closest;
     }, null);
     const focusIndex = hoveredSeries?.index ?? defaultFocusIndex;
     const focusBucket = bucketDefs[focusIndex] || bucketDefs[defaultFocusIndex] || bucketDefs[0];
     const focusValue = holderMetricValue(nearest, focusIndex, baselinePoint);
     const x = xAt(nearest.ts);
-    const y = Number.isFinite(focusValue) ? yAt(focusValue) : zeroY;
+    const y = Number.isFinite(focusValue) ? yAtForBucketIndex(focusIndex, focusValue) : zeroYForBucketIndex(focusIndex);
     paintActive(focusBucket.key);
     hoverLine.setAttribute("x1", x);
     hoverLine.setAttribute("x2", x);
@@ -3950,24 +4017,37 @@ function paintCexSupplyBrushWindow(){
     : "";
   label.innerHTML = `<span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(cexSupplyBrushSel.to)}</span>${changeHtml}`;
 }
-function scheduleCexSupplyChartRender(){
-  if(cexSupplyBrushRenderFrame) return;
+function scheduleCexSupplyBrushPaint(){
+  if(cexSupplyBrushPaintFrame) return;
   const run = () => {
-    cexSupplyBrushRenderFrame = 0;
-    renderCexSupplyChart({skipBrush:true});
+    cexSupplyBrushPaintFrame = 0;
+    paintCexSupplyBrushWindow();
   };
   if(typeof requestAnimationFrame === "function"){
-    cexSupplyBrushRenderFrame = requestAnimationFrame(run);
+    cexSupplyBrushPaintFrame = requestAnimationFrame(run);
   } else {
-    cexSupplyBrushRenderFrame = setTimeout(run, 16);
+    cexSupplyBrushPaintFrame = setTimeout(run, 16);
   }
 }
+function scheduleCexSupplyChartRender(){
+  if(cexSupplyBrushChartTimer) clearTimeout(cexSupplyBrushChartTimer);
+  const run = () => {
+    cexSupplyBrushChartTimer = 0;
+    renderCexSupplyChart({skipBrush:true});
+  };
+  cexSupplyBrushChartTimer = setTimeout(run, CEX_SUPPLY_BRUSH_CHART_IDLE_MS);
+}
 function flushCexSupplyChartRender(){
-  if(cexSupplyBrushRenderFrame){
-    if(typeof cancelAnimationFrame === "function") cancelAnimationFrame(cexSupplyBrushRenderFrame);
-    else clearTimeout(cexSupplyBrushRenderFrame);
-    cexSupplyBrushRenderFrame = 0;
+  if(cexSupplyBrushPaintFrame){
+    if(typeof cancelAnimationFrame === "function") cancelAnimationFrame(cexSupplyBrushPaintFrame);
+    else clearTimeout(cexSupplyBrushPaintFrame);
+    cexSupplyBrushPaintFrame = 0;
   }
+  if(cexSupplyBrushChartTimer){
+    clearTimeout(cexSupplyBrushChartTimer);
+    cexSupplyBrushChartTimer = 0;
+  }
+  paintCexSupplyBrushWindow();
   renderCexSupplyChart({skipBrush:true});
 }
 function renderCexSupplyBrush(fullModel){
@@ -4025,7 +4105,7 @@ function initCexSupplyBrush(){
     } else if(cexSupplyBrushDragging.kind === "right"){
       cexSupplyBrushSel.to = Math.max(cexSupplyBrushDragging.startFrom + minWindow, Math.min(maxX, cexSupplyBrushDragging.startTo + delta));
     }
-    paintCexSupplyBrushWindow();
+    scheduleCexSupplyBrushPaint();
     scheduleCexSupplyChartRender();
   };
   const onDown = kind => event => {
