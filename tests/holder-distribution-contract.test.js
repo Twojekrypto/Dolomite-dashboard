@@ -100,6 +100,25 @@ function buildCexSupplySeriesFromFixtures(history, current, baseTs) {
   return Function(`"use strict"; ${source}`)();
 }
 
+function cexSupplyVisibleScaleFromFixture(points) {
+  const source = [
+    "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
+    'const fmtNum = value => Number(value).toLocaleString("en-US");',
+    extractNamedFunctionSource("cexSupplyVisibleScale"),
+    "return cexSupplyVisibleScale;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)()(points);
+}
+
+function holderScopeHtmlFromFixture(includeVeDolo) {
+  const source = [
+    `const state = {includeVeDolo:${includeVeDolo ? "true" : "false"}};`,
+    extractNamedFunctionSource("holderScopeHtml"),
+    "return holderScopeHtml;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)()();
+}
+
 function extractHolderLegendRangeRows() {
   const source = [
     "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
@@ -221,7 +240,7 @@ function buildCexSupplyBrushSchedulerFixture() {
 test("holder distribution keeps Total exposure as the permanent source", () => {
   const holderCard = extractStaticSections(preview).find(section => /id="holder-distribution-card"/.test(section));
   assert.ok(holderCard);
-  assert.match(holderCard, /class="holder-chart-fixed-scope"[\s\S]*?>Top holders<[\s\S]*?>Balance</);
+  assert.doesNotMatch(holderCard, /holder-chart-fixed-scope|>Top holders<|>Balance</);
   assert.doesNotMatch(holderCard, /id="holder-bucket-mode"|data-holder-bucket-view/);
   assert.doesNotMatch(holderCard, /id="holder-metric-mode"|data-holder-metric|>Change %</);
   assert.doesNotMatch(holderCard, /data-holder-exposure|Wallet balance/);
@@ -521,20 +540,25 @@ test("each CEX exchange row visibly advertises its expandable address list", () 
 });
 
 test("holder distribution states both its included and excluded wallet scope", () => {
-  const scopeRenderer = preview.slice(preview.indexOf("function holderScopeHtml"), preview.indexOf("function holderCexStatHtml"));
-  assert.match(scopeRenderer, /Includes: Market \+ Team\/Investor/);
-  assert.match(scopeRenderer, /Excludes: CEX, protocol &amp; custody\/MM/);
-  assert.match(scopeRenderer, /potential custody\/MM and bot wallets remain excluded/);
+  const withoutVeDolo = holderScopeHtmlFromFixture(false);
+  const withVeDolo = holderScopeHtmlFromFixture(true);
+
+  assert.match(withoutVeDolo, /^<span class="holder-source-scope">Total exposure<\/span><span class="holder-source-help"/);
+  assert.doesNotMatch(withoutVeDolo, />Includes:|>Excludes:|wallet \+ Dolomite/);
+  assert.match(withoutVeDolo, /Wallet balance \+ Dolomite deposits\./);
+  assert.doesNotMatch(withoutVeDolo, /veDOLO locked principal/);
+  assert.match(withVeDolo, /Wallet balance \+ Dolomite deposits \+ veDOLO locked principal\./);
+  assert.match(withVeDolo, /Includes: Market \+ Team\/Investor\./);
+  assert.match(withVeDolo, /Excludes: CEX, protocol &amp; custody\/MM\./);
+  assert.match(withVeDolo, /aria-label="Wallet balance \+ Dolomite deposits \+ veDOLO locked principal\./);
+  assert.match(withVeDolo, />i<\/span>$/);
 });
 
-test("holder distribution presents its fixed Top holders and Balance scope without switch controls", () => {
-  const controlsCss = preview.slice(
-    preview.indexOf(".holder-chart-fixed-scope{"),
-    preview.indexOf(".holder-chart-toggle.is-active{")
-  );
-  assert.match(controlsCss, /\.holder-chart-fixed-scope\{[^}]*display:inline-flex/);
-  assert.match(controlsCss, /\.holder-chart-fixed-label\{[^}]*cursor:default/);
-  assert.doesNotMatch(controlsCss, /button|:hover|:focus-visible/);
+test("holder distribution removes the redundant Top holders and Balance label", () => {
+  const holderCard = extractStaticSections(preview).find(section => /id="holder-distribution-card"/.test(section));
+  assert.ok(holderCard);
+  assert.doesNotMatch(holderCard, /holder-chart-fixed-scope|holder-chart-fixed-label|holder-chart-fixed-divider/);
+  assert.doesNotMatch(preview, /\.holder-chart-fixed-scope\{|\.holder-chart-fixed-label\{|\.holder-chart-fixed-divider\{/);
 });
 
 test("holder mini-chart coalesces lightweight paint separately from debounced chart rendering", () => {
@@ -661,6 +685,28 @@ test("CEX mini-chart coalesces paint and debounces the expensive chart render", 
 
   scheduler.flushCexSupplyChartRender();
   assert.deepEqual(scheduler.counts(), {frames:0, timers:0, paintCount:2, renderCount:1});
+});
+
+test("CEX chart focuses its Y scale on the selected visible range", () => {
+  const scale = cexSupplyVisibleScaleFromFixture([
+    {cex:134_000_000},
+    {cex:135_000_000},
+    {cex:136_000_000},
+  ]);
+
+  assert.ok(scale.min > 130_000_000 && scale.min < 134_000_000);
+  assert.ok(scale.max > 136_000_000 && scale.max < 140_000_000);
+  assert.ok(scale.max - scale.min < 5_000_000, "selected CEX movement should occupy a focused domain");
+  assert.equal(scale.zero, scale.min);
+  const yAt = value => 24 + (1 - (value - scale.min) / (scale.max - scale.min)) * 274;
+  assert.ok(yAt(134_000_000) - yAt(136_000_000) > 170, "visible CEX movement should use most of the plot height");
+
+  const cexRenderer = preview.slice(
+    preview.indexOf("function renderCexSupplyChart(options = {})"),
+    preview.indexOf("const COPY_ICO")
+  );
+  assert.match(cexRenderer, /cexSupplyVisibleScale\(model\.points\)/);
+  assert.doesNotMatch(cexRenderer, /value \/ yMax/);
 });
 
 test("holder distribution clips its final row to the card's rounded lower corners", () => {
