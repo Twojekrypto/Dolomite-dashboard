@@ -1266,7 +1266,7 @@ h1{
     <div class="veborrow-summary" id="veBorrowSummary" aria-live="polite">
       <div class="veborrow-stat primary"><span>Users saved</span><b>$0</b><small>selected range</small></div>
       <div class="veborrow-stat"><span>Max rebate</span><b>$0</b><small>selected range</small></div>
-      <div class="veborrow-stat"><span>Utilization</span><b>-</b><small>saved / max rebate</small></div>
+      <div class="veborrow-stat"><span>Utilization</span><b>N/A</b><small>saved / max rebate</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>-</b><small>published rebate</small></div>
     </div>
     <div class="veborrow-chart-wrap" id="veBorrowChartWrap">
@@ -2767,26 +2767,58 @@ h1{
       return periodStart > 0 && periodEnd > periodStart && timestamp >= periodStart && timestamp < periodEnd;
     }) || null;
   }
-  function veBorrowSelectedSourceAnomalies(rows){
+  function veBorrowRebateAuditGroups(){
+    const groups = veBorrowRebateInfo().maxRebateAuditGroups;
+    return Array.isArray(groups) ? groups : [];
+  }
+  function veBorrowRowsInPeriod(rows, periodStart, periodEnd){
+    return (rows || []).filter(row => n(row?.ts) >= periodStart && n(row?.ts) < periodEnd);
+  }
+  function veBorrowExpectedPeriodDays(periodStart, periodEnd){
+    return Math.max(1, Math.round((periodEnd - periodStart) / 86400));
+  }
+  function veBorrowSelectedAuditIssues(rows){
     const selectedTimestamps = new Set((rows || []).map(row => n(row?.ts)));
-    return (veBorrowRebateInfo().epochRebates || []).filter(epoch => {
+    const issues = [];
+    veBorrowRebateAuditGroups().forEach(group => {
+      const periodStart = n(group?.periodStartTimestamp);
+      const periodEnd = n(group?.periodEndTimestamp);
+      if (periodStart <= 0 || periodEnd <= periodStart) return;
+      const selectedGroupRows = veBorrowRowsInPeriod(rows, periodStart, periodEnd);
+      if (!selectedGroupRows.length) return;
+      if (selectedGroupRows.length !== veBorrowExpectedPeriodDays(periodStart, periodEnd)) issues.push(group);
+    });
+    (veBorrowRebateInfo().epochRebates || []).forEach(epoch => {
       if (epoch?.maxRebateAuditStatus !== "source_anomaly") return false;
       const periodStart = n(epoch?.periodStartTimestamp);
       const periodEnd = n(epoch?.periodEndTimestamp);
-      return Array.from(selectedTimestamps).some(timestamp => timestamp >= periodStart && timestamp < periodEnd);
+      if (Array.from(selectedTimestamps).some(timestamp => timestamp >= periodStart && timestamp < periodEnd)) issues.push(epoch);
     });
+    return issues;
   }
   function veBorrowMaxRebateForRows(rows){
     const selected = rows || [];
     const covered = new Set();
+    const groupedEpochIds = new Set();
     let maxRebate = 0;
+    veBorrowRebateAuditGroups().forEach(group => {
+      const periodStart = n(group?.periodStartTimestamp);
+      const periodEnd = n(group?.periodEndTimestamp);
+      const auditedMax = n(group?.maxRebateUSD);
+      if (periodStart <= 0 || periodEnd <= periodStart || auditedMax <= 0) return;
+      const groupRows = veBorrowRowsInPeriod(selected, periodStart, periodEnd);
+      groupRows.forEach(row => covered.add(n(row.ts)));
+      if (groupRows.length === veBorrowExpectedPeriodDays(periodStart, periodEnd)) maxRebate += auditedMax;
+      for (let epoch = n(group?.startEpoch); epoch <= n(group?.endEpoch); epoch += 1) groupedEpochIds.add(epoch);
+    });
     (veBorrowRebateInfo().epochRebates || []).forEach(epoch => {
+      if (groupedEpochIds.has(n(epoch?.epoch))) return;
       const auditedMax = n(epoch?.maxRebateUSD);
       const periodStart = n(epoch?.periodStartTimestamp);
       const periodEnd = n(epoch?.periodEndTimestamp);
       if (auditedMax <= 0 || periodStart <= 0 || periodEnd <= periodStart) return;
-      const epochRows = selected.filter(row => n(row.ts) >= periodStart && n(row.ts) < periodEnd);
-      const expectedDays = Math.max(1, Math.round((periodEnd - periodStart) / 86400));
+      const epochRows = veBorrowRowsInPeriod(selected, periodStart, periodEnd);
+      const expectedDays = veBorrowExpectedPeriodDays(periodStart, periodEnd);
       if (epochRows.length !== expectedDays) return;
       maxRebate += auditedMax;
       epochRows.forEach(row => covered.add(n(row.ts)));
@@ -2810,7 +2842,8 @@ h1{
     const selectedSaved = publishedSelected.reduce((sum, row) => sum + n(row.borrowFeeRebateUSD), 0);
     const maxRebate = veBorrowMaxRebateForRows(publishedSelected);
     const utilization = maxRebate > 0 ? selectedSaved / maxRebate : 0;
-    const sourceAnomalies = veBorrowSelectedSourceAnomalies(publishedSelected);
+    const auditIssues = veBorrowSelectedAuditIssues(publishedSelected);
+    const utilizationAvailable = maxRebate > 0 && !auditIssues.length;
     const latest = veBorrowRebateInfo().latestRebateDate || "";
     const latestDate = latest ? formatRangeDay(Math.floor(Date.parse(latest + "T00:00:00Z") / 1000)) : "-";
     const dayCount = selected.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
@@ -2820,8 +2853,8 @@ h1{
       : `${dayCount.toLocaleString("en-US")} daily bars selected`;
     wrap.innerHTML = `
       <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${selectedLabel} · estimated daily allocation</small></div>
-      <div class="veborrow-stat"><span>Max rebate</span><b>${maxRebate > 0 ? usdMetric(maxRebate) : "-"}</b><small>official finalized data</small></div>
-      <div class="veborrow-stat"><span>Utilization</span><b>${maxRebate > 0 && !sourceAnomalies.length ? pctFine(utilization) : "-"}</b><small>${sourceAnomalies.length ? `official source anomaly · ${sourceAnomalies.length} epoch${sourceAnomalies.length === 1 ? "" : "s"}` : "saved / max rebate"}</small></div>
+      <div class="veborrow-stat"><span>Max rebate</span><b>${utilizationAvailable ? usdMetric(maxRebate) : "N/A"}</b><small>${auditIssues.length ? "selected range lacks one complete official window" : "official finalized data"}</small></div>
+      <div class="veborrow-stat"><span>Utilization</span><b>${utilizationAvailable ? pctFine(utilization) : "N/A"}</b><small>${auditIssues.length ? "Unavailable · select the complete catch-up window" : "saved / max rebate"}</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>${esc(latestDate)}</b><small>published rebate</small></div>
     `;
   }

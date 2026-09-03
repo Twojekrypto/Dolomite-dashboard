@@ -74,6 +74,8 @@ BORROW_FEE_REBATE_PROTOCOL_RESERVE_FACTOR = Decimal("0.20")
 BORROW_FEE_REBATE_REVENUE_MARGIN_OF_ERROR = Decimal("0.05")
 BORROW_FEE_REBATE_ANOMALY_RELATIVE_TOLERANCE = Decimal("0.05")
 BORROW_FEE_REBATE_ANOMALY_ABSOLUTE_TOLERANCE_USD = Decimal("0.01")
+BORROW_FEE_REBATE_CATCHUP_EDGE_TOLERANCE_SECONDS = 6 * 60 * 60
+BORROW_FEE_REBATE_CATCHUP_CONTINUITY_TOLERANCE_SECONDS = 5 * 60
 BORROW_FEE_REBATE_USD_SCALE = 1_000_000
 BORROW_FEE_REBATE_CALCULATION_MODES = {
     "",
@@ -1291,6 +1293,7 @@ PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS = (
     "maxRebateOfficialOnlyMarketIds",
     "maxRebateAuditStatus",
     "maxRebateAuditReason",
+    "maxRebateAuditGroupId",
     "maxRebatePriceFallbackCount",
     "maxRebatePriceOmissionCount",
     "maxRebateGeneratedAt",
@@ -1379,6 +1382,11 @@ def preserve_previous_borrow_fee_rebate_epoch_audits(current_rebate_data, previo
                 for row in current_rows
                 if isinstance(row, dict)
             ))
+        if (
+            "maxRebateAuditGroups" not in chain_payload
+            and isinstance(previous_payload.get("maxRebateAuditGroups"), list)
+        ):
+            chain_payload["maxRebateAuditGroups"] = json.loads(json.dumps(previous_payload["maxRebateAuditGroups"]))
     return current
 
 
@@ -1462,7 +1470,7 @@ def borrow_fee_rebate_epoch_has_current_max_audit(row):
         and int_or_none(row.get("claimStartTimestamp")) is not None
         and int_or_none(row.get("claimEndTimestamp")) is not None
         and isinstance(row.get("maxRebateEligibleMarketIds"), list)
-        and row.get("maxRebateAuditStatus") == "verified"
+        and row.get("maxRebateAuditStatus") in {"verified", "verified_grouped"}
     )
 
 
@@ -1558,6 +1566,121 @@ def official_borrow_fee_rebate_epoch_audit(payload, rebate_percentage):
         "maxRebateDayCount": max(1, math.ceil(period_seconds / SECONDS_PER_DAY)),
         "marketRevenueFactors": revenue_factors,
     }
+
+
+def reconcile_borrow_fee_rebate_catchup_groups(epoch_rows):
+    """Audit delayed consecutive publications over their shared official window.
+
+    Dolomite can publish several overdue epochs in rapid succession. The first
+    official borrow-interest artifact then spans the backlog, while the next
+    artifacts cover only the few minutes between publications. Per-epoch
+    utilization is not meaningful in that case, but the combined window is
+    exact when its official and scheduled boundaries align.
+    """
+    rows = [row for row in epoch_rows if isinstance(row, dict)]
+    rows.sort(key=lambda row: int_or_none(row.get("epoch")) or 0)
+    for row in rows:
+        row.pop("maxRebateAuditGroupId", None)
+        if (
+            row.get("maxRebateAuditStatus") == "verified_grouped"
+            and row.get("maxRebateAuditReason") == "official_catchup_window_grouped"
+        ):
+            rebate_usd = decimal_from_value(row.get("rebateUSD"))
+            max_rebate_usd = decimal_from_value(row.get("maxRebateUSD"))
+            anomaly_limit = (
+                max_rebate_usd * (Decimal(1) + BORROW_FEE_REBATE_ANOMALY_RELATIVE_TOLERANCE)
+                + BORROW_FEE_REBATE_ANOMALY_ABSOLUTE_TOLERANCE_USD
+            )
+            if rebate_usd > anomaly_limit:
+                row["maxRebateAuditStatus"] = "source_anomaly"
+                row["maxRebateAuditReason"] = "published_rebate_exceeds_official_max"
+            else:
+                row["maxRebateAuditStatus"] = "verified"
+                row.pop("maxRebateAuditReason", None)
+
+    groups = []
+    grouped_epochs = set()
+    for start_index, start_row in enumerate(rows):
+        start_epoch = int_or_none(start_row.get("epoch"))
+        period_start = int_or_none(start_row.get("periodStartTimestamp"))
+        period_end = int_or_none(start_row.get("periodEndTimestamp"))
+        claim_start = int_or_none(start_row.get("claimStartTimestamp"))
+        claim_end = int_or_none(start_row.get("claimEndTimestamp"))
+        if (
+            start_epoch is None
+            or start_epoch in grouped_epochs
+            or period_start is None
+            or period_end is None
+            or claim_start is None
+            or claim_end is None
+            or abs(claim_start - period_start) > BORROW_FEE_REBATE_CATCHUP_EDGE_TOLERANCE_SECONDS
+            or claim_end <= period_end + BORROW_FEE_REBATE_CATCHUP_EDGE_TOLERANCE_SECONDS
+        ):
+            continue
+
+        candidate = [start_row]
+        previous = start_row
+        for end_row in rows[start_index + 1:]:
+            previous_epoch = int_or_none(previous.get("epoch"))
+            end_epoch = int_or_none(end_row.get("epoch"))
+            previous_period_end = int_or_none(previous.get("periodEndTimestamp"))
+            end_period_start = int_or_none(end_row.get("periodStartTimestamp"))
+            previous_claim_end = int_or_none(previous.get("claimEndTimestamp"))
+            end_claim_start = int_or_none(end_row.get("claimStartTimestamp"))
+            end_claim_end = int_or_none(end_row.get("claimEndTimestamp"))
+            end_period_end = int_or_none(end_row.get("periodEndTimestamp"))
+            if (
+                previous_epoch is None
+                or end_epoch != previous_epoch + 1
+                or previous_period_end is None
+                or end_period_start != previous_period_end
+                or previous_claim_end is None
+                or end_claim_start is None
+                or abs(end_claim_start - previous_claim_end) > BORROW_FEE_REBATE_CATCHUP_CONTINUITY_TOLERANCE_SECONDS
+                or end_claim_end is None
+                or end_period_end is None
+            ):
+                break
+
+            candidate.append(end_row)
+            previous = end_row
+            if abs(end_claim_end - end_period_end) > BORROW_FEE_REBATE_CATCHUP_EDGE_TOLERANCE_SECONDS:
+                continue
+            if not any(row.get("maxRebateAuditStatus") == "source_anomaly" for row in candidate):
+                continue
+
+            rebate_usd = sum(decimal_from_value(row.get("rebateUSD")) for row in candidate)
+            max_rebate_usd = sum(decimal_from_value(row.get("maxRebateUSD")) for row in candidate)
+            anomaly_limit = (
+                max_rebate_usd * (Decimal(1) + BORROW_FEE_REBATE_ANOMALY_RELATIVE_TOLERANCE)
+                + BORROW_FEE_REBATE_ANOMALY_ABSOLUTE_TOLERANCE_USD
+            )
+            if max_rebate_usd <= 0 or rebate_usd > anomaly_limit:
+                break
+
+            group_id = f"epochs-{start_epoch}-{end_epoch}"
+            group = {
+                "id": group_id,
+                "startEpoch": start_epoch,
+                "endEpoch": end_epoch,
+                "periodStartTimestamp": period_start,
+                "periodEndTimestamp": end_period_end,
+                "claimStartTimestamp": claim_start,
+                "claimEndTimestamp": end_claim_end,
+                "rebateUSD": round(float(rebate_usd), 6),
+                "maxRebateUSD": round(float(max_rebate_usd), 6),
+                "auditStatus": "verified",
+                "auditReason": "official_catchup_window_grouped",
+            }
+            groups.append(group)
+            for row in candidate:
+                row["maxRebateAuditStatus"] = "verified_grouped"
+                row["maxRebateAuditReason"] = "official_catchup_window_grouped"
+                row["maxRebateAuditGroupId"] = group_id
+                grouped_epochs.add(int_or_none(row.get("epoch")))
+            break
+
+    return groups
 
 
 def abi_output_type(component):
@@ -1832,6 +1955,8 @@ def audit_borrow_fee_rebate_max_rebates(rebate_metadata, rebate_data):
             row["maxRebateAuditStatus"] = "missing"
             row["maxRebateAuditReason"] = "official_epoch_artifact_unavailable"
             print(f"   Borrow fee rebate epoch {epoch} official audit unavailable: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
+
+    chain_payload["maxRebateAuditGroups"] = reconcile_borrow_fee_rebate_catchup_groups(retained_rows)
 
     chain_payload["totalRebateUSD"] = round(sum(
         safe_number(row.get("rebateUSD")) for row in retained_rows if isinstance(row, dict)
@@ -2216,6 +2341,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
                 "This is protocol-retained borrow interest, not a direct treasury cashflow audit.",
                 "Current unfinalized rebate epochs remain gross until the weekly claim data is published onchain.",
                 "Maximum rebate baselines use Dolomite's finalized per-market borrow-interest artifacts and official revenue-factor formula.",
+                "Delayed consecutive publications are audited over one contiguous catch-up window when the official claim boundaries reconcile with the same combined scheduled period.",
                 "When published rolling-claims totals exceed the matching official maximum, utilization is suppressed and the epoch is marked as an official source anomaly.",
                 "Current-day values can be revised by DeFiLlama until the adapter window fully settles.",
             ],

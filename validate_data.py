@@ -1153,6 +1153,41 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
         if not isinstance(rows, list):
             return False
 
+        audit_groups = chain.get("maxRebateAuditGroups", [])
+        if not isinstance(audit_groups, list):
+            return False
+        groups_by_id = {}
+        for group in audit_groups:
+            if not isinstance(group, dict):
+                return False
+            group_id = group.get("id")
+            start_epoch = group.get("startEpoch")
+            end_epoch = group.get("endEpoch")
+            if (
+                not isinstance(group_id, str)
+                or not group_id
+                or group_id in groups_by_id
+                or not _finite_json_integer_number(start_epoch)
+                or not _finite_json_integer_number(end_epoch)
+                or start_epoch <= 0
+                or end_epoch <= start_epoch
+                or group_id != f"epochs-{start_epoch}-{end_epoch}"
+                or not _finite_json_integer_number(group.get("periodStartTimestamp"))
+                or not _finite_json_integer_number(group.get("periodEndTimestamp"))
+                or group["periodEndTimestamp"] <= group["periodStartTimestamp"]
+                or not _finite_json_integer_number(group.get("claimStartTimestamp"))
+                or not _finite_json_integer_number(group.get("claimEndTimestamp"))
+                or group["claimEndTimestamp"] <= group["claimStartTimestamp"]
+                or not _finite_real_json_number(group.get("rebateUSD"))
+                or group["rebateUSD"] <= 0
+                or not _finite_real_json_number(group.get("maxRebateUSD"))
+                or group["maxRebateUSD"] <= 0
+                or group.get("auditStatus") != "verified"
+                or group.get("auditReason") != "official_catchup_window_grouped"
+            ):
+                return False
+            groups_by_id[group_id] = group
+
         positive_rows = [row for row in rows if isinstance(row, dict) and _safe_number(row.get("rebateUSD")) > 0]
         authoritative_epoch = chain.get("authoritativePublishedEpoch")
         if positive_rows and (
@@ -1243,6 +1278,19 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
                 or not isinstance(row.get("maxRebateOfficialOnlyMarketIds"), list)
             ):
                 return False
+            group_id = row.get("maxRebateAuditGroupId")
+            if audit_status == "verified_grouped":
+                group = groups_by_id.get(group_id)
+                if (
+                    not group
+                    or not group["startEpoch"] <= epoch <= group["endEpoch"]
+                    or row.get("maxRebateAuditReason") != "official_catchup_window_grouped"
+                ):
+                    return False
+                continue
+            if group_id is not None:
+                return False
+
             anomaly_limit = max_rebate_usd * 1.05 + 0.01
             if rebate_usd > anomaly_limit:
                 if (
@@ -1251,6 +1299,34 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
                 ):
                     return False
             elif audit_status != "verified" or row.get("maxRebateAuditReason"):
+                return False
+
+        rows_by_epoch = {
+            row.get("epoch"): row
+            for row in rows
+            if isinstance(row, dict) and _finite_json_integer_number(row.get("epoch"))
+        }
+        for group_id, group in groups_by_id.items():
+            members = [rows_by_epoch.get(epoch) for epoch in range(group["startEpoch"], group["endEpoch"] + 1)]
+            if (
+                any(not isinstance(row, dict) for row in members)
+                or any(row.get("maxRebateAuditGroupId") != group_id for row in members)
+                or members[0].get("periodStartTimestamp") != group["periodStartTimestamp"]
+                or members[-1].get("periodEndTimestamp") != group["periodEndTimestamp"]
+                or members[0].get("claimStartTimestamp") != group["claimStartTimestamp"]
+                or members[-1].get("claimEndTimestamp") != group["claimEndTimestamp"]
+                or not _nearly_equal(
+                    sum(_safe_number(row.get("rebateUSD")) for row in members),
+                    group["rebateUSD"],
+                    abs_tol=0.000001,
+                )
+                or not _nearly_equal(
+                    sum(_safe_number(row.get("maxRebateUSD")) for row in members),
+                    group["maxRebateUSD"],
+                    abs_tol=0.000001,
+                )
+                or group["rebateUSD"] > group["maxRebateUSD"] * 1.05 + 0.01
+            ):
                 return False
     return True
 
