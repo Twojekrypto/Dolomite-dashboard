@@ -2504,6 +2504,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
         self.assertIn("network-filter-20260805-fast-wallet-sort-20260805-strategic-round-20260805", route_html)
+        self.assertIn("annualized-rebate-20260903-v2", route_html)
+        self.assertIn("veborrow_simulation.json?v=revenue-20260903-annualized-v2", html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
             html.index("Dolomite Revenue Over Time"),
