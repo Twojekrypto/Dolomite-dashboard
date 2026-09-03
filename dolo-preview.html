@@ -311,9 +311,19 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .holder-chart-svg{width:100%;height:340px;display:block;overflow:visible}
 .holder-chart-grid line{stroke:var(--line-1);stroke-width:1}
 .holder-chart-grid text,.holder-chart-axis text{font-family:var(--mono);font-size:10px;fill:var(--fg-3);font-weight:500}
-.holder-chart-grid .holder-chart-panel-label{font-family:var(--sans);font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;fill:var(--fg-4)}
-.holder-chart-grid .holder-chart-panel-separator{stroke:var(--line-2);stroke-dasharray:3 5;opacity:.82}
 .holder-chart-axis text{fill:var(--fg-3)}
+.holder-chart-scale-note{
+  position:absolute;top:8px;right:24px;z-index:2;display:inline-flex;align-items:center;gap:5px;
+  padding:3px 7px;border:1px solid var(--line-1);border-radius:999px;background:rgba(15,15,17,.78);
+  color:var(--fg-4);font-family:var(--mono);font-size:8px;font-weight:600;letter-spacing:.65px;text-transform:uppercase;
+  cursor:default;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
+}
+.holder-chart-scale-note::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:.7}
+.holder-chart-end-leader{fill:none;stroke-width:1;stroke-linecap:round;opacity:.52;pointer-events:none}
+.holder-chart-end-label{
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:-.15px;dominant-baseline:middle;
+  paint-order:stroke;stroke:var(--bg-2);stroke-width:3px;stroke-linejoin:round;pointer-events:none
+}
 .holder-chart-area{fill:url(#holderChartAreaGrad);opacity:.58;pointer-events:none}
 .holder-chart-series-line{
   fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
@@ -988,6 +998,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .hero-meta{margin-left:0;width:100%}
   .holder-chart-wrap{padding:18px 16px 14px}
   .holder-chart-svg{height:280px}
+  .holder-chart-scale-note{top:7px;right:16px}
+  .holder-chart-end-leader,.holder-chart-end-label{display:none}
   .holder-legend-head{display:none}
   .holder-distribution-legend .holder-legend-head{display:none}
   .holder-legend-row{grid-template-columns:1fr;gap:11px;padding:13px 14px}
@@ -1758,7 +1770,8 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
       </div>
     </div>
     <div class="holder-chart-wrap" id="holderChartWrap">
-      <svg class="holder-chart-svg" id="holderChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="DOLO holder distribution over time chart">
+      <span class="holder-chart-scale-note" id="holderChartScaleNote" data-tooltip="A zero-anchored logarithmic balance scale keeps every holder range readable while preserving exact DOLO values." aria-label="Zero-anchored logarithmic balance scale">Log scale</span>
+      <svg class="holder-chart-svg" id="holderChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="DOLO holder distribution over time chart with a logarithmic balance scale">
         <defs>
           <linearGradient id="holderChartAreaGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#c9a227" stop-opacity=".18"/>
@@ -2781,61 +2794,68 @@ function holderMetricValue(point, bucketIndex, baselinePoint){
 }
 function holderMetricScale(values){
   if(holderDistributionMetric === "balance"){
-    const max = niceHolderChartMax(Math.max(1, ...values.filter(Number.isFinite)) * 1.12);
-    return {min:0, max, zero:0, label:value => fmtNum(value)};
+    const maxValue = Math.max(0, ...values.filter(Number.isFinite));
+    const constant = 1_000_000;
+    const max = Math.max(constant * 10, niceHolderChartMax(maxValue * 1.08));
+    return {type:"log", min:0, max, zero:0, constant, label:value => fmtNum(value)};
   }
   const maxAbs = Math.max(1, ...values.filter(Number.isFinite).map(value => Math.abs(value)));
   const max = niceHolderChartMax(maxAbs * 1.12);
-  return {min:-max, max, zero:0, label:value => value.toFixed(value % 1 ? 1 : 0) + "%"};
+  return {type:"linear", min:-max, max, zero:0, label:value => value.toFixed(value % 1 ? 1 : 0) + "%"};
+}
+function holderScaleTicks(scale){
+  if(scale.type !== "log"){
+    return Array.from({length:5}, (_, index) => scale.min + (scale.max - scale.min) * index / 4);
+  }
+  const ticks = [0];
+  const firstPower = Math.floor(Math.log10(scale.constant));
+  const lastPower = Math.ceil(Math.log10(scale.max));
+  for(let power=firstPower; power<=lastPower; power++){
+    const magnitude = Math.pow(10, power);
+    [1, 5].forEach(multiplier => {
+      const value = multiplier * magnitude;
+      if(value >= scale.min && value <= scale.max) ticks.push(value);
+    });
+  }
+  return [...new Set(ticks)].sort((a,b)=>a-b);
 }
 function buildHolderChartPanels(seriesByBucket, geometry){
   geometry = geometry || {};
   const top = safeHolderNum(geometry.top);
   const height = Math.max(1, safeHolderNum(geometry.height));
   const allBucketIndexes = seriesByBucket.map((_, index) => index);
-  const panelScale = bucketIndexes => holderMetricScale(bucketIndexes.flatMap(index => (
+  const values = allBucketIndexes.flatMap(index => (
     seriesByBucket[index] || []
-  ).map(point => point.value)));
-  if(holderDistributionMetric !== "balance" || seriesByBucket.length < 3){
-    return [{
-      key:"all",
-      label:"Balance",
-      bucketIndexes:allBucketIndexes,
-      top,
-      height,
-      scale:panelScale(allBucketIndexes),
-      ticks:4,
-    }];
-  }
-  const gap = Math.min(22, height * 0.1);
-  const usableHeight = Math.max(2, height - gap);
-  const contextHeight = Math.max(1, Math.round(usableHeight * 0.32));
-  const focusHeight = Math.max(1, usableHeight - contextHeight);
-  return [
-    {
-      key:"context",
-      label:"1M+ · context scale",
-      bucketIndexes:[0],
-      top,
-      height:contextHeight,
-      scale:panelScale([0]),
-      ticks:2,
-    },
-    {
-      key:"focus",
-      label:"100K–1M · focus scale",
-      bucketIndexes:allBucketIndexes.slice(1),
-      top:top + contextHeight + gap,
-      height:focusHeight,
-      scale:panelScale(allBucketIndexes.slice(1)),
-      ticks:3,
-    },
-  ];
+  ).map(point => point.value));
+  return [{
+    key:"all",
+    bucketIndexes:allBucketIndexes,
+    top,
+    height,
+    scale:holderMetricScale(values),
+  }];
 }
 function holderPanelYAt(panel, value){
+  if(panel.scale.type === "log"){
+    const safeValue = Math.max(0, safeHolderNum(value));
+    const logRange = Math.max(Number.EPSILON, Math.log1p(panel.scale.max / panel.scale.constant));
+    const ratio = Math.max(0, Math.min(1, Math.log1p(safeValue / panel.scale.constant) / logRange));
+    return panel.top + (1 - ratio) * panel.height;
+  }
   const range = Math.max(1, panel.scale.max - panel.scale.min);
   const ratio = Math.max(0, Math.min(1, (value - panel.scale.min) / range));
   return panel.top + (1 - ratio) * panel.height;
+}
+function layoutHolderEndLabels(items, top, bottom, minGap = 18){
+  const labels = items
+    .map(item => ({...item, labelY:Math.max(top, Math.min(bottom, item.y))}))
+    .sort((a,b)=>a.y-b.y);
+  labels.forEach((item, index) => {
+    if(index) item.labelY = Math.max(item.labelY, labels[index - 1].labelY + minGap);
+  });
+  const overflow = Math.max(0, (labels[labels.length - 1]?.labelY || bottom) - bottom);
+  if(overflow) labels.forEach(item => { item.labelY -= overflow; });
+  return labels;
 }
 function holderMetricPath(series, xAt, yAt){
   let started = false;
@@ -3086,10 +3106,13 @@ function renderHolderDistributionChart(options = {}){
     value:holderMetricValue(point, bucketIndex, baselinePoint),
     total:safeHolderNum(point.buckets[bucketIndex]?.total),
   })));
-  const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
+  const compactChart = window.matchMedia?.("(max-width:640px)")?.matches === true;
+  const W = 1000, H = 340, P_L = 74, P_R = compactChart ? 30 : 176, P_T = 24, P_B = 42;
   const chartW = W - P_L - P_R;
   const chartH = H - P_T - P_B;
   const chartPanels = buildHolderChartPanels(seriesByBucket, {top:P_T, height:chartH});
+  const scaleNote = document.getElementById("holderChartScaleNote");
+  if(scaleNote) scaleNote.hidden = chartPanels[0]?.scale?.type !== "log";
   const panelForBucketIndex = bucketIndex => chartPanels.find(panel => panel.bucketIndexes.includes(bucketIndex)) || chartPanels[0];
   const yAtForBucketIndex = (bucketIndex, value) => holderPanelYAt(panelForBucketIndex(bucketIndex), value);
   const zeroYForBucketIndex = bucketIndex => {
@@ -3105,19 +3128,12 @@ function renderHolderDistributionChart(options = {}){
   // in a loop re-parses the whole subtree every iteration (O(n²)); this fires per frame
   // during a brush drag, so on the "All" range it meant ~hundreds of thousands of reparses.
   let gridHtml = "";
-  chartPanels.forEach((panel, panelIndex) => {
-    for(let i=0; i<=panel.ticks; i++){
-      const value = panel.scale.min + (panel.scale.max - panel.scale.min) * i / panel.ticks;
+  chartPanels.forEach(panel => {
+    holderScaleTicks(panel.scale).forEach(value => {
       const y = holderPanelYAt(panel, value);
       gridHtml += `<line x1="${P_L}" x2="${W-P_R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
       gridHtml += `<text x="${P_L-12}" y="${(y+3).toFixed(1)}" text-anchor="end">${panel.scale.label(value)}</text>`;
-    }
-    gridHtml += `<text class="holder-chart-panel-label" x="${W-P_R}" y="${(panel.top+12).toFixed(1)}" text-anchor="end">${panel.label}</text>`;
-    if(panelIndex < chartPanels.length - 1){
-      const nextPanel = chartPanels[panelIndex + 1];
-      const separatorY = panel.top + panel.height + (nextPanel.top - panel.top - panel.height) / 2;
-      gridHtml += `<line class="holder-chart-panel-separator" x1="${P_L}" x2="${W-P_R}" y1="${separatorY.toFixed(1)}" y2="${separatorY.toFixed(1)}"/>`;
-    }
+    });
   });
   grid.innerHTML = gridHtml;
 
@@ -3157,6 +3173,25 @@ function renderHolderDistributionChart(options = {}){
       if(Number.isFinite(point.value)) dotsHtml += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point.ts).toFixed(2)}" cy="${seriesYAt(point.value).toFixed(2)}" fill="${bucket.color}"/>`;
     });
   });
+  if(!compactChart){
+    const endLabels = layoutHolderEndLabels(bucketDefs.map((bucket, bucketIndex) => {
+      const series = seriesByBucket[bucketIndex];
+      const point = [...series].reverse().find(candidate => Number.isFinite(candidate.value));
+      return point ? {
+        key:bucket.key,
+        label:bucket.label,
+        color:bucket.color,
+        value:point.total,
+        x:xAt(point.ts),
+        y:yAtForBucketIndex(bucketIndex, point.value),
+      } : null;
+    }).filter(Boolean), P_T + 8, P_T + chartH - 8, 19);
+    const labelX = W - P_R + 14;
+    endLabels.forEach(item => {
+      linesHtml += `<path class="holder-chart-end-leader" d="M${item.x.toFixed(2)} ${item.y.toFixed(2)} L${(labelX-6).toFixed(2)} ${item.labelY.toFixed(2)}" stroke="${item.color}"/>`;
+      linesHtml += `<text class="holder-chart-end-label" x="${labelX}" y="${item.labelY.toFixed(2)}" fill="${item.color}">${item.label} · ${fmtNum(item.value)}</text>`;
+    });
+  }
   lines.innerHTML = linesHtml;
   dots.innerHTML = dotsHtml;
   lines.querySelectorAll(".holder-chart-series-line[role='button']").forEach(line => {

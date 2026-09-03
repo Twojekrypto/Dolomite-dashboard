@@ -169,13 +169,22 @@ function buildHolderChartPanelsFixture(seriesByBucket, geometry) {
     "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
     extractNamedFunctionSource("niceHolderChartMax"),
     extractNamedFunctionSource("holderMetricScale"),
+    extractNamedFunctionSource("holderScaleTicks"),
     extractNamedFunctionSource("buildHolderChartPanels"),
     extractNamedFunctionSource("holderPanelYAt"),
-    "return {buildHolderChartPanels, holderPanelYAt};",
+    "return {buildHolderChartPanels, holderPanelYAt, holderScaleTicks};",
   ].join("\n");
   const fixture = Function(`"use strict"; ${source}`)();
   const panels = fixture.buildHolderChartPanels(seriesByBucket, geometry);
-  return {panels, holderPanelYAt:fixture.holderPanelYAt};
+  return {panels, holderPanelYAt:fixture.holderPanelYAt, holderScaleTicks:fixture.holderScaleTicks};
+}
+
+function layoutHolderEndLabelsFixture(items, top, bottom, minGap) {
+  const source = [
+    extractNamedFunctionSource("layoutHolderEndLabels"),
+    "return layoutHolderEndLabels;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)()(items, top, bottom, minGap);
 }
 
 function buildCexSupplyBrushSchedulerFixture() {
@@ -545,24 +554,58 @@ test("holder mini-chart coalesces lightweight paint separately from debounced ch
   assert.deepEqual(scheduler.counts(), {frames:0, timers:0, paintCount:1, renderCount:1});
 });
 
-test("holder balance chart isolates 1M+ in a synchronized context panel", () => {
+test("holder balance chart keeps every bucket on one logarithmic scale", () => {
   const seriesByBucket = [
     [{value:280_000_000}, {value:300_000_000}],
-    [{value:12_000_000}, {value:16_000_000}],
-    [{value:24_000_000}, {value:29_000_000}],
+    [{value:0}, {value:7_000_000}],
+    [{value:12_000_000}, {value:17_000_000}],
   ];
-  const {panels, holderPanelYAt} = buildHolderChartPanelsFixture(seriesByBucket, {top:24, height:274});
+  const {panels, holderPanelYAt, holderScaleTicks} = buildHolderChartPanelsFixture(seriesByBucket, {top:24, height:274});
 
-  assert.equal(panels.length, 2);
-  assert.deepEqual(panels.map(panel => panel.bucketIndexes), [[0], [1, 2]]);
-  assert.equal(panels[0].key, "context");
-  assert.equal(panels[1].key, "focus");
+  assert.equal(panels.length, 1);
+  assert.deepEqual(panels[0].bucketIndexes, [0, 1, 2]);
+  assert.equal(panels[0].key, "all");
+  assert.equal(panels[0].scale.type, "log");
+  assert.equal(panels[0].scale.min, 0);
+  assert.equal(panels[0].scale.constant, 1_000_000);
   assert.equal(panels[0].scale.max, 500_000_000);
-  assert.equal(panels[1].scale.max, 50_000_000);
-  assert.ok(panels[1].height > panels[0].height, "the smaller holder groups must receive the larger panel");
-  assert.ok(panels[1].top > panels[0].top + panels[0].height, "panels must not overlap");
+  assert.deepEqual(holderScaleTicks(panels[0].scale), [
+    0,
+    1_000_000,
+    5_000_000,
+    10_000_000,
+    50_000_000,
+    100_000_000,
+    500_000_000,
+  ]);
   assert.equal(holderPanelYAt(panels[0], 0), panels[0].top + panels[0].height);
-  assert.equal(holderPanelYAt(panels[1], 0), panels[1].top + panels[1].height);
+  assert.ok(
+    holderPanelYAt(panels[0], 7_000_000) - holderPanelYAt(panels[0], 17_000_000) >= 35,
+    "the smaller holder groups must remain visually distinguishable on the shared scale",
+  );
+});
+
+test("holder chart end labels remain readable when series finish close together", () => {
+  assert.deepEqual(
+    layoutHolderEndLabelsFixture([
+      {key:"500k-1m", y:100},
+      {key:"100k-500k", y:108},
+      {key:"1m", y:112},
+    ], 24, 298, 18),
+    [
+      {key:"500k-1m", y:100, labelY:100},
+      {key:"100k-500k", y:108, labelY:118},
+      {key:"1m", y:112, labelY:136},
+    ],
+  );
+  assert.deepEqual(
+    layoutHolderEndLabelsFixture([
+      {key:"500k-1m", y:286},
+      {key:"100k-500k", y:292},
+      {key:"1m", y:296},
+    ], 24, 298, 18).map(item => item.labelY),
+    [262, 280, 298],
+  );
 });
 
 test("CEX mini-chart coalesces paint and debounces the expensive chart render", () => {
@@ -600,7 +643,7 @@ test("holder distribution keeps guarded relative-change helpers behind the fixed
   assert.match(preview, /function holderMetricValue\(/);
   assert.match(preview, /if\(baseline <= 0\) return null/);
   assert.match(preview, /function holderMetricScale\(/);
-  assert.match(preview, /return \{min:-max, max, zero:0, label:value => value\.toFixed/);
+  assert.match(preview, /return \{type:"linear", min:-max, max, zero:0, label:value => value\.toFixed/);
   assert.match(preview, /return holderPanelYAt\(panel, panel\.scale\.zero\)/);
   assert.match(preview, /if\(holderDistributionMetric !== "balance" \|\| model\.points\.length < 2\)\{\s*areaPath\.setAttribute\("d", ""\);/);
 });
