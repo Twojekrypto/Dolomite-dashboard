@@ -179,12 +179,12 @@ function buildHolderChartPanelsFixture(seriesByBucket, geometry) {
   return {panels, holderPanelYAt:fixture.holderPanelYAt, holderScaleTicks:fixture.holderScaleTicks};
 }
 
-function layoutHolderEndLabelsFixture(items, top, bottom, minGap) {
+function holderChartSeriesIndexesFixture(bucketDefs, selectedKey) {
   const source = [
-    extractNamedFunctionSource("layoutHolderEndLabels"),
-    "return layoutHolderEndLabels;",
+    extractNamedFunctionSource("holderChartSeriesIndexes"),
+    "return holderChartSeriesIndexes;",
   ].join("\n");
-  return Function(`"use strict"; ${source}`)()(items, top, bottom, minGap);
+  return Function(`"use strict"; ${source}`)()(bucketDefs, selectedKey);
 }
 
 function buildCexSupplyBrushSchedulerFixture() {
@@ -585,27 +585,66 @@ test("holder balance chart keeps every bucket on one logarithmic scale", () => {
   );
 });
 
-test("holder chart end labels remain readable when series finish close together", () => {
-  assert.deepEqual(
-    layoutHolderEndLabelsFixture([
-      {key:"500k-1m", y:100},
-      {key:"100k-500k", y:108},
-      {key:"1m", y:112},
-    ], 24, 298, 18),
-    [
-      {key:"500k-1m", y:100, labelY:100},
-      {key:"100k-500k", y:108, labelY:118},
-      {key:"1m", y:112, labelY:136},
-    ],
+test("holder range filter selects one series without changing the underlying bucket order", () => {
+  const buckets = [
+    {key:"gt1m"},
+    {key:"500k1m"},
+    {key:"100k500k"},
+  ];
+
+  assert.deepEqual(holderChartSeriesIndexesFixture(buckets, "all"), [0, 1, 2]);
+  assert.deepEqual(holderChartSeriesIndexesFixture(buckets, "500k1m"), [1]);
+  assert.deepEqual(holderChartSeriesIndexesFixture(buckets, "unknown"), [0, 1, 2]);
+});
+
+test("a single selected holder range uses a focused linear balance scale", () => {
+  const seriesByBucket = [[
+    {value:6_900_000},
+    {value:7_000_000},
+    {value:7_100_000},
+  ]];
+  const {panels, holderPanelYAt, holderScaleTicks} = buildHolderChartPanelsFixture(
+    seriesByBucket,
+    {top:24, height:274, detailScale:true},
   );
-  assert.deepEqual(
-    layoutHolderEndLabelsFixture([
-      {key:"500k-1m", y:286},
-      {key:"100k-500k", y:292},
-      {key:"1m", y:296},
-    ], 24, 298, 18).map(item => item.labelY),
-    [262, 280, 298],
+
+  assert.equal(panels.length, 1);
+  assert.equal(panels[0].scale.type, "linear");
+  assert.equal(panels[0].scale.detail, true);
+  assert.ok(panels[0].scale.min > 6_000_000 && panels[0].scale.min < 6_900_000);
+  assert.ok(panels[0].scale.max > 7_100_000 && panels[0].scale.max < 8_000_000);
+  assert.equal(panels[0].scale.zero, panels[0].scale.min);
+  assert.equal(holderScaleTicks(panels[0].scale).length, 5);
+  assert.ok(
+    holderPanelYAt(panels[0], 6_900_000) - holderPanelYAt(panels[0], 7_100_000) > 150,
+    "the selected series should use most of the chart height so its fluctuations stay visible",
   );
+});
+
+test("holder chart uses its full plot width without right-side end labels", () => {
+  const holderRenderer = preview.slice(
+    preview.indexOf("function renderHolderDistributionChart(options = {})"),
+    preview.indexOf("function allocationPointFromSource")
+  );
+
+  assert.match(holderRenderer, /const W = 1000, H = 340, P_L = 74, P_R = 30/);
+  assert.doesNotMatch(holderRenderer, /layoutHolderEndLabels|holder-chart-end-label|holder-chart-end-leader/);
+  assert.doesNotMatch(preview, /\.holder-chart-end-label\{|\.holder-chart-end-leader\{/);
+});
+
+test("holder chart range filter mirrors the All chains dropdown interaction", () => {
+  const holderCard = preview.slice(
+    preview.indexOf('<section class="card holder-chart-card"'),
+    preview.indexOf('<template id="allocation-chart-legacy"')
+  );
+
+  assert.match(holderCard, /id="holder-series-filter" class="dd holder-series-filter"/);
+  assert.match(holderCard, /data-dd="holder-series-filter"[^>]*aria-haspopup="listbox"/);
+  assert.match(holderCard, /data-holder-series="all"[^>]*aria-selected="true"/);
+  assert.match(holderCard, /data-holder-series="gt1m"/);
+  assert.match(holderCard, /data-holder-series="500k1m"/);
+  assert.match(holderCard, /data-holder-series="100k500k"/);
+  assert.match(holderCard, />All ranges<\/span>/);
 });
 
 test("CEX mini-chart coalesces paint and debounces the expensive chart render", () => {
