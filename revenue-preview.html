@@ -1246,7 +1246,7 @@ h1{
           <div class="revenue-section-title-line">
             <div class="panel-title">veDOLO Borrow Fee Rebates</div>
           </div>
-          <div class="panel-sub">Daily Berachain user savings from closed veBorrow discount epochs.</div>
+          <div class="panel-sub">Published Berachain rebate totals, allocated to daily bars as an estimate.</div>
         </div>
         <div class="revenue-section-updated" data-revenue-updated><span class="dot"></span><span>Loading data update…</span></div>
       </div>
@@ -1414,7 +1414,7 @@ h1{
 <script src="dolo-address-labels.js?v=dolo-labels-20260828-watch-audit"></script>
 <script>
 (function(){
-  const DATA_URL = "dolomite_revenue.json?v=revenue-20260810-epoch9-reset";
+  const DATA_URL = "dolomite_revenue.json?v=revenue-20260903-official-rebate-audit";
   const ODOLO_EXERCISES_URL = "exercisers_by_address.json?v=revenue-20260625-audit-status";
   const DOLO_PRICE_URL = "dolo_price.json?v=revenue-20260625-veborrow-sim";
   const VEBORROW_SIMULATION_URL = "veborrow_simulation.json?v=revenue-20260625-current-vedolo-eligibility";
@@ -2743,6 +2743,13 @@ h1{
     return rows.filter(row => row.ts >= sel.from && row.ts <= sel.to);
   }
   function veBorrowRowMaxRebate(row){
+    const epoch = veBorrowEpochForTimestamp(n(row?.ts));
+    const auditedMax = n(epoch?.maxRebateUSD);
+    const periodStart = n(epoch?.periodStartTimestamp);
+    const periodEnd = n(epoch?.periodEndTimestamp);
+    if (auditedMax > 0 && periodStart > 0 && periodEnd > periodStart) {
+      return auditedMax / Math.max(1, Math.round((periodEnd - periodStart) / 86400));
+    }
     const chain = row?.chains?.Berachain || {};
     const fees = n(chain.feesUSD);
     if (fees <= 0) return 0;
@@ -2752,6 +2759,22 @@ h1{
     const expectedProtocolRevenue = fees * protocolReserveFactor;
     const revenueFactor = expectedProtocolRevenue > 0 ? Math.min(1, Math.max(0, grossRevenue / expectedProtocolRevenue)) : 1;
     return fees * rebatePercentage * revenueFactor;
+  }
+  function veBorrowEpochForTimestamp(timestamp){
+    return (veBorrowRebateInfo().epochRebates || []).find(epoch => {
+      const periodStart = n(epoch?.periodStartTimestamp);
+      const periodEnd = n(epoch?.periodEndTimestamp);
+      return periodStart > 0 && periodEnd > periodStart && timestamp >= periodStart && timestamp < periodEnd;
+    }) || null;
+  }
+  function veBorrowSelectedSourceAnomalies(rows){
+    const selectedTimestamps = new Set((rows || []).map(row => n(row?.ts)));
+    return (veBorrowRebateInfo().epochRebates || []).filter(epoch => {
+      if (epoch?.maxRebateAuditStatus !== "source_anomaly") return false;
+      const periodStart = n(epoch?.periodStartTimestamp);
+      const periodEnd = n(epoch?.periodEndTimestamp);
+      return Array.from(selectedTimestamps).some(timestamp => timestamp >= periodStart && timestamp < periodEnd);
+    });
   }
   function veBorrowMaxRebateForRows(rows){
     const selected = rows || [];
@@ -2787,6 +2810,7 @@ h1{
     const selectedSaved = publishedSelected.reduce((sum, row) => sum + n(row.borrowFeeRebateUSD), 0);
     const maxRebate = veBorrowMaxRebateForRows(publishedSelected);
     const utilization = maxRebate > 0 ? selectedSaved / maxRebate : 0;
+    const sourceAnomalies = veBorrowSelectedSourceAnomalies(publishedSelected);
     const latest = veBorrowRebateInfo().latestRebateDate || "";
     const latestDate = latest ? formatRangeDay(Math.floor(Date.parse(latest + "T00:00:00Z") / 1000)) : "-";
     const dayCount = selected.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
@@ -2795,9 +2819,9 @@ h1{
       ? `${dayCount.toLocaleString("en-US")} daily bars · ${pendingCount.toLocaleString("en-US")} pending`
       : `${dayCount.toLocaleString("en-US")} daily bars selected`;
     wrap.innerHTML = `
-      <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${selectedLabel}</small></div>
-      <div class="veborrow-stat"><span>Max rebate</span><b>${maxRebate > 0 ? usdMetric(maxRebate) : "-"}</b><small>eligible markets</small></div>
-      <div class="veborrow-stat"><span>Utilization</span><b>${maxRebate > 0 ? pctFine(utilization) : "-"}</b><small>saved / max rebate</small></div>
+      <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${selectedLabel} · estimated daily allocation</small></div>
+      <div class="veborrow-stat"><span>Max rebate</span><b>${maxRebate > 0 ? usdMetric(maxRebate) : "-"}</b><small>official finalized data</small></div>
+      <div class="veborrow-stat"><span>Utilization</span><b>${maxRebate > 0 && !sourceAnomalies.length ? pctFine(utilization) : "-"}</b><small>${sourceAnomalies.length ? `official source anomaly · ${sourceAnomalies.length} epoch${sourceAnomalies.length === 1 ? "" : "s"}` : "saved / max rebate"}</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>${esc(latestDate)}</b><small>published rebate</small></div>
     `;
   }
@@ -3722,10 +3746,16 @@ h1{
       const pending = veBorrowPendingDataRow(row);
       const value = pending ? 0 : n(row[field]);
       const tooltipMaxRebate = veBorrowRowMaxRebate(row);
+      const rebateEpoch = veBorrowEpochForTimestamp(n(row.ts));
       const isVeBorrowCumulative = veBorrowChartMode === "cumulative";
-      const rebateSourceRow = !pending && row.borrowFeeRebateCalculationMode === "known_epoch_snapshot_reset"
-  ? `<div class="tt-row"><span>Source</span><b>Published epoch snapshot reset</b></div>`
-  : "";
+      const rebateSourceRow = !pending && rebateEpoch?.maxRebateAuditStatus === "source_anomaly"
+        ? `<div class="tt-row"><span>Source check</span><b class="tt-note">Official source anomaly</b></div>`
+        : !pending && row.borrowFeeRebateCalculationMode === "known_epoch_snapshot_reset"
+          ? `<div class="tt-row"><span>Source</span><b>Published epoch snapshot reset</b></div>`
+          : "";
+      const allocationSourceRow = pending
+        ? ""
+        : `<div class="tt-row"><span>Daily value</span><b>Estimated daily allocation</b></div>`;
       const x = centerAt(nearestIndex);
       const y = pending ? yAt(0) - 12 : yAt(value);
       bars.forEach((bar, index) => {
@@ -3736,27 +3766,29 @@ h1{
       const dailyRows = pending
         ? `
           <div class="tt-row active"><span>Borrow interest</span><b>${usdFull(row.chains?.Berachain?.feesUSD ?? row.feesUSD)}</b></div>
-          <div class="tt-row"><span>Max rebate</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
+          <div class="tt-row"><span>Est. daily max</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
           <div class="tt-row"><span>Users saved</span><b>Pending</b></div>
           <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)} published so far</b></div>
         `
         : `
           <div class="tt-row active"><span>Borrow interest</span><b>${usdFull(row.chains?.Berachain?.feesUSD ?? row.feesUSD)}</b></div>
-          <div class="tt-row"><span>Max rebate</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
+          <div class="tt-row"><span>Est. daily max</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
           <div class="tt-row"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
           <div class="tt-row"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
+          ${allocationSourceRow}
           ${rebateSourceRow}
         `;
       const cumulativeRows = pending
         ? `
           <div class="tt-row active"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)} published so far</b></div>
-          <div class="tt-row"><span>Max rebate</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
+          <div class="tt-row"><span>Est. daily max</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
           <div class="tt-row"><span>Users saved</span><b>Pending</b></div>
         `
         : `
           <div class="tt-row active"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>
           <div class="tt-row"><span>Users saved</span><b>${usdFull(row.borrowFeeRebateUSD)}</b></div>
-          <div class="tt-row"><span>Max rebate</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
+          <div class="tt-row"><span>Est. daily max</span><b>${tooltipMaxRebate > 0 ? usdMetric(tooltipMaxRebate) : "-"}</b></div>
+          ${allocationSourceRow}
           ${rebateSourceRow}
         `;
       const tooltipRows = isVeBorrowCumulative ? cumulativeRows : dailyRows;

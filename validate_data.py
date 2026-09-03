@@ -1153,6 +1153,14 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
         if not isinstance(rows, list):
             return False
 
+        positive_rows = [row for row in rows if isinstance(row, dict) and _safe_number(row.get("rebateUSD")) > 0]
+        authoritative_epoch = chain.get("authoritativePublishedEpoch")
+        if positive_rows and (
+            not _finite_json_integer_number(authoritative_epoch)
+            or authoritative_epoch <= 0
+        ):
+            return False
+
         for row in rows:
             if not isinstance(row, dict):
                 return False
@@ -1164,7 +1172,12 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
                 calculation_mode = ""
             if (
                 not isinstance(calculation_mode, str)
-                or calculation_mode not in {"", "cumulative_delta", "known_epoch_snapshot_reset"}
+                or calculation_mode not in {
+                    "",
+                    "cumulative_delta",
+                    "known_epoch_snapshot_reset",
+                    "same_epoch_snapshot_replacement",
+                }
             ):
                 return False
             if calculation_mode == "known_epoch_snapshot_reset":
@@ -1187,22 +1200,57 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
                     return False
             if rebate_usd <= 0:
                 continue
+            epoch = row.get("epoch")
+            if (
+                not _finite_json_integer_number(epoch)
+                or epoch <= 0
+                or epoch > authoritative_epoch
+            ):
+                return False
             market_ids = row.get("maxRebateEligibleMarketIds")
             max_rebate_usd = row.get("maxRebateUSD")
             max_rebate_market_count = row.get("maxRebateMarketCount")
             max_rebate_day_count = row.get("maxRebateDayCount")
+            claim_start = row.get("claimStartTimestamp")
+            claim_end = row.get("claimEndTimestamp")
+            claim_start_block = row.get("claimStartBlockNumber")
+            claim_end_block = row.get("claimEndBlockNumber")
+            period_seconds = row.get("maxRebatePeriodSeconds")
+            coverage_status = row.get("maxRebateCoverageStatus")
+            audit_status = row.get("maxRebateAuditStatus")
             if (
                 not _finite_real_json_number(max_rebate_usd)
                 or max_rebate_usd <= 0
-                or row.get("maxRebateMethod") != "eligible_market_daily_current_index"
-                or row.get("maxRebateSource") != "onchain-current-index-audit"
+                or row.get("maxRebateMethod") != "official_finalized_borrow_interest_per_market"
+                or row.get("maxRebateSource") != "dolomite-liquidity-mining-data"
                 or not isinstance(market_ids, list)
                 or not market_ids
+                or any(not isinstance(market_id, str) or not market_id.isdigit() for market_id in market_ids)
                 or not _finite_json_integer_number(max_rebate_market_count)
                 or max_rebate_market_count != len(market_ids)
                 or not _finite_json_integer_number(max_rebate_day_count)
                 or max_rebate_day_count <= 0
+                or not _finite_json_integer_number(claim_start)
+                or not _finite_json_integer_number(claim_end)
+                or claim_end <= claim_start
+                or not _finite_json_integer_number(claim_start_block)
+                or not _finite_json_integer_number(claim_end_block)
+                or claim_end_block < claim_start_block
+                or not _finite_json_integer_number(period_seconds)
+                or period_seconds != claim_end - claim_start
+                or coverage_status not in {"matched", "mismatch"}
+                or not isinstance(row.get("maxRebatePublishedOnlyMarketIds"), list)
+                or not isinstance(row.get("maxRebateOfficialOnlyMarketIds"), list)
             ):
+                return False
+            anomaly_limit = max_rebate_usd * 1.05 + 0.01
+            if rebate_usd > anomaly_limit:
+                if (
+                    audit_status != "source_anomaly"
+                    or row.get("maxRebateAuditReason") != "published_rebate_exceeds_official_max"
+                ):
+                    return False
+            elif audit_status != "verified" or row.get("maxRebateAuditReason"):
                 return False
     return True
 
