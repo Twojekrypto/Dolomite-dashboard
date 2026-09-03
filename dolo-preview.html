@@ -237,6 +237,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   color:var(--fg-2)
 }
 .holder-chart-fixed-divider{width:1px;height:14px;background:var(--line-2);flex:0 0 1px}
+.holder-series-filter .dd-btn{min-width:154px}
+.holder-series-filter .dd-panel{min-width:190px;max-width:220px}
+.holder-series-swatch{
+  width:18px;height:18px;border-radius:50%;flex:0 0 18px;display:grid;place-items:center;
+  background:var(--bg-4);border:1px solid var(--line-2)
+}
+.holder-series-swatch::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--series-color,var(--gold));box-shadow:0 0 8px rgba(201,162,39,.28)}
+.holder-series-filter .dd-opt.active .holder-series-swatch{border-color:var(--gold-line)}
 .holder-chart-toggle.is-active{
   border-color:rgba(201,162,39,.24);background:linear-gradient(180deg,rgba(255,255,255,.062),rgba(201,162,39,.072));color:var(--fg-1);
   box-shadow:inset 0 0 0 1px rgba(201,162,39,.16),0 7px 16px rgba(0,0,0,.12),0 0 18px rgba(201,162,39,.035)
@@ -319,11 +327,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   cursor:default;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
 }
 .holder-chart-scale-note::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--gold);opacity:.7}
-.holder-chart-end-leader{fill:none;stroke-width:1;stroke-linecap:round;opacity:.52;pointer-events:none}
-.holder-chart-end-label{
-  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:-.15px;dominant-baseline:middle;
-  paint-order:stroke;stroke:var(--bg-2);stroke-width:3px;stroke-linejoin:round;pointer-events:none
-}
 .holder-chart-area{fill:url(#holderChartAreaGrad);opacity:.58;pointer-events:none}
 .holder-chart-series-line{
   fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
@@ -999,7 +1002,6 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-chart-wrap{padding:18px 16px 14px}
   .holder-chart-svg{height:280px}
   .holder-chart-scale-note{top:7px;right:16px}
-  .holder-chart-end-leader,.holder-chart-end-label{display:none}
   .holder-legend-head{display:none}
   .holder-distribution-legend .holder-legend-head{display:none}
   .holder-legend-row{grid-template-columns:1fr;gap:11px;padding:13px 14px}
@@ -1024,9 +1026,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   .holder-distribution-legend .holder-details-btn{margin:10px 0 13px}
   .holder-brush-wrap{padding:4px 16px 16px}
   .holder-brush-overlay{left:16px;right:16px}
-  .holder-chart-controls{width:auto;display:flex;gap:8px}
+  .holder-chart-controls{width:100%;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
   .holder-chart-fixed-scope{max-width:100%}
   .holder-chart-fixed-label{min-width:0;padding:0}
+  .holder-series-filter{margin-left:auto}
+  .holder-series-filter .dd-panel{left:auto;right:0}
   .holder-chart-toggle{width:100%;justify-content:center;min-width:0}
   .holder-chart-source{width:100%;justify-content:center;gap:7px;min-height:28px;padding:0;font-size:9px;flex-wrap:wrap}
   .holder-chart-source::before{margin-right:0}
@@ -1754,6 +1758,22 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
             <span class="holder-chart-fixed-divider" aria-hidden="true"></span>
             <span class="holder-chart-fixed-label">Balance</span>
           </div>
+          <div id="holder-series-filter" class="dd holder-series-filter">
+            <button class="dd-btn" id="holder-series-filter-btn" type="button" data-dd="holder-series-filter" aria-haspopup="listbox" aria-expanded="false">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18l5-6 4 3 7-9"/><path d="M4 20h16"/></svg>
+              <span class="lbl">All ranges</span>
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dd-panel" role="listbox" aria-label="Holder range">
+              <div class="dd-panel-head">Holder range</div>
+              <div class="dd-list">
+                <div class="dd-opt active" data-holder-series="all" role="option" aria-selected="true"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="holder-series-swatch" style="--series-color:var(--gold)" aria-hidden="true"></span><span class="dd-opt-name">All ranges</span></div>
+                <div class="dd-opt" data-holder-series="gt1m" role="option" aria-selected="false"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="holder-series-swatch" style="--series-color:#e4c15a" aria-hidden="true"></span><span class="dd-opt-name">1M+</span></div>
+                <div class="dd-opt" data-holder-series="500k1m" role="option" aria-selected="false"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="holder-series-swatch" style="--series-color:#8aa37b" aria-hidden="true"></span><span class="dd-opt-name">500K–1M</span></div>
+                <div class="dd-opt" data-holder-series="100k500k" role="option" aria-selected="false"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="holder-series-swatch" style="--series-color:#9ab7c2" aria-hidden="true"></span><span class="dd-opt-name">100K–500K</span></div>
+              </div>
+            </div>
+          </div>
         </div>
         <label class="holder-chart-toggle" for="holder-include-vedolo" data-tooltip="Add DOLO principal beneficially owned through veDOLO positions, including expired positions that are ready to claim.">
           <input id="holder-include-vedolo" type="checkbox">
@@ -1771,7 +1791,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
     </div>
     <div class="holder-chart-wrap" id="holderChartWrap">
       <span class="holder-chart-scale-note" id="holderChartScaleNote" data-tooltip="A zero-anchored logarithmic balance scale keeps every holder range readable while preserving exact DOLO values." aria-label="Zero-anchored logarithmic balance scale">Log scale</span>
-      <svg class="holder-chart-svg" id="holderChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="DOLO holder distribution over time chart with a logarithmic balance scale">
+      <svg class="holder-chart-svg" id="holderChartSvg" viewBox="0 0 1000 340" preserveAspectRatio="none" aria-label="DOLO holder distribution over time chart">
         <defs>
           <linearGradient id="holderChartAreaGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#c9a227" stop-opacity=".18"/>
@@ -2140,6 +2160,7 @@ const HOLDER_BALANCE_CHANGE_PERIODS = [
 const HOLDER_DEFAULT_WINDOW_DAYS = 30;
 const FRESH_HOLDER_MIN_BALANCE = 10_000;
 let holderDistributionActiveKey = "";
+let holderChartSeriesKey = "all";
 const holderDistributionMetric = "balance";
 let holderWalletPanelKey = "";
 const holderDetailsSearch = new Map();
@@ -2792,9 +2813,20 @@ function holderMetricValue(point, bucketIndex, baselinePoint){
   if(baseline <= 0) return null;
   return (current / baseline - 1) * 100;
 }
-function holderMetricScale(values){
+function holderMetricScale(values, options){
+  options = options || {};
   if(holderDistributionMetric === "balance"){
-    const maxValue = Math.max(0, ...values.filter(Number.isFinite));
+    const finiteValues = values.filter(Number.isFinite).map(value => Math.max(0, value));
+    if(options.detailScale && finiteValues.length){
+      const observedMin = Math.min(...finiteValues);
+      const observedMax = Math.max(...finiteValues);
+      const observedSpan = observedMax - observedMin;
+      const padding = Math.max(observedSpan * 0.16, observedMax * 0.002, 1);
+      const min = Math.max(0, observedMin - padding);
+      const max = observedMax + padding;
+      return {type:"linear", min, max, zero:min, detail:true, label:value => fmtNum(value)};
+    }
+    const maxValue = Math.max(0, ...finiteValues);
     const constant = 1_000_000;
     const max = Math.max(constant * 10, niceHolderChartMax(maxValue * 1.08));
     return {type:"log", min:0, max, zero:0, constant, label:value => fmtNum(value)};
@@ -2832,8 +2864,12 @@ function buildHolderChartPanels(seriesByBucket, geometry){
     bucketIndexes:allBucketIndexes,
     top,
     height,
-    scale:holderMetricScale(values),
+    scale:holderMetricScale(values, {detailScale:geometry.detailScale === true}),
   }];
+}
+function holderChartSeriesIndexes(bucketDefs, selectedKey){
+  const selectedIndex = bucketDefs.findIndex(bucket => bucket.key === selectedKey);
+  return selectedIndex >= 0 ? [selectedIndex] : bucketDefs.map((_, index) => index);
 }
 function holderPanelYAt(panel, value){
   if(panel.scale.type === "log"){
@@ -2845,17 +2881,6 @@ function holderPanelYAt(panel, value){
   const range = Math.max(1, panel.scale.max - panel.scale.min);
   const ratio = Math.max(0, Math.min(1, (value - panel.scale.min) / range));
   return panel.top + (1 - ratio) * panel.height;
-}
-function layoutHolderEndLabels(items, top, bottom, minGap = 18){
-  const labels = items
-    .map(item => ({...item, labelY:Math.max(top, Math.min(bottom, item.y))}))
-    .sort((a,b)=>a.y-b.y);
-  labels.forEach((item, index) => {
-    if(index) item.labelY = Math.max(item.labelY, labels[index - 1].labelY + minGap);
-  });
-  const overflow = Math.max(0, (labels[labels.length - 1]?.labelY || bottom) - bottom);
-  if(overflow) labels.forEach(item => { item.labelY -= overflow; });
-  return labels;
 }
 function holderMetricPath(series, xAt, yAt){
   let started = false;
@@ -3087,7 +3112,6 @@ function renderHolderDistributionChart(options = {}){
     renderHolderBrush(fullModel);
   }
   const model = visibleHolderHistory(fullModel);
-  window.__doloHolderDistribution = {...fullModel, visiblePoints:model.points, brush:{...holderBrushSel}};
   const bucketDefs = activeHolderBuckets();
   if(holderDistributionActiveKey && !bucketDefs.some(bucket => bucket.key === holderDistributionActiveKey)){
     holderDistributionActiveKey = "";
@@ -3101,18 +3125,35 @@ function renderHolderDistributionChart(options = {}){
     renderHolderDistributionChart({skipBrush:true});
   }
   const baselinePoint = model.points[0];
-  const seriesByBucket = bucketDefs.map((bucket, bucketIndex) => model.points.map(point => ({
+  const chartBucketIndexes = holderChartSeriesIndexes(bucketDefs, holderChartSeriesKey);
+  const chartBucketDefs = chartBucketIndexes.map(bucketIndex => bucketDefs[bucketIndex]);
+  const seriesByBucket = chartBucketIndexes.map(bucketIndex => model.points.map(point => ({
     ts:point.ts,
     value:holderMetricValue(point, bucketIndex, baselinePoint),
     total:safeHolderNum(point.buckets[bucketIndex]?.total),
   })));
-  const compactChart = window.matchMedia?.("(max-width:640px)")?.matches === true;
-  const W = 1000, H = 340, P_L = 74, P_R = compactChart ? 30 : 176, P_T = 24, P_B = 42;
+  const W = 1000, H = 340, P_L = 74, P_R = 30, P_T = 24, P_B = 42;
   const chartW = W - P_L - P_R;
   const chartH = H - P_T - P_B;
-  const chartPanels = buildHolderChartPanels(seriesByBucket, {top:P_T, height:chartH});
+  const chartPanels = buildHolderChartPanels(seriesByBucket, {top:P_T, height:chartH, detailScale:chartBucketDefs.length === 1});
+  window.__doloHolderDistribution = {
+    ...fullModel,
+    visiblePoints:model.points,
+    brush:{...holderBrushSel},
+    chartSeriesKey:holderChartSeriesKey,
+    chartScaleType:chartPanels[0]?.scale?.detail ? "detail" : chartPanels[0]?.scale?.type,
+  };
   const scaleNote = document.getElementById("holderChartScaleNote");
-  if(scaleNote) scaleNote.hidden = chartPanels[0]?.scale?.type !== "log";
+  if(scaleNote){
+    const detailScale = chartPanels[0]?.scale?.detail === true;
+    scaleNote.hidden = false;
+    scaleNote.textContent = detailScale ? "Detail scale" : "Log scale";
+    const scaleDescription = detailScale
+      ? "A focused linear scale adapts to the selected holder range so its balance fluctuations remain visible."
+      : "A zero-anchored logarithmic balance scale keeps every holder range readable while preserving exact DOLO values.";
+    scaleNote.dataset.tooltip = scaleDescription;
+    scaleNote.setAttribute("aria-label", scaleDescription);
+  }
   const panelForBucketIndex = bucketIndex => chartPanels.find(panel => panel.bucketIndexes.includes(bucketIndex)) || chartPanels[0];
   const yAtForBucketIndex = (bucketIndex, value) => holderPanelYAt(panelForBucketIndex(bucketIndex), value);
   const zeroYForBucketIndex = bucketIndex => {
@@ -3141,11 +3182,13 @@ function renderHolderDistributionChart(options = {}){
   if(holderDistributionMetric !== "balance" || model.points.length < 2){
     areaPath.setAttribute("d", "");
   } else {
-    const focusKey = holderDistributionActiveKey || bucketDefs[0].key;
-    const focusedBucketIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === focusKey));
-    const areaSeries = seriesByBucket[focusedBucketIndex];
-    const areaYAt = value => yAtForBucketIndex(focusedBucketIndex, value);
-    const areaZeroY = zeroYForBucketIndex(focusedBucketIndex);
+    const focusKey = chartBucketDefs.some(bucket => bucket.key === holderDistributionActiveKey)
+      ? holderDistributionActiveKey
+      : chartBucketDefs[0].key;
+    const focusedChartIndex = Math.max(0, chartBucketDefs.findIndex(bucket => bucket.key === focusKey));
+    const areaSeries = seriesByBucket[focusedChartIndex];
+    const areaYAt = value => yAtForBucketIndex(focusedChartIndex, value);
+    const areaZeroY = zeroYForBucketIndex(focusedChartIndex);
     const areaLine = holderMetricPath(areaSeries, xAt, areaYAt);
     const area = `${areaLine} L${xAt(areaSeries[areaSeries.length - 1].ts).toFixed(2)} ${areaZeroY.toFixed(2)} L${xAt(areaSeries[0].ts).toFixed(2)} ${areaZeroY.toFixed(2)} Z`;
     areaPath.setAttribute("d", area);
@@ -3161,37 +3204,21 @@ function renderHolderDistributionChart(options = {}){
   axis.innerHTML = axisHtml;
   let linesHtml = "";
   let dotsHtml = "";
-  bucketDefs.forEach((bucket, bucketIndex) => {
-    const series = seriesByBucket[bucketIndex];
-    const seriesYAt = value => yAtForBucketIndex(bucketIndex, value);
+  const restingChartKey = chartBucketDefs.some(bucket => bucket.key === holderDistributionActiveKey)
+    ? holderDistributionActiveKey
+    : chartBucketDefs.length === 1 ? chartBucketDefs[0].key : "";
+  chartBucketDefs.forEach((bucket, chartBucketIndex) => {
+    const series = seriesByBucket[chartBucketIndex];
+    const seriesYAt = value => yAtForBucketIndex(chartBucketIndex, value);
     const path = holderMetricPath(series, xAt, seriesYAt);
-    const active = bucket.key === holderDistributionActiveKey ? " is-active" : "";
-    const muted = holderDistributionActiveKey && bucket.key !== holderDistributionActiveKey ? " is-muted" : "";
+    const active = bucket.key === restingChartKey ? " is-active" : "";
+    const muted = restingChartKey && bucket.key !== restingChartKey ? " is-muted" : "";
     const interactionAttrs = path ? ` role="button" tabindex="0" aria-pressed="${bucket.key === holderDistributionActiveKey}" aria-label="Pin ${bucket.label} DOLO series"` : ` aria-hidden="true" pointer-events="none"`;
     linesHtml += `<path class="holder-chart-series-line${active}${muted}" data-key="${bucket.key}"${interactionAttrs} d="${path}" stroke="${bucket.color}"/>`;
     series.forEach(point => {
       if(Number.isFinite(point.value)) dotsHtml += `<circle class="holder-chart-series-dot" data-key="${bucket.key}" r="3" cx="${xAt(point.ts).toFixed(2)}" cy="${seriesYAt(point.value).toFixed(2)}" fill="${bucket.color}"/>`;
     });
   });
-  if(!compactChart){
-    const endLabels = layoutHolderEndLabels(bucketDefs.map((bucket, bucketIndex) => {
-      const series = seriesByBucket[bucketIndex];
-      const point = [...series].reverse().find(candidate => Number.isFinite(candidate.value));
-      return point ? {
-        key:bucket.key,
-        label:bucket.label,
-        color:bucket.color,
-        value:point.total,
-        x:xAt(point.ts),
-        y:yAtForBucketIndex(bucketIndex, point.value),
-      } : null;
-    }).filter(Boolean), P_T + 8, P_T + chartH - 8, 19);
-    const labelX = W - P_R + 14;
-    endLabels.forEach(item => {
-      linesHtml += `<path class="holder-chart-end-leader" d="M${item.x.toFixed(2)} ${item.y.toFixed(2)} L${(labelX-6).toFixed(2)} ${item.labelY.toFixed(2)}" stroke="${item.color}"/>`;
-      linesHtml += `<text class="holder-chart-end-label" x="${labelX}" y="${item.labelY.toFixed(2)}" fill="${item.color}">${item.label} · ${fmtNum(item.value)}</text>`;
-    });
-  }
   lines.innerHTML = linesHtml;
   dots.innerHTML = dotsHtml;
   lines.querySelectorAll(".holder-chart-series-line[role='button']").forEach(line => {
@@ -3257,9 +3284,10 @@ function renderHolderDistributionChart(options = {}){
   hoverLine.setAttribute("y1", chartPanels[0].top);
   hoverLine.setAttribute("y2", chartPanels[chartPanels.length - 1].top + chartPanels[chartPanels.length - 1].height);
   const paintActive = key => {
+    const visibleKey = chartBucketDefs.some(bucket => bucket.key === key) ? key : "";
     svg.querySelectorAll(".holder-chart-series-line").forEach(lineEl => {
-      lineEl.classList.toggle("is-active", lineEl.dataset.key === key);
-      lineEl.classList.toggle("is-muted", !!key && lineEl.dataset.key !== key);
+      lineEl.classList.toggle("is-active", lineEl.dataset.key === visibleKey);
+      lineEl.classList.toggle("is-muted", !!visibleKey && lineEl.dataset.key !== visibleKey);
     });
     legend.querySelectorAll(".holder-chart-legend-item").forEach(item => {
       item.classList.toggle("is-active", item.dataset.key === key);
@@ -3269,7 +3297,7 @@ function renderHolderDistributionChart(options = {}){
     hoverLine.style.opacity = 0;
     hoverDot.style.opacity = 0;
     tip.style.opacity = 0;
-    paintActive(holderDistributionActiveKey);
+    paintActive(restingChartKey);
   };
   svg.onmousemove = event => {
     if(model.points.length < 2) return;
@@ -3282,7 +3310,7 @@ function renderHolderDistributionChart(options = {}){
       const dist = Math.abs(xAt(point.ts) - px);
       if(dist < best){ best = dist; nearest = point; }
     });
-    const defaultFocusIndex = Math.max(0, bucketDefs.findIndex(bucket => bucket.key === holderDistributionActiveKey));
+    const defaultFocusIndex = Math.max(0, chartBucketDefs.findIndex(bucket => bucket.key === holderDistributionActiveKey));
     const hoveredSeries = seriesByBucket.reduce((closest, series, index) => {
       const point = series.find(candidate => candidate.ts === nearest.ts);
       if(!Number.isFinite(point?.value)) return closest;
@@ -3290,8 +3318,9 @@ function renderHolderDistributionChart(options = {}){
       return !closest || distance < closest.distance ? {index, distance} : closest;
     }, null);
     const focusIndex = hoveredSeries?.index ?? defaultFocusIndex;
-    const focusBucket = bucketDefs[focusIndex] || bucketDefs[defaultFocusIndex] || bucketDefs[0];
-    const focusValue = holderMetricValue(nearest, focusIndex, baselinePoint);
+    const focusBucket = chartBucketDefs[focusIndex] || chartBucketDefs[defaultFocusIndex] || chartBucketDefs[0];
+    const focusBucketIndex = chartBucketIndexes[focusIndex] ?? chartBucketIndexes[defaultFocusIndex] ?? chartBucketIndexes[0];
+    const focusValue = holderMetricValue(nearest, focusBucketIndex, baselinePoint);
     const x = xAt(nearest.ts);
     const y = Number.isFinite(focusValue) ? yAtForBucketIndex(focusIndex, focusValue) : zeroYForBucketIndex(focusIndex);
     paintActive(focusBucket.key);
@@ -3305,11 +3334,12 @@ function renderHolderDistributionChart(options = {}){
     tip.innerHTML = `
       <div class="tt-date">${fmtHolderDate(nearest.ts)}</div>
       <div class="tt-val">${fmtNum(nearest.trackedTotal)} DOLO tracked</div>
-      ${nearest.buckets.map((bucket, i) => {
-        const startTotal = safeHolderNum(baselinePoint?.buckets?.[i]?.total);
+      ${chartBucketIndexes.map(bucketIndex => {
+        const bucket = nearest.buckets[bucketIndex];
+        const startTotal = safeHolderNum(baselinePoint?.buckets?.[bucketIndex]?.total);
         const delta = bucket.total - startTotal;
         const deltaClass = delta >= 0 ? "up" : "down";
-        const relativeChange = holderMetricValue(nearest, i, baselinePoint);
+        const relativeChange = holderMetricValue(nearest, bucketIndex, baselinePoint);
         const changeText = Number.isFinite(relativeChange) ? fmtSignedHolderPct(relativeChange) : "—";
         return `
           <div class="tt-row"><span><i style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${bucket.color};margin-right:6px"></i>${bucket.label}</span><b>${holderDistributionMetric === "changePct" ? `<span class="tt-change ${deltaClass}">${changeText}</span> · ${fmtNum(bucket.total)} DOLO · ${fmtSignedHolder(delta)} DOLO` : `${fmtNum(bucket.total)} DOLO <span class="tt-change ${deltaClass}">${holderBucketDeltaLabel(delta, startTotal)}</span>`}</b></div>
@@ -5927,6 +5957,26 @@ document.querySelector('#dd-flows-types .dd-clear')?.addEventListener("click", e
   state.flowsPage.acc=0;
   state.flowsPage.out=0;
   renderFlows();
+});
+
+document.querySelectorAll('#holder-series-filter [data-holder-series]').forEach(option=>{
+  option.addEventListener("click", event=>{
+    event.stopPropagation();
+    holderChartSeriesKey = option.dataset.holderSeries || "all";
+    holderDistributionActiveKey = holderChartSeriesKey === "all" ? "" : holderChartSeriesKey;
+    document.querySelectorAll('#holder-series-filter [data-holder-series]').forEach(item=>{
+      const active = item === option;
+      item.classList.toggle("active", active);
+      item.setAttribute("aria-selected", String(active));
+    });
+    const button = document.getElementById("holder-series-filter-btn");
+    if(button){
+      button.querySelector(".lbl").textContent = option.querySelector(".dd-opt-name")?.textContent || "All ranges";
+      button.classList.toggle("filtered", holderChartSeriesKey !== "all");
+    }
+    closeDropdownPanelFromOption(option);
+    renderHolderDistributionChart({skipBrush:true});
+  });
 });
 
 document.getElementById("holder-include-vedolo")?.addEventListener("change", e=>{
