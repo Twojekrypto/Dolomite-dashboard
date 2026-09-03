@@ -4,6 +4,7 @@ from decimal import Decimal
 from fetch_veborrow_simulation import (
     DISPLAY_SIMULATION_CHAINS,
     ELIGIBILITY_CHAINS,
+    active_rebate_chains_from_metadata,
     active_rebate_market_ids_by_chain,
     debt_usd_for_token_value,
     encode_get_votes_call,
@@ -27,7 +28,37 @@ class VeBorrowSimulationTest(unittest.TestCase):
 
         self.assertEqual(snapshot["config"]["displaySimulationChains"], DISPLAY_SIMULATION_CHAINS)
         self.assertEqual(snapshot["config"]["simulationChains"], DISPLAY_SIMULATION_CHAINS)
+        self.assertEqual(snapshot["config"]["activeRebateChains"], ["Arbitrum", "Berachain"])
+        self.assertEqual(snapshot["config"]["annualizationPeriods"], 52)
+        self.assertEqual(snapshot["config"]["thresholdBasis"], "official_annualized_max_rebate")
         self.assertTrue(_veborrow_simulation_valid(snapshot))
+
+    def test_active_rebate_chains_follow_current_official_market_metadata(self):
+        metadata = {
+            "currentEpochIndex": 16,
+            "allChainRebateInfo": {
+                "1": None,
+                "42161": {
+                    "startEpoch": 10,
+                    "claimsEnabled": False,
+                    "marketToRebateInfo": {
+                        "0": {"startEpoch": 10, "endEpoch": None},
+                    },
+                },
+                "80094": {
+                    "startEpoch": 1,
+                    "claimsEnabled": False,
+                    "marketToRebateInfo": {
+                        "0": {"startEpoch": 1, "endEpoch": None},
+                    },
+                },
+            },
+        }
+
+        self.assertEqual(
+            active_rebate_chains_from_metadata(metadata),
+            ["Arbitrum", "Berachain"],
+        )
 
     def test_active_rebate_market_ids_only_include_currently_enabled_markets(self):
         market_ids = active_rebate_market_ids_by_chain({
@@ -102,11 +133,11 @@ class VeBorrowSimulationTest(unittest.TestCase):
         wallet = result["wallets"][0]
         chain = result["chains"]["Ethereum"]
         self.assertAlmostEqual(wallet["maxUsersSavedUSD"], 100.0)
-        self.assertAlmostEqual(wallet["currentVeDoloSavedUSD"], 50.0)
-        self.assertAlmostEqual(wallet["eligibilityRatio"], 0.5)
-        self.assertAlmostEqual(wallet["requiredVeDoloForMax"], 25_000.0)
-        self.assertAlmostEqual(chain["currentVeDoloSavedUSD"], 50.0)
-        self.assertAlmostEqual(result["summary"]["currentVeDoloSavedUSD"], 50.0)
+        self.assertAlmostEqual(wallet["currentVeDoloSavedUSD"], 0.961538, places=6)
+        self.assertAlmostEqual(wallet["eligibilityRatio"], 0.00961538, places=8)
+        self.assertAlmostEqual(wallet["requiredVeDoloForMax"], 1_300_000.0)
+        self.assertAlmostEqual(chain["currentVeDoloSavedUSD"], 0.961538, places=6)
+        self.assertAlmostEqual(result["summary"]["currentVeDoloSavedUSD"], 0.961538, places=6)
 
     def test_current_vedolo_requirement_is_shared_across_simulated_networks(self):
         result = simulate_current_vedolo_rebates(
@@ -131,10 +162,10 @@ class VeBorrowSimulationTest(unittest.TestCase):
 
         wallet = result["wallets"][0]
         self.assertAlmostEqual(wallet["maxUsersSavedUSD"], 300.0)
-        self.assertAlmostEqual(wallet["currentVeDoloSavedUSD"], 300.0)
-        self.assertAlmostEqual(wallet["requiredVeDoloForMax"], 75_000.0)
-        self.assertAlmostEqual(result["chains"]["Ethereum"]["currentVeDoloSavedUSD"], 100.0)
-        self.assertAlmostEqual(result["chains"]["Arbitrum"]["currentVeDoloSavedUSD"], 200.0)
+        self.assertAlmostEqual(wallet["currentVeDoloSavedUSD"], 5.769231, places=6)
+        self.assertAlmostEqual(wallet["requiredVeDoloForMax"], 3_900_000.0)
+        self.assertAlmostEqual(result["chains"]["Ethereum"]["currentVeDoloSavedUSD"], 1.923077, places=6)
+        self.assertAlmostEqual(result["chains"]["Arbitrum"]["currentVeDoloSavedUSD"], 3.846154, places=6)
 
     def test_current_vedolo_requirement_includes_active_eligibility_chains(self):
         result = simulate_current_vedolo_rebates(
@@ -163,10 +194,10 @@ class VeBorrowSimulationTest(unittest.TestCase):
         self.assertEqual(set(result["chains"].keys()), {"Ethereum"})
         self.assertAlmostEqual(wallet["maxUsersSavedUSD"], 100.0)
         self.assertAlmostEqual(wallet["eligibilityMaxUsersSavedUSD"], 200.0)
-        self.assertAlmostEqual(wallet["currentVeDoloSavedUSD"], 50.0)
-        self.assertAlmostEqual(wallet["eligibilityRatio"], 0.5)
-        self.assertAlmostEqual(wallet["requiredVeDoloForMax"], 50_000.0)
-        self.assertAlmostEqual(result["chains"]["Ethereum"]["currentVeDoloSavedUSD"], 50.0)
+        self.assertAlmostEqual(wallet["currentVeDoloSavedUSD"], 0.961538, places=6)
+        self.assertAlmostEqual(wallet["eligibilityRatio"], 0.00961538, places=8)
+        self.assertAlmostEqual(wallet["requiredVeDoloForMax"], 2_600_000.0)
+        self.assertAlmostEqual(result["chains"]["Ethereum"]["currentVeDoloSavedUSD"], 0.961538, places=6)
         self.assertAlmostEqual(result["summary"]["maxUsersSavedUSD"], 100.0)
         self.assertAlmostEqual(result["summary"]["eligibilityMaxUsersSavedUSD"], 200.0)
 
@@ -194,8 +225,8 @@ class VeBorrowSimulationTest(unittest.TestCase):
         wallet = result["wallets"][0]
         self.assertAlmostEqual(wallet["eligibilityMaxUsersSavedUSD"], 100.0)
         self.assertAlmostEqual(wallet["maxUsersSavedUSD"], 50.0)
-        self.assertAlmostEqual(wallet["currentVeDoloSavedUSD"], 50.0)
-        self.assertAlmostEqual(wallet["requiredVeDoloForMax"], 25_000.0)
+        self.assertAlmostEqual(wallet["currentVeDoloSavedUSD"], 0.961538, places=6)
+        self.assertAlmostEqual(wallet["requiredVeDoloForMax"], 1_300_000.0)
         self.assertAlmostEqual(result["chains"]["Ethereum"]["maxUsersSavedUSD"], 50.0)
 
     def test_onchain_vote_weight_overrides_snapshot_when_available(self):

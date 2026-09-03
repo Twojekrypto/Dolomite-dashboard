@@ -1212,6 +1212,15 @@ def previous_borrow_fee_rebate_data(previous_output):
         "unsupportedCorrections": json.loads(json.dumps(chain_payload.get("unsupportedCorrections") or [])),
         "fallbackFromGeneratedAt": previous_generated_at,
     }
+    for field in (
+        "authoritativePublishedEpoch",
+        "officialAggregateSource",
+        "officialEpochSourceTemplate",
+        "officialCalculatorSource",
+        "maxRebateAuditGroups",
+    ):
+        if field in chain_payload:
+            fallback_chain[field] = json.loads(json.dumps(chain_payload[field]))
     return {
         "status": "fallback_previous_closed_epochs",
         "source": fallback_chain["source"],
@@ -2113,12 +2122,28 @@ def int_or_none(value):
         return None
 
 
-def normalized_borrow_fee_rebate_metadata(metadata, rebate_data=None):
+def normalized_borrow_fee_rebate_metadata(metadata, rebate_data=None, previous_metadata=None):
     if not isinstance(metadata, dict):
+        if (
+            isinstance(previous_metadata, dict)
+            and borrow_fee_rebate_epoch_total(previous_metadata) > 0
+        ):
+            preserved = json.loads(json.dumps(previous_metadata))
+            rebate_data = rebate_data if isinstance(rebate_data, dict) else {}
+            preserved["dataStatus"] = rebate_data.get("status") or "fallback_previous_closed_epochs"
+            preserved["dataGeneratedAt"] = (
+                rebate_data.get("generatedAt")
+                or preserved.get("dataGeneratedAt")
+            )
+            preserved["metadataStatus"] = "fallback_previous"
+            preserved["metadataFallbackReason"] = "current_metadata_unavailable"
+            return preserved
         return {
             "status": "not_available",
             "netting": "not_netted",
             "source": BORROW_FEE_REBATE_METADATA_URL,
+            "dataStatus": (rebate_data or {}).get("status") if isinstance(rebate_data, dict) else "not_run",
+            "metadataStatus": "missing",
             "chains": {},
         }
 
@@ -2173,6 +2198,7 @@ def normalized_borrow_fee_rebate_metadata(metadata, rebate_data=None):
             "officialAggregateSource",
             "officialEpochSourceTemplate",
             "officialCalculatorSource",
+            "maxRebateAuditGroups",
         ):
             if field in rebate_chain_data:
                 chains[BERACHAIN_CHAIN_NAME][field] = rebate_chain_data[field]
@@ -2191,6 +2217,7 @@ def normalized_borrow_fee_rebate_metadata(metadata, rebate_data=None):
         "source": BORROW_FEE_REBATE_METADATA_URL,
         "docs": BORROW_FEE_REBATE_DOCS_URL,
         "eventSource": FEE_REBATE_EVENT_SOURCE,
+        "metadataStatus": "live",
         "dataStatus": rebate_data.get("status") or "not_run",
         "dataGeneratedAt": rebate_data.get("generatedAt"),
         "veDoloStartTimestamp": int_or_none(metadata.get("veDoloStartTimestamp")),
@@ -2295,7 +2322,8 @@ def metric_totals(revenue_data, fees_data, series):
 
 
 def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_metadata=None,
-                 borrow_fee_rebate_data=None, onchain_revenue_overrides=None, now=None):
+                 borrow_fee_rebate_data=None, onchain_revenue_overrides=None, now=None,
+                 previous_borrow_fee_rebate_metadata=None):
     series = merge_series(revenue_data, fees_data)
     if len(series) < 30:
         raise ValueError("Merged revenue series has too few rows")
@@ -2305,7 +2333,11 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
     if onchain_revenue_overrides is None:
         onchain_revenue_overrides = load_onchain_revenue_overrides()
     series = apply_onchain_revenue_overrides(series, onchain_audit, onchain_revenue_overrides)
-    rebate_metadata = normalized_borrow_fee_rebate_metadata(borrow_fee_rebate_metadata, borrow_fee_rebate_data)
+    rebate_metadata = normalized_borrow_fee_rebate_metadata(
+        borrow_fee_rebate_metadata,
+        borrow_fee_rebate_data,
+        previous_borrow_fee_rebate_metadata,
+    )
     series = apply_borrow_fee_rebates(series, rebate_metadata)
     latest = series[-1]
     generated_at = utc_now_iso()
@@ -2394,6 +2426,7 @@ def main():
             borrow_fee_rebate_metadata=rebate_metadata,
             borrow_fee_rebate_data=rebate_data,
             onchain_revenue_overrides=onchain_revenue_overrides,
+            previous_borrow_fee_rebate_metadata=previous_output.get("borrowFeeRebates"),
         )
         with open(OUTPUT_FILE, "w") as f:
             json.dump(output, f, separators=(",", ":"))
