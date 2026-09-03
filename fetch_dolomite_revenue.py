@@ -40,6 +40,10 @@ ONCHAIN_AUDIT_EXPECTED_TARGET_AFTER_UTC_HOUR = 10
 BASE_URL = "https://api.llama.fi/summary/fees/dolomite"
 BORROW_FEE_REBATE_METADATA_URL = "https://api.dolomite.io/liquidity-mining/ve-dolo-rebate/metadata"
 BORROW_FEE_REBATE_DOCS_URL = "https://docs.dolomite.io/dolo/borrow-fee-rebates"
+BORROW_FEE_REBATE_OFFICIAL_DATA_BASE_URL = "https://raw.githubusercontent.com/dolomite-exchange/liquidity-mining-data/master/finalized/80094"
+BORROW_FEE_REBATE_OFFICIAL_AGGREGATE_URL = f"{BORROW_FEE_REBATE_OFFICIAL_DATA_BASE_URL}/rebate/rebate-aggregated-output.json"
+BORROW_FEE_REBATE_OFFICIAL_EPOCH_URL = f"{BORROW_FEE_REBATE_OFFICIAL_DATA_BASE_URL}/borrow-interest/epoch-{{epoch}}-output.json"
+BORROW_FEE_REBATE_OFFICIAL_CALCULATOR_URL = "https://github.com/dolomite-exchange/liquidity-mining-bot/blob/master/scripts/calculate-borrow-rebate-per-network.ts"
 BERACHAIN_CHAIN_ID = "80094"
 BERACHAIN_CHAIN_NAME = "Berachain"
 ONCHAIN_REVENUE_OVERRIDE_CHAINS = {BERACHAIN_CHAIN_NAME, "Ethereum", "Mantle"}
@@ -64,13 +68,18 @@ KNOWN_FEE_REBATE_SNAPSHOT_RESETS = {
 }
 SECONDS_PER_WEEK = 7 * 24 * 60 * 60
 SECONDS_PER_DAY = 24 * 60 * 60
-BORROW_FEE_REBATE_MAX_REBATE_METHOD = "eligible_market_daily_current_index"
+BORROW_FEE_REBATE_MAX_REBATE_METHOD = "official_finalized_borrow_interest_per_market"
+BORROW_FEE_REBATE_MAX_REBATE_SOURCE = "dolomite-liquidity-mining-data"
 BORROW_FEE_REBATE_PROTOCOL_RESERVE_FACTOR = Decimal("0.20")
+BORROW_FEE_REBATE_REVENUE_MARGIN_OF_ERROR = Decimal("0.05")
+BORROW_FEE_REBATE_ANOMALY_RELATIVE_TOLERANCE = Decimal("0.05")
+BORROW_FEE_REBATE_ANOMALY_ABSOLUTE_TOLERANCE_USD = Decimal("0.01")
 BORROW_FEE_REBATE_USD_SCALE = 1_000_000
 BORROW_FEE_REBATE_CALCULATION_MODES = {
     "",
     "cumulative_delta",
     "known_epoch_snapshot_reset",
+    "same_epoch_snapshot_replacement",
 }
 BORROW_FEE_REBATE_MAX_AUDIT_PUBLIC_DAY_DELAY_SECONDS = 8.0
 LOG_CHUNK_SIZE = 10_000
@@ -103,6 +112,18 @@ ERC20_ABI = [
 ]
 
 FEE_REBATE_ROLLING_CLAIMS_ABI = [
+    {
+        "inputs": [
+            {"internalType": "uint256[]", "name": "_marketIds", "type": "uint256[]"},
+            {"internalType": "bytes32[]", "name": "_merkleRoots", "type": "bytes32[]"},
+            {"internalType": "uint256[]", "name": "_totalAmounts", "type": "uint256[]"},
+            {"internalType": "uint256", "name": "_expectedEpoch", "type": "uint256"},
+        ],
+        "name": "handlerSetMerkleRoots",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
     {
         "inputs": [
             {"internalType": "uint256[]", "name": "_marketIds", "type": "uint256[]"},
@@ -434,7 +455,7 @@ def fee_rebate_transaction_context_from_input(w3, transaction_input):
             return None
         return {
             "expectedEpoch": epoch,
-            "incrementEpoch": bool(args.get("_incrementEpoch")),
+            "incrementEpoch": bool(args.get("_incrementEpoch", True)),
         }
     except Exception:
         return None
@@ -548,11 +569,13 @@ def fetch_borrow_fee_rebate_data(canonical_market_metadata=None):
                 from_block = FEE_REBATE_FIRST_MARKET_ROOT_BLOCK
             to_block = int(w3.eth.block_number)
             logs = get_logs_chunked(w3, FEE_REBATE_ROLLING_CLAIMS_ADDRESS, from_block, to_block, topic)
+            if to_block >= FEE_REBATE_FIRST_MARKET_ROOT_BLOCK and not logs:
+                raise RuntimeError("RPC returned an empty rolling-claims history for a contract with known events")
             logs = sorted(logs, key=lambda item: (int(item["blockNumber"]), int(item["transactionIndex"]), int(item["logIndex"])))
             block_timestamps = {}
             market_cache = {}
             market_totals = {}
-            epoch_rebates = {}
+            epoch_snapshots = {}
             unsupported_corrections = []
             unsupported_correction_hashes = set()
             missing_price_count = 0
@@ -592,17 +615,37 @@ def fetch_borrow_fee_rebate_data(canonical_market_metadata=None):
                 )
                 market_ids = [event["marketId"] for event in decoded_events]
                 duplicate_market_ids = len(market_ids) != len(set(market_ids))
-                unsupported_correction = duplicate_market_ids or (
+                block_number = max(event["blockNumber"] for event in decoded_events)
+                if block_number not in block_timestamps:
+                    block_timestamps[block_number] = int(w3.eth.get_block(block_number)["timestamp"])
+                timestamp = block_timestamps[block_number]
+                epoch = (
+                    transaction_context.get("expectedEpoch")
+                    if transaction_context
+                    else rebate_epoch_for_timestamp(timestamp)
+                )
+                existing_snapshot = epoch_snapshots.get(epoch)
+                is_same_epoch_replacement = bool(
                     reset_result is None
-                    and any(
-                        event["totalRaw"] < int(previous_totals.get(event["marketId"], 0))
-                        for event in decoded_events
-                    )
+                    and existing_snapshot is not None
+                    and transaction_context
+                    and transaction_context.get("incrementEpoch") is False
+                )
+                if reset_result is not None:
+                    baseline_by_market = {event["marketId"]: 0 for event in decoded_events}
+                elif is_same_epoch_replacement:
+                    baseline_by_market = existing_snapshot["baselineRawByMarket"]
+                else:
+                    baseline_by_market = previous_totals
+
+                unsupported_correction = duplicate_market_ids or any(
+                    event["totalRaw"] < int(baseline_by_market.get(event["marketId"], 0))
+                    for event in decoded_events
                 )
                 if unsupported_correction and tx_hash not in unsupported_correction_hashes:
                     unsupported_corrections.append({
                         "transactionHash": tx_hash,
-                        "eventBlock": max(event["blockNumber"] for event in decoded_events),
+                        "eventBlock": block_number,
                         "marketCount": len(decoded_events),
                         "reason": "unsupported_aggregate_correction",
                     })
@@ -613,68 +656,127 @@ def fetch_borrow_fee_rebate_data(canonical_market_metadata=None):
                         market_totals[event["marketId"]] = event["totalRaw"]
                     continue
 
+                period_start, period_end = rebate_epoch_window(epoch)
+                if existing_snapshot is None or reset_result is not None:
+                    snapshot = {
+                        "epoch": epoch,
+                        "periodStartTimestamp": period_start,
+                        "periodEndTimestamp": period_end,
+                        "eventTimestamp": timestamp,
+                        "eventBlock": block_number,
+                        "baselineRawByMarket": {
+                            event["marketId"]: int(baseline_by_market.get(event["marketId"], 0))
+                            for event in decoded_events
+                        },
+                        "totalRawByMarket": {},
+                        "segmentsByMarket": {},
+                        "marketEventById": {},
+                    }
+                    epoch_snapshots[epoch] = snapshot
+                else:
+                    snapshot = existing_snapshot
+                    snapshot["eventTimestamp"] = max(int(snapshot["eventTimestamp"]), timestamp)
+                    snapshot["eventBlock"] = max(int(snapshot["eventBlock"]), block_number)
+
+                if reset_result is not None:
+                    snapshot.update({
+                            "calculationMode": reset_result["calculationMode"],
+                            "sourceLabel": reset_result["sourceLabel"],
+                            "transactionHash": tx_hash,
+                            "resetMarketCount": reset_result["resetMarketCount"],
+                            "aggregateAdjustmentRaw": reset_result["aggregateAdjustmentRaw"],
+                    })
+                elif is_same_epoch_replacement:
+                    snapshot.update({
+                        "calculationMode": "same_epoch_snapshot_replacement",
+                        "sourceLabel": "Same-epoch published snapshot replacement",
+                        "transactionHash": tx_hash,
+                    })
+
                 for event in decoded_events:
                     market_id = event["marketId"]
-                    total_raw = event["totalRaw"]
-                    previous_raw = int(previous_totals.get(market_id, 0))
-                    if reset_result is not None:
-                        effective_raw = reset_result["rebateRawByMarket"][market_id]
-                        calculation_mode = reset_result["calculationMode"]
+                    baseline_raw = int(snapshot["baselineRawByMarket"].get(market_id, previous_totals.get(market_id, 0)))
+                    snapshot["baselineRawByMarket"].setdefault(market_id, baseline_raw)
+                    segments = snapshot["segmentsByMarket"].setdefault(market_id, [])
+                    current_raw = int(snapshot["totalRawByMarket"].get(market_id, baseline_raw))
+                    target_raw = int(event["totalRaw"])
+                    if is_same_epoch_replacement:
+                        target_effective_raw = target_raw - baseline_raw
+                        existing_effective_raw = sum(segment["raw"] for segment in segments)
+                        if target_effective_raw < existing_effective_raw:
+                            remove_raw = existing_effective_raw - target_effective_raw
+                            while remove_raw > 0 and segments:
+                                segment = segments[-1]
+                                if segment["raw"] <= remove_raw:
+                                    remove_raw -= segment["raw"]
+                                    segments.pop()
+                                else:
+                                    segment["raw"] -= remove_raw
+                                    remove_raw = 0
+                        elif target_effective_raw > existing_effective_raw:
+                            segments.append({
+                                "raw": target_effective_raw - existing_effective_raw,
+                                "timestamp": timestamp,
+                                "transactionHash": tx_hash,
+                            })
                     else:
-                        effective_raw = total_raw - previous_raw
-                        calculation_mode = "cumulative_delta"
-                        if effective_raw <= 0:
-                            continue
+                        delta_raw = target_raw - current_raw
+                        if delta_raw > 0:
+                            segments.append({
+                                "raw": delta_raw,
+                                "timestamp": timestamp,
+                                "transactionHash": tx_hash,
+                            })
+                    snapshot["totalRawByMarket"][market_id] = target_raw
+                    snapshot["marketEventById"][market_id] = {
+                        "blockNumber": event["blockNumber"],
+                        "timestamp": timestamp,
+                        "transactionHash": tx_hash,
+                        "previousTotalRaw": int(previous_totals.get(market_id, 0)),
+                        "publishedTotalRaw": event["totalRaw"],
+                    }
+                    market_totals[market_id] = event["totalRaw"]
 
-                    block_number = event["blockNumber"]
-                    if block_number not in block_timestamps:
-                        block_timestamps[block_number] = int(w3.eth.get_block(block_number)["timestamp"])
-                    timestamp = block_timestamps[block_number]
-                    epoch = (
-                        transaction_context.get("expectedEpoch")
-                        if transaction_context
-                        else rebate_epoch_for_timestamp(timestamp)
-                    )
-                    period_start, period_end = rebate_epoch_window(epoch)
+            epoch_rows = []
+            total_rebate_usd = Decimal(0)
+            for epoch, snapshot in sorted(epoch_snapshots.items()):
+                entry_rebate_usd = Decimal(0)
+                market_rows = []
+                for market_id, total_raw in sorted(snapshot["totalRawByMarket"].items()):
+                    baseline_raw = int(snapshot["baselineRawByMarket"].get(market_id, 0))
+                    effective_raw = int(total_raw) - baseline_raw
+                    if effective_raw <= 0:
+                        continue
+                    event_meta = snapshot["marketEventById"][market_id]
                     metadata = get_market_token_metadata(
                         w3,
                         market_id,
                         market_cache,
                         canonical_market_metadata,
                     )
-                    coin_id = f"{BERACHAIN_COIN_CHAIN}:{metadata['token'].lower()}"
-                    prices = fetch_historical_prices(timestamp, [coin_id])
-                    price, price_source = resolve_rebate_token_price(metadata["symbol"], prices.get(coin_id))
                     amount = Decimal(effective_raw) / (Decimal(10) ** int(metadata["decimals"]))
                     rebate_usd = Decimal(0)
-                    if price is None:
-                        missing_price_count += 1
-                    else:
+                    weighted_price_raw = Decimal(0)
+                    priced_raw = 0
+                    price_sources = set()
+                    coin_id = f"{BERACHAIN_COIN_CHAIN}:{metadata['token'].lower()}"
+                    for segment in snapshot["segmentsByMarket"].get(market_id, []):
+                        prices = fetch_historical_prices(segment["timestamp"], [coin_id])
+                        price, price_source = resolve_rebate_token_price(metadata["symbol"], prices.get(coin_id))
+                        if price is None:
+                            missing_price_count += 1
+                            continue
+                        segment_amount = Decimal(segment["raw"]) / (Decimal(10) ** int(metadata["decimals"]))
+                        rebate_usd += segment_amount * price
+                        weighted_price_raw += Decimal(segment["raw"]) * price
+                        priced_raw += segment["raw"]
+                        price_sources.add(price_source)
                         priced_event_count += 1
-                        rebate_usd = amount * price
                         if price_source != "coins-llama":
                             price_fallback_count += 1
-
-                    entry = epoch_rebates.setdefault(epoch, {
-                        "epoch": epoch,
-                        "periodStartTimestamp": period_start,
-                        "periodEndTimestamp": period_end,
-                        "eventTimestamp": timestamp,
-                        "eventBlock": block_number,
-                        "rebateUSD": Decimal(0),
-                        "markets": [],
-                    })
-                    entry["eventTimestamp"] = max(int(entry["eventTimestamp"]), timestamp)
-                    entry["eventBlock"] = max(int(entry["eventBlock"]), block_number)
-                    entry["rebateUSD"] += rebate_usd
-                    if reset_result is not None:
-                        entry.update({
-                            "calculationMode": reset_result["calculationMode"],
-                            "sourceLabel": reset_result["sourceLabel"],
-                            "transactionHash": tx_hash,
-                            "resetMarketCount": reset_result["resetMarketCount"],
-                            "aggregateAdjustmentRaw": reset_result["aggregateAdjustmentRaw"],
-                        })
+                    price = weighted_price_raw / Decimal(priced_raw) if priced_raw > 0 else None
+                    price_source = next(iter(price_sources)) if len(price_sources) == 1 else "mixed" if price_sources else None
+                    entry_rebate_usd += rebate_usd
                     market_row = {
                         "marketId": market_id,
                         "token": metadata["token"],
@@ -685,31 +787,30 @@ def fetch_borrow_fee_rebate_data(canonical_market_metadata=None):
                         "priceUSD": float(price) if price is not None else None,
                         "priceSource": price_source,
                     }
-                    if reset_result is not None:
+                    if snapshot.get("calculationMode") in {
+                        "known_epoch_snapshot_reset",
+                        "same_epoch_snapshot_replacement",
+                    }:
                         market_row.update({
-                            "calculationMode": calculation_mode,
-                            "transactionHash": tx_hash,
-                            "previousTotalRaw": previous_raw,
+                            "calculationMode": snapshot["calculationMode"],
+                            "transactionHash": event_meta["transactionHash"],
+                            "previousTotalRaw": event_meta["previousTotalRaw"],
                             "publishedTotalRaw": total_raw,
                         })
-                    entry["markets"].append(market_row)
+                    market_rows.append(market_row)
 
-                for event in decoded_events:
-                    market_totals[event["marketId"]] = event["totalRaw"]
-
-            epoch_rows = []
-            total_rebate_usd = Decimal(0)
-            for epoch, entry in sorted(epoch_rebates.items()):
-                total_rebate_usd += entry["rebateUSD"]
+                if not market_rows:
+                    continue
+                total_rebate_usd += entry_rebate_usd
                 epoch_row = {
                     "epoch": int(epoch),
-                    "periodStartTimestamp": int(entry["periodStartTimestamp"]),
-                    "periodEndTimestamp": int(entry["periodEndTimestamp"]),
-                    "eventTimestamp": int(entry["eventTimestamp"]),
-                    "eventBlock": int(entry["eventBlock"]),
-                    "rebateUSD": round(float(entry["rebateUSD"]), 6),
-                    "marketCount": len(entry["markets"]),
-                    "markets": entry["markets"],
+                    "periodStartTimestamp": int(snapshot["periodStartTimestamp"]),
+                    "periodEndTimestamp": int(snapshot["periodEndTimestamp"]),
+                    "eventTimestamp": int(snapshot["eventTimestamp"]),
+                    "eventBlock": int(snapshot["eventBlock"]),
+                    "rebateUSD": round(float(entry_rebate_usd), 6),
+                    "marketCount": len(market_rows),
+                    "markets": market_rows,
                 }
                 for key in (
                     "calculationMode",
@@ -718,8 +819,8 @@ def fetch_borrow_fee_rebate_data(canonical_market_metadata=None):
                     "resetMarketCount",
                     "aggregateAdjustmentRaw",
                 ):
-                    if key in entry:
-                        epoch_row[key] = entry[key]
+                    if key in snapshot:
+                        epoch_row[key] = snapshot[key]
                 epoch_rows.append(epoch_row)
 
             chain_status = "partial" if missing_price_count else "ok"
@@ -1177,6 +1278,19 @@ PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS = (
     "maxRebateMarketCount",
     "maxRebateEligibleMarketIds",
     "maxRebateDayCount",
+    "claimStartTimestamp",
+    "claimStartBlockNumber",
+    "claimEndTimestamp",
+    "claimEndBlockNumber",
+    "maxRebatePeriodSeconds",
+    "maxRebateSourceUrl",
+    "maxRebateCalculatorUrl",
+    "marketRevenueFactors",
+    "maxRebateCoverageStatus",
+    "maxRebatePublishedOnlyMarketIds",
+    "maxRebateOfficialOnlyMarketIds",
+    "maxRebateAuditStatus",
+    "maxRebateAuditReason",
     "maxRebatePriceFallbackCount",
     "maxRebatePriceOmissionCount",
     "maxRebateGeneratedAt",
@@ -1344,8 +1458,106 @@ def borrow_fee_rebate_epoch_has_current_max_audit(row):
         and safe_number(row.get("rebateUSD")) > 0
         and safe_number(row.get("maxRebateUSD")) > 0
         and row.get("maxRebateMethod") == BORROW_FEE_REBATE_MAX_REBATE_METHOD
-        and row.get("maxRebateSource") == ONCHAIN_CURRENT_INDEX_SOURCE
+        and row.get("maxRebateSource") == BORROW_FEE_REBATE_MAX_REBATE_SOURCE
+        and int_or_none(row.get("claimStartTimestamp")) is not None
+        and int_or_none(row.get("claimEndTimestamp")) is not None
+        and isinstance(row.get("maxRebateEligibleMarketIds"), list)
+        and row.get("maxRebateAuditStatus") == "verified"
     )
+
+
+def fetch_official_borrow_fee_rebate_artifact(url):
+    response = requests.get(
+        url,
+        timeout=(10, 120),
+        headers={"Accept": "application/json", "User-Agent": "dolomite-dashboard-revenue/1.0"},
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict) or not isinstance(payload.get("metadata"), dict):
+        raise ValueError(f"official borrow fee rebate artifact is invalid: {url}")
+    return payload
+
+
+def official_borrow_fee_rebate_epoch_audit(payload, rebate_percentage):
+    metadata = payload.get("metadata") if isinstance(payload, dict) else None
+    if not isinstance(metadata, dict):
+        raise ValueError("official borrow fee rebate epoch metadata is missing")
+
+    epoch = int_or_none(metadata.get("epoch"))
+    claim_start = int_or_none(metadata.get("claimStartTimestamp"))
+    claim_end = int_or_none(metadata.get("claimEndTimestamp"))
+    claim_start_block = int_or_none(metadata.get("claimStartBlockNumber"))
+    claim_end_block = int_or_none(metadata.get("claimEndBlockNumber"))
+    interest_by_market = metadata.get("marketTotalBorrowInterest")
+    expected_revenue_by_market = metadata.get("marketExpectedTotalRevenue")
+    found_revenue_by_market = metadata.get("marketFoundTotalRevenue")
+    price_by_market = metadata.get("marketPrices")
+    if (
+        epoch is None
+        or epoch <= 0
+        or claim_start is None
+        or claim_end is None
+        or claim_end <= claim_start
+        or claim_start_block is None
+        or claim_end_block is None
+        or not isinstance(interest_by_market, dict)
+        or not isinstance(expected_revenue_by_market, dict)
+        or not isinstance(found_revenue_by_market, dict)
+        or not isinstance(price_by_market, dict)
+    ):
+        raise ValueError(f"official borrow fee rebate epoch {epoch!r} metadata is incomplete")
+
+    market_ids = sorted(interest_by_market, key=lambda value: int(value))
+    max_rebate = Decimal(0)
+    revenue_factors = {}
+    for market_id in market_ids:
+        if any(market_id not in mapping for mapping in (
+            price_by_market,
+            expected_revenue_by_market,
+            found_revenue_by_market,
+        )):
+            raise ValueError(f"official borrow fee rebate epoch {epoch} is missing market {market_id} metadata")
+        interest_raw = decimal_from_value(interest_by_market.get(market_id))
+        price_raw = decimal_from_value(price_by_market.get(market_id))
+        expected_revenue = decimal_from_value(expected_revenue_by_market.get(market_id))
+        found_revenue = decimal_from_value(found_revenue_by_market.get(market_id))
+        if interest_raw < 0 or price_raw <= 0 or expected_revenue < 0 or found_revenue < 0:
+            raise ValueError(f"official borrow fee rebate epoch {epoch} has invalid market {market_id} values")
+        revenue_factor = Decimal(1)
+        if (
+            expected_revenue > 0
+            and found_revenue < expected_revenue * (Decimal(1) - BORROW_FEE_REBATE_REVENUE_MARGIN_OF_ERROR)
+        ):
+            revenue_factor = max(Decimal(0), min(Decimal(1), found_revenue / expected_revenue))
+        market_max_rebate = (
+            interest_raw
+            * price_raw
+            / (Decimal(10) ** 36)
+            * rebate_percentage
+            * revenue_factor
+        )
+        max_rebate += market_max_rebate
+        revenue_factors[str(market_id)] = float(revenue_factor)
+
+    period_seconds = claim_end - claim_start
+    return {
+        "epoch": epoch,
+        "claimStartTimestamp": claim_start,
+        "claimStartBlockNumber": claim_start_block,
+        "claimEndTimestamp": claim_end,
+        "claimEndBlockNumber": claim_end_block,
+        "maxRebatePeriodSeconds": period_seconds,
+        "maxRebateUSD": round(float(max_rebate), 6),
+        "maxRebateMethod": BORROW_FEE_REBATE_MAX_REBATE_METHOD,
+        "maxRebateSource": BORROW_FEE_REBATE_MAX_REBATE_SOURCE,
+        "maxRebateSourceUrl": BORROW_FEE_REBATE_OFFICIAL_EPOCH_URL.format(epoch=epoch),
+        "maxRebateCalculatorUrl": BORROW_FEE_REBATE_OFFICIAL_CALCULATOR_URL,
+        "maxRebateMarketCount": len(market_ids),
+        "maxRebateEligibleMarketIds": [str(market_id) for market_id in market_ids],
+        "maxRebateDayCount": max(1, math.ceil(period_seconds / SECONDS_PER_DAY)),
+        "marketRevenueFactors": revenue_factors,
+    }
 
 
 def abi_output_type(component):
@@ -1523,100 +1735,112 @@ def audit_borrow_fee_rebate_max_rebates(rebate_metadata, rebate_data):
     epoch_rows = chain_payload.get("epochRebates")
     if not isinstance(epoch_rows, list):
         return current
+    try:
+        aggregate = fetch_official_borrow_fee_rebate_artifact(BORROW_FEE_REBATE_OFFICIAL_AGGREGATE_URL)
+        authoritative_epoch = int_or_none(aggregate["metadata"].get("epoch"))
+        if authoritative_epoch is None or authoritative_epoch <= 0:
+            raise ValueError("official aggregate does not contain a positive published epoch")
+    except Exception as exc:
+        print(f"   Borrow fee rebate official aggregate unavailable: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
+        return current
 
-    rows_needing_audit = [
+    retained_rows = [
         row for row in epoch_rows
         if isinstance(row, dict)
-        and safe_number(row.get("rebateUSD")) > 0
-        and not borrow_fee_rebate_epoch_has_current_max_audit(row)
+        and (int_or_none(row.get("epoch")) or 0) <= authoritative_epoch
     ]
-    if not rows_needing_audit:
-        return current
+    if len(retained_rows) != len(epoch_rows):
+        removed_epochs = sorted({
+            int_or_none(row.get("epoch"))
+            for row in epoch_rows
+            if isinstance(row, dict) and (int_or_none(row.get("epoch")) or 0) > authoritative_epoch
+        })
+        print(f"   Removed unpublished/rolled-back borrow fee rebate epoch(s): {removed_epochs}")
+    chain_payload["epochRebates"] = retained_rows
+    chain_payload["authoritativePublishedEpoch"] = authoritative_epoch
+    chain_payload["officialAggregateSource"] = BORROW_FEE_REBATE_OFFICIAL_AGGREGATE_URL
+    chain_payload["officialEpochSourceTemplate"] = BORROW_FEE_REBATE_OFFICIAL_EPOCH_URL
+    chain_payload["officialCalculatorSource"] = BORROW_FEE_REBATE_OFFICIAL_CALCULATOR_URL
 
-    config = REVENUE_AUDIT_CHAIN_CONFIGS["berachain"]
     rebate_percentage = borrow_fee_rebate_percentage_from_metadata(rebate_metadata)
-    try:
-        endpoints = rpc_client.get_endpoints("berachain")
-    except Exception as exc:
-        print(f"   Borrow fee rebate max audit skipped: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
-        return current
-
-    last_error = None
-    for endpoint in endpoints:
+    generated_at = utc_now_iso()
+    for row in retained_rows:
+        epoch = int_or_none(row.get("epoch"))
+        if epoch is None or epoch <= 0 or safe_number(row.get("rebateUSD")) <= 0:
+            continue
         try:
-            print(f"   Auditing borrow fee rebate max values on {rpc_client.safe_host(endpoint)}")
-            w3 = make_revenue_audit_web3(endpoint, config)
-            block_cache = {}
-            token_cache = {
-                metadata["token"]: (metadata["symbol"], metadata["decimals"])
-                for metadata in previous_borrow_fee_rebate_market_metadata(current).values()
-            }
-            public_day_delay = public_berachain_rebate_audit_delay(endpoint)
-            generated_at = utc_now_iso()
-            for row in rows_needing_audit:
-                epoch = int_or_none(row.get("epoch"))
-                period_start = int_or_none(row.get("periodStartTimestamp"))
-                period_end = int_or_none(row.get("periodEndTimestamp"))
-                market_ids = active_rebate_market_ids_for_epoch(rebate_metadata, epoch)
-                if epoch is None or period_start is None or period_end is None or period_end <= period_start or not market_ids:
-                    continue
-
-                day = period_start
-                day_count = 0
-                max_rebate_usd = Decimal(0)
-                price_fallback_count = 0
-                price_omission_count = 0
-                while day < period_end:
-                    day_end = min(day + SECONDS_PER_DAY, period_end)
-                    daily = None
-                    for attempt in range(2):
-                        try:
-                            daily = compute_daily_borrow_fee_max_rebate(
-                                w3,
-                                config,
-                                day,
-                                day_end,
-                                market_ids,
-                                rebate_percentage,
-                                block_cache,
-                                token_cache=token_cache,
-                            )
-                            break
-                        except RuntimeError as exc:
-                            if attempt == 0 and "250/minute request limit" in str(exc):
-                                print("      Public RPC rate limit reached; waiting 70s before retry", flush=True)
-                                time.sleep(70)
-                                continue
-                            raise
-                    max_rebate_usd += daily["maxRebateUSD"]
-                    price_fallback_count += daily["priceFallbackCount"]
-                    price_omission_count += daily["priceOmissionCount"]
-                    day_count += 1
-                    day = day_end
-                    if public_day_delay > 0 and day < period_end:
-                        time.sleep(public_day_delay)
-
-                row["maxRebateUSD"] = round(float(max_rebate_usd), 6)
-                row["maxRebateMethod"] = BORROW_FEE_REBATE_MAX_REBATE_METHOD
-                row["maxRebateSource"] = ONCHAIN_CURRENT_INDEX_SOURCE
-                row["maxRebateMarketCount"] = len(market_ids)
-                row["maxRebateEligibleMarketIds"] = [str(market_id) for market_id in market_ids]
-                row["maxRebateDayCount"] = day_count
-                row["maxRebatePriceFallbackCount"] = price_fallback_count
-                row["maxRebatePriceOmissionCount"] = price_omission_count
-                row["maxRebateGeneratedAt"] = generated_at
-                print(
-                    f"      Epoch {epoch}: audited max rebate ${row['maxRebateUSD']:,.2f} "
-                    f"across {day_count} day(s) and {len(market_ids)} market(s)",
-                    flush=True,
+            if borrow_fee_rebate_epoch_has_current_max_audit(row):
+                audit = {field: row[field] for field in (
+                    "claimStartTimestamp",
+                    "claimStartBlockNumber",
+                    "claimEndTimestamp",
+                    "claimEndBlockNumber",
+                    "maxRebatePeriodSeconds",
+                    "maxRebateUSD",
+                    "maxRebateMethod",
+                    "maxRebateSource",
+                    "maxRebateSourceUrl",
+                    "maxRebateCalculatorUrl",
+                    "maxRebateMarketCount",
+                    "maxRebateEligibleMarketIds",
+                    "maxRebateDayCount",
+                    "marketRevenueFactors",
+                ) if field in row}
+            else:
+                official_epoch = fetch_official_borrow_fee_rebate_artifact(
+                    BORROW_FEE_REBATE_OFFICIAL_EPOCH_URL.format(epoch=epoch)
                 )
-            return current
-        except Exception as exc:
-            last_error = exc
-            print(f"   Borrow fee rebate max audit failed on {rpc_client.safe_host(endpoint)}: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
+                audit = official_borrow_fee_rebate_epoch_audit(official_epoch, rebate_percentage)
+                if audit["epoch"] != epoch:
+                    raise ValueError(f"official epoch file {epoch} reports epoch {audit['epoch']}")
+            row.update(audit)
+            row["maxRebateGeneratedAt"] = generated_at
 
-    if last_error:
-        print(f"   Borrow fee rebate max audit unavailable: {type(last_error).__name__}: {rpc_client.sanitize_error(last_error)}")
+            published_market_ids = {
+                str(item.get("marketId"))
+                for item in row.get("markets", [])
+                if isinstance(item, dict) and int_or_none(item.get("marketId")) is not None
+            }
+            official_market_ids = set(row["maxRebateEligibleMarketIds"])
+            published_only = sorted(published_market_ids - official_market_ids, key=int)
+            official_only = sorted(official_market_ids - published_market_ids, key=int)
+            row["maxRebateCoverageStatus"] = "matched" if not published_only and not official_only else "mismatch"
+            row["maxRebatePublishedOnlyMarketIds"] = published_only
+            row["maxRebateOfficialOnlyMarketIds"] = official_only
+
+            rebate_usd = decimal_from_value(row.get("rebateUSD"))
+            max_rebate_usd = decimal_from_value(row.get("maxRebateUSD"))
+            anomaly_limit = (
+                max_rebate_usd * (Decimal(1) + BORROW_FEE_REBATE_ANOMALY_RELATIVE_TOLERANCE)
+                + BORROW_FEE_REBATE_ANOMALY_ABSOLUTE_TOLERANCE_USD
+            )
+            if rebate_usd > anomaly_limit:
+                row["maxRebateAuditStatus"] = "source_anomaly"
+                row["maxRebateAuditReason"] = "published_rebate_exceeds_official_max"
+            else:
+                row["maxRebateAuditStatus"] = "verified"
+                row.pop("maxRebateAuditReason", None)
+            print(
+                f"      Epoch {epoch}: official max ${row['maxRebateUSD']:,.2f}; "
+                f"published ${safe_number(row.get('rebateUSD')):,.2f}; {row['maxRebateAuditStatus']}",
+                flush=True,
+            )
+        except Exception as exc:
+            for field in PRESERVED_BORROW_FEE_REBATE_EPOCH_FIELDS:
+                if field.startswith("maxRebate") or field.startswith("claim") or field == "marketRevenueFactors":
+                    row.pop(field, None)
+            row["maxRebateAuditStatus"] = "missing"
+            row["maxRebateAuditReason"] = "official_epoch_artifact_unavailable"
+            print(f"   Borrow fee rebate epoch {epoch} official audit unavailable: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
+
+    chain_payload["totalRebateUSD"] = round(sum(
+        safe_number(row.get("rebateUSD")) for row in retained_rows if isinstance(row, dict)
+    ), 6)
+    chain_payload["latestRebateDate"] = day_from_timestamp(max(
+        (int_or_none(row.get("periodEndTimestamp")) or 0)
+        for row in retained_rows
+        if isinstance(row, dict)
+    )) if retained_rows else None
     return current
 
 
@@ -1819,6 +2043,14 @@ def normalized_borrow_fee_rebate_metadata(metadata, rebate_data=None):
             if isinstance(rebate_chain_data.get("unsupportedCorrections"), list)
             else [],
         }
+        for field in (
+            "authoritativePublishedEpoch",
+            "officialAggregateSource",
+            "officialEpochSourceTemplate",
+            "officialCalculatorSource",
+        ):
+            if field in rebate_chain_data:
+                chains[BERACHAIN_CHAIN_NAME][field] = rebate_chain_data[field]
 
     status = "active" if any(chain.get("status") == "active" for chain in chains.values()) else "inactive"
     netting = "not_netted"
@@ -1964,6 +2196,8 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "borrowFeeRebates": BORROW_FEE_REBATE_METADATA_URL,
             "borrowFeeRebateDocs": BORROW_FEE_REBATE_DOCS_URL,
             "borrowFeeRebateDeployments": FEE_REBATE_DEPLOYMENTS_URL,
+            "borrowFeeRebateOfficialAggregate": BORROW_FEE_REBATE_OFFICIAL_AGGREGATE_URL,
+            "borrowFeeRebateOfficialCalculator": BORROW_FEE_REBATE_OFFICIAL_CALCULATOR_URL,
             "doloModuleDocs": "https://docs.dolomite.io/smart-contract-addresses/module-dolo",
         },
         "generatedAt": generated_at,
@@ -1972,7 +2206,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "fees": "Interest paid by borrowers.",
             "revenue": "Net protocol-retained borrower interest after closed-epoch borrow-fee rebates.",
             "grossRevenue": "Protocol-retained borrower interest before borrower rebate programs.",
-            "borrowFeeRebates": "Claimable veDOLO borrow-fee rebates for closed weekly epochs, read from Berachain rolling-claims Merkle root totals and allocated across the earning period by daily borrow-interest share.",
+            "borrowFeeRebates": "Claimable veDOLO borrow-fee rebates for finalized epochs, read from Berachain rolling-claims Merkle root totals. Daily chart bars are an estimated allocation across the scheduled earning period by daily borrow-interest share; epoch totals are authoritative.",
             "supplySideRevenue": "The portion of borrower interest paid to lenders.",
             "formula": "grossRevenue = interestEarned * (1 - earningsRate); revenue = grossRevenue - borrowFeeRebates; supplySideRevenue = dailyFees - grossRevenue",
             "scope": "Dolomite borrow-interest economics from the DeFiLlama adapter, with audited Ethereum and Berachain rows replaced by independent current-index onchain audit rows when available. Gas fees, token emissions, treasury transfers, trading spreads, liquidator earnings and protocol liquidation-rake attribution are excluded.",
@@ -1981,6 +2215,8 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
                 "Ethereum, Berachain, and Mantle use the independent current-index onchain audit for audited daily rows, because it better reflects accrued borrow interest than cached adapter indexes.",
                 "This is protocol-retained borrow interest, not a direct treasury cashflow audit.",
                 "Current unfinalized rebate epochs remain gross until the weekly claim data is published onchain.",
+                "Maximum rebate baselines use Dolomite's finalized per-market borrow-interest artifacts and official revenue-factor formula.",
+                "When published rolling-claims totals exceed the matching official maximum, utilization is suppressed and the epoch is marked as an official source anomaly.",
                 "Current-day values can be revised by DeFiLlama until the adapter window fully settles.",
             ],
         },
