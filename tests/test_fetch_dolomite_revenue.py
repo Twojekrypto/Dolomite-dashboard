@@ -22,6 +22,7 @@ from fetch_dolomite_revenue import (
     fetch_borrow_fee_rebate_data,
     get_market_token_metadata,
     onchain_audit_assurance,
+    normalized_borrow_fee_rebate_metadata,
     preserve_previous_borrow_fee_rebate_data,
     previous_borrow_fee_rebate_market_metadata,
     token_metadata,
@@ -1868,6 +1869,23 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
                 }
             })
         )
+
+        self.assertFalse(
+            _dolomite_revenue_borrow_fee_rebate_max_audits_valid({
+                "borrowFeeRebates": {
+                    "status": "active",
+                    "dataStatus": "missing",
+                    "currentEpochIndex": 16,
+                    "chains": {
+                        "Berachain": {
+                            "status": "active",
+                            "startEpoch": 1,
+                            "epochRebates": [],
+                        },
+                    },
+                }
+            })
+        )
         self.assertFalse(
             _dolomite_revenue_borrow_fee_rebate_max_audits_valid({
                 "borrowFeeRebates": {
@@ -2403,8 +2421,61 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             self.assertIn("DRPC_BERACHAIN_RPC_ZEN", workflow)
             self.assertIn("ALCHEMY_BERACHAIN_RPC_2", workflow)
             self.assertIn("ALCHEMY_BERACHAIN_RPC_3", workflow)
+            self.assertIn("group: dolomite-revenue-writer", workflow)
+            self.assertIn("git pull --rebase -X ours origin master", workflow)
         self.assertIn("python3 fetch_veborrow_simulation.py", update_tvl)
         self.assertIn("veborrow_simulation.json", update_tvl)
+
+    def test_metadata_outage_keeps_previous_normalized_rebate_history(self):
+        previous_rebates = {
+            "status": "active",
+            "netting": "netted_closed_epochs",
+            "source": "official-metadata",
+            "dataStatus": "ok",
+            "dataGeneratedAt": "2026-09-03T11:55:56Z",
+            "veDoloStartTimestamp": 1779321600,
+            "veDoloHoldingFactor": 5,
+            "currentEpochIndex": 16,
+            "currentEpochStartTimestamp": 1788393600,
+            "chains": {
+                "Berachain": {
+                    "chainId": 80094,
+                    "status": "active",
+                    "startEpoch": 1,
+                    "rebatePercentage": 0.1,
+                    "nettingStatus": "netted_closed_epochs",
+                    "totalRebateUSD": 3.5,
+                    "epochRebates": [{
+                        "epoch": 1,
+                        "periodStartTimestamp": 1779321600,
+                        "periodEndTimestamp": 1779926400,
+                        "rebateUSD": 3.5,
+                    }],
+                },
+            },
+        }
+        fallback_data = {
+            "status": "fallback_previous_closed_epochs",
+            "generatedAt": "2026-09-03T11:55:56Z",
+            "chains": {
+                "Berachain": {
+                    "status": "fallback_previous_closed_epochs",
+                    "totalRebateUSD": 3.5,
+                    "epochRebates": previous_rebates["chains"]["Berachain"]["epochRebates"],
+                },
+            },
+        }
+
+        normalized = normalized_borrow_fee_rebate_metadata(
+            None,
+            fallback_data,
+            previous_rebates,
+        )
+
+        self.assertEqual(normalized["status"], "active")
+        self.assertEqual(normalized["dataStatus"], "fallback_previous_closed_epochs")
+        self.assertEqual(normalized["chains"]["Berachain"]["totalRebateUSD"], 3.5)
+        self.assertEqual(len(normalized["chains"]["Berachain"]["epochRebates"]), 1)
 
     def test_revenue_ui_surfaces_per_chain_audit_status(self):
         html = (ROOT / "revenue-preview.html").read_text(encoding="utf-8")
@@ -2477,6 +2548,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("veBorrowRewardStartTimestamp", html)
         self.assertIn("veBorrowPublishedThroughTimestamp", html)
         self.assertIn("veBorrowPendingDataRow", html)
+        self.assertIn("return publishedThrough <= 0 || n(row?.ts) >= publishedThrough;", html)
         self.assertIn("veborrow-chart-bar pending", html)
         self.assertIn("Pending rebate data", html)
         self.assertIn("Striped bars = pending veBorrow rebate data, not zero savings", html)
@@ -2528,7 +2600,10 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("chainInterest * veBorrowRebatePercentageForChain(chain, config)", html)
         self.assertIn('displayChainLabel || "ETH + ARB + BERA"', html)
         self.assertIn("payout estimate", html)
-        self.assertIn("Berachain is active today", html)
+        self.assertIn("rebate configured", html)
+        self.assertIn("annualizationPeriods", html)
+        self.assertIn("VEBORROW_ANNUALIZATION_PERIODS", html)
+        self.assertNotIn("Berachain is active today", html)
         self.assertNotIn("Ethereum + Arbitrum veBorrow Simulation", html)
         self.assertIn("veBorrowSimulationRows", html)
         self.assertIn("requiredLockedDolo", html)
@@ -2555,7 +2630,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("discountUserCount", html)
         self.assertIn("Current discount", html)
         self.assertIn("Daily Berachain wallets using discount", html)
-        self.assertIn("Berachain active discount", html)
+        self.assertIn("Berachain rebate configuration", html)
         self.assertIn('id="veBorrowCurrentWalletsPanel"', html)
         self.assertIn("renderVeBorrowWalletPager", html)
         self.assertIn("goVeBorrowWalletPage", html)
@@ -2655,6 +2730,31 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertLess(borrow_interest_index, user_saved_index)
         self.assertLess(user_saved_index, cumulative_index)
         self.assertNotIn("Net Berachain revenue", html)
+
+    def test_veborrow_threshold_annualizes_any_selected_range(self):
+        script = r'''
+const assert = require("assert");
+const fs = require("fs");
+const source = fs.readFileSync("revenue-preview.html", "utf8");
+const start = source.indexOf("function veBorrowClaimPeriodScale");
+const end = source.indexOf("function veBorrowSelectedBorrowInterestByChain", start);
+if (start < 0 || end < 0) throw new Error("Missing veBorrowClaimPeriodScale source");
+const fn = source.slice(start, end);
+const result = new Function(`
+  const VEBORROW_CLAIM_PERIOD_DAYS = 7;
+  function n(value) { return Number(value) || 0; }
+  ${fn}
+  return [veBorrowClaimPeriodScale(1), veBorrowClaimPeriodScale(7), veBorrowClaimPeriodScale(14)];
+`)();
+assert.deepStrictEqual(result, [7, 1, 0.5]);
+'''
+        subprocess.run(
+            ["node", "-e", script],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
     def test_current_vedolo_wallet_filter_uses_active_chains_and_opens_without_chart_render(self):
         script = r'''

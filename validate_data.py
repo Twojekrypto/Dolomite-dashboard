@@ -1189,6 +1189,17 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
             groups_by_id[group_id] = group
 
         positive_rows = [row for row in rows if isinstance(row, dict) and _safe_number(row.get("rebateUSD")) > 0]
+        current_epoch = rebates.get("currentEpochIndex")
+        start_epoch = chain.get("startEpoch")
+        if (
+            rebates.get("status") == "active"
+            and chain.get("status") == "active"
+            and _finite_json_integer_number(current_epoch)
+            and _finite_json_integer_number(start_epoch)
+            and current_epoch > start_epoch
+            and not positive_rows
+        ):
+            return False
         authoritative_epoch = chain.get("authoritativePublishedEpoch")
         if positive_rows and (
             not _finite_json_integer_number(authoritative_epoch)
@@ -1389,15 +1400,27 @@ def _veborrow_simulation_valid(data):
         return False
     if not {"Ethereum", "Arbitrum", "Berachain"}.issubset(set(config.get("eligibilityChains") or [])):
         return False
-    if config.get("activeRebateChains") != ["Berachain"]:
+    active_market_ids_by_chain = config.get("activeRebateMarketIdsByChain") or {}
+    expected_active_chains = [
+        chain for chain in display_chains
+        if isinstance(active_market_ids_by_chain.get(chain), list)
+        and active_market_ids_by_chain.get(chain)
+    ]
+    if config.get("activeRebateChains") != expected_active_chains:
+        return False
+    if config.get("annualizationPeriods") != 52:
+        return False
+    if config.get("thresholdBasis") != "official_annualized_max_rebate":
+        return False
+    claims_enabled = config.get("claimsEnabledByChain")
+    if not isinstance(claims_enabled, dict):
         return False
     rebate_percentages = config.get("rebatePercentagesByChain") or {}
     if not isinstance(rebate_percentages, dict):
         return False
     if any(_safe_number(rebate_percentages.get(chain)) <= 0 for chain in display_chains):
         return False
-    active_market_ids = ((config.get("activeRebateMarketIdsByChain") or {}).get("Berachain") or [])
-    if not isinstance(active_market_ids, list) or not active_market_ids:
+    if not expected_active_chains:
         return False
     if _safe_number(config.get("rebatePercentage")) <= 0 or _safe_number(config.get("veDoloHoldingFactor")) <= 0:
         return False
@@ -1407,11 +1430,13 @@ def _veborrow_simulation_valid(data):
         return False
     if not all(isinstance(chains.get(chain), dict) and chains[chain].get("status") in {"ok", "error"} for chain in ("Ethereum", "Arbitrum", "Berachain")):
         return False
-    if chains["Berachain"].get("status") != "ok" or chains["Berachain"].get("debtMarketFilter") != "active_rebate_markets":
-        return False
-    if chains["Berachain"].get("eligibleRebateMarketIds") != active_market_ids:
-        return False
-    ok_simulation_chains = [chain for chain in ("Ethereum", "Arbitrum") if chains[chain].get("status") == "ok"]
+    for chain in expected_active_chains:
+        active_market_ids = active_market_ids_by_chain[chain]
+        if chains[chain].get("status") != "ok" or chains[chain].get("debtMarketFilter") != "active_rebate_markets":
+            return False
+        if chains[chain].get("eligibleRebateMarketIds") != active_market_ids:
+            return False
+    ok_simulation_chains = [chain for chain in display_chains if chain not in expected_active_chains and chains[chain].get("status") == "ok"]
     if not ok_simulation_chains:
         return False
     source_counts = totals.get("veDoloVoteSourceCounts") or {}

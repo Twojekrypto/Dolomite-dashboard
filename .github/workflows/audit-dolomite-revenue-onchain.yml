@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: audit-dolomite-revenue-onchain
+  group: dolomite-revenue-writer
   cancel-in-progress: false
 
 jobs:
@@ -81,7 +81,7 @@ jobs:
           git commit -m "Audit Dolomite revenue onchain: $(date -u '+%Y-%m-%d %H:%M UTC')"
           pushed=false
           for i in $(seq 1 12); do
-            if git pull --rebase -X theirs origin master && git push origin HEAD:master; then pushed=true; break; fi
+            if git pull --rebase -X ours origin master && git push origin HEAD:master; then pushed=true; break; fi
             sleep_for=$((5 + i))
             if [ "$sleep_for" -gt 30 ]; then sleep_for=30; fi
             sleep_for=$((sleep_for + (RANDOM % 4)))

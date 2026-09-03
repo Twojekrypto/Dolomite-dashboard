@@ -1332,7 +1332,7 @@ h1{
           </tbody>
         </table>
       </div>
-      <div class="veborrow-sim-note">Simulation only for Ethereum and Arbitrum rebates; Berachain is active today and shown as the baseline. Current veDOLO mode estimates ETH + ARB + BERA savings from today's debt share and on-chain current veDOLO vote weight; official closed epochs use historical per-wallet borrow ledgers and getPastVotes at epoch end.</div>
+      <div class="veborrow-sim-note">Simulation only on Ethereum. Arbitrum and Berachain use the eligible markets configured in current official metadata; claim availability is shown separately. Current veDOLO mode annualizes the selected borrow-interest rate and applies current on-chain veDOLO vote weight. Official closed epochs remain the source of truth for paid rebates.</div>
     </div>
   </section>
 
@@ -1342,7 +1342,7 @@ h1{
         <div class="revenue-section-copy">
           <div class="revenue-section-title-line">
             <div class="panel-title">Current discount</div>
-            <div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">Berachain active discount</div>
+            <div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">Berachain rebate configuration</div>
           </div>
           <div class="panel-sub">Daily Berachain wallets using discount from current debt and veDOLO vote weight.</div>
         </div>
@@ -1435,6 +1435,7 @@ h1{
   const VEBORROW_DISCOUNT_USERS_CHART_KEY = "veBorrowDiscountUsers";
   const MIN_CHARTED_VEBORROW_REBATE_USD = 1;
   const VEBORROW_CLAIM_PERIOD_DAYS = 7;
+  const VEBORROW_ANNUALIZATION_PERIODS = 52;
   const VEBORROW_SIM_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
   const VEBORROW_ELIGIBILITY_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
   const VEBORROW_WALLET_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer"];
@@ -2725,7 +2726,7 @@ h1{
   }
   function veBorrowPendingDataRow(row){
     const publishedThrough = veBorrowPublishedThroughTimestamp();
-    return publishedThrough > 0 && n(row?.ts) >= publishedThrough;
+    return publishedThrough <= 0 || n(row?.ts) >= publishedThrough;
   }
   function veBorrowRows(){
     const start = veBorrowRewardStartTimestamp();
@@ -2845,6 +2846,8 @@ h1{
     const auditIssues = veBorrowSelectedAuditIssues(publishedSelected);
     const utilizationAvailable = maxRebate > 0 && !auditIssues.length;
     const latest = veBorrowRebateInfo().latestRebateDate || "";
+    const rebateDataAvailable = veBorrowPublishedThroughTimestamp() > 0
+      && (veBorrowRebateInfo().epochRebates || []).some(epoch => n(epoch?.rebateUSD) > 0);
     const latestDate = latest ? formatRangeDay(Math.floor(Date.parse(latest + "T00:00:00Z") / 1000)) : "-";
     const dayCount = selected.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
     const pendingCount = selected.filter(row => veBorrowPendingDataRow(row)).length;
@@ -2852,8 +2855,8 @@ h1{
       ? `${dayCount.toLocaleString("en-US")} daily bars · ${pendingCount.toLocaleString("en-US")} pending`
       : `${dayCount.toLocaleString("en-US")} daily bars selected`;
     wrap.innerHTML = `
-      <div class="veborrow-stat primary"><span>Users saved</span><b>${usdFull(selectedSaved)}</b><small>${selectedLabel} · estimated daily allocation</small></div>
-      <div class="veborrow-stat"><span>Max rebate</span><b>${utilizationAvailable ? usdMetric(maxRebate) : "N/A"}</b><small>${auditIssues.length ? "selected range lacks one complete official window" : "official finalized data"}</small></div>
+      <div class="veborrow-stat primary"><span>Users saved</span><b>${rebateDataAvailable ? usdFull(selectedSaved) : "N/A"}</b><small>${rebateDataAvailable ? `${selectedLabel} · estimated daily allocation` : "Published rebate history unavailable"}</small></div>
+      <div class="veborrow-stat"><span>Max rebate</span><b>${utilizationAvailable ? usdMetric(maxRebate) : "N/A"}</b><small>${!rebateDataAvailable ? "Published rebate history unavailable" : auditIssues.length ? "selected range lacks one complete official window" : "official finalized data"}</small></div>
       <div class="veborrow-stat"><span>Utilization</span><b>${utilizationAvailable ? pctFine(utilization) : "N/A"}</b><small>${auditIssues.length ? "Unavailable · select the complete catch-up window" : "saved / max rebate"}</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>${esc(latestDate)}</b><small>published rebate</small></div>
     `;
@@ -2900,12 +2903,17 @@ h1{
     const veDoloHoldingFactor = n(veBorrowSimulationData?.config?.veDoloHoldingFactor) || n(revenueData?.borrowFeeRebates?.veDoloHoldingFactor) || 5;
     const doloPriceUSD = n(veBorrowSimulationData?.config?.doloPriceUSD) || n(doloPriceData?.price);
     const protocolReserveFactor = n(veBorrowSimulationData?.config?.protocolReserveFactor) || 0.20;
+    const annualizationPeriods = n(veBorrowSimulationData?.config?.annualizationPeriods) || VEBORROW_ANNUALIZATION_PERIODS;
     const displayChains = veBorrowDisplaySimulationChains(veBorrowSimulationData?.config || {});
     const eligibilityChains = Array.isArray(veBorrowSimulationData?.config?.eligibilityChains) && veBorrowSimulationData.config.eligibilityChains.length
       ? veBorrowSimulationData.config.eligibilityChains
       : VEBORROW_ELIGIBILITY_CHAINS;
     const rebatePercentagesByChain = veBorrowRebatePercentagesByChain(veBorrowSimulationData?.config || {}, rebatePercentage);
-    return { rebatePercentage, rebatePercentagesByChain, veDoloHoldingFactor, doloPriceUSD, protocolReserveFactor, displayChains, eligibilityChains };
+    const activeRebateChains = Array.isArray(veBorrowSimulationData?.config?.activeRebateChains)
+      ? veBorrowSimulationData.config.activeRebateChains
+      : [];
+    const claimsEnabledByChain = veBorrowSimulationData?.config?.claimsEnabledByChain || {};
+    return { rebatePercentage, rebatePercentagesByChain, veDoloHoldingFactor, doloPriceUSD, protocolReserveFactor, annualizationPeriods, displayChains, eligibilityChains, activeRebateChains, claimsEnabledByChain };
   }
   function veBorrowSimulationRows(selected, dayCount, config){
     const claimPeriodScale = veBorrowClaimPeriodScale(dayCount || selected.length);
@@ -2917,7 +2925,7 @@ h1{
       const eligibilityMaxUsersSavedUSD = borrowInterestUSD * veBorrowRebatePercentageForChain(chain, config);
       const maxUsersSavedUSD = eligibilityMaxUsersSavedUSD * revenueFactor;
       const simNetRevenueUSD = Math.max(grossProtocolRevenueUSD - maxUsersSavedUSD, 0);
-      const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * claimPeriodScale * config.veDoloHoldingFactor;
+      const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * claimPeriodScale * config.annualizationPeriods * config.veDoloHoldingFactor;
       const requiredLockedDolo = config.doloPriceUSD > 0 ? requiredVeDoloValueUSD / config.doloPriceUSD : 0;
       return {
         chain,
@@ -2934,11 +2942,10 @@ h1{
     }).sort((a,b) => n(b.borrowInterestUSD) - n(a.borrowInterestUSD));
   }
   function veBorrowClaimPeriodScale(dayCount){
-    // Official claim bot applies veDoloHoldingFactor to ONE finalized 7-day
-    // claim-period max rebate, not to an arbitrary selected range. Normalize
-    // the threshold to a single claim period using range-average interest.
+    // Normalize the selected total to a weekly run rate. The official claim
+    // bot then annualizes that weekly maximum separately by 52 periods.
     const days = Math.max(1, n(dayCount));
-    return Math.min(1, VEBORROW_CLAIM_PERIOD_DAYS / days);
+    return VEBORROW_CLAIM_PERIOD_DAYS / days;
   }
   function veBorrowSelectedBorrowInterestByChain(selected, chains){
     return (chains || VEBORROW_SIM_CHAINS).reduce((acc, chain) => {
@@ -3014,7 +3021,7 @@ h1{
         }
       });
       if (displayMaxUsersSavedUSD <= 0 || eligibilityMaxUsersSavedUSD <= 0) return;
-      const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * claimPeriodScale * config.veDoloHoldingFactor;
+      const requiredVeDoloValueUSD = eligibilityMaxUsersSavedUSD * claimPeriodScale * config.annualizationPeriods * config.veDoloHoldingFactor;
       const requiredLockedDolo = config.doloPriceUSD > 0 ? requiredVeDoloValueUSD / config.doloPriceUSD : 0;
       const veDoloVoteWeight = n(row.veDoloVoteWeight);
       const veDoloValueUSD = veDoloVoteWeight * config.doloPriceUSD;
@@ -3027,7 +3034,7 @@ h1{
         chains[chain].maxUsersSavedUSD += n(values.maxUsersSavedUSD);
         chains[chain].eligibilityMaxUsersSavedUSD += n(values.eligibilityMaxUsersSavedUSD);
         chains[chain].currentVeDoloSavedUSD += chainSaved;
-        chains[chain].requiredLockedDolo += n(values.eligibilityMaxUsersSavedUSD) * claimPeriodScale * config.veDoloHoldingFactor / Math.max(config.doloPriceUSD, 1e-18);
+        chains[chain].requiredLockedDolo += n(values.eligibilityMaxUsersSavedUSD) * claimPeriodScale * config.annualizationPeriods * config.veDoloHoldingFactor / Math.max(config.doloPriceUSD, 1e-18);
         if (veDoloVoteWeight > 0) chains[chain].borrowersWithVeDoloCount += 1;
         if (chainSaved > 0) {
           chains[chain].discountUserCount += 1;
@@ -3448,7 +3455,7 @@ h1{
     if (meta) {
       meta.textContent = model.length
         ? `${Math.round(latestDaily).toLocaleString("en-US")} Berachain wallets · ${model.length.toLocaleString("en-US")}D`
-        : "Berachain active discount";
+        : "Berachain rebate configuration";
     }
     if (!model.length) {
       svg.onmousemove = null;
@@ -3599,8 +3606,8 @@ h1{
       const rangeText = first && last ? `${formatRangeDay(first)} -> ${formatRangeDay(last)}` : "selected range";
       const eligibilityText = config.eligibilityChains.join(" + ");
       rangeEl.textContent = veBorrowSimulationMode === "current"
-        ? `Simulation + active baseline · ${rangeText} · ${displayChainLabel} · current on-chain veDOLO votes · eligibility includes ${eligibilityText}.`
-        : `Simulation + active baseline · ${rangeText} · ${displayChainLabel} · assumes every borrower reaches max ${rebateLabel} rebate · ${config.veDoloHoldingFactor.toFixed(1).replace(".0", "")}x veDOLO threshold per 7d claim period.`;
+        ? `Current-footprint simulation · ${rangeText} · ${displayChainLabel} · current on-chain veDOLO votes · eligibility includes ${eligibilityText}.`
+        : `Annualized simulation · ${rangeText} · ${displayChainLabel} · assumes every borrower reaches max ${rebateLabel} rebate · ${config.annualizationPeriods} weekly periods · ${config.veDoloHoldingFactor.toFixed(1).replace(".0", "")}x veDOLO threshold.`;
     }
     if (priceEl) {
       priceEl.textContent = config.doloPriceUSD > 0
@@ -3618,7 +3625,7 @@ h1{
       } else {
         cardsEl.innerHTML = `
           <div class="veborrow-sim-card primary"><span>Max users saved</span><b>${usdFull(totals.maxUsersSavedUSD)}</b><small>after protocol revenue factor</small></div>
-          <div class="veborrow-sim-card"><span>Required locked DOLO</span><b>${config.doloPriceUSD > 0 ? tokenCompact(totals.requiredLockedDolo, " DOLO") : "-"}</b><small>${rebateLabel} · per 7d claim period</small></div>
+          <div class="veborrow-sim-card"><span>Required locked DOLO</span><b>${config.doloPriceUSD > 0 ? tokenCompact(totals.requiredLockedDolo, " DOLO") : "-"}</b><small>${rebateLabel} · annualized threshold</small></div>
           <div class="veborrow-sim-card"><span>Borrow interest</span><b>${usdFull(totals.borrowInterestUSD)}</b><small>${dayCount.toLocaleString("en-US")} selected daily bars</small></div>
           <div class="veborrow-sim-card"><span>Sim net revenue</span><b>${usdFull(totals.simNetRevenueUSD)}</b><small>after max user savings</small></div>
         `;
@@ -3644,14 +3651,18 @@ h1{
       const badge = icon
         ? `<img src="${icon}" alt="" onerror="this.parentElement.classList.add('fallback');this.parentElement.textContent='${abbr}';">`
         : abbr;
-      const chainSub = row.chain === "Berachain" ? `${abbr} · active today` : `${abbr} · simulation-only`;
+      const rebateConfigured = config.activeRebateChains.includes(row.chain);
+      const programStatus = rebateConfigured
+        ? (config.claimsEnabledByChain[row.chain] ? "claims enabled" : "rebate configured")
+        : "simulation-only";
+      const chainSub = `${abbr} · ${programStatus}`;
       if (veBorrowSimulationMode === "current") {
         return `<tr>
           <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${esc(chainSub)}</div></div></div></td>
           <td><div class="num-main">${usdFull(row.borrowInterestUSD)}</div><div class="num-sub">${n(row.borrowerCount).toLocaleString("en-US")} current borrowers</div></td>
           <td><div class="num-main">${usdFull(row.currentVeDoloSavedUSD)}</div><div class="num-sub">${n(row.borrowersWithVeDoloCount).toLocaleString("en-US")} borrowers with veDOLO</div></td>
           <td><div class="num-main">${usdFull(row.maxUsersSavedUSD)}</div><div class="num-sub">after revenue factor</div></td>
-          <td><div class="num-main">${pct(row.coverageRatio)}</div><div class="num-sub">${config.doloPriceUSD > 0 ? tokenCompact(row.requiredLockedDolo, " veDOLO") : "price unavailable"} 7d claim threshold</div></td>
+          <td><div class="num-main">${pct(row.coverageRatio)}</div><div class="num-sub">${config.doloPriceUSD > 0 ? tokenCompact(row.requiredLockedDolo, " veDOLO") : "price unavailable"} annualized threshold</div></td>
         </tr>`;
       }
       return `<tr>

@@ -27,6 +27,7 @@ OUTPUT_FILE = "veborrow_simulation.json"
 BERACHAIN_VEDOLO_CONTRACT = "0xCB86B75EE6133d179a12D550b09FB3cdB1e141D4"
 GET_VOTES_SELECTOR = "0x9ab24eb0"
 PROTOCOL_RESERVE_FACTOR = Decimal("0.20")
+VEBORROW_ANNUALIZATION_PERIODS = Decimal("52")
 
 DISPLAY_SIMULATION_CHAINS = ["Ethereum", "Arbitrum", "Berachain"]
 ELIGIBILITY_CHAINS = ["Ethereum", "Arbitrum", "Berachain"]
@@ -360,6 +361,8 @@ def fetch_rebate_metadata():
         "rebatePercentage": rebate_percentage,
         "rebatePercentagesByChain": rebate_percentages_by_chain,
         "activeRebateMarketIdsByChain": active_market_ids_by_chain,
+        "activeRebateChains": active_rebate_chains_from_metadata(metadata),
+        "claimsEnabledByChain": claims_enabled_by_chain_from_metadata(metadata),
         "currentEpochIndex": metadata.get("currentEpochIndex"),
         "currentEpochStartTimestamp": metadata.get("currentEpochStartTimestamp"),
         "source": BORROW_FEE_REBATE_METADATA_URL,
@@ -385,6 +388,25 @@ def active_rebate_market_ids_by_chain(metadata):
             if start_epoch and current_epoch >= start_epoch and (end_epoch is None or current_epoch <= end_epoch):
                 enabled.add(str(market_id))
         output[chain] = enabled
+    return output
+
+
+def active_rebate_chains_from_metadata(metadata):
+    active_market_ids = active_rebate_market_ids_by_chain(metadata)
+    return [
+        chain
+        for chain in DISPLAY_SIMULATION_CHAINS
+        if active_market_ids.get(chain)
+    ]
+
+
+def claims_enabled_by_chain_from_metadata(metadata):
+    all_chain_info = metadata.get("allChainRebateInfo") if isinstance(metadata.get("allChainRebateInfo"), dict) else {}
+    output = {}
+    for chain_id, chain_info in all_chain_info.items():
+        chain = CHAIN_ID_TO_NAME.get(str(chain_id))
+        if chain and isinstance(chain_info, dict):
+            output[chain] = bool(chain_info.get("claimsEnabled"))
     return output
 
 
@@ -554,7 +576,11 @@ def simulate_current_vedolo_rebates(
         if display_max_rebate <= 0:
             continue
 
-        required_ve_dolo_value = eligibility_max_rebate * safe_decimal(ve_dolo_holding_factor, "5")
+        required_ve_dolo_value = (
+            eligibility_max_rebate
+            * VEBORROW_ANNUALIZATION_PERIODS
+            * safe_decimal(ve_dolo_holding_factor, "5")
+        )
         required_ve_dolo = (
             required_ve_dolo_value / safe_decimal(dolo_price_usd)
             if safe_decimal(dolo_price_usd) > 0
@@ -760,22 +786,22 @@ def build_snapshot():
         "generatedAt": generated_at,
         "status": status,
         "methodology": {
-            "summary": "Current borrower debt by wallet is read from Dolomite subgraphs. The revenue UI allocates a selected Ethereum, Arbitrum, and Berachain borrow-interest period by current debt share, then applies the official veBorrow rebate formula against current veDOLO vote weight. Berachain is the active rebate baseline; Ethereum and Arbitrum remain modeled rollout scenarios.",
+            "summary": "Current borrower debt by wallet is read from Dolomite subgraphs. The revenue UI allocates a selected Ethereum, Arbitrum, and Berachain borrow-interest period by current debt share, then applies the official annualized veBorrow rebate threshold against current veDOLO vote weight.",
             "officialFormulaSource": OFFICIAL_REBATE_SCRIPT_URL,
             "limitations": [
-                "Ethereum and Arbitrum are simulation-only until Dolomite enables veBorrow rebates on those networks; Berachain is already active and is shown as the current baseline.",
+                "Official metadata currently configures eligible rebate markets on Arbitrum and Berachain. Ethereum remains a modeled rollout scenario; claimsEnabled is reported separately for every configured chain.",
                 "Active rebate chains filter current debt to the markets enabled in the Dolomite rebate metadata. Simulation-only chains use all current borrow markets until official market eligibility exists.",
                 "Borrower debt is a current snapshot, so historical selected ranges are estimated by current debt share, not historical per-wallet borrow ledgers.",
                 "Current veDOLO vote weight is fetched from Berachain veDOLO.getVotes(address) when RPC succeeds, with vedolo_holders.json used only as a fallback.",
                 "Official closed epochs use historical per-wallet borrow ledgers and getPastVotes at epoch end, so this file is a current-footprint simulation, not a claim generator.",
-                "The official claim bot currently applies veDoloHoldingFactor to the finalized claim-period maximum rebate value; public docs also describe the threshold as annualized, so closed-epoch onchain roots remain the source of truth for actual revenue netting.",
+                "The official claim bot annualizes the weekly maximum rebate by 52 before applying veDoloHoldingFactor. Closed-epoch onchain roots remain the source of truth for actual revenue netting.",
             ],
         },
         "assurance": {
             "calculationClass": "current_snapshot_simulation",
             "displaySimulationChains": DISPLAY_SIMULATION_CHAINS,
             "eligibilityChains": ELIGIBILITY_CHAINS,
-            "activeEligibilityChain": "Berachain",
+            "activeEligibilityChains": rebate_metadata.get("activeRebateChains") or [],
             "veDoloVoteSource": "onchain_getVotes_with_holder_snapshot_fallback",
             "onchainVoteStatus": onchain_vote_metadata.get("status"),
             "onchainVoteRequestedWallets": onchain_vote_metadata.get("requestedWallets"),
@@ -792,7 +818,8 @@ def build_snapshot():
             "simulationChains": DISPLAY_SIMULATION_CHAINS,
             "displaySimulationChains": DISPLAY_SIMULATION_CHAINS,
             "eligibilityChains": ELIGIBILITY_CHAINS,
-            "activeRebateChains": ["Berachain"],
+            "activeRebateChains": rebate_metadata.get("activeRebateChains") or [],
+            "claimsEnabledByChain": rebate_metadata.get("claimsEnabledByChain") or {},
             "rebatePercentage": round_number(rebate_metadata["rebatePercentage"], 8),
             "rebatePercentagesByChain": {
                 chain: round_number(value, 8)
@@ -804,7 +831,8 @@ def build_snapshot():
             },
             "veDoloHoldingFactor": round_number(rebate_metadata["veDoloHoldingFactor"], 8),
             "protocolReserveFactor": round_number(PROTOCOL_RESERVE_FACTOR, 8),
-            "thresholdBasis": "official_claim_period_max_rebate",
+            "annualizationPeriods": int(VEBORROW_ANNUALIZATION_PERIODS),
+            "thresholdBasis": "official_annualized_max_rebate",
             "doloPriceUSD": round_number(dolo_price_usd, 10),
             "doloPriceSource": dolo_price_source,
             "currentEpochIndex": rebate_metadata.get("currentEpochIndex"),
