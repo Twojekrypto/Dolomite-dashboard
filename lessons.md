@@ -490,3 +490,7 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
 **Reguła na przyszłość:** Wallet-level Details musi uzgadniać się z autorytatywnym, zneutralizowanym wynikiem cross-chain użytym przez wykres. Per-chain rozbicie może być proporcjonalnie skorygowane do tej sumy, ale nie może ponownie wprowadzać zdublowanej nogi bridge ani różnić się od agregatu.
 **Reguła na przyszłość:** Jeżeli liquid balance oznacza stan bezpośrednio przed pierwszym blokiem o timestampie punktu, historyczny snapshot Dolomite musi być pobrany z `cutoffBlock - 1`. Zapytanie obu źródeł na różne strony granicznego bloku podwójnie liczy deposit albo pomija withdrawal.
 **Reguła na przyszłość:** Wykres Total exposure nie może cicho zastępować brakującego punktu wallet-only ani usuwać niepełnej daty z serii. Przy braku któregokolwiek wymaganego źródła cały precomputed zakres ma przejść w jawny stan unavailable.
+
+### veBorrow rebate catch-up windows
+
+**Reguła na przyszłość:** Oficjalne artefakty borrow-interest mogą dzielić opóźnioną serię publikacji nierówno: pierwszy plik obejmuje cały backlog, a następne tylko minuty pomiędzy kolejnymi publikacjami. Nie audytuj wtedy utilization osobno dla każdej epoki. Łącz wyłącznie kolejne epoki, których oficjalne claim windows są ciągłe, wspólne granice zgadzają się z pełnym zakresem zaplanowanych epok, a suma opublikowanych rebate'ów nie przekracza sumy oficjalnych maksimów. Dla częściowego wyboru takiej grupy pokazuj `N/A`, zamiast estymować nieopublikowany podział maksimum.

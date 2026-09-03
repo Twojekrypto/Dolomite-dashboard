@@ -591,6 +591,120 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         row["maxRebateAuditStatus"] = "source_anomaly"
         self.assertFalse(revenue_module.borrow_fee_rebate_epoch_has_current_max_audit(row))
 
+    def test_official_catchup_window_is_audited_as_one_contiguous_group(self):
+        week = 7 * DAY_SECONDS
+        rebate_data = {
+            "status": "ok",
+            "chains": {
+                "Berachain": {
+                    "status": "ok",
+                    "latestRebateDate": "1970-01-22",
+                    "totalRebateUSD": 90.0,
+                    "epochRebates": [
+                        {
+                            "epoch": 5,
+                            "periodStartTimestamp": 0,
+                            "periodEndTimestamp": week,
+                            "rebateUSD": 30.0,
+                            "markets": [{"marketId": 0}],
+                        },
+                        {
+                            "epoch": 6,
+                            "periodStartTimestamp": week,
+                            "periodEndTimestamp": 2 * week,
+                            "rebateUSD": 30.0,
+                            "markets": [{"marketId": 0}],
+                        },
+                        {
+                            "epoch": 7,
+                            "periodStartTimestamp": 2 * week,
+                            "periodEndTimestamp": 3 * week,
+                            "rebateUSD": 30.0,
+                            "markets": [{"marketId": 0}],
+                        },
+                    ],
+                }
+            },
+        }
+
+        def official_epoch(epoch, claim_start, claim_end, max_rebate):
+            return {
+                "metadata": {
+                    "epoch": epoch,
+                    "claimStartTimestamp": claim_start,
+                    "claimStartBlockNumber": claim_start,
+                    "claimEndTimestamp": claim_end,
+                    "claimEndBlockNumber": claim_end,
+                    "totalUsers": 1,
+                    "marketTotalBorrowInterest": {"0": str(max_rebate * 10 * 10**18)},
+                    "marketExpectedTotalRevenue": {"0": "100"},
+                    "marketFoundTotalRevenue": {"0": "100"},
+                    "marketPrices": {"0": str(10**18)},
+                },
+                "users": {},
+            }
+
+        artifacts = {
+            5: official_epoch(5, 3_600, 1_700_000, 100),
+            6: official_epoch(6, 1_700_000, 1_710_000, 1),
+            7: official_epoch(7, 1_710_000, 3 * week - 3_600, 2),
+        }
+
+        class FakeResponse:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return self.payload
+
+        def response_for(url, **_kwargs):
+            if "rebate-aggregated-output" in url:
+                return FakeResponse({"metadata": {"epoch": 7}, "users": {}})
+            epoch = int(url.split("epoch-")[1].split("-")[0])
+            return FakeResponse(artifacts[epoch])
+
+        with mock.patch("fetch_dolomite_revenue.requests.get", side_effect=response_for):
+            result = revenue_module.audit_borrow_fee_rebate_max_rebates(
+                borrow_fee_rebate_metadata(),
+                rebate_data,
+            )
+
+        chain = result["chains"]["Berachain"]
+        self.assertEqual(
+            chain.get("maxRebateAuditGroups", []),
+            [{
+                "id": "epochs-5-7",
+                "startEpoch": 5,
+                "endEpoch": 7,
+                "periodStartTimestamp": 0,
+                "periodEndTimestamp": 3 * week,
+                "claimStartTimestamp": 3_600,
+                "claimEndTimestamp": 3 * week - 3_600,
+                "rebateUSD": 90.0,
+                "maxRebateUSD": 103.0,
+                "auditStatus": "verified",
+                "auditReason": "official_catchup_window_grouped",
+            }],
+        )
+        self.assertEqual(
+            [row["maxRebateAuditStatus"] for row in chain["epochRebates"]],
+            ["verified_grouped", "verified_grouped", "verified_grouped"],
+        )
+        self.assertEqual(
+            [row["maxRebateAuditGroupId"] for row in chain["epochRebates"]],
+            ["epochs-5-7", "epochs-5-7", "epochs-5-7"],
+        )
+        self.assertTrue(_dolomite_revenue_borrow_fee_rebate_max_audits_valid({
+            "borrowFeeRebates": result,
+        }))
+        self.assertEqual(
+            revenue_module.reconcile_borrow_fee_rebate_catchup_groups(chain["epochRebates"]),
+            chain["maxRebateAuditGroups"],
+        )
+
     def test_token_metadata_retries_and_fails_closed_without_canonical_values(self):
         token = "0x" + "01" * 20
         w3 = mock.MagicMock()
@@ -2119,8 +2233,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("Published epoch snapshot reset", html)
         self.assertEqual(html.count("${rebateSourceRow}"), 2)
         self.assertIn("Published Berachain rebate totals, allocated to daily bars as an estimate.", html)
-        self.assertIn("veBorrowSelectedSourceAnomalies", html)
-        self.assertIn("official source anomaly", html)
+        self.assertIn("veBorrowSelectedAuditIssues", html)
+        self.assertIn("select the complete catch-up window", html)
         self.assertIn("Estimated daily allocation", html)
 
     def test_current_revenue_file_has_audited_max_rebate_for_every_closed_epoch(self):
@@ -2177,7 +2291,23 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         )
         self.assertEqual(
             [row["maxRebateAuditStatus"] for row in epochs],
-            ["verified", "verified", "verified", "verified", "verified", "source_anomaly", "source_anomaly", "verified", "verified"],
+            ["verified", "verified", "verified", "verified", "verified_grouped", "verified_grouped", "verified_grouped", "verified", "verified"],
+        )
+        self.assertEqual(
+            chain["maxRebateAuditGroups"],
+            [{
+                "id": "epochs-5-7",
+                "startEpoch": 5,
+                "endEpoch": 7,
+                "periodStartTimestamp": 1781740800,
+                "periodEndTimestamp": 1783555200,
+                "claimStartTimestamp": 1781747566,
+                "claimEndTimestamp": 1783555224,
+                "rebateUSD": 532.145678,
+                "maxRebateUSD": 1648.729352,
+                "auditStatus": "verified",
+                "auditReason": "official_catchup_window_grouped",
+            }],
         )
         self.assertEqual(
             [(row["claimStartTimestamp"], row["claimEndTimestamp"]) for row in epochs],
