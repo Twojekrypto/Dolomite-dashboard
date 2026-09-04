@@ -230,6 +230,8 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         self.assertIn('function earlyUnlockLockLabel(value)', self.html)
         self.assertIn('function earlyUnlockLockBucket(value)', self.html)
         self.assertIn('class="early-unlock-value available loss"', self.html)
+        self.assertIn('#early-unlock-table .early-unlock-value.vote{color:var(--fg-1)}', self.html)
+        self.assertIn('#early-unlock-table .early-unlock-value.available{color:var(--down)}', self.html)
         self.assertIn('#early-unlock-table .early-unlock-value.available.loss{color:var(--down)}', self.html)
         self.assertIn('early-unlock-summary-ux-20260826', self.route)
 
