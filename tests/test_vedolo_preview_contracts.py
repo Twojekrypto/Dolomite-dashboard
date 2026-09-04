@@ -285,7 +285,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
             "Unlock Date",
             "Route",
             "Locked DOLO",
-            "veDOLO",
+            "Vote Weight",
             "Exit Value",
             "Penalty",
             "Remaining",
@@ -293,6 +293,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
         ):
             self.assertIn(label, self.html)
         self.assertIn('data-sort="veDolo"', section)
+        self.assertIn('aria-label="Sort by vote weight"', section)
         self.assertIn('data-sort="lockedDolo"', section)
         self.assertIn('data-sort="availableAfterExit"', section)
         self.assertIn('data-sort="avgWeeksUntilUnlock"', section)
