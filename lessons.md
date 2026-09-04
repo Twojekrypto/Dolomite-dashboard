@@ -477,6 +477,13 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
   derive pool currencies from the reconciled `getPoolAndPositionInfo` result.
   Do not require Dexscreener to index an inactive pool merely to finish an
   exact on-chain refresh.
+- **Dolomite custody neutralization must include internal DOLO trades.** An
+  ERC-20 deposit preserves beneficial ownership, but a later Zap/Trade can
+  consume that DOLO entirely inside Dolomite without another wallet transfer.
+  Adjust only the market-flow leaderboards with both DOLO sides from the
+  official subgraph pinned to the transfer-scan block; keep raw holder-balance
+  reconstruction unchanged and fail publication if either trade side is
+  incomplete.
 
 ### veDOLO early-unlock snapshots
 

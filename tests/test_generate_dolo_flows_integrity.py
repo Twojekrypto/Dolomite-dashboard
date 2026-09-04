@@ -534,6 +534,175 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertAlmostEqual(market.get(SHARED_DOLOMITE_MARGIN, 0), 0)
         self.assertAlmostEqual(sum(market.values()), 0)
 
+    def test_dolomite_zap_trade_removes_consumed_dolo_from_market_flow(self):
+        wallet = "0x1e527e81047bbbea5e62a7bd112e45d2e646310e"
+        external_inflow = 176_012.95
+        deposited_and_sold = "187276.018964728141383393"
+        market = {wallet: external_inflow}
+        components = {
+            wallet: {
+                "gross_inflow": external_inflow,
+                "gross_outflow": 0.0,
+                "net_flow": external_inflow,
+                "protocol_deposit": 187_276.01896472814,
+            }
+        }
+        trade_rows = [{
+            "id": "0x" + "a" * 64 + "-119",
+            "takerEffectiveUser": {"id": wallet},
+            "makerEffectiveUser": None,
+            "takerToken": {"id": flows.DOLO_CONTRACT},
+            "makerToken": {"id": "0x" + "2" * 40},
+            "takerTokenDeltaWei": deposited_and_sold,
+            "makerTokenDeltaWei": "2695.470055",
+            "transaction": {
+                "id": "0x" + "a" * 64,
+                "timestamp": "1788289658",
+                "blockNumber": "25637471",
+            },
+        }]
+
+        adjustments = flows.calculate_dolomite_trade_adjustments(
+            trade_rows,
+            cutoff_block=24_446_005,
+        )
+        adjusted_market, adjusted_components = flows.apply_dolomite_trade_adjustments(
+            market,
+            components,
+            adjustments,
+        )
+
+        self.assertAlmostEqual(
+            adjusted_market[wallet],
+            -11_263.06896472814,
+            places=8,
+        )
+        self.assertAlmostEqual(
+            adjusted_components[wallet]["gross_outflow"],
+            187_276.01896472814,
+            places=8,
+        )
+        self.assertAlmostEqual(
+            adjusted_components[wallet]["dolomite_trade_outflow"],
+            187_276.01896472814,
+            places=8,
+        )
+        self.assertEqual(adjustments[wallet]["tx_count"], 1)
+        self.assertEqual(
+            adjustments[wallet]["latest_outflow"]["tx_hash"],
+            "0x" + "a" * 64,
+        )
+
+    def test_dolomite_trade_scan_reads_both_dolo_sides_at_the_pinned_block(self):
+        wallet = "0x1e527e81047bbbea5e62a7bd112e45d2e646310e"
+        peer = "0x" + "3" * 40
+        sale = {
+            "id": "sale-1",
+            "takerEffectiveUser": {"id": wallet},
+            "makerEffectiveUser": None,
+            "takerToken": {"id": flows.DOLO_CONTRACT},
+            "makerToken": {"id": "0x" + "2" * 40},
+            "takerTokenDeltaWei": "187276.018964728141383393",
+            "makerTokenDeltaWei": "2695.470055",
+            "transaction": {
+                "id": "0x" + "a" * 64,
+                "timestamp": "1788289658",
+                "blockNumber": "100",
+            },
+        }
+        purchase = {
+            "id": "purchase-1",
+            "takerEffectiveUser": {"id": peer},
+            "makerEffectiveUser": None,
+            "takerToken": {"id": "0x" + "2" * 40},
+            "makerToken": {"id": flows.DOLO_CONTRACT},
+            "takerTokenDeltaWei": "2500",
+            "makerTokenDeltaWei": "100000",
+            "transaction": {
+                "id": "0x" + "b" * 64,
+                "timestamp": "1788289700",
+                "blockNumber": "100",
+            },
+        }
+
+        def request_fn(_url, json, **_kwargs):
+            query = json["query"]
+            self.assertIn("block: { number: 100 }", query)
+            response = Mock(status_code=200)
+            response.json.return_value = {
+                "data": {
+                    "_meta": {"block": {"number": "100", "timestamp": None}},
+                    "trades": [sale] if "takerToken:" in query else [purchase],
+                }
+            }
+            return response
+
+        rows, metadata = flows.fetch_dolomite_dolo_trades(
+            "bera",
+            100,
+            block_timestamp=1_788_289_700,
+            request_fn=request_fn,
+            subgraphs={"bera": {"name": "Berachain", "url": "https://example.test"}},
+        )
+
+        self.assertEqual({row["id"] for row in rows}, {"sale-1", "purchase-1"})
+        self.assertEqual(metadata["status"], "complete")
+        self.assertEqual(metadata["blockNumber"], 100)
+        self.assertEqual(metadata["blockTimestamp"], 1_788_289_700)
+        self.assertEqual(metadata["eventCount"], 2)
+
+    def test_dolomite_trade_scan_fails_closed_on_malformed_event(self):
+        def request_fn(_url, json, **_kwargs):
+            response = Mock(status_code=200)
+            response.json.return_value = {
+                "data": {
+                    "_meta": {"block": {"number": "100", "timestamp": "200"}},
+                    "trades": [{"id": "", "transaction": None}],
+                }
+            }
+            return response
+
+        rows, metadata = flows.fetch_dolomite_dolo_trades(
+            "bera",
+            100,
+            request_fn=request_fn,
+            subgraphs={"bera": {"name": "Berachain", "url": "https://example.test"}},
+        )
+
+        self.assertEqual(rows, [])
+        self.assertEqual(metadata["status"], "unavailable")
+
+    def test_dolomite_trade_metadata_replaces_older_transfer_evidence(self):
+        wallet = "0x1e527e81047bbbea5e62a7bd112e45d2e646310e"
+        older_hash = "0x" + "1" * 64
+        zap_hash = "0x" + "a" * 64
+        rows = [{
+            "address": wallet,
+            "latest_tx_hash": older_hash,
+            "latest_tx_timestamp": 1_788_280_000,
+            "latest_tx_chain": "berachain",
+        }]
+        adjustments = {
+            wallet: {
+                "latest_outflow": {
+                    "tx_hash": zap_hash,
+                    "timestamp": 1_788_289_658,
+                    "block_number": 25_637_471,
+                }
+            }
+        }
+
+        flows.attach_dolomite_trade_metadata(
+            rows,
+            adjustments,
+            "outbound",
+            "berachain",
+        )
+
+        self.assertEqual(rows[0]["latest_tx_hash"], zap_hash)
+        self.assertEqual(rows[0]["latest_tx_timestamp"], 1_788_289_658)
+        self.assertEqual(rows[0]["latest_tx_chain"], "berachain")
+
     def test_unknown_contract_transfer_remains_a_real_market_flow(self):
         amount_wei = 5_000 * 10**18
         transfers = [(RECIPIENT, UNLABELED_CONTRACT, amount_wei, 25_000_002)]

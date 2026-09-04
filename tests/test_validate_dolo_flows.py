@@ -154,6 +154,46 @@ class ValidateDoloFlowsTest(unittest.TestCase):
         payload["timestamp"] = "1970-01-01T00:34:00Z"
         self.assertFalse(validate_data._flow_reconciliation_v3_is_valid(payload))
 
+    def test_v6_requires_complete_pinned_dolomite_trade_coverage(self):
+        payload = self._reconciliation_payload()
+        payload["schemaVersion"] = 6
+        payload["timestamp"] = "1970-01-01T00:33:20Z"
+        payload["generatedAt"] = "1970-01-01T00:34:00Z"
+        for period, period_data in payload["periods"].items():
+            for scope in ("eth", "bera", "all"):
+                period_data[scope]["search_accumulators"] = []
+                period_data[scope]["search_sellers"] = []
+            payload["bridge_neutralization_audit"][period]["legacyHeuristic"] = {
+                "addressCount": 0,
+                "dolo": 0.0,
+            }
+            payload["bridge_neutralization_audit"][period]["legacyHeuristicObserved"] = {
+                "addressCount": 0,
+                "dolo": 0.0,
+            }
+            payload["bridge_neutralization_audit"][period]["total"] = {
+                "addressCount": 1,
+                "dolo": 10.0,
+            }
+        payload["dolomite_trade_meta"] = {
+            "status": "complete",
+            "source": "official-dolomite-subgraph-pinned-block",
+            "chains": {
+                chain: {
+                    "status": "complete",
+                    "source": "official-dolomite-subgraph-pinned-block",
+                    "blockNumber": 200,
+                    "blockTimestamp": 2_000,
+                    "eventCount": 0,
+                }
+                for chain in ("eth", "bera")
+            },
+        }
+
+        self.assertTrue(validate_data._flow_reconciliation_v3_is_valid(payload))
+        payload["dolomite_trade_meta"]["chains"]["bera"]["blockNumber"] = 199
+        self.assertFalse(validate_data._flow_reconciliation_v3_is_valid(payload))
+
     def test_v3_combined_flow_contract_rejects_missing_combined_rows(self):
         payload = self._reconciliation_payload()
         payload["periods"]["180d"].pop("all")
@@ -171,7 +211,7 @@ class ValidateDoloFlowsTest(unittest.TestCase):
 
     def test_dolo_flow_rule_registers_v3_reconciliation_guard(self):
         self.assertIn(
-            "v3/v4/v5 combined flow rows, complete search index, exact boundaries, bridge audit and freshness must reconcile",
+            "v3-v6 combined flow rows, complete search index, exact boundaries, bridge/trade audit and freshness must reconcile",
             dict(validate_data.RULES["dolo_flows.json"]["checks"]),
         )
 

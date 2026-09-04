@@ -2272,7 +2272,7 @@ def _flow_reconciliation_v3_is_valid(data):
     if schema_version is None:
         # Transitional compatibility for the currently deployed v2 artifact.
         return True
-    if not _is_exact_integer(schema_version) or schema_version not in (3, 4, 5):
+    if not _is_exact_integer(schema_version) or schema_version not in (3, 4, 5, 6):
         return False
 
     periods = ("1d", "7d", "30d", "90d", "180d", "all")
@@ -2340,6 +2340,11 @@ def _flow_reconciliation_v3_is_valid(data):
                     )
                     if abs(float(net_flow) - expected_net) > 0.02:
                         return False
+                if schema_version >= 6:
+                    for key in ("dolomite_trade_inflow", "dolomite_trade_outflow"):
+                        value = row.get(key)
+                        if not _finite_real_json_number(value) or float(value) < 0:
+                            return False
         return True
 
     def complete_search_rows_are_valid(container):
@@ -2456,6 +2461,29 @@ def _flow_reconciliation_v3_is_valid(data):
             or generated_at < snapshot_at
         ):
             return False
+    if schema_version >= 6:
+        trade_meta = data.get("dolomite_trade_meta")
+        if (
+            not isinstance(trade_meta, dict)
+            or trade_meta.get("status") != "complete"
+            or trade_meta.get("source") != "official-dolomite-subgraph-pinned-block"
+            or set(trade_meta.get("chains") or {}) != expected_chains
+        ):
+            return False
+        for chain_key in expected_chains:
+            row = trade_meta["chains"].get(chain_key)
+            if (
+                not isinstance(row, dict)
+                or row.get("status") != "complete"
+                or row.get("source") != "official-dolomite-subgraph-pinned-block"
+                or not _is_exact_integer(row.get("blockNumber"))
+                or row["blockNumber"] != boundaries[chain_key]["all"]["endBlock"]
+                or not _is_exact_integer(row.get("blockTimestamp"))
+                or row["blockTimestamp"] <= 0
+                or not _is_exact_integer(row.get("eventCount"))
+                or row["eventCount"] < 0
+            ):
+                return False
     return True
 
 
@@ -2479,7 +2507,7 @@ RULES = {
             ("optional LP activity metadata must be exact", _flow_lp_metadata_is_valid),
             ("Dolomite DOLO balances must be complete and reconcile", _flow_dolomite_balances_are_valid),
             ("Holder total-exposure history must have complete Dolomite coverage", _holder_dolomite_exposure_history_is_valid),
-            ("v3/v4/v5 combined flow rows, complete search index, exact boundaries, bridge audit and freshness must reconcile", _flow_reconciliation_v3_is_valid),
+            ("v3-v6 combined flow rows, complete search index, exact boundaries, bridge/trade audit and freshness must reconcile", _flow_reconciliation_v3_is_valid),
         ],
         "min_bytes": 50_000,
     },

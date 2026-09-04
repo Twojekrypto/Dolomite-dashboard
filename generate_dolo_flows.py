@@ -2204,6 +2204,214 @@ def fetch_dolomite_dolo_balances(
     }
 
 
+def fetch_dolomite_dolo_trades(
+    chain_key,
+    block_number,
+    block_timestamp=0,
+    request_fn=None,
+    subgraphs=None,
+    attempts=3,
+):
+    """Fetch every Dolomite trade whose input or output asset is DOLO.
+
+    The query is pinned to the same chain block used by the ERC-20 flow scan.
+    Returning a partial side would bias buys or sells, so any incomplete page
+    fails the whole chain closed and leaves the last published artifact live.
+    """
+    request_fn = request_fn or requests.post
+    subgraphs = subgraphs or DOLOMITE_DOLO_POSITION_SUBGRAPHS
+    config = subgraphs.get(chain_key)
+    target_block = max(0, int(block_number or 0))
+    target_timestamp = max(0, int(block_timestamp or 0))
+    attempts = max(1, int(attempts or 1))
+    if not config or target_block <= 0:
+        return [], {
+            "status": "unavailable",
+            "blockNumber": target_block,
+            "eventCount": 0,
+            "error": "missing subgraph config or target block",
+        }
+
+    page_size = 1000
+    rows_by_id = {}
+    for token_field in ("takerToken", "makerToken"):
+        cursor = ""
+        while True:
+            cursor_filter = f", id_gt: {json.dumps(cursor)}" if cursor else ""
+            query = f'''{{
+              _meta(block: {{ number: {target_block} }}) {{
+                block {{ number timestamp }}
+              }}
+              trades(
+                first: {page_size},
+                orderBy: id,
+                orderDirection: asc,
+                block: {{ number: {target_block} }},
+                where: {{ {token_field}: "{DOLO_CONTRACT}"{cursor_filter} }}
+              ) {{
+                id
+                takerEffectiveUser {{ id }}
+                makerEffectiveUser {{ id }}
+                takerToken {{ id }}
+                makerToken {{ id }}
+                takerTokenDeltaWei
+                makerTokenDeltaWei
+                transaction {{ id timestamp blockNumber }}
+              }}
+            }}'''
+            payload = None
+            error = None
+            for attempt in range(attempts):
+                try:
+                    response = request_fn(
+                        config["url"],
+                        json={"query": query},
+                        timeout=30,
+                        headers={"Content-Type": "application/json"},
+                    )
+                    status_code = int(getattr(response, "status_code", 200) or 0)
+                    if status_code >= 400:
+                        raise RuntimeError(f"HTTP {status_code}")
+                    payload = response.json()
+                    if not isinstance(payload, dict):
+                        raise RuntimeError("invalid JSON response")
+                    if payload.get("errors"):
+                        raise RuntimeError(str(payload["errors"][0]))
+                    break
+                except (OSError, ValueError, RuntimeError, requests.RequestException) as exc:
+                    error = exc
+                    payload = None
+                    if attempt + 1 < attempts:
+                        time.sleep(min(2 ** attempt, 4))
+            if payload is None:
+                return [], {
+                    "status": "unavailable",
+                    "blockNumber": target_block,
+                    "eventCount": 0,
+                    "error": str(error or "subgraph request failed"),
+                }
+
+            data = payload.get("data")
+            if not isinstance(data, dict) or not isinstance(data.get("trades"), list):
+                return [], {
+                    "status": "unavailable",
+                    "blockNumber": target_block,
+                    "eventCount": 0,
+                    "error": "missing GraphQL trade data",
+                }
+            meta_block = ((data.get("_meta") or {}).get("block") or {})
+            try:
+                response_block = int(meta_block.get("number") or 0)
+                response_timestamp = int(meta_block.get("timestamp") or 0)
+            except (TypeError, ValueError):
+                response_block = 0
+                response_timestamp = 0
+            if response_block != target_block:
+                return [], {
+                    "status": "unavailable",
+                    "blockNumber": target_block,
+                    "eventCount": 0,
+                    "error": f"pinned block mismatch ({response_block} != {target_block})",
+                }
+            if response_timestamp > 0:
+                target_timestamp = response_timestamp
+
+            page = data["trades"]
+            for row in page:
+                if not isinstance(row, dict):
+                    return [], {
+                        "status": "unavailable",
+                        "blockNumber": target_block,
+                        "eventCount": 0,
+                        "error": "malformed Dolomite trade event",
+                    }
+                transaction = row.get("transaction") or {}
+                row_id = str(row.get("id") or "")
+                taker = row.get("takerEffectiveUser") or {}
+                maker = row.get("makerEffectiveUser")
+                taker_token_row = row.get("takerToken") or {}
+                maker_token_row = row.get("makerToken") or {}
+                taker_token = (
+                    str(taker_token_row.get("id") or "").lower()
+                    if isinstance(taker_token_row, dict)
+                    else ""
+                )
+                maker_token = (
+                    str(maker_token_row.get("id") or "").lower()
+                    if isinstance(maker_token_row, dict)
+                    else ""
+                )
+                try:
+                    transaction_block = int(transaction.get("blockNumber") or 0)
+                    transaction_timestamp = int(transaction.get("timestamp") or 0)
+                    taker_amount = Decimal(
+                        str(row.get("takerTokenDeltaWei") or "0")
+                    )
+                    maker_amount = Decimal(
+                        str(row.get("makerTokenDeltaWei") or "0")
+                    )
+                except (AttributeError, InvalidOperation, TypeError, ValueError):
+                    transaction_block = 0
+                    transaction_timestamp = 0
+                    taker_amount = Decimal(0)
+                    maker_amount = Decimal(0)
+                valid_maker = maker is None or (
+                    isinstance(maker, dict)
+                    and re.fullmatch(
+                        r"0x[a-f0-9]{40}", str(maker.get("id") or "").lower()
+                    )
+                )
+                if (
+                    not row_id
+                    or not isinstance(transaction, dict)
+                    or not re.fullmatch(
+                        r"0x[a-f0-9]{64}",
+                        str(transaction.get("id") or "").lower(),
+                    )
+                    or transaction_timestamp <= 0
+                    or transaction_block <= 0
+                    or transaction_block > target_block
+                    or not isinstance(taker, dict)
+                    or not re.fullmatch(
+                        r"0x[a-f0-9]{40}", str(taker.get("id") or "").lower()
+                    )
+                    or not valid_maker
+                    or not re.fullmatch(r"0x[a-f0-9]{40}", taker_token)
+                    or not re.fullmatch(r"0x[a-f0-9]{40}", maker_token)
+                    or (taker_token if token_field == "takerToken" else maker_token)
+                    != DOLO_CONTRACT
+                    or taker_amount <= 0
+                    or maker_amount <= 0
+                ):
+                    return [], {
+                        "status": "unavailable",
+                        "blockNumber": target_block,
+                        "eventCount": 0,
+                        "error": "malformed Dolomite trade event",
+                    }
+                rows_by_id[row_id] = row
+            if len(page) < page_size:
+                break
+            next_cursor = str((page[-1] or {}).get("id") or "")
+            if not next_cursor or next_cursor == cursor:
+                return [], {
+                    "status": "unavailable",
+                    "blockNumber": target_block,
+                    "eventCount": 0,
+                    "error": "trade pagination cursor did not advance",
+                }
+            cursor = next_cursor
+
+    rows = sorted(rows_by_id.values(), key=lambda row: str(row.get("id") or ""))
+    return rows, {
+        "status": "complete",
+        "blockNumber": target_block,
+        "blockTimestamp": target_timestamp,
+        "eventCount": len(rows),
+        "source": "official-dolomite-subgraph-pinned-block",
+    }
+
+
 def _holder_protocol_snapshot_from_cached_chains(chain_rows, chain_keys):
     """Merge one point's exact per-chain protocol balances by effective owner."""
     addresses = set()
@@ -2568,6 +2776,170 @@ def neutralize_protocol_custody_transfers(flows, components, transfers, chain_ke
         if abs(value) < 0.000001:
             adjusted_flows[address] = 0.0
     return adjusted_flows, adjusted_components
+
+
+def calculate_dolomite_trade_adjustments(trades, cutoff_block=0):
+    """Return beneficial-owner DOLO deltas created inside Dolomite trades.
+
+    ERC-20 transfers only show the wallet-to-custody deposit. A later Zap/Trade
+    changes the user's DOLO balance inside Dolomite without another wallet
+    Transfer, so the market-flow view must add that internal balance delta.
+    Subgraph ``*DeltaWei`` values are already decimal token amounts.
+    """
+    cutoff_block = max(0, int(cutoff_block or 0))
+    working = {}
+
+    def add_delta(address, amount, transaction):
+        address = str(address or "").lower()
+        if not re.fullmatch(r"0x[a-f0-9]{40}", address) or amount == 0:
+            return
+        row = working.setdefault(
+            address,
+            {
+                "net_flow": Decimal(0),
+                "gross_inflow": Decimal(0),
+                "gross_outflow": Decimal(0),
+                "tx_hashes": set(),
+                "latest_inflow": None,
+                "latest_outflow": None,
+            },
+        )
+        row["net_flow"] += amount
+        direction = "inflow" if amount > 0 else "outflow"
+        row[f"gross_{direction}"] += abs(amount)
+        tx_hash = str(transaction.get("id") or "").lower()
+        timestamp = int(transaction.get("timestamp") or 0)
+        block_number = int(transaction.get("blockNumber") or 0)
+        if re.fullmatch(r"0x[a-f0-9]{64}", tx_hash):
+            row["tx_hashes"].add(tx_hash)
+        evidence = {
+            "tx_hash": tx_hash,
+            "timestamp": timestamp,
+            "block_number": block_number,
+        }
+        latest_key = f"latest_{direction}"
+        prior = row[latest_key]
+        if prior is None or (
+            block_number,
+            timestamp,
+            tx_hash,
+        ) > (
+            int(prior.get("block_number") or 0),
+            int(prior.get("timestamp") or 0),
+            str(prior.get("tx_hash") or ""),
+        ):
+            row[latest_key] = evidence
+
+    for trade in trades or []:
+        if not isinstance(trade, dict):
+            continue
+        transaction = trade.get("transaction") or {}
+        try:
+            block_number = int(transaction.get("blockNumber") or 0)
+        except (TypeError, ValueError):
+            continue
+        if block_number < cutoff_block:
+            continue
+        taker = ((trade.get("takerEffectiveUser") or {}).get("id") or "").lower()
+        maker = ((trade.get("makerEffectiveUser") or {}).get("id") or "").lower()
+        taker_token = str((trade.get("takerToken") or {}).get("id") or "").lower()
+        maker_token = str((trade.get("makerToken") or {}).get("id") or "").lower()
+        row_deltas = {}
+
+        def stage(address, amount):
+            if re.fullmatch(r"0x[a-f0-9]{40}", address or ""):
+                row_deltas[address] = row_deltas.get(address, Decimal(0)) + amount
+
+        try:
+            if taker_token == DOLO_CONTRACT:
+                amount = Decimal(str(trade.get("takerTokenDeltaWei") or "0"))
+                if amount > 0:
+                    stage(taker, -amount)
+                    stage(maker, amount)
+            if maker_token == DOLO_CONTRACT:
+                amount = Decimal(str(trade.get("makerTokenDeltaWei") or "0"))
+                if amount > 0:
+                    stage(taker, amount)
+                    stage(maker, -amount)
+        except (InvalidOperation, TypeError, ValueError):
+            continue
+        for address, amount in row_deltas.items():
+            add_delta(address, amount, transaction)
+
+    return {
+        address: {
+            "net_flow": float(row["net_flow"]),
+            "gross_inflow": float(row["gross_inflow"]),
+            "gross_outflow": float(row["gross_outflow"]),
+            "tx_count": len(row["tx_hashes"]),
+            "latest_inflow": row["latest_inflow"],
+            "latest_outflow": row["latest_outflow"],
+        }
+        for address, row in working.items()
+        if row["net_flow"] or row["gross_inflow"] or row["gross_outflow"]
+    }
+
+
+def apply_dolomite_trade_adjustments(flows, components, adjustments):
+    """Apply internal Dolomite trade deltas to the beneficial-owner flow view."""
+    adjusted_flows = dict(flows or {})
+    adjusted_components = {
+        address: dict(values)
+        for address, values in (components or {}).items()
+    }
+    for raw_address, summary in (adjustments or {}).items():
+        address = str(raw_address or "").lower()
+        if not re.fullmatch(r"0x[a-f0-9]{40}", address):
+            continue
+        net_flow = float((summary or {}).get("net_flow") or 0)
+        trade_inflow = max(0.0, float((summary or {}).get("gross_inflow") or 0))
+        trade_outflow = max(0.0, float((summary or {}).get("gross_outflow") or 0))
+        adjusted_flows[address] = adjusted_flows.get(address, 0.0) + net_flow
+        row = adjusted_components.setdefault(
+            address,
+            {"gross_inflow": 0.0, "gross_outflow": 0.0, "net_flow": 0.0},
+        )
+        row["gross_inflow"] = float(row.get("gross_inflow") or 0) + trade_inflow
+        row["gross_outflow"] = float(row.get("gross_outflow") or 0) + trade_outflow
+        row["net_flow"] = float(row.get("net_flow") or 0) + net_flow
+        row["dolomite_trade_inflow"] = (
+            float(row.get("dolomite_trade_inflow") or 0) + trade_inflow
+        )
+        row["dolomite_trade_outflow"] = (
+            float(row.get("dolomite_trade_outflow") or 0) + trade_outflow
+        )
+    for address, value in list(adjusted_flows.items()):
+        if abs(value) < 0.000001:
+            adjusted_flows[address] = 0.0
+    return adjusted_flows, adjusted_components
+
+
+def attach_dolomite_trade_metadata(rows, adjustments, direction, chain):
+    """Prefer a newer exact Dolomite trade over ERC-20 transfer evidence."""
+    if direction not in {"inbound", "outbound"}:
+        raise ValueError("Unsupported Dolomite trade metadata direction")
+    latest_key = "latest_inflow" if direction == "inbound" else "latest_outflow"
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        address = str(row.get("address") or "").lower()
+        evidence = ((adjustments or {}).get(address) or {}).get(latest_key)
+        if not isinstance(evidence, dict):
+            continue
+        tx_hash = str(evidence.get("tx_hash") or "").lower()
+        try:
+            timestamp = int(evidence.get("timestamp") or 0)
+        except (TypeError, ValueError):
+            continue
+        if (
+            not re.fullmatch(r"0x[a-f0-9]{64}", tx_hash)
+            or timestamp <= int(row.get("latest_tx_timestamp") or 0)
+        ):
+            continue
+        row["latest_tx_hash"] = tx_hash
+        row["latest_tx_timestamp"] = timestamp
+        row["latest_tx_chain"] = chain
+    return rows
 
 
 def calculate_bridge_flows(transfers):
@@ -3446,6 +3818,8 @@ def merge_chain_flow_components(components_by_chain):
         "net_flow",
         "protocol_deposit",
         "protocol_withdrawal",
+        "dolomite_trade_inflow",
+        "dolomite_trade_outflow",
     )
     merged = {}
     for chain_components in (components_by_chain or {}).values():
@@ -5110,6 +5484,12 @@ def build_searchable_flow_rows(flows, components, tx_counts, excluded=None):
         entry["protocol_withdrawal"] = round(
             row_components.get("protocol_withdrawal", 0), 2
         )
+        entry["dolomite_trade_inflow"] = round(
+            row_components.get("dolomite_trade_inflow", 0), 2
+        )
+        entry["dolomite_trade_outflow"] = round(
+            row_components.get("dolomite_trade_outflow", 0), 2
+        )
     return accumulators, sellers
 
 
@@ -5718,6 +6098,32 @@ def main():
 
     require_complete_flow_history(unresolved_history_gaps)
 
+    # ERC-20 logs stop at Dolomite custody. Fetch every internal trade at the
+    # exact same chain head so a later Zap/Trade of deposited DOLO is reflected
+    # in the beneficial-owner flow leaderboard. Partial coverage would bias a
+    # direction, so generation fails closed instead of publishing stale math.
+    print("\n🔄 Fetching Dolomite-internal DOLO trades...")
+    dolomite_trades_by_chain = {}
+    dolomite_trade_meta = {
+        "status": "complete",
+        "source": "official-dolomite-subgraph-pinned-block",
+        "chains": {},
+    }
+    for chain_key, cfg in CHAINS.items():
+        rows, metadata = fetch_dolomite_dolo_trades(
+            chain_key,
+            current_blocks[chain_key],
+            block_timestamp=period_boundaries[chain_key]["all"]["endTimestamp"],
+        )
+        if metadata.get("status") != "complete":
+            raise RuntimeError(
+                f"{cfg['name']} Dolomite DOLO trade scan is incomplete: "
+                f"{metadata.get('error') or 'unknown error'}"
+            )
+        dolomite_trades_by_chain[chain_key] = rows
+        dolomite_trade_meta["chains"][chain_key] = metadata
+        print(f"  {cfg['name']}: {len(rows):,} exact trade event(s)")
+
     # Detect contracts among top addresses (to exclude DEX routers, etc.)
     print("\n🔍 Detecting contract addresses to exclude...")
     address_labels = load_address_labels()
@@ -5816,8 +6222,10 @@ def main():
         # Keep raw bridge-neutralized flows for balance-history reconstruction,
         # but remove wallet↔Dolomite custody legs from the market-behavior
         # leaderboards. Depositing collateral is not selling; withdrawing from
-        # custody is not a market purchase.
+        # custody is not a market purchase. Then apply DOLO changes caused by
+        # internal Dolomite trades, which have no wallet-level ERC-20 leg.
         market_flows_by_chain = {}
+        dolomite_trade_adjustments_by_chain = {}
         for chain_key in CHAINS:
             market_flows, market_components = neutralize_protocol_custody_transfers(
                 neutralized[chain_key],
@@ -5825,14 +6233,29 @@ def main():
                 period_transfers_by_chain[chain_key],
                 chain_key,
             )
+            trade_adjustments = calculate_dolomite_trade_adjustments(
+                dolomite_trades_by_chain[chain_key],
+                cutoff_block=cutoff_blocks[chain_key][period],
+            )
+            market_flows, market_components = apply_dolomite_trade_adjustments(
+                market_flows,
+                market_components,
+                trade_adjustments,
+            )
+            for address, summary in trade_adjustments.items():
+                tx_counts_by_chain[chain_key][address] = (
+                    tx_counts_by_chain[chain_key].get(address, 0)
+                    + int(summary.get("tx_count") or 0)
+                )
             market_flows_by_chain[chain_key] = market_flows
             flow_components_by_chain[chain_key] = market_components
+            dolomite_trade_adjustments_by_chain[chain_key] = trade_adjustments
         
         neutralized_flows_cache[period] = neutralized
         if n_count > 0:
             print(f"  🔀 {period}: neutralized {n_count} cross-chain bridge transfers ({n_volume:,.0f} DOLO)")
 
-        # Step 3: Build output using neutralized flows. Exact transaction metadata
+        # Step 4: Build output using neutralized flows. Exact transaction metadata
         # is optional presentation provenance and never participates in arithmetic.
         flow_evidence_loaders = {}
         lp_receipt_loaders = {}
@@ -5880,6 +6303,18 @@ def main():
                 tx_counts,
                 EXCLUDED_ADDRS,
             )
+            attach_dolomite_trade_metadata(
+                search_accumulators,
+                dolomite_trade_adjustments_by_chain[chain_key],
+                "inbound",
+                chain_name,
+            )
+            attach_dolomite_trade_metadata(
+                search_sellers,
+                dolomite_trade_adjustments_by_chain[chain_key],
+                "outbound",
+                chain_name,
+            )
             apply_flow_annotations(search_accumulators, lp_annotations)
             apply_flow_annotations(search_sellers, lp_annotations)
             accumulators = search_accumulators[:TOP_N]
@@ -5891,6 +6326,20 @@ def main():
             )
             attach_latest_flow_metadata(
                 sellers, period_transfers_by_chain[chain_key], "outbound", chain_name, load_flow_evidence,
+            )
+            # Transfer metadata may describe the earlier custody deposit. A
+            # newer internal Zap/Trade is the true latest directional action.
+            attach_dolomite_trade_metadata(
+                accumulators,
+                dolomite_trade_adjustments_by_chain[chain_key],
+                "inbound",
+                chain_name,
+            )
+            attach_dolomite_trade_metadata(
+                sellers,
+                dolomite_trade_adjustments_by_chain[chain_key],
+                "outbound",
+                chain_name,
             )
 
             attach_latest_lp_metadata(
@@ -5943,12 +6392,12 @@ def main():
         chain_evidence = {}
         for chain_key in CHAINS:
             chain_data = output_periods[period][chain_key]
-            for row in chain_data["accumulators"] + chain_data["sellers"]:
+            for row in chain_data["search_accumulators"] + chain_data["search_sellers"]:
                 timestamp = int(row.get("latest_tx_timestamp") or 0)
                 prior = chain_evidence.get(row["address"])
                 if prior is None or timestamp > int(prior.get("latest_tx_timestamp") or 0):
                     chain_evidence[row["address"]] = row
-        for entry in combined_accumulators + combined_sellers:
+        for entry in combined_search_accumulators + combined_search_sellers:
             evidence = chain_evidence.get(entry["address"])
             if evidence:
                 for key in (
@@ -5965,7 +6414,9 @@ def main():
                         if key == "latest_lp_activity" and isinstance(value, dict):
                             value = dict(value)
                         entry[key] = value
-            if dolo_price:
+
+        if dolo_price:
+            for entry in combined_accumulators + combined_sellers:
                 entry["usd_value"] = round(entry["net_flow"] * dolo_price, 2)
 
         apply_flow_annotations(combined_accumulators, combined_lp_annotations)
@@ -6194,12 +6645,13 @@ def main():
         pass
 
     output = {
-        "schemaVersion": 5,
+        "schemaVersion": 6,
         "timestamp": flow_snapshot_timestamp(period_boundaries),
         "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "tracked_flow_chains": ["ethereum", "berachain"],
         "period_boundaries": period_boundaries,
         "bridge_neutralization_audit": bridge_neutralization_audit,
+        "dolomite_trade_meta": dolomite_trade_meta,
         "holder_history_start_timestamp": datetime.utcfromtimestamp(HOLDER_HISTORY_START_TIMESTAMP).isoformat() + "Z",
         "holder_history_points": [
             {"key": point["key"], "timestamp": point["timestamp"]}
