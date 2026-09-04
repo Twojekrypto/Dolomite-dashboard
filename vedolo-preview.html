@@ -1338,7 +1338,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
           <col class="early-weeks-col">
           <col class="early-actions-col">
         </colgroup>
-        <thead><tr><th class="sortable" data-sort="rank"><button class="sort-control" type="button" aria-label="Sort by rank"><span class="th-content"># <span class="sort-arrow"></span></span></button></th><th class="sortable" data-sort="address"><button class="sort-control" type="button" aria-label="Sort by wallet"><span class="th-content">Wallet <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="veDolo"><button class="sort-control" type="button" aria-label="Sort by veDOLO"><span class="th-content">veDOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="lockedDolo"><button class="sort-control" type="button" aria-label="Sort by locked DOLO"><span class="th-content">Locked DOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable sorted" data-sort="availableAfterExit"><button class="sort-control" type="button" aria-label="Sort by exit value"><span class="th-content">Exit Value <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="avgWeeksUntilUnlock"><button class="sort-control" type="button" aria-label="Sort by average remaining lock"><span class="th-content">Avg Lock <span class="sort-arrow"></span></span></button></th><th class="early-unlock-actions-head">Details</th></tr></thead>
+        <thead><tr><th class="sortable" data-sort="rank"><button class="sort-control" type="button" aria-label="Sort by rank"><span class="th-content"># <span class="sort-arrow"></span></span></button></th><th class="sortable" data-sort="address"><button class="sort-control" type="button" aria-label="Sort by wallet"><span class="th-content">Wallet <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="veDolo"><button class="sort-control" type="button" aria-label="Sort by vote weight"><span class="th-content">Vote Weight <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="lockedDolo"><button class="sort-control" type="button" aria-label="Sort by locked DOLO"><span class="th-content">Locked DOLO <span class="sort-arrow"></span></span></button></th><th class="num sortable sorted" data-sort="availableAfterExit"><button class="sort-control" type="button" aria-label="Sort by exit value"><span class="th-content">Exit Value <span class="sort-arrow"></span></span></button></th><th class="num sortable" data-sort="avgWeeksUntilUnlock"><button class="sort-control" type="button" aria-label="Sort by average remaining lock"><span class="th-content">Avg Lock <span class="sort-arrow"></span></span></button></th><th class="early-unlock-actions-head">Details</th></tr></thead>
         <tbody id="early-unlock-body"><tr class="loading-row"><td colspan="7">Loading early unlock simulation...</td></tr></tbody>
       </table>
     </div>
@@ -2926,7 +2926,7 @@ function renderEarlyUnlockDetailRow(row){
       <td class="mono" data-label="Unlock Date">${esc(holderEndDate(position.end))}</td>
       <td class="holder-detail-route center" data-label="Route">${flowSourceTag(route.kind, route.tooltip)}</td>
       <td class="num mono" data-label="Locked DOLO"><span class="early-unlock-value">${fmtDolo(position.lockedDolo)}</span></td>
-      <td class="num mono" data-label="veDOLO"><span class="early-unlock-value vote">${fmtCompact(position.veDolo)}</span></td>
+      <td class="num mono" data-label="Vote Weight"><span class="early-unlock-value vote">${fmtCompact(position.veDolo)}</span></td>
       <td class="num mono" data-label="Exit Value"><span class="early-unlock-value available loss">${fmtDolo(position.availableAfterExit)}</span></td>
       <td class="num mono" data-label="Penalty">${penalty}</td>
       <td class="num mono" data-label="Remaining"><span class="early-remaining ${expired ? "expired" : ""}">${esc(holderRemainingLabel(position.end))}</span></td>
@@ -2949,7 +2949,7 @@ function renderEarlyUnlockDetailRow(row){
               ${earlyUnlockDetailSortHeader("unlock", "Unlock Date")}
               ${earlyUnlockDetailSortHeader("route", "Route", "center")}
               ${earlyUnlockDetailSortHeader("lockedDolo", "Locked DOLO", "num")}
-              ${earlyUnlockDetailSortHeader("veDolo", "veDOLO", "num")}
+              ${earlyUnlockDetailSortHeader("veDolo", "Vote Weight", "num")}
               ${earlyUnlockDetailSortHeader("availableAfterExit", "Exit Value", "num")}
               ${earlyUnlockDetailSortHeader("penalty", "Penalty", "num")}
               ${earlyUnlockDetailSortHeader("remaining", "Remaining", "num")}
