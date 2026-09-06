@@ -40,7 +40,7 @@ jobs:
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
           DOLO_CEX_DEBANK_MAX_CANDIDATES: '20'
-        run: python3 audit_dolo_cex_labels.py --output dolo_cex_label_audit.json
+        run: python3 audit_dolo_cex_labels.py --output dolo_cex_label_audit.json --state-file dolo_cex_label_audit_state.json
 
       - name: Build committed summary
         run: |
@@ -52,6 +52,7 @@ jobs:
               "generatedAt": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
               "apiStatus": api.get("status"),
               "debankStatus": api.get("debankStatus"),
+              "debankRotation": full.get("debankRotation") or {},
               "confirmedCexSuggestions": api.get("confirmedCexSuggestions", [])[:20],
               "topRankedCandidates": full.get("rankedCandidates", [])[:20],
           }
@@ -70,7 +71,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add dolo_cex_label_audit_summary.json
+          git add dolo_cex_label_audit_summary.json dolo_cex_label_audit_state.json
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else

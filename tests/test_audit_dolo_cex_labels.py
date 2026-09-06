@@ -119,6 +119,56 @@ class AuditDoloCexLabelsTest(unittest.TestCase):
 
         self.assertEqual([], merged["noPublicTag"])
 
+    def test_debank_rotation_prioritizes_unchecked_candidates_and_skips_confirmed(self):
+        module = self.audit_module()
+        fresh = "0x0000000000000000000000000000000000000001"
+        retried = "0x0000000000000000000000000000000000000002"
+        confirmed = "0x0000000000000000000000000000000000000003"
+        candidates = [{"address": address} for address in (fresh, retried, confirmed)]
+        state = {
+            "schemaVersion": 1,
+            "debank": {
+                "addresses": {
+                    retried: {"lastAttemptAt": "2026-08-31T00:00:00Z", "outcome": "no_cex_badge"},
+                },
+            },
+        }
+
+        selected, summary = module.select_debank_rotation_candidates(
+            candidates,
+            state,
+            {confirmed},
+            limit=2,
+        )
+
+        self.assertEqual([fresh, retried], [row["address"] for row in selected])
+        self.assertEqual(1, summary["newCandidates"])
+        self.assertEqual(1, summary["rechecks"])
+        self.assertEqual(1, summary["excludedConfirmed"])
+
+    def test_debank_rotation_records_errors_without_treating_them_as_no_cex(self):
+        module = self.audit_module()
+        no_tag = "0x0000000000000000000000000000000000000001"
+        confirmed = "0x0000000000000000000000000000000000000002"
+        errored = "0x0000000000000000000000000000000000000003"
+        report = {
+            "confirmedCexSuggestions": [{"address": confirmed}],
+            "noPublicTag": [no_tag],
+            "errors": {errored: "debank_timeout"},
+        }
+
+        state = module.record_debank_rotation_results(
+            {},
+            report,
+            attempted_at="2026-09-06T08:00:00Z",
+        )
+
+        addresses = state["debank"]["addresses"]
+        self.assertEqual("no_cex_badge", addresses[no_tag]["outcome"])
+        self.assertEqual("confirmed_cex", addresses[confirmed]["outcome"])
+        self.assertEqual("error", addresses[errored]["outcome"])
+        self.assertEqual("2026-09-06T08:00:00Z", addresses[errored]["lastAttemptAt"])
+
 
 if __name__ == "__main__":
     unittest.main()
