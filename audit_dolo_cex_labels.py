@@ -28,6 +28,7 @@ LABELS_JS = ROOT / "dolo-address-labels.js"
 HOLDERS_JSON = ROOT / "dolo_holders.json"
 FLOWS_JSON = ROOT / "dolo_flows.json"
 DEFAULT_OUTPUT = ROOT / "dolo_cex_label_audit.json"
+DEFAULT_ROTATION_STATE = ROOT / "dolo_cex_label_audit_state.json"
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 ETHERSCAN_ADDRESS_PAGE = "https://etherscan.io/address/{address}"
 PUBLIC_EXPLORER_USER_AGENT = (
@@ -77,6 +78,7 @@ CEX_KEYWORDS = (
 )
 
 SKIP_LABEL_TYPES = {"protocol", "lp", "contract", "dead", "investor", "bot", "liquidator"}
+ROTATION_STATE_SCHEMA_VERSION = 1
 
 
 def is_address(value: str) -> bool:
@@ -364,6 +366,116 @@ def run_debank_page_audit(
     }
 
 
+def empty_debank_rotation_state() -> dict[str, Any]:
+    return {
+        "schemaVersion": ROTATION_STATE_SCHEMA_VERSION,
+        "debank": {"addresses": {}},
+    }
+
+
+def normalize_debank_rotation_state(value: Any) -> dict[str, Any]:
+    """Keep the persistent audit queue small and tolerant of old state files."""
+    state = empty_debank_rotation_state()
+    if not isinstance(value, dict):
+        return state
+    debank = value.get("debank")
+    addresses = debank.get("addresses") if isinstance(debank, dict) else None
+    if not isinstance(addresses, dict):
+        return state
+    state["debank"]["addresses"] = {
+        str(address).lower(): dict(metadata)
+        for address, metadata in addresses.items()
+        if is_address(str(address)) and isinstance(metadata, dict)
+    }
+    return state
+
+
+def load_debank_rotation_state(path: Path) -> dict[str, Any]:
+    try:
+        with path.open(encoding="utf-8") as handle:
+            return normalize_debank_rotation_state(json.load(handle))
+    except FileNotFoundError:
+        return empty_debank_rotation_state()
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"  ⚠️ Could not load DeBank audit rotation state: {exc}")
+        return empty_debank_rotation_state()
+
+
+def save_debank_rotation_state(path: Path, state: dict[str, Any]) -> None:
+    path.write_text(
+        json.dumps(normalize_debank_rotation_state(state), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def select_debank_rotation_candidates(
+    candidates: list[dict[str, Any]],
+    state: dict[str, Any],
+    confirmed_addresses: set[str],
+    limit: int,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Choose fresh candidates first, then the least-recently checked ones.
+
+    A failed DeBank render is still recorded as an attempt, so one transient
+    browser failure cannot starve the rest of the candidate queue. It never
+    changes a wallet's classification.
+    """
+    normalized_state = normalize_debank_rotation_state(state)
+    checked = normalized_state["debank"]["addresses"]
+    known = {str(address).lower() for address in confirmed_addresses if is_address(str(address))}
+    eligible = [
+        row for row in candidates
+        if is_address(str(row.get("address") or ""))
+        and str(row["address"]).lower() not in known
+    ]
+    fresh = [row for row in eligible if str(row["address"]).lower() not in checked]
+    rechecks = [row for row in eligible if str(row["address"]).lower() in checked]
+    rechecks.sort(
+        key=lambda row: (
+            str(checked[str(row["address"]).lower()].get("lastAttemptAt") or ""),
+            str(row["address"]).lower(),
+        )
+    )
+    selected = (fresh + rechecks)[:max(0, int(limit))]
+    fresh_selected = sum(1 for row in selected if str(row["address"]).lower() not in checked)
+    return selected, {
+        "eligible": len(eligible),
+        "selected": len(selected),
+        "newCandidates": fresh_selected,
+        "rechecks": len(selected) - fresh_selected,
+        "excludedConfirmed": max(0, len(candidates) - len(eligible)),
+    }
+
+
+def record_debank_rotation_results(
+    state: dict[str, Any],
+    report: dict[str, Any],
+    attempted_at: str,
+) -> dict[str, Any]:
+    """Persist only audit outcomes; labels remain review-only suggestions."""
+    next_state = normalize_debank_rotation_state(state)
+    addresses = next_state["debank"]["addresses"]
+    outcomes = [
+        (row.get("address"), "confirmed_cex", "")
+        for row in report.get("confirmedCexSuggestions", [])
+        if isinstance(row, dict)
+    ]
+    outcomes.extend((address, "no_cex_badge", "") for address in report.get("noPublicTag", []))
+    outcomes.extend((address, "error", error) for address, error in (report.get("errors") or {}).items())
+    for raw_address, outcome, error in outcomes:
+        address = str(raw_address or "").lower()
+        if not is_address(address):
+            continue
+        entry = addresses.setdefault(address, {})
+        entry["lastAttemptAt"] = attempted_at
+        entry["outcome"] = outcome
+        if outcome == "error":
+            entry["lastError"] = str(error)[:240]
+        else:
+            entry.pop("lastError", None)
+    return next_state
+
+
 def merge_audit_reports(primary: dict[str, Any], secondary: dict[str, Any]) -> dict[str, Any]:
     confirmed_by_address = {
         row.get("address"): row
@@ -582,6 +694,11 @@ def main() -> int:
     parser.add_argument("--no-api", action="store_true", help="Build only the local candidate report.")
     parser.add_argument("--no-debank", action="store_true", help="Skip rendered DeBank CEX badge checks.")
     parser.add_argument(
+        "--state-file",
+        default=str(DEFAULT_ROTATION_STATE),
+        help="Persistent DeBank candidate-rotation state JSON.",
+    )
+    parser.add_argument(
         "--debank-max-candidates",
         type=int,
         default=int(os.environ.get("DOLO_CEX_DEBANK_MAX_CANDIDATES", "20")),
@@ -596,6 +713,17 @@ def main() -> int:
         max_candidates=args.max_candidates,
         include_known_cex=args.include_known_cex,
     )
+    state_file = Path(args.state_file)
+    rotation_state = load_debank_rotation_state(state_file)
+    rotation_summary: dict[str, Any] = {
+        "stateFile": state_file.name,
+        "eligible": 0,
+        "selected": 0,
+        "newCandidates": 0,
+        "rechecks": 0,
+        "excludedConfirmed": 0,
+        "attempted": 0,
+    }
 
     existing_cex = sorted(
         [
@@ -651,10 +779,13 @@ def main() -> int:
             confirmed_addresses = {
                 row.get("address") for row in api_report.get("confirmedCexSuggestions", [])
             }
-            debank_candidates = [
-                row for row in candidates
-                if row.get("address") not in confirmed_addresses
-            ][:args.debank_max_candidates]
+            debank_candidates, rotation_summary = select_debank_rotation_candidates(
+                candidates,
+                rotation_state,
+                confirmed_addresses,
+                args.debank_max_candidates,
+            )
+            rotation_summary["stateFile"] = state_file.name
             chrome_binary = find_chrome_binary()
             if chrome_binary and debank_candidates:
                 debank_report = run_debank_page_audit(
@@ -662,6 +793,13 @@ def main() -> int:
                     delay=args.delay,
                     chrome_binary=chrome_binary,
                 )
+                rotation_state = record_debank_rotation_results(
+                    rotation_state,
+                    debank_report,
+                    attempted_at=datetime.now(timezone.utc).isoformat(),
+                )
+                save_debank_rotation_state(state_file, rotation_state)
+                rotation_summary["attempted"] = int(debank_report.get("queriedCount", 0))
                 api_report = merge_audit_reports(api_report, debank_report)
                 api_status = f"{api_status}_plus_debank"
                 debank_status = "completed"
@@ -698,6 +836,7 @@ def main() -> int:
         "existingCexLabels": existing_cex,
         "watchLabels": watch_labels,
         "rankedCandidates": candidates,
+        "debankRotation": rotation_summary,
     }
 
     output = Path(args.output)
