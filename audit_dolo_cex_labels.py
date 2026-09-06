@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from cex_label_evidence import cex_label_evidence_status
 
 
 ROOT = Path(__file__).resolve().parent
@@ -86,7 +87,8 @@ def is_address(value: str) -> bool:
 
 
 def load_labels() -> dict[str, dict[str, Any]]:
-    text = LABELS_JS.read_text(encoding="utf-8")
+    paths = [LABELS_JS, LABELS_JS.with_name("dolo-address-overrides.js")]
+    text = "\n".join(path.read_text(encoding="utf-8") for path in paths if path.exists())
     labels: dict[str, dict[str, Any]] = {}
     for match in re.finditer(r'"(0x[a-fA-F0-9]{40})"\s*:\s*\{([^}]+)\}', text):
         address = match.group(1).lower()
@@ -96,12 +98,15 @@ def load_labels() -> dict[str, dict[str, Any]]:
         source_match = re.search(r'source\s*:\s*"([^"]+)"', body)
         confidence_match = re.search(r'confidence\s*:\s*"([^"]+)"', body)
         label_type = type_match.group(1) if type_match else ""
-        labels[address] = {
+        info = {
             "label": label_match.group(1) if label_match else "",
             "type": label_type,
             "source": source_match.group(1) if source_match else "",
-            "confidence": confidence_match.group(1) if confidence_match else ("potential" if label_type == "watch" else "confirmed"),
+            "confidence": confidence_match.group(1) if confidence_match else None,
         }
+        info["evidenceStatus"] = cex_label_evidence_status(info)
+        info["confidence"] = info["confidence"] or ("potential" if label_type == "watch" else "unknown")
+        labels[address] = info
     return labels
 
 
@@ -158,7 +163,7 @@ def collect_candidates(
         label_type = info.get("type", "")
         if label_type in SKIP_LABEL_TYPES:
             continue
-        if label_type == "cex" and not include_known_cex:
+        if label_type == "cex" and not include_known_cex and info.get("evidenceStatus") == "public_label":
             continue
         if balance >= holder_min or label_type == "watch":
             add_candidate(
@@ -182,7 +187,7 @@ def collect_candidates(
                     label_type = info.get("type", "")
                     if label_type in SKIP_LABEL_TYPES:
                         continue
-                    if label_type == "cex" and not include_known_cex:
+                    if label_type == "cex" and not include_known_cex and info.get("evidenceStatus") == "public_label":
                         continue
                     net_flow = float(row.get("net_flow") or 0)
                     if abs(net_flow) >= flow_min or label_type == "watch":
@@ -209,6 +214,7 @@ def collect_candidates(
                 "label": label_info.get("label", ""),
                 "labelType": label_info.get("type", ""),
                 "labelSource": label_info.get("source", ""),
+                "evidenceStatus": label_info.get("evidenceStatus", "review_needed"),
                 "currentBalance": round(row["currentBalance"], 6),
                 "maxAbsFlow": round(row["maxAbsFlow"], 6),
                 "txCount": row["txCount"],
@@ -727,7 +733,8 @@ def main() -> int:
 
     existing_cex = sorted(
         [
-            {"address": address, "label": info.get("label", ""), "source": info.get("source", "")}
+            {"address": address, "label": info.get("label", ""), "source": info.get("source", ""),
+             "confidence": info.get("confidence", "unknown"), "evidenceStatus": info.get("evidenceStatus", "review_needed")}
             for address, info in labels.items()
             if info.get("type") == "cex"
         ],
@@ -818,6 +825,7 @@ def main() -> int:
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "sourceFiles": {
             "labels": str(LABELS_JS.name),
+            "overrides": "dolo-address-overrides.js",
             "holders": str(HOLDERS_JSON.name),
             "flows": str(FLOWS_JSON.name),
         },
@@ -834,6 +842,11 @@ def main() -> int:
             **api_report,
         },
         "existingCexLabels": existing_cex,
+        "existingCexEvidence": {
+            "total": len(existing_cex),
+            "publicLabel": sum(row["evidenceStatus"] == "public_label" for row in existing_cex),
+            "needsReview": [row for row in existing_cex if row["evidenceStatus"] != "public_label"],
+        },
         "watchLabels": watch_labels,
         "rankedCandidates": candidates,
         "debankRotation": rotation_summary,

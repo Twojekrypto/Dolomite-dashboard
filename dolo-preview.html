@@ -3872,6 +3872,7 @@ function buildCexSupplySeries(){
       cex:safeHolderNum(point.liquid ?? point.cex ?? point.supply),
       wallets:safeHolderNum(point.wallets),
       exchanges:Array.isArray(point.exchanges) ? point.exchanges : null,
+      walletBalances:Array.isArray(point.walletBalances) ? point.walletBalances : null,
     }))
     .filter(point => point.ts > 0)
     .sort((a,b) => a.ts - b.ts);
@@ -3986,28 +3987,37 @@ function canonicalCexDisplayName(label){
   if(variants[value.toLowerCase()]) return variants[value.toLowerCase()];
   return value.replace(/\s+(?:deposit|hot wallet|cold wallet)(?:\s+\d+)?$/i, "").replace(/\s+\d+$/, "").trim();
 }
-function cexWalletRowsForExchange(exchangeName){
-  return HOLDERS.map(holder => {
-    const address = holder.addr || holder.address || "";
-    const identity = window.resolveDoloWalletIdentity(address, {label:holder.label,type:holder.type}, window.DOLO_ADDR_LABELS);
-    return {...holder, address, identity, exchange:canonicalCexDisplayName(identity.label)};
-  }).filter(holder => holder.identity.type === "cex" && holder.exchange === exchangeName)
+function cexWalletRowsForExchange(exchangeName, fullModel = cexSupplyFullModel){
+  const points = fullModel ? visibleCexSupplyHistory(fullModel).points || [] : [];
+  const snapshot = points[points.length - 1]?.walletBalances;
+  // Never substitute today's holder balance for a historical chart endpoint.
+  if(!Array.isArray(snapshot)) return null;
+  return snapshot.filter(holder => holder.exchange === exchangeName).map(holder => {
+    const address = holder.address || "";
+    const identity = window.resolveDoloWalletIdentity(address, {label:holder.label,type:"cex"}, window.DOLO_ADDR_LABELS);
+    return {...holder, address, identity, total:safeHolderNum(holder.balance)};
+  })
     .sort((a,b)=>safeHolderNum(b.total) - safeHolderNum(a.total));
 }
 function renderCexExchangeBreakdown(fullModel = cexSupplyFullModel){
   const container = document.getElementById("cexSupplyExchangeBreakdown");
   if(!container) return;
   const exchanges = buildCexExchangeBreakdown(fullModel);
+  const selectedPoints = fullModel ? visibleCexSupplyHistory(fullModel).points || [] : [];
+  const snapshotTs = selectedPoints[selectedPoints.length - 1]?.ts;
+  const snapshotLabel = snapshotTs ? `Balances at ${new Date(snapshotTs * 1000).toLocaleDateString("en-US", {month:"short",day:"numeric",year:"numeric",timeZone:"UTC"})} · UTC` : "Selected date balances";
   container.innerHTML = exchanges.length
     ? exchanges.map(exchange => {
-      const wallets = cexWalletRowsForExchange(exchange.name);
-      const walletRows = wallets.length ? wallets.map(wallet => `
+      const wallets = cexWalletRowsForExchange(exchange.name, fullModel);
+      const walletRows = wallets?.length ? wallets.map(wallet => `
         <div class="cex-wallet-row" data-cex-wallet-copy="${escHtml(wallet.address)}">
           ${DoloWalletTableUX.walletCellHtml({address:wallet.address,labels:window.DOLO_ADDR_LABELS,copyIcon:COPY_ICO})}
-          <span class="cex-wallet-balance">${fmtNum(wallet.total)} DOLO</span>
-        </div>`).join("") : '<p class="cex-exchange-empty">No address-level wallet is present in the current holder snapshot.</p>';
-      const addressCue = wallets.length ? `${wallets.length} ${wallets.length === 1 ? "address" : "addresses"}` : "Addresses";
-      return `<details class="cex-wallet-disclosure"><summary aria-label="Expand ${escHtml(exchange.name)} address details"><div class="cex-exchange-row"><span class="cex-exchange-name">${escHtml(exchange.name)}</span><span class="cex-exchange-value"><span class="cex-exchange-current">${fmtNum(exchange.current)} DOLO</span><span class="cex-exchange-change ${cexExchangeChangeClass(exchange.change)}">${fmtSignedHolder(exchange.change)} DOLO</span></span><span class="cex-exchange-expand">${escHtml(addressCue)}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3"></path></svg></span></div></summary><div class="cex-wallet-list"><div class="cex-wallet-list-head">Current wallet snapshot</div>${walletRows}</div></details>`;
+          <span class="cex-wallet-balance" data-tooltip="${wallet.evidenceStatus === 'public_label' ? 'Identity has a recorded public label source. Balance is from the selected date.' : 'Retained CEX label; direct public ownership evidence still needs review. Balance is from the selected date.'}">${fmtNum(wallet.total)} DOLO</span>
+        </div>`).join("") : `<p class="cex-exchange-empty">${wallets === null ? 'Address-level history is not available for this date yet.' : 'No positive wallet balance at the selected date.'}</p>`;
+      const addressCue = wallets?.length ? `${wallets.length} ${wallets.length === 1 ? "address" : "addresses"}` : "Addresses";
+      const reviewCount = (wallets || []).filter(wallet => wallet.evidenceStatus !== "public_label").length;
+      const evidenceNote = reviewCount ? ` · ${reviewCount} ${reviewCount === 1 ? "label needs" : "labels need"} source review` : "";
+      return `<details class="cex-wallet-disclosure"><summary aria-label="Expand ${escHtml(exchange.name)} address details"><div class="cex-exchange-row"><span class="cex-exchange-name">${escHtml(exchange.name)}</span><span class="cex-exchange-value"><span class="cex-exchange-current">${fmtNum(exchange.current)} DOLO</span><span class="cex-exchange-change ${cexExchangeChangeClass(exchange.change)}">${fmtSignedHolder(exchange.change)} DOLO</span></span><span class="cex-exchange-expand">${escHtml(addressCue)}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m3 4.5 3 3 3-3"></path></svg></span></div></summary><div class="cex-wallet-list"><div class="cex-wallet-list-head">${escHtml(snapshotLabel + evidenceNote)}</div>${walletRows}</div></details>`;
     }).join("")
     : '<p class="cex-exchange-empty">Exchange movement data is not available for this range yet.</p>';
   container.querySelectorAll(".addr-copy").forEach(button => button.addEventListener("click", async event => {

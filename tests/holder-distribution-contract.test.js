@@ -66,6 +66,35 @@ function extractCexExchangeBreakdown(cexSupplyBrushSel, cexSupplyBrushDomainKey 
   return Function(`"use strict"; ${source}`)();
 }
 
+function cexWalletDetailsFromFixture(points, exchangeName){
+  const source = [
+    'const cexSupplyFullModel = null;',
+    'const HOLDERS = [{addr:"today-only",label:"Binance",total:999999}];',
+    'const safeHolderNum = value => Number(value) || 0;',
+    'const window = {DOLO_ADDR_LABELS:{},resolveDoloWalletIdentity: (address, info) => ({...info,type:"cex"})};',
+    'function visibleCexSupplyHistory(model){ return model; }',
+    extractNamedFunctionSource('canonicalCexDisplayName'),
+    extractNamedFunctionSource('cexWalletRowsForExchange'),
+    'return cexWalletRowsForExchange;',
+  ].join('\n');
+  return Function(source)()(exchangeName,{points});
+}
+
+test('CEX Details uses addresses at the selected end date, including wallets empty today',()=>{
+  const rows=cexWalletDetailsFromFixture([{ts:100,walletBalances:[]},{ts:200,walletBalances:[
+    {address:'historical-wallet',label:'Binance 1',exchange:'Binance',balance:125,evidenceStatus:'review_needed'},
+    {address:'another-exchange',label:'Kraken',exchange:'Kraken',balance:500},
+  ]}],'Binance');
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].address,'historical-wallet');
+  assert.equal(rows[0].total,125);
+  assert.equal(rows[0].evidenceStatus,'review_needed');
+});
+
+test('legacy CEX points never substitute current wallet balances into history',()=>{
+  assert.equal(cexWalletDetailsFromFixture([{ts:100},{ts:200}],'Binance'),null);
+});
+
 function buildAllocationSeriesFromFixtures(history, nowModel, baseTs) {
   const source = [
     `const DOLO_HOLDER_BUCKET_HISTORY = ${JSON.stringify(history)};`,
@@ -526,7 +555,8 @@ test("CEX details exposes canonical wallet addresses with copy and DeBank action
   assert.match(preview, /class="cex-wallet-disclosure"/);
   assert.match(preview, /data-cex-wallet-copy/);
   assert.match(preview, /https:\/\/debank\.com\/profile\//);
-  assert.match(preview, /Current wallet snapshot/);
+  assert.match(preview, /Balances at \$\{new Date\(snapshotTs \* 1000\)/);
+  assert.doesNotMatch(preview, /Current wallet snapshot/);
 });
 
 test("each CEX exchange row visibly advertises its expandable address list", () => {

@@ -1973,6 +1973,38 @@ def _dolo_cex_supply_history_valid(data):
             )
             if exchange_cents != point_cents or exchange_wallets != wallets:
                 return False
+            # Additive address snapshots must reconcile with the same historical
+            # endpoint; legacy artifacts may omit them, never synthesize today.
+            if "walletBalances" in point:
+                snapshot = point["walletBalances"]
+                if not isinstance(snapshot, list) or len(snapshot) != wallets:
+                    return False
+                addresses = set()
+                by_exchange = {name: [Decimal(0), 0] for name in names}
+                for row in snapshot:
+                    if not isinstance(row, dict):
+                        return False
+                    address = row.get("address")
+                    balance = row.get("balance")
+                    name = row.get("exchange")
+                    if (not isinstance(address, str)
+                            or not re.fullmatch(r"0x[a-f0-9]{40}", address)
+                            or address in addresses or name not in by_exchange
+                            or not _finite_real_json_number(balance) or balance < 0
+                            or row.get("evidenceStatus") not in {"public_label", "review_needed"}):
+                        return False
+                    addresses.add(address)
+                    by_exchange[name][0] += Decimal(str(balance))
+                    by_exchange[name][1] += 1
+                if abs(sum(value[0] for value in by_exchange.values()) - Decimal(str(liquid))) > Decimal("0.0051"):
+                    return False
+                for row in exchanges:
+                    amount, count = by_exchange[row["name"]]
+                    # The existing policy assigns the combined 2dp rounding
+                    # residual to the largest exchange; address rows have 6dp.
+                    tolerance = Decimal("0.005") * (len(exchanges) + 1) + Decimal("0.000001") * wallets
+                    if count != row["wallets"] or abs(amount - Decimal(str(row["liquid"]))) > tolerance:
+                        return False
         return True
     except (InvalidOperation, TypeError, ValueError):
         return False
