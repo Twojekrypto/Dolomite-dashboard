@@ -66,7 +66,7 @@ jobs:
 
       - name: Run DOLO flow and holder exposure tests
         run: |
-          python3 -m unittest tests/test_fresh_wallets.py tests/test_generate_dolo_flows_integrity.py tests/test_generate_dolo_flows_rpc.py tests/test_flow_tx_metadata.py tests/test_validate_dolo_flows.py
+          python3 -m unittest tests/test_fresh_wallets.py tests/test_generate_dolo_flows_integrity.py tests/test_generate_dolo_flows_rpc.py tests/test_flow_tx_metadata.py tests/test_validate_dolo_flows.py tests/test_cex_holder_history.py
           node --test tests/dolo-flow-balance-display.test.js tests/dolo-flow-lp-display.test.js tests/dolo-holder-protocol-exposure.test.js tests/dolo-flow-protocol-filter.test.js tests/holder-distribution-contract.test.js
 
       - name: Restore holders sync state

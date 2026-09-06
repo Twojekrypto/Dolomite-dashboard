@@ -1,9 +1,33 @@
 import importlib
 import unittest
+import tempfile
+from pathlib import Path
 from unittest import mock
 
 
 class AuditDoloCexLabelsTest(unittest.TestCase):
+    def test_label_audit_reads_overrides_without_inventing_confirmed_confidence(self):
+        module = self.audit_module()
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/'dolo-address-labels.js'
+            path.write_text('"0x1111111111111111111111111111111111111111": {label:"Old CEX",type:"cex"}')
+            (Path(folder)/'dolo-address-overrides.js').write_text(
+                '"0x1111111111111111111111111111111111111111": {label:"Linked Wallet",type:"cex",source:"flow-audit",confidence:"high"},'
+                '"0x2222222222222222222222222222222222222222": {label:"Legacy CEX",type:"cex"}')
+            with mock.patch.object(module,'LABELS_JS',path):
+                labels = module.load_labels()
+        self.assertEqual(labels['0x1111111111111111111111111111111111111111']['label'],'Linked Wallet')
+        self.assertEqual(labels['0x2222222222222222222222222222222222222222']['confidence'],'unknown')
+        self.assertEqual(labels['0x1111111111111111111111111111111111111111']['evidenceStatus'],'review_needed')
+
+    def test_existing_cex_without_direct_evidence_is_not_skipped_by_discovery(self):
+        module = self.audit_module()
+        address='0x1111111111111111111111111111111111111111'
+        with mock.patch.object(module,'load_json',side_effect=[
+            {'holders':[{'address':address,'balance':500000}]}, {'periods':{}}]):
+            rows=module.collect_candidates({address:{'type':'cex','label':'Linked','evidenceStatus':'review_needed'}},100000,100000,120,False)
+        self.assertEqual([r['address'] for r in rows],[address])
+
     def audit_module(self):
         return importlib.import_module("audit_dolo_cex_labels")
 

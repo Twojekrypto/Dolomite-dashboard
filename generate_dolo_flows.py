@@ -6,6 +6,7 @@ calculates net inflow/outflow per address, outputs top 5 each.
 """
 import hashlib, json, time, os, sys, signal, re, shutil, subprocess, math
 import requests
+from cex_label_evidence import cex_label_evidence_status
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from html import unescape
@@ -3708,6 +3709,20 @@ def calculate_cex_supply_history(
             "liquid": cex["liquid"],
             "wallets": cex["wallets"],
             "exchanges": cex["exchanges"],
+            # Same balances and classification as the aggregate, not today's
+            # holder file substituted into an older selected date.
+            "walletBalances": sorted([
+                {
+                    "address": addr.lower(),
+                    "label": (address_labels.get(addr.lower()) or {}).get("label", ""),
+                    "exchange": canonical_cex_name((address_labels.get(addr.lower()) or {}).get("label")),
+                    "balance": round(float(value), 6),
+                    "evidenceStatus": cex_label_evidence_status(address_labels.get(addr.lower()) or {}),
+                }
+                for addr, value in liquid_balances.items()
+                if float(value or 0) > 0
+                and holder_distribution_type(addr, holder_rows, address_labels) == "cex"
+            ], key=lambda row: (-row["balance"], row["address"])),
         })
 
     return sorted(history, key=lambda row: row["timestamp"])
@@ -4050,6 +4065,10 @@ def load_address_labels(vesting_labels=None):
                 "label": label_match.group(1) if label_match else "",
                 "type": ADDRESS_TYPE_ALIASES.get(raw_type, raw_type),
             }
+            for field in ("source", "confidence"):
+                field_match = re.search(r'\b' + field + r'\s*:\s*"([^"]+)"', body)
+                if field_match:
+                    labels[match.group(1).lower()][field] = field_match.group(1)
     vesting_file = os.path.join(DATA_DIR, "vesting_investors.json")
     if os.path.exists(vesting_file):
         try:
@@ -4102,10 +4121,7 @@ def holder_distribution_type(addr, holder_rows, labels):
     label_type = info.get("type", "")
     holder = holder_rows.get(key) or {}
     contract_wallet_type = str(holder.get("contract_wallet_type") or "").lower()
-    if (
-        key in USER_CONTRACT_WALLET_ADDRS
-        or label_type in {"multisig", "safe", "contract_wallet"}
-    ):
+    if label_type in {"multisig", "safe", "contract_wallet"}:
         return "multisig"
     if label_type == "cex":
         return "cex"
@@ -4113,16 +4129,20 @@ def holder_distribution_type(addr, holder_rows, labels):
         return "team"
     if label_type == "investor":
         return "investor"
+    # Safe/delegation describes account technology, not who operates it.
+    # Keep this identity precedence aligned with the chart's JS classifier.
+    if label_type in {"watch", "mm"}:
+        return label_type
+    if label_type in {"bot", "liquidator", "trader"}:
+        return "bot"
     if label_type in {"protocol", "lp", "contract", "dead"}:
         return "ca"
-    if contract_wallet_type in {"safe", "multisig"}:
+    if key in USER_CONTRACT_WALLET_ADDRS or contract_wallet_type in {"safe", "multisig"}:
         return "multisig"
     if contract_wallet_type in {"delegated_eoa", "smart_account"}:
         return "eoa"
     if holder.get("is_contract"):
         return "ca"
-    if label_type in {"bot", "liquidator", "trader"}:
-        return "bot"
     return label_type or "eoa"
 
 
@@ -5778,6 +5798,10 @@ def rebuild_holder_history_from_cached_transfers():
         for point in chart_points
     ]
     output["holder_bucket_history"] = holder_bucket_history
+    output["cex_supply_history"] = calculate_cex_supply_history(
+        all_transfers, points, current_blocks, base_ts, vesting_investors,
+        cutoff_blocks_by_point=holder_cutoff_blocks,
+    )
     output["holder_history_schema"] = "audience-exposure-v3"
     output["holder_dolomite_history_meta"] = dolomite_history_meta
     with open(OUTPUT_JSON, "w") as f:

@@ -36,6 +36,9 @@ jobs:
             echo "::warning::Chrome/Chromium unavailable; direct DeBank CEX badge checks will be skipped."
           fi
 
+      - name: Test CEX label evidence rules
+        run: python3 -m unittest tests/test_audit_dolo_cex_labels.py
+
       - name: Run DOLO CEX label audit
         env:
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
@@ -53,6 +56,7 @@ jobs:
               "apiStatus": api.get("status"),
               "debankStatus": api.get("debankStatus"),
               "debankRotation": full.get("debankRotation") or {},
+              "existingCexEvidence": full.get("existingCexEvidence") or {},
               "confirmedCexSuggestions": api.get("confirmedCexSuggestions", [])[:20],
               "topRankedCandidates": full.get("rankedCandidates", [])[:20],
           }
