@@ -218,17 +218,7 @@ for i in $(seq 1 "$attempts"); do
         python3 build_earn_resolved_interest_ledger.py --chain "$chain" --address-file "$address_file"
         python3 build_earn_verified_ledger.py --chain "$chain" --address-file "$address_file"
         python3 build_earn_verified_ledger_shards.py --chain "$chain" --address-file "$address_file"
-        while IFS= read -r address; do
-          [ -n "$address" ] || continue
-          ledger_path="data/earn-verified-ledger/${chain}/${address}.json"
-          resolved_path="data/earn-resolved-interest-ledger/${chain}/${address}.json"
-          if [ -f "$ledger_path" ] || git ls-files --error-unmatch "$ledger_path" >/dev/null 2>&1; then
-            git add -f -- "$ledger_path"
-          fi
-          if [ -f "$resolved_path" ] || git ls-files --error-unmatch "$resolved_path" >/dev/null 2>&1; then
-            git add -f -- "$resolved_path"
-          fi
-        done < "$address_file"
+        bash scripts/stage_earn_publishable_wallet_paths.sh "$chain" "$address_file" --verified-only
       done
       [ -f data/earn-verified-ledger/manifest.json ] && git add -f data/earn-verified-ledger/manifest.json
       [ -d data/earn-verified-ledger-shards ] && git add -f data/earn-verified-ledger-shards

@@ -40,11 +40,15 @@ class TableUiConsistencyContractsTest(unittest.TestCase):
         self.assertIn("function resetExpandedTableScroll", self.vedolo)
         self.assertIn("resetExpandedTableScroll(\"#holders-table\")", self.vedolo)
 
-    def test_empty_search_states_keep_their_table_height(self):
+    def test_nonempty_short_pages_keep_table_height_without_padding_empty_states(self):
         self.assertIn("function stableTableSpacerRowsHtml", self.odolo)
         self.assertIn("stableTableSpacerRowsHtml(cbState.pageSize - pageRows.length, 7)", self.odolo)
-        self.assertIn("stableTableSpacerRowsHtml(state.latestPageSize - 1, 6)", self.odolo)
-        self.assertIn("stableTableSpacerRowsHtml(state.pairPageSize - 1, 4)", self.odolo)
+        self.assertIn("stableTableSpacerRowsHtml(state.latestPageSize - visibleRows.length, 6)", self.odolo)
+        self.assertIn("stableTableSpacerRowsHtml(state.pairPageSize - visibleRows.length, 4)", self.odolo)
+        self.assertIn("tbody.innerHTML = latestActivityEmptyRowHtml(emptyLabel, 6);", self.odolo)
+        self.assertIn("tbody.innerHTML = latestActivityEmptyRowHtml(emptyLabel, 4);", self.odolo)
+        self.assertNotIn("stableTableSpacerRowsHtml(state.latestPageSize - 1, 6)", self.odolo)
+        self.assertNotIn("stableTableSpacerRowsHtml(state.pairPageSize - 1, 4)", self.odolo)
         # Fresh Wallets is intentionally content-height: it renders only real
         # rows (up to ten per page) instead of padding short result sets.
         self.assertIn("function freshPageModel(rows, page, pageSize)", self.dolo)
