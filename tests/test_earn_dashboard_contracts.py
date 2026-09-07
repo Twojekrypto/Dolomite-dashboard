@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -95,6 +96,60 @@ class EarnDashboardContractsTest(unittest.TestCase):
         ):
             self.assertIn(f"{env_name}: ${{{{ secrets.{env_name} }}}}", workflow)
         self.assertNotIn("/v2/", workflow)
+
+    def test_strict_repair_job_env_does_not_use_runner_context(self):
+        workflow = EARN_STRICT_REPAIR_WORKFLOW.read_text(encoding="utf-8")
+        job_env = workflow.split("    env:\n", 1)[1].split("\n    steps:\n", 1)[0]
+
+        self.assertNotIn("${{ runner.", job_env)
+
+    def test_strict_repair_initializes_shared_evidence_cache_path_at_runtime(self):
+        workflow = EARN_STRICT_REPAIR_WORKFLOW.read_text(encoding="utf-8")
+        step_name = "Initialize strict RPC evidence cache path"
+        marker = f"      - name: {step_name}\n"
+        self.assertIn(marker, workflow)
+        step = workflow.split(marker, 1)[1].split("\n      - name:", 1)[0]
+        lines = step.splitlines()
+        run_index = lines.index("        run: |")
+        script = "\n".join(line[10:] for line in lines[run_index + 1 :])
+
+        with tempfile.TemporaryDirectory(prefix="earn workflow ") as tmp:
+            sandbox = Path(tmp)
+            runner_temp = sandbox / "runner temp"
+            repository = sandbox / "repo checkout"
+            github_env = sandbox / "github env.txt"
+            runner_temp.mkdir()
+            repository.mkdir()
+            github_env.touch()
+            env = os.environ.copy()
+            env.update(
+                {
+                    "CHAIN": "berachain",
+                    "GITHUB_ENV": str(github_env),
+                    "RUNNER_TEMP": str(runner_temp),
+                }
+            )
+
+            subprocess.run(
+                ["bash", "-c", script],
+                cwd=repository,
+                env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            expected_path = runner_temp / "earn-strict-rpc-evidence" / "berachain.json"
+            self.assertEqual(
+                github_env.read_text(encoding="utf-8"),
+                f"EARN_STRICT_RPC_EVIDENCE_CACHE={expected_path}\n",
+            )
+            self.assertNotEqual(expected_path.parts[: len(repository.parts)], repository.parts)
+
+        self.assertLess(workflow.index(step_name), workflow.index("Restore strict RPC evidence cache"))
+        self.assertLess(workflow.index(step_name), workflow.index("Build exact replay ledgers"))
+        self.assertEqual(workflow.count("path: ${{ env.EARN_STRICT_RPC_EVIDENCE_CACHE }}"), 2)
+        self.assertIn('--evidence-cache "$EARN_STRICT_RPC_EVIDENCE_CACHE"', workflow)
 
     def test_borrow_positions_prefer_replay_ledger_for_open_debt_cost(self):
         self.assertIn("function earn_getOpenDebtYieldForAccount", self.source)
