@@ -55,7 +55,6 @@ jobs:
       WALLET_LIMIT: ${{ github.event.inputs.wallet_limit || '25' }}
       REQUESTED_CHAIN: ${{ github.event.inputs.chain || 'all' }}
       MATERIAL_ACTIVE_USD_THRESHOLD: '10'
-      EARN_STRICT_RPC_EVIDENCE_CACHE: ${{ runner.temp }}/earn-strict-rpc-evidence/${{ matrix.chain }}.json
       EARN_STRICT_RPC_EVIDENCE_CACHE_MAX_ENTRIES: '50000'
       DRPC_ETHEREUM_RPC_2_JEFF: ${{ secrets.DRPC_ETHEREUM_RPC_2_JEFF }}
       ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
@@ -110,6 +109,12 @@ jobs:
 
       - name: Install Python dependencies
         run: python3 -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Initialize strict RPC evidence cache path
+        run: |
+          set -euo pipefail
+          cache_path="$RUNNER_TEMP/earn-strict-rpc-evidence/$CHAIN.json"
+          printf 'EARN_STRICT_RPC_EVIDENCE_CACHE=%s\n' "$cache_path" >> "$GITHUB_ENV"
 
       - name: Select unresolved active wallets
         id: select
