@@ -516,6 +516,48 @@ class ValidateDoloFlowsTest(unittest.TestCase):
 
         self.assertLess(rules["max_bytes"], 100_000_000)
 
+    def test_holder_wallet_history_reconciles_every_exposure_component(self):
+        address = "0x" + "9" * 40
+
+        def row(balance, liquid, protocol=0, locked=0):
+            value = {
+                "address": address,
+                "balance": balance,
+                "liquid": liquid,
+                "locked": locked,
+                "balance_eth": liquid,
+                "balance_bera": 0,
+            }
+            if protocol:
+                value.update({
+                    "in_dolomite": protocol,
+                    "in_dolomite_eth": protocol,
+                    "in_dolomite_bera": 0,
+                })
+            return value
+
+        payload = {
+            "holder_wallet_history": {
+                "hist_20260907": {
+                    "timestamp": "2026-09-07T00:00:00Z",
+                    "liquid": {"holders": {"whales": [row(100, 100)]}},
+                    "with_vedolo": {"holders": {"whales": [row(120, 100, locked=20)]}},
+                    "total_exposure": {"holders": {"whales": [row(150, 100, protocol=50)]}},
+                    "total_exposure_with_vedolo": {
+                        "holders": {"whales": [row(170, 100, protocol=50, locked=20)]}
+                    },
+                }
+            }
+        }
+
+        self.assertTrue(validate_data._holder_wallet_history_components_are_valid(payload))
+        payload["holder_wallet_history"]["hist_20260907"]["total_exposure"]["holders"]["whales"][0]["balance"] = 2_000_000
+        self.assertFalse(validate_data._holder_wallet_history_components_are_valid(payload))
+        self.assertIn(
+            "Holder wallet totals must reconcile wallet, Dolomite and veDOLO components",
+            dict(validate_data.RULES["dolo_holder_wallet_history.json"]["checks"]),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

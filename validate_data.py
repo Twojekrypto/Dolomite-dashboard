@@ -2237,6 +2237,84 @@ def _holder_dolomite_exposure_history_is_valid(data):
     return True
 
 
+def _holder_wallet_history_components_are_valid(data):
+    """Every wallet total must reconcile to the exposure sources shown in UI."""
+    history = data.get("holder_wallet_history")
+    if not isinstance(history, dict) or not history:
+        return False
+
+    source_components = {
+        "liquid": (False, False),
+        "with_vedolo": (False, True),
+        "total_exposure": (True, False),
+        "total_exposure_with_vedolo": (True, True),
+    }
+    for point in history.values():
+        if not isinstance(point, dict) or not isinstance(point.get("timestamp"), str):
+            return False
+        for source_key, (include_protocol, include_locked) in source_components.items():
+            rows = (((point.get(source_key) or {}).get("holders") or {}).get("whales"))
+            if not isinstance(rows, list):
+                return False
+            seen = set()
+            for row in rows:
+                if not isinstance(row, dict):
+                    return False
+                address = row.get("address")
+                if (
+                    not isinstance(address, str)
+                    or address != address.lower()
+                    or not re.fullmatch(r"0x[a-f0-9]{40}", address)
+                    or address in seen
+                ):
+                    return False
+                seen.add(address)
+
+                values = {
+                    "balance": row.get("balance"),
+                    "liquid": row.get("liquid"),
+                    "locked": row.get("locked", 0),
+                    "balance_eth": row.get("balance_eth", 0),
+                    "balance_bera": row.get("balance_bera", 0),
+                    "protocol": row.get("in_dolomite", 0),
+                    "protocol_eth": row.get("in_dolomite_eth", 0),
+                    "protocol_bera": row.get("in_dolomite_bera", 0),
+                }
+                if any(
+                    not _finite_real_json_number(value) or value < 0
+                    for value in values.values()
+                ):
+                    return False
+                if not _nearly_equal(
+                    values["liquid"],
+                    values["balance_eth"] + values["balance_bera"],
+                    rel=0,
+                    abs_tol=0.00001,
+                ):
+                    return False
+                if not _nearly_equal(
+                    values["protocol"],
+                    values["protocol_eth"] + values["protocol_bera"],
+                    rel=0,
+                    abs_tol=0.00001,
+                ):
+                    return False
+                if not include_protocol and values["protocol"] > 0.00001:
+                    return False
+                if not include_locked and values["locked"] > 0.00001:
+                    return False
+                expected = values["liquid"]
+                if include_protocol:
+                    expected += values["protocol"]
+                if include_locked:
+                    expected += values["locked"]
+                if not _nearly_equal(
+                    values["balance"], expected, rel=0, abs_tol=0.00001
+                ):
+                    return False
+    return True
+
+
 def _flow_history_integrity_is_valid(data):
     integrity = data.get("flow_history_integrity")
     if not isinstance(integrity, dict):
@@ -2555,6 +2633,10 @@ RULES = {
         "required_keys": ["timestamp", "holder_wallet_history"],
         "checks": [
             ("holder_wallet_history must have data", lambda d: len(d.get("holder_wallet_history", {})) >= 1),
+            (
+                "Holder wallet totals must reconcile wallet, Dolomite and veDOLO components",
+                _holder_wallet_history_components_are_valid,
+            ),
         ],
         "min_bytes": 1_000_000,
         # Leave headroom below GitHub's hard 100 MB blob limit so generation

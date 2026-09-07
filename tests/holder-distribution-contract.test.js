@@ -175,7 +175,7 @@ function extractHolderLegendRangeRows() {
   return Function(`"use strict"; ${source}`)();
 }
 
-function holderWalletRangeChangeFromFixture(current, baseline) {
+function holderWalletRangeChangeFromRows(current, baseline) {
   const source = [
     'const HOLDER_UNAVAILABLE_PERCENT_TOOLTIP = "Percentage unavailable because starting exposure was zero or negligible.";',
     "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
@@ -185,10 +185,25 @@ function holderWalletRangeChangeFromFixture(current, baseline) {
     extractNamedFunctionSource("holderWalletRangeChange"),
     "return holderWalletRangeChange;",
   ].join("\n");
-  return Function(`"use strict"; ${source}`)()(
+  return Function(`"use strict"; ${source}`)()(current, baseline);
+}
+
+function holderWalletRangeChangeFromFixture(current, baseline) {
+  return holderWalletRangeChangeFromRows(
     {panelTotal:current},
     {panelTotal:baseline},
   );
+}
+
+function holderWalletChangeSourceHtmlFromFixture(change) {
+  const source = [
+    "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
+    'const fmtNum = value => { const abs = Math.abs(Number(value)); if(abs >= 1e6) return `${(Number(value) / 1e6).toFixed(2)}M`; if(abs >= 1e3) return `${(Number(value) / 1e3).toFixed(1)}K`; return Number(value).toFixed(0); };',
+    'const escHtml = value => String(value ?? "").replace(/[&<>"\']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","\'":"&#39;"}[char]));',
+    extractNamedFunctionSource("holderWalletChangeSourceHtml"),
+    "return holderWalletChangeSourceHtml;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)()(change);
 }
 
 function holderHistorySourceKeyFromFixture(includeVeDolo) {
@@ -622,12 +637,13 @@ test("holder distribution states both its included and excluded wallet scope", (
 
   assert.match(withoutVeDolo, /^<span class="holder-source-scope">Total exposure<\/span><span class="holder-source-help"/);
   assert.doesNotMatch(withoutVeDolo, />Includes:|>Excludes:|wallet \+ Dolomite/);
-  assert.match(withoutVeDolo, /Wallet balance \+ Dolomite deposits\./);
+  assert.match(withoutVeDolo, /Wallet balance \+ DOLO held in Dolomite\./);
+  assert.match(withoutVeDolo, /internal trades without a direct ERC-20 transfer/);
   assert.doesNotMatch(withoutVeDolo, /veDOLO locked principal/);
-  assert.match(withVeDolo, /Wallet balance \+ Dolomite deposits \+ veDOLO locked principal\./);
+  assert.match(withVeDolo, /Wallet balance \+ DOLO held in Dolomite \+ veDOLO locked principal\./);
   assert.match(withVeDolo, /Includes: Market \+ Team\/Investor\./);
   assert.match(withVeDolo, /Excludes: CEX, protocol &amp; custody\/MM\./);
-  assert.match(withVeDolo, /aria-label="Wallet balance \+ Dolomite deposits \+ veDOLO locked principal\./);
+  assert.match(withVeDolo, /aria-label="Wallet balance \+ DOLO held in Dolomite \+ veDOLO locked principal\./);
   assert.match(withVeDolo, />i<\/span>$/);
 });
 
@@ -934,6 +950,22 @@ test("Bucket wallets show an absolute increase without calling a zero-baseline w
   );
   assert.equal(negligibleBaseline.pct, "—");
   assert.equal(negligibleBaseline.tone, "up");
+});
+
+test("Bucket wallet changes disclose Dolomite-only exposure without implying an ERC-20 wallet transfer", () => {
+  const change = holderWalletRangeChangeFromRows(
+    {panelTotal:2_000_279.845722, liquid:0, inDolomite:2_000_279.845722, locked:0},
+    {panelTotal:0, liquid:0, inDolomite:0, locked:0},
+  );
+
+  assert.deepEqual(change.sourceDeltas, {
+    wallet:0,
+    dolomite:2_000_279.845722,
+    vedolo:0,
+  });
+  const html = holderWalletChangeSourceHtmlFromFixture(change);
+  assert.match(html, /Dolomite \+2\.00M/);
+  assert.match(html, /without an ERC-20 transfer appearing in the wallet history/);
 });
 
 test("unavailable holder percentages stay visually neutral", () => {
