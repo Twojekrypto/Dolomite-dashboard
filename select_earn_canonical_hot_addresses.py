@@ -16,7 +16,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
-from build_earn_subaccount_history import _load_known_addresses, _read_json
+from build_earn_subaccount_history import CHAINS, _load_known_addresses, _read_json
+from build_earn_resolved_interest_ledger import preflight_strict_rpc_evidence
 
 
 ROOT = Path(__file__).resolve().parent
@@ -44,7 +45,7 @@ def _read_addresses(path: Path) -> List[str]:
     return addresses
 
 
-def _latest_snapshot_payload(chain: str) -> dict:
+def _latest_snapshot_details(chain: str) -> Tuple[str, dict]:
     manifest = _read_json(SNAPSHOT_DIR / "manifest.json", {})
     chain_dates = [
         str(date)
@@ -52,10 +53,15 @@ def _latest_snapshot_payload(chain: str) -> dict:
         if chain in ((manifest.get("chains") or {}).get(date) or [])
     ]
     if not chain_dates:
-        return {}
+        return "", {}
     latest = sorted(chain_dates)[-1]
     payload = _read_json(SNAPSHOT_DIR / f"{latest}.json", {})
-    return ((payload.get("snapshots") or {}).get(chain) or {}) if isinstance(payload, dict) else {}
+    return latest, payload if isinstance(payload, dict) else {}
+
+
+def _latest_snapshot_payload(chain: str) -> dict:
+    _date, payload = _latest_snapshot_details(chain)
+    return (payload.get("snapshots") or {}).get(chain) or {}
 
 
 def _intish(value: object) -> int:
@@ -243,6 +249,10 @@ def _active_strict_quality(
 ) -> Dict[str, str]:
     """Classify whether every current market has exact resolved replay proof."""
     snapshots = _latest_snapshot_payload(chain)
+    snapshot_date, snapshot_payload = _latest_snapshot_details(chain)
+    comparison_block = _intish(
+        ((snapshot_payload.get("chainMetadata") or {}).get(chain) or {}).get("blockNumber")
+    )
     quality: Dict[str, str] = {}
     for address in sorted(active_addresses):
         snapshot_row = snapshots.get(address) or snapshots.get(address.lower()) or {}
@@ -263,6 +273,11 @@ def _active_strict_quality(
         )
         resolved_is_verified = (
             isinstance(resolved, dict)
+            and bool(snapshot_date)
+            and str(ledger.get("snapshotDate") or "") == snapshot_date
+            and str(resolved.get("snapshotDate") or "") == snapshot_date
+            and comparison_block > 0
+            and _intish(resolved.get("comparisonBlock")) == comparison_block
             and str(resolved.get("strictStatus") or "") == "verified"
             and str(resolved.get("strictMethod") or "") == "interest-ledger"
         )
@@ -338,7 +353,19 @@ def build_selection(
     prefer_stale_history: bool = False,
     coverage_backfill: bool = False,
     strict_remediation: bool = False,
+    material_active_head: bool = False,
+    actionable_only: bool = False,
+    strict_rpc_ready_only: bool = False,
 ) -> Tuple[List[str], dict]:
+    if material_active_head and (coverage_backfill or strict_remediation):
+        raise ValueError("material_active_head cannot be combined with backfill or strict remediation")
+    if actionable_only and not coverage_backfill:
+        raise ValueError("actionable_only requires coverage_backfill")
+    if strict_rpc_ready_only and not strict_remediation:
+        raise ValueError("strict_rpc_ready_only requires strict_remediation")
+    if material_active_head:
+        existing_history_only = True
+        prefer_stale_history = True
     if coverage_backfill:
         existing_history_only = False
         prefer_stale_history = True
@@ -401,18 +428,28 @@ def build_selection(
     coverage_target = _coverage_target_block(history_dir, chain) if prefer_stale_history else 0
     stale_history: List[str] = []
     stale_last_scanned: Dict[str, int] = {}
+    incomplete_start_history: set[str] = set()
     missing_history: List[str] = []
-    if prefer_stale_history and coverage_target > 0:
+    if prefer_stale_history and (coverage_target > 0 or actionable_only):
         stale_rows = []
-        for address in sorted(known):
+        protocol_start = _intish((CHAINS.get(chain) or {}).get("start_block"))
+        coverage_addresses = known | set(priority) if actionable_only else known
+        for address in sorted(coverage_addresses):
             has_history = address in existing_history
             if existing_history_only and not has_history:
                 continue
             if not has_history:
                 missing_history.append(address)
                 continue
-            last_scanned = _history_last_scanned_block(history_dir, chain, address)
-            if last_scanned < coverage_target:
+            history = _read_json(history_dir / chain / f"{address}.json", {})
+            history = history if isinstance(history, dict) else {}
+            last_scanned = _intish(history.get("lastScannedBlock"))
+            scan_range = history.get("scanRange")
+            from_block = _intish(scan_range.get("fromBlock")) if isinstance(scan_range, dict) else 0
+            # A fresh end watermark cannot repair a missing protocol-start prefix.
+            if actionable_only and protocol_start > 0 and not 0 < from_block <= protocol_start:
+                incomplete_start_history.add(address)
+            if last_scanned < coverage_target or address in incomplete_start_history:
                 stale_last_scanned[address] = last_scanned
                 stale_rows.append((last_scanned, address))
         stale_history = [
@@ -445,6 +482,7 @@ def build_selection(
             for address in priority
             if address not in existing_history
             or _history_last_scanned_block(history_dir, chain, address) < coverage_target
+            or address in incomplete_start_history
         ]
         eligible_priority = set(selection_priority)
         skipped_fresh_priority = [
@@ -483,7 +521,22 @@ def build_selection(
         (address for address, status in strict_quality.items() if status == "inferred"),
         key=active_order_key,
     )
-    if strict_remediation:
+    if material_active_head:
+        # Keep a stable active cohort even at the current manifest watermark:
+        # the runner advances it with one shared delta to the new chain head.
+        selection_order = [
+            *selection_priority,
+            *sorted(
+                (material_active | unpriced_active) & existing_history,
+                key=lambda address: (
+                    active_tier(address),
+                    _history_last_scanned_block(history_dir, chain, address),
+                    -exposure_usd.get(address, Decimal(0)),
+                    address,
+                ),
+            ),
+        ]
+    elif strict_remediation:
         selection_order: List[str] = []
         for tier in range(4):
             for cohort in (
@@ -516,7 +569,8 @@ def build_selection(
         )
         selection_order.extend(cold_missing_history)
         selection_order.extend(cold_stale_history)
-        selection_order.extend(ranked_addresses)
+        if not actionable_only:
+            selection_order.extend(ranked_addresses)
     else:
         selection_order = [
             *selection_priority,
@@ -528,6 +582,24 @@ def build_selection(
     selected = _unique_preserve_order(selection_order)
     if existing_history_only:
         selected = [address for address in selected if address in existing_history]
+    skipped_prerequisites: Dict[str, int] = {}
+    if strict_rpc_ready_only:
+        snapshot_date, snapshot_payload = _latest_snapshot_details(chain)
+        ready = []
+        for address in selected:
+            if strict_quality.get(address) == "verified":
+                continue
+            diagnostics: dict = {}
+            history = _read_json(history_dir / chain / f"{address}.json", None)
+            if preflight_strict_rpc_evidence(
+                chain, address, snapshot_date, snapshot_payload, history,
+                diagnostics=diagnostics,
+            ) is not None:
+                ready.append(address)
+            else:
+                reason = str(diagnostics.get("reason") or "invalid_input")
+                skipped_prerequisites[reason] = skipped_prerequisites.get(reason, 0) + 1
+        selected = ready
     if limit > 0:
         selected = selected[:limit]
 
@@ -537,6 +609,11 @@ def build_selection(
         "existingHistoryOnly": bool(existing_history_only),
         "coverageBackfill": bool(coverage_backfill),
         "strictRemediation": bool(strict_remediation),
+        "materialActiveHead": bool(material_active_head),
+        "actionableOnly": bool(actionable_only),
+        "strictRpcReadyOnly": bool(strict_rpc_ready_only),
+        "skippedStrictPrerequisiteReasonCounts": skipped_prerequisites,
+        "skippedStrictPrerequisiteAddressCount": sum(skipped_prerequisites.values()),
         "existingHistoryAddressCount": len(existing_history),
         "knownAddressCount": len(known),
         "scoredAddressCount": len(scores),
@@ -546,6 +623,8 @@ def build_selection(
         "skippedNonblockingPriorityAddressCount": len(skipped_nonblocking_priority),
         "preferStaleHistory": bool(prefer_stale_history),
         "selectionPolicy": (
+            "material-active-head-oldest-watermark"
+            if material_active_head else
             "material-active-strict-blockers"
             if strict_remediation
             else ("material-active-first-then-cold-watermark"
@@ -586,6 +665,7 @@ def build_selection(
         "coldMissingHistoryAddressCount": len(cold_missing_history),
         "coldStaleHistoryAddressCount": len(cold_stale_history),
         "staleHistoryAddressCount": len(stale_history),
+        "incompleteStartHistoryAddressCount": len(incomplete_start_history),
         "missingHistoryAddressCount": len(missing_history),
         "selectedActiveAddressCount": sum(1 for address in selected if address in active_snapshot),
         "selectedMaterialAddressCount": sum(1 for address in selected if address in material_active),
@@ -608,6 +688,9 @@ def main() -> int:
     parser.add_argument("--prefer-stale-history", action="store_true")
     parser.add_argument("--coverage-backfill", action="store_true")
     parser.add_argument("--strict-remediation", action="store_true")
+    parser.add_argument("--material-active-head", action="store_true")
+    parser.add_argument("--actionable-only", action="store_true")
+    parser.add_argument("--strict-rpc-ready-only", action="store_true")
     parser.add_argument("--output", required=True)
     parser.add_argument("--metadata-output", default=None)
     args = parser.parse_args()
@@ -625,6 +708,9 @@ def main() -> int:
         prefer_stale_history=bool(args.prefer_stale_history),
         coverage_backfill=bool(args.coverage_backfill),
         strict_remediation=bool(args.strict_remediation),
+        material_active_head=bool(args.material_active_head),
+        actionable_only=bool(args.actionable_only),
+        strict_rpc_ready_only=bool(args.strict_rpc_ready_only),
     )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

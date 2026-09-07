@@ -90,8 +90,9 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
                 encoding="utf-8",
             )
             (ledger_dir / "arbitrum" / f"{active_verified}.json").write_text(
-                '{"markets":{"1":{"strictStatus":"inferred"}},'
+                '{"snapshotDate":"2026-09-07","markets":{"1":{"strictStatus":"inferred"}},'
                 '"resolvedInterestLedger":{"strictStatus":"verified",'
+                '"snapshotDate":"2026-09-07","comparisonBlock":100,'
                 '"strictMethod":"interest-ledger",'
                 '"markets":{"1":{"strictStatus":"verified","strictMethod":"interest-ledger"}},'
                 '"replayVerificationData":{"1":{"rawVerified":true,'
@@ -116,6 +117,10 @@ class SelectEarnCanonicalHotAddressesTest(unittest.TestCase):
                     return_value=snapshots,
                 ),
                 patch("select_earn_canonical_hot_addresses._score_netflow_wallets", return_value=None),
+                patch(
+                    "select_earn_canonical_hot_addresses._latest_snapshot_details",
+                    return_value=("2026-09-07", {"chainMetadata": {"arbitrum": {"blockNumber": 100}}}),
+                ),
             ):
                 selected, metadata = build_selection(
                     "arbitrum",

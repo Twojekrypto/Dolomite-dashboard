@@ -70,6 +70,7 @@ jobs:
       ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}
       ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
       ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
+      DRPC_ETHEREUM_RPC_2_JEFF: ${{ secrets.DRPC_ETHEREUM_RPC_2_JEFF }}
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC || secrets.ARBITRUM_RPC_URL || secrets.ARBITRUM_RPC }}
       ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}
       ALCHEMY_ARBITRUM_RPC_DAN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_DAN }}
@@ -142,6 +143,7 @@ jobs:
               --chain "$CHAIN"
               --limit "$COVERAGE_LIMIT"
               --coverage-backfill
+              --actionable-only
               --material-usd-threshold "$MATERIAL_ACTIVE_USD_THRESHOLD"
               --priority-address-file config/earn_canonical_priority_addresses.txt
               --include-priority-even-if-unknown
