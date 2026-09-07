@@ -87,6 +87,13 @@ test("two-line Flow wallet cells preserve the shared 71px row contract", () => {
   assert.match(sharedCss, /\.wallet-flow-table \.type-tag\{padding-top:1px;padding-bottom:1px\}/);
 });
 
+test("shared Flow copy buttons include the complete DOLO visual contract", () => {
+  const sharedCss = fs.readFileSync("wallet-table-ux.css", "utf8");
+  assert.match(sharedCss, /\.wallet-flow-table \.wallet-address-actions \.addr-copy\{[^}]*border-radius:5px;[^}]*display:grid;[^}]*place-items:center;[^}]*background:var\(--bg-3\);[^}]*border:1px solid var\(--line-2\)/);
+  assert.match(sharedCss, /\.wallet-flow-table \.wallet-address-actions \.addr-copy:hover\{[^}]*color:var\(--gold\);[^}]*border-color:var\(--gold-line\);[^}]*background:var\(--gold-wash\)/);
+  assert.match(sharedCss, /\.wallet-flow-table \.wallet-address-actions \.addr-copy svg\{[^}]*width:11px;[^}]*height:11px/);
+});
+
 test("DOLO Holders keeps compact rank and stable inline-flex sort markers", () => {
   assert.match(pages.dolo, /id="tbl-holders"[\s\S]*?<th[^>]*data-sort="rank"[^>]*wallet-rank-col/);
   assert.match(pages.dolo, /class="wallet-sort-content"/);
