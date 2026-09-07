@@ -32,6 +32,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Run oDOLO UI regression tests
+        run: |
+          python3 -m unittest tests/test_odolo_preview_contracts.py
+          node --test tests/odolo-latest-activity-empty-state.test.js
+
       - name: Restore exercisers cache
         uses: actions/cache@v5
         with:
