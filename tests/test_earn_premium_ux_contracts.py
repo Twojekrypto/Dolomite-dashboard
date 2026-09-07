@@ -1,6 +1,9 @@
 import subprocess
+import re
 import unittest
 from pathlib import Path
+
+from build_earn_bundle import render_earn_assets
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -305,11 +308,11 @@ if (earn_getMismatchQualityLabel({
         self.assertNotIn(".earn-summary-secondary-grid", summary_css)
 
     def test_dedicated_earn_bundle_uses_premium_ux_cache_version(self):
-        version = "earn-core-20260724-mismatch-floor-straight-hover-filter-icon-parity-20260731-responsive-20260801-table-system-20260803-official-icons-strategic-round-20260805-emode-copy-20260811"
-        builder = (ROOT / "build_earn_bundle.py").read_text(encoding="utf-8")
         route = (ROOT / "earn/index.html").read_text(encoding="utf-8")
-        self.assertIn(version, builder)
-        self.assertIn(f'"version": "{version}"', route)
+        route_version = re.search(r'"version": "([^"]+)"', route).group(1)
+        generated_html, _js = render_earn_assets()
+        script_version = re.search(r'<script src="earn/earn-core.js\?v=([^"]+)"', generated_html).group(1)
+        self.assertTrue(script_version.endswith(route_version), "route and generated runtime must invalidate together")
 
     def test_shared_dashboard_assets_use_premium_ux_cache_version(self):
         self.assertIn(

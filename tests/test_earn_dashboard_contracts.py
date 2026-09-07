@@ -1259,9 +1259,9 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         workflow = ETHEREUM_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("cron: '12,42 * * * *'", workflow)
         self.assertIn("timeout-minutes: 90", workflow)
-        self.assertIn("default: '120'", workflow)
+        self.assertIn("default: '1000'", workflow)
         self.assertIn("default: '1200'", workflow)
-        self.assertIn("HOT_LIMIT: ${{ github.event.inputs.hot_limit || '120' }}", workflow)
+        self.assertIn("HOT_LIMIT: ${{ github.event.inputs.hot_limit || '1000' }}", workflow)
         self.assertIn("CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1200' }}", workflow)
         for env_name in (
             "ALCHEMY_ETHEREUM_RPC_KAT",
@@ -1272,7 +1272,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("--existing-history-only", workflow)
         self.assertNotIn("--include-priority-even-if-unknown", workflow)
         self.assertIn("--prefer-stale-history", workflow)
-        self.assertIn("Select oldest existing Ethereum canonical wallets", workflow)
+        self.assertIn("Select material-active existing Ethereum canonical wallets", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)

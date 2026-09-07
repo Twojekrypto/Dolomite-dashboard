@@ -55,6 +55,9 @@ jobs:
       WALLET_LIMIT: ${{ github.event.inputs.wallet_limit || '25' }}
       REQUESTED_CHAIN: ${{ github.event.inputs.chain || 'all' }}
       MATERIAL_ACTIVE_USD_THRESHOLD: '10'
+      EARN_STRICT_RPC_EVIDENCE_CACHE: ${{ runner.temp }}/earn-strict-rpc-evidence/${{ matrix.chain }}.json
+      EARN_STRICT_RPC_EVIDENCE_CACHE_MAX_ENTRIES: '50000'
+      DRPC_ETHEREUM_RPC_2_JEFF: ${{ secrets.DRPC_ETHEREUM_RPC_2_JEFF }}
       ALCHEMY_ETHEREUM_RPC_KAT: ${{ secrets.ALCHEMY_ETHEREUM_RPC_KAT }}
       ALCHEMY_ETHEREUM_RPC_DAN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_DAN }}
       ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}
@@ -132,6 +135,7 @@ jobs:
             --chain "$CHAIN"
             --limit "$WALLET_LIMIT"
             --strict-remediation
+            --strict-rpc-ready-only
             --material-usd-threshold "$MATERIAL_ACTIVE_USD_THRESHOLD"
             --priority-address-file config/earn_canonical_priority_addresses.txt
             --output "$selection_path"
@@ -147,6 +151,15 @@ jobs:
           echo "selected_count=$selected_count" >> "$GITHUB_OUTPUT"
           cat "$metadata_path"
 
+      - name: Restore strict RPC evidence cache
+        if: steps.select.outputs.selected_count != '0'
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.EARN_STRICT_RPC_EVIDENCE_CACHE }}
+          key: earn-strict-rpc-evidence-v1-${{ matrix.chain }}-${{ github.run_id }}
+          restore-keys: |
+            earn-strict-rpc-evidence-v1-${{ matrix.chain }}-
+
       - name: Build exact replay ledgers
         if: steps.select.outputs.selected_count != '0'
         run: |
@@ -156,6 +169,8 @@ jobs:
             --chain "$CHAIN" \
             --address-file "${{ steps.select.outputs.selection_path }}" \
             --fetch-strict-rpc-evidence \
+            --evidence-cache "$EARN_STRICT_RPC_EVIDENCE_CACHE" \
+            --max-evidence-cache-entries "$EARN_STRICT_RPC_EVIDENCE_CACHE_MAX_ENTRIES" \
             --status-output "$diagnostic_path"
           python3 build_earn_verified_ledger.py \
             --chain "$CHAIN" \
@@ -196,3 +211,10 @@ jobs:
           path: /tmp/earn-${{ matrix.chain }}-strict-repair-diagnostics.json
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Save strict RPC evidence cache
+        if: always() && steps.select.outputs.selected_count != '0'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ env.EARN_STRICT_RPC_EVIDENCE_CACHE }}
+          key: earn-strict-rpc-evidence-v1-${{ matrix.chain }}-${{ github.run_id }}

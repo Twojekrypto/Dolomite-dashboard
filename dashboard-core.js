@@ -13417,9 +13417,14 @@
         let earn_netflowData = null; // { marketId: netFlowWei (string) } for current address+chain
         let earn_acct0NetflowData = null; // { marketId: weiString } account-0-only supply netflow (for borrow markets)
         let earn_subgraphTokens = {}; // { marketId: { symbol, decimals, name } } — token metadata from subgraph
-        let earn_verifiedLedgerCache = {}; // { "chain:address" : payload|null }
-        let earn_verifiedLedgerRequestCache = {}; // { "chain:address" : Promise<payload|null> }
-        let earn_verifiedLedgerShardRequestCache = {}; // { "chain:prefix" : Promise<shard|null> }
+        let earn_verifiedLedgerCache = {}; // Current publication only: { "chain:address" : payload|null }
+        let earn_verifiedLedgerRequestCache = {};
+        let earn_verifiedLedgerShardRequestCache = {};
+        let earn_verifiedLedgerGeneration = null;
+        let earn_verifiedLedgerManifest = null;
+        let earn_verifiedLedgerManifestRequest = null;
+        let earn_verifiedLedgerManifestExpiresAt = 0;
+        const EARN_VERIFIED_LEDGER_MANIFEST_TTL_MS = 60_000;
         let earn_publishedResolvedInterestLedger = null; // last strict static replay fast path for the active lookup
         let earn_subaccountHistoryCache = {}; // { "chain:address" : payload|null }
         let earn_subaccountHistoryRequestCache = {}; // { "chain:address" : Promise<payload|null> }
@@ -14199,27 +14204,67 @@
         async function earn_fetchVerifiedLedgerForAddress(chainId, address) {
             const addr = String(address || '').trim().toLowerCase();
             if (!addr || !/^0x[a-f0-9]{40}$/.test(addr)) return null;
+            const publication = await earn_fetchVerifiedLedgerManifest();
+            const generation = publication ? publication.generation : null;
+            const startedGeneration = earn_verifiedLedgerGeneration;
+            const stillRelevant = () => startedGeneration === earn_verifiedLedgerGeneration;
+            const isCurrent = () => generation !== null && generation === earn_verifiedLedgerGeneration;
             const cacheKey = `${chainId}:${addr}`;
-            if (Object.prototype.hasOwnProperty.call(earn_verifiedLedgerCache, cacheKey)) {
-                return earn_verifiedLedgerCache[cacheKey];
+            const fresh = data => earn_isVerifiedLedgerSnapshotFresh(chainId, data);
+            if (isCurrent() && Object.prototype.hasOwnProperty.call(earn_verifiedLedgerCache, cacheKey)) {
+                const cached = earn_verifiedLedgerCache[cacheKey];
+                return fresh(cached) ? cached : null;
             }
-            if (earn_verifiedLedgerRequestCache[cacheKey]) {
-                return earn_verifiedLedgerRequestCache[cacheKey];
+            if (isCurrent() && earn_verifiedLedgerRequestCache[cacheKey]) {
+                const cached = await earn_verifiedLedgerRequestCache[cacheKey];
+                return isCurrent() && fresh(cached) ? cached : null;
             }
             const request = (async () => {
                 let data = null;
                 const prefix = addr.slice(2, 4);
                 const shardKey = `${chainId}:${prefix}`;
-                if (!earn_verifiedLedgerShardRequestCache[shardKey]) {
-                    earn_verifiedLedgerShardRequestCache[shardKey] = fetch(
-                        `${VERIFIED_LEDGER_SHARD_BASE}/${chainId}/${prefix}.json`,
-                        { cache: 'no-store' }
-                    ).then(shardResp => shardResp.ok ? shardResp.json() : null).catch(() => null);
+                const chainManifest = publication && publication.payload.chains[chainId];
+                const validChain = earn_isLedgerObject(chainManifest)
+                    && chainManifest.prefixLength === 2 && earn_isLedgerObject(chainManifest.shards)
+                    && /^\d{4}-\d{2}-\d{2}$/.test(String(chainManifest.snapshotDate || ''));
+                const hasShard = validChain && Object.prototype.hasOwnProperty.call(chainManifest.shards, prefix);
+                // Only a valid publication's absent shard, or a successfully read
+                // shard's absent address, can make an individual 404 authoritative.
+                let authoritativeMissing = !!publication && (chainManifest === undefined || (validChain && !hasShard));
+                let shard = null;
+                let shardRequest = null;
+                if (hasShard) {
+                    shardRequest = isCurrent() && earn_verifiedLedgerShardRequestCache[shardKey];
+                    if (!shardRequest) {
+                        shardRequest = fetch(
+                            `${VERIFIED_LEDGER_SHARD_BASE}/${chainId}/${prefix}.json`,
+                            { cache: 'no-cache' }
+                        ).then(resp => resp.ok ? resp.json() : null).then(payload => (
+                            earn_isLedgerObject(payload)
+                            && (payload.version === 1 || (payload.version === 2
+                                && payload.schema && Array.isArray(payload.schema.market)
+                                && payload.schema.market.length > 0
+                                && payload.schema.market.every(field => typeof field === 'string')))
+                            && payload.chain === chainId && payload.prefix === prefix
+                            && earn_isLedgerObject(payload.ledgers)
+                            && Object.keys(payload.ledgers).length === chainManifest.shards[prefix].addressCount
+                                ? payload : null
+                        )).catch(() => null);
+                        if (isCurrent()) earn_verifiedLedgerShardRequestCache[shardKey] = shardRequest;
+                    }
+                    shard = await shardRequest;
+                    if (!shard && isCurrent() && earn_verifiedLedgerShardRequestCache[shardKey] === shardRequest) {
+                        delete earn_verifiedLedgerShardRequestCache[shardKey];
+                    }
+                    authoritativeMissing = !!shard && !Object.prototype.hasOwnProperty.call(shard.ledgers, addr);
                 }
-                const shard = await earn_verifiedLedgerShardRequestCache[shardKey];
                 const shardEntry = shard && shard.ledgers ? (shard.ledgers[addr] || null) : null;
-                if (Array.isArray(shardEntry) && shardEntry.length >= 2) {
-                    const fields = (shard.schema && shard.schema.market) || [];
+                if (Array.isArray(shardEntry) && shardEntry.length >= 2
+                    && earn_isLedgerObject(shardEntry[1])
+                    && shard.schema && Array.isArray(shard.schema.market) && shard.schema.market.length
+                    && shard.schema.market.every(field => typeof field === 'string')
+                    && Object.values(shardEntry[1]).every(Array.isArray)) {
+                    const fields = shard.schema.market;
                     const markets = {};
                     Object.entries(shardEntry[1] || {}).forEach(([marketId, values]) => {
                         markets[marketId] = {};
@@ -14236,52 +14281,113 @@
                             ? shardEntry[2]
                             : undefined,
                     };
-                } else if (shardEntry && typeof shardEntry === 'object') {
+                } else if (earn_isLedgerObject(shardEntry)) {
                     data = shardEntry;
+                }
+                if (shard && !authoritativeMissing && !earn_isVerifiedLedgerPayload(data)) {
+                    data = null;
+                    if (isCurrent() && earn_verifiedLedgerShardRequestCache[shardKey] === shardRequest) {
+                        delete earn_verifiedLedgerShardRequestCache[shardKey];
+                    }
                 }
 
                 // Compatibility fallback for chains that have not published shards yet.
                 if (!data) {
                     const resp = await fetch(`${VERIFIED_LEDGER_BASE}/${chainId}/${addr}.json`, {
-                        cache: 'no-store',
+                        cache: 'no-cache',
                     });
                     if (resp.ok) {
                         data = await resp.json();
                     } else if (resp.status === 404) {
-                        earn_verifiedLedgerCache[cacheKey] = null;
+                        if (isCurrent() && authoritativeMissing) earn_verifiedLedgerCache[cacheKey] = null;
+                        return null;
                     } else {
                         // Transient errors stay uncached so the lookup can retry.
                         return null;
                     }
                 }
-                if (!data || typeof data !== 'object' || !data.markets || typeof data.markets !== 'object') {
-                    earn_verifiedLedgerCache[cacheKey] = null;
-                    return null;
-                }
-                const latestSnapshotDate = earn_getLatestSnapshotDateForChain(chainId);
-                const ledgerSnapshotDate = String(data.snapshotDate || '').trim();
-                if (latestSnapshotDate && ledgerSnapshotDate && ledgerSnapshotDate < latestSnapshotDate) {
-                    console.info('Ignoring stale verified ledger in favor of fresher snapshots:', {
-                        chainId,
-                        address: addr,
-                        ledgerSnapshotDate,
-                        latestSnapshotDate,
-                    });
-                    earn_verifiedLedgerCache[cacheKey] = null;
-                    return null;
-                }
-                earn_verifiedLedgerCache[cacheKey] = data;
+                if (!fresh(data) || !stillRelevant()) return null;
+                if (isCurrent()) earn_verifiedLedgerCache[cacheKey] = data;
                 return data;
             })().catch(e => {
                 // Network/abort error: return null WITHOUT caching so it can be retried.
                 console.warn('Verified ledger fetch failed:', e.message || e);
                 return null;
             });
-            earn_verifiedLedgerRequestCache[cacheKey] = request;
+            if (isCurrent()) earn_verifiedLedgerRequestCache[cacheKey] = request;
+            try {
+                const data = await request;
+                return stillRelevant() && fresh(data) ? data : null;
+            } finally {
+                if (isCurrent() && earn_verifiedLedgerRequestCache[cacheKey] === request) {
+                    delete earn_verifiedLedgerRequestCache[cacheKey];
+                }
+            }
+        }
+
+        function earn_isLedgerObject(value) {
+            return !!value && typeof value === 'object' && !Array.isArray(value);
+        }
+
+        function earn_isVerifiedLedgerPayload(data) {
+            return earn_isLedgerObject(data) && earn_isLedgerObject(data.markets)
+                && /^\d{4}-\d{2}-\d{2}$/.test(String(data.snapshotDate || ''));
+        }
+
+        function earn_isVerifiedLedgerSnapshotFresh(chainId, data) {
+            if (!earn_isVerifiedLedgerPayload(data)) return false;
+            const latest = earn_getLatestSnapshotDateForChain(chainId);
+            return !latest || data.snapshotDate >= latest;
+        }
+
+        async function earn_fetchVerifiedLedgerManifest() {
+            if (earn_verifiedLedgerManifest && Date.now() < earn_verifiedLedgerManifestExpiresAt) {
+                return earn_verifiedLedgerManifest;
+            }
+            if (earn_verifiedLedgerManifestRequest) return earn_verifiedLedgerManifestRequest;
+            const request = (async () => {
+                const resp = await fetch(`${VERIFIED_LEDGER_SHARD_BASE}/manifest.json`, { cache: 'no-cache' });
+                if (!resp.ok) return null;
+                const payload = await resp.json();
+                if (!earn_isLedgerObject(payload) || payload.version !== 1 || payload.prefixLength !== 2
+                    || !earn_isLedgerObject(payload.chains) || typeof payload.generatedAt !== 'string'
+                    || !Number.isFinite(Date.parse(payload.generatedAt))) return null;
+                const validChains = Object.entries(payload.chains).every(([chain, entry]) => {
+                    if (!earn_isLedgerObject(entry) || entry.prefixLength !== 2
+                        || !earn_isLedgerObject(entry.shards)
+                        || !Number.isInteger(entry.addressCount) || entry.addressCount < 0
+                        || entry.shardCount !== Object.keys(entry.shards).length
+                        || typeof entry.generatedAt !== 'string'
+                        || (!(entry.snapshotDate === '' && entry.addressCount === 0)
+                            && !/^\d{4}-\d{2}-\d{2}$/.test(String(entry.snapshotDate || '')))) return false;
+                    let total = 0;
+                    for (const [prefix, shard] of Object.entries(entry.shards)) {
+                        if (!/^[a-f0-9]{2}$/.test(prefix) || !earn_isLedgerObject(shard)
+                            || shard.path !== `${chain}/${prefix}.json`
+                            || !Number.isInteger(shard.addressCount) || shard.addressCount <= 0) return false;
+                        total += shard.addressCount;
+                    }
+                    return total === entry.addressCount;
+                });
+                if (!validChains) return null;
+                // Per-chain generatedAt is MAX(source ledger time), not a publication
+                // revision. The top-level generation also catches same-date corrections.
+                const key = JSON.stringify([payload.version, payload.generatedAt, payload.prefixLength, payload.chains]);
+                if (!earn_verifiedLedgerGeneration || earn_verifiedLedgerGeneration.key !== key) {
+                    earn_verifiedLedgerGeneration = { key };
+                    earn_verifiedLedgerCache = {};
+                    earn_verifiedLedgerRequestCache = {};
+                    earn_verifiedLedgerShardRequestCache = {};
+                }
+                earn_verifiedLedgerManifest = { payload, generation: earn_verifiedLedgerGeneration };
+                earn_verifiedLedgerManifestExpiresAt = Date.now() + EARN_VERIFIED_LEDGER_MANIFEST_TTL_MS;
+                return earn_verifiedLedgerManifest;
+            })().catch(() => null);
+            earn_verifiedLedgerManifestRequest = request;
             try {
                 return await request;
             } finally {
-                delete earn_verifiedLedgerRequestCache[cacheKey];
+                if (earn_verifiedLedgerManifestRequest === request) earn_verifiedLedgerManifestRequest = null;
             }
         }
 

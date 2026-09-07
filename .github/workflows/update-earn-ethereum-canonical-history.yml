@@ -8,7 +8,7 @@ on:
       hot_limit:
         description: 'Maximum Ethereum wallets to refresh in this checkpoint.'
         required: false
-        default: '120'
+        default: '1000'
       checkpoint_steps:
         description: 'Polling steps before checkpointing this run.'
         required: false
@@ -29,7 +29,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       CHAIN: ethereum
-      HOT_LIMIT: ${{ github.event.inputs.hot_limit || '120' }}
+      HOT_LIMIT: ${{ github.event.inputs.hot_limit || '1000' }}
       CHECKPOINT_STEPS: ${{ github.event.inputs.checkpoint_steps || '1200' }}
       CHECKPOINT_SLEEP_SECONDS: '2'
       COMMAND_TIMEOUT_SECONDS: '600'
@@ -47,6 +47,7 @@ jobs:
       ALCHEMY_ETHEREUM_RPC_ZEN: ${{ secrets.ALCHEMY_ETHEREUM_RPC_ZEN }}
       ALCHEMY_ETHEREUM_RPC_2: ${{ secrets.ALCHEMY_ETHEREUM_RPC_2 }}
       ALCHEMY_ETHEREUM_RPC_3: ${{ secrets.ALCHEMY_ETHEREUM_RPC_3 }}
+      DRPC_ETHEREUM_RPC_2_JEFF: ${{ secrets.DRPC_ETHEREUM_RPC_2_JEFF }}
 
     steps:
       - name: Checkout
@@ -78,7 +79,7 @@ jobs:
 
       # Keep the user-facing canonical ledger fresh even while the separate
       # coverage queue is still backfilling newly discovered wallets.
-      - name: Select oldest existing Ethereum canonical wallets
+      - name: Select material-active existing Ethereum canonical wallets
         run: |
           set -euo pipefail
           python3 select_earn_canonical_hot_addresses.py \
@@ -87,6 +88,7 @@ jobs:
             --priority-address-file config/earn_canonical_priority_addresses.txt \
             --existing-history-only \
             --prefer-stale-history \
+            --material-active-head \
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"

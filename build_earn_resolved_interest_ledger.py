@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
 from earn_strict_replay import build_strict_replay
+from rpc_client import RpcClient
 from scan_earn_netflow import CHAINS as EARN_CHAIN_CONFIG
 
 
@@ -178,6 +180,82 @@ def _strict_diagnostic_failure(diagnostics: Optional[dict], reason: str) -> None
     })
 
 
+def preflight_strict_rpc_evidence(
+    chain: str,
+    address: str,
+    snapshot_date: str,
+    snapshot_payload: dict,
+    history_payload: dict,
+    *,
+    diagnostics: Optional[dict] = None,
+) -> Optional[dict]:
+    """Return RPC inputs only when cheap strict replay prerequisites are valid."""
+    chain = str(chain).lower()
+    address = str(address).lower()
+    if not isinstance(snapshot_payload, dict) or not isinstance(history_payload, dict):
+        _strict_diagnostic_failure(diagnostics, "invalid_input")
+        return None
+    if str(history_payload.get("chain") or "").lower() != chain:
+        _strict_diagnostic_failure(diagnostics, "history_chain_mismatch")
+        return None
+    if str(history_payload.get("address") or "").lower() != address:
+        _strict_diagnostic_failure(diagnostics, "history_address_mismatch")
+        return None
+    source_metadata = history_payload.get("sourceMetadata")
+    scan_range = history_payload.get("scanRange")
+    snapshot_metadata = snapshot_payload.get("chainMetadata")
+    snapshots = snapshot_payload.get("snapshots")
+    if (
+        not isinstance(source_metadata, dict)
+        or not isinstance(scan_range, dict)
+        or not isinstance(snapshot_metadata, dict)
+        or not isinstance(snapshots, dict)
+    ):
+        _strict_diagnostic_failure(diagnostics, "invalid_input")
+        return None
+    source_date = str(source_metadata.get("latestSnapshotDate") or "")
+    if source_date != str(snapshot_date):
+        _strict_diagnostic_failure(diagnostics, "history_snapshot_date_mismatch")
+        return None
+    canonical_start_block = _integer((EARN_CHAIN_CONFIG.get(chain) or {}).get("start_block"), 0)
+    scan_from_block = _integer(scan_range.get("fromBlock"), 0)
+    if canonical_start_block > 0 and (scan_from_block <= 0 or scan_from_block > canonical_start_block):
+        _strict_diagnostic_failure(diagnostics, "history_starts_after_protocol_start")
+        return None
+
+    chain_metadata = snapshot_metadata.get(chain) or {}
+    chain_snapshots = snapshots.get(chain) or {}
+    if not isinstance(chain_metadata, dict) or not isinstance(chain_snapshots, dict):
+        _strict_diagnostic_failure(diagnostics, "invalid_input")
+        return None
+    comparison_block = _integer(chain_metadata.get("blockNumber"), 0)
+    if comparison_block <= 0 or _integer(history_payload.get("lastScannedBlock"), 0) < comparison_block:
+        _strict_diagnostic_failure(diagnostics, "stale_comparison_block")
+        return None
+    wallet = chain_snapshots.get(address) or {}
+    if not isinstance(wallet, dict):
+        _strict_diagnostic_failure(diagnostics, "invalid_input")
+        return None
+    snapshot_markets = wallet.get("markets") or {}
+    if not isinstance(snapshot_markets, dict) or not snapshot_markets:
+        _strict_diagnostic_failure(diagnostics, "missing_active_snapshot_markets")
+        return None
+    index_map = chain_metadata.get("interestIndexes") or {}
+    accounts = history_payload.get("accounts") or {}
+    if not isinstance(index_map, dict):
+        _strict_diagnostic_failure(diagnostics, "invalid_input")
+        return None
+    if not isinstance(accounts, dict) or not accounts:
+        _strict_diagnostic_failure(diagnostics, "missing_canonical_accounts")
+        return None
+    return {
+        "comparisonBlock": comparison_block,
+        "snapshotMarkets": snapshot_markets,
+        "indexMap": index_map,
+        "accounts": accounts,
+    }
+
+
 def _build_rpc_resolved_ledger(
     chain: str,
     address: str,
@@ -293,40 +371,20 @@ def build_resolved_ledger(
 ):
     chain = str(chain).lower()
     address = str(address).lower()
-    if not isinstance(snapshot_payload, dict) or not isinstance(history_payload, dict):
-        _strict_diagnostic_failure(diagnostics, "invalid_input")
+    preflight = preflight_strict_rpc_evidence(
+        chain,
+        address,
+        snapshot_date,
+        snapshot_payload,
+        history_payload,
+        diagnostics=diagnostics,
+    )
+    if preflight is None:
         return None
-    if str(history_payload.get("chain") or "").lower() != chain:
-        _strict_diagnostic_failure(diagnostics, "history_chain_mismatch")
-        return None
-    if str(history_payload.get("address") or "").lower() != address:
-        _strict_diagnostic_failure(diagnostics, "history_address_mismatch")
-        return None
-    source_date = str(((history_payload.get("sourceMetadata") or {}).get("latestSnapshotDate") or ""))
-    if source_date != str(snapshot_date):
-        _strict_diagnostic_failure(diagnostics, "history_snapshot_date_mismatch")
-        return None
-    canonical_start_block = _integer((EARN_CHAIN_CONFIG.get(chain) or {}).get("start_block"), 0)
-    scan_from_block = _integer(((history_payload.get("scanRange") or {}).get("fromBlock")), 0)
-    if canonical_start_block > 0 and (scan_from_block <= 0 or scan_from_block > canonical_start_block):
-        _strict_diagnostic_failure(diagnostics, "history_starts_after_protocol_start")
-        return None
-
-    chain_metadata = ((snapshot_payload.get("chainMetadata") or {}).get(chain) or {})
-    comparison_block = _integer(chain_metadata.get("blockNumber"), 0)
-    if comparison_block <= 0 or _integer(history_payload.get("lastScannedBlock"), 0) < comparison_block:
-        _strict_diagnostic_failure(diagnostics, "stale_comparison_block")
-        return None
-    wallet = ((((snapshot_payload.get("snapshots") or {}).get(chain) or {}).get(address)) or {})
-    snapshot_markets = wallet.get("markets") or {}
-    if not isinstance(snapshot_markets, dict) or not snapshot_markets:
-        _strict_diagnostic_failure(diagnostics, "missing_active_snapshot_markets")
-        return None
-    index_map = chain_metadata.get("interestIndexes") or {}
-    accounts = history_payload.get("accounts") or {}
-    if not isinstance(accounts, dict) or not accounts:
-        _strict_diagnostic_failure(diagnostics, "missing_canonical_accounts")
-        return None
+    comparison_block = preflight["comparisonBlock"]
+    snapshot_markets = preflight["snapshotMarkets"]
+    index_map = preflight["indexMap"]
+    accounts = preflight["accounts"]
     if strict_evidence is not None:
         return _build_rpc_resolved_ledger(
             chain,
@@ -443,8 +501,9 @@ def build_resolved_ledger(
     }
 
 
-def _read_addresses(paths: Iterable[Path]) -> set[str]:
-    addresses = set()
+def _read_addresses(paths: Iterable[Path]) -> list[str]:
+    addresses = []
+    seen = set()
     for path in paths:
         if not path.is_file():
             continue
@@ -453,8 +512,19 @@ def _read_addresses(paths: Iterable[Path]) -> set[str]:
             if address:
                 if not address.startswith("0x") or len(address) != 42:
                     raise SystemExit(f"Invalid address in {path}: {raw}")
-                addresses.add(address)
+                if address not in seen:
+                    addresses.append(address)
+                    seen.add(address)
     return addresses
+
+
+def _extend_unique(addresses: list[str], candidates: Iterable[str]) -> None:
+    seen = set(addresses)
+    for candidate in candidates:
+        address = str(candidate).lower()
+        if address not in seen:
+            addresses.append(address)
+            seen.add(address)
 
 
 def _latest_snapshot(chain: str):
@@ -500,11 +570,25 @@ def main() -> int:
     parser.add_argument("--existing-addresses", action="store_true")
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
     parser.add_argument("--fetch-strict-rpc-evidence", action="store_true")
+    parser.add_argument(
+        "--evidence-cache",
+        type=Path,
+        default=Path(os.environ["EARN_STRICT_RPC_EVIDENCE_CACHE"])
+        if os.environ.get("EARN_STRICT_RPC_EVIDENCE_CACHE") else None,
+    )
+    parser.add_argument(
+        "--max-evidence-cache-entries",
+        type=int,
+        default=os.environ.get("EARN_STRICT_RPC_EVIDENCE_CACHE_MAX_ENTRIES", "10000"),
+    )
     parser.add_argument("--status-output", type=Path, default=None)
     args = parser.parse_args()
+    if args.max_evidence_cache_entries < 1:
+        raise SystemExit("max-evidence-cache-entries must be positive")
 
-    requested = {str(address).lower() for address in args.address}
-    requested.update(_read_addresses(Path(path) for path in args.address_file))
+    requested = []
+    _extend_unique(requested, args.address)
+    _extend_unique(requested, _read_addresses(Path(path) for path in args.address_file))
     if not requested and not args.all_active and not args.existing_addresses:
         raise SystemExit("Provide --address, --address-file, --all-active, or --existing-addresses")
 
@@ -513,6 +597,22 @@ def main() -> int:
         "generatedAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "chains": {},
     }
+    evidence_cache = None
+    save_evidence_cache = None
+    if args.fetch_strict_rpc_evidence:
+        from earn_strict_rpc_evidence import (
+            load_evidence_cache,
+            save_evidence_cache as persist_evidence_cache,
+        )
+
+        evidence_cache = (
+            load_evidence_cache(
+                args.evidence_cache,
+                max_entries=args.max_evidence_cache_entries,
+            )
+            if args.evidence_cache else {}
+        )
+        save_evidence_cache = persist_evidence_cache
     for chain in sorted({str(value).lower() for value in args.chain}):
         snapshot_date, snapshot_payload = _latest_snapshot(chain)
         if not snapshot_date or not isinstance(snapshot_payload, dict):
@@ -523,34 +623,49 @@ def main() -> int:
                 "addresses": {},
             }
             continue
-        addresses = set(requested)
+        addresses = list(requested)
         if args.all_active:
-            addresses.update((((snapshot_payload.get("snapshots") or {}).get(chain)) or {}).keys())
+            _extend_unique(
+                addresses,
+                sorted((((snapshot_payload.get("snapshots") or {}).get(chain)) or {}).keys()),
+            )
         if args.existing_addresses:
-            addresses.update(_existing_addresses(args.output_dir, chain))
+            _extend_unique(addresses, sorted(_existing_addresses(args.output_dir, chain)))
 
         wrote = 0
         removed = 0
         chain_diagnostics = {}
-        for address in sorted(addresses):
+        rpc_client = None
+        for address in addresses:
             history = _read_json(HISTORY_DIR / chain / f"{address}.json", None)
             diagnostics = {}
             strict_evidence = None
             evidence_failed = False
+            cache_diagnostics = {}
             if args.fetch_strict_rpc_evidence:
-                comparison_block = _integer(
-                    (((snapshot_payload.get("chainMetadata") or {}).get(chain) or {}).get("blockNumber")),
-                    0,
+                preflight = preflight_strict_rpc_evidence(
+                    chain,
+                    address,
+                    snapshot_date,
+                    snapshot_payload,
+                    history,
+                    diagnostics=diagnostics,
                 )
-                if isinstance(history, dict) and comparison_block > 0:
+                if preflight is not None:
                     try:
                         from earn_strict_rpc_evidence import fetch_strict_evidence
 
+                        if rpc_client is None:
+                            rpc_client = RpcClient(chain=chain)
                         strict_evidence = fetch_strict_evidence(
                             chain,
                             address,
                             history,
-                            comparison_block=comparison_block,
+                            comparison_block=preflight["comparisonBlock"],
+                            client=rpc_client,
+                            evidence_cache=evidence_cache,
+                            diagnostics=cache_diagnostics,
+                            max_cache_entries=args.max_evidence_cache_entries,
                         )
                     except Exception as exc:
                         evidence_failed = True
@@ -575,6 +690,18 @@ def main() -> int:
                     strict_evidence=strict_evidence if args.fetch_strict_rpc_evidence else None,
                     diagnostics=diagnostics if args.fetch_strict_rpc_evidence else None,
                 )
+            if args.fetch_strict_rpc_evidence and cache_diagnostics:
+                diagnostics["rpcEvidenceCache"] = cache_diagnostics
+            if (
+                args.evidence_cache
+                and evidence_cache is not None
+                and save_evidence_cache is not None
+            ):
+                save_evidence_cache(
+                    args.evidence_cache,
+                    evidence_cache,
+                    max_entries=args.max_evidence_cache_entries,
+                )
             output_path = args.output_dir / chain / f"{address}.json"
             if ledger:
                 _write_json(output_path, ledger)
@@ -598,8 +725,21 @@ def main() -> int:
                 "selectedAddressCount": len(addresses),
                 "summary": summary,
                 "addresses": chain_diagnostics,
+                "rpcEvidenceCache": {
+                    key: sum(
+                        _integer((row.get("rpcEvidenceCache") or {}).get(key), 0)
+                        for row in chain_diagnostics.values()
+                    )
+                    for key in ("hits", "misses", "skipped")
+                },
             }
         print(f"[{chain}] resolved ledgers: wrote={wrote} removed={removed} selected={len(addresses)}")
+    if args.evidence_cache and evidence_cache is not None and save_evidence_cache is not None:
+        save_evidence_cache(
+            args.evidence_cache,
+            evidence_cache,
+            max_entries=args.max_evidence_cache_entries,
+        )
     if args.status_output:
         _write_json(args.status_output, status_payload)
     return 0

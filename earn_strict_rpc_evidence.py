@@ -4,6 +4,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import hashlib
+import json
+from pathlib import Path
+import re
 from typing import Dict, Iterable, Optional
 
 from earn_strict_replay import strict_event_key
@@ -17,6 +21,9 @@ INDEX_UPDATE_TOPICS = {
 }
 GET_MARKET_CURRENT_INDEX = "0x56ea84b2"
 GET_ACCOUNT_BALANCES = "0x6a8194e7"
+EVIDENCE_CACHE_VERSION = 1
+DEFAULT_MAX_CACHE_ENTRIES = 10_000
+HASH_PATTERN = re.compile(r"^0x[0-9a-f]{64}$")
 
 
 def _integer(value, default=None):
@@ -44,6 +51,158 @@ def _hex_words(payload: str):
     if not raw or len(raw) % 64 != 0:
         return None
     return [raw[offset:offset + 64] for offset in range(0, len(raw), 64)]
+
+
+def _prepare_evidence_cache(cache: dict, max_entries: int) -> dict:
+    if not isinstance(cache, dict):
+        raise ValueError("evidence_cache must be a dictionary")
+    if cache.get("version") != EVIDENCE_CACHE_VERSION or not isinstance(cache.get("entries"), dict):
+        cache.clear()
+        cache.update({"version": EVIDENCE_CACHE_VERSION, "clock": 0, "entries": {}})
+    cache["clock"] = max(0, _integer(cache.get("clock"), 0))
+    limit = max(1, int(max_entries))
+    entries = cache["entries"]
+    while len(entries) > limit:
+        entries.pop(next(iter(entries)))
+    return cache
+
+
+def load_evidence_cache(
+    path: Path,
+    *,
+    max_entries: int = DEFAULT_MAX_CACHE_ENTRIES,
+) -> dict:
+    """Load the private runtime cache; malformed cache files fail empty."""
+    try:
+        with Path(path).open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    return _prepare_evidence_cache(payload, max_entries)
+
+
+def save_evidence_cache(
+    path: Path,
+    cache: dict,
+    *,
+    max_entries: int = DEFAULT_MAX_CACHE_ENTRIES,
+) -> None:
+    """Persist only the bounded private runtime cache, never public evidence."""
+    payload = _prepare_evidence_cache(cache, max_entries)
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_suffix(destination.suffix + ".tmp")
+    with temporary.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, separators=(",", ":"), ensure_ascii=True)
+    temporary.replace(destination)
+
+
+def _cache_identity(
+    chain: str,
+    margin: str,
+    block_number: int,
+    block_hash: str,
+    index_topic: str,
+    market_topics: list[str],
+) -> dict:
+    return {
+        "chain": str(chain).lower(),
+        "margin": str(margin).lower(),
+        "blockNumber": int(block_number),
+        "blockHash": str(block_hash).lower(),
+        "indexTopic": str(index_topic).lower(),
+        "marketTopics": sorted(str(topic).lower() for topic in market_topics),
+    }
+
+
+def _cache_key(identity: dict) -> str:
+    serialized = json.dumps(identity, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("ascii")).hexdigest()
+
+
+def _validated_block_hash(client: RpcClient, block_number: int) -> str:
+    block_tag = hex(block_number)
+    block = client.call("eth_getBlockByNumber", [block_tag, False])
+    if not isinstance(block, dict) or _integer(block.get("number"), None) != block_number:
+        raise ValueError(f"Invalid block provenance for {block_number}")
+    block_hash = str(block.get("hash") or "").lower()
+    if not HASH_PATTERN.fullmatch(block_hash):
+        raise ValueError(f"Invalid block hash for {block_number}")
+    return block_hash
+
+
+def _validated_index_log_rows(rows, identity: dict) -> list[dict]:
+    if not isinstance(rows, list):
+        raise ValueError("eth_getLogs did not return a list")
+    allowed_markets = set(identity["marketTopics"])
+    validated = []
+    for log in rows:
+        if not isinstance(log, dict):
+            raise ValueError("Malformed index log")
+        topics = log.get("topics")
+        words = _hex_words(log.get("data"))
+        transaction_index = _integer(log.get("transactionIndex"), None)
+        log_index = _integer(log.get("logIndex"), None)
+        if (
+            str(log.get("address") or "").lower() != identity["margin"]
+            or _integer(log.get("blockNumber"), None) != identity["blockNumber"]
+            or str(log.get("blockHash") or "").lower() != identity["blockHash"]
+            or log.get("removed") is True
+            or not isinstance(topics, list)
+            or len(topics) < 2
+            or str(topics[0]).lower() != identity["indexTopic"]
+            or str(topics[1]).lower() not in allowed_markets
+            or not words
+            or len(words) < 2
+            or int(words[0], 16) <= 0
+            or int(words[1], 16) <= 0
+            or transaction_index is None
+            or transaction_index < 0
+            or log_index is None
+            or log_index < 0
+        ):
+            raise ValueError("Index log provenance mismatch")
+        validated.append(dict(log))
+    return validated
+
+
+def _cached_index_logs(cache: dict, identity: dict, max_entries: int):
+    cache = _prepare_evidence_cache(cache, max_entries)
+    key = _cache_key(identity)
+    entry = cache["entries"].get(key)
+    if entry is None:
+        return None, False
+    if not isinstance(entry, dict) or any(
+        entry.get(field) != identity[field]
+        for field in (
+            "chain", "margin", "blockNumber", "blockHash", "indexTopic", "marketTopics",
+        )
+    ):
+        cache["entries"].pop(key, None)
+        return None, True
+    try:
+        rows = _validated_index_log_rows(entry.get("logs"), identity)
+    except (TypeError, ValueError):
+        cache["entries"].pop(key, None)
+        return None, True
+    cache["clock"] += 1
+    entry["used"] = cache["clock"]
+    cache["entries"].pop(key)
+    cache["entries"][key] = entry
+    return rows, False
+
+
+def _store_index_logs(cache: dict, identity: dict, rows: list[dict], max_entries: int) -> None:
+    cache = _prepare_evidence_cache(cache, max_entries)
+    cache["clock"] += 1
+    cache["entries"][_cache_key(identity)] = {
+        **identity,
+        "used": cache["clock"],
+        "logs": rows,
+    }
+    _prepare_evidence_cache(cache, max_entries)
 
 
 def _decode_current_index(payload: str):
@@ -191,6 +350,9 @@ def fetch_strict_evidence(
     *,
     comparison_block: int,
     client: Optional[RpcClient] = None,
+    evidence_cache: Optional[dict] = None,
+    diagnostics: Optional[dict] = None,
+    max_cache_entries: int = DEFAULT_MAX_CACHE_ENTRIES,
 ) -> dict:
     """Fetch event indexes and current state at one immutable comparison block."""
     chain = str(chain).lower()
@@ -211,19 +373,49 @@ def fetch_strict_evidence(
     for event in events:
         block_markets[event["blockNumber"]].add(event["marketId"])
 
+    cache_stats = {"hits": 0, "misses": 0, "skipped": 0}
     all_index_logs = []
     index_topic = INDEX_UPDATE_TOPICS.get(chain, INDEX_UPDATE_TOPICS["default"])
-    for block_number in sorted(block_markets):
-        block_tag = hex(block_number)
-        market_topics = ["0x" + _pad_uint(market) for market in sorted(block_markets[block_number], key=int)]
-        rows = client.call("eth_getLogs", [{
-            "address": margin,
-            "fromBlock": block_tag,
-            "toBlock": block_tag,
-            "topics": [index_topic, market_topics],
-        }])
-        if isinstance(rows, list):
+    try:
+        for block_number in sorted(block_markets):
+            block_hash = _validated_block_hash(client, block_number)
+            market_topics = [
+                "0x" + _pad_uint(market)
+                for market in sorted(block_markets[block_number], key=int)
+            ]
+            identity = _cache_identity(
+                chain, margin, block_number, block_hash, index_topic, market_topics,
+            )
+            rows = None
+            if evidence_cache is not None:
+                rows, invalid_cache_entry = _cached_index_logs(
+                    evidence_cache, identity, max_cache_entries,
+                )
+                if invalid_cache_entry:
+                    cache_stats["skipped"] += 1
+                if rows is not None:
+                    cache_stats["hits"] += 1
+            if rows is None:
+                cache_stats["misses"] += 1
+                fetched = client.call("eth_getLogs", [{
+                    "address": margin,
+                    "blockHash": block_hash,
+                    "topics": [index_topic, market_topics],
+                }])
+                try:
+                    rows = _validated_index_log_rows(fetched, identity)
+                except (TypeError, ValueError):
+                    cache_stats["skipped"] += 1
+                    raise
+                if evidence_cache is not None:
+                    _store_index_logs(
+                        evidence_cache, identity, rows, max_cache_entries,
+                    )
             all_index_logs.extend(rows)
+    finally:
+        if diagnostics is not None:
+            diagnostics.clear()
+            diagnostics.update(cache_stats)
     index_logs = _decode_index_logs(all_index_logs)
 
     event_indexes = {}
