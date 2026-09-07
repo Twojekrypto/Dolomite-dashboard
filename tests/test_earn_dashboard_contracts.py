@@ -79,7 +79,11 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("python3 run_earn_audit_checks.py", workflow)
         self.assertNotIn('sort -u "$selection_path"', workflow)
         self.assertIn('--material-usd-threshold "$MATERIAL_ACTIVE_USD_THRESHOLD"', workflow)
-        self.assertIn('done < "$selection_path"', workflow)
+        self.assertIn(
+            'bash scripts/stage_earn_publishable_wallet_paths.sh "$CHAIN" "$selection_path" --verified-only',
+            workflow,
+        )
+        self.assertNotIn('done < "$selection_path"', workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
         self.assertIn("actions/upload-artifact@v4", workflow)
         for env_name in (
@@ -133,12 +137,16 @@ class EarnDashboardContractsTest(unittest.TestCase):
             self.assertIn("STEADY_HOT_LIMIT", workflow)
             self.assertIn("--max-new-backfill-workers", workflow)
             self.assertLess(workflow.find(selection_step), workflow.find(restore_step))
-            self.assertIn('history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"', workflow)
-            self.assertIn('git add -f "$history_path"', workflow)
-            self.assertIn('done < "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"', workflow)
+            self.assertIn(
+                'bash scripts/stage_earn_publishable_wallet_paths.sh "$CHAIN" '
+                '"/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"',
+                workflow,
+            )
+            self.assertNotIn('git add -f "$history_path"', workflow)
             isolate_cache = 'git stash push --keep-index --include-untracked --message "${CHAIN}-canonical-runtime"'
             sync_manifest = 'python3 scripts/sync_earn_subaccount_manifest.py --chain "$CHAIN"'
             self.assertIn(isolate_cache, workflow)
+            self.assertIn('echo "Canonical runtime stash completed in $((SECONDS - stash_started_seconds))s"', workflow)
             self.assertIn(sync_manifest, workflow)
             self.assertLess(workflow.find(isolate_cache), workflow.find(sync_manifest))
             self.assertLess(workflow.find(isolate_cache), workflow.find("scripts/commit_with_fresh_earn_status.sh"))
@@ -1656,7 +1664,14 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}", workflow)
         self.assertIn("git add -f data/earn-subaccount-history/manifest.json", workflow)
         self.assertIn("git add -f data/earn-verified-ledger/manifest.json", workflow)
+        self.assertIn(
+            'bash scripts/stage_earn_publishable_wallet_paths.sh "$CHAIN" '
+            '"/tmp/earn-${CHAIN}-borrow-route-addresses.txt"',
+            workflow,
+        )
+        self.assertNotIn('git add -f "$history_path"', workflow)
         self.assertIn("git stash push --keep-index --include-untracked --message \"berachain-borrow-route-runtime\"", workflow)
+        self.assertIn('echo "Borrow-route runtime stash completed in $((SECONDS - stash_started_seconds))s"', workflow)
         self.assertIn("scripts/commit_with_fresh_earn_status.sh", workflow)
 
     def test_berachain_watchdog_refreshes_after_thirty_minutes(self):

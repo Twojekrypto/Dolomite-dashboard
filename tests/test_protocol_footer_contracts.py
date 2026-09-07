@@ -23,7 +23,7 @@ class ProtocolFooterContractsTest(unittest.TestCase):
         self.assertIn(f"protocol-footer.css?v={version}", history_shell)
         self.assertIn(f"protocol-footer.js?v={version}", history_shell)
 
-    def test_route_shells_bust_route_loader_cache_for_footer_changes(self):
+    def test_route_shells_load_a_versioned_shared_route_loader(self):
         shells = [
             ROOT / "index.html",
             *(path for path in sorted(ROOT.glob("*/index.html")) if path.parent.name != "history"),
@@ -31,7 +31,11 @@ class ProtocolFooterContractsTest(unittest.TestCase):
 
         for shell in shells:
             html = shell.read_text(encoding="utf-8")
-            self.assertIn("route-loader-table-ux-20260820", html, msg=str(shell.relative_to(ROOT)))
+            self.assertRegex(
+                html,
+                r'<script src="(?:\.\./)?route-loader\.js\?v=[^"&]+(?:&[^" ]+)?"></script>',
+                msg=str(shell.relative_to(ROOT)),
+            )
             self.assertNotIn("route-loader-20260611", html, msg=str(shell.relative_to(ROOT)))
             self.assertNotIn("route-loader-20260619-footer-mobile", html, msg=str(shell.relative_to(ROOT)))
 

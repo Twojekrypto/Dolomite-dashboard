@@ -345,20 +345,12 @@ jobs:
           git add -f data/earn-subaccount-history/manifest.json
           git add -f data/earn-resolved-interest-ledger/manifest.json
           git add -f data/earn-verified-ledger/manifest.json
-          while IFS= read -r address; do
-            [ -n "$address" ] || continue
-            history_path="data/earn-subaccount-history/${CHAIN}/${address}.json"
-            ledger_path="data/earn-verified-ledger/${CHAIN}/${address}.json"
-            resolved_path="data/earn-resolved-interest-ledger/${CHAIN}/${address}.json"
-            [ -f "$history_path" ] && git add -f "$history_path"
-            [ -f "$ledger_path" ] && git add -f "$ledger_path"
-            if [ -f "$resolved_path" ] || git ls-files --error-unmatch "$resolved_path" >/dev/null 2>&1; then
-              git add -f -- "$resolved_path"
-            fi
-          done < "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
+          bash scripts/stage_earn_publishable_wallet_paths.sh "$CHAIN" "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt"
           git add -f data/earn-verified-ledger-shards
           # Keep cache-only histories out of public freshness and quality metadata.
+          stash_started_seconds=$SECONDS
           git stash push --keep-index --include-untracked --message "${CHAIN}-canonical-runtime"
+          echo "Canonical runtime stash completed in $((SECONDS - stash_started_seconds))s"
           python3 scripts/sync_earn_subaccount_manifest.py --chain "$CHAIN"
           git add -f data/earn-subaccount-history/manifest.json
           bash scripts/commit_with_fresh_earn_status.sh "Refresh ${CHAIN_LABEL} canonical EARN history - $(date -u '+%Y-%m-%d %H:%M UTC')"

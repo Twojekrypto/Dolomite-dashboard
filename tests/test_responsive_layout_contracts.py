@@ -65,12 +65,16 @@ class ResponsiveLayoutContractsTest(unittest.TestCase):
         self.assertIn("vertical-align: middle", rules)
         self.assertIn("mobile-polish-safari-details-20260805", ROUTE_LOADER)
 
-    def test_all_route_entries_use_current_route_loader_cache_tag(self):
-        cache_tag = "route-loader-table-ux-20260820"
+    def test_all_route_entries_boot_through_a_versioned_shared_loader(self):
         for path in ROUTE_ENTRIES:
             with self.subTest(path=path.relative_to(ROOT)):
                 source = path.read_text(encoding="utf-8")
-                self.assertIn(f"route-loader.js?v={cache_tag}", source)
+                loader = re.search(
+                    r'<script src="(?:\.\./)?route-loader\.js\?v=[^" ]+"></script>',
+                    source,
+                )
+                self.assertIsNotNone(loader)
+                self.assertLess(loader.start(), source.index("loadDoloRoute("))
 
     def test_vedolo_revenue_impact_table_has_an_internal_mobile_scroller(self):
         self.assertIn('class="exit-metric-scroll"', VEDOLO)

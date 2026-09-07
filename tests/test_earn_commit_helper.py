@@ -71,6 +71,14 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
         (work / "scripts").mkdir()
         shutil.copy2(HELPER, work / "scripts" / "commit_with_fresh_earn_status.sh")
         shutil.copy2(
+            ROOT / "scripts" / "stage_earn_publishable_wallet_paths.sh",
+            work / "scripts" / "stage_earn_publishable_wallet_paths.sh",
+        )
+        shutil.copy2(
+            ROOT / "scripts" / "build_earn_publishable_wallet_pathspec.py",
+            work / "scripts" / "build_earn_publishable_wallet_pathspec.py",
+        )
+        shutil.copy2(
             ROOT / "scripts" / "sync_earn_subaccount_manifest.py",
             work / "scripts" / "sync_earn_subaccount_manifest.py",
         )
@@ -489,7 +497,11 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
                 "EARN_GIT_BRANCH": "master",
                 "EARN_DISPATCH_PAGES_AFTER_PUSH": "false",
             }
-            _run(["bash", "scripts/commit_with_fresh_earn_status.sh", "ledger update"], cwd=work, env=env)
+            result = _run(
+                ["bash", "scripts/commit_with_fresh_earn_status.sh", "ledger update"],
+                cwd=work,
+                env=env,
+            )
 
             calls = (work / "rebuild-calls.txt").read_text(encoding="utf-8")
             self.assertIn("build_earn_resolved_interest_ledger.py --chain mantle --address-file", calls)
@@ -497,6 +509,7 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             self.assertIn("build_earn_verified_ledger_shards.py --chain mantle --address-file", calls)
             self.assertIn(f"addresses={address}", calls)
             self.assertEqual("yes", (work / "audit-ran.txt").read_text(encoding="utf-8"))
+            self.assertIn("Staged 1 publishable wallet paths for mantle", result.stdout)
 
     def test_same_day_snapshot_payload_change_rebuilds_staged_ledger_addresses(self):
         with tempfile.TemporaryDirectory() as tmp:
