@@ -33,6 +33,24 @@ function extractNamedFunctionSource(name) {
   assert.fail(`${name} has no closing brace`);
 }
 
+function pointerEvent(type, pointerId) {
+  const event = new Event(type);
+  Object.defineProperty(event, "pointerId", {value:pointerId});
+  return event;
+}
+
+function buildBrushPointerSessionFixture() {
+  const windowTarget = new EventTarget();
+  const source = [
+    extractNamedFunctionSource("bindBrushPointerSession"),
+    "return bindBrushPointerSession;",
+  ].join("\n");
+  return {
+    bind:Function("window", `"use strict"; ${source}`)(windowTarget),
+    windowTarget,
+  };
+}
+
 function extractStaticSections(html) {
   const sections = [];
   const sectionTag = /<\/?section\b[^>]*>/gi;
@@ -265,6 +283,35 @@ function buildCexSupplyBrushSchedulerFixture() {
   ].join("\n");
   return Function(`"use strict"; ${source}`)();
 }
+
+test("brush pointer session finishes when capture is lost or the window blurs", () => {
+  const {bind, windowTarget} = buildBrushPointerSessionFixture();
+  const target = new EventTarget();
+  target.setPointerCapture = () => {};
+  const moves = [];
+  let finishes = 0;
+
+  bind(
+    {currentTarget:target, pointerId:7},
+    event => moves.push(event.pointerId),
+    () => { finishes += 1; },
+  );
+  windowTarget.dispatchEvent(pointerEvent("pointermove", 8));
+  windowTarget.dispatchEvent(pointerEvent("pointermove", 7));
+  target.dispatchEvent(pointerEvent("lostpointercapture", 7));
+  windowTarget.dispatchEvent(pointerEvent("pointerup", 7));
+
+  assert.deepEqual(moves, [7]);
+  assert.equal(finishes, 1);
+
+  bind(
+    {currentTarget:target, pointerId:9},
+    () => {},
+    () => { finishes += 1; },
+  );
+  windowTarget.dispatchEvent(new Event("blur"));
+  assert.equal(finishes, 2);
+});
 
 test("holder distribution keeps Total exposure as the permanent source", () => {
   const holderCard = extractStaticSections(preview).find(section => /id="holder-distribution-card"/.test(section));

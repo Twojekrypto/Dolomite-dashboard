@@ -2806,6 +2806,10 @@ function stableTableSpacerRowsHtml(count, colSpan){
   ).join("");
 }
 
+function latestActivityEmptyRowHtml(message, colSpan){
+  return `<tr class="latest-empty-row"><td colspan="${Math.max(1, Number(colSpan) || 1)}"><div class="latest-empty">${message}</div></td></tr>`;
+}
+
 function resetExpandedTableScroll(tableSelector){
   if(!window.matchMedia("(max-width:760px)").matches) return;
   requestAnimationFrame(() => {
@@ -3166,7 +3170,7 @@ function renderLatestExercises(){
     const emptyLabel = state.qLatest.trim()
       ? `No oDOLO exercises match "${esc(state.qLatest.trim())}" for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`
       : `No oDOLO exercises recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`;
-    tbody.innerHTML = `<tr><td colspan="6"><div class="latest-empty">${emptyLabel}</div></td></tr>` + stableTableSpacerRowsHtml(state.latestPageSize - 1, 6);
+    tbody.innerHTML = latestActivityEmptyRowHtml(emptyLabel, 6);
     if(pager) pager.innerHTML = "";
     return;
   }
@@ -3322,7 +3326,7 @@ function renderLatestPairs(){
     const emptyLabel = state.qPair.trim()
       ? `No oDOLO pair transactions match "${esc(state.qPair.trim())}" for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`
       : `No oDOLO pair transactions recorded for ${esc(period ? period.label.toLowerCase() : periodLabel)}.`;
-    tbody.innerHTML = `<tr><td colspan="4"><div class="latest-empty">${emptyLabel}</div></td></tr>` + stableTableSpacerRowsHtml(state.pairPageSize - 1, 4);
+    tbody.innerHTML = latestActivityEmptyRowHtml(emptyLabel, 4);
     if(pager) pager.innerHTML = "";
     return;
   }

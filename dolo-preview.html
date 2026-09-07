@@ -2919,6 +2919,37 @@ function paintHolderBrushWindow(){
   dimR.style.width = (100 - rightPct) + "%";
   label.innerHTML = `<span class="v">${fmtHolderBrushDate(holderBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(holderBrushSel.to)}</span>`;
 }
+function bindBrushPointerSession(event, onMove, onFinish){
+  const target = event.currentTarget;
+  const pointerId = event.pointerId;
+  let active = true;
+  const matchesPointer = candidate => pointerId == null || candidate?.pointerId == null || candidate.pointerId === pointerId;
+  const cleanup = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", finish);
+    window.removeEventListener("pointercancel", finish);
+    window.removeEventListener("blur", finish);
+    target?.removeEventListener("lostpointercapture", finish);
+  };
+  const move = candidate => {
+    if(active && matchesPointer(candidate)) onMove(candidate);
+  };
+  const finish = candidate => {
+    if(!active || (candidate?.type !== "blur" && !matchesPointer(candidate))) return;
+    active = false;
+    cleanup();
+    onFinish();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", finish);
+  window.addEventListener("pointercancel", finish);
+  window.addEventListener("blur", finish);
+  target?.addEventListener("lostpointercapture", finish);
+  if(pointerId != null && target?.setPointerCapture){
+    try{ target.setPointerCapture(pointerId); }catch(_){}
+  }
+  return finish;
+}
 function scheduleHolderBrushPaint(){
   if(holderBrushPaintFrame) return;
   const run = () => {
@@ -2988,8 +3019,8 @@ function initHolderBrush(){
   const handleR = document.getElementById("holderBrushHandleR");
   if(!svg || !overlay || !win || !handleL || !handleR) return;
   holderBrushInitialized = true;
-  // Pointer Events (mouse + touch + pen) with explicit pointer capture, so the brush
-  // is draggable on touch devices. Move/up are bound per-drag to the captured target.
+  // Window-level fallbacks ensure a lost capture or an outside release cannot leave
+  // the brush stuck in drag mode (notably in Safari).
   const applyHolderDrag = clientX => {
     if(!holderBrushDragging) return;
     const {minX, maxX, span} = holderBrushDomain();
@@ -3017,22 +3048,12 @@ function initHolderBrush(){
     holderBrushDragging = {kind, startX:event.clientX, startFrom:holderBrushSel.from, startTo:holderBrushSel.to};
     win.classList.add("dragging");
     document.body.style.userSelect = "none";
-    const target = event.currentTarget;
-    const pid = event.pointerId;
-    if(pid != null && target.setPointerCapture){ try{ target.setPointerCapture(pid); }catch(_){} }
-    const move = ev => applyHolderDrag(ev.clientX);
-    const up = () => {
+    bindBrushPointerSession(event, ev => applyHolderDrag(ev.clientX), () => {
       holderBrushDragging = null;
       win.classList.remove("dragging");
       document.body.style.userSelect = "";
       flushHolderBrushChartRender();
-      target.removeEventListener("pointermove", move);
-      target.removeEventListener("pointerup", up);
-      target.removeEventListener("pointercancel", up);
-    };
-    target.addEventListener("pointermove", move);
-    target.addEventListener("pointerup", up);
-    target.addEventListener("pointercancel", up);
+    });
   };
   const pxToTime = px => {
     const {minX, span} = holderBrushDomain();
@@ -4142,7 +4163,7 @@ function initCexSupplyBrush(){
   const handleR = document.getElementById("cexSupplyBrushHandleR");
   if(!svg || !overlay || !win || !handleL || !handleR) return;
   cexSupplyBrushInitialized = true;
-  // Pointer Events (mouse + touch + pen) with explicit pointer capture — see holder brush.
+  // Uses the same resilient pointer session as the holder brush.
   const applyCexSupplyDrag = clientX => {
     if(!cexSupplyBrushDragging) return;
     const {minX, maxX, span} = cexSupplyBrushDomain();
@@ -4170,22 +4191,12 @@ function initCexSupplyBrush(){
     cexSupplyBrushDragging = {kind, startX:event.clientX, startFrom:cexSupplyBrushSel.from, startTo:cexSupplyBrushSel.to};
     win.classList.add("dragging");
     document.body.style.userSelect = "none";
-    const target = event.currentTarget;
-    const pid = event.pointerId;
-    if(pid != null && target.setPointerCapture){ try{ target.setPointerCapture(pid); }catch(_){} }
-    const move = ev => applyCexSupplyDrag(ev.clientX);
-    const up = () => {
+    bindBrushPointerSession(event, ev => applyCexSupplyDrag(ev.clientX), () => {
       cexSupplyBrushDragging = null;
       win.classList.remove("dragging");
       document.body.style.userSelect = "";
       flushCexSupplyChartRender();
-      target.removeEventListener("pointermove", move);
-      target.removeEventListener("pointerup", up);
-      target.removeEventListener("pointercancel", up);
-    };
-    target.addEventListener("pointermove", move);
-    target.addEventListener("pointerup", up);
-    target.addEventListener("pointercancel", up);
+    });
   };
   const pxToTime = px => {
     const {minX, span} = cexSupplyBrushDomain();
