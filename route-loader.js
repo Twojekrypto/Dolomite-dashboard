@@ -20,7 +20,7 @@
     polish: "mobile-polish-safari-details-20260805",
     footer: "protocol-footer-20260619-links-mobile"
   };
-  var TABLE_UX_VERSION = "20260821-table-ux-v6";
+  var TABLE_UX_VERSION = "20260907-flow-copy-parity";
   var ADDRESS_OVERRIDES_VERSION = "20260823-address-type-normalization-v1";
   var POSITION_ACTIVITY_VERSION = "20260821-actions-v1";
   var CLOUDFLARE_ANALYTICS = {
