@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260821-action-parity-v1";
+  const HISTORY_VERSION = "history-20260908-receipt-evidence-v1";
   const HISTORY_PATCH_ID = "dolomite-dashboard-fixes-20260820-v1";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
@@ -49,7 +49,7 @@
   const ODOLO_REWARDS_DISTRIBUTOR = "0x79e6e932bf6686a4d357d7821e6e08835ba8a026";
   const ODOLO_TOKEN_ADDRESS = "0x02e513b5b54ee216bf836ceb471507488fc89543";
   const NOTE_STORAGE_PREFIX = "dolomite-history-review-notes";
-  const GAS_STORAGE_PREFIX = "dolomite-history-gas-v1";
+  const GAS_STORAGE_PREFIX = "dolomite-history-gas-v2";
   const GAS_STORAGE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
   const RPC_GATEWAY_STORAGE_KEY = "dolomite-history-rpc-gateway";
   const FAST_GAS_STATUS = "skipped-fast";
@@ -197,6 +197,8 @@
     rewardClaim: "Claim Rewards",
     rewardLevelUpdate: "Reward Level Update",
     vedoloDirect: "Direct veDOLO",
+    vedoloWithdraw: "Withdraw veDOLO",
+    vedoloEarlyExit: "Early exit veDOLO",
     vedoloAirdrop: "Airdrop",
     vedoloTransfer: "Transfer veDOLO",
     vedoloMerge: "Merge veDOLO positions",
@@ -237,6 +239,8 @@
     rewardClaim: "CLAIM",
     rewardLevelUpdate: "Reward Level",
     vedoloDirect: "Direct veDOLO",
+    vedoloWithdraw: "Withdraw veDOLO",
+    vedoloEarlyExit: "Early exit veDOLO",
     vedoloAirdrop: "Airdrop",
     vedoloTransfer: "veDOLO Transfer",
     vedoloMerge: "veDOLO Merge",
@@ -1802,8 +1806,8 @@
     }
     const payload = result.payload || {};
     const warnings = [];
-    const hasChainMeta = !!(payload.chains?.[chainKey] || (payload.chainKey === chainKey ? payload : null));
     const meta = payload.chains?.[chainKey] || (payload.chainKey === chainKey ? payload : {});
+    const hasChainMeta = Number.isFinite(Number(meta.fromTimestamp)) && Number(meta.fromTimestamp) >= 0 && Number(meta.toTimestamp) > 0;
     const coverageStatus = String(meta.coverageStatus || "").toLowerCase();
     const fromTimestamp = Number(meta.fromTimestamp || 0);
     const toTimestamp = Number(meta.toTimestamp || 0);
@@ -3098,7 +3102,7 @@
       row.gas = await fetchGas(row, address);
       state.gasChecked += 1;
       if (state.gasChecked % renderEvery === 0 || state.gasChecked === state.gasTotal) {
-        setStatus(`Checking gas receipts ${state.gasChecked}/${state.gasTotal}...`);
+        setStatus(`Gas receipt attempts ${state.gasChecked}/${state.gasTotal}...`);
         render();
       }
     };
@@ -3150,13 +3154,17 @@
     const cacheKey = gasCacheKey(row, address);
     if (gasCache.has(cacheKey)) {
       const cached = await gasCache.get(cacheKey);
+      await refreshCachedVedoloEvidence(row, cached, address, cacheKey);
       applyBorrowLifecycleSemanticsToRow(row, cached?.borrowLifecycleSemantics || []);
+      applyVedoloReceiptEvidence(row, cached?.vedoloEvidence || []);
       return cached;
     }
     const stored = readStoredGasResult(cacheKey);
     if (stored) {
       gasCache.set(cacheKey, stored);
+      await refreshCachedVedoloEvidence(row, stored, address, cacheKey);
       applyBorrowLifecycleSemanticsToRow(row, stored.borrowLifecycleSemantics || []);
+      applyVedoloReceiptEvidence(row, stored.vedoloEvidence || []);
       return stored;
     }
     const chain = CHAINS[row.chainKey];
@@ -3167,9 +3175,15 @@
           rpcRequest(row.chainKey, "eth_getTransactionByHash", [row.txHash]),
         ]);
         if (!receipt || !tx) return { status: "missing", paidByWallet: false };
+        if (receipt.status === "0x0") return { status: "error", paidByWallet: false, error: "Transaction reverted" };
+        const from = normalizeAddress(tx.from || receipt.from || "");
+        if (receipt.status !== "0x1" || !isAddress(from) || !Array.isArray(receipt.logs)) {
+          return { status: "missing", paidByWallet: false, error: "Confirmed receipt or transaction sender unavailable" };
+        }
         const borrowLifecycleSemantics = borrowLifecycleSemanticsFromReceipt(receipt, tx, address);
         applyBorrowLifecycleSemanticsToRow(row, borrowLifecycleSemantics);
-        const from = normalizeAddress(tx.from || receipt.from || "");
+        const vedoloEvidence = await vedoloEvidenceFromReceipt(row, receipt, address);
+        applyVedoloReceiptEvidence(row, vedoloEvidence);
         const paidByWallet = from === address.toLowerCase();
         const gasUsed = hexToBigInt(receipt.gasUsed);
         const gasPrice = hexToBigInt(receipt.effectiveGasPrice || tx.gasPrice);
@@ -3191,6 +3205,7 @@
             feeWei: feeWei.toString(),
             extraFeeWei: extraFeeWei.toString(),
             borrowLifecycleSemantics,
+            vedoloEvidence,
           };
         }
         const price = await historicalPrice(chain.priceId, row.timestamp);
@@ -3211,6 +3226,7 @@
           historicalPrice: price,
           gasUsd,
           borrowLifecycleSemantics,
+          vedoloEvidence,
         };
       } catch (error) {
         return { status: "error", paidByWallet: false, error: error.message || String(error) };
@@ -3218,9 +3234,173 @@
     })();
     gasCache.set(cacheKey, request);
     const result = await request;
-    gasCache.set(cacheKey, result);
+    if (["ok", "not-payer"].includes(result.status)) gasCache.set(cacheKey, result);
+    else gasCache.delete(cacheKey);
     writeStoredGasResult(cacheKey, result);
     return result;
+  }
+
+  async function vedoloEvidenceFromReceipt(row, receipt, address) {
+    const candidates = (row.events || []).filter(event => event.vedoloEvidenceStatus);
+    if (row.chainKey !== "berachain" || !candidates.length) return [];
+    const escrow = "0xcb86b75ee6133d179a12d550b09fb3cdb1e141d4";
+    const token = "0x0f81001ef0a83ecce5ccebf63eb302c70a39a654";
+    const depositTopic = "0xff04ccafc360e16b67d682d17bd9503c4c6b9a131f6be6325762dc9ffc7de624";
+    const withdrawTopic = "0x02f25270a4d87bea75db541cdfe559334a275b4a233520ed6c0a2429667cca94";
+    const transferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    const zero = "0x0000000000000000000000000000000000000000";
+    const wallet = normalizeAddress(address);
+    const logs = (receipt.logs || []).filter(log => !log.removed && Number.isSafeInteger(Number(log.logIndex)))
+      .slice().sort((a, b) => Number(a.logIndex) - Number(b.logIndex));
+    const transfers = logs.filter(log => normalizeAddress(log.address) === token
+      && log.topics?.length === 3 && String(log.topics[0]).toLowerCase() === transferTopic
+      && /^0x[0-9a-f]{64}$/i.test(log.data || ""))
+      .map(log => ({ index:Number(log.logIndex), from:topicAddressToAddress(log.topics[1]), to:topicAddressToAddress(log.topics[2]), amount:BigInt(log.data) }));
+    const decoded = [];
+    let previousWithdraw = -1;
+    let previousDeposit = -1;
+    for (const log of logs) {
+      if (normalizeAddress(log.address) !== escrow) continue;
+      const topic = String(log.topics?.[0] || "").toLowerCase();
+      if (topic !== depositTopic && topic !== withdrawTopic) continue;
+      const index = Number(log.logIndex);
+      const isWithdraw = topic === withdrawTopic;
+      const lower = isWithdraw ? previousWithdraw : previousDeposit;
+      if (isWithdraw) previousWithdraw = index;
+      else previousDeposit = index;
+      const data = String(log.data || "");
+      if (!(isWithdraw ? /^0x[0-9a-f]{192}$/i : /^0x[0-9a-f]{256}$/i).test(data)
+        || log.topics?.length !== (isWithdraw ? 2 : 3)) continue;
+      const provider = topicAddressToAddress(log.topics[1]);
+      if (!provider || (!isWithdraw && !/^0x[0-9a-f]{64}$/i.test(log.topics[2]))) continue;
+      const words = data.slice(2).match(/.{64}/g).map(word => BigInt(`0x${word}`));
+      const [tokenId, amount] = words;
+      const type = isWithdraw ? null : Number(words[2]);
+      const timestamp = Number(words[isWithdraw ? 2 : 3]);
+      const segment = transfers.filter(transfer => transfer.index > lower && transfer.index < index);
+      const evidence = { tokenId:tokenId.toString(), logIndex:index, timestamp, provider, tokenAddress:token, depositType:type };
+      if (isWithdraw) {
+        const outbound = segment.filter(transfer => transfer.from === escrow);
+        const sum = predicate => outbound.filter(predicate).reduce((total, transfer) => total + transfer.amount, 0n);
+        const received = sum(transfer => transfer.to === provider);
+        const burn = sum(transfer => transfer.to === zero);
+        const recoup = sum(transfer => transfer.to !== provider && transfer.to !== zero);
+        if (received !== amount || provider !== wallet || outbound.some(transfer => !transfer.to)) continue;
+        Object.assign(evidence, { kind:"withdraw", received:scaledBigIntToDecimal(received), burn:scaledBigIntToDecimal(burn), recoup:scaledBigIntToDecimal(recoup), penalty:scaledBigIntToDecimal(burn + recoup), originalLocked:scaledBigIntToDecimal(received + burn + recoup), amount:scaledBigIntToDecimal(received), isEarlyExit:burn + recoup > 0n, walletAmount:scaledBigIntToDecimal(received), direction:"in" });
+      } else {
+        if (![0, 1, 2].includes(type)) continue;
+        const inbound = segment.filter(transfer => transfer.to === escrow);
+        const funded = inbound.reduce((total, transfer) => total + transfer.amount, 0n);
+        const walletAmount = inbound.filter(transfer => transfer.from === wallet).reduce((total, transfer) => total + transfer.amount, 0n);
+        // Deposit.value proves locked principal; only reconciled ERC20 movements prove wallet outflow.
+        if (funded !== amount || inbound.some(transfer => !transfer.from)) continue;
+        Object.assign(evidence, { kind:"lock", amount:scaledBigIntToDecimal(amount), locked:scaledBigIntToDecimal(amount), walletAmount:scaledBigIntToDecimal(walletAmount), direction:"out" });
+      }
+      decoded.push(evidence);
+    }
+    const results = [];
+    const claimedLogIndexes = new Set();
+    for (const event of candidates) {
+      const evidence = matchingVedoloReceiptEvidence(event, decoded);
+      if (!evidence) continue;
+      if (claimedLogIndexes.has(evidence.logIndex)) continue;
+      claimedLogIndexes.add(evidence.logIndex);
+      const price = await historicalPrice(tokenPriceId("berachain", token), evidence.timestamp);
+      results.push({ ...evidence, serialId:event.serialId, historicalPrice:price, valuationStatus:price === null ? "unavailable" : "historical", usd:price === null ? null : Number(evidence.amount) * price });
+    }
+    return results;
+  }
+
+  function matchingVedoloReceiptEvidence(event, evidenceRows) {
+    const matches = evidenceRows.filter(evidence => evidence.tokenId === String(event.targetTokenId)
+      && (event.logIndex == null || Number(event.logIndex) === evidence.logIndex)
+      && (event.depositType == null ? evidence.kind === "withdraw" : evidence.kind === "lock" && evidence.depositType === event.depositType));
+    const byLogIndex = new Map(matches.map(evidence => [evidence.logIndex, evidence]));
+    return byLogIndex.size === 1 ? byLogIndex.values().next().value : null;
+  }
+
+  async function refreshCachedVedoloEvidence(row, cached, address, cacheKey) {
+    const candidates = (row.events || []).filter(event => event.vedoloEvidenceStatus);
+    const covered = candidates.every(event => matchingVedoloReceiptEvidence(event, cached?.vedoloEvidence || []));
+    if (covered) {
+      if (await refreshCachedVedoloValuations(cached)) writeStoredGasResult(cacheKey, cached);
+      return;
+    }
+    // Source discovery can add candidates after gas was cached. Retain gas metadata and fetch only the receipt.
+    try {
+      const receipt = await rpcRequest(row.chainKey, "eth_getTransactionReceipt", [row.txHash]);
+      if (receipt?.status !== "0x1" || !Array.isArray(receipt.logs)) return;
+      const fresh = await vedoloEvidenceFromReceipt(row, receipt, address);
+      const byLogIndex = new Map((cached.vedoloEvidence || []).map(evidence => [evidence.logIndex, evidence]));
+      fresh.forEach(evidence => byLogIndex.set(evidence.logIndex, evidence));
+      cached.vedoloEvidence = Array.from(byLogIndex.values());
+      writeStoredGasResult(cacheKey, cached);
+    } catch (error) {
+      console.debug("History veDOLO receipt refresh unavailable:", error);
+    }
+  }
+
+  async function refreshCachedVedoloValuations(cached) {
+    let changed = false;
+    const retriedPrices = new Set();
+    for (const evidence of cached?.vedoloEvidence || []) {
+      if (evidence.valuationStatus === "historical") continue;
+      const priceId = tokenPriceId("berachain", evidence.tokenAddress);
+      const priceKey = `${priceId}:${Math.floor(evidence.timestamp / 300) * 300}`;
+      // A cached null quote is not a permanent result. Retain the receipt and retry only its price.
+      if (!retriedPrices.has(priceKey)) priceCache.delete(priceKey);
+      retriedPrices.add(priceKey);
+      const price = await historicalPrice(priceId, evidence.timestamp);
+      if (price === null) continue;
+      evidence.historicalPrice = price;
+      evidence.valuationStatus = "historical";
+      evidence.usd = Number(evidence.amount) * price;
+      changed = true;
+    }
+    return changed;
+  }
+
+  function applyVedoloReceiptEvidence(row, evidenceRows) {
+    const claimedLogIndexes = new Set();
+    (row?.events || []).filter(event => event.vedoloEvidenceStatus).forEach(event => {
+      const evidence = matchingVedoloReceiptEvidence(event, evidenceRows);
+      if (!evidence || claimedLogIndexes.has(evidence.logIndex)) {
+        event.vedoloEvidenceStatus = "missing";
+        event.vedoloEvidence = null;
+        event.amount = "";
+        event.legs = [];
+        event.usd = null;
+        event.valuationStatus = "unavailable";
+        event.principalDelta = null;
+        event.reviewFlag = "needs_review";
+        event.reviewReason = "vedolo_receipt_missing";
+        return;
+      }
+      claimedLogIndexes.add(evidence.logIndex);
+      event.vedoloEvidenceStatus = "complete";
+      event.vedoloEvidence = evidence;
+      event.amount = evidence.amount;
+      event.asset = "DOLO";
+      event.usd = evidence.usd;
+      event.valuationStatus = evidence.valuationStatus;
+      event.isNewLock = evidence.depositType === 1;
+      event.principalDelta = evidence.kind === "withdraw" ? `-${evidence.originalLocked}` : evidence.amount;
+      event.reviewFlag = evidence.valuationStatus === "historical" ? "not_taxable_by_default" : "needs_review";
+      event.reviewReason = evidence.valuationStatus === "historical" ? "" : "vedolo_historical_price_missing";
+      event.legs = evidence.walletAmount !== "0" ? [{...assetLeg(evidence.direction, {symbol:"DOLO", id:evidence.tokenAddress}, evidence.walletAmount,
+        evidence.historicalPrice === null ? null : Number(evidence.walletAmount) * evidence.historicalPrice), amount:evidence.walletAmount}] : [];
+      if (evidence.kind === "withdraw") {
+        event.action = evidence.isEarlyExit ? "vedoloEarlyExit" : "vedoloWithdraw";
+        event.taxNote = `Locked principal returned, not earned income. Received ${evidence.received} DOLO; original locked ${evidence.originalLocked} DOLO; penalty ${evidence.penalty} DOLO (burn ${evidence.burn}; recoup ${evidence.recoup}).`;
+      } else {
+        event.taxNote = `Custody lock, not an expense or earned income. Locked ${evidence.locked} DOLO; wallet funded ${evidence.walletAmount} DOLO, confirmed by ERC20 transfers.`;
+      }
+      event.label = `${cleanReportActionLabel(event)} #${evidence.tokenId}: ${evidence.amount} DOLO`;
+    });
+    if (row) {
+      row.actions = new Set((row.events || []).map(event => event.action));
+      row.usdVolume = transactionUsdValue(row);
+    }
   }
 
   function applyBorrowReceiptSemanticsForRow(row, receipt, tx, address = "") {
@@ -3544,7 +3724,7 @@
       };
     }
     const flows = result.payload || {};
-    const events = buildHistoryActivityEvents(flows.locks, flows.transfers, address, bounds);
+    const events = buildHistoryActivityEvents(flows.locks, flows.transfers, address, {...bounds, unlocks:flows.unlocks});
     return { events: Array.isArray(events) ? events : [], warnings: [] };
   }
 
@@ -4244,7 +4424,7 @@
             <span class="asset-line${assetFlowClass ? ` ${escapeAttr(assetFlowClass)}` : ""}">${escapeHtml(eventPreview || "-")}</span>
           </div>
         </td>
-        <td class="num volume-td">${formatHistoryTableUsd(row.usdVolume)}</td>
+        <td class="num volume-td">${row.events.some(event => event.vedoloEvidenceStatus && event.valuationStatus !== "historical") ? "Unavailable" : formatHistoryTableUsd(row.usdVolume)}</td>
         <td class="num gas-td">${gasHtml(row)}</td>
         <td class="details-cell">${detailToggle}</td>
       </tr>`;
@@ -4277,7 +4457,10 @@
       const semanticZapActions = semanticActions.filter(action => !["zap", "deposit", "withdraw"].includes(action));
       return ["zap", ...semanticZapActions, ...vestingChips];
     }
-    const nonAmmActions = mergedActions.filter(action => action !== "amm");
+    const nonAmmActions = mergedActions.filter(action => action !== "amm").map(action => {
+      const lockEvents = (row.events || []).filter(event => event.action === action && event.vedoloEvidenceStatus);
+      return lockEvents.length ? { key:action, className:action, label:summarizeUniqueCsvLabels(lockEvents.map(cleanReportActionLabel), 3) } : action;
+    });
     if (!nonAmmActions.includes("vesting")) return [...nonAmmActions, ...ammChips];
     return [
       ...nonAmmActions.filter(action => action !== "vesting"),
@@ -4465,6 +4648,9 @@
   }
 
   function detailEventFlowLabel(event) {
+    if (event?.vedoloEvidenceStatus) {
+      return `${cleanActionAssetFlow(event)}${event.valuationStatus !== "historical" ? "; historical USD unavailable" : ""}`;
+    }
     const label = String(event?.label || "").trim();
     if (event?.action === "vesting") {
       return compactVestingTableFlow(event) || stripDetailActionPrefix(label, cleanReportActionLabel(event)) || "-";
@@ -4670,13 +4856,13 @@
       const warningText = compactDataWarningText();
       return {
         title: "Checking gas receipts and prices",
-        sub: `${state.gasChecked}/${total} receipts checked. ${evidenceText}${warningText}`,
+        sub: `${state.rows.filter(receiptEvidenceChecked).length}/${total} receipts checked (${state.gasChecked} attempts). ${evidenceText}${warningText}`,
       };
     }
     if (phase === "done") {
       return {
-        title: "Report evidence ready",
-        sub: "Exports now include visible filters, gas status, price source and candidate evidence.",
+        title: reportExportReadiness().canFullReport ? "Report evidence ready" : "Report evidence incomplete",
+        sub: reportStatusDetail(reportExportReadiness()),
       };
     }
     if (phase === "error") {
@@ -4794,20 +4980,29 @@
     element.classList.toggle("warn", stateName === "warn");
   }
 
+  function receiptEvidenceChecked(row) {
+    return ["ok", "not-payer", "price-missing"].includes(row?.gas?.status);
+  }
+
   function reportExportReadiness(rows = state.filteredRows, earnEntries = earnTaxEntriesForCurrentView()) {
     const gasPending = rows.some(row => row.gas?.status === "pending");
     const gasSkippedFast = rows.some(row => row.gas?.status === FAST_GAS_STATUS);
+    const gasIncomplete = rows.some(row => !["ok", "not-payer"].includes(row.gas?.status));
+    const vedoloIncomplete = rows.some(row => (row.events || []).some(event =>
+      event.vedoloEvidenceStatus && (event.vedoloEvidenceStatus !== "complete" || event.valuationStatus !== "historical")));
     const earnPending = state.earn?.status === "loading";
     const activeWarnings = activeDataWarnings(rows, earnEntries);
     const dataWarnings = activeWarnings.length;
     const hasRows = rows.length > 0;
     const hasReportRows = hasRows || earnEntries.length > 0;
-    const blocked = state.loading || state.filtersDirty || gasPending || gasSkippedFast || earnPending || dataWarnings > 0;
-    const receiptTotal = state.gasTotal || rows.length || 0;
-    const receiptChecked = Math.min(receiptTotal || rows.length, state.gasChecked || rows.filter(row => row.gas?.status && row.gas.status !== "pending").length);
+    const blocked = state.loading || state.filtersDirty || gasIncomplete || vedoloIncomplete || earnPending || dataWarnings > 0;
+    const receiptTotal = rows.length;
+    const receiptChecked = rows.filter(receiptEvidenceChecked).length;
     return {
       gasPending,
       gasSkippedFast,
+      gasIncomplete,
+      vedoloIncomplete,
       earnPending,
       dataWarnings,
       activeWarnings,
@@ -4826,6 +5021,7 @@
     if (state.loading) return "Scanning";
     if (readiness.gasPending || readiness.earnPending) return "Completing evidence";
     if (readiness.gasSkippedFast) return "Incomplete gas";
+    if (readiness.gasIncomplete || readiness.vedoloIncomplete) return "Incomplete evidence";
     if (readiness.dataWarnings) return "Incomplete data";
     if (!readiness.hasReportRows) return "No rows";
     return "Ready";
@@ -4845,6 +5041,8 @@
     }
     if (readiness.earnPending) return `EARN evidence is still loading. ${loadingEtaText()} left.`;
     if (readiness.gasSkippedFast) return "Legacy fast-mode rows need full gas evidence. Reload and wait for receipts.";
+    if (readiness.gasIncomplete) return "Receipt or historical gas price evidence is unavailable. Reload to retry before exporting.";
+    if (readiness.vedoloIncomplete) return "Exact veDOLO receipt amounts or their historical USD valuation are unavailable. Full Report remains locked.";
     if (readiness.dataWarnings) {
       const first = readiness.activeWarnings?.[0] || "Source data warning.";
       const more = readiness.dataWarnings > 1 ? ` +${readiness.dataWarnings - 1} more.` : "";
@@ -4871,12 +5069,12 @@
     if (!state.address) return "idle";
     if (readiness.canFullReport) return "ready";
     if (state.loading || readiness.gasPending || readiness.earnPending) return "working";
-    if (readiness.filtersDirty || readiness.gasSkippedFast || readiness.dataWarnings) return "blocked";
+    if (readiness.filtersDirty || readiness.gasIncomplete || readiness.vedoloIncomplete || readiness.dataWarnings) return "blocked";
     return "idle";
   }
 
   function reportCompletenessForRows(rows, earnEntries = []) {
-    const receiptChecked = rows.filter(row => row.gas && row.gas.status && row.gas.status !== "pending").length;
+    const receiptChecked = rows.filter(receiptEvidenceChecked).length;
     const eventCount = rows.reduce((sum, row) => sum + row.events.length, 0);
     const pricedEvents = rows.reduce((sum, row) => {
       return sum + row.events.filter(event => Number.isFinite(Number(event.usd)) && Number(event.usd) !== 0).length;
@@ -5596,11 +5794,7 @@
 
   function rewardClaimWarningBlocksCurrentReport(message, rows = state.filteredRows) {
     if (!isRewardClaimWarning(message)) return true;
-    if (claimFilterExplicitlySelected()) return true;
-    const mentionedChains = warningMentionedChainKeys(message);
-    if (!mentionedChains.length) return true;
-    const rowChains = new Set((rows || []).map(row => row?.chainKey).filter(Boolean));
-    return mentionedChains.some(chainKey => rowChains.has(chainKey));
+    return reportIncludesClaimData() && warningAppliesToCurrentChains(message);
   }
 
   function reportIncludesEarnData() {
@@ -5640,8 +5834,10 @@
     const parts = [`Loaded ${safeRows.toLocaleString("en-US")} tx.`];
     if (!finalizeComplete) {
       parts.push("Evidence continues in the progress panel.");
-    } else {
+    } else if (reportExportReadiness().canFullReport) {
       parts.push("Reports ready.");
+    } else {
+      parts.push("Evidence incomplete; Full Report is not ready.");
     }
     if (safeRows && safeVisibleRows !== safeRows) {
       parts.push(`${safeVisibleRows.toLocaleString("en-US")} match current filters.`);
@@ -5867,7 +6063,10 @@
     }
     if (semanticLabels.length) return summarizeUniqueCsvLabels(semanticLabels, 3);
     return summarizeUniqueCsvLabels(
-      Array.from(row.actions).map(action => cleanReportActionLabel({ action })),
+      Array.from(row.actions).flatMap(action => {
+        const events = row.events.filter(event => event.action === action && event.vedoloEvidenceStatus);
+        return events.length ? events.map(cleanReportActionLabel) : [cleanReportActionLabel({ action })];
+      }),
       3,
     );
   }
@@ -5910,6 +6109,13 @@
   }
 
   function cleanActionAssetFlow(event, mode = "report") {
+    if (event.vedoloEvidence) {
+      const evidence = event.vedoloEvidence;
+      if (mode === "table") return `${evidence.kind === "withdraw" ? "Received" : "Locked"} ${formatRoundedTokenAmount(evidence.amount, "DOLO")}${evidence.isEarlyExit ? ` · penalty ${formatRoundedTokenAmount(evidence.penalty, "DOLO")}` : ""}`;
+      if (evidence.kind === "withdraw") return `Received ${evidence.received} DOLO; original locked ${evidence.originalLocked} DOLO; penalty ${evidence.penalty} DOLO`;
+      return `${cleanReportActionLabel(event)}: locked ${evidence.locked} DOLO; wallet funded ${evidence.walletAmount} DOLO`;
+    }
+    if (event.vedoloEvidenceStatus) return `${cleanReportActionLabel(event)}: exact DOLO evidence unavailable`;
     if (isSwapLikeEvent(event)) {
       const swapFlow = cleanSwapOutcomeFlow(event, mode);
       if (swapFlow) return swapFlow;
@@ -5988,6 +6194,10 @@
   }
 
   function cleanReportActionLabel(event) {
+    if (["vedoloDirect", "vedoloAirdrop"].includes(event?.action) && event.vedoloEvidenceStatus) {
+      const prefix = event.action === "vedoloAirdrop" ? "Airdrop: " : "";
+      return `${prefix}${event.isNewLock ? "New veDOLO lock" : "Increase veDOLO lock"}`;
+    }
     if (event?.borrowSemanticAction) return ACTION_LABELS[event.borrowSemanticAction] || event.borrowSemanticLabel || event.borrowSemanticAction;
     if (event?.action === "zap") return "Zap";
     if (event?.action === "amm") {
@@ -6276,26 +6486,9 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
   }
 
   function ensureFullReportReady(rows, earnEntries, label) {
-    if (state.filtersDirty) {
-      setStatus(`${label} needs the current filters to be loaded first. Click Load history and try again.`, "warn");
-      return false;
-    }
-    if (!rows.length && !earnEntries.length) return false;
-    if (rows.some(row => row.gas?.status === "pending")) {
-      setStatus(`${label} waits for all visible gas receipts to finish so fee evidence is not partial.`, "warn");
-      return false;
-    }
-    if (rows.some(row => row.gas?.status === FAST_GAS_STATUS)) {
-      setStatus(`${label} needs full gas evidence. Reload history and wait for receipts to finish.`, "warn");
-      return false;
-    }
-    if (state.earn?.status === "loading") {
-      setStatus(`${label} waits for candidate evidence to finish so export rows are not omitted.`, "warn");
-      return false;
-    }
-    const activeWarnings = activeDataWarnings(rows);
-    if (activeWarnings.length) {
-      setStatus(`${label} waits for complete source data: ${activeWarnings[0]}${activeWarnings.length > 1 ? ` (+${activeWarnings.length - 1} more)` : ""}`, "warn");
+    const readiness = reportExportReadiness(rows, earnEntries);
+    if (!readiness.canFullReport) {
+      setStatus(`${label}: ${reportStatusDetail(readiness)}`, "warn");
       return false;
     }
     return true;
@@ -6369,6 +6562,11 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
           accountNumber: event.account || "",
           label: event.label || "",
           asset: event.asset || "",
+          vedoloEvidenceStatus: event.vedoloEvidenceStatus || "",
+          vedoloEvidence: event.vedoloEvidence || null,
+          principalDelta: event.principalDelta ?? null,
+          isNewLock: event.isNewLock ?? null,
+          valuationStatus: event.valuationStatus || "",
           fairMarketValueUsd: decimalForCsv(event.usd),
           taxCategory: profile.taxCategory,
           reviewFlag: profile.reviewFlag,
@@ -6498,7 +6696,7 @@ table{width:100%;border-collapse:collapse;margin-top:8px;font-size:12px}th,td{bo
   }
 
   function taxExportMeta(rows, earnEntries) {
-    const checked = rows.filter(row => row.gas && row.gas.status && row.gas.status !== "pending").length;
+    const checked = rows.filter(receiptEvidenceChecked).length;
     const earnSummary = earnSummaryForCurrentView();
     return {
       generatedAt: new Date().toISOString(),

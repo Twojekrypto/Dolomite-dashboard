@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -147,6 +148,44 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
         with patch.dict(os.environ, {"ALCHEMY_XLAYER_RPC_ZEN": "https://xlayer.example"}, clear=True):
             self.assertTrue(rce.has_configured_rpc("xlayer"))
 
+    def test_reward_claim_scanner_reads_xlayer_rpc_alias(self):
+        alias = "https://configured-xlayer.example"
+        env = os.environ.copy()
+        for name in ("ALCHEMY_XLAYER_RPC_ZEN", "ALCHEMY_XLAYER_RPC", "XLAYER_RPC"):
+            env.pop(name, None)
+        env["XLAYER_RPC"] = alias
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import json, generate_reward_claim_events as rce; "
+                    "print(json.dumps(rce.CHAIN_CONFIGS['xlayer']['rpcUrls']))"
+                ),
+            ],
+            cwd=ROOT,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        rpc_urls = json.loads(result.stdout)
+        self.assertEqual(rpc_urls[0], alias)
+        self.assertIn("https://rpc.xlayer.tech/", rpc_urls[1:])
+
+    def test_xlayer_rpc_alias_satisfies_configured_gate(self):
+        with patch.dict(os.environ, {"XLAYER_RPC": "https://configured-xlayer.example"}, clear=True):
+            self.assertTrue(rce.has_configured_rpc("xlayer"))
+
+    def test_cross_chain_workflow_passes_xlayer_rpc_alias(self):
+        workflow = (
+            ROOT / ".github" / "workflows" / "update-reward-claim-events.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("XLAYER_RPC: ${{ secrets.XLAYER_RPC }}", workflow)
+
     def test_odolo_flow_workflow_refreshes_berachain_claims_before_flows(self):
         workflow = (ROOT / ".github" / "workflows" / "update-odolo-flows.yml").read_text(encoding="utf-8")
 
@@ -185,6 +224,7 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
             "python3 -m unittest tests.test_generate_reward_claim_events",
             workflow,
         )
+        self.assertIn("REWARD_CLAIM_MAX_LOG_CHUNKS_XLAYER: '2000'", workflow)
 
     def test_reward_claim_log_scan_fails_closed_on_an_unserved_chunk(self):
         config = {
@@ -213,6 +253,349 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
                     851_675,
                     ["0x" + "2" * 40],
                 )
+
+    def test_reward_claim_log_scan_learns_provider_cap_without_skipping_blocks(self):
+        config = {
+            "name": "X Layer",
+            "rpcUrls": ["https://xlayer.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 1_000,
+        }
+        boundary_blocks = (1_000, 1_099, 1_100, 1_199, 1_200, 1_250)
+        successful_ranges = []
+
+        def fake_rpc(_rpc_urls, method, params, timeout=30):
+            self.assertEqual(method, "eth_getLogs")
+            self.assertEqual(timeout, 35)
+            request = params[0]
+            start = int(request["fromBlock"], 16)
+            end = int(request["toBlock"], 16)
+            if end - start + 1 > 100:
+                raise RuntimeError("eth_getLogs failed: block range greater than 100 max")
+            successful_ranges.append((start, end))
+            return [_log(block) for block in boundary_blocks if start <= block <= end]
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            logs = rce.fetch_reward_claimed_logs(
+                "xlayer",
+                config,
+                1_000,
+                1_250,
+                ["0x" + "2" * 40],
+            )
+
+        self.assertEqual(successful_ranges, [(1_000, 1_099), (1_100, 1_199), (1_200, 1_250)])
+        self.assertEqual([int(log["blockNumber"], 16) for log in logs], list(boundary_blocks))
+
+    def test_reward_claim_log_scan_adapts_when_provider_omits_numeric_cap(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 1_024,
+        }
+        successful_ranges = []
+
+        def fake_rpc(_rpc_urls, _method, params, timeout=30):
+            request = params[0]
+            start = int(request["fromBlock"], 16)
+            end = int(request["toBlock"], 16)
+            if end - start + 1 > 100:
+                raise RuntimeError("requested block range is too wide")
+            successful_ranges.append((start, end))
+            return []
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            logs = rce.fetch_reward_claimed_logs(
+                "test", config, 1_000, 1_250, ["0x" + "2" * 40]
+            )
+
+        self.assertEqual(logs, [])
+        self.assertEqual(successful_ranges[0][0], 1_000)
+        self.assertEqual(successful_ranges[-1][1], 1_250)
+        self.assertTrue(all(end - start + 1 <= 100 for start, end in successful_ranges))
+        self.assertTrue(all(left[1] + 1 == right[0] for left, right in zip(successful_ranges, successful_ranges[1:])))
+
+    def test_reward_claim_log_scan_parses_ranges_over_provider_cap(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 100_000,
+        }
+        successful_ranges = []
+
+        def fake_rpc(_rpc_urls, _method, params, timeout=30):
+            request = params[0]
+            start = int(request["fromBlock"], 16)
+            end = int(request["toBlock"], 16)
+            if end - start + 1 > 10_000:
+                raise RuntimeError("ranges over 10000 blocks are not supported on free plan")
+            successful_ranges.append((start, end))
+            return []
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            rce.fetch_reward_claimed_logs(
+                "test", config, 1_000, 11_050, ["0x" + "2" * 40]
+            )
+
+        self.assertEqual(successful_ranges, [(1_000, 10_999), (11_000, 11_050)])
+
+    def test_reward_claim_log_scan_respects_explicit_small_chunk_size(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://primary.example", "https://fallback.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 3,
+        }
+        requested_ranges = []
+
+        def fake_rpc(rpc_urls, _method, params, timeout=30):
+            self.assertEqual(rpc_urls, config["rpcUrls"])
+            request = params[0]
+            requested_ranges.append((int(request["fromBlock"], 16), int(request["toBlock"], 16)))
+            return []
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            logs = rce.fetch_reward_claimed_logs(
+                "test", config, 10, 15, ["0x" + "2" * 40]
+            )
+
+        self.assertEqual(logs, [])
+        self.assertEqual(requested_ranges, [(10, 12), (13, 15)])
+
+    def test_reward_claim_log_scan_keeps_normal_large_chunks(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 1_000,
+        }
+        requested_ranges = []
+
+        def fake_rpc(_rpc_urls, _method, params, timeout=30):
+            request = params[0]
+            requested_ranges.append((int(request["fromBlock"], 16), int(request["toBlock"], 16)))
+            return []
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            logs = rce.fetch_reward_claimed_logs(
+                "test", config, 1_000, 2_500, ["0x" + "2" * 40]
+            )
+
+        self.assertEqual(logs, [])
+        self.assertEqual(requested_ranges, [(1_000, 1_999), (2_000, 2_500)])
+
+    def test_reward_claim_log_scan_retries_transient_failure_without_shrinking(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 100,
+        }
+        requested_ranges = []
+
+        def fake_rpc(_rpc_urls, _method, params, timeout=30):
+            request = params[0]
+            requested_ranges.append((int(request["fromBlock"], 16), int(request["toBlock"], 16)))
+            if len(requested_ranges) == 1:
+                raise RuntimeError("429 Client Error: Too Many Requests")
+            return [_log(100)]
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            logs = rce.fetch_reward_claimed_logs(
+                "test", config, 100, 199, ["0x" + "2" * 40]
+            )
+
+        self.assertEqual(requested_ranges, [(100, 199), (100, 199)])
+        self.assertEqual([int(log["blockNumber"], 16) for log in logs], [100])
+
+    def test_reward_claim_log_scan_fails_closed_when_one_block_cannot_be_served(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 100,
+        }
+
+        with (
+            patch.object(
+                rce,
+                "rpc_request",
+                side_effect=RuntimeError("block range limit exceeded"),
+            ) as rpc,
+            patch.object(rce.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "claim-log chunk 777-777.*could not be scanned"):
+                rce.fetch_reward_claimed_logs(
+                    "test", config, 777, 777, ["0x" + "2" * 40]
+                )
+        self.assertEqual(rpc.call_count, 1)
+
+    def test_reward_claim_log_scan_returns_immediately_for_empty_interval(self):
+        with patch.object(rce, "rpc_request") as rpc:
+            logs = rce.fetch_reward_claimed_logs(
+                "test", {}, 10, 9, ["0x" + "2" * 40]
+            )
+
+        self.assertEqual(logs, [])
+        rpc.assert_not_called()
+
+    def test_reward_claim_log_scan_fails_closed_at_configured_chunk_budget(self):
+        config = {
+            "name": "X Layer",
+            "rpcUrls": ["https://xlayer.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 100,
+            "maxLogChunks": 2,
+        }
+        requested_ranges = []
+
+        def fake_rpc(_rpc_urls, _method, params, timeout=30):
+            request = params[0]
+            requested_ranges.append((int(request["fromBlock"], 16), int(request["toBlock"], 16)))
+            return []
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            with self.assertRaisesRegex(RuntimeError, "cannot complete within remaining chunk budget"):
+                rce.fetch_reward_claimed_logs(
+                    "xlayer", config, 1_000, 1_250, ["0x" + "2" * 40]
+                )
+
+        self.assertEqual(requested_ranges, [(1_000, 1_099)])
+
+    def test_reward_claim_log_scan_aborts_huge_infeasible_range_after_learning_cap(self):
+        config = {
+            "name": "X Layer",
+            "rpcUrls": ["https://xlayer.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 1_000,
+            "maxLogChunks": 2_000,
+        }
+        requested_ranges = []
+
+        def fake_rpc(_rpc_urls, _method, params, timeout=30):
+            request = params[0]
+            start = int(request["fromBlock"], 16)
+            end = int(request["toBlock"], 16)
+            requested_ranges.append((start, end))
+            if end - start + 1 > 100:
+                raise RuntimeError("block range greater than 100 max")
+            return []
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            with self.assertRaisesRegex(RuntimeError, "cannot complete within remaining chunk budget"):
+                rce.fetch_reward_claimed_logs(
+                    "xlayer", config, 1_000, 1_000_000, ["0x" + "2" * 40]
+                )
+
+        self.assertEqual(requested_ranges, [(1_000, 1_999), (1_000, 1_099)])
+
+    def test_reward_claim_log_scan_allows_exact_chunk_budget_across_topic_batches(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 100,
+            "distributorBatchSize": 1,
+            "maxLogChunks": 2,
+        }
+        requested_ranges = []
+
+        def fake_rpc(_rpc_urls, _method, params, timeout=30):
+            request = params[0]
+            requested_ranges.append((int(request["fromBlock"], 16), int(request["toBlock"], 16)))
+            return []
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            logs = rce.fetch_reward_claimed_logs(
+                "test",
+                config,
+                1_000,
+                1_099,
+                ["0x" + "2" * 40, "0x" + "3" * 40],
+            )
+
+        self.assertEqual(logs, [])
+        self.assertEqual(requested_ranges, [(1_000, 1_099), (1_000, 1_099)])
+
+    def test_reward_claim_log_scan_retains_learned_cap_across_topic_batches(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 1_000,
+            "distributorBatchSize": 1,
+        }
+        requested_ranges = []
+
+        def fake_rpc(_rpc_urls, _method, params, timeout=30):
+            request = params[0]
+            start = int(request["fromBlock"], 16)
+            end = int(request["toBlock"], 16)
+            requested_ranges.append((start, end))
+            if end - start + 1 > 100:
+                raise RuntimeError("block range greater than 100 max")
+            return []
+
+        with patch.object(rce, "rpc_request", side_effect=fake_rpc), patch.object(rce.time, "sleep"):
+            logs = rce.fetch_reward_claimed_logs(
+                "test",
+                config,
+                1_000,
+                1_150,
+                ["0x" + "2" * 40, "0x" + "3" * 40],
+            )
+
+        self.assertEqual(logs, [])
+        self.assertEqual(
+            requested_ranges,
+            [
+                (1_000, 1_150),
+                (1_000, 1_099),
+                (1_100, 1_150),
+                (1_000, 1_099),
+                (1_100, 1_150),
+            ],
+        )
+
+    def test_reward_claim_log_scan_rejects_null_rpc_result(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 100,
+        }
+
+        with (
+            patch.object(rce, "rpc_request", return_value=None) as rpc,
+            patch.object(rce.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "malformed eth_getLogs result.*NoneType"):
+                rce.fetch_reward_claimed_logs(
+                    "test", config, 1_000, 1_099, ["0x" + "2" * 40]
+                )
+
+        self.assertEqual(rpc.call_count, 2)
+
+    def test_reward_claim_log_scan_rejects_non_list_rpc_result(self):
+        config = {
+            "name": "Test Chain",
+            "rpcUrls": ["https://rpc.example"],
+            "eventEmitter": "0x" + "1" * 40,
+            "chunkSize": 100,
+        }
+
+        with (
+            patch.object(rce, "rpc_request", return_value={"logs": []}) as rpc,
+            patch.object(rce.time, "sleep"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "malformed eth_getLogs result.*dict"):
+                rce.fetch_reward_claimed_logs(
+                    "test", config, 1_000, 1_099, ["0x" + "2" * 40]
+                )
+
+        self.assertEqual(rpc.call_count, 2)
 
     def test_sharded_manifest_events_are_reloaded_before_incremental_scan(self):
         with tempfile.TemporaryDirectory() as tmp:

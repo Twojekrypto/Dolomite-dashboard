@@ -82,7 +82,7 @@ class VeDoloPreviewContractsTest(unittest.TestCase):
 
     def test_recent_locks_use_canonical_external_deposit_classification(self):
         self.assertIn(
-            'script src="vedolo-position-activity.js?v=20260817-activity-adapters"',
+            'script src="vedolo-position-activity.js?v=20260908-receipt-evidence-v1"',
             self.html,
         )
         self.assertIn("position-activity-helper-20260817", self.route)

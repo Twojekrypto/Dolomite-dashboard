@@ -8,6 +8,7 @@ script indexes RewardClaimed logs emitted by each chain's EventEmitterRegistry.
 """
 import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 
@@ -151,11 +152,13 @@ CHAIN_CONFIGS = {
         "deployBlock": 850_676,
         "blockTimeSeconds": 2,
         "chunkSize": 250_000,
+        "maxLogChunks": 2_000,
         "requiresConfiguredRpcForFullClaimScan": True,
         "fallbackDistributors": set(),
         "token": {"symbol": "Reward", "address": "", "decimals": 18},
         "knownDistributorTokens": {},
         "rpcUrls": [
+            *([] if not os.environ.get("XLAYER_RPC") else [os.environ["XLAYER_RPC"]]),
             *([] if not os.environ.get("ALCHEMY_XLAYER_RPC_ZEN") else [os.environ["ALCHEMY_XLAYER_RPC_ZEN"]]),
             *([] if not os.environ.get("ALCHEMY_XLAYER_RPC") else [os.environ["ALCHEMY_XLAYER_RPC"]]),
             "https://rpc.xlayer.tech/",
@@ -186,10 +189,10 @@ def selected_chain_keys():
 
 def has_configured_rpc(chain_key):
     env_key = chain_env_key(chain_key)
-    return any(
-        os.environ.get(f"ALCHEMY_{env_key}_RPC{suffix}")
-        for suffix in ("_ZEN", "", "_2", "_3")
-    )
+    env_names = [f"ALCHEMY_{env_key}_RPC{suffix}" for suffix in ("_ZEN", "", "_2", "_3")]
+    if chain_key == "xlayer":
+        env_names.insert(0, "XLAYER_RPC")
+    return any(os.environ.get(name) for name in env_names)
 
 
 def rpc_request(rpc_urls, method, params, timeout=30):
@@ -495,6 +498,41 @@ def distributor_batch_size(chain_key, config):
     return max(1, int(configured or config.get("distributorBatchSize") or 50))
 
 
+def max_log_chunks(chain_key, config):
+    env_key = chain_env_key(chain_key)
+    configured = env_int(f"REWARD_CLAIM_MAX_LOG_CHUNKS_{env_key}", "REWARD_CLAIM_MAX_LOG_CHUNKS")
+    if configured is None:
+        configured = config.get("maxLogChunks")
+    return max(0, int(configured or 0))
+
+
+def provider_block_cap(error):
+    message = str(error or "").lower()
+    patterns = (
+        r"\branges?\s+(?:over|greater\s+than|larger\s+than|above)\s+([0-9][0-9,_]*)\s+blocks?\b",
+        r"(?:maximum|max(?:imum)?(?:\s+block)?(?:\s+range)?|limit(?:ed)?(?:\s+to)?(?:\s+a)?)[^0-9]{0,24}([0-9][0-9,_]*)\s*(?:blocks?)?",
+        r"(?:block\s+range|range)[^0-9]{0,24}([0-9][0-9,_]*)[^0-9]{0,24}(?:max(?:imum)?|limit)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, message)
+        if match:
+            cap = int(match.group(1).replace(",", "").replace("_", ""))
+            return cap if cap > 0 else None
+    return None
+
+
+def is_block_range_error(error):
+    message = str(error or "").lower()
+    if "too many requests" in message or "rate limit" in message or "rate-limit" in message:
+        return False
+    return (
+        "range" in message
+        or "too many results" in message
+        or "too many logs" in message
+        or bool(re.search(r"(?:more\s+than|exceeds?).{0,24}(?:results?|logs?)", message))
+    )
+
+
 def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distributors):
     if start_block > end_block:
         return []
@@ -502,7 +540,7 @@ def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distrib
     if not distributor_topics:
         return []
     configured_chunk_size = claim_chunk_size(chain_key, config)
-    chunk_size = max(1000, configured_chunk_size)
+    chunk_size = max(1, configured_chunk_size)
     distributor_chunk_size = distributor_batch_size(chain_key, config)
     topic_batches = [
         distributor_topics[index:index + distributor_chunk_size]
@@ -510,19 +548,28 @@ def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distrib
     ]
     logs = []
     total_blocks = max(1, end_block - start_block + 1)
+    chunk_budget = max_log_chunks(chain_key, config)
+    completed_chunks = 0
     print(f"Scanning {config['name']} reward claims for {len(distributor_topics):,} distributors: blocks {start_block:,} -> {end_block:,}")
 
     for batch_index, topic_batch in enumerate(topic_batches, start=1):
         if len(topic_batches) > 1:
             print(f"  {config['name']}: scanning distributor batch {batch_index}/{len(topic_batches)}")
         current = start_block
-        chunk_size = max(1000, configured_chunk_size)
         last_progress_percent = -1
         while current <= end_block:
+            if chunk_budget and completed_chunks >= chunk_budget:
+                raise RuntimeError(
+                    f"{config['name']} claim-log chunk budget of {chunk_budget:,} exhausted "
+                    f"without complete coverage; next block is {current:,} of {end_block:,} "
+                    f"at a learned chunk size of {chunk_size:,}"
+                )
             chunk_end = min(current + chunk_size - 1, end_block)
             success = False
             last_error = None
-            for _attempt in range(len(config["rpcUrls"]) * 2):
+            transient_failures = 0
+            max_transient_failures = max(1, len(config["rpcUrls"]) * 2)
+            while True:
                 try:
                     result = rpc_request(
                         config["rpcUrls"],
@@ -535,16 +582,29 @@ def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distrib
                         }],
                         timeout=35,
                     )
-                    logs.extend(result or [])
+                    if not isinstance(result, list):
+                        raise RuntimeError(
+                            f"malformed eth_getLogs result: expected list, got {type(result).__name__}"
+                        )
+                    logs.extend(result)
                     success = True
                     break
                 except RuntimeError as exc:
                     last_error = exc
-                    message = str(exc).lower()
-                    if "range" in message or "limit" in message or "too many" in message:
-                        chunk_size = max(chunk_size // 2, 1000)
+                    if is_block_range_error(exc):
+                        requested_size = chunk_end - current + 1
+                        if requested_size <= 1:
+                            break
+                        stated_cap = provider_block_cap(exc)
+                        if stated_cap and stated_cap < requested_size:
+                            chunk_size = stated_cap
+                        else:
+                            chunk_size = max(1, requested_size // 2)
                         chunk_end = min(current + chunk_size - 1, end_block)
                         continue
+                    transient_failures += 1
+                    if transient_failures >= max_transient_failures:
+                        break
                     time.sleep(0.5)
             if not success:
                 raise RuntimeError(
@@ -552,9 +612,25 @@ def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distrib
                     f"could not be scanned: {last_error}"
                 )
 
+            completed_chunks += 1
             current = chunk_end + 1
-            if chunk_size < configured_chunk_size:
-                chunk_size = min(chunk_size * 2, configured_chunk_size)
+            if chunk_budget:
+                remaining_budget = chunk_budget - completed_chunks
+                remaining_current_blocks = max(0, end_block - current + 1)
+                remaining_current_chunks = (
+                    (remaining_current_blocks + chunk_size - 1) // chunk_size
+                    if remaining_current_blocks
+                    else 0
+                )
+                full_batch_chunks = (total_blocks + chunk_size - 1) // chunk_size
+                remaining_batch_count = len(topic_batches) - batch_index
+                required_chunks = remaining_current_chunks + remaining_batch_count * full_batch_chunks
+                if required_chunks > remaining_budget:
+                    raise RuntimeError(
+                        f"{config['name']} claim-log scan cannot complete within remaining chunk budget: "
+                        f"needs at least {required_chunks:,} more chunks at the learned chunk size "
+                        f"of {chunk_size:,}, but only {remaining_budget:,} of {chunk_budget:,} remain"
+                    )
             pct = min(100, (current - start_block) * 100 // total_blocks)
             if current > end_block or pct >= last_progress_percent + 5:
                 suffix = f" batch {batch_index}/{len(topic_batches)}" if len(topic_batches) > 1 else ""

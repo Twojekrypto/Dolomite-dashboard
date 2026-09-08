@@ -163,12 +163,19 @@
   }
 
   function dedupeSemanticRows(rows){
-    const seen = new Set();
-    return rows.filter(row => {
+    const keys = rows.map(row => {
       const hash = String(row && (row.txHash || row.hash) || "").trim().toLowerCase();
-      if(!hash) return true;
       const identity = positionIdentity(row);
-      const key = `${hash}:${identity.kind}:${identity.source}:${identity.target}`;
+      return hash ? `${hash}:${identity.kind}:${identity.source}:${identity.target}` : "";
+    });
+    const indexedKeys = new Set(keys.filter((key, index) => key && rows[index].logIndex != null));
+    const seen = new Set();
+    return rows.filter((row, index) => {
+      const semanticKey = keys[index];
+      if(!semanticKey) return true;
+      // Indexed RPC rows supersede a legacy semantic summary, but distinct logs remain distinct.
+      if(row.logIndex == null && indexedKeys.has(semanticKey)) return false;
+      const key = `${semanticKey}:${row.logIndex ?? ""}`;
       if(seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -310,19 +317,22 @@
         blockNumber:String(row.blockNumber ?? row.block ?? ""),
         action,
         role:"neutral",
-        serialId:`${action}:${tokenId}:${tokenId}`,
+        serialId:`${action}:${tokenId}:${tokenId}:${row.depositType}:${row.logIndex ?? ""}`,
         label:tokenId ? `${airdrop ? "Airdrop lock" : "Direct lock"} #${tokenId}` : (airdrop ? "Airdrop veDOLO lock" : "Direct veDOLO lock"),
         asset:"veDOLO position",
-        amount:"0",
-        usd:0,
+        amount:"",
+        usd:null,
         taxCategory:"vedolo_lock_classification",
-        reviewFlag:"not_applicable",
-        reviewReason:"",
+        reviewFlag:"needs_review",
+        reviewReason:"vedolo_receipt_pending",
+        vedoloEvidenceStatus:"pending",
+        depositType:Number(row.depositType),
+        logIndex:row.logIndex ?? null,
         sourceEntity:"vedoloFlowsRpcLogs",
         sourceLabel:"Berachain veDOLO RPC log history",
-        principalDelta:0,
+        principalDelta:null,
         isPositionManagement:false,
-        isNewLock:true,
+        isNewLock:depositKind(row) === "create",
         route,
         from:"",
         to:normalizedAddress(row.beneficiaryAddress || row.address),
@@ -330,7 +340,39 @@
         targetTokenId:tokenId,
       };
     });
-    return classifiedLockEvents.concat(managementEvents).sort((a,b) =>
+    const unlockEvents = dedupeSemanticRows(filterActivityRows(
+      (Array.isArray(options?.unlocks) ? options.unlocks : []).map(row => ({...row, kind:"withdraw"})),
+      {...(options || {}), address},
+    )).map(row => ({
+      chainKey:"berachain",
+      txHash:String(row.txHash || row.hash || "").toLowerCase(),
+      timestamp:timestampBound(row.timestamp, 0),
+      blockNumber:String(row.blockNumber ?? row.block ?? ""),
+      action:"vedoloWithdraw",
+      role:"neutral",
+      serialId:`vedoloWithdraw:${row.tokenId}:${row.logIndex ?? ""}`,
+      label:`Withdraw veDOLO #${row.tokenId}`,
+      asset:"DOLO",
+      amount:"",
+      usd:null,
+      legs:[],
+      taxCategory:"vedolo_withdrawal",
+      reviewFlag:"needs_review",
+      reviewReason:"vedolo_receipt_pending",
+      vedoloEvidenceStatus:"pending",
+      logIndex:row.logIndex ?? null,
+      sourceEntity:"vedoloFlowsRpcLogs",
+      sourceLabel:"Berachain veDOLO RPC log history",
+      principalDelta:null,
+      isPositionManagement:false,
+      isNewLock:false,
+      route:"withdraw",
+      from:"",
+      to:normalizedAddress(row.address),
+      sourceTokenId:String(row.tokenId ?? ""),
+      targetTokenId:String(row.tokenId ?? ""),
+    }));
+    return classifiedLockEvents.concat(managementEvents, unlockEvents).sort((a,b) =>
       (b.timestamp - a.timestamp)
       || ((Number(b.blockNumber) || 0) - (Number(a.blockNumber) || 0))
       || String(a.txHash || "").localeCompare(String(b.txHash || ""))
