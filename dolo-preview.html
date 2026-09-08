@@ -2892,22 +2892,41 @@ function ensureHolderBrushSelection(fullModel){
     holderBrushDomainKey = domainKey;
   }
 }
+function holderSnapshotWindow(points, selection){
+  if(!points.length) return {points:[], selection:{from:0, to:0}};
+  // A daily snapshot is a real observed balance, not an intraday estimate.
+  // Keep the preceding baseline instead of silently dropping the first day.
+  let first = 0, last = 0;
+  points.forEach((point, index) => {
+    if(point.ts <= selection.from) first = index;
+    if(point.ts <= selection.to) last = index;
+  });
+  first = Math.min(first, last);
+  if(first === last && points.length > 1){
+    if(first > 0) first -= 1;
+    else last = 1;
+  }
+  const visible = points.slice(first, last + 1);
+  return {points:visible, selection:{from:visible[0].ts, to:visible[visible.length - 1].ts}};
+}
+function holderSnapshotWindowLabel(from, to, minX, maxX){
+  if(from === minX && to === maxX) return "All";
+  const minutes = Math.max(0, Math.round((to - from) / 60));
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor(minutes % 1440 / 60);
+  const remainder = minutes % 60;
+  return [days ? `${days}D` : "", hours ? `${hours}H` : "", remainder ? `${remainder}M` : ""].filter(Boolean).join(" ") || "0M";
+}
 function visibleHolderHistory(fullModel){
   ensureHolderBrushSelection(fullModel);
-  const points = fullModel.points || [];
-  let visible = points.filter(point => point.ts >= holderBrushSel.from && point.ts <= holderBrushSel.to);
-  if(visible.length < 2 && points.length >= 2){
-    const center = (holderBrushSel.from + holderBrushSel.to) / 2;
-    visible = [...points]
-      .sort((a,b)=>Math.abs(a.ts - center) - Math.abs(b.ts - center))
-      .slice(0, 2)
-      .sort((a,b)=>a.ts-b.ts);
-  }
+  const window = holderSnapshotWindow(fullModel.points || [], holderBrushSel);
+  const visible = window.points;
+  if(!holderBrushDragging) holderBrushSel = window.selection;
   const current = visible[visible.length - 1] || fullModel.current;
-  return {...fullModel, points:visible.length ? visible : points, current, buckets:current?.buckets || fullModel.buckets};
+  return {...fullModel, points:visible, current, buckets:current?.buckets || fullModel.buckets};
 }
 function paintHolderBrushWindow(){
-  const {minX, span} = holderBrushDomain();
+  const {points, minX, span} = holderBrushDomain();
   const win = document.getElementById("holderBrushWindow");
   const dimL = document.getElementById("holderBrushDimL");
   const dimR = document.getElementById("holderBrushDimR");
@@ -2919,7 +2938,9 @@ function paintHolderBrushWindow(){
   win.style.width = (rightPct - leftPct) + "%";
   dimL.style.width = leftPct + "%";
   dimR.style.width = (100 - rightPct) + "%";
-  label.innerHTML = `<span class="v">${fmtHolderBrushDate(holderBrushSel.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(holderBrushSel.to)}</span>`;
+  const bounds = holderSnapshotWindow(points, holderBrushSel).selection;
+  label.innerHTML = `<span class="v">${fmtHolderBrushDate(bounds.from)}</span><span class="sep">→</span><span class="v">${fmtHolderBrushDate(bounds.to)}</span>`;
+  label.dataset.tooltip = `Daily snapshots. Exact calculation range: ${new Date(bounds.from * 1000).toISOString()} → ${new Date(bounds.to * 1000).toISOString()}. The latest snapshot may include a partial day.`;
 }
 function bindBrushPointerSession(event, onMove, onFinish){
   const target = event.currentTarget;
@@ -3116,6 +3137,7 @@ function renderHolderDistributionChart(options = {}){
     renderHolderBrush(fullModel);
   }
   const model = visibleHolderHistory(fullModel);
+  paintHolderBrushWindow();
   const bucketDefs = activeHolderBuckets();
   if(holderDistributionActiveKey && !bucketDefs.some(bucket => bucket.key === holderDistributionActiveKey)){
     holderDistributionActiveKey = "";
@@ -3236,7 +3258,7 @@ function renderHolderDistributionChart(options = {}){
 
   const countEl = document.getElementById("holder-chart-count");
   const {minX, maxX} = holderBrushDomain();
-  const holderRangeLabel = model.points.length > 1 ? holderWindowLabel(holderBrushSel.from, holderBrushSel.to, minX, maxX) : "Loading";
+  const holderRangeLabel = model.points.length > 1 ? holderSnapshotWindowLabel(model.points[0].ts, model.current.ts, minX, maxX) : "Loading";
   if(countEl){
     countEl.textContent = holderRangeLabel;
   }
@@ -4500,6 +4522,10 @@ function holderRowsAtPoint(point, includeVeDolo = false){
   }).filter(row => row.panelTotal > 0);
 }
 function holderWalletRangeChange(row, baselineRow){
+  if(row?.balanceKnown === false || baselineRow?.balanceKnown === false){
+    return {tone:"flat", main:"—", pct:"—", delta:null, pctValue:null, sourceDeltas:null,
+      unavailableTooltip:"Exact wallet change is unavailable: a balance at the start or end of this period is missing from the historical 100K+ wallet details. Missing does not mean zero. Bucket totals remain available."};
+  }
   const current = safeHolderNum(row?.panelTotal);
   const baseline = safeHolderNum(baselineRow?.panelTotal);
   const delta = current - baseline;
@@ -4566,7 +4592,7 @@ function holderWalletUnionRows({point, baselinePoint, includeVeDolo, matchesRow,
     const currentRow = currentByAddr.get(key);
     const baselineRow = baselineByAddr.get(key);
     const sourceRow = currentRow || baselineRow;
-    const row = currentRow ? {...currentRow} : zeroHolderRowFrom(baselineRow);
+    const row = currentRow ? {...currentRow} : {...zeroHolderRowFrom(baselineRow), balanceKnown:false};
     const type = holderDistributionType(sourceRow?.addr, sourceRow);
     const currentMatch = !!(currentRow && matchesRow(currentRow));
     const baselineMatch = !!(baselineRow && matchesRow(baselineRow));
@@ -4583,12 +4609,8 @@ function holderWalletUnionRows({point, baselinePoint, includeVeDolo, matchesRow,
       baselineInRange: baselineMatch,
       rangeNote: rangeNoteForRow?.(currentMatch, baselineMatch, row, baselineRow) || "",
       rangeChange: holderWalletRangeChange(
-        currentMatch
-          ? {...row, panelTotal:rangeCurrentTotal}
-          : {...zeroHolderRowFrom(row), panelTotal:0},
-        baselineMatch
-          ? {...(baselineRow || {}), panelTotal:rangeBaselineTotal}
-          : {...zeroHolderRowFrom(baselineRow || row), panelTotal:0}
+        row,
+        baselineRow || {...zeroHolderRowFrom(row), balanceKnown:false}
       ),
     };
   }).sort((a,b) => {
@@ -4613,12 +4635,15 @@ function holderWalletChangeSourceHtml(change){
 }
 function holderWalletChangeCell(row){
   const change = row.rangeChange || holderWalletRangeChange(row, row);
+  const changeAttrs = change.unavailableTooltip
+    ? ` data-tooltip="${escHtml(change.unavailableTooltip)}" aria-label="${escHtml(change.unavailableTooltip)}"`
+    : "";
   const pctAttrs = change.pctTooltip
     ? ` data-tooltip="${escHtml(change.pctTooltip)}" aria-label="${escHtml(change.pctTooltip)}"`
     : "";
   return `
     <div class="holder-wallet-change ${escHtml(change.tone)}">
-      <span class="main">${escHtml(change.main)}</span>
+      <span class="main"${changeAttrs}>${escHtml(change.main)}</span>
       ${holderWalletChangeSourceHtml(change)}
       <span class="pct"${pctAttrs}>${escHtml(change.pct)}</span>
     </div>
@@ -4735,6 +4760,9 @@ function bindHolderWalletPanel(panel){
       rows.sort((left, right) => {
         const leftValue = left.dataset[`walletSort${sortKey[0].toUpperCase()}${sortKey.slice(1)}`] || "";
         const rightValue = right.dataset[`walletSort${sortKey[0].toUpperCase()}${sortKey.slice(1)}`] || "";
+        if(sortKey !== "chain" && (leftValue === "" || rightValue === "")){
+          if(leftValue !== rightValue) return leftValue === "" ? 1 : -1;
+        }
         const comparison = sortKey === "chain"
           ? leftValue.localeCompare(rightValue)
           : safeHolderNum(leftValue) - safeHolderNum(rightValue);
@@ -4808,12 +4836,12 @@ function walletDrilldownPanelHtml({eyebrow = "Wallets", title, meta = "", rows, 
             </thead>
             <tbody>
               ${rows.map(row => `
-                <tr data-addr="${escHtml(row.addr)}" data-panel-total="${escHtml(row.panelTotal)}" data-wallet-sort-chain="${escHtml(holderWalletChainSortValue(row))}" data-wallet-sort-dolo="${safeHolderNum(row.panelTotal)}" data-wallet-sort-change="${safeHolderNum(row.rangeChange?.delta)}" data-wallet-search="${escHtml(`${row.addr || ""} ${row.label || ""} ${row.type || ""} ${TYPE_LABELS[row.type] || ""}`.toLowerCase())}">
+                <tr data-addr="${escHtml(row.addr)}" data-panel-total="${row.balanceKnown === false ? "" : escHtml(row.panelTotal)}" data-wallet-sort-chain="${escHtml(holderWalletChainSortValue(row))}" data-wallet-sort-dolo="${row.balanceKnown === false ? "" : safeHolderNum(row.panelTotal)}" data-wallet-sort-change="${row.rangeChange?.delta == null ? "" : safeHolderNum(row.rangeChange.delta)}" data-wallet-search="${escHtml(`${row.addr || ""} ${row.label || ""} ${row.type || ""} ${TYPE_LABELS[row.type] || ""}`.toLowerCase())}">
                   <td class="chain-cell" data-column="chain" data-label="Chain">${holderWalletChainHtml(row)}</td>
                   <td data-column="address" data-label="Address">${holderWalletAddressCell(row)}</td>
                   <td class="num" data-column="dolo" data-label="DOLO">
                     <div class="holder-dolo-amount">
-                      <span class="bal-val total">${fmtNum(row.panelTotal)}</span>
+                      <span class="bal-val total"${row.balanceKnown === false ? ' data-tooltip="Exact balance at the selected end date is unavailable in the historical 100K+ wallet details. This is not a zero balance."' : ""}>${row.balanceKnown === false ? "—" : fmtNum(row.panelTotal)}</span>
                       <img class="holder-dolo-icon" src="dolo-logo.svg" alt="DOLO" onerror="this.style.display='none'">
                     </div>
                     ${row.inDolomite > 0 ? `<div class="holder-wallet-sub" data-tooltip="Positive DOLO supplied or held as collateral in this wallet's Dolomite subaccounts; included in Total exposure." aria-label="${fmtNum(row.inDolomite)} DOLO in Dolomite, included in Total exposure">${fmtNum(row.inDolomite)} in Dolomite</div>` : ""}
@@ -4846,6 +4874,7 @@ function holderWalletInlinePanelHtml(bucket, model = null){
       ${walletDrilldownPanelHtml({
         eyebrow:"Bucket wallets",
         title:`${bucket.label} DOLO wallets`,
+        meta:"Change shows each wallet's balance difference. Moving between groups is not an inflow or outflow.",
         rows,
         emptyText:veDoloUnavailable
           ? "veDOLO wallet-level data is still loading. The panel will refresh automatically."

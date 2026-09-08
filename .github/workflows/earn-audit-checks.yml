@@ -81,3 +81,6 @@ jobs:
 
       - name: Run strict EARN audit checks
         run: python3 run_earn_audit_checks.py
+
+      - name: Check holder history ranges and wallet changes
+        run: node --test tests/holder-distribution-contract.test.js tests/holder-range-wallet-change.test.js
