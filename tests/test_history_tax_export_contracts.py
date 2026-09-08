@@ -19,6 +19,10 @@ REWARD_CLAIM_GENERATOR = ROOT / "generate_reward_claim_events.py"
 
 
 class HistoryTaxExportContractsTest(unittest.TestCase):
+    def test_vedolo_receipt_evidence_runtime_regressions(self):
+        result = subprocess.run(["node", "--test", "tests/history-vedolo-evidence.test.js"], cwd=ROOT, capture_output=True, text=True, env=NODE_ENV)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     @classmethod
     def setUpClass(cls):
         cls.source = HISTORY_JS.read_text()
@@ -438,11 +442,14 @@ vm.runInNewContext(instrumented, sandbox);
             self.assertIn(f'action === "{custom_value}"', filter_block)
 
     def test_vedolo_position_activity_loads_the_shared_classifier_and_actions(self):
-        shared_script = '<script defer src="vedolo-position-activity.js?v=20260821-actions-v1"></script>'
+        shared_script = '<script defer src="vedolo-position-activity.js?v=20260908-receipt-evidence-v1"></script>'
         version = re.search(r'const HISTORY_VERSION = "([^"]+)"', self.source).group(1)
         history_script = f'<script defer src="history/history.js?v={version}"></script>'
         self.assertIn(shared_script, self.html)
         self.assertLess(self.html.index(shared_script), self.html.index(history_script))
+        shared_url = re.search(r'src="([^"]+)"', shared_script).group(1)
+        for consumer in ("portfolio-preview.html", "vedolo-preview.html"):
+            self.assertIn(f'src="{shared_url}"', (ROOT / consumer).read_text())
 
         options = dict(re.findall(r'<option value="([^"]+)">([^<]+)</option>', self.html))
         self.assertEqual(
@@ -528,7 +535,7 @@ const api = sandbox.__historyVedoloTest;
   if (result.events.some(event => event.timestamp < 100 || event.timestamp > 200)) throw new Error(`date bounds escaped: ${JSON.stringify(result.events)}`);
 
   const reportLabels = {
-    vedoloDirect: "Direct veDOLO",
+    vedoloDirect: "New veDOLO lock",
     vedoloTransfer: "Transfer veDOLO",
     vedoloMerge: "Merge veDOLO positions",
     vedoloSplit: "Split veDOLO position",
@@ -543,15 +550,16 @@ const api = sandbox.__historyVedoloTest;
   };
   for (const event of result.events) {
     const profile = api.taxProfileForEvent(event);
-    if (event.chainKey !== "berachain" || event.role !== "neutral" || event.amount !== "0" || event.usd !== 0 || event.principalDelta !== 0) {
+    const pendingLock = event.action === "vedoloDirect";
+    if (event.chainKey !== "berachain" || event.role !== "neutral" || event.amount !== (pendingLock ? "" : "0") || event.usd !== (pendingLock ? null : 0) || event.principalDelta !== (pendingLock ? null : 0)) {
       throw new Error(`non-neutral event: ${JSON.stringify(event)}`);
     }
     const expectedCategory = event.action === "vedoloDirect" ? "vedolo_lock_classification" : "vedolo_position_management";
     const expectedManagement = event.action !== "vedoloDirect";
-    if (event.isPositionManagement !== expectedManagement || profile.taxCategory !== expectedCategory || profile.reviewFlag !== "not_applicable" || profile.reviewReason !== "") {
+    if (event.isPositionManagement !== expectedManagement || profile.taxCategory !== expectedCategory || profile.reviewFlag !== (pendingLock ? "needs_review" : "not_applicable") || profile.reviewReason !== (pendingLock ? "vedolo_receipt_pending" : "")) {
       throw new Error(`review metadata changed: ${JSON.stringify(profile)}`);
     }
-    if (api.reviewReasonForTaxProfile(profile) !== "" || api.cleanHistoryReviewStatus([profile], { status: "ok" }, "") !== "ok") {
+    if (!pendingLock && (api.reviewReasonForTaxProfile(profile) !== "" || api.cleanHistoryReviewStatus([profile], { status: "ok" }, "") !== "ok")) {
       throw new Error(`neutral event entered review: ${JSON.stringify(profile)}`);
     }
     if (["dolomite_in", "dolomite_out"].includes(api.activityGroupForEvent(event))) throw new Error(`position management became a deposit/withdrawal: ${JSON.stringify(event)}`);
@@ -3291,7 +3299,7 @@ if (pending.includes("Fast mode")) throw new Error(`fast mode leaked: ${pending}
 if (pending.includes("data warning")) throw new Error(`warning count leaked: ${pending}`);
 if (pending.includes("evidence row")) throw new Error(`evidence count leaked: ${pending}`);
 if (!complete.includes("12 match current filters")) throw new Error(`filter summary missing: ${complete}`);
-if (!complete.includes("Reports ready")) throw new Error(`ready summary missing: ${complete}`);
+if (complete.includes("Reports ready") || !complete.includes("Evidence incomplete")) throw new Error(`incomplete evidence claimed ready: ${complete}`);
 if (complete.includes("Fast mode")) throw new Error(`fast mode leaked: ${complete}`);
 if (complete.includes("data warning")) throw new Error(`warning count leaked: ${complete}`);
 if (complete.includes("evidence row")) throw new Error(`evidence count leaked: ${complete}`);
@@ -3950,6 +3958,7 @@ function jsonResponse(payload) {
   return Promise.resolve({ ok: true, json: () => Promise.resolve(payload) });
 }
 const receipt = {
+  status: "0x1",
   from: "0x28da3dde285d8f1f87b2d858f89961bb8b9af180",
   gasUsed: "0x5208",
   effectiveGasPrice: "0x3b9aca00",
@@ -4240,7 +4249,7 @@ api.state.filtersDirty = false;
 api.state.earn = { status: "ready", warnings: [], ledgers: {}, rewards: {}, prices: {} };
 api.state.selectedChains = new Set(["arbitrum"]);
 api.selectAllActions();
-const rows = [{ chainKey: "arbitrum", gas: { status: "ready" }, events: [{ action: "deposit" }] }];
+const rows = [{ chainKey: "arbitrum", gas: { status: "ok" }, events: [{ action: "deposit" }] }];
 const ready = api.reportExportReadiness(rows, []);
 if (!ready.canFullReport) throw new Error(`clean report blocked: ${JSON.stringify(ready)}`);
 if (api.reportStatusLabel(ready) !== "Ready") throw new Error(api.reportStatusLabel(ready));
@@ -4266,8 +4275,8 @@ api.state.warnings = [
   "X Layer reward claim index is incomplete. Reward-claim transactions on X Layer are not fully indexed yet, so All actions / Claim reports stay locked until the workflow refreshes with a higher-limit RPC.",
 ];
 const xlayerNoRowsReady = api.reportExportReadiness(rows, []);
-if (!xlayerNoRowsReady.canFullReport) throw new Error(`xlayer claim warning blocked report without xlayer rows: ${JSON.stringify(xlayerNoRowsReady)}`);
-const xlayerRows = [{ chainKey: "xlayer", gas: { status: "ready" }, events: [{ action: "deposit" }] }];
+if (xlayerNoRowsReady.canFullReport) throw new Error(`xlayer claim source failure ignored because no other xlayer rows exist: ${JSON.stringify(xlayerNoRowsReady)}`);
+const xlayerRows = [{ chainKey: "xlayer", gas: { status: "ok" }, events: [{ action: "deposit" }] }];
 const xlayerRowsReady = api.reportExportReadiness(xlayerRows, []);
 if (xlayerRowsReady.canFullReport) throw new Error(`xlayer claim warning allowed report with xlayer rows: ${JSON.stringify(xlayerRowsReady)}`);
 api.setSelectedActionsFromValues(["claim"]);

@@ -179,7 +179,13 @@ const classifiedHistoryEvents = buildHistoryActivityEvents([
 ], [], classificationWallet);
 
 assert.deepEqual(classifiedHistoryEvents.map(event => event.action), ["vedoloAirdrop", "vedoloDirect"]);
-assert.ok(classifiedHistoryEvents.every(event => event.amount === "0" && event.principalDelta === 0));
+assert.ok(classifiedHistoryEvents.every(event => event.amount === "" && event.principalDelta === null && event.usd === null));
+assert.ok(classifiedHistoryEvents.every(event => event.vedoloEvidenceStatus === "pending" && event.reviewFlag === "needs_review"));
 assert.equal(classifiedHistoryEvents.some(event => event.txHash === "0xodolo"), false, "oDOLO exercises stay with the canonical exercise source");
 
-console.log("veDOLO position-activity contracts: 52 passed");
+const overlappingLock = { address:classificationWallet, depositType:2, tokenId:21, dolo:500, txHash:"0xoverlap", timestamp:100 };
+const reconciledLocks = buildHistoryActivityEvents([overlappingLock, {...overlappingLock, logIndex:2}, {...overlappingLock, logIndex:4}], [], classificationWallet);
+assert.deepEqual(reconciledLocks.map(event => event.logIndex), [2, 4]);
+assert.equal(new Set(reconciledLocks.map(event => event.serialId)).size, 2);
+
+console.log("veDOLO position-activity contracts: 54 passed");

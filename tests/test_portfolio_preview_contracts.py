@@ -405,7 +405,7 @@ class PortfolioPreviewContractsTest(unittest.TestCase):
         self.assertNotIn("Not mixed with paired DOLO", self.html)
 
     def test_vedolo_position_management_uses_shared_semantic_rows(self):
-        self.assertIn('<script src="vedolo-position-activity.js?v=20260821-actions-v1"></script>', self.html)
+        self.assertIn('<script src="vedolo-position-activity.js?v=20260908-receipt-evidence-v1"></script>', self.html)
         self.assertIn("window.VeDoloPositionActivity.buildPortfolioActivityRows", self.html)
         self.assertIn("window.VeDoloPositionActivity.isExternalLock", self.html)
         self.assertIn("buildPortfolioActivityRows(flowLocks, (flows && flows.transfers) || [], a)", self.html)
