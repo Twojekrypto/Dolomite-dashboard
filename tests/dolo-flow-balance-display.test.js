@@ -7,7 +7,7 @@ const preview = fs.readFileSync(path.join(__dirname, "..", "dolo-preview.html"),
 const start = preview.indexOf("function flowBalanceCellHtml(row)");
 const end = preview.indexOf("\nfunction effectiveFlowTx", start);
 
-function loadRenderer(){
+function loadRenderer(formatter = value => Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 })){
   assert.ok(start >= 0 && end > start, "flow balance renderer should be present");
   const source = preview.slice(start, end);
   return new Function(
@@ -16,9 +16,27 @@ function loadRenderer(){
     `${source}\nreturn flowBalanceCellHtml;`,
   )(
     value => Number.isFinite(Number(value)) ? Number(value) : 0,
-    value => Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 }),
+    formatter,
   );
 }
+
+test("wallet dust does not hide a material protocol balance behind a rounded zero", () => {
+  const fmtStart = preview.indexOf("const fmtNum =");
+  const fmtEnd = preview.indexOf("\n};", fmtStart) + 3;
+  const formatter = new Function(`${preview.slice(fmtStart, fmtEnd)}; return fmtNum;`)();
+  const render = loadRenderer(formatter);
+  for(const balance of [0, 0.27, 0.49]){
+    const html = render({ balance, dolomiteBalance: 1645166.005906 });
+    assert.match(html, /flow-dolomite-primary">1\.65M</);
+    assert.match(html, new RegExp(`Current wallet balance: ${balance} DOLO`));
+    assert.doesNotMatch(html, /flow-balance-main">0</);
+  }
+  for(const balance of [0.5, 1, 100000]){
+    assert.match(render({ balance, dolomiteBalance: 500000 }), /flow-balance-main/);
+  }
+  assert.match(render({ balance: 0.27, dolomiteBalance: 0 }), />0\.27</);
+  assert.match(render({ balance: 0, dolomiteBalance: 0.01 }), />0\.01</);
+});
 
 test("a protocol-only DOLO balance replaces the misleading empty dash", () => {
   const render = loadRenderer();

@@ -5190,14 +5190,17 @@ function flowBalanceCellHtml(row){
   if(liquid <= 0 && inDolomite <= 0){
     return `<span class="flow-balance-cell"><span class="bal-zero">—</span></span>`;
   }
-  const tooltip = `Current wallet balance: ${fmtNum(liquid)} DOLO · Current DOLO in Dolomite: ${fmtNum(inDolomite)} DOLO · Dolomite supply or collateral remains beneficially owned by this wallet and is not counted as a token outflow.`;
-  if(liquid <= 0){
-    return `<span class="flow-balance-cell" data-tooltip="${tooltip}" aria-label="${tooltip}"><span class="flow-dolomite-primary">${fmtNum(inDolomite)}</span><span class="flow-dolomite-label">in Dolomite</span></span>`;
+  // Preserve small positive balances that the compact whole-token formatter rounds to zero.
+  const balanceLabel = value => value > 0 && value < 0.5
+    ? value.toLocaleString("en-US", { maximumSignificantDigits: 3 }) : fmtNum(value);
+  const tooltip = `Current wallet balance: ${balanceLabel(liquid)} DOLO · Current DOLO in Dolomite: ${balanceLabel(inDolomite)} DOLO · Dolomite supply or collateral remains beneficially owned by this wallet and is not counted as a token outflow.`;
+  if(liquid < 0.5 && inDolomite > 0){
+    return `<span class="flow-balance-cell" data-tooltip="${tooltip}" aria-label="${tooltip}"><span class="flow-dolomite-primary">${balanceLabel(inDolomite)}</span><span class="flow-dolomite-label">in Dolomite</span></span>`;
   }
   if(inDolomite > 0){
-    return `<span class="flow-balance-cell" data-tooltip="${tooltip}" aria-label="${tooltip}"><span class="flow-balance-main">${fmtNum(liquid)}</span><span class="flow-dolomite-secondary">+${fmtNum(inDolomite)} in Dolomite</span></span>`;
+    return `<span class="flow-balance-cell" data-tooltip="${tooltip}" aria-label="${tooltip}"><span class="flow-balance-main">${balanceLabel(liquid)}</span><span class="flow-dolomite-secondary">+${balanceLabel(inDolomite)} in Dolomite</span></span>`;
   }
-  return `<span class="flow-balance-cell"><span class="flow-balance-main">${fmtNum(liquid)}</span></span>`;
+  return `<span class="flow-balance-cell"><span class="flow-balance-main">${balanceLabel(liquid)}</span></span>`;
 }
 function flowLpBadgeHtml(activity, kind){
   if(!activity || activity.confidence !== "verified_same_tx") return "";
