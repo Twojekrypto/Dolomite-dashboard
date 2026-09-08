@@ -1078,8 +1078,8 @@ test("Bucket wallet Details supports sorting by Chain, DOLO, and Change", () => 
   assert.match(walletPanel, /data-holder-wallet-sort="dolo"/);
   assert.match(walletPanel, /data-holder-wallet-sort="change"/);
   assert.match(walletPanel, /data-wallet-sort-chain="\$\{escHtml\(holderWalletChainSortValue\(row\)\)\}"/);
-  assert.match(walletPanel, /data-wallet-sort-dolo="\$\{safeHolderNum\(row\.panelTotal\)\}"/);
-  assert.match(walletPanel, /data-wallet-sort-change="\$\{safeHolderNum\(row\.rangeChange\?\.delta\)\}"/);
+  // Numeric values and unknown endpoints are exercised through the rendered
+  // panel in holder-range-wallet-change.test.js, not a source expression.
   assert.match(walletBinder, /const initialSortDirection = sortKey === "chain" \? "asc" : "desc";/);
   assert.match(walletBinder, /body\.append\(\.\.\.rows, empty\);/);
   assert.match(walletBinder, /button\.addEventListener\("click", \(\) => sortWalletRows\(button\.dataset\.holderWalletSort\)\)/);
