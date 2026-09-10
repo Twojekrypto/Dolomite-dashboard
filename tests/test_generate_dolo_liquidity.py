@@ -725,6 +725,7 @@ class LiveSourceRecoveryTests(unittest.TestCase):
                 "rpc_batch_requests",
                 return_value=({}, missing),
             ),
+            patch.object(liquidity, "rpc_single_request", return_value={"result": None}),
             self.assertRaisesRegex(RuntimeError, "canonical RPC receipt unavailable"),
         ):
             liquidity._routescan_logs(

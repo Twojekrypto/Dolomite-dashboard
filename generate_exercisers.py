@@ -7,6 +7,7 @@ Uses incremental caching — only fetches receipts for NEW transactions since th
 """
 
 import requests
+from explorer_api import explorer_get
 import time
 import json
 import os
@@ -319,7 +320,7 @@ def _get_all_transactions_once():
             "startblock": 0, "endblock": 99999999,
             "page": page, "offset": PAGE_SIZE, "sort": "asc"
         }
-        resp = requests.get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
+        resp = explorer_get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
         data = resp.json()
         if data["status"] != "1" or not data["result"]:
             break
@@ -416,7 +417,7 @@ def get_tx_details_from_receipt(tx_hash, retries=MAX_RETRIES):
 
     for attempt in range(retries):
         try:
-            resp = requests.get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
+            resp = explorer_get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
             data = resp.json()
             if "result" not in data or data["result"] is None:
                 if attempt < retries - 1:
