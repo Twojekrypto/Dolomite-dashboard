@@ -6,6 +6,7 @@ and updates the total. Run periodically (cron, GitHub Action, etc).
 """
 
 import requests
+from explorer_api import explorer_get
 import time
 import json
 import os
@@ -61,7 +62,7 @@ def get_new_transactions(start_block):
             "sort": "asc"
         }
 
-        resp = requests.get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
+        resp = explorer_get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
         data = resp.json()
 
         if data["status"] != "1" or not data["result"]:
@@ -89,7 +90,7 @@ def get_usdc_from_receipt(tx_hash, retries=MAX_RETRIES):
 
     for attempt in range(retries):
         try:
-            resp = requests.get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
+            resp = explorer_get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
             data = resp.json()
 
             if "result" not in data or data["result"] is None:

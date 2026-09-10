@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from explorer_api import explorer_get
 from eth_abi import decode, encode
 from web3 import Web3
 
@@ -2858,8 +2859,9 @@ def _routescan_request(
     last_error: Exception | None = None
     for attempt in range(max_attempts):
         try:
-            response = client.get(
+            response = explorer_get(
                 url,
+                session=client,
                 params=params,
                 timeout=timeout,
                 headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
@@ -3485,9 +3487,18 @@ def _routescan_logs(
                         isinstance(receipt, dict)
                         and isinstance(receipt.get("logs"), list)
                     ):
-                        raise RuntimeError(
-                            f"canonical RPC receipt unavailable for {tx_hash}"
+                        # A missing batch item is not proof that the receipt is
+                        # unavailable. Retry only that transaction via the shared
+                        # provider rotation, without repeating the whole batch.
+                        retry = rpc_single_request(
+                            get_endpoints(chain_key),
+                            {"jsonrpc": "2.0", "id": f"receipt:{tx_hash}",
+                             "method": "eth_getTransactionReceipt", "params": [tx_hash]},
+                            describe=f"{chain_key} missing liquidity receipt",
                         )
+                        receipt = retry.get("result") if isinstance(retry, dict) else None
+                        if not isinstance(receipt, dict) or not isinstance(receipt.get("logs"), list):
+                            raise RuntimeError(f"canonical RPC receipt unavailable for {tx_hash}")
                     receipt_cache[tx_hash] = receipt
             for row_index, raw in enumerate(rows):
                 if needs_receipt_recovery(raw):
@@ -3794,13 +3805,21 @@ def _kodiak_position_index(pool_address: str) -> dict[int, dict[str, Any]]:
     after = ""
     session = requests.Session()
     while True:
-        response = session.post(
-            KODIAK_V3_SUBGRAPH,
-            json={"query": query, "variables": {"pool": target, "after": after}},
-            timeout=45,
-            headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
-        )
-        response.raise_for_status()
+        for attempt in range(3):
+            try:
+                response = session.post(
+                    KODIAK_V3_SUBGRAPH,
+                    json={"query": query, "variables": {"pool": target, "after": after}},
+                    timeout=45,
+                    headers={"User-Agent": "dolomite-dashboard-liquidity/1.0"},
+                )
+                response.raise_for_status()
+                break
+            except requests.RequestException as exc:
+                status = getattr(getattr(exc, "response", None), "status_code", None)
+                if attempt == 2 or (status is not None and status not in ROUTESCAN_TRANSIENT_STATUS_CODES):
+                    raise
+                time.sleep(0.5 * (2**attempt))
         payload = response.json()
         page = payload.get("data", {}).get("positions") if isinstance(payload, dict) else None
         if not isinstance(page, list) or payload.get("errors"):
@@ -4184,7 +4203,7 @@ def _receipt_logs_for_transactions(
         last_error = None
         for attempt in range(5):
             try:
-                response = requests.get(
+                response = explorer_get(
                     url,
                     params={"module": "proxy", "action": "eth_getTransactionReceipt", "txhash": tx_hash},
                     timeout=30,

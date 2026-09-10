@@ -17,6 +17,9 @@ class TestOdoloExerciseMetrics(unittest.TestCase):
     @staticmethod
     def _routescan_response(rows, status="1"):
         class Response:
+            def raise_for_status(self):
+                return None
+
             def json(self):
                 return {"status": status, "message": "OK", "result": rows}
 

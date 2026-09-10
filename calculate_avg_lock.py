@@ -6,6 +6,7 @@ computes lock_duration = lock_end - tx_timestamp, and outputs average lock stats
 """
 
 import requests
+from explorer_api import explorer_get
 import time
 import json
 import os
@@ -66,7 +67,7 @@ def get_all_exercise_txs():
             "sort": "asc"
         }
 
-        resp = requests.get(ROUTESCAN_API, params=params, timeout=30)
+        resp = explorer_get(ROUTESCAN_API, params=params, timeout=30)
         data = resp.json()
 
         if data.get("status") != "1":
