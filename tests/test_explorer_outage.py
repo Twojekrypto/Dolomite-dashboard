@@ -22,6 +22,19 @@ UNSUPPORTED = {"status": "0", "message": "chain not supported", "result": None}
 
 
 class ExplorerOutageTests(unittest.TestCase):
+    def test_rejection_reports_provider_reason_without_echoing_credentials(self):
+        from explorer_api import explorer_get
+        with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "private-test-key"}), patch(
+            "requests.get", side_effect=[response(UNSUPPORTED), response({
+                "status": "0", "message": "NOTOK",
+                "result": "Invalid API Key: private-test-key",
+            })]
+        ):
+            with self.assertRaises(RuntimeError) as raised:
+                explorer_get(calculate_avg_lock.ROUTESCAN_API, params={}, timeout=10)
+        self.assertIn("Invalid API Key", str(raised.exception))
+        self.assertNotIn("private-test-key", str(raised.exception))
+
     def test_kodiak_retries_a_transient_timeout_without_changing_the_page(self):
         position = {"id": "7", "owner": "0x" + "4" * 40, "liquidity": "123",
                     "tickLower": {"tickIdx": "-10"}, "tickUpper": {"tickIdx": "10"},
