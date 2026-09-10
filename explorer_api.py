@@ -54,5 +54,11 @@ def explorer_get(url, *, params, timeout, session=None, **kwargs):
             and ("no transactions found" in text or "no records" in text)
         )
         if not empty:
-            raise RuntimeError("Explorer rejected request (not an empty history); publication stopped")
+            reason = f"{payload.get('message', '')}: {rows if isinstance(rows, str) else ''}"
+            for key in (os.environ.get("ETHERSCAN_API_KEY"), os.environ.get("BERASCAN_API_KEY"), params.get("apikey")):
+                if key:
+                    reason = reason.replace(str(key), "[redacted]")
+            reason = re.sub(r"https?://\S+", "[URL redacted]", reason)
+            reason = " ".join(reason.split())[:300]
+            raise RuntimeError(f"Explorer rejected request ({reason}); publication stopped")
     return result
