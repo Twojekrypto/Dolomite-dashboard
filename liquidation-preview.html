@@ -18681,6 +18681,14 @@
             return { deposits, withdrawals, snapshots };
         }
 
+        function getSupplyRecentHistoryCacheKey(cacheChain, tokenId) {
+            return `${cacheChain}:${tokenId}:history:v7-apr:recent`;
+        }
+
+        function hasSupplyRecentHistoryAprSchema(history) {
+            return Number(history?.aprSchema || 0) === 1;
+        }
+
         function extractSupplyAprPoints(payload, tokenId) {
             const safeTokenId = String(tokenId || '').toLowerCase();
             if (!safeTokenId) return [];
@@ -18758,6 +18766,7 @@
                 source: 'official-api',
                 metric: 'usd',
                 scope: 'recent',
+                aprSchema: 1,
                 marketPoints: mergeSupplyAprHistory(marketRows, extractSupplyAprPoints(aprPayload, tokenId)),
                 points: rows
                     .map(row => {
@@ -19835,7 +19844,7 @@
             const sinceTs = Math.floor(Date.now() / 1000) - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
             const cacheChain = getSupplyCacheChainKey(chain);
             const supplierCacheKey = `${cacheChain}:${tokenId}:suppliers`;
-            const historyCacheKey = `${cacheChain}:${tokenId}:history:v5:recent`;
+            const historyCacheKey = getSupplyRecentHistoryCacheKey(cacheChain, tokenId);
 
             getSupplyCachedResource(
                 supplySuppliersCache,
@@ -20025,15 +20034,21 @@
             const supplierCacheKey = `${cacheChain}:${tokenId}:suppliers`;
             const recentActivityKey = `${cacheChain}:${tokenId}:activity:v2:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
             const fullActivityKey = `${cacheChain}:${tokenId}:activity:v2:all`;
-            const recentHistoryKey = `${cacheChain}:${tokenId}:history:v6:recent`;
+            const recentHistoryKey = getSupplyRecentHistoryCacheKey(cacheChain, tokenId);
             const fullHistoryKey = `${cacheChain}:${tokenId}:history:v5:all`;
             const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers });
             const staleSuppliers = cachedSuppliers || getAnySupplyCacheData(supplySuppliersCache, supplierCacheKey);
             const cachedRecentActivity = getFreshSupplyCacheData(supplyRecentActivityCache, recentActivityKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.activity });
             const staleRecentActivity = cachedRecentActivity || getAnySupplyCacheData(supplyRecentActivityCache, recentActivityKey);
             const cachedFullActivity = getFreshSupplyCacheData(supplyFullActivityCache, fullActivityKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.fullActivity });
-            const cachedRecentHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, recentHistoryKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
-            const staleRecentHistory = cachedRecentHistory || getAnySupplyCacheData(supplyFlowHistoryCache, recentHistoryKey);
+            let cachedRecentHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, recentHistoryKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
+            let staleRecentHistory = cachedRecentHistory || getAnySupplyCacheData(supplyFlowHistoryCache, recentHistoryKey);
+            if (staleRecentHistory && !hasSupplyRecentHistoryAprSchema(staleRecentHistory)) {
+                supplyFlowHistoryCache.delete(recentHistoryKey);
+                deleteSupplyCacheStorage(recentHistoryKey);
+                cachedRecentHistory = null;
+                staleRecentHistory = null;
+            }
             const cachedFullHistory = getFreshSupplyCacheData(supplyFlowHistoryCache, fullHistoryKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.history });
             const staleFullHistory = cachedFullHistory || getAnySupplyCacheData(supplyFlowHistoryCache, fullHistoryKey);
             const activityLoadingEl = document.getElementById('supply-activity-loading');
