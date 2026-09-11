@@ -495,7 +495,7 @@
       {label:'Supply change',value:signed(context?.supplyChange),sub:symbol},
       {label:'Debt change',value:signed(context?.debtChange),sub:symbol},
       {label:'Utilization',value:pct(context?.utilizationStart) + ' → ' + pct(context?.utilizationEnd),sub:'Borrowed / supplied'},
-      {label:'Lending APR',value:pct(context?.aprStart) + ' → ' + pct(context?.aprEnd),sub:'Historical APR unavailable'},
+      {label:'Lending APR',value:pct(context?.aprStart) + ' → ' + pct(context?.aprEnd),sub:context?.aprStart != null && context?.aprEnd != null ? 'Official Dolomite lending rate' : 'Historical APR unavailable'},
     ];
     const periodRows = rows.filter(row => Number(row.timestamp) >= start && Number(row.timestamp) <= now);
     const verified = periodRows.filter(row => row.semantics?.status === 'verified').length;
