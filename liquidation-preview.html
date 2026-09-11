@@ -16638,11 +16638,13 @@
         const supplyRecentActivityCache = new Map();
         const supplyFullActivityCache = new Map();
         const supplyFlowHistoryCache = new Map();
+        const supplyAprHistoryCache = new Map();
         let supplyBackgroundWarmStarted = false;
         let supplyHistoryDatasetMode = 'recent';
         let supplyHistoryLoadAllHandler = null;
         const SUPPLY_HISTORY_STATIC_VERSION = 'supply-history-v1';
         const SUPPLY_ACTIVITY_STATIC_VERSION = 'supply-activity-v2';
+        const SUPPLY_APR_STATIC_VERSION = 'supply-apr-v1';
         const SUPPLY_ACTIVITY_STATIC_RECENT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
         const SUPPLY_ACTIVITY_STATIC_RECENT_OVERLAP_SEC = 6 * 60 * 60;
         let supplyStaticHistoryManifestCacheKey = '';
@@ -18679,12 +18681,66 @@
             return { deposits, withdrawals, snapshots };
         }
 
+        function extractSupplyAprPoints(payload, tokenId) {
+            const safeTokenId = String(tokenId || '').toLowerCase();
+            if (!safeTokenId) return [];
+            return (Array.isArray(payload?.points) ? payload.points : [])
+                .map(point => {
+                    const timestamp = Number(point?.timestamp || 0);
+                    const rawApr = point?.rates?.[safeTokenId];
+                    const apr = rawApr === null || rawApr === undefined || rawApr === '' ? null : Number(rawApr);
+                    return {
+                        timestamp,
+                        apr: Number.isFinite(apr) && apr >= 0 ? apr : null,
+                    };
+                })
+                .filter(point => Number.isFinite(point.timestamp) && point.timestamp > 0 && point.apr !== null)
+                .sort((a, b) => a.timestamp - b.timestamp);
+        }
+
+        function mergeSupplyAprHistory(rows, aprPoints) {
+            const aprByDay = new Map((Array.isArray(aprPoints) ? aprPoints : []).map(point => [
+                Math.floor(Number(point.timestamp) / 86400),
+                Number(point.apr),
+            ]));
+            return (Array.isArray(rows) ? rows : []).map(row => {
+                const apr = aprByDay.get(Math.floor(Number(row?.timestamp) / 86400));
+                return {
+                    ...row,
+                    apr: Number.isFinite(apr) && apr >= 0 ? apr : null,
+                };
+            });
+        }
+
+        async function fetchSupplyStaticAprHistory(chain) {
+            const staticChain = getSupplyStaticHistoryChainKey(chain);
+            if (!staticChain) throw new Error('Missing static Supply APR chain');
+            const cacheHour = Math.floor(Date.now() / 3600000);
+            const cacheKey = `${staticChain}:${SUPPLY_APR_STATIC_VERSION}:${cacheHour}`;
+            if (supplyAprHistoryCache.has(cacheKey)) return supplyAprHistoryCache.get(cacheKey);
+            const promise = fetch(`data/supply-apr/${staticChain}.json?v=${SUPPLY_APR_STATIC_VERSION}-${cacheHour}`)
+                .then(res => {
+                    if (!res.ok) throw new Error(`Static Supply APR unavailable (${res.status})`);
+                    return res.json();
+                })
+                .catch(error => {
+                    supplyAprHistoryCache.delete(cacheKey);
+                    throw error;
+                });
+            supplyAprHistoryCache.set(cacheKey, promise);
+            return promise;
+        }
+
         async function fetchSupplyOfficialMetricsHistory(chain, tokenId) {
             const chainId = DOLOMITE_CHAIN_IDS[chain];
             if (!chainId) {
                 throw new Error(`Unsupported Dolomite chain for official metrics: ${chain}`);
             }
 
+            const aprPayloadPromise = fetchSupplyStaticAprHistory(chain).catch(error => {
+                console.warn('Official historical Supply APR cache unavailable', error);
+                return null;
+            });
             const res = await fetch(`${DOLOMITE_API_BASE}/tokens/${chainId}/metrics/${tokenId}/series`);
             if (!res.ok) {
                 throw new Error(`Dolomite metrics request failed with status ${res.status}`);
@@ -18692,16 +18748,17 @@
 
             const raw = await res.json();
             const rows = Array.isArray(raw?.data) ? raw.data : [];
+            const aprPayload = await aprPayloadPromise;
+            const marketRows = rows.map(row => ({
+                timestamp: Number(row.timestamp),
+                supply: row.supplyLiquidityToken == null ? null : Number(row.supplyLiquidityToken),
+                debt: row.borrowLiquidityToken == null ? null : Number(row.borrowLiquidityToken),
+            }));
             return {
                 source: 'official-api',
                 metric: 'usd',
                 scope: 'recent',
-                marketPoints: rows.map(row => ({
-                    timestamp: Number(row.timestamp),
-                    supply: row.supplyLiquidityToken == null ? null : Number(row.supplyLiquidityToken),
-                    debt: row.borrowLiquidityToken == null ? null : Number(row.borrowLiquidityToken),
-                    apr: null,
-                })),
+                marketPoints: mergeSupplyAprHistory(marketRows, extractSupplyAprPoints(aprPayload, tokenId)),
                 points: rows
                     .map(row => {
                         const timestamp = Number(row?.timestamp || 0);
@@ -19147,7 +19204,7 @@
                     ${metric('Supply change', signed(context?.supplyChange), token)}
                     ${metric('Debt change', signed(context?.debtChange), token)}
                     ${metric('Utilization', percent(context?.utilizationStart) + ' → ' + percent(context?.utilizationEnd), 'Borrowed / supplied')}
-                    ${metric('Lending APR', percent(context?.aprStart) + ' → ' + percent(context?.aprEnd), 'Historical APR is not supplied by this source')}
+                    ${metric('Lending APR', percent(context?.aprStart) + ' → ' + percent(context?.aprEnd), context?.aprStart != null && context?.aprEnd != null ? 'Official Dolomite lending rate' : 'Historical APR unavailable')}
                 </div>
                 <div class="supply-activity-summary-metric-sub">${supplyEscapeHtml(coverage)}. Market context covers the whole asset, not only filtered wallets/actions. Rewards and base yield are separate from lending APR.</div>
             </div>`;

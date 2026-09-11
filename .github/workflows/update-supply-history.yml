@@ -111,6 +111,7 @@ jobs:
           if [ -z "$ACTIVITY_RECENT_TOKEN_LIMIT" ]; then
             ACTIVITY_RECENT_TOKEN_LIMIT="0"
           fi
+          python3 generate_supply_apr_history.py --chains "$CHAINS" --days 100 --refresh-days 7 --workers 4
           python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES" --active-usd-threshold "$ACTIVE_USD_THRESHOLD"
           ACTIVITY_ARGS=(--chains "$CHAINS" --token-limit "$ACTIVITY_TOKEN_LIMIT" --symbols "$ACTIVITY_SYMBOLS" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES")
           if [ -n "$ACTIVITY_TOKEN_CONFIG" ]; then
@@ -128,9 +129,37 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_supply_activity_semantics.py'
           python3 -m unittest discover -s tests -p 'test_generate_supply_activity.py'
+          python3 -m unittest discover -s tests -p 'test_generate_supply_apr_history.py'
           node --test tests/supply-activity-semantics.test.js
           python3 -m py_compile generate_supply_history.py
           python3 -m py_compile generate_supply_activity.py
+          python3 -m py_compile generate_supply_apr_history.py
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          root = pathlib.Path("data/supply-apr")
+          errors = []
+          for path in sorted(root.glob("*.json")):
+              payload = json.loads(path.read_text())
+              points = payload.get("points") or []
+              if payload.get("source") != "official-dolomite-subgraph":
+                  errors.append(f"{path}: unexpected source")
+              if len(points) < 2:
+                  errors.append(f"{path}: fewer than 2 APR snapshots")
+              timestamps = [int(point.get("timestamp") or 0) for point in points]
+              if timestamps != sorted(set(timestamps)):
+                  errors.append(f"{path}: timestamps are not unique and increasing")
+              for index, point in enumerate(points):
+                  if int(point.get("blockNumber") or 0) <= 0 or not point.get("rates"):
+                      errors.append(f"{path}: invalid block/rates at point {index}")
+                      break
+          if errors:
+              print("\n".join(errors), file=sys.stderr)
+              sys.exit(1)
+          print("Supply APR history validation passed")
+          PY
           python3 - <<'PY'
           import json
           import pathlib
@@ -272,7 +301,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/supply-history data/supply-activity config/supply_activity_static_tokens.json generate_supply_history.py generate_supply_activity.py
+          git add data/supply-history data/supply-activity data/supply-apr config/supply_activity_static_tokens.json generate_supply_history.py generate_supply_activity.py generate_supply_apr_history.py
           git diff --staged --quiet && echo "No supply history changes to commit" && exit 0
           git commit -m "📊 Refresh Supply history - $(date -u '+%Y-%m-%d %H:%M UTC')"
           pushed=false

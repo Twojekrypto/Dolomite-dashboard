@@ -80,6 +80,32 @@ test('missing historical fields stay null, never zero or interpolated', () => {
     assert.deepEqual(activity.periodContext(points,100,200),{start:100,end:200,supplyChange:20,debtChange:null,utilizationStart:null,utilizationEnd:10,aprStart:null,aprEnd:3});
     assert.equal(activity.periodContext(points,50,200),null);
 });
+test('official daily APR snapshots enrich matching market days without inventing gaps', () => {
+    const fs = require('node:fs');
+    const vm = require('node:vm');
+    const html = fs.readFileSync(require('node:path').join(__dirname, '../liquidation-preview.html'), 'utf8');
+    const start = html.indexOf('function extractSupplyAprPoints(');
+    const end = html.indexOf('async function fetchSupplyOfficialMetricsHistory(', start);
+    const context = vm.createContext({});
+    vm.runInContext(html.slice(start, end), context);
+    const token = '0xAbC';
+    const aprPoints = context.extractSupplyAprPoints({points:[
+        {timestamp:86400, rates:{'0xabc':'1.541026102253218'}},
+        {timestamp:172800, rates:{'0xabc':'2.1983518120106907'}},
+        {timestamp:259200, rates:{'0xdef':'9.9'}},
+    ]}, token);
+    const enriched = context.mergeSupplyAprHistory([
+        {timestamp:86400, supply:10, debt:5},
+        {timestamp:172800, supply:12, debt:6},
+        {timestamp:259200, supply:13, debt:7},
+    ], aprPoints);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(enriched)), [
+        {timestamp:86400, supply:10, debt:5, apr:1.541026102253218},
+        {timestamp:172800, supply:12, debt:6, apr:2.1983518120106907},
+        {timestamp:259200, supply:13, debt:7, apr:null},
+    ]);
+});
 test('selecting one action from All isolates it, then supports multiselect and reset', () => {
     const one=activity.toggle(new Set(activity.types),'repay');
     assert.deepEqual([...one],['repay']);
