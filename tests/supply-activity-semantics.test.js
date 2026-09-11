@@ -131,7 +131,31 @@ test('APR-only daily evidence extends market context without fabricating liquidi
         {timestamp:259200, supply:13, debt:7, apr:1.75},
     ]);
 });
-test('recent market cache rejects pre-200-day APR history', () => {
+test('historical block snapshots provide exact Supply, Debt and Utilization for 180D', () => {
+    const fs = require('node:fs');
+    const vm = require('node:vm');
+    const html = fs.readFileSync(require('node:path').join(__dirname, '../liquidation-preview.html'), 'utf8');
+    const start = html.indexOf('function extractSupplyAprPoints(');
+    const end = html.indexOf('async function fetchSupplyOfficialMetricsHistory(', start);
+    const context = vm.createContext({});
+    vm.runInContext(html.slice(start, end), context);
+    const token = '0xAbC';
+    const historicalPoints = context.extractSupplyAprPoints({points:[
+        {timestamp:86400, rates:{'0xabc':'2.25'}, markets:{'0xabc':{supply:'100',debt:'40'}}},
+        {timestamp:172800, rates:{'0xabc':'2.5'}, markets:{'0xabc':{supply:'130',debt:'65'}}},
+    ]}, token);
+    const merged = context.mergeSupplyAprHistory([], historicalPoints);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(merged)), [
+        {timestamp:86400, supply:100, debt:40, apr:2.25},
+        {timestamp:172800, supply:130, debt:65, apr:2.5},
+    ]);
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(activity.periodContext(merged, 86400, 172800))),
+        {start:86400,end:172800,supplyChange:30,debtChange:25,utilizationStart:40,utilizationEnd:50,aprStart:2.25,aprEnd:2.5},
+    );
+});
+test('recent market cache rejects APR-only history without Supply and Debt', () => {
     const fs = require('node:fs');
     const vm = require('node:vm');
     const html = fs.readFileSync(require('node:path').join(__dirname, '../liquidation-preview.html'), 'utf8');
@@ -143,9 +167,11 @@ test('recent market cache rejects pre-200-day APR history', () => {
     const activeKey = context.getSupplyRecentHistoryCacheKey('ethereum', '0xabc');
     assert.notEqual(activeKey, 'ethereum:0xabc:history:v6:recent');
     assert.notEqual(activeKey, 'ethereum:0xabc:history:v7-apr:recent');
+    assert.notEqual(activeKey, 'ethereum:0xabc:history:v8-apr-200d:recent');
     assert.equal(context.hasSupplyRecentHistoryAprSchema({marketPoints:[{apr:null}]}), false);
     assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:1,marketPoints:[{apr:1.5}]}), false);
-    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:2,marketPoints:[{apr:null}]}), true);
+    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:2,marketPoints:[{apr:1.5}]}), false);
+    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:3,marketPoints:[{supply:10,debt:5,apr:1.5}]}), true);
 });
 test('selecting one action from All isolates it, then supports multiselect and reset', () => {
     const one=activity.toggle(new Set(activity.types),'repay');

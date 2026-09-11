@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Cache exact historical Dolomite lending APR snapshots for Supply Activity.
+"""Cache exact historical Dolomite market snapshots for Supply Activity.
 
-The official token metrics series contains liquidity but not lending rates.
-This generator resolves the last protocol block at each UTC day boundary and
-queries the official Dolomite subgraph at that exact block. The browser reads
-the resulting static cache instead of issuing historical GraphQL requests.
+The official token metrics series is limited to 90 rows and contains no lending
+rates. This generator resolves the last protocol block at each UTC day boundary
+and queries supply, debt and lending APR from the official Dolomite subgraph at
+that exact block. The browser reads the static cache instead of issuing
+historical GraphQL requests.
 """
 
 from __future__ import annotations
@@ -42,11 +43,16 @@ query SupplyAprBlock($timestamp: BigInt!) {
 }
 """
 
-INTEREST_RATES_QUERY = """
-query SupplyAprRates($block: Int!) {
+MARKET_SNAPSHOT_QUERY = """
+query SupplyMarketSnapshot($block: Int!) {
   interestRates(first: 1000, block: { number: $block }) {
     token { id }
     supplyInterestRate
+  }
+  tokens(first: 1000, block: { number: $block }, where: { marketId_not: null }) {
+    id
+    supplyLiquidity
+    borrowLiquidity
   }
 }
 """
@@ -112,24 +118,38 @@ def fetch_rate_snapshot(
     if source_timestamp <= 0 or source_timestamp > timestamp or block_number <= 0:
         raise RuntimeError(f"Invalid historical block evidence for timestamp {timestamp}")
 
-    rate_data = request_fn(
+    snapshot_data = request_fn(
         endpoint,
-        {"query": INTEREST_RATES_QUERY, "variables": {"block": block_number}},
+        {"query": MARKET_SNAPSHOT_QUERY, "variables": {"block": block_number}},
     )
     rates: Dict[str, str] = {}
-    for row in rate_data.get("interestRates") or []:
+    for row in snapshot_data.get("interestRates") or []:
         token_id = str((row.get("token") or {}).get("id") or "").lower()
         fraction = decimal_or_none(row.get("supplyInterestRate"))
         if not token_id or fraction is None or fraction < 0:
             continue
         rates[token_id] = decimal_to_plain(fraction * Decimal(100))
+    markets: Dict[str, Dict[str, str]] = {}
+    for row in snapshot_data.get("tokens") or []:
+        token_id = str(row.get("id") or "").lower()
+        supply = decimal_or_none(row.get("supplyLiquidity"))
+        debt = decimal_or_none(row.get("borrowLiquidity"))
+        if not token_id or supply is None or debt is None or supply < 0 or debt < 0:
+            continue
+        markets[token_id] = {
+            "supply": decimal_to_plain(supply),
+            "debt": decimal_to_plain(debt),
+        }
     if not rates:
         raise RuntimeError(f"No Dolomite supply rates at block {block_number}")
+    if not markets:
+        raise RuntimeError(f"No Dolomite market liquidity at block {block_number}")
     return {
         "timestamp": int(timestamp),
         "sourceTimestamp": source_timestamp,
         "blockNumber": block_number,
         "rates": rates,
+        "markets": markets,
     }
 
 
@@ -157,6 +177,10 @@ def build_snapshot_targets(
         int(point.get("timestamp") or 0)
         for point in existing
         if first_day <= int(point.get("timestamp") or 0) <= current_day
+        and isinstance(point.get("rates"), dict)
+        and bool(point.get("rates"))
+        and isinstance(point.get("markets"), dict)
+        and bool(point.get("markets"))
     }
     return [
         timestamp
@@ -174,7 +198,26 @@ def merge_snapshot_rows(
     for point in [*existing, *refreshed]:
         timestamp = int(point.get("timestamp") or 0)
         rates = point.get("rates")
-        if timestamp < minimum_timestamp or not isinstance(rates, dict) or not rates:
+        markets = point.get("markets")
+        if (
+            timestamp < minimum_timestamp
+            or not isinstance(rates, dict)
+            or not rates
+            or not isinstance(markets, dict)
+            or not markets
+        ):
+            continue
+        safe_markets: Dict[str, Dict[str, str]] = {}
+        for token_id, market in markets.items():
+            supply = decimal_or_none((market or {}).get("supply") if isinstance(market, dict) else None)
+            debt = decimal_or_none((market or {}).get("debt") if isinstance(market, dict) else None)
+            if not str(token_id).strip() or supply is None or debt is None or supply < 0 or debt < 0:
+                continue
+            safe_markets[str(token_id).lower()] = {
+                "supply": decimal_to_plain(supply),
+                "debt": decimal_to_plain(debt),
+            }
+        if not safe_markets:
             continue
         by_timestamp[timestamp] = {
             "timestamp": timestamp,
@@ -185,6 +228,7 @@ def merge_snapshot_rows(
                 for token_id, rate in rates.items()
                 if str(token_id).strip() and decimal_or_none(rate) is not None
             },
+            "markets": safe_markets,
         }
     return [by_timestamp[timestamp] for timestamp in sorted(by_timestamp)]
 
@@ -202,9 +246,9 @@ def write_chain_history(
     existing = load_chain_history(path)
     points = merge_snapshot_rows(existing.get("points") or [], refreshed, minimum_timestamp)
     payload = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "source": "official-dolomite-subgraph",
-        "method": "historical-block-supplyInterestRate",
+        "method": "historical-block-market-liquidity-and-supplyInterestRate",
         "chain": chain,
         "generatedAt": generated_at,
         "points": points,
@@ -233,10 +277,17 @@ def generate_chain(
         refresh_days=refresh_days,
         existing=existing_points,
     )
-    existing_days = {int(point.get("timestamp") or 0) for point in existing_points}
+    existing_days = {
+        int(point.get("timestamp") or 0)
+        for point in existing_points
+        if isinstance(point.get("rates"), dict)
+        and bool(point.get("rates"))
+        and isinstance(point.get("markets"), dict)
+        and bool(point.get("markets"))
+    }
     refreshed: List[Dict[str, Any]] = []
     unresolved: List[int] = []
-    print(f"{chain}: refreshing {len(targets)} APR day snapshots", flush=True)
+    print(f"{chain}: refreshing {len(targets)} market day snapshots", flush=True)
     with ThreadPoolExecutor(max_workers=max(1, workers)) as executor:
         futures = {executor.submit(fetch_rate_snapshot, endpoint, timestamp): timestamp for timestamp in targets}
         for future in as_completed(futures):
@@ -246,7 +297,7 @@ def generate_chain(
             except RuntimeError as exc:
                 if timestamp not in existing_days:
                     unresolved.append(timestamp)
-                print(f"{chain}: APR snapshot {timestamp} unavailable ({exc})", file=sys.stderr, flush=True)
+                print(f"{chain}: market snapshot {timestamp} unavailable ({exc})", file=sys.stderr, flush=True)
 
     current_day = (now_timestamp // SECONDS_PER_DAY) * SECONDS_PER_DAY
     first_day = current_day - (max(1, days) - 1) * SECONDS_PER_DAY
@@ -266,7 +317,7 @@ def generate_chain(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate exact Dolomite Supply lending APR history")
+    parser = argparse.ArgumentParser(description="Generate exact Dolomite Supply market history")
     parser.add_argument("--out-dir", default="data/supply-apr")
     parser.add_argument("--chains", default=os.environ.get("SUPPLY_APR_CHAINS", ",".join(DEFAULT_GRAPH_CHAINS)))
     parser.add_argument("--days", type=int, default=int(os.environ.get("SUPPLY_APR_DAYS", "200")))
@@ -306,7 +357,7 @@ def main() -> int:
             flush=True,
         )
     if unresolved:
-        print(f"Missing {len(unresolved)} required APR snapshots; refusing partial publication", file=sys.stderr)
+        print(f"Missing {len(unresolved)} required market snapshots; refusing partial publication", file=sys.stderr)
         return 1
     return 0
 

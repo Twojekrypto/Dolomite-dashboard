@@ -144,6 +144,8 @@ jobs:
           for path in sorted(root.glob("*.json")):
               payload = json.loads(path.read_text())
               points = payload.get("points") or []
+              if payload.get("schemaVersion") != 2:
+                  errors.append(f"{path}: expected schemaVersion 2")
               if payload.get("source") != "official-dolomite-subgraph":
                   errors.append(f"{path}: unexpected source")
               if len(points) < 2:
@@ -152,8 +154,8 @@ jobs:
               if timestamps != sorted(set(timestamps)):
                   errors.append(f"{path}: timestamps are not unique and increasing")
               for index, point in enumerate(points):
-                  if int(point.get("blockNumber") or 0) <= 0 or not point.get("rates"):
-                      errors.append(f"{path}: invalid block/rates at point {index}")
+                  if int(point.get("blockNumber") or 0) <= 0 or not point.get("rates") or not point.get("markets"):
+                      errors.append(f"{path}: invalid block/rates/markets at point {index}")
                       break
           if errors:
               print("\n".join(errors), file=sys.stderr)
