@@ -106,6 +106,20 @@ test('official daily APR snapshots enrich matching market days without inventing
         {timestamp:259200, supply:13, debt:7, apr:null},
     ]);
 });
+test('recent market cache rejects legacy history without the APR schema', () => {
+    const fs = require('node:fs');
+    const vm = require('node:vm');
+    const html = fs.readFileSync(require('node:path').join(__dirname, '../liquidation-preview.html'), 'utf8');
+    const start = html.indexOf('function getSupplyRecentHistoryCacheKey(');
+    const end = html.indexOf('function extractSupplyAprPoints(', start);
+    const context = vm.createContext({});
+    vm.runInContext(html.slice(start, end), context);
+
+    const activeKey = context.getSupplyRecentHistoryCacheKey('ethereum', '0xabc');
+    assert.notEqual(activeKey, 'ethereum:0xabc:history:v6:recent');
+    assert.equal(context.hasSupplyRecentHistoryAprSchema({marketPoints:[{apr:null}]}), false);
+    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:1,marketPoints:[{apr:null}]}), true);
+});
 test('selecting one action from All isolates it, then supports multiselect and reset', () => {
     const one=activity.toggle(new Set(activity.types),'repay');
     assert.deepEqual([...one],['repay']);
