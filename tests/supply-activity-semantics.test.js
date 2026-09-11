@@ -45,6 +45,12 @@ test('newer replay metadata replaces an older enriched cached group', () => {
     const fresh={...old,semantics:{...old.semantics,blockNumber:20,debtChange:'3'}};
     assert.deepEqual(activity.merge([old],[fresh]),[fresh]);
 });
+test('newer unavailable replay replaces stale verified classification', () => {
+    const old={id:'a',type:'deposit',timestamp:1,semantics:{version:2,status:'verified',actions:['repay'],blockNumber:10}};
+    const fresh={...old,semantics:{version:2,status:'unavailable',actions:['deposit'],blockNumber:20}};
+    assert.deepEqual(activity.merge([old],[fresh]),[fresh]);
+    assert.deepEqual(activity.merge([fresh],[old]),[fresh]);
+});
 test('Zap evidence does not assign unordered token relations to input/output amounts', () => {
     const fs = require('node:fs');
     const vm = require('node:vm');

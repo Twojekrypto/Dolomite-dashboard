@@ -33,7 +33,8 @@
     }
     function merge(...sets) {
         const byId = new Map();
-        const priority = row => row.semantics?.version === 2 ? (row.semantics.status === 'verified' ? 2 : 1) : 0;
+        // A newer replay can revoke confidence; never let stale verified data win.
+        const priority = row => row.semantics?.version === 2 ? 1 : 0;
         for (const rows of sets) for (const row of rows || []) {
             if (!row) continue;
             const key = row.id || [row.type,row.txHash,row.primaryAddress,row.secondaryAddress,row.amount,row.timestamp].join(':');
