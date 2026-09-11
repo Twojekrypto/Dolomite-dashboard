@@ -18682,11 +18682,11 @@
         }
 
         function getSupplyRecentHistoryCacheKey(cacheChain, tokenId) {
-            return `${cacheChain}:${tokenId}:history:v7-apr:recent`;
+            return `${cacheChain}:${tokenId}:history:v8-apr-200d:recent`;
         }
 
         function hasSupplyRecentHistoryAprSchema(history) {
-            return Number(history?.aprSchema || 0) === 1;
+            return Number(history?.aprSchema || 0) === 2;
         }
 
         function extractSupplyAprPoints(payload, tokenId) {
@@ -18785,7 +18785,7 @@
                 source: 'official-api',
                 metric: 'usd',
                 scope: 'recent',
-                aprSchema: 1,
+                aprSchema: 2,
                 marketPoints: mergeSupplyAprHistory(marketRows, extractSupplyAprPoints(aprPayload, tokenId)),
                 points: rows
                     .map(row => {

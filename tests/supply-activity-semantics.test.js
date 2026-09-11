@@ -131,7 +131,7 @@ test('APR-only daily evidence extends market context without fabricating liquidi
         {timestamp:259200, supply:13, debt:7, apr:1.75},
     ]);
 });
-test('recent market cache rejects legacy history without the APR schema', () => {
+test('recent market cache rejects pre-200-day APR history', () => {
     const fs = require('node:fs');
     const vm = require('node:vm');
     const html = fs.readFileSync(require('node:path').join(__dirname, '../liquidation-preview.html'), 'utf8');
@@ -142,8 +142,10 @@ test('recent market cache rejects legacy history without the APR schema', () => 
 
     const activeKey = context.getSupplyRecentHistoryCacheKey('ethereum', '0xabc');
     assert.notEqual(activeKey, 'ethereum:0xabc:history:v6:recent');
+    assert.notEqual(activeKey, 'ethereum:0xabc:history:v7-apr:recent');
     assert.equal(context.hasSupplyRecentHistoryAprSchema({marketPoints:[{apr:null}]}), false);
-    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:1,marketPoints:[{apr:null}]}), true);
+    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:1,marketPoints:[{apr:1.5}]}), false);
+    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:2,marketPoints:[{apr:null}]}), true);
 });
 test('selecting one action from All isolates it, then supports multiselect and reset', () => {
     const one=activity.toggle(new Set(activity.types),'repay');
