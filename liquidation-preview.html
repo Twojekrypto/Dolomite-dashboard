@@ -16644,7 +16644,7 @@
         let supplyHistoryLoadAllHandler = null;
         const SUPPLY_HISTORY_STATIC_VERSION = 'supply-history-v1';
         const SUPPLY_ACTIVITY_STATIC_VERSION = 'supply-activity-v2';
-        const SUPPLY_APR_STATIC_VERSION = 'supply-apr-v2-200d';
+        const SUPPLY_APR_STATIC_VERSION = 'supply-market-v3-200d';
         const SUPPLY_ACTIVITY_STATIC_RECENT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
         const SUPPLY_ACTIVITY_STATIC_RECENT_OVERLAP_SEC = 6 * 60 * 60;
         let supplyStaticHistoryManifestCacheKey = '';
@@ -18682,11 +18682,11 @@
         }
 
         function getSupplyRecentHistoryCacheKey(cacheChain, tokenId) {
-            return `${cacheChain}:${tokenId}:history:v8-apr-200d:recent`;
+            return `${cacheChain}:${tokenId}:history:v9-market-200d:recent`;
         }
 
         function hasSupplyRecentHistoryAprSchema(history) {
-            return Number(history?.aprSchema || 0) === 2;
+            return Number(history?.aprSchema || 0) === 3;
         }
 
         function extractSupplyAprPoints(payload, tokenId) {
@@ -18696,13 +18696,23 @@
                 .map(point => {
                     const timestamp = Number(point?.timestamp || 0);
                     const rawApr = point?.rates?.[safeTokenId];
+                    const rawMarket = point?.markets?.[safeTokenId];
                     const apr = rawApr === null || rawApr === undefined || rawApr === '' ? null : Number(rawApr);
+                    const rawSupply = rawMarket?.supply;
+                    const rawDebt = rawMarket?.debt;
+                    const supply = rawSupply === null || rawSupply === undefined || rawSupply === '' ? null : Number(rawSupply);
+                    const debt = rawDebt === null || rawDebt === undefined || rawDebt === '' ? null : Number(rawDebt);
                     return {
                         timestamp,
                         apr: Number.isFinite(apr) && apr >= 0 ? apr : null,
+                        supply: Number.isFinite(supply) && supply >= 0 ? supply : null,
+                        debt: Number.isFinite(debt) && debt >= 0 ? debt : null,
                     };
                 })
-                .filter(point => Number.isFinite(point.timestamp) && point.timestamp > 0 && point.apr !== null)
+                .filter(point =>
+                    Number.isFinite(point.timestamp) && point.timestamp > 0 &&
+                    (point.apr !== null || point.supply !== null || point.debt !== null)
+                )
                 .sort((a, b) => a.timestamp - b.timestamp);
         }
 
@@ -18710,30 +18720,50 @@
             const safeAprPoints = (Array.isArray(aprPoints) ? aprPoints : []).filter(point => {
                 const timestamp = Number(point?.timestamp);
                 const apr = Number(point?.apr);
-                return Number.isFinite(timestamp) && timestamp > 0 && Number.isFinite(apr) && apr >= 0;
+                const supply = Number(point?.supply);
+                const debt = Number(point?.debt);
+                return Number.isFinite(timestamp) && timestamp > 0 && (
+                    (Number.isFinite(apr) && apr >= 0) ||
+                    (point?.supply !== null && point?.supply !== undefined && Number.isFinite(supply) && supply >= 0) ||
+                    (point?.debt !== null && point?.debt !== undefined && Number.isFinite(debt) && debt >= 0)
+                );
             });
-            const aprByDay = new Map(safeAprPoints.map(point => [
+            const historyByDay = new Map(safeAprPoints.map(point => [
                 Math.floor(Number(point.timestamp) / 86400),
-                Number(point.apr),
+                point,
             ]));
             const metricDays = new Set();
             const merged = (Array.isArray(rows) ? rows : []).map(row => {
                 const day = Math.floor(Number(row?.timestamp) / 86400);
                 metricDays.add(day);
-                const apr = aprByDay.get(day);
+                const historical = historyByDay.get(day);
+                const apr = Number(historical?.apr);
+                const rowSupply = row?.supply === null || row?.supply === undefined ? null : Number(row.supply);
+                const rowDebt = row?.debt === null || row?.debt === undefined ? null : Number(row.debt);
+                const historicalSupply = Number(historical?.supply);
+                const historicalDebt = Number(historical?.debt);
                 return {
                     ...row,
+                    supply: Number.isFinite(rowSupply) && rowSupply >= 0
+                        ? rowSupply
+                        : (historical?.supply !== null && historical?.supply !== undefined && Number.isFinite(historicalSupply) && historicalSupply >= 0 ? historicalSupply : null),
+                    debt: Number.isFinite(rowDebt) && rowDebt >= 0
+                        ? rowDebt
+                        : (historical?.debt !== null && historical?.debt !== undefined && Number.isFinite(historicalDebt) && historicalDebt >= 0 ? historicalDebt : null),
                     apr: Number.isFinite(apr) && apr >= 0 ? apr : null,
                 };
             });
             safeAprPoints.forEach(point => {
                 const day = Math.floor(Number(point.timestamp) / 86400);
                 if (metricDays.has(day)) return;
+                const supply = Number(point.supply);
+                const debt = Number(point.debt);
+                const apr = Number(point.apr);
                 merged.push({
                     timestamp: Number(point.timestamp),
-                    supply: null,
-                    debt: null,
-                    apr: Number(point.apr),
+                    supply: point.supply !== null && point.supply !== undefined && Number.isFinite(supply) && supply >= 0 ? supply : null,
+                    debt: point.debt !== null && point.debt !== undefined && Number.isFinite(debt) && debt >= 0 ? debt : null,
+                    apr: point.apr !== null && point.apr !== undefined && Number.isFinite(apr) && apr >= 0 ? apr : null,
                 });
             });
             return merged.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
@@ -18785,7 +18815,7 @@
                 source: 'official-api',
                 metric: 'usd',
                 scope: 'recent',
-                aprSchema: 2,
+                aprSchema: 3,
                 marketPoints: mergeSupplyAprHistory(marketRows, extractSupplyAprPoints(aprPayload, tokenId)),
                 points: rows
                     .map(row => {
