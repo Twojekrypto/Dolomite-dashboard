@@ -269,7 +269,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate exact Dolomite Supply lending APR history")
     parser.add_argument("--out-dir", default="data/supply-apr")
     parser.add_argument("--chains", default=os.environ.get("SUPPLY_APR_CHAINS", ",".join(DEFAULT_GRAPH_CHAINS)))
-    parser.add_argument("--days", type=int, default=int(os.environ.get("SUPPLY_APR_DAYS", "100")))
+    parser.add_argument("--days", type=int, default=int(os.environ.get("SUPPLY_APR_DAYS", "200")))
     parser.add_argument("--refresh-days", type=int, default=int(os.environ.get("SUPPLY_APR_REFRESH_DAYS", "7")))
     parser.add_argument("--workers", type=int, default=int(os.environ.get("SUPPLY_APR_WORKERS", "4")))
     args = parser.parse_args()

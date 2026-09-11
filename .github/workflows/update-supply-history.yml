@@ -111,7 +111,7 @@ jobs:
           if [ -z "$ACTIVITY_RECENT_TOKEN_LIMIT" ]; then
             ACTIVITY_RECENT_TOKEN_LIMIT="0"
           fi
-          python3 generate_supply_apr_history.py --chains "$CHAINS" --days 100 --refresh-days 7 --workers 4
+          python3 generate_supply_apr_history.py --chains "$CHAINS" --days 200 --refresh-days 7 --workers 4
           python3 generate_supply_history.py --chains "$CHAINS" --token-limit "$TOKEN_LIMIT" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES" --active-usd-threshold "$ACTIVE_USD_THRESHOLD"
           ACTIVITY_ARGS=(--chains "$CHAINS" --token-limit "$ACTIVITY_TOKEN_LIMIT" --symbols "$ACTIVITY_SYMBOLS" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES")
           if [ -n "$ACTIVITY_TOKEN_CONFIG" ]; then
