@@ -10128,6 +10128,7 @@
     </style>
 <script src="dolo-address-labels.js?v=dolo-labels-20260828-watch-audit"></script>
 <script src="liquidation/liquidation-history-sort.js?v=liquidation-history-sort-20260730"></script>
+<script src="supply-activity-semantics.js?v=20260911-v2"></script>
 </head>
 
 <body>
@@ -11958,6 +11959,32 @@
                     justify-content: flex-end;
                     margin-left: auto;
                 }
+                #supply-activity-summary-grid { grid-template-columns: minmax(0, 1fr); }
+                .supply-market-context { min-height: 0; background: transparent; border: 0; box-shadow: none; padding: 0; }
+                .supply-market-context .supply-activity-summary-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+                .supply-market-context .supply-activity-summary-period { height: auto; min-height: 26px; text-align: left; }
+                .supply-activity-action-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+                .supply-activity-action-stack .supply-activity-type { white-space: normal; line-height: 1.4; height: auto; }
+                .supply-activity-details-button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(232,196,106,.22); border-radius: 6px; padding: 3px 8px; background: rgba(232,196,106,.05); color: #cbb77e; font-family: inherit; font-size: 11px; font-weight: 500; line-height: 1.4; cursor: pointer; }
+                .supply-activity-details-button:hover, .supply-activity-details-button[aria-expanded="true"] { color: #f1d58a; border-color: rgba(232,196,106,.48); background: rgba(232,196,106,.1); }
+                #supply-activity-table .supply-activity-evidence-row[hidden] { display: none !important; }
+                #supply-activity-table .supply-activity-evidence-row > td { padding: 0; white-space: normal; text-align: left; }
+                .supply-activity-evidence { padding: 18px 22px; border-left: 2px solid rgba(232,196,106,.65); background: linear-gradient(90deg,rgba(232,196,106,.06),rgba(232,196,106,.015)); font-size: 12px; line-height: 1.5; }
+                .supply-activity-evidence-heading { color: #f1f5f9; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-weight: 600; }
+                .supply-activity-evidence-heading > span, .supply-activity-evidence p { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+                .supply-activity-impact { display: flex; gap: 32px; flex-wrap: wrap; margin: 12px 0; }
+                .supply-activity-impact > div { display: flex; flex-direction: column; gap: 4px; }
+                .supply-activity-impact span { color: var(--text-muted); font-size: 11px; }
+                .supply-activity-impact strong { font-size: 13px; font-weight: 600; color: #e2e8f0; overflow-wrap: anywhere; }
+                .supply-activity-route { color: #e2e8f0; overflow-wrap: anywhere; }
+                .supply-activity-technical > summary { color: #cbb77e; cursor: pointer; }
+                .supply-activity-leg-list { max-height: 240px; overflow: auto; margin-top: 10px; }
+                .supply-activity-evidence-leg { display: grid; grid-template-columns: 1fr 1fr 2fr 2fr; gap: 12px; padding: 7px 0; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,.05); overflow-wrap: anywhere; }
+                @media (max-width: 700px) {
+                    .supply-market-context .supply-activity-summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                    .supply-activity-evidence-leg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                    .supply-activity-evidence { padding: 14px; }
+                }
                 .supply-filter-pill {
                     appearance: none;
                     border: 1px solid rgba(255,255,255,0.08);
@@ -12375,7 +12402,7 @@
                             <h3 style="display:flex; align-items:center; gap:8px;">
                                 <span>Asset Activity</span> <span class="header-count supply-count-badge" id="supply-activity-count"></span>
                             </h3>
-                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Deposits, withdrawals, transfers, and liquidations for the selected market.</div>
+                            <div class="supply-activity-subtitle" id="supply-activity-subtitle">Market activity, borrowing, repayments and swaps. Balance impact is shown where verified.</div>
                         </div>
                         <div class="supply-data-updated" id="supply-activity-data-updated" aria-live="polite">Data updating</div>
                     </div>
@@ -12402,8 +12429,13 @@
                         <div class="supply-activity-filter-row">
                             <button class="supply-filter-pill active" data-type="deposit" onclick="toggleSupplyActivityType('deposit')">Deposits</button>
                             <button class="supply-filter-pill active" data-type="withdraw" onclick="toggleSupplyActivityType('withdraw')">Withdrawals</button>
+                            <button class="supply-filter-pill active" data-type="borrow" onclick="toggleSupplyActivityType('borrow')">Borrow</button>
+                            <button class="supply-filter-pill active" data-type="repay" onclick="toggleSupplyActivityType('repay')">Repay Borrow</button>
+                            <button class="supply-filter-pill active" data-type="zap" onclick="toggleSupplyActivityType('zap')">Zap</button>
+                            <button class="supply-filter-pill active" data-type="trade" onclick="toggleSupplyActivityType('trade')">Swap</button>
                             <button class="supply-filter-pill active" data-type="transfer" onclick="toggleSupplyActivityType('transfer')">Transfers</button>
                             <button class="supply-filter-pill active" data-type="liquidation" onclick="toggleSupplyActivityType('liquidation')">Liquidations</button>
+                            <button class="supply-filter-pill active" data-type="vaporization" onclick="toggleSupplyActivityType('vaporization')">Debt absorption</button>
                         </div>
                     </div>
                     <div class="table-scroll">
@@ -16604,7 +16636,7 @@
         let supplyHistoryDatasetMode = 'recent';
         let supplyHistoryLoadAllHandler = null;
         const SUPPLY_HISTORY_STATIC_VERSION = 'supply-history-v1';
-        const SUPPLY_ACTIVITY_STATIC_VERSION = 'supply-activity-v1';
+        const SUPPLY_ACTIVITY_STATIC_VERSION = 'supply-activity-v2';
         const SUPPLY_ACTIVITY_STATIC_RECENT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
         const SUPPLY_ACTIVITY_STATIC_RECENT_OVERLAP_SEC = 6 * 60 * 60;
         let supplyStaticHistoryManifestCacheKey = '';
@@ -16633,7 +16665,8 @@
         let supplyChainRequestId = 0;
         const SUPPLY_ACTIVITY_PAGE_SIZE = 10;
         const SUPPLY_ACTIVITY_STORAGE_ROW_LIMIT = 50000;
-        let supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
+        let supplyActivityFilters = new Set(SupplyActivitySemantics.types);
+        let supplyActivityMarketPoints = [];
 
         function getSupplyCacheChainKey(chain) {
             return chain === 'base' ? 'botanix_v2' : chain;
@@ -16644,6 +16677,11 @@
             withdraw: { label: 'Withdrawal', cls: 'withdraw' },
             transfer: { label: 'Transfer', cls: 'transfer' },
             liquidation: { label: 'Liquidation', cls: 'liquidation' },
+            borrow: { label: 'Borrow', cls: 'withdraw' },
+            repay: { label: 'Repay Borrow', cls: 'deposit' },
+            zap: { label: 'Zap', cls: 'transfer' },
+            trade: { label: 'Swap', cls: 'transfer' },
+            vaporization: { label: 'Debt absorption', cls: 'liquidation' },
         };
 
         function supplySort(field) {
@@ -16704,7 +16742,7 @@
             const token = currentSupplyOverview?.token?.symbol || (currentSupplyTokensMap[document.getElementById('supply-asset-select')?.value]?.symbol || 'the selected market');
             const chainName = CHAIN_DISPLAY_NAMES[document.getElementById('supply-chain-select')?.value] || document.getElementById('supply-chain-select')?.value || '';
             if (!subtitle) return;
-            subtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${token} on ${chainName}.`;
+            subtitle.textContent = `Supply, borrowing, repayment and swap activity for ${token} on ${chainName}.`;
         }
 
         function setSupplyActivityHistoryState(copy, mode = '') {
@@ -17017,16 +17055,10 @@
             return {
                 __supplyActivityCompact: 1,
                 scope: data.scope || '',
-                rows: data.rows.map(row => [
-                    row?.id || '',
-                    row?.type || '',
-                    Number(row?.timestamp || 0),
-                    row?.txHash || '',
-                    Number(row?.amount || 0),
-                    Number(row?.usd || 0),
-                    row?.primaryAddress || '',
-                    row?.secondaryAddress || '',
-                ]),
+                generatedAt: data.generatedAt || '',
+                source: data.source || '',
+                coverage: data.coverage || null,
+                rows: data.rows.map(SupplyActivitySemantics.pack),
             };
         }
 
@@ -17039,16 +17071,7 @@
                 __supplyActivityCompact: undefined,
                 scope: data.scope || '',
                 rows: data.rows.map(item => {
-                    const row = {
-                        id: item?.[0] || '',
-                        type: item?.[1] || '',
-                        timestamp: Number(item?.[2] || 0),
-                        txHash: item?.[3] || '',
-                        amount: Number(item?.[4] || 0),
-                        usd: Number(item?.[5] || 0),
-                        primaryAddress: item?.[6] || '',
-                        secondaryAddress: item?.[7] || '',
-                    };
+                    const row = SupplyActivitySemantics.unpack(item);
                     return { ...row, ...getSupplyActivityRowLabels(row) };
                 }).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)),
             };
@@ -17689,7 +17712,8 @@
             supplyHistoryRange = 'all';
             supplyHistoryCustomFrom = null;
             supplyHistoryCustomTo = null;
-            supplyActivityFilters = new Set(['deposit', 'withdraw', 'transfer', 'liquidation']);
+            supplyActivityFilters = new Set(SupplyActivitySemantics.types);
+            supplyActivityMarketPoints = [];
             const shell = document.getElementById('supply-intel-shell');
             const card = document.getElementById('supply-activity-card');
             const activityTable = document.getElementById('supply-activity-table');
@@ -18498,24 +18522,7 @@
         }
 
         function mergeSupplyActivityRows(...rowSets) {
-            const rowsById = new Map();
-            rowSets.forEach(rowSet => {
-                (Array.isArray(rowSet) ? rowSet : []).forEach(row => {
-                    if (!row) return;
-                    const key = row.id || [
-                        row.type,
-                        row.txHash,
-                        row.primaryAddress,
-                        row.secondaryAddress,
-                        row.amount,
-                        row.timestamp,
-                    ].join(':');
-                    if (!rowsById.has(key)) {
-                        rowsById.set(key, row);
-                    }
-                });
-            });
-            return Array.from(rowsById.values()).sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+            return SupplyActivitySemantics.merge(...rowSets);
         }
 
         async function fetchSupplyActivityHistory(url, tokenId, sinceTs, onProgress, options = {}) {
@@ -18683,6 +18690,12 @@
                 source: 'official-api',
                 metric: 'usd',
                 scope: 'recent',
+                marketPoints: rows.map(row => ({
+                    timestamp: Number(row.timestamp),
+                    supply: row.supplyLiquidityToken == null ? null : Number(row.supplyLiquidityToken),
+                    debt: row.borrowLiquidityToken == null ? null : Number(row.borrowLiquidityToken),
+                    apr: null,
+                })),
                 points: rows
                     .map(row => {
                         const timestamp = Number(row?.timestamp || 0);
@@ -19031,7 +19044,7 @@
                 return supplyActivityFilteredCache.rows;
             }
             const filteredRows = (currentSupplyActivity || [])
-                .filter(row => supplyActivityFilters.has(row.type))
+                .filter(row => SupplyActivitySemantics.matches(row, supplyActivityFilters))
                 .filter(row => {
                     if (!activitySearchNeedle) return true;
                     const primary = getDoloAddressSearchText(row.primaryAddress);
@@ -19108,76 +19121,30 @@
 
         function renderSupplyActivitySummary(filteredRows) {
             const summaryEl = document.getElementById('supply-activity-summary');
-            const summaryGrid = document.getElementById('supply-activity-summary-grid');
-            if (!summaryEl || !summaryGrid) return;
-
-            const rows = Array.isArray(filteredRows) ? filteredRows : [];
-            const nowTs = Math.floor(Date.now() / 1000);
-            const tokenSymbol = currentSupplyOverview?.token?.symbol || '';
-            const liveSupply = Number(currentSupplyOverview?.supply || 0);
-            const summaryCacheKey = JSON.stringify([
-                supplyActivityFilteredCache?.key || '',
-                tokenSymbol,
-                liveSupply,
-                Math.floor(nowTs / 60),
-            ]);
-            if (supplyActivitySummaryCache?.key === summaryCacheKey) {
-                summaryGrid.innerHTML = supplyActivitySummaryCache.html;
-                summaryEl.style.display = 'block';
-                return;
-            }
-
-            const periods = [
-                { label: '24H', seconds: 24 * 60 * 60 },
-                { label: '7D', seconds: 7 * 24 * 60 * 60 },
-                { label: '30D', seconds: 30 * 24 * 60 * 60 },
-            ];
-
-            const summaryHtml = periods.map(period => {
-                const summary = summarizeSupplyActivityRows(rows, nowTs - period.seconds);
-                const netClass = summary.netUsd > 0 ? 'positive' : summary.netUsd < 0 ? 'negative' : 'neutral';
-                const netTokenText = tokenSymbol
-                    ? `${supplyFormatSignedCompact(summary.netToken, supplyFormatTokenCompact)} ${tokenSymbol}`
-                    : supplyFormatSignedCompact(summary.netToken, supplyFormatTokenCompact);
-                const netShareText = liveSupply > 0
-                    ? ` · ${supplyFormatSignedPercent((summary.netToken / liveSupply) * 100)} of selected supply`
-                    : '';
-                return `
-                    <div class="supply-activity-summary-card">
-                        <div class="supply-activity-summary-period">${period.label}</div>
-                        <div class="supply-activity-summary-main">
-                            <div class="supply-activity-summary-main-label">Net Flow</div>
-                            <div class="supply-activity-summary-main-value ${netClass}">${supplyEscapeHtml(supplyFormatSignedCompact(summary.netUsd, formatUSDCompact))}</div>
-                            <div class="supply-activity-summary-main-sub">${supplyEscapeHtml(netTokenText)}${supplyEscapeHtml(netShareText)}</div>
-                        </div>
-                        <div class="supply-activity-summary-metrics">
-                            <div class="supply-activity-summary-metric">
-                                <div class="supply-activity-summary-metric-label">Inflow</div>
-                                <div class="supply-activity-summary-metric-value inflow">${supplyEscapeHtml(formatUSDCompact(summary.inflowUsd))}</div>
-                                <div class="supply-activity-summary-metric-sub">${supplyEscapeHtml(supplyFormatTokenCompact(summary.inflowToken))}${tokenSymbol ? ` ${supplyEscapeHtml(tokenSymbol)}` : ''}</div>
-                            </div>
-                            <div class="supply-activity-summary-metric">
-                                <div class="supply-activity-summary-metric-label">Outflow</div>
-                                <div class="supply-activity-summary-metric-value outflow">${supplyEscapeHtml(formatUSDCompact(summary.outflowUsd))}</div>
-                                <div class="supply-activity-summary-metric-sub">${supplyEscapeHtml(supplyFormatTokenCompact(summary.outflowToken))}${tokenSymbol ? ` ${supplyEscapeHtml(tokenSymbol)}` : ''}</div>
-                            </div>
-                            <div class="supply-activity-summary-metric">
-                                <div class="supply-activity-summary-metric-label">Internal Volume</div>
-                                <div class="supply-activity-summary-metric-value internal">${supplyEscapeHtml(formatUSDCompact(summary.internalUsd))}</div>
-                                <div class="supply-activity-summary-metric-sub">${supplyEscapeHtml(supplyFormatTokenCompact(summary.internalToken))}${tokenSymbol ? ` ${supplyEscapeHtml(tokenSymbol)}` : ''}</div>
-                            </div>
-                            <div class="supply-activity-summary-metric">
-                                <div class="supply-activity-summary-metric-label">Active Wallets</div>
-                                <div class="supply-activity-summary-metric-value wallets">${summary.wallets.toLocaleString("en-US")}</div>
-                                <div class="supply-activity-summary-metric-sub">${summary.events.toLocaleString("en-US")} events</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            summaryGrid.innerHTML = summaryHtml;
-            supplyActivitySummaryCache = { key: summaryCacheKey, html: summaryHtml };
-
+            const grid = document.getElementById('supply-activity-summary-grid');
+            if (!summaryEl || !grid) return;
+            const points = supplyActivityMarketPoints;
+            const now = Math.floor(Date.now() / 1000);
+            const end = Math.min(supplyActivityTimeMax ?? now, now);
+            const start = supplyActivityTimeMin ?? (now - SUPPLY_ACTIVITY_DEFAULT_DAYS * 86400);
+            const context = SupplyActivitySemantics.periodContext(points, start, end);
+            const token = supplyEscapeHtml(currentSupplyOverview?.token?.symbol || '');
+            const signed = value => value == null ? '—' : supplyEscapeHtml(supplyFormatSignedCompact(value, supplyFormatTokenCompact));
+            const percent = value => value == null ? '—' : Number(value).toFixed(2) + '%';
+            const metric = (label, value, sub) => `<div class="supply-activity-summary-metric"><div class="supply-activity-summary-metric-label">${label}</div><div class="supply-activity-summary-metric-value wallets">${value}</div><div class="supply-activity-summary-metric-sub">${sub}</div></div>`;
+            const verified = (filteredRows || []).filter(row => row.semantics?.status === 'verified').length;
+            const coverage = `${verified.toLocaleString('en-US')} / ${(filteredRows || []).length.toLocaleString('en-US')} displayed activities have balance replay`;
+            const dates = context ? `${supplyFormatActivityDate(context.start)} → ${supplyFormatActivityDate(context.end)} · daily snapshots` : 'Historical market snapshots unavailable for the selected range';
+            grid.innerHTML = `<div class="supply-activity-summary-card supply-market-context">
+                <div class="supply-activity-summary-period">Market context · ${supplyEscapeHtml(dates)}</div>
+                <div class="supply-activity-summary-metrics">
+                    ${metric('Supply change', signed(context?.supplyChange), token)}
+                    ${metric('Debt change', signed(context?.debtChange), token)}
+                    ${metric('Utilization', percent(context?.utilizationStart) + ' → ' + percent(context?.utilizationEnd), 'Borrowed / supplied')}
+                    ${metric('Lending APR', percent(context?.aprStart) + ' → ' + percent(context?.aprEnd), 'Historical APR is not supplied by this source')}
+                </div>
+                <div class="supply-activity-summary-metric-sub">${supplyEscapeHtml(coverage)}. Market context covers the whole asset, not only filtered wallets/actions. Rewards and base yield are separate from lending APR.</div>
+            </div>`;
             summaryEl.style.display = 'block';
         }
 
@@ -19222,7 +19189,10 @@
             const pageRows = filtered.slice(start, start + SUPPLY_ACTIVITY_PAGE_SIZE);
 
             tbody.innerHTML = pageRows.map(row => {
-                const meta = SUPPLY_ACTIVITY_META[row.type];
+                const meta = SUPPLY_ACTIVITY_META[row.type] || { label: 'Activity', cls: 'transfer' };
+                const actionOrder = ['zap', 'trade', 'borrow', 'repay', 'deposit', 'withdraw', 'transfer', 'liquidation', 'vaporization'];
+                const actions = SupplyActivitySemantics.actions(row);
+                const actionLabels = actions.filter(type => type !== 'trade' || !actions.includes('zap')).sort((a,b) => actionOrder.indexOf(a) - actionOrder.indexOf(b)).map(type => SUPPLY_ACTIVITY_META[type]?.label || type);
                 const renderActivityAddressTools = address => {
                     if (!address) return '';
                     const safeAddress = supplyEscapeHtml(address);
@@ -19243,9 +19213,9 @@
                 const activityAmount = supplyEscapeHtml(supplyFormatTokenCompact(row.amount));
                 const safeActivityTokenSymbol = supplyEscapeHtml(activityTokenSymbol);
                 const safeActivityTokenIcon = supplyEscapeHtml(activityTokenIcon);
-                const safeActivityAmountTip = supplyEscapeHtml(activityTokenSymbol
+                const safeActivityAmountTip = supplyEscapeHtml((row.semantics?.amountBasis === 'net-wallet-balance-change' ? 'Net balance movement across Dolomite subaccounts. Supply and debt effects are in Details. ' : '') + (activityTokenSymbol
                     ? `${supplyFormatTokenPrecise(row.amount)} ${activityTokenSymbol}`
-                    : supplyFormatTokenPrecise(row.amount));
+                    : supplyFormatTokenPrecise(row.amount)));
                 return `
                     <tr>
                         <td>
@@ -19265,15 +19235,16 @@
                                 ${secondaryLink ? `<div class="supply-activity-wallet-block secondary">${secondaryLink}</div>` : ''}
 	                            </div>
 	                        </td>
-	                        <td><span class="supply-activity-type ${meta.cls}">${meta.label}</span></td>
+	                        <td><div class="supply-activity-action-stack"><span class="supply-activity-type ${meta.cls}">${supplyEscapeHtml(actionLabels.join(' · '))}</span><button type="button" class="supply-activity-details-button" aria-expanded="false" onclick="toggleSupplyActivityDetails(this)">Details <span aria-hidden="true">⌄</span></button></div></td>
 	                        <td class="supply-activity-amount">
                             <div class="supply-activity-token-value" data-tooltip="${safeActivityAmountTip}" data-tooltip-cursor="true">
                                 <span>${activityAmount}</span>
                                 ${activityTokenSymbol ? `<img src="${safeActivityTokenIcon}" width="16" height="16" alt="${safeActivityTokenSymbol}" onerror="this.src='dolomite-logo.svg'">` : ''}
                             </div>
                         </td>
-                        <td class="supply-activity-amount">${formatUSDCompact(row.usd)}</td>
+                        <td class="supply-activity-amount">${row.semantics?.usdStatus === 'unavailable' || row.usd == null ? '—' : formatUSDCompact(row.usd)}</td>
                     </tr>
+                    <tr class="supply-activity-evidence-row" hidden><td colspan="5">${renderSupplyActivityEvidence(row)}</td></tr>
                 `;
             }).join('');
 
@@ -19300,17 +19271,43 @@
         }
 
         function toggleSupplyActivityType(type) {
-            if (supplyActivityFilters.has(type)) {
-                if (supplyActivityFilters.size === 1) return;
-                supplyActivityFilters.delete(type);
-            } else {
-                supplyActivityFilters.add(type);
-            }
+            supplyActivityFilters = SupplyActivitySemantics.toggle(supplyActivityFilters, type);
             document.querySelectorAll('.supply-filter-pill').forEach(btn => {
                 btn.classList.toggle('active', supplyActivityFilters.has(btn.dataset.type));
             });
             supplyActivityPage = 1;
             renderSupplyActivityTable();
+        }
+
+        function toggleSupplyActivityDetails(button) {
+            const details = button.closest('tr')?.nextElementSibling;
+            if (!details?.classList.contains('supply-activity-evidence-row')) return;
+            details.hidden = !details.hidden;
+            button.setAttribute('aria-expanded', String(!details.hidden));
+            button.innerHTML = `${details.hidden ? 'Details' : 'Hide'} <span aria-hidden="true">${details.hidden ? '⌄' : '⌃'}</span>`;
+        }
+
+        function renderSupplyActivityEvidence(row) {
+            const evidence = row.semantics;
+            const symbol = supplyEscapeHtml(currentSupplyOverview?.token?.symbol || '');
+            const quantity = value => value == null ? '—' : `${supplyEscapeHtml(supplyFormatSignedCompact(Number(value), supplyFormatTokenPrecise))} ${symbol}`;
+            const verified = evidence?.status === 'verified';
+            const note = evidence?.note || (verified
+                ? 'Balance changes reconstructed at the recorded block. Negative debt change means repayment.'
+                : 'This record does not have verified before/after balances. Deposit and withdrawal describe token movement, not a confirmed change in supply or debt.');
+            const routes = (evidence?.routes || []).map(route => {
+                const path = route.tokenPath || [];
+                // The subgraph token relation is not an ordered execution path.
+                // Do not associate first/last assets with input/output amounts.
+                return `<div class="supply-activity-route">Zap assets: ${path.map(token => supplyEscapeHtml(token.symbol || token.id || 'Unknown asset')).join(' · ')}<p>Route direction unavailable from this source. Selected-asset effects are shown above.</p></div>`;
+            }).join('');
+            const legs = (evidence?.legs || []).map(leg => `<div class="supply-activity-evidence-leg"><span>${supplyEscapeHtml(SUPPLY_ACTIVITY_META[leg.type]?.label || leg.type || 'Operation')}</span><span>${supplyEscapeHtml(supplyShortAddr(leg.wallet || row.primaryAddress))}</span><span>Supply ${quantity(leg.supplyChange)}</span><span>Debt ${quantity(leg.debtChange)}</span></div>`).join('');
+            return `<div class="supply-activity-evidence">
+                <div class="supply-activity-evidence-heading">Selected asset impact <span>${verified ? 'Balance replay' : 'Balance impact unavailable'}${evidence?.blockNumber ? ' · block ' + supplyEscapeHtml(String(evidence.blockNumber)) : ''}</span></div>
+                <div class="supply-activity-impact"><div><span>Supply change</span><strong>${verified ? quantity(evidence.supplyChange) : '—'}</strong></div><div><span>Debt change</span><strong>${verified ? quantity(evidence.debtChange) : '—'}</strong></div></div>
+                ${routes}<p>${supplyEscapeHtml(note)}</p>
+                ${legs ? `<details class="supply-activity-technical"><summary>Underlying operations · ${evidence.legs.length}</summary><div class="supply-activity-leg-list">${legs}</div></details>` : ''}
+            </div>`;
         }
 
         function supply_goPage(p) {
@@ -19960,9 +19957,9 @@
             const nowTs = Math.floor(Date.now() / 1000);
             const sinceTs = nowTs - (SUPPLY_ACTIVITY_DEFAULT_DAYS * 24 * 60 * 60);
             const supplierCacheKey = `${cacheChain}:${tokenId}:suppliers`;
-            const recentActivityKey = `${cacheChain}:${tokenId}:activity:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
-            const fullActivityKey = `${cacheChain}:${tokenId}:activity:all`;
-            const recentHistoryKey = `${cacheChain}:${tokenId}:history:v5:recent`;
+            const recentActivityKey = `${cacheChain}:${tokenId}:activity:v2:${SUPPLY_ACTIVITY_DEFAULT_DAYS}d`;
+            const fullActivityKey = `${cacheChain}:${tokenId}:activity:v2:all`;
+            const recentHistoryKey = `${cacheChain}:${tokenId}:history:v6:recent`;
             const fullHistoryKey = `${cacheChain}:${tokenId}:history:v5:all`;
             const cachedSuppliers = getFreshSupplyCacheData(supplySuppliersCache, supplierCacheKey, { ttlMs: SUPPLY_CACHE_TTLS_MS.suppliers });
             const staleSuppliers = cachedSuppliers || getAnySupplyCacheData(supplySuppliersCache, supplierCacheKey);
@@ -19987,6 +19984,7 @@
             tbody.innerHTML = '';
             setSupplyIntelLoading(tokenObj, chain);
             currentSupplyOverview = null;
+            supplyActivityMarketPoints = [];
             setSupplyActivityLoading('Loading latest 30D activity…');
             if (supplyTitle) supplyTitle.textContent = `${tokenObj.symbol} Supplier Leaderboard`;
             currentSupplyActivity = [];
@@ -20017,7 +20015,7 @@
             syncSupplyActivityColumnFilterUi();
             syncSupplyHistoryControls([]);
             if (activitySubtitle) {
-                activitySubtitle.textContent = `Deposits, withdrawals, transfers, and liquidations for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain}.`;
+                activitySubtitle.textContent = `Supply, borrowing, repayment and swap activity for ${tokenObj.symbol} on ${CHAIN_DISPLAY_NAMES[chain] || chain}.`;
             }
 
             const onOverviewReady = fn => {
@@ -20178,6 +20176,8 @@
                 onOverviewReady(() => {
                     if (requestId !== supplyTabRequestId || !currentSupplyOverview) return;
                     const view = buildHistoryView(history, sinceTs, 'recent');
+                    supplyActivityMarketPoints = history?.marketPoints || [];
+                    renderSupplyActivitySummary(getFilteredSupplyActivityRows());
                     currentSupplyOverview.recentHistoryView = view;
                     currentSupplyOverview.historyDatasetMode = currentSupplyOverview.historyDatasetMode || 'recent';
                     if ((currentSupplyOverview.historyDatasetMode || 'recent') !== 'all') {

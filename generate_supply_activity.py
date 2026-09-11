@@ -36,9 +36,9 @@ DEFAULT_GRAPH_CHAINS = [chain for chain in GRAPH_ENDPOINTS if chain not in RETIR
 
 RECENT_ACTIVITY_DAYS = 30
 
-# Shard full activity files above this many rows (~150k rows ≈ 30 MB JSON)
-# so no single tracked file approaches GitHub's 100 MB hard limit.
-FULL_ACTIVITY_SHARD_ROW_LIMIT = 150_000
+# Semantic rows include account evidence and routes, substantially larger than
+# legacy rows. Keep shards comfortably below GitHub's 100 MB hard limit.
+FULL_ACTIVITY_SHARD_ROW_LIMIT = 15_000
 
 DEFAULT_ACTIVITY_SYMBOLS = {
     "USD1",
@@ -130,20 +130,30 @@ def paginate_entity(
     order_direction: str = "desc",
     page_size: int = 1000,
     max_pages: int = 600,
+    block_number: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
     skip = 0
     pages = 0
+    seen = set()
+    block_clause = f', block: {{ number: {block_number} }}' if block_number is not None else ''
     while True:
         query = f"""
         {{
-          {entity_name}(first: {page_size}, skip: {skip}, orderBy: {order_by}, orderDirection: {order_direction}, where: {{ {where_clause} }}) {{
+          {entity_name}(first: {page_size}, skip: {skip}, orderBy: {order_by}, orderDirection: {order_direction}, where: {{ {where_clause} }}{block_clause}) {{
             {fields}
           }}
         }}
         """
         data = post_json(endpoint, {"query": query})
-        chunk = list(data.get(entity_name) or [])
+        if not isinstance(data.get(entity_name), list):
+            raise RuntimeError(f'Missing entity response: {entity_name}')
+        chunk = data[entity_name]
+        for row in chunk:
+            identity = row.get('id') or row.get('serialId')
+            if identity is None or identity in seen:
+                raise RuntimeError(f'Duplicate or missing identity in {entity_name}')
+            seen.add(identity)
         rows.extend(chunk)
         pages += 1
         if len(chunk) < page_size:
@@ -230,7 +240,7 @@ def compact_activity_row(row: Dict[str, Any]) -> List[Any]:
         decimal_to_string(row.get("usd")),
         row.get("primaryAddress") or "",
         row.get("secondaryAddress") or "",
-    ]
+    ] + ([row['semantics']] if isinstance(row.get('semantics'), dict) else [])
 
 
 def build_row(activity_type: str, payload: Dict[str, Any], token_id: str) -> Dict[str, Any]:
@@ -284,87 +294,11 @@ def build_row(activity_type: str, payload: Dict[str, Any], token_id: str) -> Dic
     }
 
 
-def fetch_activity_rows(endpoint: str, token_id: str, max_pages_per_entity: int, since_ts: Optional[int] = None) -> List[List[Any]]:
-    common_fields = """
-      serialId
-      transaction { id timestamp blockNumber }
-    """
-    time_filter = f', transaction_: {{ timestamp_gte: "{int(since_ts)}" }}' if since_ts else ""
-    token_filter = f'token: "{token_id}"{time_filter}'
-    liquidation_borrowed_filter = f'borrowedToken: "{token_id}"{time_filter}'
-    liquidation_held_filter = f'heldToken: "{token_id}"{time_filter}'
-    query_specs = {
-        "deposits": ("deposits", token_filter, f"""
-          {common_fields}
-          effectiveUser {{ id }}
-          amountDeltaWei
-          amountUSDDeltaWei
-        """),
-        "withdrawals": ("withdrawals", token_filter, f"""
-          {common_fields}
-          effectiveUser {{ id }}
-          amountDeltaWei
-          amountUSDDeltaWei
-        """),
-        "transfers": ("transfers", token_filter, f"""
-          {common_fields}
-          fromEffectiveUser {{ id }}
-          toEffectiveUser {{ id }}
-          amountDeltaWei
-          amountUSDDeltaWei
-          isSelfTransfer
-          isTransferForMarginPosition
-        """),
-        "liquidations_borrowed": ("liquidations", liquidation_borrowed_filter, f"""
-          {common_fields}
-          liquidEffectiveUser {{ id }}
-          solidEffectiveUser {{ id }}
-          borrowedToken {{ id }}
-          heldToken {{ id }}
-          borrowedTokenAmountDeltaWei
-          borrowedTokenAmountUSD
-          heldTokenAmountDeltaWei
-          heldTokenAmountUSD
-        """),
-        "liquidations_held": ("liquidations", liquidation_held_filter, f"""
-          {common_fields}
-          liquidEffectiveUser {{ id }}
-          solidEffectiveUser {{ id }}
-          borrowedToken {{ id }}
-          heldToken {{ id }}
-          borrowedTokenAmountDeltaWei
-          borrowedTokenAmountUSD
-          heldTokenAmountDeltaWei
-          heldTokenAmountUSD
-        """),
-    }
-    with ThreadPoolExecutor(max_workers=len(query_specs)) as executor:
-        futures = {
-            key: executor.submit(
-                paginate_entity,
-                endpoint,
-                entity_name,
-                where_clause,
-                fields,
-                max_pages=max_pages_per_entity,
-            )
-            for key, (entity_name, where_clause, fields) in query_specs.items()
-        }
-        deposits = futures["deposits"].result()
-        withdrawals = futures["withdrawals"].result()
-        transfers = futures["transfers"].result()
-        liquidations_borrowed = futures["liquidations_borrowed"].result()
-        liquidations_held = futures["liquidations_held"].result()
 
-    rows = [
-        *(build_row("deposit", item, token_id) for item in deposits),
-        *(build_row("withdraw", item, token_id) for item in withdrawals),
-        *(build_row("transfer", item, token_id) for item in transfers),
-        *(build_row("liquidation", item, token_id) for item in liquidations_borrowed),
-        *(build_row("liquidation", item, token_id) for item in liquidations_held),
-    ]
-    deduped = {row["id"]: row for row in rows}
-    return [compact_activity_row(row) for row in sorted(deduped.values(), key=lambda item: int(item.get("timestamp") or 0), reverse=True)]
+
+def fetch_activity_rows(endpoint: str, token_id: str, max_pages_per_entity: int, since_ts: Optional[int] = None) -> List[List[Any]]:
+    from supply_activity_semantics import fetch_semantic_rows
+    return [compact_activity_row(row) for row in fetch_semantic_rows(endpoint, token_id, max_pages_per_entity, since_ts, post_json, paginate_entity)]
 
 
 def write_activity_file(
@@ -385,7 +319,7 @@ def write_activity_file(
     recent_cutoff = int(generated_at.timestamp()) - (RECENT_ACTIVITY_DAYS * 86400)
     recent_rows = [row for row in rows if int(row[2] or 0) >= recent_cutoff]
     base_payload = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "source": "static-subgraph-activity",
         "__supplyActivityCompact": 1,
         "chain": chain,
@@ -399,8 +333,7 @@ def write_activity_file(
         chain_dir.mkdir(parents=True, exist_ok=True)
         path = chain_dir / f"{token_id}.json"
         if len(rows) > FULL_ACTIVITY_SHARD_ROW_LIMIT:
-            # GitHub hard-limits files at 100 MB; high-volume markets (WBERA,
-            # Arbitrum WETH/USDC) exceed 40-70 MB and keep growing. Write the
+            # GitHub hard-limits files at 100 MB. Write the
             # main file as a small index plus row shards; the UI concatenates
             # `rowParts` in order before unpacking.
             part_names = []
@@ -590,6 +523,13 @@ def main() -> int:
                 bool(args.recent_only),
             )
         )
+
+    failures = [(result['chain'], token) for result in results for token in result.get('skippedTokens', [])]
+    if failures or any(result.get('tokensSkipped', 0) for result in results):
+        print('Supply activity generation failed; manifest not promoted. Do not publish this run.', file=sys.stderr)
+        for chain, token in failures:
+            print(f"  {chain} {token.get('tokenId', '?')}: {token.get('detail') or token.get('reason') or 'generation failed'}", file=sys.stderr)
+        return 1
 
     manifest_chains = merge_manifest(load_existing_manifest(out_dir), results)
     manifest = {
