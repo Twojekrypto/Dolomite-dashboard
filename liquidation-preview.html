@@ -11963,10 +11963,11 @@
                 .supply-market-context { min-height: 0; background: transparent; border: 0; box-shadow: none; padding: 0; }
                 .supply-market-context .supply-activity-summary-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
                 .supply-market-context .supply-activity-summary-period { height: auto; min-height: 26px; text-align: left; }
-                .supply-activity-action-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+                .supply-activity-action-stack { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
                 .supply-activity-action-stack .supply-activity-type { white-space: normal; line-height: 1.4; height: auto; }
                 .supply-activity-details-button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(232,196,106,.22); border-radius: 6px; padding: 3px 8px; background: rgba(232,196,106,.05); color: #cbb77e; font-family: inherit; font-size: 11px; font-weight: 500; line-height: 1.4; cursor: pointer; }
                 .supply-activity-details-button:hover, .supply-activity-details-button[aria-expanded="true"] { color: #f1d58a; border-color: rgba(232,196,106,.48); background: rgba(232,196,106,.1); }
+                .supply-activity-details-button svg { width: 12px; height: 12px; flex: 0 0 12px; }
                 #supply-activity-table .supply-activity-evidence-row[hidden] { display: none !important; }
                 #supply-activity-table .supply-activity-evidence-row > td { padding: 0; white-space: normal; text-align: left; }
                 .supply-activity-evidence { padding: 18px 22px; border-left: 2px solid rgba(232,196,106,.65); background: linear-gradient(90deg,rgba(232,196,106,.06),rgba(232,196,106,.015)); font-size: 12px; line-height: 1.5; }
@@ -12445,11 +12446,12 @@
                         </div>
 	                        <table class="positions-table" id="supply-activity-table" data-address-match-cells style="display:none;">
 	                            <colgroup>
-	                                <col style="width: 16%;">
-	                                <col style="width: 43%;">
-	                                <col style="width: 12%;">
-	                                <col style="width: 15%;">
 	                                <col style="width: 14%;">
+	                                <col style="width: 30%;">
+	                                <col style="width: 22%;">
+	                                <col style="width: 12%;">
+	                                <col style="width: 12%;">
+	                                <col style="width: 10%;">
 	                            </colgroup>
                             <thead>
                                 <tr>
@@ -12524,6 +12526,7 @@
                                             </div>
                                         </div>
                                     </th>
+                                    <th class="supply-activity-details-cell">Details</th>
                                 </tr>
                             </thead>
                             <tbody id="supply-activity-body"></tbody>
@@ -15528,6 +15531,9 @@
 
         function formatUSDCompact(n) {
             if (n === null || n === undefined) return '';
+            // Cache quantities remain decimal strings; coerce only at the display boundary.
+            n = Number(n);
+            if (!Number.isFinite(n)) return '—';
             if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
             if (n >= 1_000) return '$' + (n / 1_000).toFixed(1) + 'K';
             if (n >= 1) return '$' + n.toFixed(0);
@@ -19175,9 +19181,9 @@
             if (filtered.length === 0) {
                 table.style.display = 'table';
                 const emptySpacerRows = Array.from({ length: SUPPLY_ACTIVITY_PAGE_SIZE - 1 }, () =>
-                    '<tr class="supply-activity-spacer-row" aria-hidden="true"><td colspan="5">&nbsp;</td></tr>'
+                    '<tr class="supply-activity-spacer-row" aria-hidden="true"><td colspan="6">&nbsp;</td></tr>'
                 ).join('');
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:34px; color:var(--text-muted);">No activity matches the selected filters.</td></tr>${emptySpacerRows}`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:34px; color:var(--text-muted);">No activity matches the selected filters.</td></tr>${emptySpacerRows}`;
                 pager.innerHTML = '<span class="flow-pager-count">0 of 0</span>';
                 return;
             }
@@ -19235,7 +19241,7 @@
                                 ${secondaryLink ? `<div class="supply-activity-wallet-block secondary">${secondaryLink}</div>` : ''}
 	                            </div>
 	                        </td>
-	                        <td><div class="supply-activity-action-stack"><span class="supply-activity-type ${meta.cls}">${supplyEscapeHtml(actionLabels.join(' · '))}</span><button type="button" class="supply-activity-details-button" aria-expanded="false" onclick="toggleSupplyActivityDetails(this)">Details <span aria-hidden="true">⌄</span></button></div></td>
+	                        <td><div class="supply-activity-action-stack">${actionLabels.map(label => `<span class="supply-activity-type ${meta.cls}">${supplyEscapeHtml(label)}</span>`).join('')}</div></td>
 	                        <td class="supply-activity-amount">
                             <div class="supply-activity-token-value" data-tooltip="${safeActivityAmountTip}" data-tooltip-cursor="true">
                                 <span>${activityAmount}</span>
@@ -19243,14 +19249,15 @@
                             </div>
                         </td>
                         <td class="supply-activity-amount">${row.semantics?.usdStatus === 'unavailable' || row.usd == null ? '—' : formatUSDCompact(row.usd)}</td>
+                        <td class="supply-activity-details-cell"><button type="button" class="supply-activity-details-button" aria-expanded="false" aria-label="Show activity details" onclick="toggleSupplyActivityDetails(this)"><span>Details</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button></td>
                     </tr>
-                    <tr class="supply-activity-evidence-row" hidden><td colspan="5">${renderSupplyActivityEvidence(row)}</td></tr>
+                    <tr class="supply-activity-evidence-row" hidden><td colspan="6">${renderSupplyActivityEvidence(row)}</td></tr>
                 `;
             }).join('');
 
             if (pageRows.length < SUPPLY_ACTIVITY_PAGE_SIZE) {
                 for (let i = 0; i < (SUPPLY_ACTIVITY_PAGE_SIZE - pageRows.length); i++) {
-                    tbody.innerHTML += '<tr class="supply-activity-spacer-row" aria-hidden="true"><td colspan="5">&nbsp;</td></tr>';
+                    tbody.innerHTML += '<tr class="supply-activity-spacer-row" aria-hidden="true"><td colspan="6">&nbsp;</td></tr>';
                 }
             }
 
@@ -19284,7 +19291,9 @@
             if (!details?.classList.contains('supply-activity-evidence-row')) return;
             details.hidden = !details.hidden;
             button.setAttribute('aria-expanded', String(!details.hidden));
-            button.innerHTML = `${details.hidden ? 'Details' : 'Hide'} <span aria-hidden="true">${details.hidden ? '⌄' : '⌃'}</span>`;
+            button.setAttribute('aria-label', details.hidden ? 'Show activity details' : 'Hide activity details');
+            button.querySelector('span').textContent = details.hidden ? 'Details' : 'Hide';
+            button.closest('tr').classList.toggle('expanded', !details.hidden);
         }
 
         function renderSupplyActivityEvidence(row) {

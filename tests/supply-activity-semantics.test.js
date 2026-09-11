@@ -2,6 +2,52 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const activity = require('../supply-activity-semantics.js');
 
+function activityRenderHarness() {
+    const fs=require('node:fs'), vm=require('node:vm');
+    const html=fs.readFileSync(require('node:path').join(__dirname,'../liquidation-preview.html'),'utf8');
+    const extract=(name,next)=>html.slice(html.indexOf('function '+name+'('),html.indexOf('function '+next+'(',html.indexOf('function '+name+'('))).trim();
+    const elements=new Map();
+    const context=vm.createContext({
+        document:{getElementById(id){if(!elements.has(id))elements.set(id,{style:{},value:'ethereum',innerHTML:''});return elements.get(id);},querySelectorAll(){return [];}},
+        SupplyActivitySemantics:activity,supplyActivityFilters:new Set(activity.types),supplyActivityPage:1,SUPPLY_ACTIVITY_PAGE_SIZE:10,
+        rows:[{id:'zap',type:'trade',amount:'12.34',usd:'12.34',timestamp:1,semantics:{version:2,status:'verified',actions:['zap','repay']}},{id:'transfer',type:'transfer',amount:'0.5',usd:'0.5',timestamp:2}],
+        SUPPLY_ACTIVITY_META:{trade:{label:'Swap',cls:'transfer'},zap:{label:'Zap',cls:'transfer'},repay:{label:'Repay Borrow',cls:'transfer'},transfer:{label:'Transfer',cls:'transfer'}},
+        currentSupplyOverview:null,SYMBOL_ICONS:{},
+        getSupplyTxExplorer:()=>'',getSupplyAddressExplorer:()=>'',
+        updateSupplyActivitySortUi(){},syncSupplyActivityColumnFilterUi(){},updateSupplyActivitySubtitle(){},updateSupplyActivityHistoryAction(){},renderSupplyActivitySummary(){},
+        supplyEscapeHtml:String,supplyFormatTokenCompact:String,supplyFormatTokenPrecise:String,supplyFormatActivityDate:String,supplyFormatRelativeTime:String,supplyFormatActivityTime:String,
+        renderSupplyActivityEvidence:()=>'<div>Evidence</div>',formatBorrowTableRange:()=>'',PAGER_ICON_FIRST:'',PAGER_ICON_PREV:'',PAGER_ICON_NEXT:'',PAGER_ICON_LAST:''
+    });
+    vm.runInContext('function getFilteredSupplyActivityRows(){return rows.filter(row=>SupplyActivitySemantics.matches(row,supplyActivityFilters));}',context);
+    vm.runInContext(extract('formatUSDCompact','supplyTrimAxisNumber'),context);
+    vm.runInContext(extract('renderSupplyActivityTable','supplyGoActivityPage'),context);
+    vm.runInContext(extract('toggleSupplyActivityType','toggleSupplyActivityDetails'),context);
+    return {context,elements};
+}
+
+test('Zap then Transfers renders both selections even with sub-$1000 decimal-string USD',()=>{
+    const {context,elements}=activityRenderHarness();
+    context.toggleSupplyActivityType('zap');
+    assert.match(elements.get('supply-activity-body').innerHTML,/\$12/);
+    context.toggleSupplyActivityType('transfer');
+    assert.deepEqual([...context.supplyActivityFilters],['zap','transfer']);
+    assert.match(elements.get('supply-activity-body').innerHTML,/\$0\.50/);
+    assert.match(elements.get('supply-activity-body').innerHTML,/Repay Borrow/);
+});
+
+test('Activity details occupies the last column and expands across all six columns',()=>{
+    const {context,elements}=activityRenderHarness();
+    context.rows[0].usd=12.34;context.rows[1].usd=0.5;
+    context.renderSupplyActivityTable();
+    const html=elements.get('supply-activity-body').innerHTML;
+    const row=html.match(/<tr>([\s\S]*?)<\/tr>/)[1];
+    const cells=[...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)].map(m=>m[1]);
+    assert.equal(cells.length,6);
+    assert.match(cells[5],/supply-activity-details-button/);
+    assert.doesNotMatch(cells[2],/<button/);
+    assert.match(html,/colspan="6"/);
+});
+
 test('cache roundtrip preserves precise quantities and repayment evidence', () => {
     const row = { id:'a', type:'deposit', timestamp:1, txHash:'0xaa', amount:'200.000000000000000001', usd:'200', primaryAddress:'0x1', secondaryAddress:'', semantics:{version:2,status:'verified',actions:['repay'],debtChange:'-200',supplyChange:'0',sourceIds:['a']} };
     assert.deepEqual(activity.unpack(activity.pack(row)), row);

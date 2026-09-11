@@ -943,7 +943,7 @@
     if (!table) return;
     table.classList.add('supply-activity-polished-table');
     table.querySelectorAll('tbody tr').forEach(row => {
-      if (row.cells.length < 5 || row.querySelector('[colspan]')) return;
+      if (row.cells.length < 6 || row.querySelector('[colspan]')) return;
       row.classList.add('supply-activity-polished-row');
       row.querySelectorAll('.copy-addr-icon').forEach(icon => {
         icon.removeAttribute('title');
@@ -994,6 +994,7 @@
         <col class="activity-type-col">
         <col class="activity-amount-col">
         <col class="activity-usd-col">
+        <col class="activity-details-col">
       `;
     }
     table.querySelectorAll('thead th').forEach(th => {
@@ -1142,13 +1143,15 @@
       dropdown.className = 'supply-activity-type-filter';
       dropdown.innerHTML = `
         <button type="button" class="supply-activity-type-trigger" aria-haspopup="menu" aria-expanded="false">
+          <svg class="supply-activity-action-filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
           <span class="supply-activity-type-label">All actions</span>
           <span class="supply-activity-type-count">${activityTypeOptions.length}/${activityTypeOptions.length}</span>
           <span class="supply-activity-type-clear" role="button" aria-label="Clear activity filter">${clearIcon}</span>
           ${chevronIcon}
         </button>
         <div class="supply-activity-type-menu" role="menu">
-          <button type="button" class="supply-activity-type-option" data-type="all" role="menuitemcheckbox" aria-checked="true"><span class="supply-activity-type-check" aria-hidden="true">✓</span><span class="supply-activity-type-option-label">All actions</span></button>
+          <div class="supply-activity-menu-heading" role="presentation">Actions</div>
+          <button type="button" class="supply-activity-type-option" data-type="all" role="menuitemcheckbox" aria-checked="true"><span class="supply-activity-type-check" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><span class="supply-activity-type-option-label">All actions</span></button>
           ${activityTypeOptions.map(option => `
             <button type="button" class="supply-activity-type-option" data-type="${option.type}" role="menuitemcheckbox" aria-checked="true">
               <span class="supply-activity-type-check" aria-hidden="true">
@@ -1169,6 +1172,12 @@
       };
       window.addEventListener('scroll', fitActionMenu, {passive:true});
       window.addEventListener('resize', fitActionMenu, {passive:true});
+      dropdown.addEventListener('keydown', event => {
+        if (event.key !== 'Escape') return;
+        dropdown.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+        trigger.focus();
+      });
       trigger?.addEventListener('click', event => {
         if (event.target.closest('.supply-activity-type-clear')) return;
         event.stopPropagation();
