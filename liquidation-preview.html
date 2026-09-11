@@ -16644,7 +16644,7 @@
         let supplyHistoryLoadAllHandler = null;
         const SUPPLY_HISTORY_STATIC_VERSION = 'supply-history-v1';
         const SUPPLY_ACTIVITY_STATIC_VERSION = 'supply-activity-v2';
-        const SUPPLY_APR_STATIC_VERSION = 'supply-apr-v1';
+        const SUPPLY_APR_STATIC_VERSION = 'supply-apr-v2-200d';
         const SUPPLY_ACTIVITY_STATIC_RECENT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
         const SUPPLY_ACTIVITY_STATIC_RECENT_OVERLAP_SEC = 6 * 60 * 60;
         let supplyStaticHistoryManifestCacheKey = '';
@@ -18707,17 +18707,36 @@
         }
 
         function mergeSupplyAprHistory(rows, aprPoints) {
-            const aprByDay = new Map((Array.isArray(aprPoints) ? aprPoints : []).map(point => [
+            const safeAprPoints = (Array.isArray(aprPoints) ? aprPoints : []).filter(point => {
+                const timestamp = Number(point?.timestamp);
+                const apr = Number(point?.apr);
+                return Number.isFinite(timestamp) && timestamp > 0 && Number.isFinite(apr) && apr >= 0;
+            });
+            const aprByDay = new Map(safeAprPoints.map(point => [
                 Math.floor(Number(point.timestamp) / 86400),
                 Number(point.apr),
             ]));
-            return (Array.isArray(rows) ? rows : []).map(row => {
-                const apr = aprByDay.get(Math.floor(Number(row?.timestamp) / 86400));
+            const metricDays = new Set();
+            const merged = (Array.isArray(rows) ? rows : []).map(row => {
+                const day = Math.floor(Number(row?.timestamp) / 86400);
+                metricDays.add(day);
+                const apr = aprByDay.get(day);
                 return {
                     ...row,
                     apr: Number.isFinite(apr) && apr >= 0 ? apr : null,
                 };
             });
+            safeAprPoints.forEach(point => {
+                const day = Math.floor(Number(point.timestamp) / 86400);
+                if (metricDays.has(day)) return;
+                merged.push({
+                    timestamp: Number(point.timestamp),
+                    supply: null,
+                    debt: null,
+                    apr: Number(point.apr),
+                });
+            });
+            return merged.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
         }
 
         async function fetchSupplyStaticAprHistory(chain) {

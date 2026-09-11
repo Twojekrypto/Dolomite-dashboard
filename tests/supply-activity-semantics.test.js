@@ -106,6 +106,31 @@ test('official daily APR snapshots enrich matching market days without inventing
         {timestamp:259200, supply:13, debt:7, apr:null},
     ]);
 });
+test('APR-only daily evidence extends market context without fabricating liquidity', () => {
+    const fs = require('node:fs');
+    const vm = require('node:vm');
+    const html = fs.readFileSync(require('node:path').join(__dirname, '../liquidation-preview.html'), 'utf8');
+    const start = html.indexOf('function extractSupplyAprPoints(');
+    const end = html.indexOf('async function fetchSupplyOfficialMetricsHistory(', start);
+    const context = vm.createContext({});
+    vm.runInContext(html.slice(start, end), context);
+    const token = '0xAbC';
+    const aprPoints = context.extractSupplyAprPoints({points:[
+        {timestamp:86400, rates:{'0xabc':'1.25'}},
+        {timestamp:172800, rates:{'0xabc':'1.5'}},
+        {timestamp:259200, rates:{'0xabc':'1.75'}},
+    ]}, token);
+    const enriched = context.mergeSupplyAprHistory([
+        {timestamp:172800, supply:12, debt:6},
+        {timestamp:259200, supply:13, debt:7},
+    ], aprPoints);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(enriched)), [
+        {timestamp:86400, supply:null, debt:null, apr:1.25},
+        {timestamp:172800, supply:12, debt:6, apr:1.5},
+        {timestamp:259200, supply:13, debt:7, apr:1.75},
+    ]);
+});
 test('recent market cache rejects legacy history without the APR schema', () => {
     const fs = require('node:fs');
     const vm = require('node:vm');
