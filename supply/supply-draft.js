@@ -346,8 +346,13 @@
   const activityTypeOptions = [
     { type: 'deposit', label: 'Deposits' },
     { type: 'withdraw', label: 'Withdrawals' },
+    { type: 'borrow', label: 'Borrow' },
+    { type: 'repay', label: 'Repay Borrow' },
+    { type: 'zap', label: 'Zap' },
+    { type: 'trade', label: 'Swap' },
     { type: 'transfer', label: 'Transfers' },
     { type: 'liquidation', label: 'Liquidations' },
+    { type: 'vaporization', label: 'Debt absorption' },
   ];
   const activityPeriodOptions = [
     { key: '1d', short: '24H', label: '24 hours', days: 1 },
@@ -476,92 +481,31 @@
 
   function renderSupplyActivityStats() {
     const stats = ensureSupplyActivityStats();
-    if (!stats || typeof summarizeSupplyActivityRows !== 'function') return;
-
-    let rows = [];
-    try {
-      rows = Array.isArray(currentSupplyActivity) ? currentSupplyActivity : [];
-    } catch (error) {
-      return;
-    }
-
-    const meta = getActivityPeriodMeta();
-    const nowTs = Math.floor(Date.now() / 1000);
-    const cutoffTs = isActivityAllTimePeriod(meta) ? null : nowTs - (meta.days * 24 * 60 * 60);
-    const summary = summarizeSupplyActivityRows(rows, cutoffTs);
-    const isSyncingOlder = activityPeriodNeedsFullHistory(meta)
-      && !!currentSupplyOverview?.activityFullLoading
-      && currentSupplyOverview?.activityStage !== 'full';
-    let tokenSymbol = '';
-    try {
-      tokenSymbol = currentSupplyOverview?.token?.symbol || '';
-    } catch (error) {}
-
-    const statsKey = JSON.stringify([
-      'stats',
-      activityPeriodKey,
-      supplyActivityRowsVersion,
-      rows.length,
-      tokenSymbol,
-      currentSupplyOverview?.activityStage || '',
-      isSyncingOlder ? 'loading' : 'ready',
-      summary.inflowUsd,
-      summary.outflowUsd,
-      summary.internalUsd,
-      summary.wallets,
-      summary.events,
-      Math.floor(nowTs / 60),
-    ]);
-    if (stats.dataset.supplyStatsKey === statsKey && stats.children.length > 0) return;
-    stats.dataset.supplyStatsKey = statsKey;
-
-    const tokenSuffix = tokenSymbol ? ` ${tokenSymbol}` : '';
-    const activitySub = value => isSyncingOlder ? 'syncing older tx…' : value;
-
-    const statIcons = {
-      deposits: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>',
-      withdrawals: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>',
-      transfers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>',
-      wallets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-    };
+    if (!stats || !window.SupplyActivitySemantics) return;
+    const rows = typeof currentSupplyActivity !== 'undefined' ? currentSupplyActivity : [];
+    const points = typeof supplyActivityMarketPoints !== 'undefined' ? supplyActivityMarketPoints : [];
+    const period = getActivityPeriodMeta();
+    const now = Math.floor(Date.now() / 1000);
+    const start = isActivityAllTimePeriod(period) ? 0 : now - period.days * 86400;
+    const context = SupplyActivitySemantics.periodContext(points, start, now);
+    const symbol = currentSupplyOverview?.token?.symbol || '';
+    const signed = n => n == null ? '—' : (n > 0 ? '+' : '') + supplyDraftFormatToken(n);
+    const pct = n => n == null ? '—' : Number(n).toFixed(2) + '%';
     const cells = [
-      {
-        icon: statIcons.deposits,
-        label: 'Deposits',
-        value: supplyDraftFormatUsd(summary.inflowUsd),
-        sub: activitySub(`${supplyDraftFormatToken(summary.inflowToken)}${tokenSuffix}`),
-        cls: 'deposit',
-      },
-      {
-        icon: statIcons.withdrawals,
-        label: 'Withdrawals',
-        value: supplyDraftFormatUsd(summary.outflowUsd),
-        sub: activitySub(`${supplyDraftFormatToken(summary.outflowToken)}${tokenSuffix}`),
-        cls: 'withdraw',
-      },
-      {
-        icon: statIcons.transfers,
-        label: 'Transfers',
-        value: supplyDraftFormatUsd(summary.internalUsd),
-        sub: activitySub(`${supplyDraftFormatToken(summary.internalToken)}${tokenSuffix}`),
-        cls: 'transfer',
-      },
-      {
-        icon: statIcons.wallets,
-        label: 'Active Wallets',
-        value: Number(summary.wallets || 0).toLocaleString('en-US'),
-        sub: activitySub(`${Number(summary.events || 0).toLocaleString('en-US')} events`),
-        cls: '',
-      },
+      {label:'Supply change',value:signed(context?.supplyChange),sub:symbol},
+      {label:'Debt change',value:signed(context?.debtChange),sub:symbol},
+      {label:'Utilization',value:pct(context?.utilizationStart) + ' → ' + pct(context?.utilizationEnd),sub:'Borrowed / supplied'},
+      {label:'Lending APR',value:pct(context?.aprStart) + ' → ' + pct(context?.aprEnd),sub:'Historical APR unavailable'},
     ];
-
-    stats.innerHTML = cells.map(cell => `
-      <div class="supply-activity-stat ${cell.cls}">
-        <div class="label">${cell.icon}${supplyDraftEscape(cell.label)}</div>
-        <div class="value">${supplyDraftEscape(cell.value)}</div>
-        <div class="sub">${supplyDraftEscape(cell.sub)}</div>
-      </div>
-    `).join('');
+    const periodRows = rows.filter(row => Number(row.timestamp) >= start && Number(row.timestamp) <= now);
+    const verified = periodRows.filter(row => row.semantics?.status === 'verified').length;
+    const dates = context ? supplyFormatActivityDate(context.start) + ' → ' + supplyFormatActivityDate(context.end) + ' · daily snapshots' : 'Market snapshots unavailable for this range';
+    const note = dates + ' · Whole market, independent of wallet/action filters. ' + verified.toLocaleString('en-US') + ' / ' + periodRows.length.toLocaleString('en-US') + ' activities have balance replay. Rewards and base yield are separate.';
+    const key = JSON.stringify([cells,note]);
+    if (stats.dataset.supplyStatsKey === key) return;
+    stats.dataset.supplyStatsKey = key;
+    stats.innerHTML = cells.map(cell => `<div class="supply-activity-stat"><div class="label">${supplyDraftEscape(cell.label)}</div><div class="value">${supplyDraftEscape(cell.value)}</div><div class="sub">${supplyDraftEscape(cell.sub)}</div></div>`).join('') +
+      `<div class="supply-activity-context-note">${supplyDraftEscape(note)}</div>`;
   }
 
   function enhanceSupplyHistoryShell() {
@@ -861,6 +805,7 @@
       stabilizeSupplyHistoryGeometry(arguments[0] || []);
       stabilizeSupplyHistoryBrush(arguments[0] || []);
       installSupplyHistoryCompactHover(arguments[0] || []);
+      renderSupplyActivityStats();
       return result;
     };
   }
@@ -1086,16 +1031,16 @@
     const count = dropdown.querySelector('.supply-activity-type-count');
     if (label) {
       label.textContent = activeCount === activityTypeOptions.length
-        ? 'All activity'
+        ? 'All actions'
         : activeCount === 1
           ? (activityTypeOptions.find(option => active.has(option.type))?.label || 'Activity')
-          : 'Activity types';
+          : 'Actions';
     }
     if (count) count.textContent = `${activeCount}/${activityTypeOptions.length}`;
     dropdown.classList.toggle('active-filter', activeCount !== activityTypeOptions.length);
     dropdown.querySelectorAll('.supply-activity-type-option').forEach(option => {
       const type = option.dataset.type;
-      const isActive = active.has(type);
+      const isActive = type === 'all' ? activeCount === activityTypeOptions.length : activeCount !== activityTypeOptions.length && active.has(type);
       option.classList.toggle('active', isActive);
       option.setAttribute('aria-checked', isActive ? 'true' : 'false');
     });
@@ -1197,12 +1142,13 @@
       dropdown.className = 'supply-activity-type-filter';
       dropdown.innerHTML = `
         <button type="button" class="supply-activity-type-trigger" aria-haspopup="menu" aria-expanded="false">
-          <span class="supply-activity-type-label">All activity</span>
-          <span class="supply-activity-type-count">4/4</span>
+          <span class="supply-activity-type-label">All actions</span>
+          <span class="supply-activity-type-count">${activityTypeOptions.length}/${activityTypeOptions.length}</span>
           <span class="supply-activity-type-clear" role="button" aria-label="Clear activity filter">${clearIcon}</span>
           ${chevronIcon}
         </button>
         <div class="supply-activity-type-menu" role="menu">
+          <button type="button" class="supply-activity-type-option" data-type="all" role="menuitemcheckbox" aria-checked="true"><span class="supply-activity-type-check" aria-hidden="true">✓</span><span class="supply-activity-type-option-label">All actions</span></button>
           ${activityTypeOptions.map(option => `
             <button type="button" class="supply-activity-type-option" data-type="${option.type}" role="menuitemcheckbox" aria-checked="true">
               <span class="supply-activity-type-check" aria-hidden="true">
@@ -1215,11 +1161,20 @@
       `;
 
       const trigger = dropdown.querySelector('.supply-activity-type-trigger');
+      const fitActionMenu = () => {
+        if (!dropdown.classList.contains('open')) return;
+        const menu = dropdown.querySelector('.supply-activity-type-menu');
+        const available = window.innerHeight - menu.getBoundingClientRect().top - 48;
+        menu.style.maxHeight = `${Math.max(48, Math.min(420, available))}px`;
+      };
+      window.addEventListener('scroll', fitActionMenu, {passive:true});
+      window.addEventListener('resize', fitActionMenu, {passive:true});
       trigger?.addEventListener('click', event => {
         if (event.target.closest('.supply-activity-type-clear')) return;
         event.stopPropagation();
         const isOpen = dropdown.classList.toggle('open');
         trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (isOpen) requestAnimationFrame(fitActionMenu);
       });
       dropdown.querySelector('.supply-activity-type-clear')?.addEventListener('click', event => {
         event.preventDefault();
