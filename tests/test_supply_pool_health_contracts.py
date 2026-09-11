@@ -1,3 +1,4 @@
+import re
 import unittest
 from pathlib import Path
 
@@ -292,16 +293,20 @@ class SupplyPoolHealthContractsTest(unittest.TestCase):
         styles = SUPPLY_STYLES.read_text(encoding="utf-8")
 
         self.assertNotIn("label: `Net Flow · ${meta.short}`", source)
-        self.assertIn("cls: 'deposit'", source)
-        self.assertIn("cls: 'withdraw'", source)
-        self.assertIn("cls: 'transfer'", source)
+        summary = source.split("function renderSupplyActivityStats()", 1)[1].split("function enhanceSupplyHistoryShell()", 1)[0]
+        self.assertEqual(
+            re.findall(r"label:\s*'([^']+)'", summary),
+            ["Supply change", "Debt change", "Utilization", "Lending APR"],
+        )
+        for field in ("supplyChange", "debtChange", "utilizationStart", "utilizationEnd", "aprStart", "aprEnd"):
+            self.assertIn(f"context?.{field}", summary)
+        self.assertIn("SupplyActivitySemantics.periodContext(points, start, now)", summary)
+        self.assertIn("Whole market, independent of wallet/action filters.", summary)
         self.assertIn(
             "grid-template-columns: repeat(4, minmax(0, 1fr))",
             styles,
         )
-        self.assertIn(".supply-activity-stat.deposit .value", styles)
-        self.assertIn(".supply-activity-stat.withdraw .value", styles)
-        self.assertIn(".supply-activity-stat.transfer .value", styles)
+        self.assertIn('class="supply-activity-stat"', summary)
 
     def test_existing_supply_tables_keep_ten_rows_per_page(self):
         source = SUPPLY_VIEW.read_text(encoding="utf-8")
