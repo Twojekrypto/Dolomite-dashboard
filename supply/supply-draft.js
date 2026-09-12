@@ -491,11 +491,14 @@
     const symbol = currentSupplyOverview?.token?.symbol || '';
     const signed = n => n == null ? '—' : (n > 0 ? '+' : '') + supplyDraftFormatToken(n);
     const pct = n => n == null ? '—' : Number(n).toFixed(2) + '%';
+    const borrowingDisabled = !!currentSupplyOverview?.borrowingDisabled && context?.debtChange === 0 &&
+      (context?.utilizationStart == null || context.utilizationStart === 0) && context?.utilizationEnd === 0 &&
+      (context?.aprStart == null || context.aprStart === 0) && context?.aprEnd === 0;
     const cells = [
       {label:'Supply change',value:signed(context?.supplyChange),sub:symbol},
-      {label:'Debt change',value:signed(context?.debtChange),sub:symbol},
-      {label:'Utilization',value:pct(context?.utilizationStart) + ' → ' + pct(context?.utilizationEnd),sub:'Borrowed / supplied'},
-      {label:'Lending APR',value:pct(context?.aprStart) + ' → ' + pct(context?.aprEnd),sub:context?.aprStart != null && context?.aprEnd != null ? 'Official Dolomite lending rate' : 'Historical APR unavailable'},
+      {label:'Debt change',value:signed(context?.debtChange),sub:borrowingDisabled ? 'Borrowing disabled' : symbol},
+      {label:'Utilization',value:pct(context?.utilizationStart) + ' → ' + pct(context?.utilizationEnd),sub:borrowingDisabled ? 'No borrowed liquidity' : 'Borrowed / supplied'},
+      {label:'Lending APR',value:pct(context?.aprStart) + ' → ' + pct(context?.aprEnd),sub:borrowingDisabled ? 'No base lending APR' : (context?.aprStart != null && context?.aprEnd != null ? 'Official Dolomite lending rate' : 'Historical APR unavailable')},
     ];
     const periodRows = rows.filter(row => Number(row.timestamp) >= start && Number(row.timestamp) <= now);
     const verified = periodRows.filter(row => row.semantics?.status === 'verified').length;

@@ -18682,11 +18682,11 @@
         }
 
         function getSupplyRecentHistoryCacheKey(cacheChain, tokenId) {
-            return `${cacheChain}:${tokenId}:history:v9-market-200d:recent`;
+            return `${cacheChain}:${tokenId}:history:v10-current-apr:recent`;
         }
 
         function hasSupplyRecentHistoryAprSchema(history) {
-            return Number(history?.aprSchema || 0) === 3;
+            return Number(history?.aprSchema || 0) === 4;
         }
 
         function extractSupplyAprPoints(payload, tokenId) {
@@ -18697,11 +18697,13 @@
                     const timestamp = Number(point?.timestamp || 0);
                     const rawApr = point?.rates?.[safeTokenId];
                     const rawMarket = point?.markets?.[safeTokenId];
+                    const completeMarketSnapshot = Number(payload?.schemaVersion || 0) >= 2 && point?.markets && typeof point.markets === 'object';
+                    const marketWasNotListed = completeMarketSnapshot && (!rawMarket || typeof rawMarket !== 'object');
                     const apr = rawApr === null || rawApr === undefined || rawApr === '' ? null : Number(rawApr);
                     const rawSupply = rawMarket?.supply;
                     const rawDebt = rawMarket?.debt;
-                    const supply = rawSupply === null || rawSupply === undefined || rawSupply === '' ? null : Number(rawSupply);
-                    const debt = rawDebt === null || rawDebt === undefined || rawDebt === '' ? null : Number(rawDebt);
+                    const supply = marketWasNotListed ? 0 : (rawSupply === null || rawSupply === undefined || rawSupply === '' ? null : Number(rawSupply));
+                    const debt = marketWasNotListed ? 0 : (rawDebt === null || rawDebt === undefined || rawDebt === '' ? null : Number(rawDebt));
                     return {
                         timestamp,
                         apr: Number.isFinite(apr) && apr >= 0 ? apr : null,
@@ -18716,7 +18718,7 @@
                 .sort((a, b) => a.timestamp - b.timestamp);
         }
 
-        function mergeSupplyAprHistory(rows, aprPoints) {
+        function mergeSupplyAprHistory(rows, aprPoints, currentApr = null) {
             const safeAprPoints = (Array.isArray(aprPoints) ? aprPoints : []).filter(point => {
                 const timestamp = Number(point?.timestamp);
                 const apr = Number(point?.apr);
@@ -18766,7 +18768,12 @@
                     apr: point.apr !== null && point.apr !== undefined && Number.isFinite(apr) && apr >= 0 ? apr : null,
                 });
             });
-            return merged.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+            merged.sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+            const liveApr = currentApr === null || currentApr === undefined || currentApr === '' ? null : Number(currentApr);
+            if (merged.length && Number.isFinite(liveApr) && liveApr >= 0) {
+                merged[merged.length - 1] = { ...merged[merged.length - 1], apr: liveApr };
+            }
+            return merged;
         }
 
         async function fetchSupplyStaticAprHistory(chain) {
@@ -18788,7 +18795,7 @@
             return promise;
         }
 
-        async function fetchSupplyOfficialMetricsHistory(chain, tokenId) {
+        async function fetchSupplyOfficialMetricsHistory(chain, tokenId, currentApr = null) {
             const chainId = DOLOMITE_CHAIN_IDS[chain];
             if (!chainId) {
                 throw new Error(`Unsupported Dolomite chain for official metrics: ${chain}`);
@@ -18815,8 +18822,8 @@
                 source: 'official-api',
                 metric: 'usd',
                 scope: 'recent',
-                aprSchema: 3,
-                marketPoints: mergeSupplyAprHistory(marketRows, extractSupplyAprPoints(aprPayload, tokenId)),
+                aprSchema: 4,
+                marketPoints: mergeSupplyAprHistory(marketRows, extractSupplyAprPoints(aprPayload, tokenId), currentApr),
                 points: rows
                     .map(row => {
                         const timestamp = Number(row?.timestamp || 0);
@@ -19110,7 +19117,7 @@
                 return await fetchSupplyStaticFullHistory(chain, tokenId);
             }
             try {
-                return await fetchSupplyOfficialMetricsHistory(chain, tokenId);
+                return await fetchSupplyOfficialMetricsHistory(chain, tokenId, currentSupplyAprByToken[tokenId]);
             } catch (error) {
                 console.warn('Official Dolomite metrics history unavailable, falling back to subgraph replay', error);
                 const replay = await fetchSupplyFlowHistory(url, tokenId, sinceTs, onProgress);
@@ -19253,6 +19260,9 @@
             const signed = value => value == null ? '—' : supplyEscapeHtml(supplyFormatSignedCompact(value, supplyFormatTokenCompact));
             const percent = value => value == null ? '—' : Number(value).toFixed(2) + '%';
             const metric = (label, value, sub) => `<div class="supply-activity-summary-metric"><div class="supply-activity-summary-metric-label">${label}</div><div class="supply-activity-summary-metric-value wallets">${value}</div><div class="supply-activity-summary-metric-sub">${sub}</div></div>`;
+            const borrowingDisabled = !!currentSupplyOverview?.borrowingDisabled && context?.debtChange === 0 &&
+                (context?.utilizationStart == null || context.utilizationStart === 0) && context?.utilizationEnd === 0 &&
+                (context?.aprStart == null || context.aprStart === 0) && context?.aprEnd === 0;
             const verified = (filteredRows || []).filter(row => row.semantics?.status === 'verified').length;
             const coverage = `${verified.toLocaleString('en-US')} / ${(filteredRows || []).length.toLocaleString('en-US')} displayed activities have balance replay`;
             const dates = context ? `${supplyFormatActivityDate(context.start)} → ${supplyFormatActivityDate(context.end)} · daily snapshots` : 'Historical market snapshots unavailable for the selected range';
@@ -19260,9 +19270,9 @@
                 <div class="supply-activity-summary-period">Market context · ${supplyEscapeHtml(dates)}</div>
                 <div class="supply-activity-summary-metrics">
                     ${metric('Supply change', signed(context?.supplyChange), token)}
-                    ${metric('Debt change', signed(context?.debtChange), token)}
-                    ${metric('Utilization', percent(context?.utilizationStart) + ' → ' + percent(context?.utilizationEnd), 'Borrowed / supplied')}
-                    ${metric('Lending APR', percent(context?.aprStart) + ' → ' + percent(context?.aprEnd), context?.aprStart != null && context?.aprEnd != null ? 'Official Dolomite lending rate' : 'Historical APR unavailable')}
+                    ${metric('Debt change', signed(context?.debtChange), borrowingDisabled ? 'Borrowing disabled' : token)}
+                    ${metric('Utilization', percent(context?.utilizationStart) + ' → ' + percent(context?.utilizationEnd), borrowingDisabled ? 'No borrowed liquidity' : 'Borrowed / supplied')}
+                    ${metric('Lending APR', percent(context?.aprStart) + ' → ' + percent(context?.aprEnd), borrowingDisabled ? 'No base lending APR' : (context?.aprStart != null && context?.aprEnd != null ? 'Official Dolomite lending rate' : 'Historical APR unavailable'))}
                 </div>
                 <div class="supply-activity-summary-metric-sub">${supplyEscapeHtml(coverage)}. Market context covers the whole asset, not only filtered wallets/actions. Rewards and base yield are separate from lending APR.</div>
             </div>`;
@@ -19625,10 +19635,11 @@
             }
             oraclePrices(first: 100) { token { id } price }
             interestIndexes(first: 100) { token { id } supplyIndex borrowIndex }
+            interestRates(first: 100) { token { id } supplyInterestRate }
         }`;
 
         let currentSupplyTokensMap = {};
-        const SUPPLY_CHAIN_BUNDLE_CACHE_VERSION = 'meta-v1';
+        const SUPPLY_CHAIN_BUNDLE_CACHE_VERSION = 'meta-v2-current-apr';
 
         async function doGraphQuery(url, query) {
             const res = await fetch(url, {
@@ -19831,6 +19842,7 @@
         // Cache for enriched token data per chain (oracle prices, indexes)
         let currentSupplyOraclePrices = {};
         let currentSupplyInterestIndexes = {};
+        let currentSupplyAprByToken = {};
 
         function getSupplyAssetLiquidityUsd(token) {
             return Math.max(0, parseFloat(token?.supplyLiquidityUSD || '0') || 0);
@@ -19852,6 +19864,7 @@
             });
             currentSupplyOraclePrices = {};
             currentSupplyInterestIndexes = {};
+            currentSupplyAprByToken = {};
 
             currentSupplyTokensList.forEach(token => {
                 currentSupplyTokensMap[token.id] = token;
@@ -19865,6 +19878,13 @@
                         supplyIndex: parseFloat(ix.supplyIndex) || 1,
                         borrowIndex: parseFloat(ix.borrowIndex) || 1,
                     };
+                }
+            });
+            (bundle?.interestRates || []).forEach(rate => {
+                const tokenId = rate?.token?.id;
+                const fraction = Number(rate?.supplyInterestRate);
+                if (tokenId && Number.isFinite(fraction) && fraction >= 0) {
+                    currentSupplyAprByToken[tokenId] = fraction * 100;
                 }
             });
         }
@@ -19988,6 +20008,7 @@
             currentSupplyData = [];
             currentSupplyOraclePrices = {};
             currentSupplyInterestIndexes = {};
+            currentSupplyAprByToken = {};
             document.getElementById('supply-count-header').textContent = '';
             const supplyTitle = document.getElementById('supply-table-title');
             if (supplyTitle) supplyTitle.textContent = 'Supplier Leaderboard';
