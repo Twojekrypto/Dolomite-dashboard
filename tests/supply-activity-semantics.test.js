@@ -155,6 +155,82 @@ test('historical block snapshots provide exact Supply, Debt and Utilization for 
         {start:86400,end:172800,supplyChange:30,debtChange:25,utilizationStart:40,utilizationEnd:50,aprStart:2.25,aprEnd:2.5},
     );
 });
+test('complete historical snapshots treat a not-yet-listed market as zero liquidity', () => {
+    const fs = require('node:fs');
+    const vm = require('node:vm');
+    const html = fs.readFileSync(require('node:path').join(__dirname, '../liquidation-preview.html'), 'utf8');
+    const start = html.indexOf('function extractSupplyAprPoints(');
+    const end = html.indexOf('async function fetchSupplyOfficialMetricsHistory(', start);
+    const context = vm.createContext({});
+    vm.runInContext(html.slice(start, end), context);
+    const token = '0xAbC';
+    const historicalPoints = context.extractSupplyAprPoints({schemaVersion:2,points:[
+        {timestamp:86400, rates:{'0xdef':'1'}, markets:{'0xdef':{supply:'10',debt:'2'}}},
+        {timestamp:172800, rates:{'0xabc':'0'}, markets:{'0xabc':{supply:'150',debt:'0'}}},
+    ]}, token);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(historicalPoints)), [
+        {timestamp:86400, apr:null, supply:0, debt:0},
+        {timestamp:172800, apr:0, supply:150, debt:0},
+    ]);
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(activity.periodContext(historicalPoints, 86400, 172800))),
+        {start:86400,end:172800,supplyChange:150,debtChange:0,utilizationStart:null,utilizationEnd:0,aprStart:null,aprEnd:0},
+    );
+});
+test('current subgraph APR fills the newest official market point after the UTC day changes', () => {
+    const fs = require('node:fs');
+    const vm = require('node:vm');
+    const html = fs.readFileSync(require('node:path').join(__dirname, '../liquidation-preview.html'), 'utf8');
+    const start = html.indexOf('function extractSupplyAprPoints(');
+    const end = html.indexOf('async function fetchSupplyOfficialMetricsHistory(', start);
+    const context = vm.createContext({});
+    vm.runInContext(html.slice(start, end), context);
+    const merged = context.mergeSupplyAprHistory([
+        {timestamp:86400,supply:100,debt:0},
+        {timestamp:172800,supply:110,debt:0},
+    ], [
+        {timestamp:86400,supply:100,debt:0,apr:0},
+    ], 0);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(merged)), [
+        {timestamp:86400,supply:100,debt:0,apr:0},
+        {timestamp:172800,supply:110,debt:0,apr:0},
+    ]);
+});
+test('borrow-disabled zero market context is labelled as available data', () => {
+    const fs = require('node:fs');
+    const vm = require('node:vm');
+    const draft = fs.readFileSync(require('node:path').join(__dirname, '../supply/supply-draft.js'), 'utf8');
+    const start = draft.indexOf('function renderSupplyActivityStats(');
+    const end = draft.indexOf('function enhanceSupplyHistoryShell(', start);
+    const now = Math.floor(Date.now() / 1000);
+    const stats = {dataset:{},innerHTML:''};
+    const context = vm.createContext({
+        window:{SupplyActivitySemantics:activity},
+        SupplyActivitySemantics:activity,
+        currentSupplyActivity:[],
+        supplyActivityMarketPoints:[
+            {timestamp:now-(30*86400),supply:5000000000,debt:0,apr:0},
+            {timestamp:now,supply:5100000000,debt:0,apr:0},
+        ],
+        currentSupplyOverview:{borrowingDisabled:true,token:{symbol:'WLFI'}},
+        ensureSupplyActivityStats:()=>stats,
+        getActivityPeriodMeta:()=>({days:30}),
+        isActivityAllTimePeriod:()=>false,
+        supplyDraftFormatToken:value=>String(value),
+        supplyDraftEscape:String,
+        supplyFormatActivityDate:value=>String(value),
+        Date,
+    });
+    vm.runInContext(draft.slice(start, end), context);
+    context.renderSupplyActivityStats();
+
+    assert.match(stats.innerHTML, /Borrowing disabled/);
+    assert.match(stats.innerHTML, /No borrowed liquidity/);
+    assert.match(stats.innerHTML, /No base lending APR/);
+    assert.doesNotMatch(stats.innerHTML, /Historical APR unavailable/);
+});
 test('recent market cache rejects APR-only history without Supply and Debt', () => {
     const fs = require('node:fs');
     const vm = require('node:vm');
@@ -168,10 +244,12 @@ test('recent market cache rejects APR-only history without Supply and Debt', () 
     assert.notEqual(activeKey, 'ethereum:0xabc:history:v6:recent');
     assert.notEqual(activeKey, 'ethereum:0xabc:history:v7-apr:recent');
     assert.notEqual(activeKey, 'ethereum:0xabc:history:v8-apr-200d:recent');
+    assert.notEqual(activeKey, 'ethereum:0xabc:history:v9-market-200d:recent');
     assert.equal(context.hasSupplyRecentHistoryAprSchema({marketPoints:[{apr:null}]}), false);
     assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:1,marketPoints:[{apr:1.5}]}), false);
     assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:2,marketPoints:[{apr:1.5}]}), false);
-    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:3,marketPoints:[{supply:10,debt:5,apr:1.5}]}), true);
+    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:3,marketPoints:[{supply:10,debt:5,apr:1.5}]}), false);
+    assert.equal(context.hasSupplyRecentHistoryAprSchema({aprSchema:4,marketPoints:[{supply:10,debt:5,apr:1.5}]}), true);
 });
 test('selecting one action from All isolates it, then supports multiselect and reset', () => {
     const one=activity.toggle(new Set(activity.types),'repay');
