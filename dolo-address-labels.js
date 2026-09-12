@@ -94,6 +94,7 @@
     "0xcd531ae9efcce479654c4926dec5f6209531ca7b": {label:"Coinbase Prime 1", type:"cex", source:"etherscan-public-label"},
     "0xb180647d5ad76abeb6be0d363f6e182bd8df46d1": {label:"Coinbase", type:"cex"},
     "0x9642b23ed1e01df1092b92641051881a322f5d4e": {label:"MEXC 16", type:"cex", source:"etherscan-public-label"},
+    "0xf61a30978ecb7cccb30eb97f9ba94b8b35675034": {label:"MEXC", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xf61a30978ecb7cccb30eb97f9ba94b8b35675034", verifiedAt:"2026-09-12"},
     "0x1157a2076b9bb22a85cc2c162f20fab3898f4101": {label:"FalconX 1", type:"cex", source:"etherscan-public-label"},
     "0x0529ea5885702715e83923c59746ae8734c553b7": {label:"Bitpanda 18", type:"cex", source:"etherscan-public-label"},
     "0xd2dd7b597fd2435b6db61ddf48544fd931e6869f": {label:"Kraken 246", type:"cex", source:"etherscan-public-label"},

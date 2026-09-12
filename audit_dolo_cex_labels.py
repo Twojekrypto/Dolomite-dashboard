@@ -125,6 +125,7 @@ def add_candidate(candidates: dict[str, dict[str, Any]], address: str, reason: s
             "address": key,
             "reasons": [],
             "maxAbsFlow": 0.0,
+            "maxGrossFlow": 0.0,
             "currentBalance": 0.0,
             "txCount": 0,
             "chains": set(),
@@ -137,8 +138,10 @@ def add_candidate(candidates: dict[str, dict[str, Any]], address: str, reason: s
         row["currentBalance"] = max(row["currentBalance"], float(fields["balance"] or 0))
     if "net_flow" in fields:
         row["maxAbsFlow"] = max(row["maxAbsFlow"], abs(float(fields["net_flow"] or 0)))
+    if "gross_flow" in fields:
+        row["maxGrossFlow"] = max(row["maxGrossFlow"], float(fields["gross_flow"] or 0))
     if "tx_count" in fields:
-        row["txCount"] += int(fields["tx_count"] or 0)
+        row["txCount"] = max(row["txCount"], int(fields["tx_count"] or 0))
     if "chain" in fields and fields["chain"]:
         row["chains"].add(str(fields["chain"]))
     if "period" in fields and fields["period"]:
@@ -190,12 +193,14 @@ def collect_candidates(
                     if label_type == "cex" and not include_known_cex and info.get("evidenceStatus") == "public_label":
                         continue
                     net_flow = float(row.get("net_flow") or 0)
-                    if abs(net_flow) >= flow_min or label_type == "watch":
+                    gross_flow = max(float(row.get("gross_inflow") or 0), float(row.get("gross_outflow") or 0))
+                    if max(abs(net_flow), gross_flow) >= flow_min or label_type == "watch":
                         add_candidate(
                             candidates,
                             address,
                             f"{period}-{chain}-{side}",
                             net_flow=net_flow,
+                            gross_flow=gross_flow,
                             tx_count=row.get("tx_count"),
                             balance=row.get("balance"),
                             chain=chain,
@@ -217,6 +222,7 @@ def collect_candidates(
                 "evidenceStatus": label_info.get("evidenceStatus", "review_needed"),
                 "currentBalance": round(row["currentBalance"], 6),
                 "maxAbsFlow": round(row["maxAbsFlow"], 6),
+                "maxGrossFlow": round(row["maxGrossFlow"], 6),
                 "txCount": row["txCount"],
                 "chains": sorted(row["chains"]),
                 "periods": sorted(row["periods"], key=lambda p: ["1d", "7d", "30d", "90d", "180d", "all"].index(p) if p in ["1d", "7d", "30d", "90d", "180d", "all"] else 99),
@@ -226,7 +232,7 @@ def collect_candidates(
         )
 
     rows.sort(key=lambda item: item["score"], reverse=True)
-    return rows[:max_candidates]
+    return rows[:max_candidates] if max_candidates > 0 else rows
 
 
 def is_cex_metadata(meta: dict[str, Any]) -> bool:
@@ -246,30 +252,98 @@ def clean_suggestion_label(meta: dict[str, Any]) -> str:
     return nametag[:80] if nametag else ""
 
 
+def apply_confirmed_cex_labels(
+    suggestions: list[dict[str, Any]],
+    labels: dict[str, dict[str, Any]],
+    *,
+    path: Path | None = None,
+    verified_at: str,
+) -> dict[str, Any]:
+    """Publish new, direct DeBank identities into the existing shared registry.
+
+    Explorer keyword matches remain advisory. Existing identities, including
+    overrides, are left for review when evidence disagrees with them.
+    """
+    path = path or LABELS_JS
+    text = path.read_text(encoding="utf-8")
+    marker = "  const DOLO_ADDRESS_LABELS = {\n"
+    if text.count(marker) != 1:
+        raise ValueError("Cannot locate the canonical address registry")
+    added, skipped, lines = [], [], []
+    seen = set(labels)
+    for row in suggestions:
+        address = str(row.get("address") or "").lower()
+        label = str(row.get("suggestedLabel") or "").strip()
+        evidence = row.get("debank") or {}
+        if (not is_address(address) or row.get("source") != "debank-public-label"
+                or evidence.get("profileAddress") != address
+                or evidence.get("nametag") != label
+                or not label or len(label) > 80
+                or re.search(r'["\\{}<>\x00-\x1f]', label)):
+            skipped.append({"address": address, "reason": "direct_profile_evidence_required"})
+            continue
+        if address in seen:
+            skipped.append({"address": address, "reason": "existing_identity_preserved"})
+            continue
+        seen.add(address)
+        url = DEBANK_PROFILE_PAGE.format(address=address)
+        lines.append(
+            f'    "{address}": {{label:{json.dumps(label)}, type:"cex", '
+            f'source:"debank-public-label", confidence:"confirmed", '
+            f'sourceUrl:{json.dumps(url)}, verifiedAt:{json.dumps(verified_at)}}},\n'
+        )
+        added.append({"address": address, "label": label, "sourceUrl": url})
+    if lines:
+        path.write_text(text.replace(marker, marker + "".join(lines), 1), encoding="utf-8")
+    return {"added": added, "skipped": skipped}
+
+
 class _DeBankCexTagParser(HTMLParser):
-    def __init__(self) -> None:
+    def __init__(self, expected_address: str = "") -> None:
         super().__init__()
         self.nametag = ""
+        self.expected_address = expected_address.lower()
+        self.header_depth = 0
+        self.header_text: list[str] = []
+        self.profile_seen = False
 
     def handle_starttag(self, _tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if self.nametag:
-            return
         values = {str(key).lower(): (value or "") for key, value in attrs}
         classes = set(values.get("class", "").split())
-        if {"db-user-tag", "is-cex"}.issubset(classes):
+        if _tag == "div":
+            if self.header_depth:
+                self.header_depth += 1
+            elif any(cls.startswith("HeaderInfo_headerInfoWrap__") for cls in classes):
+                self.header_depth = 1
+                self.profile_seen = True
+        if (not self.nametag and (not self.expected_address or self.header_depth)
+                and {"db-user-tag", "is-cex"}.issubset(classes)):
             self.nametag = html.unescape(values.get("title", "")).strip()
 
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "div" and self.header_depth:
+            self.header_depth -= 1
 
-def extract_debank_cex_metadata(page_html: str) -> dict[str, Any]:
+    def handle_data(self, data: str) -> None:
+        if self.header_depth:
+            self.header_text.append(data)
+
+    def profile_matches(self) -> bool:
+        return self.profile_seen and self.expected_address in " ".join(self.header_text).lower()
+
+
+def extract_debank_cex_metadata(page_html: str, expected_address: str = "") -> dict[str, Any]:
     """Extract only DeBank's explicit CEX entity badge.
 
     Text such as "Funded By Coinbase" is deliberately ignored because it
     describes transaction provenance, not ownership of the inspected wallet.
     """
-    parser = _DeBankCexTagParser()
+    parser = _DeBankCexTagParser(expected_address)
     try:
         parser.feed(page_html or "")
     except (TypeError, ValueError):
+        return {}
+    if expected_address and not parser.profile_matches():
         return {}
     nametag = parser.nametag
     if not nametag:
@@ -281,6 +355,8 @@ def extract_debank_cex_metadata(page_html: str) -> dict[str, Any]:
         "labels": ["cex"],
         "labels_slug": ["cex"],
     }
+    if expected_address:
+        metadata["profileAddress"] = expected_address.lower()
     # `is-cex` is DeBank's explicit entity classification. Do not limit it to
     # our current keyword vocabulary or newly listed exchanges would be lost.
     return metadata
@@ -332,7 +408,11 @@ def fetch_debank_cex_metadata(
         return None, f"debank_browser_error: {exc}"
     if proc.returncode != 0:
         return None, f"debank_chrome_exit_{proc.returncode}"
-    metadata = extract_debank_cex_metadata(proc.stdout)
+    parser = _DeBankCexTagParser(address)
+    parser.feed(proc.stdout)
+    if not parser.profile_matches():
+        return None, "debank_profile_not_loaded"
+    metadata = extract_debank_cex_metadata(proc.stdout, address)
     return (metadata or None), None
 
 
@@ -341,7 +421,7 @@ def run_debank_page_audit(
     delay: float,
     chrome_binary: str,
 ) -> dict[str, Any]:
-    """Audit explicit DeBank CEX badges; suggestions remain review-only."""
+    """Collect explicit DeBank CEX badges with address-pinned evidence."""
     confirmed: list[dict[str, Any]] = []
     no_tag: list[str] = []
     errors: dict[str, str] = {}
@@ -356,7 +436,7 @@ def run_debank_page_audit(
                     **candidate,
                     "suggestedLabel": clean_suggestion_label(metadata),
                     "source": "debank-public-label",
-                    "debank": {"nametag": metadata.get("nametag")},
+                    "debank": {"nametag": metadata.get("nametag"), "profileAddress": metadata.get("profileAddress")},
                 }
             )
         else:
@@ -435,6 +515,11 @@ def select_debank_rotation_candidates(
         and str(row["address"]).lower() not in known
     ]
     fresh = [row for row in eligible if str(row["address"]).lower() not in checked]
+    # New short-window activity should not wait behind old all-time whales.
+    fresh.sort(key=lambda row: (
+        0 if "1d" in row.get("periods", []) else 1 if "7d" in row.get("periods", []) else 2,
+        -float(row.get("score") or 0),
+    ))
     rechecks = [row for row in eligible if str(row["address"]).lower() in checked]
     rechecks.sort(
         key=lambda row: (
@@ -458,7 +543,7 @@ def record_debank_rotation_results(
     report: dict[str, Any],
     attempted_at: str,
 ) -> dict[str, Any]:
-    """Persist only audit outcomes; labels remain review-only suggestions."""
+    """Persist audit outcomes separately from canonical label publication."""
     next_state = normalize_debank_rotation_state(state)
     addresses = next_state["debank"]["addresses"]
     outcomes = [
@@ -490,7 +575,7 @@ def merge_audit_reports(primary: dict[str, Any], secondary: dict[str, Any]) -> d
     }
     for row in secondary.get("confirmedCexSuggestions", []):
         if row.get("address"):
-            confirmed_by_address.setdefault(row["address"], row)
+            confirmed_by_address[row["address"]] = row
     confirmed_addresses = set(confirmed_by_address)
     non_cex = [
         row for row in primary.get("nonCexTagged", []) + secondary.get("nonCexTagged", [])
@@ -692,13 +777,14 @@ def run_api_audit(candidates: list[dict[str, Any]], api_key: str, delay: float) 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit DOLO CEX labels with Etherscan nametag metadata.")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Path to write JSON report.")
-    parser.add_argument("--holder-min", type=float, default=float(os.environ.get("DOLO_CEX_AUDIT_HOLDER_MIN", "100000")))
-    parser.add_argument("--flow-min", type=float, default=float(os.environ.get("DOLO_CEX_AUDIT_FLOW_MIN", "100000")))
-    parser.add_argument("--max-candidates", type=int, default=int(os.environ.get("DOLO_CEX_AUDIT_MAX_CANDIDATES", "120")))
+    parser.add_argument("--holder-min", type=float, default=float(os.environ.get("DOLO_CEX_AUDIT_HOLDER_MIN", "10000")))
+    parser.add_argument("--flow-min", type=float, default=float(os.environ.get("DOLO_CEX_AUDIT_FLOW_MIN", "10000")))
+    parser.add_argument("--max-candidates", type=int, default=int(os.environ.get("DOLO_CEX_AUDIT_MAX_CANDIDATES", "20")), help="Maximum external checks per run; the rotating candidate pool is not truncated.")
     parser.add_argument("--delay", type=float, default=float(os.environ.get("DOLO_CEX_AUDIT_DELAY", "0.55")))
     parser.add_argument("--include-known-cex", action="store_true")
     parser.add_argument("--no-api", action="store_true", help="Build only the local candidate report.")
     parser.add_argument("--no-debank", action="store_true", help="Skip rendered DeBank CEX badge checks.")
+    parser.add_argument("--apply-confirmed", action="store_true", help="Add new direct DeBank CEX identities to the shared registry.")
     parser.add_argument(
         "--state-file",
         default=str(DEFAULT_ROTATION_STATE),
@@ -712,15 +798,18 @@ def main() -> int:
     args = parser.parse_args()
 
     labels = load_labels()
-    candidates = collect_candidates(
+    candidate_pool = collect_candidates(
         labels,
         holder_min=args.holder_min,
         flow_min=args.flow_min,
-        max_candidates=args.max_candidates,
+        max_candidates=0,
         include_known_cex=args.include_known_cex,
     )
     state_file = Path(args.state_file)
     rotation_state = load_debank_rotation_state(state_file)
+    candidates, _ = select_debank_rotation_candidates(
+        candidate_pool, rotation_state, set(), max(0, args.max_candidates),
+    )
     rotation_summary: dict[str, Any] = {
         "stateFile": state_file.name,
         "eligible": 0,
@@ -783,15 +872,15 @@ def main() -> int:
             api_status = "completed"
 
         if not args.no_debank and args.debank_max_candidates > 0:
-            confirmed_addresses = {
-                row.get("address") for row in api_report.get("confirmedCexSuggestions", [])
-            }
+            # Verify the same profile even when an explorer keyword matched:
+            # only the direct DeBank badge is eligible for automatic publication.
             debank_candidates, rotation_summary = select_debank_rotation_candidates(
                 candidates,
                 rotation_state,
-                confirmed_addresses,
+                set(),
                 args.debank_max_candidates,
             )
+            rotation_summary["candidatePool"] = len(candidate_pool)
             rotation_summary["stateFile"] = state_file.name
             chrome_binary = find_chrome_binary()
             if chrome_binary and debank_candidates:
@@ -809,7 +898,7 @@ def main() -> int:
                 rotation_summary["attempted"] = int(debank_report.get("queriedCount", 0))
                 api_report = merge_audit_reports(api_report, debank_report)
                 api_status = f"{api_status}_plus_debank"
-                debank_status = "completed"
+                debank_status = "partial" if debank_report.get("errors") else "completed"
             elif not chrome_binary:
                 debank_status = "browser_missing"
             else:
@@ -820,6 +909,12 @@ def main() -> int:
             debank_status = "candidate_limit_zero"
 
     api_report["debankStatus"] = debank_status
+    publication = {"added": [], "skipped": []}
+    if args.apply_confirmed:
+        publication = apply_confirmed_cex_labels(
+            api_report["confirmedCexSuggestions"], labels,
+            verified_at=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        )
 
     report = {
         "generatedAt": datetime.now(timezone.utc).isoformat(),
@@ -833,12 +928,13 @@ def main() -> int:
             "holderMin": args.holder_min,
             "flowMin": args.flow_min,
             "maxCandidates": args.max_candidates,
+            "candidatePool": len(candidate_pool),
             "includeKnownCex": args.include_known_cex,
         },
         "api": {
             "provider": "Etherscan V2 nametag + public address pages + DeBank direct CEX badges",
             "status": api_status,
-            "note": "Only direct entity labels are candidates. Funded-by relationships and behavioral heuristics never promote a wallet; suggestions remain advisory.",
+            "note": "New direct DeBank CEX badges may be published with --apply-confirmed. Explorer keyword matches and conflicting existing identities require review. Funded-by relationships never establish ownership.",
             **api_report,
         },
         "existingCexLabels": existing_cex,
@@ -850,6 +946,7 @@ def main() -> int:
         "watchLabels": watch_labels,
         "rankedCandidates": candidates,
         "debankRotation": rotation_summary,
+        "publication": publication,
     }
 
     output = Path(args.output)
