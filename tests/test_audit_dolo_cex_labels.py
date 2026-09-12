@@ -6,6 +6,105 @@ from unittest import mock
 
 
 class AuditDoloCexLabelsTest(unittest.TestCase):
+    MEXC = "0xf61a30978ecb7cccb30eb97f9ba94b8b35675034"
+
+    def profile_html(self, address, badge="MEXC"):
+        return (f'<div class="HeaderInfo_headerInfoWrap__test"><div><span>{address}</span>'
+                f'<img src="avatar"><div class="db-user-tag is-cex" title="{badge}"></div></div></div>')
+
+    def test_mexc_is_in_the_canonical_registry_with_direct_evidence(self):
+        info = self.audit_module().load_labels()[self.MEXC]
+        self.assertEqual((info["label"], info["type"], info["confidence"]), ("MEXC", "cex", "confirmed"))
+        self.assertEqual(info["evidenceStatus"], "public_label")
+
+    def test_direct_badge_must_belong_to_the_requested_profile(self):
+        module = self.audit_module()
+        document = self.profile_html(self.MEXC)
+        self.assertEqual(module.extract_debank_cex_metadata(document, self.MEXC)["profileAddress"], self.MEXC)
+        other = "0x1111111111111111111111111111111111111111"
+        self.assertEqual(module.extract_debank_cex_metadata(document, other), {})
+        outside_badge = f'<div class="HeaderInfo_headerInfoWrap__test">{self.MEXC}</div><div class="db-user-tag is-cex" title="MEXC"></div>'
+        self.assertEqual(module.extract_debank_cex_metadata(outside_badge, self.MEXC), {})
+
+    def test_unloaded_debank_profile_is_an_error_not_no_cex_badge(self):
+        module = self.audit_module()
+        proc = mock.Mock(returncode=0, stdout='<div id="root"></div>')
+        with mock.patch.object(module.subprocess, "run", return_value=proc):
+            metadata, error = module.fetch_debank_cex_metadata(self.MEXC, "chrome")
+        self.assertIsNone(metadata)
+        self.assertEqual(error, "debank_profile_not_loaded")
+
+    def test_loaded_unlabelled_profile_is_a_valid_negative_check(self):
+        module = self.audit_module()
+        proc = mock.Mock(returncode=0, stdout=f'<div class="HeaderInfo_headerInfoWrap__test">{self.MEXC}</div>')
+        with mock.patch.object(module.subprocess, "run", return_value=proc):
+            self.assertEqual(module.fetch_debank_cex_metadata(self.MEXC, "chrome"), (None, None))
+
+    def test_rotation_reaches_addresses_outside_top_120_and_prioritizes_recent_activity(self):
+        module = self.audit_module()
+        holders = [{"address": f"0x{i:040x}", "balance": 1000000-i} for i in range(1,151)]
+        with mock.patch.object(module, "load_json", side_effect=[{"holders": holders}, {"periods": {}}]):
+            pool = module.collect_candidates({}, 10000, 10000, 0, False)
+        state = {"debank": {"addresses": {r["address"]:{"lastAttemptAt":"2026-09-01"} for r in pool[:120]}}}
+        pool[-1]["periods"] = ["1d"]
+        chosen, report = module.select_debank_rotation_candidates(pool, state, set(), 20)
+        self.assertEqual(len(pool), 150)
+        self.assertEqual(chosen[0]["address"], pool[-1]["address"])
+        self.assertEqual(report["newCandidates"], 20)
+
+    def test_overlapping_periods_do_not_multiply_candidate_transaction_count(self):
+        module = self.audit_module()
+        rows = {}
+        module.add_candidate(rows, self.MEXC, "7d", tx_count=3)
+        module.add_candidate(rows, self.MEXC, "30d", tx_count=5)
+        module.add_candidate(rows, self.MEXC, "all", tx_count=5)
+        self.assertEqual(rows[self.MEXC]["txCount"], 5)
+
+    def test_nearly_flat_transit_wallet_still_enters_discovery_from_gross_flow(self):
+        module = self.audit_module()
+        payload = {"periods":{"30d":{"eth":{"accumulators":[{
+            "address":self.MEXC,"net_flow":1,"balance":0,"gross_inflow":350000,"gross_outflow":349999,
+        }]}}}}
+        with mock.patch.object(module, "load_json", side_effect=[{"holders":[]},payload]):
+            rows = module.collect_candidates({},10000,10000,0,False)
+        self.assertEqual(rows[0]["address"], self.MEXC)
+        self.assertEqual(rows[0]["maxGrossFlow"],350000)
+
+    def test_only_direct_profile_evidence_is_published_and_existing_labels_survive(self):
+        module = self.audit_module()
+        def suggestion(address, **extra):
+            return {"address":address, "suggestedLabel":"MEXC", "source":"debank-public-label",
+                    "debank":{"nametag":"MEXC", "profileAddress":address}, **extra}
+        existing = "0x1111111111111111111111111111111111111111"
+        indirect = "0x2222222222222222222222222222222222222222"
+        wrong_profile = "0x3333333333333333333333333333333333333333"
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder)/"dolo-address-labels.js"
+            original = '  const DOLO_ADDRESS_LABELS = {\n    "'+existing+'": {label:"Known User", type:"eoa"}\n  };\n'
+            path.write_text(original)
+            result = module.apply_confirmed_cex_labels([
+                suggestion(self.MEXC), suggestion(existing),
+                suggestion(indirect, source="flow-audit"),
+                suggestion(wrong_profile, debank={"nametag":"MEXC", "profileAddress":self.MEXC}),
+            ], {existing:{"label":"Known User", "type":"eoa"}}, path=path, verified_at="2026-09-12")
+            with mock.patch.object(module, "LABELS_JS", path):
+                loaded = module.load_labels()
+            self.assertEqual(loaded[self.MEXC]["type"], "cex")
+            self.assertEqual(loaded[existing]["label"], "Known User")
+            self.assertNotIn(indirect, loaded)
+            self.assertNotIn(wrong_profile, loaded)
+            self.assertEqual(len(result["added"]), 1)
+            before = path.read_text()
+            module.apply_confirmed_cex_labels([suggestion(self.MEXC)], loaded, path=path, verified_at="2026-09-12")
+            self.assertEqual(path.read_text(), before)
+
+    def test_debank_direct_evidence_replaces_explorer_keyword_suggestion(self):
+        module = self.audit_module()
+        primary = {"confirmedCexSuggestions":[{"address":self.MEXC,"source":"etherscan-public-page"}]}
+        direct = {"address":self.MEXC,"source":"debank-public-label","debank":{"profileAddress":self.MEXC}}
+        merged = module.merge_audit_reports(primary, {"confirmedCexSuggestions":[direct]})
+        self.assertEqual(merged["confirmedCexSuggestions"], [direct])
+
     def test_label_audit_reads_overrides_without_inventing_confirmed_confidence(self):
         module = self.audit_module()
         with tempfile.TemporaryDirectory() as folder:
