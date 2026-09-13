@@ -2185,6 +2185,8 @@ function ensureHolderWalletHistory(){
   return holderWalletHistoryPromise;
 }
 let DOLO_CEX_SUPPLY_HISTORY = [];
+let DOLO_CEX_FLOW_SUMMARY = null;
+let DOLO_CEX_HISTORY_META = null;
 let vedoloHolderStats = null;
 let vedoloDataTimestamp = null;
 let doloHolderDataTimestamp = null;
@@ -2394,6 +2396,7 @@ function holderLegendRangeRows(model){
   });
 }
 function holderCexFlow(period = "7d"){
+  if(DOLO_CEX_FLOW_SUMMARY?.[period]) return DOLO_CEX_FLOW_SUMMARY[period];
   const changes = DOLO_BALANCE_CHANGES?.[period] || {};
   let inflow = 0;
   let outflow = 0;
@@ -2420,6 +2423,14 @@ function holderScopeHtml(){
   const tip = `${components} Dolomite balances can change through internal trades without a direct ERC-20 transfer in the wallet history. Includes: Market + Team/Investor. Excludes: CEX, protocol &amp; custody/MM.`;
   return `<span class="holder-source-scope">Total exposure</span><span class="holder-source-help" data-tooltip="${tip}" aria-label="${tip}">i</span>`;
 }
+function cexSnapshotStatus(timestamp, nowMs = Date.now()){
+  const ts = Date.parse(timestamp || "");
+  if(!Number.isFinite(ts)) return "Data update unavailable";
+  const hours = Math.max(0, Math.floor((nowMs-ts)/3600000));
+  if(hours <= 24) return `Data updated · ${hours < 1 ? "just now" : `${hours}h ago`}`;
+  const date = new Date(ts).toLocaleDateString("en-GB", {day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"});
+  return `Delayed · ${date} · ${new Date(ts).toISOString().slice(11,16)} UTC`;
+}
 function holderCexStatHtml(){
   const periods = [
     {key:"1d", label:"CEX Flow 24H"},
@@ -2438,7 +2449,7 @@ function holderCexStatHtml(){
         <div class="label">${stat.label}</div>
       </div>
       <div class="value"><span class="holder-flow-token-value"><span>${fmtSignedHolder(stat.net)}</span><img class="holder-flow-token-icon" src="dolo-logo.svg" alt="" onerror="this.style.display='none'"></span></div>
-      <div class="sub">${direction}</div>
+      <div class="sub" title="Net change in known exchange and custody wallet balances. Rolling window ends at the data timestamp, not the time you opened the page. Internal transfers between included wallets cancel.">${direction}</div>
     </div>
   `;
   }).join("");
@@ -4322,7 +4333,10 @@ function renderCexSupplyChart(options = {}){
   }
   const metaEl = document.getElementById("cex-supply-meta");
   if(metaEl){
-    metaEl.innerHTML = `<span class="pulse"></span><span>${fullModel.sourceLabel || `${fullModel.points.length} points`}</span>`;
+    const timestamp = DOLO_CEX_HISTORY_META?.asOf || doloFlowDataTimestamp;
+    const rebuilding = DOLO_CEX_HISTORY_META?.method !== "erc20-forward-replay-v1";
+    metaEl.innerHTML = `<span class="pulse"></span><span>${cexSnapshotStatus(timestamp)}${rebuilding ? " · History under revalidation" : ""}</span>`;
+    metaEl.title = "Known CEX and custody addresses on Ethereum + Berachain; public labels plus retained labels awaiting evidence review. Daily UTC snapshots and the scan endpoint. 24H/7D/30D are rolling windows ending at that scan, independent of the chart selection.";
   }
   const statsEl = document.getElementById("cexSupplyStats");
   if(statsEl){
@@ -6412,6 +6426,8 @@ renderCexSupplyChart();
       holderWalletHistoryStatus = "idle";
     }
     DOLO_CEX_SUPPLY_HISTORY = Array.isArray(flows.cex_supply_history) ? flows.cex_supply_history : [];
+    DOLO_CEX_FLOW_SUMMARY = flows.cex_flow_summary || null;
+    DOLO_CEX_HISTORY_META = flows.cex_history_meta || null;
     doloFlowDataTimestamp = flows.timestamp || null;
     doloAllHistoryStartTs = parseHolderTimestamp(flows.holder_history_start_timestamp || flows.all_history_start_timestamp || flows.period_start_timestamps?.all);
     liveFlowsData = flows;

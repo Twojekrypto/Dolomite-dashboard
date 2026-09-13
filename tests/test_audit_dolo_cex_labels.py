@@ -6,6 +6,23 @@ from unittest import mock
 
 
 class AuditDoloCexLabelsTest(unittest.TestCase):
+    def test_direct_gate_deposit_owner_is_recognized_but_generic_gateway_is_not(self):
+        module = self.audit_module()
+        self.assertTrue(module.is_cex_metadata({'nametag':'Gate Deposit'}))
+        self.assertFalse(module.is_cex_metadata({'nametag':'Bridge Gateway'}))
+
+    def test_discovery_includes_zero_balance_historical_cex_and_deposit_funnels(self):
+        module = self.audit_module()
+        old = '0x' + '1'*40
+        funnel = '0x' + '2'*40
+        historical = '0x' + '3'*40
+        payload = {'cex_watch':{'depositCandidates':[{'address':funnel,'sentToCexDolo':10000000,'txCount':20}]},
+                   'cex_supply_history':[{'walletBalances':[{'address':historical,'balance':500000}]}]}
+        with mock.patch.object(module,'load_json',side_effect=[{'holders':[]},payload]):
+            rows = module.collect_candidates({old:{'type':'cex','evidenceStatus':'review_needed'}},10000,10000,0,False)
+        self.assertEqual({r['address'] for r in rows}, {old,funnel,historical})
+        self.assertEqual(next(r for r in rows if r['address']==funnel)['maxGrossFlow'],10000000)
+
     MEXC = "0xf61a30978ecb7cccb30eb97f9ba94b8b35675034"
 
     def profile_html(self, address, badge="MEXC"):

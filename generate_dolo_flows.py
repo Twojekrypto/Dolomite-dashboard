@@ -3656,51 +3656,46 @@ def calculate_cex_supply_history(
 ):
     holder_rows = load_current_holder_rows()
     address_labels = load_address_labels(vesting_labels)
-    current_liquid = {
-        addr: float(row.get("balance") or 0)
-        for addr, row in holder_rows.items()
-    }
+    # Reconstruct actual ERC-20 custody, not holder-flow economics. The verified
+    # cache begins before token deployment on both chains. Today's independently
+    # refreshed holder file is NOT a historical balance anchor.
+    cex_addresses = {addr.lower() for addr in address_labels
+                     if holder_distribution_type(addr, holder_rows, address_labels) == "cex"}
     sorted_transfers = {
-        chain_key: ensure_transfers_sorted_by_block(transfers)
+        chain_key: ensure_transfers_sorted_by_block([
+            row for row in transfers if int(row[3]) <= int(current_blocks[chain_key])
+        ])
         for chain_key, transfers in all_transfers.items()
     }
-    cursors = {
-        chain_key: len(transfers) - 1
-        for chain_key, transfers in sorted_transfers.items()
-    }
-    running_raw = {chain_key: {} for chain_key in CHAINS}
-    running_bridge = {chain_key: {} for chain_key in CHAINS}
+    cursors = {chain_key: 0 for chain_key in CHAINS}
+    running_wei = {chain_key: {} for chain_key in CHAINS}
     history = []
 
-    for point in sorted(points, key=lambda row: row["ts"], reverse=True):
+    for point in sorted(points, key=lambda row: row["ts"]):
         for chain_key in CHAINS:
             cutoff = int(
                 (cutoff_blocks_by_point or {}).get(point["key"], {}).get(chain_key)
-                or holder_history_cutoff_block(
+                or (int(current_blocks[chain_key]) + 1 if point["key"] == "now" else holder_history_cutoff_block(
                     chain_key, point["ts"], base_ts, current_blocks
-                )
+                ))
             )
             chain_transfers = sorted_transfers[chain_key]
             cursor = cursors[chain_key]
-            while cursor >= 0 and chain_transfers[cursor][3] >= cutoff:
-                add_transfer_to_running_flows(
-                    running_raw[chain_key],
-                    running_bridge[chain_key],
-                    chain_transfers[cursor],
-                )
-                cursor -= 1
+            while cursor < len(chain_transfers) and chain_transfers[cursor][3] < cutoff:
+                sender, receiver, raw, *_ = chain_transfers[cursor]
+                for addr, sign in ((str(sender).lower(), -1), (str(receiver).lower(), 1)):
+                    if addr in cex_addresses:
+                        running_wei[chain_key][addr] = running_wei[chain_key].get(addr, 0) + sign * int(raw)
+                cursor += 1
             cursors[chain_key] = cursor
 
-        raw_snapshot = {chain_key: dict(running_raw[chain_key]) for chain_key in CHAINS}
-        bridge_snapshot = {chain_key: dict(running_bridge[chain_key]) for chain_key in CHAINS}
-        changes = merge_balance_changes(neutralize_holder_balance_flows(raw_snapshot, bridge_snapshot))
-        liquid_balances = dict(current_liquid)
-        for addr, net in changes.items():
-            historical = liquid_balances.get(addr.lower(), 0) - net
-            if historical > 0.0001:
-                liquid_balances[addr.lower()] = historical
-            elif addr.lower() in liquid_balances:
-                liquid_balances.pop(addr.lower(), None)
+        liquid_wei = {}
+        for chain_key, balances in running_wei.items():
+            for addr, raw in balances.items():
+                if raw < 0:
+                    raise ValueError(f"Negative CEX replay balance: {chain_key} {addr} at {point['key']}")
+                liquid_wei[addr] = liquid_wei.get(addr, 0) + raw
+        liquid_balances = {addr: raw / 10**18 for addr, raw in liquid_wei.items() if raw > 0}
 
         cex = build_cex_supply_point(liquid_balances, holder_rows, address_labels)
         history.append({
@@ -3726,6 +3721,75 @@ def calculate_cex_supply_history(
         })
 
     return sorted(history, key=lambda row: row["timestamp"])
+
+
+def calculate_cex_flow_summary(all_transfers, period_boundaries):
+    labels = load_address_labels()
+    addresses = {addr.lower() for addr, info in labels.items() if info.get("type") == "cex"}
+    result = {}
+    for period in ("1d", "7d", "30d"):
+        balances = {}
+        bounds = {}
+        for chain_key in CHAINS:
+            boundary = (period_boundaries.get(chain_key) or {}).get(period)
+            if not boundary:
+                break
+            bounds[chain_key] = boundary
+            for sender, receiver, raw, block, *_ in all_transfers.get(chain_key, []):
+                if not int(boundary["startBlock"]) <= int(block) <= int(boundary["endBlock"]):
+                    continue
+                for addr, sign in ((str(sender).lower(), -1), (str(receiver).lower(), 1)):
+                    if addr in addresses:
+                        balances[addr] = balances.get(addr, 0) + sign * int(raw)
+        else:
+            incoming = sum(raw for raw in balances.values() if raw > 0)
+            outgoing = -sum(raw for raw in balances.values() if raw < 0)
+            result[period] = {"net": (incoming-outgoing)/10**18,
+                              "inflow": incoming/10**18, "outflow": outgoing/10**18,
+                              "inflowWallets":sum(raw>0 for raw in balances.values()),
+                              "outflowWallets":sum(raw<0 for raw in balances.values()),
+                              "boundaries":bounds}
+    return result
+
+
+def cex_published_blocks(output, state):
+    if not has_complete_verified_baseline(state):
+        raise RuntimeError("CEX rebuild requires a complete independently verified transfer cache")
+    blocks = {}
+    for key in CHAINS:
+        block = int(((output.get("period_boundaries") or {}).get(key, {}).get("all") or {}).get("endBlock") or 0)
+        proof = state["flow_log_integrity"]["chains"][key]
+        if (not block or int(proof.get("verifiedThroughBlock") or 0) < block
+                or int(state.get(key+"_last_block") or 0) < block
+                or int(proof.get("verifiedThroughBlock") or 0) != int(state.get(key+"_last_block") or 0)
+                or int((proof.get("lastVerificationProof") or {}).get("minimumMatchingProviderFamilies") or 0) < RPC_LOG_QUORUM
+                or int(state.get(key+"_history_start_block") or CHAINS[key]["deploy_block"]+1) > CHAINS[key]["deploy_block"]
+                or not isinstance(state.get(key+"_transfers"), list)):
+            raise RuntimeError(f"{key}: published CEX endpoint is not covered by verified cache")
+        blocks[key] = block
+    return blocks
+
+
+def rebuild_cex_history_from_cached_transfers():
+    with open(OUTPUT_JSON) as handle:
+        output = json.load(handle)
+    state = load_state()
+    blocks = cex_published_blocks(output, state)
+    base_ts = int(datetime.fromisoformat(output["timestamp"].replace("Z", "+00:00")).timestamp())
+    transfers = {key: [row for row in state[key+"_transfers"] if int(row[3]) <= blocks[key]] for key in CHAINS}
+    points = build_holder_history_schedule(base_ts)
+    cutoffs, _ = load_holder_history_cutoff_blocks(state, points, blocks)
+    points.append({"key":"now", "timestamp":output["timestamp"], "ts":base_ts})
+    output["cex_supply_history"] = calculate_cex_supply_history(
+        transfers, points, blocks, base_ts, cutoff_blocks_by_point=cutoffs)
+    output["cex_flow_summary"] = calculate_cex_flow_summary(transfers, output["period_boundaries"])
+    output["cex_history_meta"] = {"method":"erc20-forward-replay-v1", "asOf":output["timestamp"],
+                                   "blocks":blocks, "rebuiltAt":datetime.now(timezone.utc).isoformat()}
+    # Preserve the source timestamp: a cached rebuild is not a fresh scan.
+    with open(OUTPUT_JSON, "w") as handle:
+        json.dump(output, handle, separators=(",", ":"))
+    save_state(state)
+    print(f"Rebuilt {len(points)} CEX snapshots at published blocks {blocks}; as of {output['timestamp']}")
 
 
 def canonical_cex_name(label):
@@ -5742,15 +5806,15 @@ def rebuild_holder_history_from_cached_transfers():
     base_ts = int(parsed_timestamp.timestamp())
 
     all_transfers = {}
-    current_blocks = {}
+    current_blocks = cex_published_blocks(output, state)
     for chain_key in CHAINS:
         transfer_key = f"{chain_key}_transfers"
         block_key = f"{chain_key}_last_block"
         transfers = state.get(transfer_key)
-        block = int(state.get(block_key) or 0)
+        block = current_blocks[chain_key]
         if not isinstance(transfers, list) or not block:
             raise RuntimeError(f"Incomplete cached transfer history for {CHAINS[chain_key]['name']}")
-        all_transfers[chain_key] = transfers
+        all_transfers[chain_key] = [row for row in transfers if int(row[3]) <= block]
         current_blocks[chain_key] = block
 
     print("📈 Rebuilding holder audience history from cached transfers...")
@@ -5799,9 +5863,11 @@ def rebuild_holder_history_from_cached_transfers():
     ]
     output["holder_bucket_history"] = holder_bucket_history
     output["cex_supply_history"] = calculate_cex_supply_history(
-        all_transfers, points, current_blocks, base_ts, vesting_investors,
+        all_transfers, chart_points, current_blocks, base_ts, vesting_investors,
         cutoff_blocks_by_point=holder_cutoff_blocks,
     )
+    output["cex_flow_summary"] = calculate_cex_flow_summary(all_transfers, output["period_boundaries"])
+    output["cex_history_meta"] = {"method":"erc20-forward-replay-v1", "asOf":raw_timestamp, "blocks":current_blocks}
     output["holder_history_schema"] = "audience-exposure-v3"
     output["holder_dolomite_history_meta"] = dolomite_history_meta
     with open(OUTPUT_JSON, "w") as f:
@@ -5827,6 +5893,9 @@ def rebuild_holder_history_from_cached_transfers():
 
 
 def main():
+    if "--rebuild-cex-history-only" in sys.argv[1:]:
+        rebuild_cex_history_from_cached_transfers()
+        return
     if "--rebuild-holder-history-only" in sys.argv[1:]:
         rebuild_holder_history_from_cached_transfers()
         return
@@ -6630,7 +6699,8 @@ def main():
     )
     cex_supply_history = calculate_cex_supply_history(
         all_transfers,
-        holder_history_points,
+        [*holder_history_points, {"key":"now", "timestamp":flow_snapshot_timestamp(period_boundaries),
+                                 "ts":int(datetime.fromisoformat(flow_snapshot_timestamp(period_boundaries).replace("Z", "+00:00")).timestamp())}],
         current_blocks,
         holder_history_base_ts,
         vesting_investors,
@@ -6688,6 +6758,8 @@ def main():
         # lazy-loaded file); keep a marker so the UI knows where to find it.
         "holder_wallet_history_file": "dolo_holder_wallet_history.json",
         "cex_supply_history": cex_supply_history,
+        "cex_flow_summary": calculate_cex_flow_summary(all_transfers, period_boundaries),
+        "cex_history_meta": {"method":"erc20-forward-replay-v1", "asOf":flow_snapshot_timestamp(period_boundaries), "blocks":current_blocks},
         # Advisory watchlist: unlabeled wallets funneling DOLO into labeled
         # CEX hot wallets — candidates for new CEX deposit-address labels.
         "cex_watch": {

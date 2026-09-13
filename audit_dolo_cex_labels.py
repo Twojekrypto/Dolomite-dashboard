@@ -207,6 +207,29 @@ def collect_candidates(
                             period=period,
                         )
 
+    # Current balances and top-flow lists miss swept deposit wallets. Keep
+    # historical CEX membership and direct-to-CEX funnels in the review rotation;
+    # a funnel is a candidate only, never automatic ownership evidence.
+    def eligible(address):
+        info = labels.get(address, {})
+        return info.get("type") not in SKIP_LABEL_TYPES and not (
+            info.get("type") == "cex" and not include_known_cex
+            and info.get("evidenceStatus") == "public_label")
+
+    for address, info in labels.items():
+        if info.get("type") == "cex" and eligible(address):
+            add_candidate(candidates, address, "cex-registry-review")
+    for point in flows.get("cex_supply_history") or []:
+        for row in point.get("walletBalances") or []:
+            address = str(row.get("address") or "").lower()
+            if eligible(address):
+                add_candidate(candidates, address, "historical-cex")
+    for row in (flows.get("cex_watch") or {}).get("depositCandidates") or []:
+        address = str(row.get("address") or "").lower()
+        if eligible(address):
+            add_candidate(candidates, address, "cex-deposit-funnel",
+                          gross_flow=row.get("sentToCexDolo"), tx_count=row.get("txCount"))
+
     rows = []
     for row in candidates.values():
         label_info = labels.get(row["address"], {})
@@ -244,7 +267,7 @@ def is_cex_metadata(meta: dict[str, Any]) -> bool:
         " ".join(str(x) for x in meta.get("labels_slug") or []),
     ]
     haystack = " ".join(haystack_parts).lower()
-    return any(keyword in haystack for keyword in CEX_KEYWORDS)
+    return any(keyword in haystack for keyword in CEX_KEYWORDS) or bool(re.fullmatch(r"gate deposit(?:\s*:\s*0x[a-f0-9]{40})?", str(meta.get("nametag") or "").strip().lower()))
 
 
 def clean_suggestion_label(meta: dict[str, Any]) -> str:

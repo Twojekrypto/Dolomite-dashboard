@@ -24,6 +24,11 @@ on:
         required: false
         type: boolean
         default: false
+      cex_history_only:
+        description: 'Repair CEX history and net flow at published verified blocks without an RPC rescan'
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: update-dolo-flows
@@ -86,7 +91,7 @@ jobs:
             dolo-flows-state-
 
       - name: Generate DOLO holders data (sync with flows)
-        if: ${{ !inputs.skip_holders && !inputs.holder_history_only }}
+        if: ${{ !inputs.skip_holders && !inputs.holder_history_only && !inputs.cex_history_only }}
         env:
           PYTHONUNBUFFERED: '1'
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
@@ -107,7 +112,7 @@ jobs:
         run: python3 generate_dolo_holders.py
 
       - name: Generate DOLO flows data
-        if: ${{ !inputs.holder_history_only }}
+        if: ${{ !inputs.holder_history_only && !inputs.cex_history_only }}
         timeout-minutes: 330
         env:
           PYTHONUNBUFFERED: '1'
@@ -146,6 +151,13 @@ jobs:
           DOLO_HOLDER_EXPOSURE_REQUEST_DELAY_SECONDS: '0.1'
         run: python3 generate_dolo_flows.py --rebuild-holder-history-only
 
+      - name: Rebuild CEX history at published verified blocks
+        if: ${{ inputs.cex_history_only }}
+        timeout-minutes: 20
+        env:
+          PYTHONUNBUFFERED: '1'
+        run: python3 generate_dolo_flows.py --rebuild-cex-history-only
+
       - name: Save flows state cache (even on timeout)
         if: always()
         uses: actions/cache/save@v5
@@ -154,7 +166,7 @@ jobs:
           key: dolo-flows-state-${{ github.run_number }}
 
       - name: Save holders state cache (even on timeout)
-        if: ${{ always() && !inputs.skip_holders && !inputs.holder_history_only }}
+        if: ${{ always() && !inputs.skip_holders && !inputs.holder_history_only && !inputs.cex_history_only }}
         uses: actions/cache/save@v5
         with:
           path: dolo_holders_state.json

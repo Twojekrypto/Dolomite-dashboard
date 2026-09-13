@@ -4,6 +4,13 @@ import test from "node:test";
 
 const preview = fs.readFileSync("dolo-preview.html", "utf8");
 
+test('CEX freshness discloses stale snapshot date and missing history', () => {
+  const status = Function(`${extractNamedFunctionSource('cexSnapshotStatus')}; return cexSnapshotStatus;`)();
+  assert.match(status('2026-09-11T12:00:11Z', Date.parse('2026-09-13T14:00:00Z')), /Delayed.*11 Sept? 2026.*12:00 UTC/);
+  assert.match(status(null, Date.now()), /unavailable/);
+  assert.match(status('2026-09-13T12:00:11Z', Date.parse('2026-09-13T14:00:11Z')), /2h ago/);
+});
+
 function extractNamedFunctionSource(name) {
   const marker = `function ${name}(`;
   const start = preview.indexOf(marker);
@@ -1167,7 +1174,7 @@ test("holder and CEX charts use the card-meta status treatment and clipped CEX f
     preview.indexOf("const COPY_ICO")
   );
   assert.match(holderRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span>\$\{holderScopeHtml\(\)\}`;/);
-  assert.match(cexRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span><span>\$\{fullModel\.sourceLabel/);
+  assert.match(cexRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span><span>\$\{cexSnapshotStatus/);
 });
 
 test("holder distribution places scope above the divider and veDOLO at the toolbar edge", () => {

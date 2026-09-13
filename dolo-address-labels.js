@@ -1,5 +1,15 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0x15a3858d118001b07570ae41131a70c817f67d99": {label:"Bybit Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x15a3858d118001b07570ae41131a70c817f67d99", verifiedAt:"2026-09-13"},
+    "0xee845948e6806d12e966137caa07d49bbe632fe3": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0xee845948e6806d12e966137caa07d49bbe632fe3", verifiedAt:"2026-09-13"},
+    "0x43dfc508a7040eaffdc7668aacff562003b04711": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x43dfc508a7040eaffdc7668aacff562003b04711", verifiedAt:"2026-09-13"},
+    "0x6a8a830eb287e3af5cd609f9d277571de4e3a1b2": {label:"Gate.io Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x6a8a830eb287e3af5cd609f9d277571de4e3a1b2", verifiedAt:"2026-09-13"},
+    "0x14a8489a69ea53d1b90ba7cec4bfdfd31483d377": {label:"Bybit Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x14a8489a69ea53d1b90ba7cec4bfdfd31483d377", verifiedAt:"2026-09-13"},
+    "0x4f4d87162376e51194a6d03731eae0604f1a9c3c": {label:"Bybit Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x4f4d87162376e51194a6d03731eae0604f1a9c3c", verifiedAt:"2026-09-13"},
+    "0x6b80ffef7b4c948cfdf1f2dacd03cd8cf44d8033": {label:"Gate.io Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x6b80ffef7b4c948cfdf1f2dacd03cd8cf44d8033", verifiedAt:"2026-09-13"},
+    "0x09671d2a9a43bf70cd282318f75c9c9f122a0440": {label:"Bybit Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x09671d2a9a43bf70cd282318f75c9c9f122a0440", verifiedAt:"2026-09-13"},
+    "0x9fe9ebd56cd860085fc4741d064e449f754661f9": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x9fe9ebd56cd860085fc4741d064e449f754661f9", verifiedAt:"2026-09-13"},
+    "0x3155fb9fa39a4782f9cc58e4bedfedad1c9f882f": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x3155fb9fa39a4782f9cc58e4bedfedad1c9f882f", verifiedAt:"2026-09-13"},
     "0x0000000000000000000000000000000000000000": {label:"Burn", type:"dead"},
     "0x000000000000000000000000000000000000dead": {label:"Burn", type:"dead"},
 
@@ -141,7 +151,7 @@
     "0xfc89c020774524c9d03bd5de48fec149b10bdec3": {label:"Probable Market Maker", type:"mm", source:"behavioral-flow-audit", confidence:"potential"},
     "0xd5c342acbeedef81ab8e6072323bfda76172d05f": {label:"MEXC Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
     "0x38285671612d6f0ef7c3483f500d39fa71d66a1c": {label:"CEX Distributor", type:"cex", source:"flow-audit", confidence:"confirmed"},
-    "0xc882b111a75c0c657fc507c04fbfcd2cc984f071": {label:"Gate.io Routing Wallet", type:"cex", source:"flow-audit", confidence:"confirmed"},
+    "0xc882b111a75c0c657fc507c04fbfcd2cc984f071": {label:"Gate.io Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0xc882b111a75c0c657fc507c04fbfcd2cc984f071", verifiedAt:"2026-09-13"},
 
     "0xb05ba67c11fc0b92a7bcb18e50cba87ce2d15109": {label:"Bot / MM", type:"bot"},
     "0x5a6f918fcda24e9b5143f3a1b77e63df6de30f74": {label:"Bot / MM", type:"bot"},
