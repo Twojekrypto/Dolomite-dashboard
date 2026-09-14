@@ -34,13 +34,26 @@ def explorer_get(url, *, params, timeout, session=None, **kwargs):
     )
     if isinstance(payload, dict) and str(payload.get("message", "")).lower() == "chain not supported" and match:
         chain_id = match.group(1)
-        api_key = os.environ.get("ETHERSCAN_API_KEY", "").strip()
-        if not api_key and chain_id == "80094":
-            api_key = os.environ.get("BERASCAN_API_KEY", "").strip()
-        if not api_key:
+        key_names = ["ETHERSCAN_API_KEY"]
+        if chain_id == "80094":
+            key_names.append("BERASCAN_API_KEY")
+        api_keys = list(dict.fromkeys(
+            os.environ.get(name, "").strip() for name in key_names
+            if os.environ.get(name, "").strip()
+        ))
+        if not api_keys:
             raise RuntimeError(f"Explorer chain {chain_id} unavailable; configure ETHERSCAN_API_KEY")
-        result = fetch(ETHERSCAN_V2, {**params, "chainid": chain_id, "apikey": api_key})
-        payload = result.json()
+        for api_key in api_keys:
+            result = fetch(ETHERSCAN_V2, {**params, "chainid": chain_id, "apikey": api_key})
+            payload = result.json()
+            # A configured but revoked primary must not shadow the backup.
+            # Only credential rejection permits another key, never throttling
+            # or an incomplete/malformed result. Final validation stays closed.
+            invalid_key = (isinstance(payload, dict)
+                           and str(payload.get("status")) == "0"
+                           and "invalid api key" in str(payload.get("result", "")).lower())
+            if not invalid_key:
+                break
     if not isinstance(payload, dict):
         raise RuntimeError("Explorer returned an invalid response object")
     if str(payload.get("status")) == "0":

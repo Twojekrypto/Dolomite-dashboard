@@ -22,6 +22,48 @@ UNSUPPORTED = {"status": "0", "message": "chain not supported", "result": None}
 
 
 class ExplorerOutageTests(unittest.TestCase):
+    def test_invalid_primary_key_tries_distinct_berachain_key_without_losing_filters(self):
+        from explorer_api import explorer_get
+        query = {"module": "logs", "action": "getLogs", "fromBlock": 123,
+                 "toBlock": 456, "page": 3, "topic2": "0xabc"}
+        rows = [{"blockNumber": "0x100", "transactionHash": "0xdef"}]
+        with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "invalid-primary",
+                                     "BERASCAN_API_KEY": "valid-backup"}), patch(
+            "requests.get", side_effect=[response(UNSUPPORTED), response({
+                "status": "0", "message": "NOTOK", "result": "Invalid API Key (#err2)"
+            }), response({"status": "1", "message": "OK", "result": rows})]
+        ) as get:
+            result = explorer_get(calculate_avg_lock.ROUTESCAN_API, params=query, timeout=10)
+        self.assertEqual(result.json()["result"], rows)
+        self.assertEqual(get.call_args.kwargs["params"], {
+            **query, "chainid": "80094", "apikey": "valid-backup"})
+        self.assertEqual(query["page"], 3)
+        self.assertNotIn("apikey", query)
+
+    def test_same_invalid_key_is_not_retried_under_another_secret_name(self):
+        from explorer_api import explorer_get
+        with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "same-key",
+                                     "BERASCAN_API_KEY": "same-key"}), patch(
+            "requests.get", side_effect=[response(UNSUPPORTED), response({
+                "status": "0", "message": "NOTOK", "result": "Invalid API Key (#err2)"
+            })]
+        ) as get:
+            with self.assertRaisesRegex(RuntimeError, "Invalid API Key"):
+                explorer_get(calculate_avg_lock.ROUTESCAN_API, params={}, timeout=10)
+        self.assertEqual(get.call_count, 2)
+
+    def test_key_fallback_does_not_rotate_for_rate_limits(self):
+        from explorer_api import explorer_get
+        with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "primary",
+                                     "BERASCAN_API_KEY": "backup"}), patch(
+            "requests.get", side_effect=[response(UNSUPPORTED), response({
+                "status": "0", "message": "NOTOK", "result": "Max rate limit reached"
+            })]
+        ) as get:
+            with self.assertRaisesRegex(RuntimeError, "rate limit"):
+                explorer_get(calculate_avg_lock.ROUTESCAN_API, params={}, timeout=10)
+        self.assertEqual(get.call_count, 2)
+
     def test_rejection_reports_provider_reason_without_echoing_credentials(self):
         from explorer_api import explorer_get
         with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "private-test-key"}), patch(

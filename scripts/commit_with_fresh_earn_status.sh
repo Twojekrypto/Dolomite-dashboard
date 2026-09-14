@@ -273,9 +273,15 @@ for i in $(seq 1 "$attempts"); do
     if ! git diff --staged --quiet; then
       git commit --amend --no-edit
     fi
-    if git push "$git_remote" "HEAD:$git_branch"; then
+    if push_output="$(git push "$git_remote" "HEAD:$git_branch" 2>&1)"; then
+      printf '%s\n' "$push_output"
       pushed=true
       break
+    fi
+    printf '%s\n' "$push_output"
+    if [[ "$push_output" == *"Repository is above its size quota"* ]]; then
+      echo "::error::GitHub repository storage quota blocks publication. Retrying cannot repair this; compact generated-data Git history and contact GitHub Support if the block remains. Local generated data is preserved."
+      exit 1
     fi
   elif [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; then
     git rebase --abort || true

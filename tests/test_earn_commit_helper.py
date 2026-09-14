@@ -45,6 +45,30 @@ def _run(cmd, *, cwd, env=None):
 
 
 class EarnCommitHelperIntegrationTest(unittest.TestCase):
+    def test_repository_quota_rejection_stops_after_one_push_and_keeps_local_data(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, work = self._prepare_repo(Path(tmp))
+            original_head = _run(["git", "rev-parse", "master"], cwd=remote).stdout.strip()
+            hook = remote / "hooks" / "pre-receive"
+            hook.write_text(
+                '#!/bin/sh\n'
+                'echo attempt >> quota-attempts\n'
+                'echo "Repository is above its size quota. Contact GitHub Support for further assistance." >&2\n'
+                'exit 1\n', encoding="utf-8")
+            hook.chmod(0o755)
+            (work / "data" / "test.json").write_text('{"fresh":true}\n', encoding="utf-8")
+            _run(["git", "add", "data/test.json"], cwd=work)
+            result = subprocess.run(
+                ["bash", str(work / "scripts" / "commit_with_fresh_earn_status.sh"), "test refresh"],
+                cwd=work, env=_test_subprocess_env({
+                    "EARN_PUSH_ATTEMPTS": "3", "EARN_PUSH_RETRY_SLEEP_SECONDS": "0",
+                    "EARN_PUSH_MAX_RETRY_SLEEP_SECONDS": "0",
+                }), capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual((remote / "quota-attempts").read_text().splitlines(), ["attempt"])
+            self.assertEqual(_run(["git", "rev-parse", "master"], cwd=remote).stdout.strip(), original_head)
+            self.assertEqual(json.loads((work / "data" / "test.json").read_text()), {"fresh": True})
+
     def test_git_subprocesses_disable_background_maintenance(self):
         with tempfile.TemporaryDirectory() as tmp:
             maintenance_auto = _run(
