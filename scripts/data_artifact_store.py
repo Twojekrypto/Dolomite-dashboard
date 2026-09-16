@@ -49,7 +49,8 @@ def timestamp(value):
 
 def validate_payload(body, purpose):
     # Reuse every LP contract without validate_file's missing-file skip or output.
-    # Only explicitly historical operations omit its freshness predicate.
+    # Only explicit historical operations omit freshness/current-publication gates.
+    from lp_publication import source_refresh_failed
     from validate_data import RULES
     if purpose not in ("current", "resume", "rollback"):
         raise StorageError("Invalid validation purpose")
@@ -63,6 +64,8 @@ def validate_payload(body, purpose):
                 continue
             valid = valid and check(data)
         if not valid:
+            raise ValueError()
+        if purpose == "current" and any(source_refresh_failed(source) for source in data["sources"]):
             raise ValueError()
         if timestamp(data["generatedAt"]) > datetime.now(timezone.utc):
             raise ValueError()

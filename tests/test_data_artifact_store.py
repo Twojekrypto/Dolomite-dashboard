@@ -197,6 +197,52 @@ class StorageTests(unittest.TestCase):
             self.store.publish(self.write(payload))
         self.assertEqual({}, self.s3.objects)
 
+    def test_current_publish_rejects_fresh_timestamp_with_failed_source_refresh(self):
+        self.publish()
+        before = dict(self.s3.objects)
+        for status, errors in (("stale", []), ("partial", ["RPC failed"]),
+                               ("complete", ["RPC failed"])):
+            with self.subTest(status=status, errors=errors):
+                self.s3.objects = dict(before)
+                payload = self.payload(1, 11)
+                payload["sources"][0].update(status=status, errors=errors)
+                with self.assertRaises(storage.StorageError):
+                    self.store.publish(self.write(payload))
+                self.assertEqual(before, self.s3.objects)
+
+    def test_degraded_snapshot_is_recovery_only_never_current_restore(self):
+        for status, errors in (("stale", []), ("partial", ["RPC failed"]),
+                               ("complete", ["RPC failed"])):
+            with self.subTest(status=status, errors=errors):
+                self.s3.objects = {}
+                payload = self.payload()
+                payload["sources"][0].update(status=status, errors=errors)
+                digest = self.store.publish(self.write(payload), bootstrap=True, purpose="resume")
+                self.out.write_bytes(b"known-good")
+                with self.assertRaises(storage.StorageError):
+                    self.store.restore(self.out, purpose="current")
+                self.assertEqual(self.out.read_bytes(), b"known-good")
+                self.store.restore(self.out, purpose="resume")
+                self.assertEqual(self.path.read_bytes(), self.out.read_bytes())
+                self.store.restore(self.out, digest=digest, purpose="rollback")
+                self.assertEqual(self.path.read_bytes(), self.out.read_bytes())
+
+    def test_current_publication_preserves_error_free_partial_history(self):
+        payload = self.payload()
+        payload["sources"][0].update(status="partial", latestChainBlock=11, errors=[])
+        self.store.publish(self.write(payload), bootstrap=True)
+        self.store.restore(self.out, purpose="current")
+        self.assertEqual(self.path.read_bytes(), self.out.read_bytes())
+
+    def test_current_storage_validation_does_not_import_generator_rpc_dependencies(self):
+        result = subprocess.run(
+            [sys.executable, "-S", "-c",
+             "import sys; from scripts.data_artifact_store import validate_payload; "
+             "validate_payload(sys.stdin.buffer.read(), 'current')"],
+            cwd=ROOT, input=json.dumps(self.payload()).encode(), capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_stale_bootstrap_requires_explicit_resume_and_never_serves_current(self):
         self.write(self.payload(-9 * 3600))
         with self.assertRaises(storage.StorageError):

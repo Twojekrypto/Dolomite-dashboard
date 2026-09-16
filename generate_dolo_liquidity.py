@@ -34,6 +34,7 @@ from explorer_api import ExplorerError, explorer_get
 from eth_abi import decode, encode
 from web3 import Web3
 
+from lp_publication import source_refresh_failed
 from rpc_client import (
     get_endpoints,
     rpc_batch_requests,
@@ -890,10 +891,8 @@ def assert_refresh_not_degraded(
         raise ValueError("liquidity refresh artifacts must be objects")
     failed_sources = []
     for source in candidate.get("sources", []):
-        if not isinstance(source, dict):
-            raise ValueError("candidate liquidity sources must be objects")
-        errors = source.get("errors")
-        if source.get("status") == "stale" or (isinstance(errors, list) and errors):
+        if source_refresh_failed(source):
+            errors = source.get("errors")
             source_key = str(source.get("key") or "unknown")
             error_details = [
                 sanitize_error(error)

@@ -843,6 +843,19 @@ class LiveSourceRecoveryTests(unittest.TestCase):
             source.index("write_artifact_atomic(output_path, artifact)"),
         )
 
+    def test_publication_guard_keeps_partial_without_errors_and_rejects_refresh_failures(self):
+        previous = {"sources": [{"key": "ethereum:uniswap-v3", "status": "complete", "errors": []}]}
+        for status, errors, rejected in (("partial", [], False), ("complete", [], False),
+                                         ("stale", [], True), ("partial", ["RPC failed"], True),
+                                         ("complete", ["RPC failed"], True)):
+            with self.subTest(status=status, errors=errors):
+                candidate = {"sources": [{"key": "ethereum:uniswap-v3", "status": status, "errors": errors}]}
+                if rejected:
+                    with self.assertRaisesRegex(RuntimeError, "degraded liquidity refresh rejected"):
+                        liquidity.assert_refresh_not_degraded(previous, candidate)
+                else:
+                    liquidity.assert_refresh_not_degraded(previous, candidate)
+
     def test_incremental_context_reuses_cursor_token_ids_and_clean_history(self):
         self.assertTrue(hasattr(liquidity, "incremental_pool_context"))
         pool_id = "0x" + "12" * 20
