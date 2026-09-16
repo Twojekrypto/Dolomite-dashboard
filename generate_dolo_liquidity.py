@@ -101,7 +101,7 @@ def scanner_config() -> dict[str, Any]:
     """Operational limits are non-secret config; classification stays in code."""
     path = Path(__file__).parent / "config" / "lp_scanner.json"
     config = json.loads(path.read_text(encoding="utf-8"))
-    for name in ("chunk_size", "reorg_overlap_blocks", "explorer_max_attempts", "rpc_max_results"):
+    for name in ("chunk_size", "explorer_chunk_size", "progress_every_chunks", "reorg_overlap_blocks", "explorer_max_attempts", "rpc_max_results"):
         if type(config.get(name)) is not int or config[name] <= 0:
             raise ValueError(f"invalid LP scanner setting {name}")
     for name in ("explorer_interval_seconds", "rpc_interval_seconds", "retry_base_seconds", "max_retry_wait_seconds"):
@@ -714,6 +714,7 @@ def scan_logs(
     checkpoint = Path(cache_dir) / (digest(identity) + ".json") if cache_dir is not None else None
     collected = []
     ranges = []
+    accepted_chunks = 0
     next_block = start
     if checkpoint is not None and checkpoint.exists():
         try:
@@ -738,7 +739,10 @@ def scan_logs(
         except (ValueError, TypeError, AttributeError, OSError) as exc:
             raise RuntimeError(f"invalid LP scan checkpoint: {sanitize_error(exc)}") from None
 
+    print(f"LP scan {chain_key} start={start} target={end} resume={next_block}", flush=True)
+
     def save(low, high, rows):
+        nonlocal accepted_chunks
         collected.extend(rows)
         ranges.append([low, high])
         if checkpoint is not None:
@@ -749,6 +753,9 @@ def scan_logs(
             temporary = checkpoint.with_suffix(".tmp")
             temporary.write_text(json.dumps(state, separators=(",", ":")), encoding="utf-8")
             os.replace(temporary, checkpoint)
+        accepted_chunks += 1
+        if accepted_chunks % config["progress_every_chunks"] == 0:
+            print(f"LP scan {chain_key} progress={high} target={end} chunks={accepted_chunks}", flush=True)
 
     def request_range(chunk_start, chunk_end):
         request_id = f"logs:{chain_key}:{chunk_start}:{chunk_end}"
@@ -767,6 +774,13 @@ def scan_logs(
         }
         rows = fetch_chunk(chunk_start, chunk_end) if fetch_chunk is not None else None
         if rows is None:
+            # Wide explorer windows must never become wide RPC requests.
+            # Checkpoint each bounded/adaptive RPC leaf through this same scan,
+            # rather than waiting for the whole explorer-sized window to finish.
+            if chunk_end - chunk_start + 1 > config["chunk_size"]:
+                for low, high in block_ranges(chunk_start, chunk_end, config["chunk_size"]):
+                    request_range(low, high)
+                return
             # Keep the responding family identifiable for independent empty
             # confirmation; two keys from one RPC provider are not peers.
             families = set()
@@ -3770,7 +3784,7 @@ def _routescan_logs(
                 explorer_available = False
         return None  # RPC leaves are checkpointed by the same outer scanner.
 
-    rows, cursor = scan_logs(chain_key, address, topics, from_block, to_block, config["chunk_size"],
+    rows, cursor = scan_logs(chain_key, address, topics, from_block, to_block, config["explorer_chunk_size"],
                              cache_dir=os.environ.get("LP_SCANNER_CACHE_DIR") or None,
                              overlap=config["reorg_overlap_blocks"], fetch_chunk=fetch_chunk)
     if cursor != to_block:
@@ -5264,8 +5278,15 @@ def build_registered_source(
 ) -> dict[str, Any]:
     """Every live read in a source shares the exact log-scan target block."""
     chain_key = source_key.split(":", 1)[0]
-    with pinned_snapshot(chain_key, latest_block):
-        return _build_registered_source(registry, source_key, registered, latest_block, **kwargs)
+    print(f"LP source start {source_key} pools={len(registered)} target={latest_block}", flush=True)
+    status = "failed"
+    try:
+        with pinned_snapshot(chain_key, latest_block):
+            result = _build_registered_source(registry, source_key, registered, latest_block, **kwargs)
+        status = result["sourceStatus"]
+        return result
+    finally:
+        print(f"LP source end {source_key} {status} target={latest_block}", flush=True)
 
 
 def _build_registered_source(

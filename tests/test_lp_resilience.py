@@ -1,6 +1,8 @@
 import json
 import tempfile
 import unittest
+import io
+from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
 from pathlib import Path
@@ -104,6 +106,60 @@ class ExplorerResilienceTests(unittest.TestCase):
 
 
 class RPCResilienceTests(unittest.TestCase):
+    def test_sparse_explorer_scan_uses_wide_ranges_without_10k_request_amplification(self):
+        queries = []
+        session = Mock()
+        def get(url, *, params, **kwargs):
+            queries.append((params['fromBlock'], params['toBlock'], params['page']))
+            return response({'status': '0', 'message': 'No records found', 'result': []})
+        session.get.side_effect = get
+        with patch.object(lp.time, 'sleep'):
+            rows = lp._routescan_logs(80094, ADDRESS, TOPIC, 2_900_000, 25_957_076, session=session)
+        self.assertEqual(rows, [])
+        # Independently calculated: ceil(23,057,077 / 1,000,000) = 24 wide
+        # explorer chunks, two ceiling/first-page calls each, instead of 4,612.
+        self.assertEqual(len(queries), 48)
+        self.assertEqual(queries[0], (2_900_000, 3_899_999, 10))
+        self.assertEqual(queries[-1], (25_900_000, 25_957_076, 1))
+
+    def test_wide_explorer_fallback_bounds_rpc_and_resumes_accepted_leaf_prefix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            session = Mock()
+            session.get.return_value = response({'status': '0', 'message': 'NOTOK', 'result': 'Error!'})
+            calls = []
+            def failed_rpc(endpoints, payload, **kwargs):
+                q = payload['params'][0]
+                start, end = int(q['fromBlock'], 16), int(q['toBlock'], 16)
+                calls.append((start, end, q['topics']))
+                if start >= 20_010:
+                    raise RuntimeError('late missing chunk')
+                return {'result': [log(start, tx='aa' if start == 10 else 'cc')]}
+            def timestamps(chain, blocks, **kwargs):
+                return {block: 100 + block for block in blocks}
+            with patch.dict('os.environ', {'LP_SCANNER_CACHE_DIR': directory}), patch.object(lp, 'get_endpoints', return_value=['https://rpc.invalid']), patch.object(lp, 'rpc_single_request', side_effect=failed_rpc), patch.object(lp, 'fetch_block_timestamps', side_effect=timestamps), patch.object(lp.time, 'sleep'):
+                with self.assertRaisesRegex(RuntimeError, 'late missing chunk'):
+                    lp._routescan_logs(1, ADDRESS, TOPIC, 10, 30_010, session=session,
+                                       indexed_topics={2: lp._topic_for_address(ALICE)})
+            self.assertEqual([(low, high) for low, high, topics in calls],
+                             [(10, 10_009), (10_010, 20_009), (20_010, 30_009)])
+            self.assertTrue(all(high - low + 1 <= 10_000 for low, high, topics in calls))
+            self.assertTrue(all(topics == [TOPIC, None, lp._topic_for_address(ALICE)] for low, high, topics in calls))
+            checkpoint = json.loads(next(Path(directory).glob('*.json')).read_text())
+            self.assertEqual(checkpoint['version'], 1)
+            self.assertEqual(checkpoint['lastScannedBlock'], 20_009)
+            self.assertEqual(checkpoint['ranges'], [[10, 10_009], [10_010, 20_009]])
+            resumed = []
+            def good_rpc(endpoints, payload, **kwargs):
+                q = payload['params'][0]
+                start, end = int(q['fromBlock'], 16), int(q['toBlock'], 16)
+                resumed.append((start, end))
+                return {'result': [log(start, tx=f'{len(resumed) + 221:02x}')]}
+            with patch.dict('os.environ', {'LP_SCANNER_CACHE_DIR': directory}), patch.object(lp, 'get_endpoints', return_value=['https://rpc.invalid']), patch.object(lp, 'rpc_single_request', side_effect=good_rpc), patch.object(lp, 'fetch_block_timestamps', side_effect=timestamps), patch.object(lp.time, 'sleep'):
+                rows = lp._routescan_logs(1, ADDRESS, TOPIC, 10, 30_011, session=session,
+                                          indexed_topics={2: lp._topic_for_address(ALICE)})
+            self.assertEqual(resumed, [(19_882, 29_881), (29_882, 30_011)])
+            self.assertEqual([row['blockNumber'] for row in rows], [10, 10_010, 19_882, 29_882])
+
     def test_confirmed_empty_prefers_nonempty_peer_and_does_not_count_same_family_twice(self):
         seen = []
         def rpc(endpoints, payload, **kwargs):
@@ -228,6 +284,26 @@ class RPCResilienceTests(unittest.TestCase):
 
 
 class PinnedHolderTests(unittest.TestCase):
+    def test_source_and_resume_progress_does_not_echo_provider_secrets(self):
+        output = io.StringIO()
+        pool = {'chainKey': 'ethereum', 'adapter': 'uniswap-v3', 'identifier': ADDRESS}
+        def builder(registry, pool, target):
+            raise RuntimeError('https://provider.invalid/private-test-key')
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(output), patch.object(lp.time, 'sleep'):
+            lp.scan_logs('ethereum', ADDRESS, [TOPIC], 10, 12, 3, cache_dir=directory,
+                         rpc=lambda *a, **k: {'result': [log(10)]}, endpoints=['https://provider.invalid/private-test-key'])
+            lp.scan_logs('ethereum', ADDRESS, [TOPIC], 10, 13, 3, cache_dir=directory, overlap=1,
+                         rpc=lambda *a, **k: {'result': [log(12, tx='cc')]}, endpoints=['https://provider.invalid/private-test-key'])
+            with self.assertRaises(RuntimeError):
+                lp.build_registered_source({}, 'ethereum:uniswap-v3', [pool], 12,
+                                           builders={'uniswap-v3': builder})
+        text = output.getvalue()
+        self.assertIn('resume=12', text)
+        self.assertIn('LP source start ethereum:uniswap-v3', text)
+        self.assertIn('LP source end ethereum:uniswap-v3 failed', text)
+        self.assertNotIn('private-test-key', text)
+        self.assertNotIn('https://', text)
+
     def test_island_build_uses_full_transfer_replay_and_preserves_farm_claims(self):
         island = BOB
         factory = '0x' + '44' * 20
