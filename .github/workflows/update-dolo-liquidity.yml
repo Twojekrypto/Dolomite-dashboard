@@ -51,6 +51,7 @@ jobs:
             tests/test_generate_dolo_liquidity.py
             tests/test_validate_dolo_liquidity.py
             tests/test_lp_resilience.py
+            tests/test_kodiak_zero_share_reserve.py
             tests/fixtures/dolo-liquidity
           sparse-checkout-cone-mode: false
 
@@ -79,7 +80,7 @@ jobs:
         run: python3 scripts/data_artifact_store.py prepare --purpose resume
 
       - name: Test liquidity contracts
-        run: python3 -m unittest tests.test_generate_dolo_liquidity tests.test_validate_dolo_liquidity tests.test_lp_resilience
+        run: python3 -m unittest tests.test_generate_dolo_liquidity tests.test_validate_dolo_liquidity tests.test_lp_resilience tests.test_kodiak_zero_share_reserve
 
       - name: Initialize LP scanner cache path
         run: echo "LP_SCANNER_CACHE_DIR=$RUNNER_TEMP/dolo-lp-scanner-cache" >> "$GITHUB_ENV"

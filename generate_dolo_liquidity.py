@@ -2130,7 +2130,7 @@ def _ordered_event_logs(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def replay_erc20_share_balances(
-    logs: list[dict[str, Any]], total_supply: int
+    logs: list[dict[str, Any]], total_supply: int, *, include_zero_address_mints: bool = False
 ) -> dict[str, int]:
     """Replay canonical ERC-20 transfers and reconcile current share supply."""
     expected_supply = _raw_integer(total_supply, "share total supply")
@@ -2155,6 +2155,10 @@ def replay_erc20_share_balances(
             balances[sender] -= amount
         if recipient != ZERO_ADDRESS:
             balances[recipient] += amount
+        elif include_zero_address_mints and sender == ZERO_ADDRESS:
+            # Kodiak mints minimum shares to zero. Ordinary holder -> zero
+            # burns still reduce supply; only zero -> zero is reserve issuance.
+            balances[ZERO_ADDRESS] += amount
     result = {address: amount for address, amount in sorted(balances.items()) if amount > 0}
     if sum(result.values()) != expected_supply:
         raise ValueError("share balances do not reconcile to total supply")
@@ -2288,6 +2292,19 @@ def allocate_kodiak_island_position(
 
     claims = []
     for holder, shares in sorted(balances.items()):
+        if holder == ZERO_ADDRESS:
+            claims.append(
+                {
+                    "beneficialOwner": None,
+                    "custodian": ZERO_ADDRESS,
+                    "shares": shares,
+                    "path": "zero_address_reserve",
+                    "quality": "verified",
+                    "status": "custodied_unresolved",
+                    "reason": "Minimum Island shares minted to the zero address; no spendable wallet owner",
+                }
+            )
+            continue
         farm = farms_by_address.get(holder)
         if farm and farm["supported"]:
             for staker, staked_shares in sorted(farm["stakedBalances"].items()):
@@ -3320,11 +3337,14 @@ def _reconcile_transfer_holder_balances(
     """Full mint/burn/transfer replay must match every holder at the pinned block."""
     transfers = _routescan_logs(chain_id, token, event_topic("Transfer(address,address,uint256)"),
                                from_block, to_block)
-    replayed = replay_erc20_share_balances(transfers, expected_total)
+    replayed = replay_erc20_share_balances(
+        transfers, expected_total, include_zero_address_mints=True
+    )
     candidates = set(replayed)
     for row in transfers:
         candidates.update(_address_from_topic(topic, "share holder") for topic in row["topics"][1:])
-    candidates.discard(ZERO_ADDRESS)
+    if ZERO_ADDRESS not in replayed:
+        candidates.discard(ZERO_ADDRESS)
     with pinned_snapshot(chain_key, to_block):
         balances = _reconcile_indexed_holder_balances(chain_key, token, candidates, expected_total)
     if balances != replayed:
