@@ -552,7 +552,7 @@ class LiveSourceRecoveryTests(unittest.TestCase):
 
         self.assertEqual(rows, [])
         self.assertEqual(session.get.call_count, 3)
-        sleep.assert_called_once()
+        self.assertTrue(all(call.args[0] >= 0.4 for call in sleep.call_args_list))
 
     def test_routescan_logs_probes_result_ceiling_before_fetching_large_range(self):
         pages = []
@@ -726,7 +726,7 @@ class LiveSourceRecoveryTests(unittest.TestCase):
                 return_value=({}, missing),
             ),
             patch.object(liquidity, "rpc_single_request", return_value={"result": None}),
-            self.assertRaisesRegex(RuntimeError, "canonical RPC receipt unavailable"),
+            self.assertRaisesRegex(RuntimeError, "required log chunk"),
         ):
             liquidity._routescan_logs(
                 1,
@@ -770,7 +770,8 @@ class LiveSourceRecoveryTests(unittest.TestCase):
                     [],
                 ),
             ),
-            self.assertRaisesRegex(RuntimeError, "identify one exact incomplete Routescan log"),
+            patch.object(liquidity, "rpc_single_request", side_effect=RuntimeError("RPC unavailable")),
+            self.assertRaisesRegex(RuntimeError, "required log chunk"),
         ):
             liquidity._routescan_logs(
                 1,

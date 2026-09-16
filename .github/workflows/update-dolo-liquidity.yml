@@ -40,8 +40,10 @@ jobs:
             dolo_price.json
             data/dolo-liquidity-pools.json
             data/dolo-liquidity.json
+            config/lp_scanner.json
             tests/test_generate_dolo_liquidity.py
             tests/test_validate_dolo_liquidity.py
+            tests/test_lp_resilience.py
             tests/fixtures/dolo-liquidity
           sparse-checkout-cone-mode: false
 
@@ -54,7 +56,19 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Test liquidity contracts
-        run: python3 -m unittest tests.test_generate_dolo_liquidity tests.test_validate_dolo_liquidity
+        run: python3 -m unittest tests.test_generate_dolo_liquidity tests.test_validate_dolo_liquidity tests.test_lp_resilience
+
+      - name: Initialize LP scanner cache path
+        run: echo "LP_SCANNER_CACHE_DIR=$RUNNER_TEMP/dolo-lp-scanner-cache" >> "$GITHUB_ENV"
+
+      - name: Restore LP scanner checkpoints
+        id: lp_scan_cache_restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.LP_SCANNER_CACHE_DIR }}
+          key: lp-scanner-v1-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            lp-scanner-v1-${{ runner.os }}-${{ github.ref_name }}-
 
       - name: Generate DOLO liquidity
         env:
@@ -80,6 +94,13 @@ jobs:
             full_history_arg="--full-history"
           fi
           python3 generate_dolo_liquidity.py --registry data/dolo-liquidity-pools.json --output data/dolo-liquidity.json $full_history_arg
+
+      - name: Save LP scanner checkpoints even on failed refresh
+        if: ${{ always() && steps.lp_scan_cache_restore.outcome == 'success' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.LP_SCANNER_CACHE_DIR }}
+          key: ${{ steps.lp_scan_cache_restore.outputs.cache-primary-key }}
 
       - name: Validate generated artifact
         run: python3 validate_data.py data/dolo-liquidity.json

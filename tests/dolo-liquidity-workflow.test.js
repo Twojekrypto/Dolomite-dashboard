@@ -39,7 +39,13 @@ test('six-hour DOLO liquidity workflow is fail-closed and publishes only validat
   assert.match(yaml, /name: Refresh DOLO flow LP attribution/);
   assert.match(yaml, /github\.event_name == 'workflow_dispatch'/);
   assert.match(yaml, /gh workflow run update-dolo-flows\.yml --ref master -f skip_holders=true/);
-  assert.doesNotMatch(yaml, /if: always\(\)[\s\S]*?git add/);
+  const steps = yaml.split(/\n      - name: /);
+  const publish = steps.find(step => step.startsWith('Commit and push validated data'));
+  assert.doesNotMatch(publish, /always\(\)|continue-on-error/);
+  assert.match(yaml, /actions\/cache\/restore@v4/);
+  assert.match(yaml, /actions\/cache\/save@v4/);
+  assert.match(yaml, /always\(\) && steps\.lp_scan_cache_restore\.outcome == 'success'/);
+  assert.match(yaml, /LP_SCANNER_CACHE_DIR=\$RUNNER_TEMP\/dolo-lp-scanner-cache/);
 });
 
 test('Pages deploy waits for successful DOLO liquidity refreshes', () => {

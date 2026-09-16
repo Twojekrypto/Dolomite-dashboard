@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import inspect
 import itertools
 import json
@@ -18,14 +19,18 @@ import os
 import re
 import time
 from collections import defaultdict
+from contextlib import contextmanager
+from contextvars import ContextVar
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from decimal import Decimal, localcontext
+from email.utils import parsedate_to_datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 from typing import Any
 
 import requests
-from explorer_api import explorer_get
+from explorer_api import ExplorerError, explorer_get
 from eth_abi import decode, encode
 from web3 import Web3
 
@@ -88,6 +93,40 @@ KODIAK_V3_SUBGRAPH = (
 BULLA_BOUNDED_LOOKBACK_BLOCKS = 1_500_000
 ROUTESCAN_TRANSIENT_STATUS_CODES = {429, 500, 502, 503, 504}
 _KODIAK_FARM_INDEX_CACHE: dict[tuple[str, str, int], dict[str, list[dict[str, Any]]]] = {}
+_SNAPSHOT_BLOCK: ContextVar[tuple[str, int] | None] = ContextVar("lp_snapshot_block", default=None)
+
+
+def scanner_config() -> dict[str, Any]:
+    """Operational limits are non-secret config; classification stays in code."""
+    path = Path(__file__).parent / "config" / "lp_scanner.json"
+    config = json.loads(path.read_text(encoding="utf-8"))
+    for name in ("chunk_size", "reorg_overlap_blocks", "explorer_max_attempts", "rpc_max_results"):
+        if type(config.get(name)) is not int or config[name] <= 0:
+            raise ValueError(f"invalid LP scanner setting {name}")
+    for name in ("explorer_interval_seconds", "rpc_interval_seconds", "retry_base_seconds", "max_retry_wait_seconds"):
+        value = config.get(name)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+            raise ValueError(f"invalid LP scanner setting {name}")
+    return config
+
+
+@contextmanager
+def pinned_snapshot(chain_key: str, block: int):
+    target = _exact_int(block, "snapshot block")
+    if target < 0:
+        raise ValueError("snapshot block must be nonnegative")
+    token = _SNAPSHOT_BLOCK.set((chain_key, target))
+    try:
+        yield
+    finally:
+        _SNAPSHOT_BLOCK.reset(token)
+
+
+def _snapshot_tag(chain_key: str, block: int | str = "latest") -> str:
+    snapshot = _SNAPSHOT_BLOCK.get()
+    if block == "latest" and snapshot is not None and snapshot[0] == chain_key:
+        block = snapshot[1]
+    return hex(block) if isinstance(block, int) else block
 
 
 def _finite_decimal(value: Any, label: str, *, allow_zero: bool = True) -> Decimal:
@@ -609,6 +648,9 @@ def scan_logs(
     *,
     rpc=None,
     endpoints: list[str] | None = None,
+    cache_dir: str | Path | None = None,
+    overlap: int = 128,
+    fetch_chunk=None,
 ) -> tuple[list[dict[str, Any]], int]:
     """Scan and normalize a complete inclusive log range.
 
@@ -633,9 +675,81 @@ def scan_logs(
         raise ValueError("log address filter must be an address or non-empty list")
     if not isinstance(topics, list):
         raise ValueError("topics filter must be a list")
+    for topic in topics:
+        choices = topic if isinstance(topic, list) else [topic]
+        if not choices or any(value is not None and not POOL_ID_RE.fullmatch(str(value)) for value in choices):
+            raise ValueError("log topic filter must contain bytes32 values")
+    if type(overlap) is not int or overlap <= 0:
+        raise ValueError("reorg overlap must be positive")
+    config = scanner_config()
 
-    collected: list[dict[str, Any]] = []
-    for chunk_start, chunk_end in block_ranges(start, end, chunk_size):
+    def checked(rows, low, high):
+        if not isinstance(rows, list):
+            raise RuntimeError(f"{chain_key} log response result was not a list")
+        normalized = []
+        allowed_addresses = {address_filter} if isinstance(address_filter, str) else set(address_filter)
+        for raw in rows:
+            row = normalize_rpc_log(raw)
+            if not low <= row["blockNumber"] <= high or row["address"] not in allowed_addresses:
+                raise ValueError("log does not match requested range/address")
+            for index, expected in enumerate(topics):
+                if expected is None:
+                    continue
+                choices = expected if isinstance(expected, list) else [expected]
+                if index >= len(row["topics"]) or row["topics"][index] not in choices:
+                    raise ValueError("log does not match requested topics")
+            if "timestamp" in raw:
+                timestamp = _exact_int(raw["timestamp"], "cached log timestamp")
+                if timestamp <= 0:
+                    raise ValueError("cached timestamp must be positive")
+                row["timestamp"] = timestamp
+            normalized.append(row)
+        return dedupe_logs(chain_key, normalized)
+
+    def digest(value):
+        return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+    identity = {"chain": chain_key, "address": address_filter, "topics": topics, "fromBlock": start}
+    checkpoint = Path(cache_dir) / (digest(identity) + ".json") if cache_dir is not None else None
+    collected = []
+    ranges = []
+    next_block = start
+    if checkpoint is not None and checkpoint.exists():
+        try:
+            cached = json.loads(checkpoint.read_text(encoding="utf-8"))
+            if cached.get("version") != 1 or cached.get("filters") != identity:
+                raise ValueError("cached filters/version mismatch")
+            last = _exact_int(cached.get("lastScannedBlock"), "cached cursor")
+            expected_start = start
+            for low, high in cached.get("ranges", []):
+                if type(low) is not int or type(high) is not int or low != expected_start or high < low:
+                    raise ValueError("cached coverage contains a gap")
+                expected_start = high + 1
+            if last < start or expected_start != last + 1:
+                raise ValueError("cached coverage does not match cursor")
+            if cached.get("logDigest") != digest(cached.get("logs")):
+                raise ValueError("cached log digest mismatch")
+            old_logs = checked(cached.get("logs"), start, last)
+            next_block = max(start, min(last, end) - overlap + 1)
+            collected = [row for row in old_logs if row["blockNumber"] < next_block]
+            if next_block > start:
+                ranges = [[start, next_block - 1]]
+        except (ValueError, TypeError, AttributeError, OSError) as exc:
+            raise RuntimeError(f"invalid LP scan checkpoint: {sanitize_error(exc)}") from None
+
+    def save(low, high, rows):
+        collected.extend(rows)
+        ranges.append([low, high])
+        if checkpoint is not None:
+            checkpoint.parent.mkdir(parents=True, exist_ok=True)
+            logs = dedupe_logs(chain_key, collected)
+            state = {"version": 1, "filters": identity, "ranges": ranges,
+                     "lastScannedBlock": high, "logs": logs, "logDigest": digest(logs)}
+            temporary = checkpoint.with_suffix(".tmp")
+            temporary.write_text(json.dumps(state, separators=(",", ":")), encoding="utf-8")
+            os.replace(temporary, checkpoint)
+
+    def request_range(chunk_start, chunk_end):
         request_id = f"logs:{chain_key}:{chunk_start}:{chunk_end}"
         payload = {
             "jsonrpc": "2.0",
@@ -650,21 +764,61 @@ def scan_logs(
                 }
             ],
         }
-        response = rpc_call(
-            rpc_endpoints,
-            payload,
-            describe=f"{chain_key} logs {chunk_start}-{chunk_end}",
-        )
-        if not isinstance(response, dict):
-            raise RuntimeError(f"{chain_key} log response was not an object")
-        if response.get("error"):
-            raise RuntimeError(
-                f"{chain_key} log response error: {sanitize_error(response['error'])}"
-            )
-        rows = response.get("result")
-        if not isinstance(rows, list):
-            raise RuntimeError(f"{chain_key} log response result was not a list")
-        collected.extend(normalize_rpc_log(row) for row in rows)
+        rows = fetch_chunk(chunk_start, chunk_end) if fetch_chunk is not None else None
+        if rows is None:
+            # Keep the responding family identifiable for independent empty
+            # confirmation; two keys from one RPC provider are not peers.
+            families = set()
+            empty_votes = 0
+            last_error = None
+            rows = None
+            for endpoint in rpc_endpoints:
+                host = urlsplit(endpoint).hostname or "rpc"
+                family = next((name for name in ("alchemy", "drpc", "publicnode", "infura") if name in host), host)
+                if family in families:
+                    continue
+                families.add(family)
+                try:
+                    response = rpc_call([endpoint], payload, retries_per_endpoint=1, quiet=True,
+                                        describe=f"{chain_key} logs {chunk_start}-{chunk_end}")
+                    if not isinstance(response, dict):
+                        raise RuntimeError(f"{chain_key} log response was not an object")
+                    if response.get("error"):
+                        raise RuntimeError(f"{chain_key} log response error: {sanitize_error(response['error'])}")
+                    candidate = response.get("result")
+                    if not isinstance(candidate, list):
+                        raise RuntimeError(f"{chain_key} log response result was not a list")
+                    if len(candidate) >= config["rpc_max_results"]:
+                        raise RuntimeError("RPC result limit reached; complete range is unproven")
+                    if candidate:
+                        rows = candidate
+                        break
+                    empty_votes += 1
+                    if empty_votes >= 2:
+                        rows = []
+                        break
+                except Exception as exc:
+                    last_error = exc
+                    text = str(exc).lower()
+                    limited = any(token in text for token in ("block range", "range too", "result limit", "too many results", "more than", "response size", "query returned", "-32005"))
+                    if limited and chunk_start < chunk_end:
+                        midpoint = (chunk_start + chunk_end) // 2
+                        request_range(chunk_start, midpoint)
+                        request_range(midpoint + 1, chunk_end)
+                        return
+            if rows is None:
+                raise RuntimeError(f"{chain_key} required log chunk {chunk_start}-{chunk_end} unavailable: {sanitize_error(last_error) if last_error else 'empty range lacks independent confirmation'}") from None
+            time.sleep(config["rpc_interval_seconds"])
+        rows = checked(rows, chunk_start, chunk_end)
+        if fetch_chunk is not None:
+            missing_timestamps = [row["blockNumber"] for row in rows if "timestamp" not in row]
+            if missing_timestamps:
+                timestamps = fetch_block_timestamps(chain_key, missing_timestamps)
+                rows = [{**row, "timestamp": row.get("timestamp", timestamps.get(row["blockNumber"]))} for row in rows]
+        save(chunk_start, chunk_end, rows)
+
+    for chunk_start, chunk_end in block_ranges(next_block, end, chunk_size):
+        request_range(chunk_start, chunk_end)
     return dedupe_logs(chain_key, collected), end
 
 
@@ -2733,7 +2887,7 @@ def _eth_call_args(
     contract = _normalized_address(address, "call contract")
     selector = Web3.keccak(text=signature).hex()[:8]
     encoded_args = encode(input_types or [], args or []).hex()
-    block_tag = hex(block) if isinstance(block, int) else block
+    block_tag = _snapshot_tag(chain_key, block)
     response = rpc_single_request(
         get_endpoints(chain_key),
         {
@@ -2777,7 +2931,7 @@ def _batch_eth_call_args(
                 "jsonrpc": "2.0",
                 "id": call_id,
                 "method": "eth_call",
-                "params": [{"to": address, "data": "0x" + selector + encoded_args}, "latest"],
+                "params": [{"to": address, "data": "0x" + selector + encoded_args}, _snapshot_tag(chain_key, call.get("block", "latest"))],
             }
         )
         definitions[call_id] = call
@@ -2810,7 +2964,7 @@ def _eth_code(chain_key: str, address: str) -> str:
     contract = _normalized_address(address, "code address")
     response = rpc_single_request(
         get_endpoints(chain_key),
-        {"jsonrpc": "2.0", "id": f"code:{contract}", "method": "eth_getCode", "params": [contract, "latest"]},
+        {"jsonrpc": "2.0", "id": f"code:{contract}", "method": "eth_getCode", "params": [contract, _snapshot_tag(chain_key)]},
         describe=f"{chain_key} code {contract}",
     )
     code = response.get("result") if isinstance(response, dict) else None
@@ -2834,7 +2988,7 @@ def _safe_singleton_address(chain_key: str, address: str) -> str:
             "jsonrpc": "2.0",
             "id": f"safe-singleton:{contract}",
             "method": "eth_getStorageAt",
-            "params": [contract, "0x0", "latest"],
+            "params": [contract, "0x0", _snapshot_tag(chain_key)],
         },
         timeout=10,
         retries_per_endpoint=2,
@@ -2853,12 +3007,18 @@ def _routescan_request(
     *,
     params: dict[str, Any],
     timeout: int,
-    max_attempts: int = 5,
+    max_attempts: int | None = None,
 ) -> requests.Response:
-    """Retry only transient Routescan transport failures with a bounded delay."""
+    """Retry known transport/JSON transients without changing keys or filters."""
+    config = scanner_config()
+    if max_attempts is None:
+        max_attempts = config["explorer_max_attempts"]
+    if type(max_attempts) is not int or max_attempts <= 0:
+        raise ValueError("explorer attempts must be positive")
     last_error: Exception | None = None
     for attempt in range(max_attempts):
         try:
+            time.sleep(config["explorer_interval_seconds"])
             response = explorer_get(
                 url,
                 session=client,
@@ -2868,20 +3028,31 @@ def _routescan_request(
             )
             response.raise_for_status()
             return response
-        except requests.RequestException as exc:
+        except (requests.RequestException, ExplorerError) as exc:
             last_error = exc
             status = getattr(getattr(exc, "response", None), "status_code", None)
-            transient = status in ROUTESCAN_TRANSIENT_STATUS_CODES or status is None
+            transient = exc.retryable if isinstance(exc, ExplorerError) else (
+                status in ROUTESCAN_TRANSIENT_STATUS_CODES or status is None
+            )
             if not transient or attempt + 1 >= max_attempts:
                 raise
             retry_after = getattr(getattr(exc, "response", None), "headers", {}).get(
                 "Retry-After"
             )
             try:
-                delay = float(retry_after) if retry_after is not None else 0.5 * (2**attempt)
+                delay = float(retry_after) if retry_after is not None else config["retry_base_seconds"] * (2**attempt)
             except (TypeError, ValueError):
-                delay = 0.5 * (2**attempt)
-            time.sleep(max(0.25, min(delay, 8.0)))
+                try:
+                    retry_date = parsedate_to_datetime(str(retry_after))
+                    delay = max(0.0, (retry_date - datetime.now(timezone.utc)).total_seconds())
+                except (TypeError, ValueError, OverflowError):
+                    delay = config["retry_base_seconds"] * (2**attempt)
+            if not math.isfinite(delay) or delay < 0:
+                delay = config["retry_base_seconds"] * (2**attempt)
+            if delay > config["max_retry_wait_seconds"]:
+                # Do not retry before a provider's longer mandated cooldown.
+                raise
+            time.sleep(max(config["explorer_interval_seconds"], delay))
     raise RuntimeError(f"Routescan request failed: {sanitize_error(last_error)}")
 
 
@@ -3125,6 +3296,29 @@ def _reconcile_indexed_holder_balances(
     return balances
 
 
+def _reconcile_transfer_holder_balances(
+    chain_key: str,
+    chain_id: int,
+    token: str,
+    from_block: int,
+    to_block: int,
+    expected_total: int,
+) -> dict[str, int]:
+    """Full mint/burn/transfer replay must match every holder at the pinned block."""
+    transfers = _routescan_logs(chain_id, token, event_topic("Transfer(address,address,uint256)"),
+                               from_block, to_block)
+    replayed = replay_erc20_share_balances(transfers, expected_total)
+    candidates = set(replayed)
+    for row in transfers:
+        candidates.update(_address_from_topic(topic, "share holder") for topic in row["topics"][1:])
+    candidates.discard(ZERO_ADDRESS)
+    with pinned_snapshot(chain_key, to_block):
+        balances = _reconcile_indexed_holder_balances(chain_key, token, candidates, expected_total)
+    if balances != replayed:
+        raise RuntimeError("exact holder balances do not match Transfer replay")
+    return balances
+
+
 def _standard_staking_custody_state(
     chain_key: str,
     chain_id: int,
@@ -3285,7 +3479,7 @@ def _flatten_nested_staking_state(
     return parent
 
 
-def _routescan_logs(
+def _explorer_logs(
     chain_id: int,
     address: str,
     topic0: str,
@@ -3537,6 +3731,52 @@ def _routescan_logs(
 
     collected = fetch_range(from_block, to_block)
     return collected if discovery_only else dedupe_logs(str(chain_id), collected)
+
+
+def _routescan_logs(
+    chain_id: int,
+    address: str,
+    topic0: str,
+    from_block: int,
+    to_block: int,
+    *,
+    session: requests.Session | None = None,
+    discovery_only: bool = False,
+    indexed_topics: dict[int, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Checkpoint complete filtered chunks; failed explorer chunks use public RPC."""
+    chain_key = {1: "ethereum", 80094: "berachain"}.get(chain_id)
+    if chain_key is None:
+        raise ValueError(f"unsupported LP log chain {chain_id}")
+    topics: list[Any] = [str(topic0).lower()]
+    for index, value in sorted((indexed_topics or {}).items()):
+        if isinstance(index, bool) or index not in {1, 2, 3}:
+            raise ValueError("Routescan indexed topic must be 1, 2, or 3")
+        while len(topics) <= index:
+            topics.append(None)
+        topics[index] = str(value).lower()
+    config = scanner_config()
+    client = session or requests.Session()
+    # Once unavailable for this scan, do not repeatedly spend the same quota
+    # on every historical block chunk. No API key rotation is performed here.
+    explorer_available = True
+
+    def fetch_chunk(start, end):
+        nonlocal explorer_available
+        if explorer_available:
+            try:
+                return _explorer_logs(chain_id, address, topic0, start, end, session=client,
+                                      discovery_only=discovery_only, indexed_topics=indexed_topics)
+            except (requests.RequestException, RuntimeError, ValueError):
+                explorer_available = False
+        return None  # RPC leaves are checkpointed by the same outer scanner.
+
+    rows, cursor = scan_logs(chain_key, address, topics, from_block, to_block, config["chunk_size"],
+                             cache_dir=os.environ.get("LP_SCANNER_CACHE_DIR") or None,
+                             overlap=config["reorg_overlap_blocks"], fetch_chunk=fetch_chunk)
+    if cursor != to_block:
+        raise RuntimeError("LP log scan did not cover the required target block")
+    return rows
 
 
 def _dexscreener_pair(pool: dict[str, Any], *, session: requests.Session | None = None) -> dict[str, Any]:
@@ -4036,11 +4276,9 @@ def _build_kodiak_island_rows(
             if amount0 or amount1:
                 raise RuntimeError(f"Kodiak Island {island} has assets without shares")
             continue
-        holder_candidates = _routescan_token_holder_candidates(
-            chain["chainId"], island
-        )
-        balances = _reconcile_indexed_holder_balances(
-            chain_key, island, holder_candidates, total_supply
+        balances = _reconcile_transfer_holder_balances(
+            chain_key, chain["chainId"], island,
+            discovered["blockNumber"], latest_block, total_supply
         )
         farms = _kodiak_farms_for_island(
             registry, chain_key, island, balances, latest_block
@@ -5019,6 +5257,19 @@ def _build_uniswap_v4_live_source(
 
 
 def build_registered_source(
+    registry: dict[str, Any],
+    source_key: str,
+    registered: list[dict[str, Any]],
+    latest_block: int,
+    **kwargs,
+) -> dict[str, Any]:
+    """Every live read in a source shares the exact log-scan target block."""
+    chain_key = source_key.split(":", 1)[0]
+    with pinned_snapshot(chain_key, latest_block):
+        return _build_registered_source(registry, source_key, registered, latest_block, **kwargs)
+
+
+def _build_registered_source(
     registry: dict[str, Any],
     source_key: str,
     registered: list[dict[str, Any]],

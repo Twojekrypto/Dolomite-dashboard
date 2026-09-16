@@ -144,7 +144,7 @@ class ExplorerOutageTests(unittest.TestCase):
     def test_liquidity_single_block_error_does_not_become_empty_logs(self):
         with patch("requests.Session.get", return_value=response(UNSUPPORTED)), patch.dict(
             os.environ, {"ETHERSCAN_API_KEY": "", "BERASCAN_API_KEY": ""}
-        ):
+        ), patch.object(liquidity, "rpc_single_request", side_effect=RuntimeError("RPC unavailable")):
             with self.assertRaises(RuntimeError):
                 liquidity._routescan_logs(80094, "0x" + "1" * 40, "0x" + "2" * 64, 100, 100)
 
