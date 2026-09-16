@@ -71,6 +71,9 @@ jobs:
             lp-scanner-v1-${{ runner.os }}-${{ github.ref_name }}-
 
       - name: Generate DOLO liquidity
+        # Reserve 5 minutes for setup/restore and 5 for checkpoint upload within
+        # the 55-minute job. A cold backfill must stop before the runner is killed.
+        timeout-minutes: 45
         env:
           PYTHONUNBUFFERED: '1'
           ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}

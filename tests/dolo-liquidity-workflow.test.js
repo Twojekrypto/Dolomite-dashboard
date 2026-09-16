@@ -52,3 +52,21 @@ test('Pages deploy waits for successful DOLO liquidity refreshes', () => {
   const yaml = fs.readFileSync(pagesPath, 'utf8');
   assert.match(yaml, /- Update DOLO Liquidity/);
 });
+
+test('generation deadline leaves setup and checkpoint-upload headroom inside the job budget', () => {
+  const yaml = fs.readFileSync(workflowPath, 'utf8');
+  const jobBudget = Number(yaml.match(/^    timeout-minutes: (\d+)$/m)?.[1]);
+  const steps = yaml.split(/\n      - name: /);
+  const generation = steps.find(step => step.startsWith('Generate DOLO liquidity\n'));
+  const generationBudget = Number(generation?.match(/^        timeout-minutes: (\d+)$/m)?.[1]);
+  const setupHeadroom = 5;
+  const cacheUploadHeadroom = 5;
+  assert.ok(Number.isInteger(generationBudget) && generationBudget > 0,
+    'Generation needs its own positive deadline so a cold backfill cannot exhaust the job');
+  assert.ok(generationBudget + setupHeadroom + cacheUploadHeadroom <= jobBudget,
+    'Generation must leave at least five minutes each for setup and checkpoint upload');
+  assert.doesNotMatch(generation, /continue-on-error/);
+  const save = steps.find(step => step.startsWith('Save LP scanner checkpoints even on failed refresh\n'));
+  assert.ok(steps.indexOf(save) > steps.indexOf(generation), 'Checkpoint saving follows generation');
+  assert.match(save, /always\(\)/, 'Generation timeout must still attempt checkpoint saving');
+});
