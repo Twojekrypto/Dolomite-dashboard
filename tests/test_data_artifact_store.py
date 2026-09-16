@@ -5,6 +5,7 @@ from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -80,7 +81,58 @@ class StorageTests(unittest.TestCase):
         return self.path
 
     def publish(self, age=0, block=10):
-        return self.store.publish(self.write(self.payload(age, block)))
+        return self.store.publish(self.write(self.payload(age, block)), bootstrap=not self.s3.objects)
+
+    def test_normal_publish_requires_explicit_bootstrap_for_a_missing_pointer(self):
+        with self.assertRaises(storage.StorageError):
+            self.store.publish(self.write())
+        self.assertEqual({}, self.s3.objects)
+
+    def test_missing_active_pointer_cannot_regress_a_newer_published_version(self):
+        first = self.publish()
+        first_bytes = self.path.read_bytes()
+        self.publish(1, 11)
+        del self.s3.objects["lp/v1/active.json"]
+        before = dict(self.s3.objects)
+        self.path.write_bytes(first_bytes)
+        with self.assertRaises(storage.StorageError):
+            self.store.publish(self.path)
+        self.assertEqual(before, self.s3.objects)
+        self.assertIn(f"lp/v1/versions/{first}.json", self.s3.objects)
+
+    def test_all_active_consumers_reject_malformed_pointer_schema(self):
+        first = self.publish()
+        second = self.publish(1, 11)
+        self.store.rollback(first, reason="pilot-drill-123")
+        self.store.publish(self.path)
+        self.store.verify(second, mark_ready=True, rollback_digest=first)
+        good_objects = dict(self.s3.objects)
+        active = json.loads(good_objects["lp/v1/active.json"])
+        malformed = [{"sha256": second, "schemaVersion": "invalid"}]
+        for field in active:
+            malformed.append({key: value for key, value in active.items() if key != field})
+        for field, value in (("schemaVersion", True), ("publicationId", "bad"),
+                             ("publishedAt", "invalid"), ("publishedAt", "2026-01-01"),
+                             ("operation", "unknown"), ("previousDigest", None),
+                             ("previousDigest", "bad"), ("reason", "unexpected-reason"),
+                             ("operation", "rollback")):
+            malformed.append({**active, field: value})
+        self.write(self.payload(2, 12))
+        operations = {
+            "publish": lambda: self.store.publish(self.path),
+            "restore": lambda: self.store.restore(self.out),
+            "rollback": lambda: self.store.rollback(first, reason="pilot-drill-456"),
+            "verify": lambda: self.store.verify(second, mark_ready=True, rollback_digest=first),
+            "require_ready": lambda: self.store.require_ready(second),
+        }
+        for pointer in malformed:
+            for name, operation in operations.items():
+                with self.subTest(pointer=pointer, operation=name):
+                    self.s3.objects = {**good_objects, "lp/v1/active.json": json.dumps(pointer).encode()}
+                    before = dict(self.s3.objects)
+                    with self.assertRaises(storage.StorageError):
+                        operation()
+                    self.assertEqual(before, self.s3.objects)
 
     def test_round_trip_preserves_exact_bytes_and_previous_versions(self):
         first = self.publish()
@@ -220,13 +272,14 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(self.out.read_bytes(), self.path.read_bytes())
 
     def test_shadow_publish_and_gated_r2_prepare_use_real_storage(self):
-        self.write()
+        self.publish()
+        self.write(self.payload(1, 11))
         before = self.path.read_bytes()
         with patch.dict(os.environ, {"LP_DATA_STORAGE": "shadow"}, clear=True), patch.object(storage, "configured_store", return_value=self.store), redirect_stdout(io.StringIO()):
             self.assertEqual(storage.main(["publish", "--path", str(self.path)]), 0)
         self.assertEqual(before, self.path.read_bytes())
         first = hashlib.sha256(before).hexdigest()
-        second = self.publish(1, 11)
+        second = self.publish(2, 12)
         self.store.rollback(first, reason="pilot-drill-123")
         self.store.publish(self.path)
         self.store.verify(second, mark_ready=True, rollback_digest=first)
@@ -387,6 +440,15 @@ class WorkflowModeTests(unittest.TestCase):
     def execute(self, code, mode):
         subprocess.run(["bash", "-e", "-c", code], cwd=self.repo,
                        env={**os.environ, "LP_DATA_STORAGE": mode}, check=True, capture_output=True)
+
+    def test_required_storage_check_runs_for_unrelated_pull_requests_and_source_pushes(self):
+        # A required workflow skipped by path filters leaves unrelated PRs pending.
+        workflow = (ROOT / ".github/workflows/lp-storage-checks.yml").read_text()
+        triggers = workflow.split("\non:\n", 1)[1].split("\npermissions:", 1)[0]
+        for event in ("pull_request", "push"):
+            block = re.split(r"\n(?=  \S)", triggers.split(f"  {event}:\n", 1)[1], maxsplit=1)[0]
+            self.assertNotIn("paths:", block)
+            self.assertNotIn("paths-ignore:", block)
 
     def test_publication_stages_git_and_shadow_but_only_registry_in_r2(self):
         code = workflow_run_block("update-dolo-liquidity.yml", "Stage LP publication files")

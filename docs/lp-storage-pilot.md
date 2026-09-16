@@ -124,6 +124,9 @@ python3 scripts/data_artifact_store.py verify --digest DIGEST_B --mark-ready --r
 `verify`, `rollback` są jawnymi operacjami na storage nawet w trybie `git`;
 workflowowe `prepare`/`publish` są no-op w `git`. Lokalne zapisy też respektują CAS,
 ale nie należą do kolejki concurrency GitHub: nie uruchamiaj ich równolegle z jobami.
+Zwykły `publish` wymaga istniejącego, poprawnego aktywnego wskaźnika; jego brak
+nie może wyzerować ochrony przed cofnięciem danych. Inicjalizacja pustego wskaźnika
+wymaga jawnego `bootstrap`, także po awarii — najpierw ustal właściwy baseline.
 
 Pod `lp/v1/objects/<sha256>.json` są niezmienne bajty LP,
 `versions/<sha256>.json` zawiera size/hash/czas/kursory źródeł,

@@ -1,29 +1,10 @@
 name: LP Storage Checks
 
 on:
+  # This is a required check: path filters would leave unrelated PRs pending.
   pull_request:
-    paths:
-      - 'data/dolo-liquidity.json'
-      - 'scripts/data_artifact_store.py'
-      - 'requirements-storage.txt'
-      - 'tests/test_data_artifact_store.py'
-      - 'tests/dolo-liquidity-workflow.test.js'
-      - '.github/workflows/lp-storage-*.yml'
-      - '.github/workflows/update-dolo-liquidity.yml'
-      - '.github/workflows/update-dolo-flows.yml'
-      - '.github/workflows/pages.yml'
   push:
     branches: [main, master]
-    paths:
-      - 'data/dolo-liquidity.json'
-      - 'scripts/data_artifact_store.py'
-      - 'requirements-storage.txt'
-      - 'tests/test_data_artifact_store.py'
-      - 'tests/dolo-liquidity-workflow.test.js'
-      - '.github/workflows/lp-storage-*.yml'
-      - '.github/workflows/update-dolo-liquidity.yml'
-      - '.github/workflows/update-dolo-flows.yml'
-      - '.github/workflows/pages.yml'
 
 permissions:
   contents: read

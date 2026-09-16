@@ -122,6 +122,38 @@ class ArtifactStore:
         except (ValueError, TypeError):
             raise StorageError("Storage manifest is invalid") from None
 
+    def _active(self, *, allow_missing=False):
+        active, etag = self._json("active.json", optional=allow_missing)
+        if active is None:
+            return None, etag
+        try:
+            if set(active) != {"schemaVersion", "sha256", "publicationId", "publishedAt",
+                               "operation", "previousDigest", "reason"}:
+                raise ValueError()
+            if type(active["schemaVersion"]) is not int or active["schemaVersion"] != 1:
+                raise ValueError()
+            checked_digest(active["sha256"])
+            if not re.fullmatch(r"[0-9a-f]{32}", active["publicationId"]):
+                raise ValueError()
+            if timestamp(active["publishedAt"]) > datetime.now(timezone.utc):
+                raise ValueError()
+            operation = active["operation"]
+            if operation not in ("bootstrap", "publish", "rollback"):
+                raise ValueError()
+            if operation == "bootstrap":
+                if active["previousDigest"] is not None:
+                    raise ValueError()
+            else:
+                checked_digest(active["previousDigest"])
+            if operation == "rollback":
+                if not re.fullmatch(r"[A-Za-z0-9_-]{3,80}", active["reason"]):
+                    raise ValueError()
+            elif active["reason"] != "":
+                raise ValueError()
+        except (StorageError, ValueError, TypeError):
+            raise StorageError("Active LP pointer schema is invalid") from None
+        return active, etag
+
     def _snapshot(self, digest, purpose):
         digest = checked_digest(digest)
         manifest, _ = self._json(f"versions/{digest}.json")
@@ -151,7 +183,7 @@ class ArtifactStore:
             raise StorageError("LP artifact is missing or unreadable") from None
         data = validate_payload(body, purpose)
         manifest = manifest_for(body, data)
-        previous, etag = self._json("active.json", optional=True)
+        previous, etag = self._active(allow_missing=bootstrap)
         if bootstrap and previous is not None:
             raise StorageError("Bootstrap requires an empty LP store")
         if previous is not None:
@@ -174,7 +206,7 @@ class ArtifactStore:
         if digest is not None and purpose == "current":
             raise StorageError("Explicit version restore requires resume or rollback purpose")
         if digest is None:
-            active, _ = self._json("active.json")
+            active, _ = self._active()
             digest = active.get("sha256")
         _, body = self._snapshot(digest, purpose)
         destination = Path(path)
@@ -198,7 +230,7 @@ class ArtifactStore:
         # Reason is an audit ticket identifier, not free-form text that might leak secrets.
         if not re.fullmatch(r"[A-Za-z0-9_-]{3,80}", reason or ""):
             raise StorageError("Rollback requires an audit ticket identifier")
-        previous, etag = self._json("active.json")
+        previous, etag = self._active()
         manifest, _ = self._snapshot(digest, "rollback")
         if previous.get("sha256") == digest:
             raise StorageError("Rollback must select a different known-good version")
@@ -214,7 +246,7 @@ class ArtifactStore:
         return digest
 
     def verify(self, digest=None, *, mark_ready=False, rollback_digest=None):
-        active, etag = self._json("active.json")
+        active, etag = self._active()
         digest = checked_digest(digest or active.get("sha256"))
         manifest, body = self._snapshot(digest, "current")
         with tempfile.TemporaryDirectory(prefix="lp-storage-verify-") as directory:
@@ -232,7 +264,7 @@ class ArtifactStore:
                     raise StorageError("Rollback proof does not match this storage scope")
                 self.restore(destination, digest=rollback_digest, purpose="rollback")
         if mark_ready:
-            current, current_etag = self._json("active.json")
+            current, current_etag = self._active()
             if active.get("sha256") != digest or current_etag != etag:
                 raise StorageError("Active version changed during readiness verification")
             marker = {"schemaVersion": 1, "scope": self.scope, "sha256": digest,
@@ -241,6 +273,7 @@ class ArtifactStore:
         return digest
 
     def require_ready(self, digest):
+        self._active()
         digest = checked_digest(digest)
         marker, _ = self._json(f"readiness/{digest}.json")
         manifest, _ = self._snapshot(digest, "resume")
