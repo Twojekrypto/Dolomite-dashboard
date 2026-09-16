@@ -37,6 +37,10 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  LP_DATA_STORAGE: ${{ vars.LP_DATA_STORAGE || 'git' }}
+  LP_R2_READY_DIGEST: ${{ vars.LP_R2_READY_DIGEST }}
+
 jobs:
   update-flows:
     runs-on: ubuntu-latest
@@ -54,6 +58,22 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
+
+      - name: Check LP storage mode
+        run: python3 scripts/data_artifact_store.py check-mode
+
+      - name: Install optional LP storage dependencies
+        if: ${{ env.LP_DATA_STORAGE == 'r2' }}
+        run: pip install -r requirements-storage.txt
+
+      - name: Restore gated current LP attribution
+        if: ${{ env.LP_DATA_STORAGE == 'r2' }}
+        env:
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: python3 scripts/data_artifact_store.py prepare --purpose current
 
       - name: Check DeBank fallback browser
         run: |
@@ -174,6 +194,13 @@ jobs:
 
       - name: Validate generated data
         run: python3 validate_data.py dolo_flows.json dolo_holder_wallet_history.json dolo_holders.json
+
+      - name: Clean restored LP checkout copy
+        if: ${{ env.LP_DATA_STORAGE == 'r2' }}
+        run: |
+          if git ls-files --error-unmatch data/dolo-liquidity.json >/dev/null 2>&1; then
+            git restore --source=HEAD --worktree -- data/dolo-liquidity.json
+          fi
 
       # NOTE: no `if: always()` here — if generation or validation failed,
       # we must NOT publish potentially corrupted data files.

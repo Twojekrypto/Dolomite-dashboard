@@ -1,0 +1,106 @@
+name: LP Storage Pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Private storage operation; never changes production storage mode'
+        required: true
+        type: choice
+        options: [bootstrap, bootstrap-resume, verify, mark-ready, rollback, republish]
+        default: verify
+      digest:
+        description: 'Full SHA256 version (required for mark-ready, rollback, republish)'
+        type: string
+        default: ''
+      rollback_digest:
+        description: 'Earlier digest used in successful rollback drill (mark-ready only)'
+        type: string
+        default: ''
+      reason:
+        description: 'Rollback audit ticket: 3-80 letters, digits, underscores or hyphens'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  actions: write
+
+# All active LP writers share this group; API CAS also protects outside writers.
+concurrency:
+  group: update-dolo-liquidity
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # These explicit operator commands act on private storage only. Repository
+      # LP_DATA_STORAGE still independently controls every production consumer.
+      LP_DATA_STORAGE: shadow
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          sparse-checkout: |
+            requirements-storage.txt
+            scripts/data_artifact_store.py
+            validate_data.py
+            vedolo_vote_power.py
+            data/dolo-liquidity.json
+          sparse-checkout-cone-mode: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install storage dependencies
+        run: pip install -r requirements-storage.txt
+
+      - name: Run explicit private LP storage operation
+        env:
+          PILOT_ACTION: ${{ inputs.action }}
+          PILOT_DIGEST: ${{ inputs.digest }}
+          PILOT_ROLLBACK_DIGEST: ${{ inputs.rollback_digest }}
+          PILOT_REASON: ${{ inputs.reason }}
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: |
+          case "$PILOT_ACTION" in
+            bootstrap)
+              python3 scripts/data_artifact_store.py bootstrap
+              ;;
+            bootstrap-resume)
+              python3 scripts/data_artifact_store.py bootstrap --purpose resume
+              ;;
+            verify)
+              args=()
+              if [ -n "$PILOT_DIGEST" ]; then args+=(--digest "$PILOT_DIGEST"); fi
+              python3 scripts/data_artifact_store.py verify "${args[@]}"
+              ;;
+            mark-ready)
+              python3 scripts/data_artifact_store.py verify --digest "$PILOT_DIGEST" --mark-ready --rollback-digest "$PILOT_ROLLBACK_DIGEST"
+              ;;
+            rollback)
+              python3 scripts/data_artifact_store.py rollback --digest "$PILOT_DIGEST" --reason "$PILOT_REASON"
+              ;;
+            republish)
+              restored="$RUNNER_TEMP/lp-storage/dolo-liquidity.json"
+              python3 scripts/data_artifact_store.py restore --digest "$PILOT_DIGEST" --purpose rollback --path "$restored"
+              python3 scripts/data_artifact_store.py publish --path "$restored"
+              ;;
+            *) exit 1 ;;
+          esac
+
+      - name: Refresh consumers after an active R2 version change
+        if: ${{ vars.LP_DATA_STORAGE == 'r2' && (inputs.action == 'rollback' || inputs.action == 'republish') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run update-dolo-flows.yml --ref master -f skip_holders=true
+          gh workflow run pages.yml --ref master

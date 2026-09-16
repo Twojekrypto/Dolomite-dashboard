@@ -15,7 +15,7 @@ test('six-hour DOLO liquidity workflow is fail-closed and publishes only validat
   assert.match(yaml, /permissions:[\s\S]*?contents: write[\s\S]*?actions: write/);
   assert.match(yaml, /full_history:/);
   assert.match(yaml, /type: boolean/);
-  assert.match(yaml, /cancel-in-progress: true/);
+  assert.match(yaml, /cancel-in-progress: false/);
   assert.match(yaml, /timeout-minutes: 55/);
   assert.match(yaml, /ref: master/);
   assert.match(yaml, /sparse-checkout:/);

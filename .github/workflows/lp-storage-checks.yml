@@ -1,0 +1,65 @@
+name: LP Storage Checks
+
+on:
+  pull_request:
+    paths:
+      - 'data/dolo-liquidity.json'
+      - 'scripts/data_artifact_store.py'
+      - 'requirements-storage.txt'
+      - 'tests/test_data_artifact_store.py'
+      - 'tests/dolo-liquidity-workflow.test.js'
+      - '.github/workflows/lp-storage-*.yml'
+      - '.github/workflows/update-dolo-liquidity.yml'
+      - '.github/workflows/update-dolo-flows.yml'
+      - '.github/workflows/pages.yml'
+  push:
+    branches: [main, master]
+    paths:
+      - 'data/dolo-liquidity.json'
+      - 'scripts/data_artifact_store.py'
+      - 'requirements-storage.txt'
+      - 'tests/test_data_artifact_store.py'
+      - 'tests/dolo-liquidity-workflow.test.js'
+      - '.github/workflows/lp-storage-*.yml'
+      - '.github/workflows/update-dolo-liquidity.yml'
+      - '.github/workflows/update-dolo-flows.yml'
+      - '.github/workflows/pages.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  storage-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install offline SDK test dependency
+        run: pip install -r requirements-storage.txt
+
+      - name: Test storage contracts without credentials
+        run: |
+          python3 -m unittest tests.test_data_artifact_store tests.test_validate_dolo_liquidity tests.test_pages_workflow_contracts
+          node --test tests/dolo-liquidity-workflow.test.js
+
+      - name: Guard LP generated commits after cutover
+        env:
+          LP_DATA_STORAGE: ${{ vars.LP_DATA_STORAGE || 'git' }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BASE_SHA=$(git hash-object -t tree /dev/null)
+          elif ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          fi
+          python3 scripts/data_artifact_store.py guard-git --base "$BASE_SHA"

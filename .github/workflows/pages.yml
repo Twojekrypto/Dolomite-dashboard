@@ -29,6 +29,10 @@ concurrency:
   group: pages-deploy
   cancel-in-progress: false
 
+env:
+  LP_DATA_STORAGE: ${{ vars.LP_DATA_STORAGE || 'git' }}
+  LP_R2_READY_DIGEST: ${{ vars.LP_R2_READY_DIGEST }}
+
 jobs:
   build:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
@@ -45,6 +49,28 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
+
+      - name: Check LP storage mode
+        run: python3 scripts/data_artifact_store.py check-mode
+
+      - name: Set up optional LP storage Python
+        if: ${{ env.LP_DATA_STORAGE == 'r2' }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install optional LP storage dependencies
+        if: ${{ env.LP_DATA_STORAGE == 'r2' }}
+        run: pip install -r requirements-storage.txt
+
+      - name: Restore gated current LP Pages artifact
+        if: ${{ env.LP_DATA_STORAGE == 'r2' }}
+        env:
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ vars.R2_BUCKET }}
+        run: python3 scripts/data_artifact_store.py prepare --purpose current
 
       - name: Validate generated EARN assets
         run: python3 build_earn_bundle.py --check
@@ -64,6 +90,7 @@ jobs:
             --exclude '.github/' \
             --exclude '_site/' \
             --exclude 'node_modules/' \
+            --exclude '.lp-restore-*' \
             ./ _site/
           touch _site/.nojekyll
 
