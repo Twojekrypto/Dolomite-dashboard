@@ -113,6 +113,13 @@
       "dispatchWindowMinutes": 360,
       "maxDispatchesInWindow": 2,
       "allowedInputs": []
+    },
+    "monitor-earn-freshness.yml": {
+      "workflow": "monitor-earn-freshness.yml",
+      "failureCooldownMinutes": 20,
+      "dispatchWindowMinutes": 120,
+      "maxDispatchesInWindow": 2,
+      "allowedInputs": []
     }
   },
   "artifacts": [
@@ -131,6 +138,8 @@
     {"id": "rewards", "path": "rewards_programs.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 360, "earlyDueMinutes": 270, "workflow": "update-rewards-programs.yml", "inputs": {}, "maxBytes": 5000000},
     {"id": "supply-health", "path": "data/supply-health/latest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-supply-health.yml", "inputs": {}, "maxBytes": 3000000},
     {"id": "supply-history", "path": "data/supply-history/manifest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-supply-history.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "supply-activity", "path": "data/supply-activity/manifest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-supply-history.yml", "inputs": {}, "maxBytes": 1000000}
+    {"id": "supply-activity", "path": "data/supply-activity/manifest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-supply-history.yml", "inputs": {}, "maxBytes": 1000000},
+    {"id": "earn-freshness", "path": "data/earn-freshness/status.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 30, "earlyDueMinutes": 20, "workflow": "monitor-earn-freshness.yml", "inputs": {}, "maxBytes": 2000000},
+    {"id": "earn-quality", "path": "data/earn-quality/status.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 60, "earlyDueMinutes": 45, "workflow": "monitor-earn-freshness.yml", "inputs": {}, "maxBytes": 2000000}
   ]
 }
