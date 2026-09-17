@@ -1,0 +1,51 @@
+name: Dashboard Freshness Guard
+
+on:
+  # Avoid the top-of-hour Actions burst while still checking every 15 minutes.
+  schedule:
+    - cron: '3,18,33,48 * * * *'
+  workflow_dispatch:
+    inputs:
+      allow_remediation:
+        description: 'Dispatch stale producers and Pages after the read-only checks'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: dashboard-freshness-guard
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      PYTHONUNBUFFERED: '1'
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Check public and raw artifact freshness
+        run: |
+          set -euo pipefail
+          args=(--config config/dashboard_freshness.json)
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.allow_remediation }}" != "true" ]]; then
+            args+=(--no-remediation)
+          fi
+          python3 scripts/check_dashboard_freshness.py "${args[@]}"

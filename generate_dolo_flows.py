@@ -1056,6 +1056,10 @@ def rpc_provider_family(url):
     if str(url or "").lower() == BLOCKSCOUT_LOG_ENDPOINT:
         return "blockscout.com"
     hostname = (urlparse(str(url or "")).hostname or "").lower().rstrip(".")
+    # Both official hostnames are the same Berachain operator. The alias is a
+    # useful fallback, but must never create a second quorum vote.
+    if hostname in {"rpc.berachain.com", "rpc.berachain-apis.com"}:
+        return "berachain.com"
     vendor_suffixes = (
         "alchemy.com",
         "drpc.org",
@@ -1411,8 +1415,19 @@ def _request_transfer_logs(endpoint, cfg, start_block, end_block):
                 time.sleep(delay)
                 continue
 
-            resp.raise_for_status()
-            payload = resp.json()
+            # Some providers encode range limits in a JSON-RPC error body
+            # while returning HTTP 400. Inspect that body before generic HTTP
+            # handling so a healthy peer can be tried at the original range.
+            try:
+                payload = resp.json()
+            except ValueError:
+                payload = None
+            if resp.status_code >= 400:
+                error = payload.get("error") if isinstance(payload, dict) else None
+                message = str((error or {}).get("message", ""))
+                if "range" in message.lower() or "limit" in message.lower():
+                    raise TransferLogRangeError(message)
+                resp.raise_for_status()
             if not isinstance(payload, dict):
                 raise ValueError("RPC response was not a JSON object")
             error = payload.get("error")
@@ -1530,7 +1545,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
         selected_logs = None
         selected_proof = None
         endpoint_results = []
-        shrink_range = False
+        range_error_seen = False
         for _family, endpoints in families:
             family_result = None
             family_endpoint = None
@@ -1540,13 +1555,14 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                         endpoint, cfg, current, chunk_end
                     )
                 except TransferLogRangeError:
-                    shrink_range = True
-                    break
+                    # A provider-specific range cap must not prevent other
+                    # independent providers from answering the original
+                    # range. Shrink only after healthy families fail too.
+                    range_error_seen = True
+                    continue
                 if family_result is not None:
                     family_endpoint = endpoint
                     break
-            if shrink_range:
-                break
             if family_result is None:
                 continue
 
@@ -1560,7 +1576,7 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                 except TransferLogQuorumError:
                     pass
 
-        if shrink_range:
+        if selected_logs is None and range_error_seen and not endpoint_results:
             if chunk_size > 1000:
                 chunk_size = max(chunk_size // 2, 1000)
                 reduced_chunk_successes = 0

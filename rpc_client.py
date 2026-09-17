@@ -64,6 +64,9 @@ CHAIN_ENV_KEYS = {
 PUBLIC_ENDPOINTS = {
     "berachain": [
         "https://rpc.berachain.com/",
+        # Alternate mainnet ingress listed by ethereum-lists/chains (80094).
+        # Same operator as rpc.berachain.com, NOT an independent quorum vote.
+        "https://rpc.berachain-apis.com/",
         "https://berachain-rpc.publicnode.com/",
         "https://berachain.drpc.org/",
     ],

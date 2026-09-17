@@ -69,6 +69,24 @@ def _valid_address(value):
     )
 
 
+def rpc_provider_family(url):
+    """Collapse provider aliases/keys to one independent quorum family."""
+    from urllib.parse import urlparse
+
+    host = (urlparse(str(url or "")).hostname or "").lower().rstrip(".")
+    if host.endswith("alchemy.com"):
+        return "alchemy.com"
+    if host in {"rpc.berachain.com", "rpc.berachain-apis.com"} or host.endswith("berachain.com"):
+        return "berachain.com"
+    if host.endswith("drpc.org") or host.endswith("drpc.live"):
+        return "drpc.org"
+    if host.endswith("publicnode.com"):
+        return "publicnode.com"
+    if host.endswith("quicknode.pro") or host.endswith("quiknode.pro"):
+        return "quicknode.pro"
+    return host or "unknown"
+
+
 def transfer_rows_are_complete(transfers, target_block=0):
     """Return whether every transfer is safe for deterministic history replay."""
     if not isinstance(transfers, list) or not transfers:
@@ -816,6 +834,7 @@ def fetch_event_logs(start_block, end_block, topic):
         accepted_logs = None
         empty_endpoints = set()
         restart_with_smaller_chunk = False
+        range_error_seen = False
         unique_rpc_count = len(set(RPC_URLS))
 
         for attempt in range(len(RPC_URLS) * 2):
@@ -848,9 +867,11 @@ def fetch_event_logs(start_block, end_block, topic):
                         ("range" in err_msg.lower() or "limit" in err_msg.lower())
                         and chunk_size > MIN_CHUNK_SIZE
                     ):
-                        chunk_size = max(chunk_size // 2, MIN_CHUNK_SIZE)
-                        restart_with_smaller_chunk = True
-                        break
+                        # Try another provider at the original range first;
+                        # range limits are endpoint-specific, not proof that
+                        # the requested chain interval must be shrunk.
+                        range_error_seen = True
+                        continue
                     time.sleep(0.5)
                     continue
 
@@ -871,8 +892,9 @@ def fetch_event_logs(start_block, end_block, topic):
                 # normal multi-provider production, an empty range is accepted
                 # only after an independent endpoint confirms it.
                 empty_endpoints.add(rpc)
+                empty_families = {rpc_provider_family(endpoint) for endpoint in empty_endpoints}
                 if unique_rpc_count == 1 or (
-                    attempt >= len(RPC_URLS) - 1 and len(empty_endpoints) >= 2
+                    attempt >= len(RPC_URLS) - 1 and len(empty_families) >= 2
                 ):
                     accepted_logs = []
                     success = True
@@ -892,6 +914,10 @@ def fetch_event_logs(start_block, end_block, topic):
         if restart_with_smaller_chunk:
             continue
 
+        if not success and range_error_seen and chunk_size > MIN_CHUNK_SIZE:
+            chunk_size = max(chunk_size // 2, MIN_CHUNK_SIZE)
+            continue
+
         if not success:
             if empty_endpoints:
                 last_error = (
@@ -903,7 +929,17 @@ def fetch_event_logs(start_block, end_block, topic):
                 f"from block {current:,} to {chunk_end:,}: {last_error or 'unknown RPC error'}"
             )
 
-        all_logs.extend(accepted_logs or [])
+        # Providers may repeat an event when an alias or retry answers the
+        # same range. Deduplicate before handing logs to the replay engine.
+        seen_log_keys = {
+            json.dumps(log, sort_keys=True, separators=(",", ":"))
+            for log in all_logs
+        }
+        for log in accepted_logs or []:
+            key = json.dumps(log, sort_keys=True, separators=(",", ":"))
+            if key not in seen_log_keys:
+                all_logs.append(log)
+                seen_log_keys.add(key)
 
         current = chunk_end + 1
         chunks_done += 1
