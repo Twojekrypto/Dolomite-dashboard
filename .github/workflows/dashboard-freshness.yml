@@ -35,6 +35,10 @@ jobs:
         with:
           ref: master
           fetch-depth: 1
+          sparse-checkout: |
+            config/dashboard_freshness.json
+            scripts/check_dashboard_freshness.py
+          sparse-checkout-cone-mode: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
