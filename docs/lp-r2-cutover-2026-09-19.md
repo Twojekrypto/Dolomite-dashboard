@@ -41,11 +41,26 @@ At 11:59 UTC, after confirming matching master workflows and no active LP writer
 6. Producer reported no Git changes. The last commit touching generated LP
    remains `ff01aac6b1ef819e7542b7a3638790a63014b40a` (11:08:23 UTC, before cutover).
 
-## Downstream status — still in progress at 12:13 UTC
+## Downstream verification — complete
 
 Full R2-mode Flows [35442037293](https://github.com/Twojekrypto/Dolomite-dashboard/actions/runs/35442037293)
-has successfully restored gated current LP attribution and is refreshing holders
-and flows. Its final generation/validation/publication result is not yet confirmed.
+succeeded, including gated LP restore, holder publication, flow generation,
+validation, cleanup of the hydrated Git checkout copy, and commit/push.
+
+- Restored LP SHA-256 at 12:12:06 UTC:
+  `ef85d71ef47f2b44332f66617b37786a487d635a64e187ee460227f57f2e2dde`.
+- All final data validations passed at 14:36:39 UTC; publication commit
+  `f4697b18c5` was pushed to master at 14:37:33 UTC.
+- Subsequent Pages [35449507215](https://github.com/Twojekrypto/Dolomite-dashboard/actions/runs/35449507215)
+  restored that same LP hash and passed live smoke checks at 14:51:16 UTC.
+- Cache-busted public LP still matches the R2 hash and 518454-byte artifact.
+- Public `dolo_flows.json` is byte-identical to master (Git blob
+  `200a554c37a073d3baf9e712e78f517e0f79e9e1`, 32079948 bytes), with
+  `generatedAt=2026-09-19T14:36:09.770254Z`.
+- Repository variables still read `LP_DATA_STORAGE=r2` and readiness B.
+  The generated LP Git path still points to the pre-cutover commit
+  `ff01aac6b1ef819e7542b7a3638790a63014b40a`; no new generated LP revision
+  was committed by either producer or downstream Flows.
 
 To avoid duplicate long scans, this full run superseded pending skip-holders run
 35441943220; old-mode scheduled run 35440479731 was intentionally cancelled.

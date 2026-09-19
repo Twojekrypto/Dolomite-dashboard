@@ -1,9 +1,9 @@
 # Pilot prywatnego storage LP w Cloudflare R2
 
 Stan operacyjny (19 września 2026): **LP przełączone produkcyjnie na prywatne R2**,
-`LP_DATA_STORAGE=r2`. Producent LP, odczyt przez Pages i publiczny plik przeszły
-weryfikację; Flows przeszedł bramkę odczytu R2, jego pełne odświeżenie pozostaje
-w toku. [Zapis przełączenia i wyników](lp-r2-cutover-2026-09-19.md).
+`LP_DATA_STORAGE=r2`. Producent LP, pełne odświeżenie Flows, publikacja Pages
+i publiczne pliki przeszły końcową weryfikację.
+[Zapis przełączenia i wyników](lp-r2-cutover-2026-09-19.md).
 Brak konfiguracji nadal oznacza domyślny tryb `git`; brak wymaganych sekretów lub
 ważnego dowodu readiness blokuje aktywację `r2`.
 Migracja LP nie rozwiązuje dominującego wzrostu danych Earn/Supply — ich
