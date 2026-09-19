@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import unittest
 from unittest.mock import patch
 
@@ -12,6 +14,23 @@ class FlowTransactionMetadataTests(unittest.TestCase):
     V3_POSITION_MANAGER = "0x" + "4" * 40
     V3_POOL = "0x" + "5" * 40
     V4_POOL_ID = "0x" + "a" * 64
+
+    def test_reported_89300_dolo_outflow_is_swaps_not_liquidity_deposits(self):
+        root = Path(__file__).resolve().parents[1]
+        fixture = json.loads((root / "tests/fixtures/dolo-liquidity/wallet-37a38-swap-receipts.json").read_text())
+        registry = json.loads((root / "data/dolo-liquidity-pools.json").read_text())
+        transferred = 0
+        for receipt in fixture["receipts"]:
+            with self.subTest(tx=receipt["transactionHash"]):
+                self.assertIsNone(flow_tx_metadata.classify_lp_receipt(
+                    receipt, fixture["wallet"], "ethereum", registry, fixture["token"],
+                ))
+            for log in receipt["logs"]:
+                if (log["address"] == fixture["token"]
+                        and log["topics"][0] == flow_tx_metadata.TRANSFER_TOPIC
+                        and log["topics"][1][-40:] == fixture["wallet"][2:]):
+                    transferred += int(log["data"], 16)
+        self.assertEqual(transferred, 89300690445793984882077)
 
     @staticmethod
     def _topic_address(address):

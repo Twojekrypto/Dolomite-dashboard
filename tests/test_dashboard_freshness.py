@@ -135,6 +135,22 @@ class DashboardFreshnessTests(unittest.TestCase):
             def dispatch(self, workflow, inputs): raise AssertionError("dry run dispatched")
         self.assertEqual(self.m.remediate(rows, self.config, API(), NOW, False)[0]["action"], "dry_run")
 
+    def test_read_only_cli_reports_stale_data_without_github_credentials(self):
+        config = copy.deepcopy(self.config)
+        config["artifacts"] = [self.asset]
+        output = io.StringIO()
+        # Network only is replaced: main, assessment and remediation stay real.
+        with patch.dict("os.environ", {}, clear=True), \
+                patch.object(self.m, "load_config", return_value=config), \
+                patch.object(self.m.time, "time", return_value=NOW), \
+                patch.object(self.m.HttpClient, "get_json", return_value={"generatedAt": NOW - 3600}), \
+                patch.object(self.m.GitHubAPI, "_request", side_effect=AssertionError("read-only audit called GitHub")), \
+                patch("sys.stdout", output):
+            self.assertEqual(self.m.main(["--no-remediation"]), 0)
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["rows"][0]["public"]["state"], "stale")
+        self.assertEqual(report["decisions"][0]["action"], "dry_run")
+
     def test_ambiguous_dispatch_failure_is_not_retried_in_run(self):
         rows = [{"workflow": "update-assets-live.yml", "id": "assets", "problem": "stale", "target_minutes": 15}]
         class API:

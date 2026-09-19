@@ -433,7 +433,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     token = __import__("os").environ.get("GH_TOKEN", "")
     decisions = []
     if candidates:
-        decisions = remediate(candidates, config, GitHubAPI(config, token), now, not args.no_remediation)
+        # A public, read-only audit needs no Actions token or GitHub API calls.
+        api = None if args.no_remediation else GitHubAPI(config, token)
+        decisions = remediate(candidates, config, api, now, not args.no_remediation)
     summary = {"generatedAt": datetime.now(timezone.utc).isoformat(), "rows": rows, "decisions": decisions}
     print(json.dumps(summary, sort_keys=True))
     summary_path = __import__("os").environ.get("GITHUB_STEP_SUMMARY")
