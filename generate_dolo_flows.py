@@ -1196,9 +1196,12 @@ def _is_capacity_exhausted_error(error_obj):
 
 def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
     """Fetch one exact log range through Etherscan's paginated Logs API."""
-    api_key = str(api_key if api_key is not None else (ETHERSCAN_API_KEY or BERASCAN_API_KEY)).strip()
-    if not api_key:
+    candidates = [api_key] if api_key is not None else [ETHERSCAN_API_KEY, BERASCAN_API_KEY]
+    api_keys = list(dict.fromkeys(str(key).strip() for key in candidates if key and str(key).strip()))
+    if not api_keys:
         return None
+    key_index = 0
+    api_key = api_keys[key_index]
 
     offset = 1_000
     page = 1
@@ -1235,6 +1238,13 @@ def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
                     page_logs = result
                     break
                 detail = f"{message} {result}".lower()
+                if "invalid api key" in detail and key_index + 1 < len(api_keys):
+                    # A revoked primary must not shadow a working configured
+                    # backup. Both keys are the same explorer/quorum family;
+                    # never rotate credentials to bypass a rate limit.
+                    key_index += 1
+                    api_key = api_keys[key_index]
+                    continue
                 if "no records found" in detail:
                     page_logs = []
                     break

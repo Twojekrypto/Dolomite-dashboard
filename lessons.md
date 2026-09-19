@@ -416,6 +416,12 @@ Workflow może przywrócić z cache więcej plików portfeli niż zamierza opubl
 
 ### DOLO flow RPC quorum and cache promotion
 
+- **A rejected explorer key must not shadow a valid configured backup.** On
+  2026-09-19 Berachain's official RPC and the explorer using BERASCAN_API_KEY
+  agreed on all nine logs in blocks 25,957,667–25,958,666; ETHERSCAN_API_KEY was
+  rejected. Try the existing backup only on explicit invalid-key rejection,
+  never to evade throttling. Different keys still count as one explorer family.
+
 **Reguła na przyszłość:** HTTP 200 z `eth_getLogs` nie jest dowodem kompletności. Dla DOLO Flow każdy identyczny zakres bloków musi mieć dokładnie zgodny digest logów z co najmniej dwóch niezależnych rodzin RPC; dwa klucze Alchemy liczą się jako jeden dostawca, a rozbieżność wymaga trzeciej rodziny i większości 2-of-3.
 **Reguła na przyszłość:** Autorytatywne zastąpienie overlapu wolno promować do aktywnego cache dopiero po weryfikacji całego zakresu. Checkpointy długiego skanu zapisuj w osobnym stagingu; błąd quorum nie może usuwać starych transferów ani przesuwać aktywnego `last_block`.
 **Reguła na przyszłość:** Po zmianie kontraktu integralności cache uruchom jawny pełny backfill od bloków wdrożenia. Publikowany `flow_history_integrity` musi zawierać faktyczne pokrycie obu sieci i dowód niezależnych rodzin RPC, a walidator ma blokować publikację starego albo częściowego baseline'u.

@@ -33,6 +33,34 @@ def transfer_log(block, tx_hash, log_index, amount=1):
 
 
 class GenerateDoloFlowsRpcTests(unittest.TestCase):
+    def test_berachain_invalid_primary_key_uses_backup_and_reaches_exact_quorum(self):
+        rows = [transfer_log(25957667, "0x" + "a" * 64, 0)]
+        def respond(_url, **kwargs):
+            result = Mock(status_code=200, headers={})
+            if kwargs["params"]["apikey"] == "revoked-primary":
+                result.json.return_value = {"status": "0", "message": "NOTOK", "result": "Invalid API Key"}
+            else:
+                self.assertEqual(kwargs["params"]["apikey"], "valid-backup")
+                result.json.return_value = {"status": "1", "message": "OK", "result": rows}
+            return result
+        with patch.object(flows, "ETHERSCAN_API_KEY", "revoked-primary"), patch.object(flows, "BERASCAN_API_KEY", "valid-backup"), patch.object(flows.requests, "get", side_effect=respond), patch.object(flows.time, "sleep"):
+            received = flows._request_etherscan_transfer_logs({"name": "Berachain", "chain_id": 80094}, 25957667, 25958666)
+        self.assertEqual(received, rows)
+        verified, proof = flows.select_transfer_log_quorum([
+            ("https://rpc.berachain.com/", rows), (flows.ETHERSCAN_LOG_ENDPOINT, received),
+        ])
+        self.assertEqual(verified, rows)
+        self.assertEqual(proof["providerFamilies"], ["berachain.com", "etherscan.io"])
+        self.assertEqual(proof["matchingProviderFamilies"], 2)
+
+    def test_berachain_throttle_does_not_rotate_explorer_credentials(self):
+        result = Mock(status_code=200, headers={})
+        result.json.return_value = {"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}
+        with patch.object(flows, "ETHERSCAN_API_KEY", "primary"), patch.object(flows, "BERASCAN_API_KEY", "backup"), patch.object(flows.requests, "get", return_value=result) as request, patch.object(flows.time, "sleep"):
+            received = flows._request_etherscan_transfer_logs({"name": "Berachain", "chain_id": 80094}, 100, 200)
+        self.assertIsNone(received)
+        self.assertEqual({call.kwargs["params"]["apikey"] for call in request.call_args_list}, {"primary"})
+
     def test_berachain_explorer_queries_berachain_not_ethereum(self):
         rows = [transfer_log(25957667, "0x" + "a" * 64, 0)]
         def respond(_url, **kwargs):
