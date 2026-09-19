@@ -82,6 +82,8 @@ def _canonical_max_block_chunk(config: dict) -> int:
 
 def _should_fallback_to_single_topics(exc: Exception) -> bool:
     message = str(exc).lower()
+    if "block range" in message and any(word in message for word in ("greater", "exceed", "limit")):
+        return False
     if "bad request" in message or "http error 400" in message:
         return True
     if "too many" in message or "rate" in message:
@@ -460,6 +462,11 @@ def scan_chain_to_event_shards(
             current = chunk_end + 1
         except Exception as exc:
             error_msg = str(exc)
+            if "block range" in error_msg.lower() and any(word in error_msg.lower() for word in ("greater", "exceed", "limit")):
+                adaptive_chunk_size = max(1, adaptive_chunk_size // 2)
+                max_chunk_size = min(max_chunk_size, adaptive_chunk_size)
+                print(f"[{chain}] provider block-span limit; reducing to {adaptive_chunk_size:,}")
+                continue
             if "Too Many" in error_msg or "rate" in error_msg.lower():
                 print(f"[{chain}] rate limited, waiting 5s")
                 time.sleep(5)

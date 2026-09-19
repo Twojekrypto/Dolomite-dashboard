@@ -307,9 +307,9 @@ jobs:
           git diff --staged --quiet && echo "No supply history changes to commit" && exit 0
           git commit -m "📊 Refresh Supply history - $(date -u '+%Y-%m-%d %H:%M UTC')"
           pushed=false
-          for i in 1 2 3; do
+          for i in $(seq 1 12); do
             if git pull --rebase -X theirs origin master && git push; then pushed=true; break; fi
             echo "⚠️ Push attempt $i failed, retrying..."
-            sleep 5
+            sleep $((5 + RANDOM % 15))
           done
-          if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts — data NOT published"; exit 1; fi
+          if [ "$pushed" != "true" ]; then echo "::error::Push failed after 12 attempts — data NOT published"; exit 1; fi

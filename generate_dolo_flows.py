@@ -155,6 +155,7 @@ EXCLUDED_ADDRS = {
 CHAINS = {
     "eth": {
         "name": "Ethereum",
+        "chain_id": 1,
         "rpcs": _rpc_endpoints("ethereum") + [BLOCKSCOUT_LOG_ENDPOINT] + (
             [ETHERSCAN_LOG_ENDPOINT] if ETHERSCAN_API_KEY else []
         ),
@@ -167,7 +168,10 @@ CHAINS = {
     },
     "bera": {
         "name": "Berachain",
-        "rpcs": _rpc_endpoints("berachain"),
+        "chain_id": 80094,
+        "rpcs": _rpc_endpoints("berachain") + (
+            [ETHERSCAN_LOG_ENDPOINT] if ETHERSCAN_API_KEY or BERASCAN_API_KEY else []
+        ),
         "block_time": 2,    # ~2 seconds per block
         # The independent official + dRPC archive pair is reliable through
         # 6,250 blocks. Larger ranges are rejected by one or more providers;
@@ -1056,6 +1060,8 @@ def rpc_provider_family(url):
     if str(url or "").lower() == BLOCKSCOUT_LOG_ENDPOINT:
         return "blockscout.com"
     hostname = (urlparse(str(url or "")).hostname or "").lower().rstrip(".")
+    if hostname == "drpc.live" or hostname.endswith(".drpc.live"):
+        return "drpc.org"
     # Both official hostnames are the same Berachain operator. The alias is a
     # useful fallback, but must never create a second quorum vote.
     if hostname in {"rpc.berachain.com", "rpc.berachain-apis.com"}:
@@ -1184,7 +1190,7 @@ def _is_capacity_exhausted_error(error_obj):
 
 def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
     """Fetch one exact log range through Etherscan's paginated Logs API."""
-    api_key = str(api_key if api_key is not None else ETHERSCAN_API_KEY).strip()
+    api_key = str(api_key if api_key is not None else (ETHERSCAN_API_KEY or BERASCAN_API_KEY)).strip()
     if not api_key:
         return None
 
@@ -1199,7 +1205,7 @@ def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
                 response = requests.get(
                     ETHERSCAN_V2_API,
                     params={
-                        "chainid": "1",
+                        "chainid": str(cfg.get("chain_id", 1)),
                         "module": "logs",
                         "action": "getLogs",
                         "fromBlock": int(start_block),
@@ -1372,6 +1378,7 @@ def _rpc_families(rpcs, chain_key=None):
         # before quorum can be reached. Keyed vendors remain fallbacks.
         priority = {
             "berachain.com": 0,
+            "etherscan.io": 0.5,
             "drpc.org": 1,
             "quicknode.pro": 2,
             "quiknode.pro": 2,

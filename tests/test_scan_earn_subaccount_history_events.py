@@ -10,6 +10,13 @@ from scan_earn_subaccount_history_events import (
 
 
 class ScanEarnSubaccountHistoryEventsTest(unittest.TestCase):
+    def test_block_span_limit_is_not_retried_once_per_topic(self):
+        error = RuntimeError('HTTP Error 400: block range greater than 100 max | HTTP Error 429: Too Many Requests')
+        with patch.object(scanner, 'get_logs', side_effect=error) as fetch:
+            with self.assertRaisesRegex(RuntimeError, 'block range greater than 100'):
+                scanner._get_logs_with_topic_fallback(['rpc'], [0], '0xContract', scanner.ALL_EVENTS, 1, 9999)
+        self.assertEqual(fetch.call_count, 1)
+
     def test_berachain_canonical_scan_uses_provider_safe_chunk_limit(self):
         config = scanner.CHAINS["berachain"]
 

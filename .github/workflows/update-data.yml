@@ -5,7 +5,7 @@ on:
     workflows: ['Update veDOLO Flows']
     types: [completed]
   schedule:
-    - cron: '17 3 * * *'  # Daily safety refresh if the upstream trigger is missed
+    - cron: '17 */6 * * *'  # Keep core veDOLO data within 8h even if the upstream trigger fails
   workflow_dispatch:  # Allow manual trigger
 
 concurrency:

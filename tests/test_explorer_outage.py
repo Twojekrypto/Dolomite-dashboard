@@ -22,6 +22,30 @@ UNSUPPORTED = {"status": "0", "message": "chain not supported", "result": None}
 
 
 class ExplorerOutageTests(unittest.TestCase):
+    def test_successful_empty_exercise_scan_refreshes_check_time_without_changing_totals(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'exercised.json'
+            path.write_text(json.dumps({'total_usdc': 123.45, 'total_txs': 7,
+                                       'last_block': 100, 'last_updated': '2020-01-01T00:00:00Z'}))
+            with patch.object(update_exercised_usd, 'DATA_FILE', str(path)), patch.object(
+                update_exercised_usd, 'get_new_transactions', return_value=[]):
+                update_exercised_usd.main()
+            data = json.loads(path.read_text())
+        self.assertNotEqual(data['last_updated'], '2020-01-01T00:00:00Z')
+        self.assertEqual((data['total_usdc'], data['total_txs'], data['last_block']), (123.45, 7, 100))
+
+    def test_usd_scanner_retries_throttle_on_same_page(self):
+        row = {"hash": "0x123"}
+        with patch("requests.get", side_effect=[
+            response({"status": "0", "message": "NOTOK", "result": "Max calls per sec rate limit reached (3/sec)"}),
+            response({"status": "1", "message": "OK", "result": [row]}),
+        ]) as get, patch("time.sleep"):
+            self.assertEqual(update_exercised_usd.get_new_transactions(100), [row])
+        self.assertEqual(get.call_args_list[0], get.call_args_list[1])
+
     def test_invalid_primary_key_tries_distinct_berachain_key_without_losing_filters(self):
         from explorer_api import explorer_get
         query = {"module": "logs", "action": "getLogs", "fromBlock": 123,

@@ -33,6 +33,22 @@ def transfer_log(block, tx_hash, log_index, amount=1):
 
 
 class GenerateDoloFlowsRpcTests(unittest.TestCase):
+    def test_berachain_explorer_queries_berachain_not_ethereum(self):
+        rows = [transfer_log(25957667, "0x" + "a" * 64, 0)]
+        def respond(_url, **kwargs):
+            self.assertEqual(kwargs["params"]["chainid"], "80094")
+            result = Mock(status_code=200, headers={})
+            result.json.return_value = {"status": "1", "message": "OK", "result": rows}
+            return result
+        with patch.object(flows.requests, "get", side_effect=respond):
+            self.assertEqual(flows._request_etherscan_transfer_logs(
+                {"name": "Berachain", "chain_id": 80094}, 25957667, 25958666,
+                api_key="test-key"), rows)
+
+    def test_drpc_paid_and_public_endpoints_have_one_quorum_vote(self):
+        self.assertEqual(flows.rpc_provider_family("https://lb.drpc.live/secret"),
+                         flows.rpc_provider_family("https://berachain.drpc.org/"))
+
     def test_new_ethereum_drpc_secret_is_preferred_before_public_fallbacks(self):
         endpoint = "https://lb.drpc.org/ogrpc?network=ethereum&dkey=test-secret"
         with patch.dict(os.environ, {"DRPC_ETHEREUM_RPC_2_JEFF": endpoint}, clear=True):

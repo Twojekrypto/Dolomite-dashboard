@@ -146,17 +146,17 @@ CHAINS = {
     "xlayer": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
         "rpcs": [
-            "https://mainnet.xlayer-rpc.com",
-            *([] if not os.environ.get("XLAYER_RPC_QUICKNODE_TWOJE") else [os.environ["XLAYER_RPC_QUICKNODE_TWOJE"]]),
-            *([] if not os.environ.get("ALCHEMY_XLAYER_RPC_ZEN") else [os.environ["ALCHEMY_XLAYER_RPC_ZEN"]]),
-            *([] if not os.environ.get("DRP_XLAYER_RPC_TWO") else [os.environ["DRP_XLAYER_RPC_TWO"]]),
-            *([] if not os.environ.get("XLAYER_RPC") else [os.environ["XLAYER_RPC"]]),
-            *([] if not os.environ.get("XLAYER_RPC_2") else [os.environ["XLAYER_RPC_2"]]),
             "https://rpc.xlayer.tech/",
-            "https://xlayer-mainnet.public.blastapi.io/",
+            "https://xlayerrpc.okx.com/",
+            *_mainnet_rpc_from_env("XLAYER_RPC_QUICKNODE_TWOJE"),
+            *_mainnet_rpc_from_env("ALCHEMY_XLAYER_RPC_ZEN"),
+            *_mainnet_rpc_from_env("DRP_XLAYER_RPC_TWO"),
+            *_mainnet_rpc_from_env("XLAYER_RPC"),
+            *_mainnet_rpc_from_env("XLAYER_RPC_2"),
         ],
         "start_block": 859_455,
-        "max_block_chunk": 9_999,
+        # Both official public ingresses reject ranges wider than 100 blocks.
+        "max_block_chunk": 100,
     },
 }
 

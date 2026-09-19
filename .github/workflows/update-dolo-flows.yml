@@ -36,6 +36,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write
 
 env:
   LP_DATA_STORAGE: ${{ vars.LP_DATA_STORAGE || 'git' }}
@@ -127,9 +128,33 @@ jobs:
           ALCHEMY_BERACHAIN_RPC_2_JEFF: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2_JEFF }}
           ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
           ALCHEMY_BERACHAIN_RPC_3: ${{ secrets.ALCHEMY_BERACHAIN_RPC_3 }}
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
           DOLO_HOLDERS_RPC_BATCH_SIZE: '50'
           DOLO_HOLDERS_RPC_RETRIES_PER_ENDPOINT: '2'
         run: python3 generate_dolo_holders.py
+
+      # A later flow quorum failure must not discard a validated holder snapshot.
+      - name: Publish validated DOLO holders independently
+        if: ${{ !inputs.skip_holders && !inputs.holder_history_only && !inputs.cex_history_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 validate_data.py dolo_holders.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dolo_holders.json vesting_investors.json
+          if ! git diff --staged --quiet; then
+            git commit -m "Refresh verified DOLO holders - $(date -u '+%Y-%m-%d %H:%M UTC')"
+            pushed=false
+            for attempt in $(seq 1 12); do
+              if git pull --rebase --autostash origin master && git push origin HEAD:master; then pushed=true; break; fi
+              sleep $((5 + RANDOM % 15))
+            done
+            if [ "$pushed" != "true" ]; then echo "::error::DOLO holder publication failed"; exit 1; fi
+            gh workflow run pages.yml --ref master
+          fi
 
       - name: Generate DOLO flows data
         if: ${{ !inputs.holder_history_only && !inputs.cex_history_only }}

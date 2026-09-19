@@ -6,7 +6,7 @@ and updates the total. Run periodically (cron, GitHub Action, etc).
 """
 
 import requests
-from explorer_api import explorer_get
+from explorer_api import ExplorerError, explorer_get
 import time
 import json
 import os
@@ -62,7 +62,14 @@ def get_new_transactions(start_block):
             "sort": "asc"
         }
 
-        resp = explorer_get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
+        for attempt in range(MAX_RETRIES):
+            try:
+                resp = explorer_get(ROUTESCAN_API, params=params, timeout=REQUEST_TIMEOUT)
+                break
+            except ExplorerError as exc:
+                if not exc.retryable or attempt + 1 == MAX_RETRIES:
+                    raise
+                time.sleep(2 ** (attempt + 1))
         data = resp.json()
 
         if data["status"] != "1" or not data["result"]:
@@ -148,7 +155,9 @@ def main():
     print(f"  New exercise transactions: {len(exercise_txs)}")
 
     if not exercise_txs and not new_txs:
-        print("  No new data. Done.")
+        # The source was checked successfully even when no new exercise exists.
+        save_data(existing)
+        print("  No new data. Successful check recorded.")
         return
 
     # Process new exercise transactions.
