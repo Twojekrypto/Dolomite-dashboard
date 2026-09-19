@@ -1,0 +1,68 @@
+name: Diagnose DOLO Flow Sources
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: master
+          sparse-checkout: |
+            /*.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - name: Compare exact Berachain log responses without publishing data
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          BERASCAN_API_KEY: ${{ secrets.BERASCAN_API_KEY }}
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2_JEFF: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2_JEFF }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import requests
+          from generate_dolo_flows import DOLO_CONTRACT, TRANSFER_TOPIC, transfer_log_digest
+          start, end = 25957667, 25958666
+          def report(name, response):
+              payload = response.json()
+              logs = payload.get('result')
+              if isinstance(logs, list):
+                  print(name, 'HTTP', response.status_code, 'logs', len(logs), 'sha256', transfer_log_digest(logs), flush=True)
+                  return
+              detail = str(payload).lower()
+              category = next((label for text, label in (
+                  ('invalid api key', 'invalid_key'), ('monthly', 'monthly_quota'),
+                  ('paid plan', 'paid_plan_required'), ('free api', 'unsupported_free_tier'),
+                  ('range', 'range_limit'), ('rate limit', 'rate_limit'),
+                  ('too many', 'rate_limit'), ('unsupported', 'unsupported')
+              ) if text in detail), 'rejected')
+              print(name, 'HTTP', response.status_code, category, flush=True)
+          sources = [('official', 'https://rpc.berachain.com/')]
+          for name in ('DRPC_BERACHAIN_RPC_ZEN', 'QUICKNODE_BERACHAIN_RPC_2', 'ALCHEMY_BERACHAIN_RPC', 'ALCHEMY_BERACHAIN_RPC_2_JEFF'):
+              if os.environ.get(name): sources.append((name, os.environ[name]))
+          for name, url in sources:
+              try:
+                  response = requests.post(url, json={'jsonrpc':'2.0','id':1,'method':'eth_getLogs','params':[{'address':DOLO_CONTRACT,'topics':[TRANSFER_TOPIC],'fromBlock':hex(start),'toBlock':hex(end)}]}, timeout=20)
+                  report(name, response)
+              except Exception as exc:
+                  print(name, type(exc).__name__, flush=True)
+          for name in ('ETHERSCAN_API_KEY', 'BERASCAN_API_KEY'):
+              if not os.environ.get(name): continue
+              try:
+                  response = requests.get('https://api.etherscan.io/v2/api', params={'chainid':'80094','module':'logs','action':'getLogs','fromBlock':start,'toBlock':end,'address':DOLO_CONTRACT,'topic0':TRANSFER_TOPIC,'page':1,'offset':1000,'apikey':os.environ[name]}, timeout=20)
+                  report(name, response)
+              except Exception as exc:
+                  print(name, type(exc).__name__, flush=True)
+          PY
