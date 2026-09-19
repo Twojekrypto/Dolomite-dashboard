@@ -7,10 +7,10 @@ on:
         description: 'Private storage operation; never changes production storage mode'
         required: true
         type: choice
-        options: [bootstrap, bootstrap-resume, verify, mark-ready, rollback, republish]
+        options: [bootstrap, bootstrap-resume, verify, preflight, mark-ready, rollback, republish]
         default: verify
       digest:
-        description: 'Full SHA256 version (required for mark-ready, rollback, republish)'
+        description: 'Full SHA256 version (required for preflight, mark-ready, rollback, republish)'
         type: string
         default: ''
       rollback_digest:
@@ -83,6 +83,13 @@ jobs:
               args=()
               if [ -n "$PILOT_DIGEST" ]; then args+=(--digest "$PILOT_DIGEST"); fi
               python3 scripts/data_artifact_store.py verify "${args[@]}"
+              ;;
+            preflight)
+              # Exercise the production readiness + freshness gate locally in
+              # this process. No repository variables or R2 objects are changed.
+              LP_DATA_STORAGE=r2 LP_R2_READY_DIGEST="$PILOT_DIGEST" \
+                python3 scripts/data_artifact_store.py prepare --purpose current \
+                --path "$RUNNER_TEMP/lp-preflight/dolo-liquidity.json"
               ;;
             mark-ready)
               python3 scripts/data_artifact_store.py verify --digest "$PILOT_DIGEST" --mark-ready --rollback-digest "$PILOT_ROLLBACK_DIGEST"

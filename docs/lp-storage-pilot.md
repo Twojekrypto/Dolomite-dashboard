@@ -63,6 +63,12 @@ które mogłyby ujawnić endpoint lub sekret. Sprawdź komplet konfiguracji, dos
 
 Po przejrzeniu wszystkich runów upload → restore → rollback → republish:
 
+Przed zmianą zmiennych uruchom `LP Storage Pilot` z `action=preflight` oraz
+`digest=B` (digest istniejącego markera readiness, nie bieżącego pliku).
+To tylko odczyt: w izolowanym procesie sprawdza produkcyjny gate readiness
+i odtwarza świeży aktywny LP do katalogu tymczasowego runnera. Nie zmienia
+zmiennych repozytorium, obiektów R2 ani danych na stronie.
+
 1. Ustaw `LP_R2_READY_DIGEST=B`, następnie jawnie `LP_DATA_STORAGE=r2`.
    Sam string `r2` nie wystarczy: marker musi pasować do tego bucketu, endpointu,
    prefiksu `lp/v1` i dokładnego B. Kolejne poprawne publikacje nie wymagają
