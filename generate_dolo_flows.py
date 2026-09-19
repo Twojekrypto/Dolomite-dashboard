@@ -169,7 +169,13 @@ CHAINS = {
     "bera": {
         "name": "Berachain",
         "chain_id": 80094,
-        "rpcs": _rpc_endpoints("berachain") + (
+        # These ingresses returned an empty result for 25,957,667–25,958,666
+        # while the primary mainnet RPC returned nine DOLO transfers. They
+        # cannot safely participate in log quorum, even as fallback voters.
+        "rpcs": [url for url in _rpc_endpoints("berachain") if
+                 (urlparse(url).hostname or "").lower() not in {
+                     "rpc.berachain-apis.com", "berachain-rpc.publicnode.com"
+                 }] + (
             [ETHERSCAN_LOG_ENDPOINT] if ETHERSCAN_API_KEY or BERASCAN_API_KEY else []
         ),
         "block_time": 2,    # ~2 seconds per block
