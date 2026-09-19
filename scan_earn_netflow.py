@@ -51,6 +51,7 @@ CHAINS = {
     "ethereum": {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
         "rpcs": [
+            *_mainnet_rpc_from_env("DRPC_ETHEREUM_RPC_2_JEFF"),
             # These public endpoints were cross-checked against each other on
             # historical and head ranges. Keep them first so canonical scans
             # do not stall behind free-tier or non-archive providers.

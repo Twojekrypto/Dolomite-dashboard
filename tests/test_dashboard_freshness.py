@@ -37,6 +37,19 @@ class DashboardFreshnessTests(unittest.TestCase):
     def test_legacy_naive_iso_is_explicitly_utc(self):
         self.assertEqual(self.m.parse_timestamp("2026-09-17T12:00:00"), NOW)
 
+    def test_flows_rebuild_does_not_reset_source_freshness(self):
+        rule = next(a for a in self.config["artifacts"] if a["id"] == "dolo-flows")
+        result = self.m.assess({"generatedAt": NOW, "timestamp": NOW - 9 * 3600}, rule, NOW)
+        self.assertEqual(result["state"], "stale")
+        self.assertEqual(result["age_minutes"], 540)
+
+    def test_large_dashboard_artifacts_fit_bounded_monitor_limits(self):
+        observed_sizes = {"vedolo-early-unlock": 12_498_421, "holder-wallet-history": 72_218_949}
+        for artifact, size in observed_sizes.items():
+            rule = next(a for a in self.config["artifacts"] if a["id"] == artifact)
+            self.assertGreater(rule["maxBytes"], size)
+            self.assertLessEqual(rule["maxBytes"], 100_000_000)
+
     def test_source_timestamp_overrides_fresh_wrapper(self):
         rule = dict(self.asset, timestamps=["generatedAt", "source.blockTimestamp"])
         result = self.m.assess({"generatedAt": NOW, "source": {"blockTimestamp": NOW - 7200}}, rule, NOW)

@@ -16,6 +16,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ScanEarnNetflowTest(unittest.TestCase):
+    def test_ethereum_uses_configured_independent_provider_before_public_fallbacks(self):
+        env = os.environ.copy()
+        env["DRPC_ETHEREUM_RPC_2_JEFF"] = "https://private-mainnet.example/key"
+        proc = subprocess.run(
+            [sys.executable, "-c", "import json, scan_earn_netflow; print(json.dumps(scan_earn_netflow.CHAINS['ethereum']['rpcs']))"],
+            cwd=ROOT, env=env, check=True, capture_output=True, text=True,
+        )
+        self.assertEqual(json.loads(proc.stdout)[0], env["DRPC_ETHEREUM_RPC_2_JEFF"])
+
     def test_berachain_prefers_independent_rpc_then_new_jeff_capacity(self):
         env = os.environ.copy()
         for name in (
