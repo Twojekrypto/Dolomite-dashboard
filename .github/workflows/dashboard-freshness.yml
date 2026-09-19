@@ -4,6 +4,11 @@ on:
   # Avoid the top-of-hour Actions burst while still checking every 15 minutes.
   schedule:
     - cron: '3,18,33,48 * * * *'
+  # Check after real publications too; scheduled Actions can arrive hours late.
+  workflow_run:
+    workflows: ['Deploy GitHub Pages', 'Update Cross-chain Reward Claim Events']
+    types: [completed]
+    branches: [master]
   workflow_dispatch:
     inputs:
       allow_remediation:
@@ -28,6 +33,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GITHUB_REPOSITORY: ${{ github.repository }}
       PYTHONUNBUFFERED: '1'
+      LP_DATA_STORAGE: ${{ vars.LP_DATA_STORAGE || 'git' }}
 
     steps:
       - name: Checkout master
@@ -48,7 +54,7 @@ jobs:
       - name: Check public and raw artifact freshness
         run: |
           set -euo pipefail
-          args=(--config config/dashboard_freshness.json)
+          args=(--config config/dashboard_freshness.json --fail-on-stale)
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.allow_remediation }}" != "true" ]]; then
             args+=(--no-remediation)
           fi

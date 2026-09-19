@@ -52,6 +52,8 @@ CHAINS = {
         "margin": "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
         "rpcs": [
             *_mainnet_rpc_from_env("DRPC_ETHEREUM_RPC_2_JEFF"),
+            "https://mainnet.gateway.tenderly.co",
+            "https://rpc.mevblocker.io",
             # These public endpoints were cross-checked against each other on
             # historical and head ranges. Keep them first so canonical scans
             # do not stall behind free-tier or non-archive providers.
@@ -147,17 +149,18 @@ CHAINS = {
     "xlayer": {
         "margin": "0x836b557cf9ef29fcf49c776841191782df34e4e5",
         "rpcs": [
-            "https://rpc.xlayer.tech/",
-            "https://xlayerrpc.okx.com/",
             *_mainnet_rpc_from_env("XLAYER_RPC_QUICKNODE_TWOJE"),
             *_mainnet_rpc_from_env("ALCHEMY_XLAYER_RPC_ZEN"),
             *_mainnet_rpc_from_env("DRP_XLAYER_RPC_TWO"),
             *_mainnet_rpc_from_env("XLAYER_RPC"),
             *_mainnet_rpc_from_env("XLAYER_RPC_2"),
+            "https://rpc.xlayer.tech/",
+            "https://xlayerrpc.okx.com/",
         ],
         "start_block": 859_455,
-        # Both official public ingresses reject ranges wider than 100 blocks.
-        "max_block_chunk": 100,
+        # Dedicated providers can serve wider ranges; the official public
+        # ingresses remain capped per endpoint below, with adaptive reduction.
+        "max_block_chunk": 10_000,
     },
 }
 
@@ -201,6 +204,8 @@ MIN_BLOCK_CHUNK = 50
 # those EARN scans — only Ethereum's 1rpc endpoint has the 50-block limit.
 ENDPOINT_BLOCK_CAPS = (
     ("1rpc.io/eth", 50),
+    ("rpc.xlayer.tech", 100),
+    ("xlayerrpc.okx.com", 100),
 )
 ADDRESS_FILTER_CHUNK = 500000
 MAX_RETRIES = 3

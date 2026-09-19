@@ -16,6 +16,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ScanEarnNetflowTest(unittest.TestCase):
+    def test_ethereum_uses_working_archive_fallback_when_preferred_rpcs_fail(self):
+        from urllib.error import URLError
+        log = {"blockNumber": "0x18b8701", "data": "0x01"}
+        def serve(req, **kwargs):
+            if req.full_url == "https://mainnet.gateway.tenderly.co":
+                return BytesIO(json.dumps({"result": [log]}).encode())
+            raise URLError("provider unavailable")
+        with patch.object(scan_earn_netflow, "urlopen", side_effect=serve), patch.object(scan_earn_netflow.time, "sleep"), redirect_stderr(StringIO()):
+            result = scan_earn_netflow.get_logs(scan_earn_netflow.CHAINS["ethereum"]["rpcs"], [0], "0x" + "1"*40, [], 25921345, 25922344)
+        self.assertEqual(result, [log])
+
     def test_ethereum_uses_configured_independent_provider_before_public_fallbacks(self):
         env = os.environ.copy()
         env["DRPC_ETHEREUM_RPC_2_JEFF"] = "https://private-mainnet.example/key"
@@ -179,8 +190,8 @@ class ScanEarnNetflowTest(unittest.TestCase):
 
         self.assertEqual(
             [
-                "https://eth.drpc.org/",
-                "https://eth.api.onfinality.io/public",
+                "https://mainnet.gateway.tenderly.co",
+                "https://rpc.mevblocker.io",
             ],
             rpcs[len(configured):len(configured) + 2],
         )

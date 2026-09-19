@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import re
 import socket
 import sys
@@ -105,6 +106,11 @@ def assess(payload: Any, rule: Dict[str, Any], now: int) -> Dict[str, Any]:
             if source_value is None:
                 raise MonitorError("required_source_timestamp_missing")
             source_ages.append(_safe_age(parse_timestamp(source_value), now))
+        for field in rule.get("sourceLagMinutes", []):
+            lag = _path_value(payload, field)
+            if isinstance(lag, bool) or not isinstance(lag, (int, float)) or not math.isfinite(lag) or lag < 0:
+                raise MonitorError("required_source_lag_invalid")
+            source_ages.append(float(lag))
 
         # Cached rate rows are source data even when the wrapper snapshot is new.
         fallback_chains = payload.get("rateFallbackChains") or []
@@ -115,20 +121,21 @@ def assess(payload: Any, rule: Dict[str, Any], now: int) -> Dict[str, Any]:
             source_ages.append(_safe_age(parse_timestamp(fallback_value), now))
 
         max_age = float(rule.get("maxAgeMinutes", 360))
+        source_max_age = float(rule.get("sourceMaxAgeMinutes", max_age))
         early_due = float(rule.get("earlyDueMinutes", max_age * 0.75))
-        if not math.isfinite(max_age) or max_age <= 0 or early_due < 0:
+        if not math.isfinite(max_age) or max_age <= 0 or early_due < 0 or not math.isfinite(source_max_age) or source_max_age <= 0:
             raise MonitorError("timestamp_policy_invalid")
     except MonitorError as exc:
         return {"state": "invalid", "error": str(exc), "age_minutes": None}
 
     source_age = max(source_ages, default=0.0)
-    if source_age > max_age:
+    if source_age >= source_max_age:
         return {
             "state": "source_stale",
             "age_minutes": round(source_age, 1),
             "publication_age_minutes": round(publication_age, 1),
             "source_age_minutes": round(source_age, 1),
-            "max_age_minutes": max_age,
+            "max_age_minutes": source_max_age,
         }
     if publication_age >= max_age:
         state = "stale"
@@ -162,8 +169,15 @@ def compare(rule: Dict[str, Any], public_result: Dict[str, Any], repo_result: Di
     }
     if public_result.get("state") in {"unavailable", "invalid", "source_stale"}:
         row["problem"] = public_result.get("state")
+        if public_result.get("state") == "source_stale" and rule.get("remediateSourceStale"):
+            row["workflow"] = rule.get("workflow")
         return row
     public_due = public_result.get("state") in {"early_due", "stale"}
+    if rule.get("productionStorage") == "r2":
+        # Git is only a frozen recovery baseline after cutover, not production.
+        if public_due:
+            row.update(problem="stale", workflow=rule.get("workflow"))
+        return row
     repo_stale = repo_result.get("state") in {"stale", "early_due"}
     if public_due and repo_result.get("state") in {"fresh", "early_due"} and not repo_stale:
         row["problem"] = "deployment_behind"
@@ -411,22 +425,29 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config/dashboard_freshness.json")
     parser.add_argument("--no-remediation", action="store_true")
+    parser.add_argument("--fail-on-stale", action="store_true", help="Fail after remediation when a source is invalid/stale or publication exceeds 8h")
     args = parser.parse_args(argv)
     config = load_config(Path(args.config))
     now = int(time.time())
     client = HttpClient(config)
     rows = []
-    for rule in config["artifacts"]:
+    for configured_rule in config["artifacts"]:
+        rule = dict(configured_rule)
+        if rule.get("id") == "dolo-liquidity" and os.environ.get("LP_DATA_STORAGE", "git") == "r2":
+            rule["productionStorage"] = "r2"
         try:
             public_payload = client.get_json(config["public_base_url"] + rule["path"], int(rule.get("maxBytes", config.get("maxResponseBytes", 20_000_000))))
             public_result = assess(public_payload, rule, now)
         except MonitorError as exc:
             public_result = {"state": "unavailable", "error": str(exc), "age_minutes": None}
-        try:
-            repo_payload = client.get_json(config["raw_base_url"] + rule["path"], int(rule.get("maxBytes", config.get("maxResponseBytes", 20_000_000))))
-            repo_result = assess(repo_payload, rule, now)
-        except MonitorError as exc:
-            repo_result = {"state": "unavailable", "error": str(exc), "age_minutes": None}
+        if rule.get("productionStorage") == "r2":
+            repo_result = {"state": "recovery_baseline", "age_minutes": None}
+        else:
+            try:
+                repo_payload = client.get_json(config["raw_base_url"] + rule["path"], int(rule.get("maxBytes", config.get("maxResponseBytes", 20_000_000))))
+                repo_result = assess(repo_payload, rule, now)
+            except MonitorError as exc:
+                repo_result = {"state": "unavailable", "error": str(exc), "age_minutes": None}
         rows.append(compare(rule, public_result, repo_result, config))
 
     candidates = [row for row in rows if row.get("workflow")]
@@ -448,7 +469,12 @@ def main(argv: Optional[List[str]] = None) -> int:
                 stream.write("\n### Remediation decisions\n\n")
                 for decision in decisions:
                     stream.write(f"- `{decision['workflow']}`: **{decision['action']}**\n")
-    return 0
+    blocking = any(
+        row["public"].get("state") in {"source_stale", "invalid", "unavailable"}
+        or float(row["public"].get("age_minutes") or 0) >= 480
+        for row in rows
+    )
+    return 1 if args.fail_on_stale and blocking else 0
 
 
 if __name__ == "__main__":

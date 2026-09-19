@@ -13,6 +13,54 @@ NOW = 1789646400  # 2026-09-17T12:00:00Z
 
 
 class DashboardFreshnessTests(unittest.TestCase):
+    def test_fresh_earn_wrapper_does_not_hide_source_lag(self):
+        rule = dict(self.asset, sourceLagMinutes=["chains.xlayer.netflow.estimatedLagMinutes"], sourceMaxAgeMinutes=480)
+        result = self.m.assess({"generatedAt": NOW, "chains": {"xlayer": {"netflow": {"estimatedLagMinutes": 900}}}}, rule, NOW)
+        self.assertEqual(result["state"], "source_stale")
+        self.assertEqual(result["source_age_minutes"], 900)
+
+    def test_missing_source_lag_is_not_zero(self):
+        rule = dict(self.asset, sourceLagMinutes=["chains.ethereum.canonical.estimatedLagMinutes"])
+        self.assertEqual(self.m.assess({"generatedAt": NOW}, rule, NOW)["state"], "invalid")
+
+    def test_source_sla_is_distinct_from_status_wrapper_sla(self):
+        rule = dict(self.asset, sourceTimestamps=["head"], sourceMaxAgeMinutes=480)
+        self.assertEqual(self.m.assess({"generatedAt": NOW, "head": NOW - 2*3600}, rule, NOW)["state"], "fresh")
+
+    def test_r2_production_does_not_refresh_frozen_git_baseline(self):
+        rule = dict(self.asset, productionStorage="r2")
+        fresh = {"state": "fresh", "age_minutes": 10}
+        stale = {"state": "stale", "age_minutes": 20000}
+        self.assertIsNone(self.m.compare(rule, fresh, stale, self.config)["workflow"])
+        self.assertEqual(self.m.compare(rule, stale, fresh, self.config)["workflow"], rule["workflow"])
+
+    def test_source_stale_dispatches_only_explicitly_approved_source_repair(self):
+        stale = {"state": "source_stale", "age_minutes": 900}
+        rule = dict(self.asset, remediateSourceStale=True)
+        self.assertEqual(self.m.compare(rule, stale, stale, self.config)["workflow"], rule["workflow"])
+        self.assertIsNone(self.m.compare(self.asset, stale, stale, self.config)["workflow"])
+
+    def test_alert_mode_fails_for_old_data_without_dispatch_in_read_only_mode(self):
+        config = copy.deepcopy(self.config)
+        config["artifacts"] = [self.asset]
+        with patch.dict("os.environ", {}, clear=True), patch.object(self.m, "load_config", return_value=config), \
+                patch.object(self.m.time, "time", return_value=NOW), \
+                patch.object(self.m.HttpClient, "get_json", return_value={"generatedAt": NOW - 9*3600}), \
+                patch("sys.stdout", io.StringIO()):
+            self.assertEqual(self.m.main(["--no-remediation", "--fail-on-stale"]), 1)
+
+    def test_r2_read_only_audit_does_not_fetch_raw_git_artifact(self):
+        rule = next(a for a in self.config["artifacts"] if a["id"] == "dolo-liquidity")
+        config = dict(self.config, artifacts=[rule])
+        def fetch(url, limit):
+            self.assertTrue(url.startswith(config["public_base_url"]))
+            return {"generatedAt": NOW - 60}
+        with patch.dict("os.environ", {"LP_DATA_STORAGE": "r2"}, clear=True), \
+                patch.object(self.m, "load_config", return_value=config), \
+                patch.object(self.m.time, "time", return_value=NOW), \
+                patch.object(self.m.HttpClient, "get_json", side_effect=fetch), patch("sys.stdout", io.StringIO()):
+            self.assertEqual(self.m.main(["--no-remediation", "--fail-on-stale"]), 0)
+
     def setUp(self):
         path = ROOT / "scripts/check_dashboard_freshness.py"
         self.assertTrue(path.is_file(), "public dashboard freshness monitor is not implemented")

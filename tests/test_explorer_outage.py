@@ -22,6 +22,35 @@ UNSUPPORTED = {"status": "0", "message": "chain not supported", "result": None}
 
 
 class ExplorerOutageTests(unittest.TestCase):
+    def test_exercisers_retry_throttled_page_without_losing_previous_page(self):
+        rows = [{"hash": "first"}, {"hash": "second"}]
+        with patch("requests.get", side_effect=[
+            response({"status": "1", "result": rows[:1]}),
+            response({"status": "0", "message": "NOTOK", "result": "Max calls per sec rate limit reached (3/sec)"}),
+            response({"status": "1", "result": rows[1:]}),
+            response({"status": "0", "message": "No transactions found", "result": []}),
+        ]) as get, patch.object(generate_exercisers, "PAGE_SIZE", 1), patch("time.sleep"):
+            self.assertEqual(generate_exercisers._get_all_transactions_once(), rows)
+        self.assertEqual([c.kwargs["params"]["page"] for c in get.call_args_list], [1, 2, 2, 3])
+
+    def test_explorer_retry_does_not_retry_invalid_credentials(self):
+        from explorer_api import explorer_get_with_retry
+        with patch("requests.get", return_value=response({
+            "status": "0", "message": "NOTOK", "result": "Invalid API Key"
+        })) as get, patch("time.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "Invalid API Key"):
+                explorer_get_with_retry("https://example.com/api", params={}, timeout=1)
+        self.assertEqual(get.call_count, 1)
+
+    def test_explorer_retry_exhaustion_stays_a_failure(self):
+        from explorer_api import explorer_get_with_retry
+        with patch("requests.get", return_value=response({
+            "status": "0", "message": "NOTOK", "result": "Max rate limit reached"
+        })) as get, patch("time.sleep"):
+            with self.assertRaisesRegex(RuntimeError, "rate limit"):
+                explorer_get_with_retry("https://example.com/api", params={}, timeout=1, attempts=3)
+        self.assertEqual(get.call_count, 3)
+
     def test_successful_empty_exercise_scan_refreshes_check_time_without_changing_totals(self):
         import json
         import tempfile
@@ -153,6 +182,8 @@ class ExplorerOutageTests(unittest.TestCase):
     def test_exerciser_pagination_error_never_returns_partial_history(self):
         with patch("requests.get", side_effect=[
             response({"status": "1", "result": [{"hash": "one"}]}),
+            response({"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}),
+            response({"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}),
             response({"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}),
         ]), patch.object(generate_exercisers, "PAGE_SIZE", 1), patch("time.sleep"):
             with self.assertRaises(RuntimeError):

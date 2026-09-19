@@ -13,6 +13,7 @@ import time
 from datetime import datetime, timezone
 
 import requests
+from rpc_client import CHAIN_ENV_KEYS, get_endpoints
 
 
 SCHEMA_VERSION = 2
@@ -154,16 +155,11 @@ CHAIN_CONFIGS = {
         "chunkSize": 250_000,
         "maxLogChunks": 2_000,
         "requiresConfiguredRpcForFullClaimScan": True,
+        "scanAllDistributors": True,
         "fallbackDistributors": set(),
         "token": {"symbol": "Reward", "address": "", "decimals": 18},
         "knownDistributorTokens": {},
-        "rpcUrls": [
-            *([] if not os.environ.get("XLAYER_RPC") else [os.environ["XLAYER_RPC"]]),
-            *([] if not os.environ.get("ALCHEMY_XLAYER_RPC_ZEN") else [os.environ["ALCHEMY_XLAYER_RPC_ZEN"]]),
-            *([] if not os.environ.get("ALCHEMY_XLAYER_RPC") else [os.environ["ALCHEMY_XLAYER_RPC"]]),
-            "https://rpc.xlayer.tech/",
-            "https://xlayer.drpc.org/",
-        ],
+        "rpcUrls": get_endpoints("xlayer"),
     },
 }
 
@@ -191,7 +187,7 @@ def has_configured_rpc(chain_key):
     env_key = chain_env_key(chain_key)
     env_names = [f"ALCHEMY_{env_key}_RPC{suffix}" for suffix in ("_ZEN", "", "_2", "_3")]
     if chain_key == "xlayer":
-        env_names.insert(0, "XLAYER_RPC")
+        env_names = CHAIN_ENV_KEYS["xlayer"]
     return any(os.environ.get(name) for name in env_names)
 
 
@@ -533,9 +529,73 @@ def is_block_range_error(error):
     )
 
 
-def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distributors):
+def _checkpointed_claim_logs(chain_key, config, start_block, end_block, distributors, checkpoint_path):
+    """Cache a contiguous scan prefix; only return when every requested block is covered."""
+    scan_all = bool(config.get("scanAllDistributors"))
+    identity = {"schemaVersion": 1, "chain": chain_key, "fromBlock": start_block,
+                "eventEmitter": config["eventEmitter"].lower(),
+                "distributors": "all" if scan_all else sorted(distributors)}
+    saved = load_json(checkpoint_path, {})
+    current, logs = start_block, []
+    if (isinstance(saved, dict) and saved.get("identity") == identity
+            and isinstance(saved.get("nextBlock"), int)
+            and start_block <= saved["nextBlock"] <= end_block + 1
+            and isinstance(saved.get("logs"), list)):
+        current, logs = saved["nextBlock"], saved["logs"]
+    chunk_size = max(1, claim_chunk_size(chain_key, config))
+    print(f"{config['name']} claim checkpoint: scanning {current:,} -> {end_block:,}; cached logs {len(logs):,}", flush=True)
+    budget = max_log_chunks(chain_key, config) or 2000
+    topics = [topic_address(address) for address in sorted(distributors)]
+    if not topics and not scan_all:
+        raise RuntimeError("Claim scan has no known distributors; coverage cannot be certified")
+    batch_size = distributor_batch_size(chain_key, config)
+    batches = [None] if scan_all else [topics[i:i + batch_size] for i in range(0, len(topics), batch_size)]
+    calls = 0
+    deadline = time.monotonic() + max(60, env_int("REWARD_CLAIM_CHECKPOINT_MAX_SECONDS") or 1800)
+    def save():
+        save_json(checkpoint_path, {"identity": identity, "nextBlock": current, "logs": logs}, compact=True)
+    try:
+        while current <= end_block:
+            if calls + len(batches) > budget or time.monotonic() >= deadline:
+                raise RuntimeError(f"{config['name']} claim checkpoint saved at block {current}; resume required")
+            chunk_end = min(end_block, current + chunk_size - 1)
+            chunk_logs = []
+            try:
+                # Complete every distributor batch before advancing the block cursor.
+                for batch in batches:
+                    calls += 1
+                    result = rpc_request(config["rpcUrls"], "eth_getLogs", [{
+                        "address": config["eventEmitter"], "fromBlock": hex(current),
+                        "toBlock": hex(chunk_end), "topics": [REWARD_CLAIMED_TOPIC] if batch is None else [REWARD_CLAIMED_TOPIC, batch],
+                    }], timeout=35)
+                    if not isinstance(result, list):
+                        raise RuntimeError("malformed eth_getLogs result")
+                    chunk_logs.extend(result)
+            except RuntimeError as exc:
+                if is_block_range_error(exc) and chunk_end > current:
+                    cap = provider_block_cap(exc)
+                    chunk_size = min(chunk_end - current, cap or max(1, chunk_size // 2))
+                    continue
+                raise
+            logs.extend(chunk_logs)
+            current = chunk_end + 1
+            if calls % 20 == 0:
+                save()
+            if calls % 200 == 0:
+                print(f"{config['name']} claim checkpoint: reached {current - 1:,} / {end_block:,}; {calls:,} chunk requests", flush=True)
+            time.sleep(0.1)
+        return logs
+    finally:
+        # RPC failure/budget exhaustion cannot erase the proven prefix or move
+        # the public coverage cursor. The caller publishes only after return.
+        save()
+
+
+def fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distributors, checkpoint_path=None):
     if start_block > end_block:
         return []
+    if checkpoint_path:
+        return _checkpointed_claim_logs(chain_key, config, start_block, end_block, distributors, checkpoint_path)
     distributor_topics = [topic_address(distributor) for distributor in distributors]
     if not distributor_topics:
         return []
@@ -1133,9 +1193,26 @@ def main():
                 for event in existing_events_for_chain(existing, chain_key)
                 if is_address(event.get("distributor"))
             }
-            distributors = sorted(set(fetch_claim_distributors(config)) | existing_distributors | event_distributors)
+            # X Layer's subgraph is frozen. Index the emitter directly so new
+            # distributors are not invisible merely because discovery is old.
+            indexed_distributors = set() if config.get("scanAllDistributors") else set(fetch_claim_distributors(config))
+            distributors = sorted(indexed_distributors | existing_distributors | event_distributors)
             distributor_tokens = resolve_distributor_tokens(config, distributors)
-            new_logs = fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distributors)
+            if chain_key == "xlayer":
+                new_logs = fetch_reward_claimed_logs(
+                    chain_key, config, start_block, end_block, distributors,
+                    checkpoint_path=os.path.join(ROOT_DIR, "reward_claim_checkpoints", "xlayer.json"),
+                )
+            else:
+                new_logs = fetch_reward_claimed_logs(chain_key, config, start_block, end_block, distributors)
+            if config.get("scanAllDistributors"):
+                discovered = {
+                    "0x" + log["topics"][1][-40:].lower()
+                    for log in new_logs if isinstance(log, dict) and len(log.get("topics") or []) >= 2
+                }
+                if discovered - set(distributors):
+                    distributors = sorted(set(distributors) | discovered)
+                    distributor_tokens = resolve_distributor_tokens(config, distributors)
             known_timestamps = {
                 int(event.get("blockNumber") or 0): int(event.get("timestamp") or 0)
                 for event in existing_events_for_chain(existing, chain_key)

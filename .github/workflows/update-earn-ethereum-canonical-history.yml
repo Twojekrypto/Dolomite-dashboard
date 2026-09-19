@@ -101,11 +101,11 @@ jobs:
           python3 run_earn_canonical_history_refresh.py \
             --chain "$CHAIN" \
             --selection-address-file "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
-            --max-scan-workers 12 \
+            --max-scan-workers 3 \
             --max-materialize-workers 12 \
-            --max-incremental-scan-workers 12 \
+            --max-incremental-scan-workers 3 \
             --max-incremental-apply-workers 12 \
-            --max-new-backfill-workers 6 \
+            --max-new-backfill-workers 2 \
             --max-steps "$CHECKPOINT_STEPS" \
             --sleep-seconds "$CHECKPOINT_SLEEP_SECONDS" \
             --command-timeout-seconds "$COMMAND_TIMEOUT_SECONDS" \

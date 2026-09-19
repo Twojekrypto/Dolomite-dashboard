@@ -2,12 +2,13 @@ name: Update Cross-chain Reward Claim Events
 
 on:
   schedule:
-    - cron: '41 2 * * *'
+    - cron: '41 */4 * * *'
   workflow_dispatch:
 
 concurrency:
-  group: cross-chain-reward-claim-data
-  cancel-in-progress: true
+  # Both producers rewrite the shared manifest; serialize their publications.
+  group: reward-claim-data
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -29,6 +30,8 @@ jobs:
             data/reward-claim-events.json
             data/reward-claim-events
             generate_reward_claim_events.py
+            rpc_client.py
+            rpc_usage.py
             requirements.txt
             tests/test_generate_reward_claim_events.py
             validate_data.py
@@ -48,7 +51,9 @@ jobs:
       - name: Restore reward claim sync state
         uses: actions/cache@v5
         with:
-          path: reward_claim_events_state.json
+          path: |
+            reward_claim_events_state.json
+            reward_claim_checkpoints
           key: reward-claim-state-${{ github.run_number }}
           restore-keys: |
             reward-claim-state-
@@ -67,11 +72,14 @@ jobs:
           ALCHEMY_MANTLE_RPC_2_JEFF: ${{ secrets.ALCHEMY_MANTLE_RPC_2_JEFF }}
           ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
           XLAYER_RPC: ${{ secrets.XLAYER_RPC }}
+          XLAYER_RPC_QUICKNODE_TWOJE: ${{ secrets.XLAYER_RPC_QUICKNODE_TWOJE }}
+          XLAYER_RPC_2: ${{ secrets.XLAYER_RPC_2 }}
+          DRP_XLAYER_RPC_TWO: ${{ secrets.DRP_XLAYER_RPC_TWO }}
           ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}
           ALCHEMY_XLAYER_RPC: ${{ secrets.ALCHEMY_XLAYER_RPC }}
           REWARD_CLAIM_CHUNK_SIZE_ARBITRUM: '250000'
           REWARD_CLAIM_CHUNK_SIZE_MANTLE: '50000'
-          REWARD_CLAIM_CHUNK_SIZE_XLAYER: '100000'
+          REWARD_CLAIM_CHUNK_SIZE_XLAYER: '10000'
           REWARD_CLAIM_MAX_LOG_CHUNKS_XLAYER: '2000'
           REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_ARBITRUM: '50'
           REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_MANTLE: '20'

@@ -26,6 +26,57 @@ def _log(block):
     }
 
 
+class RewardClaimCheckpointTests(unittest.TestCase):
+    def test_xlayer_scan_discovers_claims_without_a_fresh_subgraph_distributor_list(self):
+        cfg = {"name": "X Layer", "eventEmitter": "0x" + "1"*40,
+               "rpcUrls": ["https://rpc.example"], "chunkSize": 100,
+               "scanAllDistributors": True}
+        log = _log(1000)
+        def rpc(urls, method, params, **kwargs):
+            self.assertEqual(params[0]["topics"], [rce.REWARD_CLAIMED_TOPIC])
+            return [log]
+        with tempfile.TemporaryDirectory() as tmp, patch.object(rce, "rpc_request", side_effect=rpc), patch.object(rce.time, "sleep"):
+            rows = rce.fetch_reward_claimed_logs("xlayer", cfg, 1000, 1099, [], checkpoint_path=os.path.join(tmp, "xlayer.json"))
+        self.assertEqual(rows, [log])
+
+    def test_bounded_backfill_resumes_verified_prefix_as_head_moves(self):
+        cfg = {"name": "X Layer", "eventEmitter": "0x" + "1"*40,
+               "rpcUrls": ["https://rpc.example"], "chunkSize": 100, "maxLogChunks": 2}
+        distributor = "0x" + "2"*40
+        ranges = []
+        def rpc(urls, method, params, **kwargs):
+            start, end = int(params[0]["fromBlock"], 16), int(params[0]["toBlock"], 16)
+            ranges.append((start, end))
+            return [_log(start)]
+        with tempfile.TemporaryDirectory() as tmp, patch.object(rce, "rpc_request", side_effect=rpc), patch.object(rce.time, "sleep"):
+            checkpoint = os.path.join(tmp, "xlayer.json")
+            with self.assertRaisesRegex(RuntimeError, "checkpoint"):
+                rce.fetch_reward_claimed_logs("xlayer", cfg, 1000, 1299, [distributor], checkpoint_path=checkpoint)
+            saved = json.loads(Path(checkpoint).read_text())
+            self.assertEqual(saved["nextBlock"], 1200)
+            rows = rce.fetch_reward_claimed_logs("xlayer", cfg, 1000, 1399, [distributor], checkpoint_path=checkpoint)
+        self.assertEqual(ranges, [(1000, 1099), (1100, 1199), (1200, 1299), (1300, 1399)])
+        self.assertEqual([int(row["blockNumber"], 16) for row in rows], [1000, 1100, 1200, 1300])
+
+    def test_changed_distributors_cannot_reuse_checkpoint_coverage(self):
+        cfg = {"name": "X Layer", "eventEmitter": "0x" + "1"*40,
+               "rpcUrls": ["https://rpc.example"], "chunkSize": 100, "maxLogChunks": 1}
+        ranges = []
+        def rpc(urls, method, params, **kwargs):
+            ranges.append(int(params[0]["fromBlock"], 16))
+            return []
+        with tempfile.TemporaryDirectory() as tmp, patch.object(rce, "rpc_request", side_effect=rpc), patch.object(rce.time, "sleep"):
+            checkpoint = os.path.join(tmp, "xlayer.json")
+            for distributor in ("0x" + "2"*40, "0x" + "3"*40):
+                with self.assertRaisesRegex(RuntimeError, "checkpoint"):
+                    rce.fetch_reward_claimed_logs("xlayer", cfg, 1000, 1299, [distributor], checkpoint_path=checkpoint)
+        self.assertEqual(ranges, [1000, 1000])
+
+    def test_existing_quicknode_secret_is_accepted_for_claim_scans(self):
+        with patch.dict(os.environ, {"XLAYER_RPC_QUICKNODE_TWOJE": "https://quicknode.example/key"}, clear=True):
+            self.assertTrue(rce.has_configured_rpc("xlayer"))
+
+
 class RewardClaimTimestampReuseTests(unittest.TestCase):
     """Block timestamps are immutable, so already-resolved ones must be reused
     instead of re-fetched from the chain (data-identical, fewer RPC calls)."""
@@ -140,13 +191,12 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
             self.assertIn(env_name, source)
 
     def test_reward_claim_scanner_reads_xlayer_zen_rpc_secret(self):
-        source = (ROOT / "generate_reward_claim_events.py").read_text(encoding="utf-8")
         workflow = (ROOT / ".github" / "workflows" / "update-reward-claim-events.yml").read_text(encoding="utf-8")
 
-        self.assertIn("ALCHEMY_XLAYER_RPC_ZEN", source)
         self.assertIn("ALCHEMY_XLAYER_RPC_ZEN: ${{ secrets.ALCHEMY_XLAYER_RPC_ZEN }}", workflow)
         with patch.dict(os.environ, {"ALCHEMY_XLAYER_RPC_ZEN": "https://xlayer.example"}, clear=True):
             self.assertTrue(rce.has_configured_rpc("xlayer"))
+            self.assertEqual(rce.get_endpoints("xlayer")[0], "https://xlayer.example")
 
     def test_reward_claim_scanner_reads_xlayer_rpc_alias(self):
         alias = "https://configured-xlayer.example"
@@ -173,7 +223,7 @@ class RewardClaimTimestampReuseTests(unittest.TestCase):
 
         rpc_urls = json.loads(result.stdout)
         self.assertEqual(rpc_urls[0], alias)
-        self.assertIn("https://rpc.xlayer.tech/", rpc_urls[1:])
+        self.assertIn("https://rpc.xlayer.tech", [url.rstrip("/") for url in rpc_urls[1:]])
 
     def test_xlayer_rpc_alias_satisfies_configured_gate(self):
         with patch.dict(os.environ, {"XLAYER_RPC": "https://configured-xlayer.example"}, clear=True):

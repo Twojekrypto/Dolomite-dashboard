@@ -6,7 +6,7 @@ computes lock_duration = lock_end - tx_timestamp, and outputs average lock stats
 """
 
 import requests
-from explorer_api import explorer_get
+from explorer_api import explorer_get_with_retry as explorer_get
 import time
 import json
 import os

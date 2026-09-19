@@ -9,6 +9,13 @@
   "maxResponseBytes": 50000000,
   "maxDispatchesPerRun": 3,
   "workflows": {
+    "update-reward-claim-events.yml": {
+      "workflow": "update-reward-claim-events.yml",
+      "failureCooldownMinutes": 60,
+      "dispatchWindowMinutes": 240,
+      "maxDispatchesInWindow": 1,
+      "allowedInputs": []
+    },
     "pages.yml": {
       "workflow": "pages.yml",
       "failureCooldownMinutes": 10,
@@ -123,6 +130,12 @@
     }
   },
   "artifacts": [
+    {"id": "reward-claim-arbitrum", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.arbitrum.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-reward-claim-events.yml", "inputs": {}, "maxBytes": 2000000},
+    {"id": "reward-claim-mantle", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.mantle.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-reward-claim-events.yml", "inputs": {}, "maxBytes": 2000000},
+    {"id": "reward-claim-xlayer", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.xlayer.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-reward-claim-events.yml", "inputs": {}, "maxBytes": 2000000},
+    {"id": "reward-claim-berachain", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.berachain.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-odolo-flows.yml", "inputs": {}, "maxBytes": 2000000},
+    {"id": "earn-source-coverage", "path": "data/earn-freshness/status.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.ethereum.canonical.updatedAt", "chains.berachain.canonical.updatedAt", "chains.arbitrum.canonical.updatedAt", "chains.mantle.canonical.updatedAt", "chains.xlayer.canonical.updatedAt"], "sourceLagMinutes": ["chains.ethereum.canonical.estimatedLagMinutes", "chains.ethereum.netflow.estimatedLagMinutes", "chains.berachain.canonical.estimatedLagMinutes", "chains.berachain.netflow.estimatedLagMinutes", "chains.arbitrum.canonical.estimatedLagMinutes", "chains.arbitrum.netflow.estimatedLagMinutes", "chains.mantle.canonical.estimatedLagMinutes", "chains.mantle.netflow.estimatedLagMinutes", "chains.xlayer.canonical.estimatedLagMinutes", "chains.xlayer.netflow.estimatedLagMinutes"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "monitor-earn-freshness.yml", "inputs": {}, "maxBytes": 2000000},
+    {"id": "tvl-source-coverage", "path": "dolomite_tvl.json", "timestamps": ["last_updated"], "sourceTimestamps": ["chainMeta.Ethereum.blockTimestamp", "chainMeta.Berachain.blockTimestamp", "chainMeta.Arbitrum.blockTimestamp", "chainMeta.Mantle.blockTimestamp", "chainMeta.X Layer.blockTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-tvl-data.yml", "inputs": {}, "maxBytes": 2000000},
     {"id": "assets", "path": "assets_live.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 15, "earlyDueMinutes": 10, "workflow": "update-assets-live.yml", "inputs": {}, "maxBytes": 1000000},
     {"id": "dolo-price", "path": "dolo_price.json", "timestamps": ["last_updated"], "maxAgeMinutes": 60, "earlyDueMinutes": 45, "workflow": "update-dolo-price.yml", "inputs": {}, "maxBytes": 1000000},
     {"id": "tvl", "path": "dolomite_tvl.json", "timestamps": ["last_updated"], "maxAgeMinutes": 30, "earlyDueMinutes": 20, "workflow": "update-tvl-data.yml", "inputs": {}, "maxBytes": 2000000},

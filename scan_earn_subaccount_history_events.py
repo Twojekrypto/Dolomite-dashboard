@@ -80,9 +80,15 @@ def _canonical_max_block_chunk(config: dict) -> int:
     )
 
 
+def _is_provider_span_limit(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return (("block range" in message or "ranges over" in message or "getlogs range" in message)
+            and any(word in message for word in ("greater", "exceed", "limit", "not supported", "cap")))
+
+
 def _should_fallback_to_single_topics(exc: Exception) -> bool:
     message = str(exc).lower()
-    if "block range" in message and any(word in message for word in ("greater", "exceed", "limit")):
+    if _is_provider_span_limit(exc):
         return False
     if "bad request" in message or "http error 400" in message:
         return True
@@ -462,7 +468,9 @@ def scan_chain_to_event_shards(
             current = chunk_end + 1
         except Exception as exc:
             error_msg = str(exc)
-            if "block range" in error_msg.lower() and any(word in error_msg.lower() for word in ("greater", "exceed", "limit")):
+            if _is_provider_span_limit(exc):
+                if adaptive_chunk_size <= 1:
+                    raise
                 adaptive_chunk_size = max(1, adaptive_chunk_size // 2)
                 max_chunk_size = min(max_chunk_size, adaptive_chunk_size)
                 print(f"[{chain}] provider block-span limit; reducing to {adaptive_chunk_size:,}")

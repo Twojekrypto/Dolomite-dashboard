@@ -2,12 +2,31 @@
 
 import os
 import re
+import time
 from urllib.parse import urlsplit
 
 import requests
 
 
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
+
+
+def explorer_get_with_retry(url, *, attempts=3, **kwargs):
+    """Retry the identical page on transient failures, never access/quota errors."""
+    for attempt in range(max(1, attempts)):
+        try:
+            return explorer_get(url, **kwargs)
+        except (ExplorerError, requests.RequestException) as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            retryable = exc.retryable if isinstance(exc, ExplorerError) else status in {429, 500, 502, 503, 504}
+            if not retryable or attempt + 1 >= max(1, attempts):
+                raise
+            headers = getattr(getattr(exc, "response", None), "headers", {}) or {}
+            try:
+                delay = float(headers.get("Retry-After", 0))
+            except (ValueError, TypeError):
+                delay = 0
+            time.sleep(min(30, max(2 ** (attempt + 1), delay)))
 
 
 class ExplorerError(RuntimeError):
