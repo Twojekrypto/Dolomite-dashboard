@@ -18,7 +18,7 @@
   var NAV_VERSIONS = {
     nav: "mobile-nav-responsive-20260801",
     polish: "mobile-polish-safari-details-20260805",
-    footer: "protocol-footer-20260619-links-mobile"
+    footer: "protocol-footer-20260619-links-mobile-active-chains-20260919"
   };
   var TABLE_UX_VERSION = "20260907-flow-copy-parity";
   var ADDRESS_OVERRIDES_VERSION = "20260823-address-type-normalization-v1";

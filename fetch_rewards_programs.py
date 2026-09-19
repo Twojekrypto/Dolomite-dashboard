@@ -44,8 +44,8 @@ CHAIN_ID_NAMES = {
 
 HISTORY_MAX_SNAPSHOTS = 400
 
-# Botanix is being sunset (July 2026) — skip its oDOLO allocations.
-EXCLUDED_CHAINS = {"botanix"}
+# Retired deployments remain in archived files, not in current programs.
+EXCLUDED_CHAINS = {"botanix", "polygonzkevm", "polygon_zkevm", "mantle", "xlayer"}
 
 
 def utc_now() -> datetime:
@@ -486,7 +486,8 @@ def main() -> int:
         errors.append(f"odolo: {exc}"[:500])
         print(f"oDOLO fetch failed: {exc}", file=sys.stderr, flush=True)
 
-    programs = merkl_programs + odolo_programs
+    programs = [program for program in merkl_programs + odolo_programs
+                if program.get("chain") not in EXCLUDED_CHAINS]
     if not programs:
         print("No programs fetched — refusing to overwrite existing data", file=sys.stderr)
         return 1

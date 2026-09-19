@@ -1384,7 +1384,7 @@ h1{
         </div>
         <div class="proto-brand-text">
           <div class="proto-brand-name">Dolomite</div>
-          <div class="proto-brand-sub">Lending &amp; margin · <b>7 chains</b> · <b>104 markets</b></div>
+          <div class="proto-brand-sub">Lending &amp; margin · <b>3 active chains</b> · <b>104 markets</b></div>
         </div>
       </div>
       <div class="proto-links">
@@ -1438,7 +1438,7 @@ h1{
   const VEBORROW_ANNUALIZATION_PERIODS = 52;
   const VEBORROW_SIM_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
   const VEBORROW_ELIGIBILITY_CHAINS = ["Ethereum", "Arbitrum", "Berachain"];
-  const VEBORROW_WALLET_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer"];
+  const VEBORROW_WALLET_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum"];
   const VEBORROW_WALLET_CHAIN_META = {
     ethereum: { key: "ethereum", name: "Ethereum", short: "ETH" },
     arbitrum: { key: "arbitrum", name: "Arbitrum", short: "ARB" },
@@ -1909,6 +1909,18 @@ h1{
     odoloExerciseDaily = daily;
     return daily;
   }
+  function activeRevenueRow(original){
+    const chains = original.chains || {};
+    const retired = ["Mantle", "X Layer"].filter(key => chains[key]).map(key => chains[key]);
+    if (rowTs(original) < Date.parse("2026-09-19T00:00:00Z") / 1000 || !retired.length) return original;
+    const row = {...original, chains: Object.fromEntries(Object.entries(chains).filter(([key]) => !["Mantle", "X Layer"].includes(key)))};
+    for (const field of ["feesUSD", "revenueUSD", "grossRevenueUSD", "borrowFeeRebateUSD", "supplySideRevenueUSD"]) {
+      row[field] = Math.round(Math.max(0, n(row[field]) - retired.reduce((sum, value) => sum + n(value[field]), 0)) * 1e6) / 1e6;
+    }
+    row.protocolCut = row.feesUSD ? row.revenueUSD / row.feesUSD : 0;
+    row.grossProtocolCut = row.feesUSD ? row.grossRevenueUSD / row.feesUSD : 0;
+    return row;
+  }
   function allRows(){
     const dailyOdolo = odoloExerciseDailyMap();
     let revenueCumulative = 0;
@@ -1916,7 +1928,7 @@ h1{
     let odoloUsdcCumulative = 0;
     let borrowFeeRebateCumulative = 0;
     return (revenueData?.series || [])
-      .map(row => ({ ...row, ts: rowTs(row) }))
+      .map(row => ({ ...activeRevenueRow(row), ts: rowTs(row) }))
       .filter(row => row.ts > 0)
       .sort((a,b) => a.ts - b.ts)
       .map(row => {
@@ -2668,7 +2680,14 @@ h1{
     return windowRows.reduce((sum, row) => sum + n(row.revenueUSD) + n(row.odoloUsdcUSD), 0);
   }
   function renderHero(){
-    const totals = revenueData.totals || {};
+    const rows = allRows();
+    const latest = rows[rows.length - 1];
+    const previous = rows[rows.length - 2];
+    const totals = { ...(revenueData.totals || {}), ...(latest ? {
+      dailyRevenueUSD: latest.revenueUSD, dailyFeesUSD: latest.feesUSD,
+      dailyProtocolCut: latest.protocolCut,
+      previousDailyRevenueUSD: previous?.revenueUSD ?? revenueData.totals?.previousDailyRevenueUSD
+    } : {}) };
     const dailyRevenue = n(totals.dailyRevenueUSD);
     const previousRevenue = n(totals.previousDailyRevenueUSD);
     const change = previousRevenue > 0 ? (dailyRevenue - previousRevenue) / previousRevenue : 0;

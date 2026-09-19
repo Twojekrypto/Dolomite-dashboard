@@ -2062,7 +2062,7 @@ body:not(.pf-active) #pf-results{display:none}
     { key:"mantle",    name:"Mantle",    short:"MNT",  endpoint:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn" },
     { key:"polygonzkevm", name:"Polygon zkEVM", short:"zkEVM", endpoint:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn" },
     { key:"xlayer",    name:"X Layer",   short:"XLAY", endpoint:"https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn" },
-  ];
+  ].filter(c => ['ethereum', 'berachain', 'arbitrum'].includes(c.key));
   const CHAIN_BY_KEY = Object.fromEntries(CHAINS.map(c => [c.key, c]));
 
   // ===== Token icon system (ported from Assets/Earn) =====
@@ -2732,7 +2732,7 @@ const tokenIconFrameClass = sym => FULL_LOGO_SYMBOL_PATTERN.test(String(sym || "
   function buildRiskBorrowRows(riskJson, addr){
     const a = normAddr(addr);
     return ((riskJson && riskJson.positions) || [])
-      .filter(p => normAddr(p.address) === a && Number(p.debtUSD) > 0.000001)
+      .filter(p => ['ethereum', 'berachain', 'arbitrum'].includes(p.chain) && normAddr(p.address) === a && Number(p.debtUSD) > 0.000001)
       .map(p => {
         const collateralTokens = Array.isArray(p.collateralTokens) ? p.collateralTokens : [];
         const debtTokens = Array.isArray(p.debtTokens) ? p.debtTokens : [];

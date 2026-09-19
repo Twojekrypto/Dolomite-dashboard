@@ -13,7 +13,6 @@ on:
         options:
           - all
           - ethereum
-          - mantle
           - arbitrum
           - berachain
 
@@ -41,11 +40,6 @@ jobs:
             limit: 8
             scan_workers: 2
             materialize_workers: 2
-          - chain: mantle
-            concurrency_group: earn-secondary-canonical-history-mantle
-            limit: 200
-            scan_workers: 8
-            materialize_workers: 8
           - chain: arbitrum
             concurrency_group: earn-arbitrum-canonical-history
             limit: 120

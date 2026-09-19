@@ -142,6 +142,8 @@ def build_dispatch_rows(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
             continue
         inputs = job.get("inputs") if isinstance(job.get("inputs"), dict) else {}
         chain = _clean_tsv_field(inputs.get("chain"))
+        if chain in {"mantle", "xlayer", "botanix", "polygonzkevm"} or workflow == "update-earn-secondary-canonical-history.yml":
+            continue
         rows.append(
             {
                 "workflow": workflow,

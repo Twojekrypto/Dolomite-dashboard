@@ -16,8 +16,6 @@ on:
           - ethereum
           - arbitrum
           - berachain
-          - mantle
-          - xlayer
       wallet_limit:
         description: 'Maximum active wallets per chain (1-100).'
         required: false
@@ -40,10 +38,6 @@ jobs:
             concurrency_group: earn-arbitrum-canonical-history
           - chain: berachain
             concurrency_group: earn-berachain-canonical-history
-          - chain: mantle
-            concurrency_group: earn-secondary-canonical-history-mantle
-          - chain: xlayer
-            concurrency_group: earn-secondary-canonical-history-xlayer
     concurrency:
       group: ${{ matrix.concurrency_group }}
       cancel-in-progress: false

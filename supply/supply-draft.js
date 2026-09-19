@@ -1,7 +1,7 @@
 (function () {
   const SUPPLY_ASSET_ICON_CDN = 'https://app.dolomite.io/static/media/';
   const SUPPLY_SUPPORTED_CHAINS = new Set([
-    'ethereum', 'berachain', 'arbitrum', 'mantle', 'xlayer', 'base', 'polygon_zkevm',
+    'ethereum', 'berachain', 'arbitrum',
   ]);
   const SUPPLY_SAVETH_BASE = '0x23e3df1196b3249c9b0a9476f990f105591872de';
   const SUPPLY_DSAVETH = '0x51bc8e41cbec0aa97ec07c73597829c70b2eed46';

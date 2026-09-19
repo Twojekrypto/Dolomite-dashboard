@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent
 SNAPSHOT_DIR = ROOT / "data" / "earn-snapshots"
 SHARD_DIR = ROOT / "data" / "earn-verified-ledger-shards"
 OUTPUT_FILE = ROOT / "data" / "earn-quality" / "representative-audit.json"
-ACTIVE_CHAINS = {"ethereum", "arbitrum", "berachain", "mantle", "xlayer"}
+ACTIVE_CHAINS = {"ethereum", "arbitrum", "berachain"}
 
 
 def _read_json(path: Path):

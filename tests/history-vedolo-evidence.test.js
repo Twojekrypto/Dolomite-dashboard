@@ -135,8 +135,8 @@ test("missing receipt, wrong emitter and missing price keep report blocked", asy
 
 test("selected claim-source failure blocks All even with no rows on that chain", () => {
   const { api } = harness();
-  api.state.selectedChains = new Set(["berachain", "xlayer"]);
-  api.state.warnings = ["X Layer reward claim index warning: RPC limit."];
+  api.state.selectedChains = new Set(["berachain", "arbitrum"]);
+  api.state.warnings = ["Arbitrum reward claim index warning: RPC limit."];
   const rows = [{chainKey: "berachain", gas: {status: "ok"}, events: []}];
   assert.equal(api.reportExportReadiness(rows, []).canFullReport, false);
   api.setSelectedActionsFromValues(["deposit"]);
@@ -198,8 +198,8 @@ test("missing claim-source metadata is not a complete empty selected source", as
   for (const payload of [{events:[]}, {events:[], chains:{xlayer:{}}}]) {
     const { api, sandbox } = harness();
     sandbox.fetch = async () => ({ok:true, status:200, json:async () => payload});
-    api.state.selectedChains = new Set(["xlayer"]);
-    const result = await api.fetchRewardClaimEvents("xlayer", wallet, {start:1788000000, end:1789000000});
+    api.state.selectedChains = new Set(["arbitrum"]);
+    const result = await api.fetchRewardClaimEvents("arbitrum", wallet, {start:1788000000, end:1789000000});
     assert.equal(result.events.length, 0);
     assert.ok(result.warnings.some(message => message.includes("index is missing")));
     api.state.warnings = result.warnings;

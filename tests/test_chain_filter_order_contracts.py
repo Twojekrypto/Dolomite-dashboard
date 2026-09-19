@@ -1,12 +1,14 @@
 import re
+import json
+import subprocess
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ASSETS_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer"]
+ASSETS_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum"]
 CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "botanix", "polygonzkevm", "xlayer"]
-CHAIN_LABEL_ORDER = ["Ethereum", "Berachain", "Arbitrum", "Mantle", "Botanix", "Polygon zkEVM", "X Layer"]
+CHAIN_LABEL_ORDER = ["Ethereum", "Berachain", "Arbitrum"]
 EARN_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer", "polygonzkevm", "botanix"]
 
 
@@ -36,12 +38,13 @@ class ChainFilterOrderContractsTest(unittest.TestCase):
         ]
         self.assertEqual(ASSETS_CHAIN_ORDER, keys)
 
-    def test_earn_chain_menu_keeps_archived_networks_last(self):
+    def test_earn_chain_menu_excludes_retired_networks(self):
         text = (ROOT / "dashboard-core.js").read_text(encoding="utf-8")
-        block = re.search(r"const EARN_CHAINS = \{([\s\S]*?)\n        \};", text)
+        block = re.search(r"const EARN_CHAINS = Object.fromEntries([\s\S]*?)\n        //", text)
         self.assertIsNotNone(block)
-        keys = re.findall(r"^\s{12}([a-z][a-z0-9]*): \{", block.group(1), flags=re.MULTILINE)
-        self.assertEqual(EARN_CHAIN_ORDER, keys[: len(EARN_CHAIN_ORDER)])
+        result = subprocess.check_output(["node", "-e", block.group(0).rsplit("//", 1)[0] +
+                                          "console.log(JSON.stringify(Object.keys(EARN_CHAINS)));"], text=True)
+        self.assertEqual(ASSETS_CHAIN_ORDER, json.loads(result))
 
     def test_supply_chain_dropdown_order_matches_total_supply_rank(self):
         text = (ROOT / "liquidation-preview.html").read_text(encoding="utf-8")

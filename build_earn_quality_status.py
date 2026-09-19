@@ -207,7 +207,7 @@ def _is_actionable_blocking(row: Dict[str, str]) -> bool:
 
 def build_quality_status(*, data_dir: Path, snapshot_date: Optional[str] = None) -> Dict[str, Any]:
     snapshot_manifest = _read_json(data_dir / "earn-snapshots" / "manifest.json", {})
-    chains = sorted({chain for values in (snapshot_manifest.get("chains") or {}).values() for chain in (values or [])})
+    chains = sorted({chain for values in (snapshot_manifest.get("chains") or {}).values() for chain in (values or [])} & {"ethereum", "berachain", "arbitrum"})
 
     chain_payloads: Dict[str, Any] = {}
     totals = Counter()

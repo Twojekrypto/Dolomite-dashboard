@@ -1147,7 +1147,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
           Total Markets
         </div>
         <div class="hc-value" data-count-value="0">0</div>
-        <div class="hc-sub">listed assets · 7 chains</div>
+        <div class="hc-sub">listed assets · 3 active chains</div>
       </div>
       <div class="hero-card borrow">
         <div class="hc-label">
@@ -1220,8 +1220,6 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
               <div class="dd-opt" data-net="ethereum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Ethereum</span></div>
               <div class="dd-opt" data-net="berachain"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Berachain</span></div>
               <div class="dd-opt" data-net="arbitrum"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Arbitrum</span></div>
-              <div class="dd-opt" data-net="mantle"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_mantle.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">Mantle</span></div>
-              <div class="dd-opt" data-net="xlayer"><span class="dd-opt-check"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 6 5 9 10 3"/></svg></span><img src="https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg" onerror="this.style.display='none'"><span class="dd-opt-name">X Layer</span></div>
             </div>
           </div>
         </div>
@@ -1298,7 +1296,7 @@ tr.expanded .chev{transform:rotate(90deg);color:var(--gold)}
         </div>
         <div class="proto-brand-text">
           <div class="proto-brand-name">Dolomite</div>
-          <div class="proto-brand-sub" id="proto-market-sub">Lending &amp; margin · <b>live markets</b> · <b>7 chains</b></div>
+          <div class="proto-brand-sub" id="proto-market-sub">Lending &amp; margin · <b>live markets</b> · <b>3 active chains</b></div>
         </div>
       </div>
       <div class="proto-links">
@@ -1470,7 +1468,7 @@ const CHAIN_LABELS = {
   botanix:"Botanix", mantle:"Mantle",
   polygonzkevm:"Polygon zkEVM", xlayer:"X Layer"
 };
-const ACTIVE_ASSET_CHAIN_KEYS = new Set(["ethereum", "berachain", "arbitrum", "mantle", "xlayer"]);
+const ACTIVE_ASSET_CHAIN_KEYS = new Set(["ethereum", "berachain", "arbitrum"]);
 let CHAIN_COUNT_TOTAL = ACTIVE_ASSET_CHAIN_KEYS.size;
 const ASSETS_CACHE_KEY = "dolomite-assets-live-rows-v3";
 const ASSETS_SNAPSHOT_URL = "assets_live.json";
@@ -1935,7 +1933,7 @@ async function fetchMarketDepth(){
     oraclePrices(first: 1000) { id price token { id } }
   }`;
   const out = {};
-  await Promise.all(Object.entries(LIVE_CHAINS).map(async ([chainKey, chain])=>{
+  await Promise.all(Object.entries(LIVE_CHAINS).filter(([key])=>ACTIVE_ASSET_CHAIN_KEYS.has(key)).map(async ([chainKey, chain])=>{
     try{
       const resp = await fetch(chain.subgraph, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({query:QUERY})});
       if(!resp.ok) return;
@@ -1977,7 +1975,7 @@ async function fetchMarketDepth(){
 async function loadLiveAssets(){
   const depthPromise = fetchMarketDepth();
   const rows = [];
-  await Promise.all(Object.entries(LIVE_CHAINS).map(async ([chainKey, chain])=>{
+  await Promise.all(Object.entries(LIVE_CHAINS).filter(([key])=>ACTIVE_ASSET_CHAIN_KEYS.has(key)).map(async ([chainKey, chain])=>{
     try{
       const resp = await fetch(`https://api.dolomite.io/tokens/${chain.id}/interest-rates?exclude-odolo=false`);
       if(!resp.ok) return;
@@ -2100,7 +2098,7 @@ function writeLiveAssetsCache(rows, meta={}){
 }
 
 function applyAssetRows(rows){
-  ASSETS = rows;
+  ASSETS = rows.filter(row => ACTIVE_ASSET_CHAIN_KEYS.has(row.chain));
   state.loading = false;
   state.fallback = false;
   document.body.classList.remove("assets-loading","assets-fallback");

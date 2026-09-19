@@ -36,8 +36,6 @@
     { key: 'ethereum', label: 'Ethereum', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg' },
     { key: 'arbitrum', label: 'Arbitrum', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg' },
     { key: 'berachain', label: 'Berachain', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg' },
-    { key: 'mantle', label: 'Mantle', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg' },
-    { key: 'xlayer', label: 'X Layer', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg' },
   ];
   const supplyHealthMonthIndex = {
     JAN: 0,
@@ -133,6 +131,7 @@
     const chains = filters.chains instanceof Set ? filters.chains : new Set();
 
     return (Array.isArray(markets) ? markets : []).filter(market => {
+      if (!healthChains.some(chain => chain.key === market.chain)) return false;
       const matchesChain = chains.size === 0 || chains.has(market.chain);
       const presentation = getSupplyHealthMarketPresentation(market);
       const haystack = [

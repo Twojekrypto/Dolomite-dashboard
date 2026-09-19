@@ -43,6 +43,12 @@ const markets = [
   },
 ];
 
+test('retired markets stay hidden even in cached payloads and explicit old filters', () => {
+  const retired = ['mantle', 'xlayer'].map(chain => ({...markets[0], chain}));
+  assert.deepEqual(filterSupplyHealthMarkets([...markets, ...retired]), markets);
+  assert.deepEqual(filterSupplyHealthMarkets(retired, {chains: new Set(['mantle', 'xlayer'])}), []);
+});
+
 test('Supply Health builds an exact chain and address market link', () => {
   assert.equal(
     buildSupplyMarketHref({

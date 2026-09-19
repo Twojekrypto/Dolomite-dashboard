@@ -27,8 +27,7 @@ jobs:
       PYTHONUNBUFFERED: '1'
       GH_TOKEN: ${{ github.token }}
       EARN_DISPATCH_PAGES_AFTER_PUSH: 'false'
-      # 4 chains can be simultaneously stale (arbitrum/mantle/xlayer + ethereum
-      # coverage catchup) — budget must cover all of them plus headroom.
+      # Three active chains can need both canonical and netflow refreshes.
       EARN_WATCHDOG_MAX_DISPATCHES: '6'
       ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
       ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}

@@ -13,6 +13,15 @@ Prezentuje metryki tokenów DOLO, oDOLO, veDOLO — flow analysis, holder tracki
 
 ## 🏗️ Architektura
 
+### Aktywne sieci — 2026-09-19
+
+Dashboard, domyślne skanery i Freshness Guard obejmują Ethereum, Berachain
+i Arbitrum. Mantle i X Layer wycofano z aktywnej obsługi; ich pliki archiwalne
+pozostają zachowane. Workflow secondary canonical jest wyłączony.
+Nie przywracać sieci przez stare manifesty lub kolejki watchdog.
+Historia Supply/TVL sprzed 2026-09-19 zachowuje pierwotny zakres sieci;
+bieżące sumy dotyczą trzech aktywnych sieci.
+
 ```
 Dolomite website/
 ├── index.html              ← Loader (route-loader.js → dolo-preview.html)

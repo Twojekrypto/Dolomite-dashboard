@@ -175,7 +175,7 @@ def chain_env_key(chain_key):
 def selected_chain_keys():
     raw = os.environ.get("REWARD_CLAIM_CHAINS", "").strip()
     if not raw:
-        return list(CHAIN_CONFIGS)
+        return [key for key in CHAIN_CONFIGS if key not in {"mantle", "xlayer"}]
     requested = [item.strip().lower().replace(" ", "") for item in raw.split(",") if item.strip()]
     unknown = [item for item in requested if item not in CHAIN_CONFIGS]
     if unknown:

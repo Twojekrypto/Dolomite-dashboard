@@ -26,7 +26,7 @@ VERIFIED_AFTER_HOURS = 2
 STALE_AFTER_HOURS = 6
 SLA_WARNING_AFTER_HOURS = 2
 SLA_CRITICAL_AFTER_HOURS = 6
-ARCHIVED_CHAINS = {"botanix", "polygonzkevm"}
+ARCHIVED_CHAINS = {"botanix", "polygonzkevm", "mantle", "xlayer"}
 
 CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
     "ethereum": {
@@ -78,6 +78,9 @@ CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
 }
 
 NETFLOW_WORKFLOW = "update-earn-netflow.yml"
+
+# Retain legacy policy metadata for archive tools, never poll or repair retired networks.
+CHAIN_POLICIES = {chain: policy for chain, policy in CHAIN_POLICIES.items() if chain not in ARCHIVED_CHAINS}
 
 CANONICAL_CATCHUP_INPUTS: Dict[str, Dict[str, str]] = {
     "ethereum": {"hot_limit": "1000", "checkpoint_steps": "1200"},

@@ -15,8 +15,6 @@ on:
           - all
           - arbitrum
           - ethereum
-          - mantle
-          - xlayer
       reset_chain:
         description: 'Chain to re-scan from scratch. Leave empty for normal incremental update.'
         required: false
@@ -47,8 +45,6 @@ jobs:
           chains = {
               "arbitrum": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0},
               "ethereum": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0},
-              "mantle": {"maxRuntimeSeconds": 7200, "partialOutputIntervalSeconds": 1800},
-              "xlayer": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600},
           }
           requested = (os.environ.get("REQUESTED_CHAIN") or "all").strip().lower()
           reset = (os.environ.get("RESET_CHAIN") or "").strip().lower()

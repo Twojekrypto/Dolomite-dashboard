@@ -5220,13 +5220,13 @@
             assets_render();
         }
 
-        const ASSETS_CHAINS = {
+        const ASSETS_CHAINS = Object.fromEntries(Object.entries({
             ethereum: { id: 1, name: 'Ethereum', short: 'ETH', icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-ethereum/latest/gn', explorer: 'https://etherscan.io/address/' },
             berachain: { id: 80094, name: 'Berachain', short: 'BERA', icon: 'https://icons.llamao.fi/icons/chains/rsz_berachain.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-berachain-mainnet/latest/gn', explorer: 'https://berascan.com/address/' },
             arbitrum: { id: 42161, name: 'Arbitrum', short: 'ARB', icon: 'https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg', subgraph: 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn', explorer: 'https://arbiscan.io/address/' },
             mantle: { id: 5000, name: 'Mantle', short: 'MNT', icon: 'https://icons.llamao.fi/icons/chains/rsz_mantle.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-mantle/latest/gn', explorer: 'https://mantlescan.xyz/address/' },
             xlayer: { id: 196, name: 'X Layer', short: 'XLAY', icon: 'https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg', subgraph: 'https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn', explorer: 'https://www.okx.com/web3/explorer/xlayer/address/' },
-        };
+        }).filter(([key]) => ['ethereum', 'berachain', 'arbitrum'].includes(key)));
 
         function assets_contractExplorerUrl(asset) {
             if (!asset || !asset.addr) return '#';
@@ -6995,7 +6995,7 @@
 
         // ===== EARN TAB NAMESPACE =====
         // Chains sorted by total supply (descending)
-        const EARN_CHAINS = {
+        const EARN_CHAINS = Object.fromEntries(Object.entries({
             ethereum: {
                 name: 'Ethereum',
                 icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg',
@@ -7077,7 +7077,7 @@
                 rpcIdx: 0,
                 logStartBlock: 690000,
             },
-        };
+        }).filter(([key]) => ['ethereum', 'berachain', 'arbitrum'].includes(key)));
 
         // oDOLO token address (same CREATE2 on all Dolomite chains)
         const ODOLO_EARN_ADDR = '0x02E513b5B54eE216Bf836ceb471507488fC89543';

@@ -60,7 +60,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
     def test_strict_verification_repair_is_bounded_exact_and_active_chain_only(self):
         self.assertTrue(EARN_STRICT_REPAIR_WORKFLOW.is_file())
         workflow = EARN_STRICT_REPAIR_WORKFLOW.read_text(encoding="utf-8")
-        for chain in ("ethereum", "arbitrum", "berachain", "mantle", "xlayer"):
+        for chain in ("ethereum", "arbitrum", "berachain"):
             self.assertIn(f"chain: {chain}", workflow)
         self.assertNotIn("chain: botanix", workflow)
         self.assertNotIn("chain: polygonzkevm", workflow)
@@ -73,8 +73,7 @@ class EarnDashboardContractsTest(unittest.TestCase):
             "earn-ethereum-canonical-history",
             "earn-arbitrum-canonical-history",
             "earn-berachain-canonical-history",
-            "earn-secondary-canonical-history-mantle",
-            "earn-secondary-canonical-history-xlayer",
+
         ):
             self.assertIn(f"concurrency_group: {group}", workflow)
         self.assertIn("python3 run_earn_audit_checks.py", workflow)
@@ -503,7 +502,7 @@ for (const [input, decimals, expected] of cases) {
         self.assertIn("earn-ethereum-canonical-coverage", workflow)
         self.assertIn("earn-arbitrum-canonical-history", workflow)
         self.assertIn("earn-berachain-canonical-history", workflow)
-        self.assertIn("earn-secondary-canonical-history-mantle", workflow)
+        self.assertNotIn("earn-secondary-canonical-history-mantle", workflow)
         self.assertNotIn("--existing-history-only", workflow)
         for env_name in (
             "ALCHEMY_ETHEREUM_RPC_KAT",
@@ -1028,7 +1027,7 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         )
 
     def test_earn_chain_filter_keeps_archived_networks_last_and_labeled(self):
-        start = self.source.index("const EARN_CHAINS = {")
+        start = self.source.index("const EARN_CHAINS = Object.fromEntries")
         end = self.source.index("// oDOLO token address", start)
         chains = self.source[start:end]
 
@@ -1065,7 +1064,7 @@ globalThis.earn_subgraphQuery = async (_endpoint, query) => {
         self.assertIn("rateFallbackSourceGeneratedAt", source)
         self.assertIn("rateFallbackMaxAgeMinutes", source)
         self.assertIn("cached-rate-fallback", source)
-        self.assertIn('const RETIRED_CHAIN_KEYS = new Set(["botanix", "polygonzkevm"]);', source)
+        self.assertIn('const RETIRED_CHAIN_KEYS = new Set(["botanix", "polygonzkevm", "mantle", "xlayer"]);', source)
         self.assertIn("function activeChainKeys()", source)
         self.assertIn("retiredChains", source)
 
@@ -1355,7 +1354,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         workflow = EARN_SNAPSHOTS_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Build active-chain verified ledger caches", workflow)
         self.assertIn("Publish active-chain verified ledger shards", workflow)
-        for chain in ("ethereum", "arbitrum", "berachain", "mantle", "xlayer"):
+        for chain in ("ethereum", "arbitrum", "berachain"):
             self.assertIn(f"--chain {chain}", workflow)
         for chain in ("botanix", "polygonzkevm"):
             self.assertNotIn(chain, workflow)
@@ -1525,10 +1524,11 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
 
     def test_secondary_canonical_workflow_targets_secondary_chains(self):
         workflow = SECONDARY_CANONICAL_WORKFLOW.read_text(encoding="utf-8")
-        self.assertIn("cron: '23,53 * * * *'", workflow)
+        self.assertNotIn("cron:", workflow)
+        self.assertIn("if: ${{ false }}", workflow)
         # XLayer runs twice hourly like primary chains — a single hourly slot
         # left it stale for days after one failed completion (2026-06 audit).
-        self.assertIn("cron: '8,38 * * * *'", workflow)
+        self.assertNotIn("  schedule:", workflow)
         self.assertIn("type: choice", workflow)
         self.assertIn("          - mantle", workflow)
         self.assertIn("          - xlayer", workflow)
@@ -1787,7 +1787,7 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         source = EARN_FRESHNESS_SCRIPT.read_text(encoding="utf-8")
         self.assertIn('"canonicalWorkflowInputs": {"chain": "mantle"}', source)
         self.assertIn('"canonicalWorkflowInputs": {"chain": "xlayer"}', source)
-        self.assertIn('ARCHIVED_CHAINS = {"botanix", "polygonzkevm"}', source)
+        self.assertIn('ARCHIVED_CHAINS = {"botanix", "polygonzkevm", "mantle", "xlayer"}', source)
         self.assertNotIn('"canonicalWorkflowInputs": {"chain": "botanix"}', source)
         self.assertNotIn('"canonicalWorkflowInputs": {"chain": "polygonzkevm"}', source)
         self.assertIn('"xlayer": {', source)
@@ -1829,12 +1829,12 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn('"maxRuntimeSeconds": chains[chain]["maxRuntimeSeconds"]', workflow)
         self.assertIn('"partialOutputIntervalSeconds": chains[chain]["partialOutputIntervalSeconds"]', workflow)
         self.assertIn('"arbitrum": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 0}', workflow)
-        self.assertIn('"mantle": {"maxRuntimeSeconds": 7200, "partialOutputIntervalSeconds": 1800}', workflow)
-        self.assertIn('"xlayer": {"maxRuntimeSeconds": 3300, "partialOutputIntervalSeconds": 600}', workflow)
+        self.assertNotIn('"mantle": {', workflow)
+        self.assertNotIn('"xlayer": {', workflow)
         self.assertIn("path: data/.netflow-progress/${{ matrix.chain }}.json", workflow)
         self.assertIn('git add "data/earn-netflow/${CHAIN}.json"', workflow)
         self.assertIn("X Layer netflow did not make progress past block 0", workflow)
-        for chain in ("arbitrum", "ethereum", "mantle", "xlayer"):
+        for chain in ("arbitrum", "ethereum"):
             self.assertIn(f'"{chain}"', workflow)
         self.assertNotIn("botanix", workflow)
         self.assertNotIn("polygonzkevm", workflow)

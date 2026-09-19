@@ -46,7 +46,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
         }
 // ===== EARN TAB NAMESPACE =====
         // Chains sorted by total supply (descending)
-        const EARN_CHAINS = {
+        const EARN_CHAINS = Object.fromEntries(Object.entries({
             ethereum: {
                 name: 'Ethereum',
                 icon: 'https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg',
@@ -128,7 +128,7 @@ const DOLO_ADDR_LABELS = window.cloneDoloAddressLabels ? window.cloneDoloAddress
                 rpcIdx: 0,
                 logStartBlock: 690000,
             },
-        };
+        }).filter(([key]) => ['ethereum', 'berachain', 'arbitrum'].includes(key)));
 
         // oDOLO token address (same CREATE2 on all Dolomite chains)
         const ODOLO_EARN_ADDR = '0x02E513b5B54eE216Bf836ceb471507488fC89543';

@@ -2279,6 +2279,34 @@ def onchain_audit_assurance(onchain_audit, now=None):
     }
 
 
+def apply_active_network_scope(series):
+    """Keep earned history; exclude retired activity only from the retirement date."""
+    scoped = []
+    for original in series:
+        chains = original.get("chains") or {}
+        retired = [chains[key] for key in ("Mantle", "X Layer") if key in chains]
+        if original.get("date", "") < "2026-09-19" or not retired:
+            scoped.append(original)
+            continue
+        row = dict(original)
+        row["chains"] = {key: value for key, value in chains.items() if key not in {"Mantle", "X Layer"}}
+        for field in ("feesUSD", "revenueUSD", "grossRevenueUSD", "borrowFeeRebateUSD", "supplySideRevenueUSD"):
+            row[field] = round(max(0, safe_number(row.get(field)) -
+                                   sum(safe_number(value.get(field)) for value in retired)), 6)
+        fees = row["feesUSD"]
+        row["protocolCut"] = round(row["revenueUSD"] / fees, 8) if fees else 0
+        row["grossProtocolCut"] = round(row["grossRevenueUSD"] / fees, 8) if fees else 0
+        scoped.append(row)
+    return scoped
+
+
+def retired_adapter_total(payload):
+    cutoff = int(datetime(2026, 9, 19, tzinfo=timezone.utc).timestamp())
+    return sum(chain_value(values, chain)
+               for ts, values in breakdown_map(payload.get("totalDataChartBreakdown")).items()
+               if ts >= cutoff for chain in ("Mantle", "X Layer"))
+
+
 def metric_totals(revenue_data, fees_data, series):
     # DeFiLlama aggregate windows can briefly lag or revise while the chart rows
     # are updating. Keep every displayed total tied to the same saved series that
@@ -2292,7 +2320,7 @@ def metric_totals(revenue_data, fees_data, series):
     previous_gross_revenue = previous.get("grossRevenueUSD", revenue_data.get("total48hto24h"))
     previous_rebate = previous.get("borrowFeeRebateUSD", 0)
     previous_fees = previous.get("feesUSD", fees_data.get("total48hto24h"))
-    gross_revenue_all_time = safe_number(revenue_data.get("totalAllTime"))
+    gross_revenue_all_time = max(0, safe_number(revenue_data.get("totalAllTime")) - retired_adapter_total(revenue_data))
     rebate_all_time = window_sum(series, 0, "borrowFeeRebateUSD")
     return {
         "dailyRevenueUSD": round(revenue_24h, 6),
@@ -2317,7 +2345,7 @@ def metric_totals(revenue_data, fees_data, series):
         "revenueAllTimeUSD": round(max(gross_revenue_all_time - rebate_all_time, 0.0), 6),
         "grossRevenueAllTimeUSD": round(gross_revenue_all_time, 6),
         "borrowFeeRebateAllTimeUSD": round(rebate_all_time, 6),
-        "feesAllTimeUSD": round(safe_number(fees_data.get("totalAllTime")), 6),
+        "feesAllTimeUSD": round(max(0, safe_number(fees_data.get("totalAllTime")) - retired_adapter_total(fees_data)), 6),
     }
 
 
@@ -2339,11 +2367,14 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
         previous_borrow_fee_rebate_metadata,
     )
     series = apply_borrow_fee_rebates(series, rebate_metadata)
+    series = apply_active_network_scope(series)
     latest = series[-1]
     generated_at = utc_now_iso()
     return {
         "schemaVersion": 2,
         "protocol": "Dolomite",
+        "networkScopeChangedAt": "2026-09-19T00:00:00Z",
+        "retiredChains": ["Mantle", "X Layer"],
         "source": "DeFiLlama fees adapter with current-index onchain overrides",
         "sourceUrls": {
             "dailyRevenue": f"{BASE_URL}?dataType=dailyRevenue",

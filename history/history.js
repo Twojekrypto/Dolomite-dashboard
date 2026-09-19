@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const HISTORY_VERSION = "history-20260908-receipt-evidence-v1";
+  const HISTORY_VERSION = "history-20260908-receipt-evidence-v1-active-chains-20260919";
   const HISTORY_PATCH_ID = "dolomite-dashboard-fixes-20260820-v1";
   const TAX_REPORT_SCOPE = "Dolomite protocol activity only";
   const TAX_EXTERNAL_COST_BASIS_INCLUDED = "no";
@@ -34,7 +34,7 @@
   const HISTORY_FINALIZE_BUDGET_MS = 20000;
   const START_YEAR = 2024;
   const DEFAULT_YEAR = String(Math.max(new Date().getUTCFullYear(), START_YEAR));
-  const CHAIN_FILTER_ORDER = ["berachain", "arbitrum", "ethereum", "mantle", "xlayer", "polygonzkevm", "botanix"];
+  const CHAIN_FILTER_ORDER = ["berachain", "arbitrum", "ethereum"];
   const EARN_LEDGER_BASE = "data/earn-verified-ledger";
   const EARN_REWARDS_BASE = "data/earn-merkl-rewards";
   const EARN_SNAPSHOT_BASE = "data/earn-snapshots";
@@ -67,7 +67,7 @@
   let vedoloFlowsPayloadPromise = null;
 
   const GRAPH_BASE = "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs";
-  const CHAINS = {
+  const CHAINS = Object.fromEntries(Object.entries({
     ethereum: {
       name: "Ethereum",
       short: "ETH",
@@ -163,7 +163,7 @@
       rpcs: ["https://rpc.xlayer.tech/", "https://xlayer.drpc.org/"],
       rpcIdx: 0,
     },
-  };
+  }).filter(([key]) => CHAIN_FILTER_ORDER.includes(key)));
 
   const ACTION_LABELS = {
     deposit: "Deposit",
@@ -5755,7 +5755,10 @@
 
   function warningMentionedChainKeys(message) {
     const text = String(message || "");
-    return Object.entries(CHAINS)
+    // Recognize old source warnings without re-enabling retired networks.
+    const warningChains = { ...CHAINS, mantle: { name: "Mantle" }, xlayer: { name: "X Layer" },
+      polygonzkevm: { name: "Polygon zkEVM" }, botanix: { name: "Botanix" } };
+    return Object.entries(warningChains)
       .filter(([, chain]) => text.startsWith(`${chain.name} `) || text.startsWith(`${chain.name}:`) || text.includes(`${chain.name} reward claim`))
       .map(([chainKey]) => chainKey);
   }

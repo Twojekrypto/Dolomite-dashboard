@@ -1341,6 +1341,12 @@ def fetch_chain_liquidation_history(chain_key, chain_config):
     return rows
 
 
+def retired_liquidation_rows(previous):
+    """Keep archived events on disk even though active UI/scanners exclude them."""
+    return [row for row in previous.get("liquidationHistory", [])
+            if row.get("chain") not in {"ethereum", "berachain", "arbitrum"}]
+
+
 def load_previous_snapshot(path):
     """Load a previously committed output JSON (for stale-chain fallback)."""
     try:
@@ -1723,6 +1729,8 @@ def main():
     failed_history_chains = []
 
     for chain_key, chain_config in CHAINS.items():
+        if chain_key not in {"ethereum", "berachain", "arbitrum"}:
+            continue
         try:
             result = fetch_chain_data(chain_key, chain_config)
             if result:
@@ -1784,6 +1792,8 @@ def main():
             if chain_key not in stale_chains:
                 stale_chains.append(chain_key)
             print(f"::warning::chain {chain_key} liquidation history served from previous snapshot ({len(carried_rows)} rows)")
+
+    all_liquidations.extend(retired_liquidation_rows(load_previous_snapshot(HISTORY_FILE)))
 
     # Sort all positions by HF
     all_positions.sort(key=lambda x: x["healthFactor"] if x["healthFactor"] is not None else 999)

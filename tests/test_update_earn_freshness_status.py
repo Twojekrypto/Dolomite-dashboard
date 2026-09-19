@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest import mock
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -26,10 +27,10 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual(600, CHAIN_POLICIES["ethereum"]["verifiedBlockLag"])
         self.assertEqual(28_800, CHAIN_POLICIES["arbitrum"]["verifiedBlockLag"])
         self.assertEqual(3_600, CHAIN_POLICIES["berachain"]["verifiedBlockLag"])
-        self.assertEqual(3_600, CHAIN_POLICIES["mantle"]["verifiedBlockLag"])
-        self.assertEqual(7_200, CHAIN_POLICIES["xlayer"]["verifiedBlockLag"])
+        self.assertNotIn("mantle", CHAIN_POLICIES)
+        self.assertNotIn("xlayer", CHAIN_POLICIES)
         self.assertEqual("advisory", CHAIN_POLICIES["ethereum"]["canonicalCoverageCompleteness"])
-        self.assertEqual({"botanix", "polygonzkevm"}, ARCHIVED_CHAINS)
+        self.assertEqual({"botanix", "polygonzkevm", "mantle", "xlayer"}, ARCHIVED_CHAINS)
         self.assertTrue(ARCHIVED_CHAINS.isdisjoint(CHAIN_POLICIES))
 
     def test_canonical_coverage_separates_historical_backfill_from_head_freshness(self):
@@ -334,25 +335,17 @@ class EarnFreshnessStatusTest(unittest.TestCase):
 
         self.assertNotIn("botanix", status["chains"])
         self.assertNotIn("polygonzkevm", status["chains"])
-        self.assertEqual(status["chains"]["xlayer"]["status"], "syncing")
-        self.assertEqual(status["chains"]["xlayer"]["canonical"]["status"], "missing")
-        self.assertEqual(status["chains"]["xlayer"]["supportMode"], "canonical-ledger")
+        self.assertNotIn("xlayer", status["chains"])
+        self.assertNotIn("mantle", status["chains"])
         self.assertEqual(status["summary"]["limitedChains"], [])
-        self.assertIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
-        self._assert_refresh_job(
-            status["summary"]["refreshJobs"],
-            workflow="update-earn-secondary-canonical-history.yml",
-            inputs={"chain": "xlayer"},
-            mode="catchup",
-            priority=-20,
-        )
+        self.assertNotIn("update-earn-secondary-canonical-history.yml", status["summary"]["refreshWorkflows"])
         self.assertNotIn(
             {"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {"chain": "all"}},
             status["summary"]["refreshJobs"],
         )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
         self.assertNotIn("polygonzkevm", report)
-        self.assertEqual(report["xlayer"]["weakPoint"], "canonical missing")
+        self.assertNotIn("xlayer", report)
 
     def test_archived_partial_netflow_does_not_trigger_a_refresh(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
@@ -403,6 +396,9 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         self.assertEqual([], status["summary"]["refreshJobs"])
 
     def test_partial_canonical_wallet_coverage_triggers_catchup(self):
+        policy = mock.patch.dict(CHAIN_POLICIES["berachain"], {"canonicalCoverageCompleteness": "required"})
+        policy.start()
+        self.addCleanup(policy.stop)
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
         wallet = "0x1111111111111111111111111111111111111111"
         with tempfile.TemporaryDirectory() as tmp:
@@ -412,7 +408,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 "earn-subaccount-history/manifest.json",
                 {
                     "chains": {
-                        "xlayer": {
+                        "berachain": {
                             "lastBlock": 10_000,
                             "updatedAt": "2026-05-08T11:59:00Z",
                         }
@@ -421,14 +417,14 @@ class EarnFreshnessStatusTest(unittest.TestCase):
             )
             self._write_json(
                 root,
-                f"earn-subaccount-history/xlayer/{wallet}.json",
+                f"earn-subaccount-history/berachain/{wallet}.json",
                 {"address": wallet, "lastScannedBlock": 9_999, "accounts": {}},
             )
             self._write_json(
                 root,
-                "earn-netflow/xlayer.json",
+                "earn-netflow/berachain.json",
                 {
-                    "chain": "xlayer",
+                    "chain": "berachain",
                     "lastBlock": 10_000,
                     "updatedAt": "2026-05-08T11:59:00Z",
                     "netflows": {wallet: {"1": {"endingPar": "1"}}},
@@ -441,32 +437,31 @@ class EarnFreshnessStatusTest(unittest.TestCase):
                 live_blocks={
                     "arbitrum": None,
                     "ethereum": None,
-                    "berachain": None,
-                    "botanix": None,
+                                        "botanix": None,
                     "mantle": None,
                     "polygonzkevm": None,
-                    "xlayer": 10_000,
+                    "berachain": 10_000,
                 },
                 now=now,
             )
 
-        xlayer = status["chains"]["xlayer"]
-        self.assertEqual(xlayer["canonical"]["status"], "syncing")
-        self.assertEqual(xlayer["canonical"]["refreshMode"], "catchup")
-        self.assertTrue(xlayer["canonical"]["coverageCatchup"])
-        self.assertEqual(xlayer["canonical"]["recencyStatus"], "verified")
-        self.assertEqual(xlayer["canonical"]["coverage"]["status"], "partial")
-        self.assertEqual(xlayer["canonical"]["coverage"]["freshWalletCount"], 0)
-        self.assertEqual(xlayer["status"], "syncing")
+        berachain = status["chains"]["berachain"]
+        self.assertEqual(berachain["canonical"]["status"], "syncing")
+        self.assertEqual(berachain["canonical"]["refreshMode"], "catchup")
+        self.assertTrue(berachain["canonical"]["coverageCatchup"])
+        self.assertEqual(berachain["canonical"]["recencyStatus"], "verified")
+        self.assertEqual(berachain["canonical"]["coverage"]["status"], "partial")
+        self.assertEqual(berachain["canonical"]["coverage"]["freshWalletCount"], 0)
+        self.assertEqual(berachain["status"], "syncing")
         self._assert_refresh_job(
             status["summary"]["refreshJobs"],
-            workflow="update-earn-secondary-canonical-history.yml",
-            inputs={"chain": "xlayer"},
+            workflow="update-earn-berachain-canonical-history.yml",
+            inputs={"hot_limit": "0", "checkpoint_steps": "150"},
             mode="catchup",
             priority=10,
         )
         report = {entry["chain"]: entry for entry in status["chainReport"]}
-        self.assertEqual(report["xlayer"]["weakPoint"], "canonical coverage 0/1 wallets fresh")
+        self.assertEqual(report["berachain"]["weakPoint"], "canonical coverage 0/1 wallets fresh")
 
     def test_stale_canonical_refresh_adds_small_checkpoint_inputs(self):
         now = datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc)
@@ -767,7 +762,7 @@ class EarnFreshnessStatusTest(unittest.TestCase):
 
         priorities = [int(job["priority"]) for job in status["summary"]["refreshJobs"]]
         self.assertEqual(sorted(priorities), priorities)
-        self.assertEqual(-20, priorities[0])
+        self.assertEqual(-10, priorities[0])
         self.assertGreater(priorities[-1], priorities[0])
 
     def test_actions_output_contains_refresh_plan(self):

@@ -14,6 +14,14 @@ spec.loader.exec_module(plan_earn_watchdog_dispatch)
 
 
 class EarnWatchdogDispatchPlanTest(unittest.TestCase):
+    def test_old_status_cannot_redispatch_retired_networks(self):
+        jobs = [{"workflow": "update-earn-netflow.yml", "inputs": {"chain": chain}}
+                for chain in ("mantle", "xlayer", "botanix", "polygonzkevm")]
+        jobs.append({"workflow": "update-earn-secondary-canonical-history.yml", "inputs": {}})
+        self.assertEqual([], plan_earn_watchdog_dispatch.build_dispatch_rows({"refreshJobs": jobs}))
+        self.assertEqual([], plan_earn_watchdog_dispatch.build_dispatch_rows(
+            {"refreshWorkflows": ["update-earn-secondary-canonical-history.yml"]}))
+
     def test_rows_are_priority_sorted_and_preserve_all_chain_sentinel(self):
         payload = {
             "refreshJobs": [
@@ -24,8 +32,8 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
                     "mode": "catchup",
                 },
                 {
-                    "workflow": "update-earn-secondary-canonical-history.yml",
-                    "inputs": {"chain": "xlayer"},
+                    "workflow": "update-earn-netflow.yml",
+                    "inputs": {"chain": "ethereum"},
                     "priority": 5,
                     "mode": "catchup",
                 },
@@ -38,8 +46,8 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
         self.assertEqual(
             [
                 {
-                    "workflow": "update-earn-secondary-canonical-history.yml",
-                    "chain": "xlayer",
+                    "workflow": "update-earn-netflow.yml",
+                    "chain": "ethereum",
                     "priority": 5,
                     "mode": "catchup",
                     "inputs": {},
@@ -65,8 +73,8 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
                     "mode": "catchup",
                 },
                 {
-                    "workflow": "update-earn-secondary-canonical-history.yml",
-                    "inputs": {"chain": "polygonzkevm"},
+                    "workflow": "update-earn-netflow.yml",
+                    "inputs": {"chain": "ethereum"},
                     "priority": 10,
                     "mode": "catchup",
                 },
@@ -130,8 +138,8 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
                     {
                         "refreshJobs": [
                             {
-                                "workflow": "update-earn-secondary-canonical-history.yml",
-                                "inputs": {"chain": "mantle"},
+                                "workflow": "update-earn-netflow.yml",
+                                "inputs": {"chain": "ethereum"},
                                 "priority": "20",
                                 "mode": "background",
                             }
@@ -145,7 +153,7 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
                 self.assertEqual(0, plan_earn_watchdog_dispatch.main())
 
             self.assertEqual(
-                "update-earn-secondary-canonical-history.yml\tmantle\t20\tbackground\t{}\n",
+                "update-earn-netflow.yml\tethereum\t20\tbackground\t{}\n",
                 output.read_text(encoding="utf-8"),
             )
 
@@ -180,7 +188,7 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
             "name": "Refresh Secondary Canonical EARN History",
         }
         polygon_run = {
-            "displayTitle": "Refresh Secondary Canonical EARN History [polygonzkevm]",
+            "displayTitle": "Refresh Secondary Canonical EARN History [ethereum]",
             "name": "Refresh Secondary Canonical EARN History",
         }
         all_run = {
@@ -191,25 +199,25 @@ class EarnWatchdogDispatchPlanTest(unittest.TestCase):
         self.assertFalse(
             plan_earn_watchdog_dispatch.run_covers_requested_chain(
                 generic_run,
-                "polygonzkevm",
+                "ethereum",
             )
         )
         self.assertTrue(
             plan_earn_watchdog_dispatch.run_covers_requested_chain(
                 polygon_run,
-                "polygonzkevm",
+                "ethereum",
             )
         )
         self.assertFalse(
             plan_earn_watchdog_dispatch.run_covers_requested_chain(
                 polygon_run,
-                "xlayer",
+                "arbitrum",
             )
         )
         self.assertTrue(
             plan_earn_watchdog_dispatch.run_covers_requested_chain(
                 all_run,
-                "xlayer",
+                "ethereum",
             )
         )
         self.assertTrue(

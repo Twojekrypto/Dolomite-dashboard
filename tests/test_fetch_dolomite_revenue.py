@@ -2712,7 +2712,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("setVeBorrowWalletSelectedChains", html)
         self.assertIn("toggleVeBorrowWalletNetworkMenu", html)
         self.assertIn("syncVeBorrowWalletNetworkDropdown", html)
-        self.assertIn('const VEBORROW_WALLET_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum", "mantle", "xlayer"]', html)
+        self.assertIn('const VEBORROW_WALLET_CHAIN_ORDER = ["ethereum", "berachain", "arbitrum"]', html)
         self.assertNotIn('lifecycle: "archived"', html)
         self.assertNotIn('lifecycle: "shuttingDown"', html)
         self.assertNotIn("veBorrowWalletAvailableChainKeys", html)
@@ -2784,7 +2784,7 @@ const chainKeys = new Function(`
   ${chainFunctions}
   return veBorrowWalletFilterChains([]).map(chain => chain.key);
 `)();
-assert.deepStrictEqual(chainKeys, ["ethereum", "berachain", "arbitrum", "mantle", "xlayer"]);
+assert.deepStrictEqual(chainKeys, ["ethereum", "berachain", "arbitrum"]);
 
 const toggleFunction = between(
   "function toggleVeBorrowWalletNetworkMenu",

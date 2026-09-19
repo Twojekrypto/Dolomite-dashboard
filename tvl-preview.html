@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="tokens.css?v=tokens-20260611">
 <script src="dolomite-token-icons.generated.js?v=20260803-btccx"></script>
 <link rel="stylesheet" href="tvl/supply-health.css?v=20260803-table-system">
-<script defer src="tvl/supply-health.js?v=20260803-table-system"></script>
+<script defer src="tvl/supply-health.js?v=20260803-table-system-active-chains-20260919"></script>
 <style>
 /* ==========================================================================
    DESIGN TOKENS — Graphite + Gold (shared with dolo / assets previews)
@@ -660,7 +660,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
       </div>
       <div class="hero-token-text">
         <div class="hero-token-title">Total Supply</div>
-        <div class="hero-token-sub" id="heroChainSub"><b>Dolomite</b> · all user deposits across <b>7 chains</b></div>
+        <div class="hero-token-sub" id="heroChainSub"><b>Dolomite</b> · all user deposits across <b>3 active chains</b></div>
       </div>
       <div class="hero-meta">
         <div class="hero-live" id="heroSource"><span class="dot"></span>Dolomite subgraphs</div>
@@ -718,7 +718,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   <!-- PROTOCOL HISTORY CHART -->
   <section class="card protocol-history-card" id="protocol-history-card">
     <div class="card-head protocol-history-head">
-      <div class="card-title">
+      <div class="card-title" title="Current scope: Ethereum, Berachain and Arbitrum. Values before 19 Sep 2026 retain their original network scope, including retired deployments.">
         <h2>Dolomite Supply &amp; TVL</h2>
         <span class="count-badge" id="protocolHistoryRangeBadge">All Time</span>
       </div>
@@ -828,7 +828,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
     <div class="card-head">
       <div class="card-title">
         <h2>Supply by Chain</h2>
-        <span class="count-badge" id="chainCountBadge">7 chains</span>
+        <span class="count-badge" id="chainCountBadge">3 active chains</span>
       </div>
       <div class="card-meta"><span class="pulse"></span>onchain breakdown</div>
     </div>
@@ -883,7 +883,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
           <div class="donut-center" id="donutCenter">
             <div class="dc-label">Total · All Assets</div>
             <div class="dc-value" id="dcValue">$0</div>
-            <div class="dc-sub" id="dcSub">across 7 chains</div>
+            <div class="dc-sub" id="dcSub">across 3 active chains</div>
           </div>
         </div>
       </div>
@@ -957,7 +957,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
         </div>
         <div class="proto-brand-text">
           <div class="proto-brand-name">Dolomite</div>
-          <div class="proto-brand-sub" id="protoBrandSub">Lending &amp; margin · <b>7 chains</b> · <b>142 markets</b></div>
+          <div class="proto-brand-sub" id="protoBrandSub">Lending &amp; margin · <b>3 active chains</b> · <b>142 markets</b></div>
         </div>
       </div>
       <div class="proto-links">
@@ -1004,7 +1004,7 @@ let CHAINS = [
   {key:"botanix",     name:"Botanix",       icon:"https://icons.llamao.fi/icons/chains/rsz_botanix.jpg",        tvl:     33597,   borrowed:    22920, tokens: 5},
   {key:"polygonzkevm",name:"Polygon zkEVM", icon:"https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg",tvl:      5463,   borrowed:      134, tokens: 7},
   {key:"xlayer",      name:"X Layer",       icon:"https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg",      tvl:       923,   borrowed:      180, tokens: 4},
-];
+].filter(chain => ["ethereum", "berachain", "arbitrum"].includes(chain.key));
 
 let TOP_TOKENS = [
   {sym:"WLFI",            chain:"ethereum",  usd:288857703, name:"WLFI"},
@@ -1322,13 +1322,7 @@ function buildHistory(rawHistory, currentValue, fallbackHistory){
 
   if (points.length < 2) return fallbackHistory;
 
-  // Only smooth tiny current-snapshot drift. A large gap means the sources use
-  // different TVL methodology, so scaling the whole history would invent data.
-  const last = points[points.length - 1][1];
-  const ratio = last > 0 && currentValue > 0 ? currentValue / last : 1;
-  if (ratio > 0.95 && ratio < 1.05) {
-    return points.map(p => [p[0], p[1] * ratio]);
-  }
+  // Preserve historical source values across active-network scope changes.
   return points;
 }
 
@@ -1353,6 +1347,7 @@ function displayTokenSymbol(symbol){
 
 function currentChainRows(current){
   return Object.entries(current || {})
+    .filter(([name]) => ["ethereum", "berachain", "arbitrum"].includes(chainKey(name)))
     .filter(([name, value]) => !String(name).includes("-") && !NON_CHAIN_KEYS.has(String(name).toLowerCase()) && Number(value) > 0)
     .map(([name, value]) => ({ name, tvl: Number(value || 0) }));
 }
@@ -1366,7 +1361,7 @@ function officialStaleChainKeys(officialData){
     const ts = Number(meta?.blockTimestamp || 0);
     if (!ts || now - ts > maxAge) stale.add(chainKey(chain));
   });
-  return stale;
+  return new Set([...stale].filter(key => ["ethereum", "berachain", "arbitrum"].includes(key)));
 }
 
 const TVL_FALLBACK_MIN_SUPPLY_RATIO = 0.85;
@@ -1420,6 +1415,7 @@ function mergedChainTokens(llamaData, officialData, staleKeys){
   const merged = {};
   const chainNames = new Set([...Object.keys(officialTokens), ...Object.keys(llamaTokens)]);
   chainNames.forEach(chain => {
+    if (!["ethereum", "berachain", "arbitrum"].includes(chainKey(chain))) return;
     const useLlama = shouldUseLlamaTokenFallback(chain, officialData, llamaData, staleKeys);
     const tokens = useLlama ? llamaTokens[chain] : (officialTokens[chain] || llamaTokens[chain]);
     if (tokens && Object.keys(tokens).length) merged[chain] = tokens;
@@ -1440,9 +1436,7 @@ function tokenMapFromChains(chainTokens){
 }
 
 function buildTokenComposition(llamaData, officialData, staleKeys=new Set()){
-  const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData, staleKeys)
-    : (llamaData?.chainTokensInUsd || {});
+  const chainTokens = mergedChainTokens(llamaData, officialData, staleKeys);
   const tokenSource = officialData?.tokensInUsd || llamaData?.tokensInUsd || [];
   const latest = tokenSource[tokenSource.length - 1] || tokenSource[0] || {};
   const tokenMap = Object.keys(chainTokens).length ? tokenMapFromChains(chainTokens) : (latest.tokens || {});
@@ -1473,9 +1467,7 @@ function buildTokenComposition(llamaData, officialData, staleKeys=new Set()){
 }
 
 function buildChainTokenCompositions(llamaData, officialData, staleKeys=new Set()){
-  const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData, staleKeys)
-    : (llamaData?.chainTokensInUsd || {});
+  const chainTokens = mergedChainTokens(llamaData, officialData, staleKeys);
   const byChain = {};
   Object.entries(chainTokens).forEach(([chain, tokens]) => {
     const key = chainKey(chain);
@@ -1514,15 +1506,15 @@ function buildTvlSnapshot(llamaData, officialData, fullSupplyData=null){
     })
     .filter(c => c.tvl > 0)
     .sort((a,b)=>b.tvl-a.tvl);
-  const chainTokens = officialData
-    ? mergedChainTokens(llamaData, officialData, staleKeys)
-    : (llamaData?.chainTokensInUsd || {});
+  const chainTokens = mergedChainTokens(llamaData, officialData, staleKeys);
   const hasFallback = chainRows.some(c => c.source === "defillama_fallback");
   const rowTvl = chainRows.reduce((sum,c)=>sum+c.tvl, 0);
   const rowBorrowed = chainRows.reduce((sum,c)=>sum+c.borrowed, 0);
-  const totalTvl = hasFallback ? rowTvl : Number(officialData?.totalTvl ?? rowTvl);
-  const totalBorrowed = hasFallback ? rowBorrowed : Number(officialData?.totalBorrowed ?? current.borrowed ?? rowBorrowed);
-  const supplyLiquidity = hasFallback ? totalTvl + totalBorrowed : Number(officialData?.supplyLiquidity ?? (totalTvl + totalBorrowed));
+  // Current totals have the same active-network scope as the visible rows.
+  // Keep archived chart series unchanged; never rescale them to this scope.
+  const totalTvl = rowTvl;
+  const totalBorrowed = rowBorrowed;
+  const supplyLiquidity = totalTvl + totalBorrowed;
 
   const chains = chainRows.map(c => ({
     key: chainKey(c.name),

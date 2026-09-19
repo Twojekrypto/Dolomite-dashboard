@@ -4144,7 +4144,7 @@ if (!warningDetail.includes("Arbitrum deposits unavailable")) throw new Error(wa
 """
         subprocess.run(["node", "-e", script], cwd=ROOT, check=True, capture_output=True, text=True, env=NODE_ENV)
 
-    def test_history_archived_chains_are_manual_archive_only(self):
+    def test_history_retired_chains_are_not_selectable(self):
         script = r"""
 const fs = require("fs");
 const vm = require("vm");
@@ -4181,13 +4181,9 @@ const defaults = api.defaultChainKeys();
 const filterOrder = api.chainFilterKeys();
 if (defaults.includes("polygonzkevm") || defaults.includes("botanix")) throw new Error(`archived chains in defaults: ${defaults.join(",")}`);
 if (!defaults.includes("arbitrum") || !defaults.includes("berachain")) throw new Error(`active chains missing: ${defaults.join(",")}`);
-if (filterOrder.slice(-2).join(",") !== "polygonzkevm,botanix") throw new Error(`archive chains should be last: ${filterOrder.join(",")}`);
+if (filterOrder.join(",") !== "berachain,arbitrum,ethereum") throw new Error(`unexpected active chains: ${filterOrder.join(",")}`);
 if (api.selectedChainKeys().join(",") !== defaults.join(",")) throw new Error(`initial selection should use defaults: ${api.selectedChainKeys().join(",")}`);
 if (!api.chainSelectionIsDefault()) throw new Error("initial chain selection should be default-active");
-if (api.chainMenuLabel("polygonzkevm") !== "Polygon zkEVM") throw new Error(`archive label should stay compact: ${api.chainMenuLabel("polygonzkevm")}`);
-if (api.chainMenuSubLabel("polygonzkevm") !== "Archived") throw new Error(api.chainMenuSubLabel("polygonzkevm"));
-if (api.chainMenuLabel("botanix") !== "Botanix") throw new Error(`shutdown label should stay compact: ${api.chainMenuLabel("botanix")}`);
-if (api.chainMenuSubLabel("botanix") !== "Shutting down") throw new Error(api.chainMenuSubLabel("botanix"));
 api.state.address = "0x0000000000000000000000000000000000000001";
 api.state.loading = false;
 api.state.filtersDirty = false;
@@ -4201,12 +4197,6 @@ api.state.warnings = [
 const rows = [{ chainKey: "arbitrum", gas: { status: "ok" }, events: [{ action: "deposit" }] }];
 const defaultReady = api.reportExportReadiness(rows, []);
 if (!defaultReady.canFullReport) throw new Error(`archived warnings blocked default export: ${JSON.stringify(defaultReady)}`);
-api.state.selectedChains = new Set(["polygonzkevm"]);
-if (api.networkFilterLabel() !== "Polygon zkEVM") throw new Error(`selected archive label should stay compact: ${api.networkFilterLabel()}`);
-const archiveReady = api.reportExportReadiness(rows, []);
-if (archiveReady.canFullReport || archiveReady.dataWarnings !== 1) throw new Error(`manual archive warning should block archive export: ${JSON.stringify(archiveReady)}`);
-api.setUrlAddress(api.state.address);
-if (!replacedUrl.includes("chains=polygonzkevm")) throw new Error(`manual archive chain not preserved in URL: ${replacedUrl}`);
 api.state.selectedChains = new Set(defaults);
 if (!api.chainSelectionIsDefault()) throw new Error(`All Chains should reset to active defaults: ${api.selectedChainKeys().join(",")}`);
 if (api.networkFilterLabel() !== "All Chains") throw new Error(api.networkFilterLabel());
@@ -4269,19 +4259,19 @@ if (warningReady.canFullReport) throw new Error(`history warnings allowed export
 if (api.reportStatusLabel(warningReady) !== "Incomplete data") throw new Error(api.reportStatusLabel(warningReady));
 if (warningReady.dataWarnings !== 1) throw new Error(`wrong active warning count: ${JSON.stringify(warningReady)}`);
 if (!api.reportStatusDetail(warningReady).includes("Arbitrum reward claim")) throw new Error(api.reportStatusDetail(warningReady));
-api.state.selectedChains = new Set(["arbitrum", "xlayer"]);
+api.state.selectedChains = new Set(["arbitrum", "berachain"]);
 api.selectAllActions();
 api.state.warnings = [
-  "X Layer reward claim index is incomplete. Reward-claim transactions on X Layer are not fully indexed yet, so All actions / Claim reports stay locked until the workflow refreshes with a higher-limit RPC.",
+  "Berachain reward claim index is incomplete. Reward-claim transactions on Berachain are not fully indexed yet, so All actions / Claim reports stay locked until the workflow refreshes with a higher-limit RPC.",
 ];
-const xlayerNoRowsReady = api.reportExportReadiness(rows, []);
-if (xlayerNoRowsReady.canFullReport) throw new Error(`xlayer claim source failure ignored because no other xlayer rows exist: ${JSON.stringify(xlayerNoRowsReady)}`);
-const xlayerRows = [{ chainKey: "xlayer", gas: { status: "ok" }, events: [{ action: "deposit" }] }];
-const xlayerRowsReady = api.reportExportReadiness(xlayerRows, []);
-if (xlayerRowsReady.canFullReport) throw new Error(`xlayer claim warning allowed report with xlayer rows: ${JSON.stringify(xlayerRowsReady)}`);
+const berachainNoRowsReady = api.reportExportReadiness(rows, []);
+if (berachainNoRowsReady.canFullReport) throw new Error(`berachain claim source failure ignored because no other berachain rows exist: ${JSON.stringify(berachainNoRowsReady)}`);
+const berachainRows = [{ chainKey: "berachain", gas: { status: "ok" }, events: [{ action: "deposit" }] }];
+const berachainRowsReady = api.reportExportReadiness(berachainRows, []);
+if (berachainRowsReady.canFullReport) throw new Error(`berachain claim warning allowed report with berachain rows: ${JSON.stringify(berachainRowsReady)}`);
 api.setSelectedActionsFromValues(["claim"]);
 const explicitClaimReady = api.reportExportReadiness(rows, []);
-if (explicitClaimReady.canFullReport) throw new Error(`explicit claim report ignored xlayer warning: ${JSON.stringify(explicitClaimReady)}`);
+if (explicitClaimReady.canFullReport) throw new Error(`explicit claim report ignored berachain warning: ${JSON.stringify(explicitClaimReady)}`);
 api.state.selectedChains = new Set(["arbitrum"]);
 api.state.warnings = [
   "Arbitrum reward claim index is stale after 06 Jul 2026; newer reward claims may be missing until the RewardClaimed workflow refreshes.",

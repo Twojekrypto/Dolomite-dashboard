@@ -413,6 +413,16 @@ def validate_official_snapshot_coverage(
     return stale_market_supply
 
 
+def preserve_archived_history(current_rows, previous_rows):
+    """Do not rewrite pre-retirement aggregate values using the narrower scope."""
+    cutoff = int(datetime(2026, 9, 19, tzinfo=timezone.utc).timestamp())
+    archived = [row for row in previous_rows or [] if row.get("date", cutoff) < cutoff]
+    if not archived:
+        return current_rows
+    return sorted(archived + [row for row in current_rows if row["date"] >= cutoff],
+                  key=lambda row: row["date"])
+
+
 def main():
     llama_data = _read_json(DEFILLAMA_FILE)
     official_snapshot = _read_json(OFFICIAL_SNAPSHOT_FILE)
@@ -454,6 +464,9 @@ def main():
         current_tvl,
         "Net TVL",
     )
+    previous = _read_json(OUTPUT_FILE) if os.path.exists(OUTPUT_FILE) else {}
+    total_supply_history = preserve_archived_history(total_supply_history, previous.get("totalSupply"))
+    tvl_history = preserve_archived_history(tvl_history, previous.get("tvl"))
     active_market_count = sum(
         1
         for market in markets
@@ -466,6 +479,9 @@ def main():
     )
     output = {
         "schemaVersion": 2,
+        "activeChains": sorted(ACTIVE_ASSETS_CHAINS),
+        "networkScopeChangedAt": "2026-09-19T00:00:00Z",
+        "historyScopeNote": "Pre-19 Sep 2026 aggregates retain their original network scope; current values cover Ethereum, Berachain and Arbitrum.",
         "source": "defillama_then_dolomite_official_market_metrics",
         "totalSupply": total_supply_history,
         "currentSupply": _json_number(current_supply),

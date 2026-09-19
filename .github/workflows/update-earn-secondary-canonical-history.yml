@@ -2,9 +2,6 @@ name: Refresh Secondary Canonical EARN History
 run-name: Refresh Secondary Canonical EARN History [${{ github.event.inputs.chain || (github.event.schedule == '23,53 * * * *' && 'mantle') || (github.event.schedule == '8,38 * * * *' && 'xlayer') || 'all' }}]
 
 on:
-  schedule:
-    - cron: '23,53 * * * *'  # Mantle only, staggered from primary chains
-    - cron: '8,38 * * * *'   # X Layer only — twice hourly like primary chains (was stuck stale for days on a single hourly slot)
   workflow_dispatch:
     inputs:
       chain:
@@ -31,6 +28,8 @@ permissions:
 
 jobs:
   plan-secondary-canonical:
+    # Archived September 19: keep the implementation, never start an active scan.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}

@@ -26,7 +26,7 @@ ASSETS_CHAINS = {
     "Polygon zkEVM": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-polygon-zkevm/latest/gn",
     "X Layer": "https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/dolomite-x-layer/latest/gn"
 }
-RETIRED_ASSETS_CHAINS = {"Botanix", "Polygon zkEVM"}
+RETIRED_ASSETS_CHAINS = {"Botanix", "Polygon zkEVM", "Mantle", "X Layer"}
 ACTIVE_ASSETS_CHAINS = {
     chain: endpoint
     for chain, endpoint in ASSETS_CHAINS.items()

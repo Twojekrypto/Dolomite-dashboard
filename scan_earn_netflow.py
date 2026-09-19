@@ -1240,7 +1240,7 @@ def main():
     )
     args = parser.parse_args()
 
-    only_chains = None
+    only_chains = ["ethereum", "arbitrum"]
     if args.chains:
         only_chains = [c.strip().lower() for c in args.chains.split(",") if c.strip()]
         print(f"Scanning only: {', '.join(only_chains)}")

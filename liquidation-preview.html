@@ -12286,10 +12286,6 @@
                             <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('ethereum', 'Ethereum')"><img src="https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Ethereum</span></div>
                             <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('berachain', 'Berachain')"><img src="https://icons.llamao.fi/icons/chains/rsz_berachain.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Berachain</span></div>
                             <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('arbitrum', 'Arbitrum')"><img src="https://icons.llamao.fi/icons/chains/rsz_arbitrum.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Arbitrum</span></div>
-                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('mantle', 'Mantle')"><img src="https://icons.llamao.fi/icons/chains/rsz_mantle.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Mantle</span></div>
-                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('base', 'Botanix')"><img src="https://icons.llamao.fi/icons/chains/rsz_botanix.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Botanix</span></div>
-                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('polygon_zkevm', 'Polygon zkEVM')"><img src="https://icons.llamao.fi/icons/chains/rsz_polygon%20zkevm.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>Polygon zkEVM</span></div>
-                            <div class="premium-supply-dropdown-item" onclick="selectSupplyChain('xlayer', 'X Layer')"><img src="https://icons.llamao.fi/icons/chains/rsz_x%20layer.jpg" style="width:18px; height:18px; border-radius:50%; object-fit:contain;"> <span>X Layer</span></div>
                         </div>
                     </div>
                     <input type="hidden" id="supply-chain-select" value="ethereum">
@@ -12546,7 +12542,7 @@
                     </div>
                     <div class="proto-brand-text">
                         <div class="proto-brand-name">Dolomite</div>
-                        <div class="proto-brand-sub">Lending &amp; margin · <b>7 chains</b> · <b>borrow analytics</b></div>
+                        <div class="proto-brand-sub">Lending &amp; margin · <b>3 active chains</b> · <b>borrow analytics</b></div>
                     </div>
                 </div>
                 <div class="proto-links">
@@ -12622,8 +12618,8 @@
             const protoSub = document.querySelector('.proto-brand-sub');
             if (protoSub) {
                 protoSub.innerHTML = isSupply
-                    ? 'Lending &amp; margin · <b>7 chains</b> · <b>supply analytics</b>'
-                    : 'Lending &amp; margin · <b>7 chains</b> · <b>borrow analytics</b>';
+                    ? 'Lending &amp; margin · <b>3 active chains</b> · <b>supply analytics</b>'
+                    : 'Lending &amp; margin · <b>3 active chains</b> · <b>borrow analytics</b>';
             }
             setMonitorTabState(isSupply ? 'supply' : 'liquidations');
         }
@@ -12654,8 +12650,6 @@
             'ethereum',
             'berachain',
             'arbitrum',
-            'mantle',
-            'xlayer',
         ]);
 
         // ─── Watchlist ───────────────────────────────────────────────────
@@ -12705,7 +12699,7 @@
                 const resp = await fetch('liquidation_risk.json');
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
-                allPositions = data.positions || [];
+                allPositions = (data.positions || []).filter(p => LENDING_POSITION_ACTIVE_CHAIN_KEYS.has(p.chain));
                 allLiquidationHistory = normalizeLiquidationHistoryRows(data.liquidationHistory || []);
                 renderSummary(data);
                 positionCountHistoryPromise.then(renderPositionCount24h);
@@ -12857,7 +12851,7 @@
             const debtEl = document.getElementById('stat-debt');
 
             animateCount(totalEl, noDust.length, false, 1200);
-            document.getElementById('stat-total-sub').textContent = `Across ${Object.keys(data.chainStats || {}).length} chains`;
+            document.getElementById('stat-total-sub').textContent = `Across ${Object.keys(data.chainStats || {}).filter(c => LENDING_POSITION_ACTIVE_CHAIN_KEYS.has(c)).length} active chains`;
 
             // Compute tier counts from non-dust positions
             const fullLiqCount = noDust.filter(p => p.healthFactor !== null && p.healthFactor < 0.95 && !(p.collateralUSD < 0.01 && p.debtUSD > 0)).length;
@@ -15186,6 +15180,7 @@
                 return true;
             };
             filteredLiquidationHistory = allLiquidationHistory.filter(row => {
+                if (!LENDING_POSITION_ACTIVE_CHAIN_KEYS.has(row.chain)) return false;
                 if (liquidationHistoryHideDust && ((Number(row.collateralSeizedUSD || 0) + Number(row.debtRepaidUSD || 0)) < 10)) return false;
                 if (q && !getLiquidationHistorySearchText(row).includes(q)) return false;
                 // Debt repaid column: token + $ range
@@ -15211,7 +15206,7 @@
             if (loading) loading.style.display = 'none';
             table.style.display = 'table';
 
-            const total = allLiquidationHistory.length;
+            const total = allLiquidationHistory.filter(row => LENDING_POSITION_ACTIVE_CHAIN_KEYS.has(row.chain)).length;
             const filteredTotal = filteredLiquidationHistory.length;
             count.textContent = total && filteredTotal !== total
                 ? `(${filteredTotal.toLocaleString("en-US")} / ${total.toLocaleString("en-US")})`
@@ -19602,7 +19597,7 @@
             xlayer: 196,
             polygon_zkevm: 1101
         };
-        const DOLOMITE_MINI_GRAPHS = {
+        const DOLOMITE_MINI_GRAPHS = Object.fromEntries(Object.entries({
             berachain: `${DOLOMITE_SUPPLY_BASE}/dolomite-berachain-mainnet/latest/gn`,
             arbitrum: `${DOLOMITE_SUPPLY_BASE}/dolomite-arbitrum/latest/gn`,
             mantle: `${DOLOMITE_SUPPLY_BASE}/dolomite-mantle/latest/gn`,
@@ -19610,7 +19605,7 @@
             base: `${DOLOMITE_SUPPLY_BASE}/dolomite-botanix/latest/gn`,
             xlayer: `${DOLOMITE_SUPPLY_BASE}/dolomite-x-layer/latest/gn`,
             polygon_zkevm: `${DOLOMITE_SUPPLY_BASE}/dolomite-polygon-zkevm/latest/gn`
-        };
+        }).filter(([chain]) => ['ethereum', 'berachain', 'arbitrum'].includes(chain)));
         const SUPPLY_CHAIN_BUNDLE_QUERY = `{
             _meta { block { timestamp } }
             tokens(first: 100, where:{marketId_not: null}, orderBy: marketId) {
