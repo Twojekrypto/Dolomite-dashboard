@@ -175,13 +175,14 @@ class ScanEarnNetflowTest(unittest.TestCase):
 
     def test_ethereum_prefers_verified_archive_log_endpoints(self):
         rpcs = scan_earn_netflow.CHAINS["ethereum"]["rpcs"]
+        configured = scan_earn_netflow._mainnet_rpc_from_env("DRPC_ETHEREUM_RPC_2_JEFF")
 
         self.assertEqual(
             [
                 "https://eth.drpc.org/",
                 "https://eth.api.onfinality.io/public",
             ],
-            rpcs[:2],
+            rpcs[len(configured):len(configured) + 2],
         )
         self.assertNotIn("https://ethereum-rpc.publicnode.com/", rpcs)
         self.assertNotIn("https://eth.llamarpc.com/", rpcs)
