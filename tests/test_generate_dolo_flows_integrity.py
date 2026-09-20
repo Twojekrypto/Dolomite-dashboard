@@ -874,6 +874,28 @@ class GenerateDoloFlowsIntegrityTests(unittest.TestCase):
         self.assertEqual(model["buckets"][0]["teamWallets"], 1)
         self.assertEqual(model["buckets"][1]["investorWallets"], 1)
 
+    def test_team_linked_recipient_is_grouped_with_team_allocations(self):
+        recipient = "0x5e42031946bfabaef3b3839f035066f11a9ce33e"
+        labels = flows.load_address_labels()
+
+        self.assertEqual(
+            flows.holder_distribution_type(recipient, {}, labels),
+            "team",
+        )
+
+        model = flows.build_bucket_model(
+            {recipient: 1_511_101.13},
+            {},
+            {},
+            labels,
+            flows.HOLDER_BUCKET_GROUPS["whales"],
+            include_allocations=True,
+            audience="holders",
+        )
+        self.assertEqual(model["allocationWallets"], 1)
+        self.assertEqual(model["teamWallets"], 1)
+        self.assertEqual(model["buckets"][0]["teamWallets"], 1)
+
     def test_holder_total_exposure_buckets_add_protocol_supply_without_changing_wallet_view(self):
         wallet_balances = {OUTSIDE: 900_000}
         protocol_balances = {OUTSIDE: 200_000}

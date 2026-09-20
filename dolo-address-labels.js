@@ -66,6 +66,7 @@
     "0x882e6d630a8c70a6a8d29a4d33f960b1267aa3d1": {label:"Core Team 2", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
     "0x6c97802a1815bc459004c686560244de28a2de75": {label:"Core Team 3", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
     "0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1": {label:"Core Team 4", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
+    "0x5e42031946bfabaef3b3839f035066f11a9ce33e": {label:"Core Team 4 recipient", type:"protocol", treasury:true, source:"direct-core-team-funding", confidence:"potential", fundedBy:"0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1", sourceUrl:"https://berascan.com/address/0x5e42031946bfabaef3b3839f035066f11a9ce33e", verifiedAt:"2026-09-20", description:"Directly funded in DOLO by the confirmed Core Team 4 allocation wallet. The onchain relationship is verified; the real-world owner is not identified."},
     "0x3f1f155949f32fa3e688093d176a1b5a72c488eb": {label:"Core Team 5", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
     "0x871b0afcd3fd44f4c0071d4ade68ce40d0d6bbcc": {label:"Core Team 6", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},
     "0xf2b42104b5ac0b3145a5e18b84aa3fd76d0fdeec": {label:"Core Team 7", type:"protocol", treasury:true, source:"coingecko-tokenomics", confidence:"confirmed"},

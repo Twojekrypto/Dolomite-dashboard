@@ -225,6 +225,18 @@ console.log(JSON.stringify({known, unknown}));
         self.assertEqual(investor_claims["label"], "Investor Claims")
         self.assertEqual(investor_claims["type"], "protocol")
 
+    def test_core_team_recipient_keeps_cautious_provenance(self):
+        recipient = self.labels["0x5e42031946bfabaef3b3839f035066f11a9ce33e"]
+        self.assertEqual(recipient["label"], "Core Team 4 recipient")
+        self.assertEqual(recipient["type"], "protocol")
+        self.assertTrue(recipient["treasury"])
+        self.assertEqual(recipient["source"], "direct-core-team-funding")
+        self.assertEqual(recipient["confidence"], "potential")
+        self.assertEqual(
+            recipient["fundedBy"],
+            "0x665b3ce67daeb5b19d4d14bbdb6297da0ffa5bf1",
+        )
+
     def test_published_investor_payload_does_not_duplicate_investors_as_team(self):
         payload = json.loads((ROOT / "vesting_investors.json").read_text())
         self.assertEqual(payload["schemaVersion"], 3)
