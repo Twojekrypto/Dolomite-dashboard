@@ -98,6 +98,7 @@
 - **Compact KPI charts use the same interaction contract**: veDOLO mini charts such as `Withdrawal Behavior` should not be passive inline bars. Render each metric as a focusable button row with hover/focus preview, click-to-pin state, active-row dimming, and a compact focus panel. Bar fills must be block-level elements (`display:block`) so widths/heights render reliably.
 
 ## CI/CD & Data Pipelines
+- **Budget freshness from the source snapshot, including generation and deployment time.** DOLO Flows takes about 2.5h end-to-end; waiting until its source is 6h old before dispatch can breach the 8h SLA. Start recovery at 3h, schedule every 4h, prioritize old artifacts over short-cadence refreshes, and explicitly dispatch Pages after the final validated flow commit. The earlier holder-only deployment does not publish later flows, and guard-started workflows can exceed GitHub's `workflow_run` chaining limit.
 - **Always cache API receipts**: Scripts that fetch on-chain tx receipts grow linearly slower over time. Always use a cache file + GH Actions `actions/cache@v4` for incremental syncing.
 - **git pull --rebase -X theirs**: For automated JSON data commits, use `-X theirs` to auto-resolve merge conflicts (our freshly generated data is always newer/correct).
 - **Timeout headroom**: Set `timeout-minutes` to at least 2× expected runtime to account for RPC slowness and data growth.

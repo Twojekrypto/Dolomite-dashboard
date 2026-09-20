@@ -9,6 +9,17 @@ DOLO_FLOWS_WORKFLOW = ROOT / ".github" / "workflows" / "update-dolo-flows.yml"
 
 
 class PagesWorkflowContractTests(unittest.TestCase):
+    def test_guard_started_flows_explicitly_deploy_final_validated_commit(self):
+        workflow = DOLO_FLOWS_WORKFLOW.read_text(encoding="utf-8")
+        publish = workflow.split("- name: Publish refreshed flows to Pages", 1)[1]
+        self.assertIn("GH_TOKEN: ${{ github.token }}", publish)
+        self.assertIn("gh workflow run pages.yml --ref master", publish)
+        self.assertNotIn("always()", publish)
+        self.assertLess(workflow.index("Push failed after 3 attempts"),
+                        workflow.index("- name: Publish refreshed flows to Pages"))
+        self.assertIn("cron: '47 */4 * * *'", workflow)
+        self.assertIn("cancel-in-progress: false", workflow)
+
     def test_active_pages_deploy_is_not_cancelled_by_new_data_commits(self):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
 

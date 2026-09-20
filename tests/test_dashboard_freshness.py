@@ -13,6 +13,26 @@ NOW = 1789646400  # 2026-09-17T12:00:00Z
 
 
 class DashboardFreshnessTests(unittest.TestCase):
+    def test_flows_refresh_leaves_time_for_generation_before_eight_hour_deadline(self):
+        for name in ("dolo-flows", "holder-wallet-history"):
+            rule = next(a for a in self.config["artifacts"] if a["id"] == name)
+            result = self.m.assess({"timestamp": NOW - 3 * 3600}, rule, NOW)
+            self.assertEqual(result["state"], "early_due")
+            self.assertEqual(rule["maxAgeMinutes"], 480)
+
+    def test_old_flows_are_not_starved_by_short_cadence_refreshes(self):
+        names = ["update-assets-live.yml", "update-dolo-price.yml", "update-tvl-data.yml", "update-dolo-flows.yml"]
+        for flow_age in (180, 600):
+            rows = [dict(workflow=name, id=name, public={"state": "early_due", "age_minutes": age})
+                    for name, age in zip(names, (12, 50, 25, flow_age))]
+            class API:
+                def __init__(self): self.sent = []
+                def runs(self, workflow): return []
+                def dispatch(self, workflow, inputs): self.sent.append(workflow)
+            api = API()
+            self.m.remediate(rows, dict(self.config, max_dispatches_per_run=1), api, NOW, True)
+            self.assertEqual(api.sent, ["update-dolo-flows.yml"])
+
     def test_fresh_earn_wrapper_does_not_hide_source_lag(self):
         rule = dict(self.asset, sourceLagMinutes=["chains.xlayer.netflow.estimatedLagMinutes"], sourceMaxAgeMinutes=480)
         result = self.m.assess({"generatedAt": NOW, "chains": {"xlayer": {"netflow": {"estimatedLagMinutes": 900}}}}, rule, NOW)

@@ -2,7 +2,7 @@ name: Update DOLO Flows Data
 
 on:
   schedule:
-    - cron: '47 */6 * * *'  # Every 6 hours, staggered
+    - cron: '47 */4 * * *'  # Leave room for ~2.5h generation and delayed scheduled starts.
   workflow_dispatch: # Allow manual trigger
     inputs:
       fresh_wallet_audit_verbose:
@@ -247,3 +247,10 @@ jobs:
             done
             if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts — generated data was NOT published"; exit 1; fi
           fi
+
+      # Guard-dispatched runs can exceed workflow_run chaining depth. Publish
+      # the final flows/history commit explicitly, not only the earlier holders.
+      - name: Publish refreshed flows to Pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref master

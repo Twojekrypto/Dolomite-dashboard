@@ -237,7 +237,15 @@ def remediate(rows: Iterable[Dict[str, Any]], config: Dict[str, Any], api: Any, 
     seen = set()
     dispatched = 0
     global_budget = int(config.get("max_dispatches_per_run", config.get("maxDispatchesPerRun", 3)))
-    for row in rows:
+    # The three-dispatch budget must reach long-running stale producers before
+    # repeatedly refreshing short-cadence prices/assets listed earlier in config.
+    def urgency(row):
+        public = row.get("public") or {}
+        age = float(public.get("age_minutes") or 0)
+        blocking = public.get("state") in {"source_stale", "invalid", "unavailable"} or age >= 480
+        return (blocking, age)
+
+    for row in sorted(rows, key=urgency, reverse=True):
         workflow = str(row.get("workflow") or "")
         if not workflow:
             continue
