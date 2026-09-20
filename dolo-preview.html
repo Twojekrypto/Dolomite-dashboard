@@ -1737,7 +1737,7 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
           <h2>DOLO Holder Distribution Over Time</h2>
           <span class="count-badge" id="holder-chart-count">All</span>
         </div>
-        <div class="card-meta holder-chart-meta" id="holder-chart-meta" aria-label="Holder chart data scope"></div>
+        <div class="card-meta holder-chart-meta" id="holder-chart-meta" aria-label="Holder chart data status and scope"></div>
       </div>
       <div class="holder-distribution-toolbar">
         <div class="holder-chart-controls">
@@ -2430,6 +2430,11 @@ function cexSnapshotStatus(timestamp, nowMs = Date.now()){
   if(hours <= 24) return `Data updated · ${hours < 1 ? "just now" : `${hours}h ago`}`;
   const date = new Date(ts).toLocaleDateString("en-GB", {day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"});
   return `Delayed · ${date} · ${new Date(ts).toISOString().slice(11,16)} UTC`;
+}
+function holderChartMetaHtml(){
+  const status = cexSnapshotStatus(doloFlowDataTimestamp);
+  const pulseClass = status === "Data update unavailable" ? " pulse-loading" : "";
+  return `<span class="pulse${pulseClass}"></span><span>${status}</span><span aria-hidden="true">·</span>${holderScopeHtml()}`;
 }
 function holderCexStatHtml(){
   const periods = [
@@ -3137,7 +3142,7 @@ function renderHolderDistributionChart(options = {}){
     const countEl = document.getElementById("holder-chart-count");
     const metaEl = document.getElementById("holder-chart-meta");
     if(countEl) countEl.textContent = "Unavailable";
-    if(metaEl) metaEl.innerHTML = `<span class="pulse pulse-loading"></span>${holderScopeHtml()}`;
+    if(metaEl) metaEl.innerHTML = holderChartMetaHtml();
     window.__doloHolderDistribution = null;
     return;
   }
@@ -3275,7 +3280,7 @@ function renderHolderDistributionChart(options = {}){
   }
   const metaEl = document.getElementById("holder-chart-meta");
   if(metaEl){
-    metaEl.innerHTML = `<span class="pulse"></span>${holderScopeHtml()}`;
+    metaEl.innerHTML = holderChartMetaHtml();
   }
   const legendHeader = `
     <div class="holder-legend-head" aria-hidden="true">

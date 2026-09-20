@@ -173,6 +173,18 @@ function holderScopeHtmlFromFixture(includeVeDolo) {
   return Function(`"use strict"; ${source}`)()();
 }
 
+function holderChartMetaHtmlFromFixture(timestamp, includeVeDolo = true) {
+  const source = [
+    `const state = {includeVeDolo:${includeVeDolo ? "true" : "false"}};`,
+    `const doloFlowDataTimestamp = ${JSON.stringify(timestamp)};`,
+    extractNamedFunctionSource("holderScopeHtml"),
+    extractNamedFunctionSource("cexSnapshotStatus"),
+    extractNamedFunctionSource("holderChartMetaHtml"),
+    "return holderChartMetaHtml;",
+  ].join("\n");
+  return Function(`"use strict"; ${source}`)()();
+}
+
 function extractHolderLegendRangeRows() {
   const source = [
     "const safeHolderNum = value => Number.isFinite(Number(value)) ? Number(value) : 0;",
@@ -1173,8 +1185,19 @@ test("holder and CEX charts use the card-meta status treatment and clipped CEX f
     preview.indexOf("function renderCexSupplyChart(options = {})"),
     preview.indexOf("const COPY_ICO")
   );
-  assert.match(holderRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span>\$\{holderScopeHtml\(\)\}`;/);
+  assert.match(holderRenderer, /metaEl\.innerHTML = holderChartMetaHtml\(\);/);
   assert.match(cexRenderer, /metaEl\.innerHTML = `<span class="pulse"><\/span><span>\$\{cexSnapshotStatus/);
+});
+
+test("holder distribution shows the DOLO Flows update time beside its exposure scope", () => {
+  const html = holderChartMetaHtmlFromFixture("2026-09-20T06:00:00.000Z");
+  assert.match(html, /<span>Data updated ·/);
+  assert.match(html, /<span class="holder-source-scope">Total exposure<\/span>/);
+  assert.match(html, /aria-hidden="true">·<\/span>/);
+
+  const unavailable = holderChartMetaHtmlFromFixture(null);
+  assert.match(unavailable, /pulse pulse-loading/);
+  assert.match(unavailable, /Data update unavailable/);
 });
 
 test("holder distribution places scope above the divider and veDOLO at the toolbar edge", () => {
