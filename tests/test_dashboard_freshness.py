@@ -69,6 +69,29 @@ class DashboardFreshnessTests(unittest.TestCase):
                 patch("sys.stdout", io.StringIO()):
             self.assertEqual(self.m.main(["--no-remediation", "--fail-on-stale"]), 1)
 
+    def test_alert_mode_does_not_repeat_failure_while_exact_repair_is_active(self):
+        config = copy.deepcopy(self.config)
+        config["artifacts"] = [self.asset]
+
+        class ActiveRepairAPI:
+            def __init__(self, *_args, **_kwargs):
+                pass
+
+            def runs(self, workflow):
+                self.assert_workflow = workflow
+                return [{"status": "in_progress", "created_at": "2026-09-17T11:55:00Z"}]
+
+            def dispatch(self, workflow, inputs):
+                raise AssertionError(f"active repair was dispatched again: {workflow} {inputs}")
+
+        with patch.dict("os.environ", {"GH_TOKEN": "test-token"}, clear=True), \
+                patch.object(self.m, "load_config", return_value=config), \
+                patch.object(self.m.time, "time", return_value=NOW), \
+                patch.object(self.m.HttpClient, "get_json", return_value={"generatedAt": NOW - 9*3600}), \
+                patch.object(self.m, "GitHubAPI", ActiveRepairAPI), \
+                patch("sys.stdout", io.StringIO()):
+            self.assertEqual(self.m.main(["--fail-on-stale"]), 0)
+
     def test_r2_read_only_audit_does_not_fetch_raw_git_artifact(self):
         rule = next(a for a in self.config["artifacts"] if a["id"] == "dolo-liquidity")
         config = dict(self.config, artifacts=[rule])

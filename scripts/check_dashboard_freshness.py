@@ -477,9 +477,17 @@ def main(argv: Optional[List[str]] = None) -> int:
                 stream.write("\n### Remediation decisions\n\n")
                 for decision in decisions:
                     stream.write(f"- `{decision['workflow']}`: **{decision['action']}**\n")
+    active_repairs = {
+        decision.get("workflow")
+        for decision in decisions
+        if decision.get("action") == "active"
+    }
     blocking = any(
-        row["public"].get("state") in {"source_stale", "invalid", "unavailable"}
-        or float(row["public"].get("age_minutes") or 0) >= 480
+        (
+            row["public"].get("state") in {"source_stale", "invalid", "unavailable"}
+            or float(row["public"].get("age_minutes") or 0) >= 480
+        )
+        and row.get("workflow") not in active_repairs
         for row in rows
     )
     return 1 if args.fail_on_stale and blocking else 0
