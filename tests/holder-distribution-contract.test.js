@@ -173,7 +173,7 @@ function holderScopeHtmlFromFixture(includeVeDolo) {
   return Function(`"use strict"; ${source}`)()();
 }
 
-function holderChartMetaHtmlFromFixture(timestamp, includeVeDolo = true) {
+function holderChartMetaHtmlFromFixture(timestamp, includeVeDolo = true, nowMs = Date.parse("2026-09-20T08:00:00.000Z")) {
   const source = [
     `const state = {includeVeDolo:${includeVeDolo ? "true" : "false"}};`,
     `const doloFlowDataTimestamp = ${JSON.stringify(timestamp)};`,
@@ -182,7 +182,10 @@ function holderChartMetaHtmlFromFixture(timestamp, includeVeDolo = true) {
     extractNamedFunctionSource("holderChartMetaHtml"),
     "return holderChartMetaHtml;",
   ].join("\n");
-  return Function(`"use strict"; ${source}`)()();
+  // Freeze only this extracted renderer's clock, not the process-wide Date.
+  // A fixed snapshot must not become stale merely because CI runs tomorrow.
+  const FixtureDate = class extends Date { static now() { return nowMs; } };
+  return Function("Date", `"use strict"; ${source}`)(FixtureDate)();
 }
 
 function extractHolderLegendRangeRows() {
@@ -1191,13 +1194,22 @@ test("holder and CEX charts use the card-meta status treatment and clipped CEX f
 
 test("holder distribution shows the DOLO Flows update time beside its exposure scope", () => {
   const html = holderChartMetaHtmlFromFixture("2026-09-20T06:00:00.000Z");
-  assert.match(html, /<span>Data updated ·/);
+  assert.match(html, /<span>Data updated · 2h ago<\/span>/);
   assert.match(html, /<span class="holder-source-scope">Total exposure<\/span>/);
   assert.match(html, /aria-hidden="true">·<\/span>/);
 
   const unavailable = holderChartMetaHtmlFromFixture(null);
   assert.match(unavailable, /pulse pulse-loading/);
   assert.match(unavailable, /Data update unavailable/);
+});
+
+test("holder distribution still discloses delayed data with a controlled clock", () => {
+  const html = holderChartMetaHtmlFromFixture(
+    "2026-09-20T06:00:00.000Z", true, Date.parse("2026-09-22T08:00:00.000Z"),
+  );
+  assert.match(html, /<span>Delayed · 20 Sept? 2026 · 06:00 UTC<\/span>/);
+  assert.match(html, /<span class="holder-source-scope">Total exposure<\/span>/);
+  assert.doesNotMatch(html, /Data updated ·/);
 });
 
 test("holder distribution places scope above the divider and veDOLO at the toolbar edge", () => {
