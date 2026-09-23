@@ -33,6 +33,48 @@ def transfer_log(block, tx_hash, log_index, amount=1):
 
 
 class GenerateDoloFlowsRpcTests(unittest.TestCase):
+    def test_explorer_empty_hex_index_matches_rpc_zero_without_mutating_response(self):
+        expected = transfer_log(100, "0x" + "a" * 64, 0, amount=123)
+        raw = dict(expected, logIndex="0x")
+        response = Mock(status_code=200, headers={})
+        response.json.return_value = {"status": "1", "result": [raw]}
+        with patch.object(flows.requests, "get", return_value=response):
+            rows = flows._request_etherscan_transfer_logs(
+                {"name": "Ethereum", "chain_id": 1}, 100, 100, api_key="test")
+        self.assertEqual(raw["logIndex"], "0x")
+        self.assertEqual(rows, [expected])
+        selected, proof = flows.select_transfer_log_quorum([
+            (flows.ETHERSCAN_LOG_ENDPOINT, rows),
+            ("https://rpc.mevblocker.io", [expected]),
+        ])
+        self.assertEqual(selected, [expected])
+        self.assertEqual(proof["matchingProviderFamilies"], 2)
+        self.assertEqual(flows._normalize_blockscout_transfer_log(raw), expected)
+
+    def test_malformed_explorer_page_is_unavailable_not_empty_or_crash(self):
+        for field, value in [("logIndex", "invalid"), ("data", "0x"), ("blockNumber", "bad-block")]:
+            with self.subTest(field=field):
+                row = dict(transfer_log(100, "0x" + "a" * 64, 0), **{field: value})
+                response = Mock(status_code=200, headers={})
+                response.json.return_value = {"status": "1", "result": [row]}
+                with patch.object(flows.requests, "get", return_value=response), patch.object(flows.time, "sleep"):
+                    self.assertIsNone(flows._request_etherscan_transfer_logs(
+                        {"name": "Ethereum"}, 100, 100, api_key="test"))
+                    self.assertIsNone(flows._request_blockscout_transfer_logs(
+                        {"name": "Ethereum"}, 100, 100))
+
+    def test_invalid_provider_does_not_abort_scan_or_count_as_quorum(self):
+        row = transfer_log(100, "0x" + "a" * 64, 0, amount=123)
+        families = [("bad", ["bad"]), ("one.example", ["https://one.example"]),
+                    ("two.example", ["https://two.example"])]
+        for bad in (ValueError("invalid hex"), [dict(row, logIndex="oops")]):
+            with self.subTest(bad=type(bad).__name__), patch.object(flows, "_rpc_families", return_value=families), patch.object(
+                flows, "_request_transfer_logs", side_effect=[bad, [row], [row]]
+            ), patch.object(flows.time, "sleep"):
+                transfers, failed, _ = flows.fetch_transfer_logs("eth", 100, 100)
+            self.assertEqual(failed, 0)
+            self.assertEqual(transfers, [(ALICE, BOB, 123, 100, row["transactionHash"], 0)])
+
     def test_berachain_invalid_primary_key_uses_backup_and_reaches_exact_quorum(self):
         rows = [transfer_log(25957667, "0x" + "a" * 64, 0)]
         def respond(_url, **kwargs):

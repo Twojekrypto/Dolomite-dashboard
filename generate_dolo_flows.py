@@ -1235,7 +1235,7 @@ def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
                 result = payload.get("result") if isinstance(payload, dict) else None
                 message = str(payload.get("message", "")) if isinstance(payload, dict) else ""
                 if isinstance(result, list):
-                    page_logs = result
+                    page_logs = [_normalize_explorer_transfer_log(log) for log in result]
                     break
                 detail = f"{message} {result}".lower()
                 if "invalid api key" in detail and key_index + 1 < len(api_keys):
@@ -1262,7 +1262,10 @@ def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
             return all_logs
 
         # Validate every page before it can participate in an independent vote.
-        page_digest = transfer_log_digest(page_logs)
+        try:
+            page_digest = transfer_log_digest(page_logs)
+        except (ValueError, TypeError):
+            return None
         if page_digest == previous_page_digest:
             return None
         previous_page_digest = page_digest
@@ -1275,9 +1278,23 @@ def _request_etherscan_transfer_logs(cfg, start_block, end_block, api_key=None):
     return None
 
 
+def _normalize_explorer_transfer_log(log):
+    """Normalize the explorer's empty-hex spelling of log index zero only.
+
+    Keep absent/malformed fields invalid; independent provider quorum still
+    has to confirm this event's exact identity and value before publication.
+    """
+    if not isinstance(log, dict):
+        raise ValueError("transfer log must be an object")
+    normalized = dict(log)
+    if normalized.get("logIndex") == "0x":
+        normalized["logIndex"] = "0x0"
+    return normalized
+
+
 def _normalize_blockscout_transfer_log(log):
     """Remove Blockscout's non-EVM trailing topic placeholders."""
-    normalized = dict(log or {})
+    normalized = _normalize_explorer_transfer_log(log)
     topics = list(normalized.get("topics") or [])
     while topics and (
         topics[-1] is None
@@ -1347,7 +1364,10 @@ def _request_blockscout_transfer_logs(cfg, start_block, end_block):
             return None
 
         # Validate the canonical shape before this source receives a vote.
-        transfer_log_digest(range_logs)
+        try:
+            transfer_log_digest(range_logs)
+        except (ValueError, TypeError):
+            return None
         if len(range_logs) < result_cap:
             all_logs.extend(range_logs)
         else:
@@ -1583,6 +1603,17 @@ def fetch_transfer_logs(chain_key, start_block, end_block, state=None, cached_tr
                     # range. Shrink only after healthy families fail too.
                     range_error_seen = True
                     continue
+                except (ValueError, TypeError):
+                    family_result = None
+                    print(f"    ⚠️ {cfg['name']}: invalid Transfer response from {_family}; trying another source")
+                    continue
+                if family_result is not None:
+                    try:
+                        transfer_log_digest(family_result)
+                    except (ValueError, TypeError):
+                        family_result = None
+                        print(f"    ⚠️ {cfg['name']}: invalid Transfer logs from {_family}; trying another source")
+                        continue
                 if family_result is not None:
                     family_endpoint = endpoint
                     break
