@@ -1,5 +1,6 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0x54380eb375ccaa30167f2f697627c984818dcf4c": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x54380eb375ccaa30167f2f697627c984818dcf4c", verifiedAt:"2026-09-25"},
     "0x47bfa7161b9caa0b3fc4ad3969265b00f18c2cea": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x47bfa7161b9caa0b3fc4ad3969265b00f18c2cea", verifiedAt:"2026-09-24"},
     "0x7deac793fdb95d279e9168de23590973f33ab579": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x7deac793fdb95d279e9168de23590973f33ab579", verifiedAt:"2026-09-23"},
     "0x24ee5ff0f0ad7e6470cf340a86334bccca89609c": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x24ee5ff0f0ad7e6470cf340a86334bccca89609c", verifiedAt:"2026-09-21"},
