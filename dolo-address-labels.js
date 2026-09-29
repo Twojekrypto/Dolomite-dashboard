@@ -1,5 +1,6 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0xe6a204f973e95f9c2bff9fc9fa0dde89cb9e97db": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xe6a204f973e95f9c2bff9fc9fa0dde89cb9e97db", verifiedAt:"2026-09-29"},
     "0x82a365858b4a82eed80e5473c6f698f93b48617f": {label:"MEXC", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x82a365858b4a82eed80e5473c6f698f93b48617f", verifiedAt:"2026-09-28"},
     "0x54380eb375ccaa30167f2f697627c984818dcf4c": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x54380eb375ccaa30167f2f697627c984818dcf4c", verifiedAt:"2026-09-25"},
     "0x47bfa7161b9caa0b3fc4ad3969265b00f18c2cea": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x47bfa7161b9caa0b3fc4ad3969265b00f18c2cea", verifiedAt:"2026-09-24"},
