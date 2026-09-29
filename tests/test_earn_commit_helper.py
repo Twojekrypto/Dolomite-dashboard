@@ -376,7 +376,7 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             result = subprocess.run(
                 ["bash", "scripts/commit_with_fresh_earn_status.sh", "producer update"],
                 cwd=str(work),
-                env=env,
+                env=_test_subprocess_env(env),
                 check=False,
                 capture_output=True,
                 text=True,
