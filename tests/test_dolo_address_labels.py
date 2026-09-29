@@ -54,6 +54,13 @@ class DoloAddressLabelsTest(unittest.TestCase):
         cls.loaded = load_labels()
         cls.labels = cls.loaded["labels"]
 
+    def test_reviewed_multichain_recipient_is_not_a_confirmed_exchange(self):
+        info = self.labels.get("0xdfb5ab629e29afdd1cd2604fb6926d0ce5013f41", {})
+        self.assertEqual(info.get("label"), "Possible CEX/MM")
+        self.assertEqual(info.get("type"), "watch")
+        self.assertEqual(info.get("confidence"), "potential")
+        self.assertIn("0xfc89c020774524c9d03bd5de48fec149b10bdec3", info["note"])
+
     def test_label_script_exports_normalized_metadata(self):
         self.assertGreaterEqual(len(self.labels), 70)
         self.assertEqual(set(self.loaded["base"].keys()), set(self.labels.keys()))

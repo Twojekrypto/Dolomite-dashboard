@@ -1,5 +1,6 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0xdfb5ab629e29afdd1cd2604fb6926d0ce5013f41": {label:"Possible CEX/MM", type:"watch", source:"manual-behavioral-review", confidence:"potential", sourceUrl:"https://debank.com/profile/0xdfb5ab629e29afdd1cd2604fb6926d0ce5013f41/history", note:"Received multiple assets across chains from 0xfc89c020774524c9d03bd5de48fec149b10bdec3. Possible portfolio migration; common ownership and CEX/MM role are unconfirmed. No public exchange label found during review on 2026-09-29."},
     "0xe6a204f973e95f9c2bff9fc9fa0dde89cb9e97db": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xe6a204f973e95f9c2bff9fc9fa0dde89cb9e97db", verifiedAt:"2026-09-29"},
     "0x82a365858b4a82eed80e5473c6f698f93b48617f": {label:"MEXC", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x82a365858b4a82eed80e5473c6f698f93b48617f", verifiedAt:"2026-09-28"},
     "0x54380eb375ccaa30167f2f697627c984818dcf4c": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x54380eb375ccaa30167f2f697627c984818dcf4c", verifiedAt:"2026-09-25"},
