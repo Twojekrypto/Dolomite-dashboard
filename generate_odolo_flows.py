@@ -477,7 +477,7 @@ def summarize_claimer_rows(rows):
         "claim_remaining": "total_claim_remaining",
     }
     totals = {
-        output_key: sum(Decimal(str(row.get(row_key) or 0)) for row in rows)
+        output_key: sum((Decimal(str(row.get(row_key) or 0)) for row in rows), Decimal(0))
         for row_key, output_key in total_keys.items()
     }
     claimed = totals["total_claimed"]

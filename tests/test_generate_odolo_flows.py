@@ -524,6 +524,12 @@ class GenerateOdoloFlowsTests(unittest.TestCase):
                 ),
             )
 
+    def test_empty_claimer_period_has_zero_totals(self):
+        summary = odolo_flows.summarize_claimer_rows([])
+        self.assertEqual(summary["total_claimers"], 0)
+        for key in ("total_claimed", "total_exercised", "total_outflow", "total_held", "total_claim_remaining", "pct_exercised", "pct_held"):
+            self.assertEqual(summary[key], 0)
+
     def test_claimer_summary_uses_row_totals_not_rounded_percentages(self):
         rows = [
             {

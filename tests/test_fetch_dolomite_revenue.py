@@ -2283,10 +2283,16 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         epochs = chain["epochRebates"]
         rows_by_date = {row["date"]: row for row in data["series"]}
 
-        self.assertEqual([row["epoch"] for row in epochs], list(range(1, 10)))
-        self.assertEqual(chain["authoritativePublishedEpoch"], 9)
-        self.assertEqual(chain["latestRebateDate"], "2026-07-23")
-        self.assertEqual(Decimal(str(chain["totalRebateUSD"])), Decimal("1207.12216"))
+        epoch_ids = [row["epoch"] for row in epochs]
+        self.assertEqual(epoch_ids, sorted(set(epoch_ids)))
+        self.assertTrue(all(0 < epoch <= chain["authoritativePublishedEpoch"] for epoch in epoch_ids))
+        self.assertEqual(chain["authoritativePublishedEpoch"], chain["onchainFeeRebateEpoch"])
+        self.assertEqual(chain["latestRebateDate"], datetime.fromtimestamp(max(row["periodEndTimestamp"] for row in epochs), timezone.utc).strftime("%Y-%m-%d"))
+        self.assertLessEqual(abs(Decimal(str(chain["totalRebateUSD"])) - sum(Decimal(str(row["rebateUSD"])) for row in epochs)), Decimal("0.000001"))
+        # Fixed regression evidence concerns the original epochs, not the
+        # ever-growing published dataset. Later finalized epochs are valid.
+        historical_epochs = [row for row in epochs if row["epoch"] <= 9]
+        self.assertEqual([row["epoch"] for row in historical_epochs], list(range(1, 10)))
         self.assertEqual(Decimal(str(epochs[0]["rebateUSD"])), Decimal("3.781538"))
         self.assertEqual(Decimal(str(epochs[2]["rebateUSD"])), Decimal("89.39844"))
         epoch9 = epochs[8]
@@ -2300,7 +2306,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertNotIn(10, [row["epoch"] for row in epochs])
         self.assertEqual(chain["unsupportedCorrections"], [])
         self.assertEqual(
-            [Decimal(str(row["maxRebateUSD"])) for row in epochs],
+            [Decimal(str(row["maxRebateUSD"])) for row in historical_epochs],
             [
                 Decimal("19.043333"), Decimal("556.684707"), Decimal("550.375291"),
                 Decimal("530.640242"), Decimal("1639.415747"), Decimal("0.737705"),
@@ -2308,11 +2314,11 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            [row["maxRebateAuditStatus"] for row in epochs],
+            [row["maxRebateAuditStatus"] for row in historical_epochs],
             ["verified", "verified", "verified", "verified", "verified_grouped", "verified_grouped", "verified_grouped", "verified", "verified"],
         )
         self.assertEqual(
-            chain["maxRebateAuditGroups"],
+            [group for group in chain["maxRebateAuditGroups"] if group["endEpoch"] <= 9],
             [{
                 "id": "epochs-5-7",
                 "startEpoch": 5,
@@ -2328,7 +2334,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             }],
         )
         self.assertEqual(
-            [(row["claimStartTimestamp"], row["claimEndTimestamp"]) for row in epochs],
+            [(row["claimStartTimestamp"], row["claimEndTimestamp"]) for row in historical_epochs],
             [
                 (1779920962, 1779942644), (1779942644, 1780532970),
                 (1780532970, 1781136158), (1781136158, 1781747566),
@@ -2354,7 +2360,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
             self.assertGreater(row["borrowFeeRebateUSD"], 0)
             self.assertEqual(row["borrowFeeRebateCalculationMode"], "known_epoch_snapshot_reset")
         for row in data["series"]:
-            if row["date"] >= "2026-07-23":
+            if not any(epoch["periodStartTimestamp"] <= row["timestamp"] < epoch["periodEndTimestamp"] for epoch in epochs):
                 self.assertEqual(row["borrowFeeRebateUSD"], 0)
 
         for row in data["series"]:
