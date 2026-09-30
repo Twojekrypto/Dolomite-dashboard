@@ -169,6 +169,14 @@ def compare(rule: Dict[str, Any], public_result: Dict[str, Any], repo_result: Di
     }
     if public_result.get("state") in {"unavailable", "invalid", "source_stale"}:
         row["problem"] = public_result.get("state")
+        # A producer may already have repaired its source while Pages still
+        # serves the old snapshot. Publish the assessed fresh Git copy instead
+        # of consuming scanner retries. R2's Git copy is never authoritative.
+        if (public_result.get("state") == "source_stale"
+                and repo_result.get("state") == "fresh"
+                and rule.get("productionStorage") != "r2"):
+            row.update(problem="deployment_behind", workflow=config.get("pages_workflow", "pages.yml"))
+            return row
         if public_result.get("state") == "source_stale" and rule.get("remediateSourceStale"):
             row["workflow"] = rule.get("workflow")
         return row

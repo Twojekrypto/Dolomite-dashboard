@@ -60,6 +60,27 @@ class DashboardFreshnessTests(unittest.TestCase):
         self.assertEqual(self.m.compare(rule, stale, stale, self.config)["workflow"], rule["workflow"])
         self.assertIsNone(self.m.compare(self.asset, stale, stale, self.config)["workflow"])
 
+    def test_stale_public_source_with_fresh_repo_repairs_publication_not_scanner(self):
+        rule = dict(self.asset, sourceTimestamps=["head"], remediateSourceStale=True)
+        public = self.m.assess({"generatedAt": NOW - 25*60, "head": NOW - 532*60}, rule, NOW)
+        repo = self.m.assess({"generatedAt": NOW - 5*60, "head": NOW - 6*60}, rule, NOW)
+        row = self.m.compare(rule, public, repo, self.config)
+        self.assertEqual(row["problem"], "deployment_behind")
+        self.assertEqual(row["workflow"], "pages.yml")
+        self.assertEqual(row["public"]["state"], "source_stale")
+
+    def test_stale_r2_source_must_not_publish_git_recovery_baseline(self):
+        rule = dict(self.asset, productionStorage="r2", remediateSourceStale=True)
+        row = self.m.compare(rule, {"state": "source_stale", "age_minutes": 532},
+                             {"state": "fresh", "age_minutes": 6}, self.config)
+        self.assertEqual(row["workflow"], rule["workflow"])
+
+    def test_fresh_wrapper_with_stale_repo_source_is_not_deployable(self):
+        rule = dict(self.asset, sourceTimestamps=["head"], remediateSourceStale=True)
+        stale = self.m.assess({"generatedAt": NOW, "head": NOW - 9*3600}, rule, NOW)
+        row = self.m.compare(rule, stale, stale, self.config)
+        self.assertEqual(row["workflow"], rule["workflow"])
+
     def test_alert_mode_fails_for_old_data_without_dispatch_in_read_only_mode(self):
         config = copy.deepcopy(self.config)
         config["artifacts"] = [self.asset]
