@@ -80,7 +80,7 @@ jobs:
         run: python3 build_earn_representative_audit.py --check
 
       - name: Validate shared Flow table UX
-        run: node --test tests/wallet-flow-ux.test.js
+        run: node --test tests/wallet-flow-ux.test.js tests/dolo-flow-*.test.js
 
       - name: Build static site
         run: |

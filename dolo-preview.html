@@ -1416,6 +1416,13 @@ body.mobile-polished .dolo-lp-detail-row>td{white-space:normal}
       </div>
       <div class="card-meta"><span class="pulse"></span><span id="flows-meta">Flow data</span></div>
     </div>
+    <div class="dolo-lp-head-separator" aria-hidden="true"></div>
+    <div class="fresh-wallet-stats selected-market-rail" id="flows-summary" aria-label="Filtered DOLO flow summary" aria-live="polite">
+      <div class="fresh-stat selected-market-metric"><div class="label">Inflow</div><div class="value">—</div><div class="sub">DOLO · net accumulators</div></div>
+      <div class="fresh-stat selected-market-metric"><div class="label">Outflow</div><div class="value">—</div><div class="sub">DOLO · net outflows</div></div>
+      <div class="fresh-stat selected-market-metric"><div class="label">Net Flow</div><div class="value">—</div><div class="sub">DOLO · inflow − outflow</div></div>
+      <div class="fresh-stat selected-market-metric"><div class="label">Wallets</div><div class="value">—</div><div class="sub">with non-zero net flow</div></div>
+    </div>
 
     <div class="toolbar">
       <div class="tb-left">
@@ -5370,7 +5377,7 @@ function renderFlow(target, kind){
     .filter(r=> kind==="acc" ? r.chg > 0 : r.chg < 0);
   rows = sortFlowRows(rows, kind);
   const rankMap = new Map(rows.map((r,i)=>[r.addr.toLowerCase(), i + 1]));
-  if(q) rows = rows.filter(r=>`${r.addr || ""} ${r.label || ""} ${r.type || ""} ${TYPE_LABELS[r.type] || ""}`.toLowerCase().includes(q));
+  if(q) rows = rows.filter(r=>matchesFlowSearch(r, q));
   const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / state.flowsPageSize));
   state.flowsPage[kind] = Math.max(0, Math.min(state.flowsPage[kind], totalPages - 1));
@@ -5449,6 +5456,41 @@ function renderFlow(target, kind){
     if(e.target.closest(".addr-copy") || e.target.closest(".addr-debank")) return;
     window.open(`https://etherscan.io/address/${tr.dataset.addr}`, "_blank", "noopener");
   }));
+}
+function flowSummaryTotals(){
+  const q = state.qFlows.trim().toLowerCase();
+  let inflow = 0, outflow = 0;
+  const wallets = new Set();
+  for(const row of FLOWS){
+    if(!state.flowsTypes.has(typeFilterKey(row.type)) || !matchesFlowSearch(row, q)) continue;
+    const net = effectiveChg(row);
+    if(!Number.isFinite(net) || net === 0) continue;
+    if(net > 0) inflow += net;
+    else outflow -= net;
+    wallets.add(row.addr.toLowerCase());
+  }
+  return {inflow, outflow, net:inflow - outflow, wallets:wallets.size};
+}
+function matchesFlowSearch(row, q){
+  return `${row.addr || ""} ${row.label || ""} ${row.type || ""} ${TYPE_LABELS[row.type] || ""}`.toLowerCase().includes(q);
+}
+function renderFlowSummary(periodData){
+  const el = document.getElementById("flows-summary");
+  if(!el) return;
+  const key = state.flowsChain === "ethereum" ? "eth" : state.flowsChain === "berachain" ? "bera" : "all";
+  const source = periodData?.[key];
+  // A truncated ranking is not a complete aggregate. Never display it as one.
+  const ready = Array.isArray(source?.search_accumulators) && Array.isArray(source?.search_sellers);
+  const totals = ready ? flowSummaryTotals() : null;
+  const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + fmtNum(Math.abs(n));
+  const scope = "Selected period, network, wallet types and search. Includes every matching indexed wallet, not only this page. ";
+  const stats = [
+    ["Inflow", totals ? signed(totals.inflow) : "—", "DOLO · net accumulators", "Sum of positive wallet net flows; not gross transfer volume."],
+    ["Outflow", totals ? signed(-totals.outflow) : "—", "DOLO · net outflows", "Sum of negative wallet net flows; not gross transfer volume."],
+    ["Net Flow", totals ? signed(totals.net) : "—", "DOLO · inflow − outflow", "Inflow minus outflow for the selected wallets; not a change in total token supply."],
+    ["Wallets", totals ? totals.wallets.toLocaleString("en-US") : "—", "with non-zero net flow", "Unique addresses with a non-zero net flow. The same address on both chains counts once in All chains."],
+  ];
+  el.innerHTML = stats.map(([label,value,sub,tip]) => `<div class="fresh-stat selected-market-metric"><div class="label" data-tooltip="${scope + tip}">${label}</div><div class="value">${value}</div><div class="sub">${ready ? sub : "Complete flow data unavailable"}</div></div>`).join("");
 }
 function renderFlows(){
   renderFlow("flows-acc-body", "acc");
@@ -6512,10 +6554,8 @@ renderCexSupplyChart();
       }
       return byAddr.get(key);
     };
-    const hasTypeFilter = state.flowsTypes instanceof Set
-      && state.flowsTypes.size !== ADDRESS_TYPES.length;
-    const useCompleteSearchRows = Boolean(String(state.qFlows || "").trim())
-      || hasTypeFilter;
+    // Summary and rankings share the complete index, even without a filter.
+    // Otherwise the default aggregate would silently sum only the Top 100.
     const sources = state.flowsChain === "all" && periodData.all
       ? [["all","chgAll","grossInAll","grossOutAll","protocolDepositAll","protocolWithdrawalAll"]]
       : [
@@ -6524,10 +6564,10 @@ renderCexSupplyChart();
         ];
     sources.forEach(([chainKey, prop, grossInProp, grossOutProp, protocolDepositProp, protocolWithdrawalProp]) => {
       const cd = periodData[chainKey] || {};
-      const accumulators = useCompleteSearchRows && Array.isArray(cd.search_accumulators)
+      const accumulators = Array.isArray(cd.search_accumulators)
         ? cd.search_accumulators
         : (cd.accumulators || []);
-      const sellers = useCompleteSearchRows && Array.isArray(cd.search_sellers)
+      const sellers = Array.isArray(cd.search_sellers)
         ? cd.search_sellers
         : (cd.sellers || []);
       accumulators.forEach(item => {
@@ -6565,6 +6605,7 @@ renderCexSupplyChart();
   renderFlows = function(){
     flowRowsForPeriod();
     originalRenderFlows();
+    renderFlowSummary(liveFlowsData?.periods?.[state.flowsPeriod]);
     const metaEl = document.getElementById("flows-meta");
     if(metaEl) metaEl.textContent = liveFlowTimestamp ? "Data updated · " + ago(liveFlowTimestamp) : "Data update unavailable";
   };
