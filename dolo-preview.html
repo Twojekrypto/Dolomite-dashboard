@@ -556,6 +556,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 .fresh-stat .label svg{width:13px;height:13px;flex:0 0 13px;opacity:.85}
 .fresh-wallet-stats.selected-market-rail .fresh-stat .value{margin-top:10px;font-family:var(--mono);font-size:24px;font-weight:600;line-height:1;color:var(--fg-1);font-variant-numeric:tabular-nums;white-space:nowrap}
 .fresh-wallet-stats.selected-market-rail .fresh-stat.primary .value{color:var(--fg-1);font-size:24px}
+#flows-summary .flow-positive .value{color:var(--up)}
+#flows-summary .flow-negative .value{color:var(--down)}
 .fresh-wallet-stats.selected-market-rail .fresh-stat .sub{margin-top:7px;font-family:var(--mono);font-size:11px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fresh-wallets-table{min-width:960px;table-layout:fixed}
 .fresh-wallets-table thead th[data-fresh-sort]{cursor:pointer}
@@ -5487,10 +5489,10 @@ function renderFlowSummary(periodData){
   const stats = [
     ["Inflow", totals ? signed(totals.inflow) : "—", "DOLO · net accumulators", "Sum of positive wallet net flows; not gross transfer volume."],
     ["Outflow", totals ? signed(-totals.outflow) : "—", "DOLO · net outflows", "Sum of negative wallet net flows; not gross transfer volume."],
-    ["Net Flow", totals ? signed(totals.net) : "—", "DOLO · inflow − outflow", "Inflow minus outflow for the selected wallets; not a change in total token supply."],
+    ["Net Flow", totals ? signed(totals.net) : "—", "DOLO · inflow − outflow", "Inflow minus outflow for the selected wallets; not a change in total token supply.", totals?.net > 0 ? " flow-positive" : totals?.net < 0 ? " flow-negative" : ""],
     ["Wallets", totals ? totals.wallets.toLocaleString("en-US") : "—", "with non-zero net flow", "Unique addresses with a non-zero net flow. The same address on both chains counts once in All chains."],
   ];
-  el.innerHTML = stats.map(([label,value,sub,tip]) => `<div class="fresh-stat selected-market-metric"><div class="label" data-tooltip="${scope + tip}">${label}</div><div class="value">${value}</div><div class="sub">${ready ? sub : "Complete flow data unavailable"}</div></div>`).join("");
+  el.innerHTML = stats.map(([label,value,sub,tip,tone = ""]) => `<div class="fresh-stat selected-market-metric${tone}"><div class="label" data-tooltip="${scope + tip}">${label}</div><div class="value">${value}</div><div class="sub">${ready ? sub : "Complete flow data unavailable"}</div></div>`).join("");
 }
 function renderFlows(){
   renderFlow("flows-acc-body", "acc");

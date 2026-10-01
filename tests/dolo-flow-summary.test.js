@@ -61,3 +61,19 @@ test('summary distinguishes incomplete/loading data from a complete empty period
   vm.runInContext('renderFlowSummary({all:{search_accumulators:[],search_sellers:[]}})',m.ctx);
   assert.equal((el.innerHTML.match(/class="value">0</g)||[]).length,4);
 });
+test('Net Flow tone follows the filtered sign and stays neutral for zero or unavailable data',()=>{
+  const m=model(), el={innerHTML:''};
+  m.ctx.document={getElementById:()=>el};
+  m.ctx.fmtNum=String;
+  const start=html.indexOf('function renderFlowSummary(');
+  vm.runInContext(html.slice(start,html.indexOf('function renderFlows(){',start)),m.ctx);
+  const render=()=>vm.runInContext('renderFlowSummary({all:{search_accumulators:[],search_sellers:[]}})',m.ctx);
+  render();
+  assert.match(el.innerHTML,/selected-market-metric flow-positive"><div class="label"[^>]*>Net Flow/);
+  m.state.qFlows='exchange'; render();
+  assert.match(el.innerHTML,/selected-market-metric flow-negative"><div class="label"[^>]*>Net Flow/);
+  m.state.qFlows='missing'; render();
+  assert.doesNotMatch(el.innerHTML,/flow-positive|flow-negative/);
+  vm.runInContext('renderFlowSummary(null)',m.ctx);
+  assert.doesNotMatch(el.innerHTML,/flow-positive|flow-negative/);
+});
