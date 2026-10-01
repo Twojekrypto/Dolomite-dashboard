@@ -449,8 +449,33 @@ console.log(JSON.stringify({known, unknown}));
     def test_dolo_search_surfaces_include_label_type(self):
         html = (ROOT / "dolo-preview.html").read_text()
         self.assertIn('${h.type || ""} ${TYPE_LABELS[h.type] || ""}', html)
-        self.assertIn('${r.type || ""} ${TYPE_LABELS[r.type] || ""}', html)
         self.assertIn('${row.type || ""} ${TYPE_LABELS[row.type] || ""}', html)
+
+    def test_flow_search_matches_raw_and_display_types(self):
+        # Exercise the shared predicate, not a former inline loop variable name.
+        # Removing either raw types or display labels must break this contract.
+        script = r"""
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync('dolo-preview.html', 'utf8');
+const start = html.indexOf('function matchesFlowSearch(');
+assert.ok(start >= 0, 'Shared flow search predicate is missing');
+const end = html.indexOf('\n}', start);
+assert.ok(end > start, 'Flow search predicate is incomplete');
+const ctx = vm.createContext({TYPE_LABELS:{cex:'Exchange', eoa:'User'}});
+vm.runInContext(html.slice(start, end + 2), ctx);
+const row = {addr:'0xAbCd', label:'Named Wallet', type:'cex'};
+for (const query of ['0xabcd', 'named wallet', 'cex', 'exchange', '']) {
+  assert.equal(ctx.matchesFlowSearch(row, query), true, query);
+}
+assert.equal(ctx.matchesFlowSearch(row, 'user'), false);
+assert.equal(ctx.matchesFlowSearch(row, 'missing'), false);
+assert.equal(ctx.matchesFlowSearch({}, 'cex'), false);
+assert.equal(ctx.matchesFlowSearch({type:'unclassified'}, 'unclassified'), true);
+"""
+        proc = subprocess.run(["node", "-e", script], cwd=ROOT, text=True, capture_output=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
 
     def test_mexc_flow_audit_wallet_is_cex_not_market_holder(self):
         info = self.labels["0xd5c342acbeedef81ab8e6072323bfda76172d05f"]
