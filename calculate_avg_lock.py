@@ -17,7 +17,7 @@ from odolo_exercises import is_exercise_tx, extract_lock_duration_seconds, proto
 ROUTESCAN_API = "https://api.routescan.io/v2/network/mainnet/evm/80094/etherscan/api"
 VESTER_CONTRACT = "0x3E9b9A16743551DA49b5e136C716bBa7932d2cEc"
 PAGE_SIZE = 100
-RATE_LIMIT_DELAY = 0.3
+RATE_LIMIT_DELAY = 0.4
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, "avg_lock_data.json")

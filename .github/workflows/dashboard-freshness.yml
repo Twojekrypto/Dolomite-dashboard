@@ -44,12 +44,16 @@ jobs:
           sparse-checkout: |
             config/dashboard_freshness.json
             scripts/check_dashboard_freshness.py
+            tests/test_dashboard_freshness.py
           sparse-checkout-cone-mode: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+
+      - name: Test freshness and bounded repair policies
+        run: python3 -m unittest discover -s tests -p 'test_dashboard_freshness.py'
 
       - name: Check public and raw artifact freshness
         run: |

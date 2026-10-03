@@ -11,7 +11,7 @@ import requests
 ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 
 
-def explorer_get_with_retry(url, *, attempts=3, **kwargs):
+def explorer_get_with_retry(url, *, attempts=5, **kwargs):
     """Retry the identical page on transient failures, never access/quota errors."""
     for attempt in range(max(1, attempts)):
         try:

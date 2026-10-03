@@ -221,6 +221,17 @@ def dispatch_gate(runs: Iterable[Dict[str, Any]], policy: Dict[str, Any], now: i
             return "run_metadata_invalid"
         try:
             timestamp = _run_created_at(run, now)
+            if str(run.get("status", "")).lower() == "completed":
+                # The REST run's updated_at is its completion time. Creation
+                # can be hours (or, for a rerun, days) before the last failure.
+                # Retain legacy fixtures/clients without a completion field;
+                # a present but malformed completion timestamp is unsafe.
+                end_key = next((key for key in ("updated_at", "updatedAt") if key in run), None)
+                if end_key is not None:
+                    ended = parse_timestamp(run[end_key])
+                    if ended < timestamp or ended > now:
+                        raise MonitorError("run_metadata_invalid")
+                    timestamp = ended
         except MonitorError:
             return "run_metadata_invalid"
         parsed.append((run, timestamp))
@@ -230,12 +241,21 @@ def dispatch_gate(runs: Iterable[Dict[str, Any]], policy: Dict[str, Any], now: i
     if len(recent) >= max_dispatches:
         return "retry_budget"
     cooldown = float(policy.get("failureCooldownMinutes", 15))
-    if any(
-        str(run.get("status", "")).lower() == "completed"
-        and str(run.get("conclusion", "")).lower() in {"failure", "timed_out", "cancelled"}
-        and (now - ts) / 60 < cooldown
-        for run, ts in parsed
-    ):
+    maximum = float(policy.get("maxFailureCooldownMinutes", cooldown))
+    failures = []
+    for run, timestamp in sorted(parsed, key=lambda item: item[1], reverse=True):
+        if str(run.get("status", "")).lower() != "completed":
+            continue
+        conclusion = str(run.get("conclusion", "")).lower()
+        if conclusion == "success":
+            break
+        if conclusion in {"failure", "timed_out", "cancelled"}:
+            failures.append(timestamp)
+    # Prolonged upstream outages should not trigger a new scan at every
+    # monitor tick. Normal scheduled runs and stale-data alerts stay intact.
+    for _ in failures[1:]:
+        cooldown = min(maximum, cooldown * 2)
+    if failures and (now - failures[0]) / 60 < cooldown:
         return "cooldown"
     return "ready"
 
@@ -393,6 +413,13 @@ def validate_config(config: Dict[str, Any]) -> None:
         if not SAFE_WORKFLOW_RE.fullmatch(str(name)) or not isinstance(policy, dict):
             raise MonitorError("config_invalid")
         if policy.get("workflow") != name or not isinstance(policy.get("allowedInputs", []), list) or "inputs" in policy:
+            raise MonitorError("config_invalid")
+        base_cooldown = policy.get("failureCooldownMinutes", 15)
+        max_cooldown = policy.get("maxFailureCooldownMinutes", base_cooldown)
+        for value in (base_cooldown, max_cooldown):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+                raise MonitorError("config_invalid")
+        if max_cooldown < base_cooldown:
             raise MonitorError("config_invalid")
     artifacts = config.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:

@@ -119,7 +119,7 @@ class ExplorerOutageTests(unittest.TestCase):
 
     def test_rejection_reports_provider_reason_without_echoing_credentials(self):
         from explorer_api import explorer_get
-        with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "private-test-key"}), patch(
+        with patch.dict(os.environ, {"ETHERSCAN_API_KEY": "private-test-key", "BERASCAN_API_KEY": ""}), patch(
             "requests.get", side_effect=[response(UNSUPPORTED), response({
                 "status": "0", "message": "NOTOK",
                 "result": "Invalid API Key: private-test-key",
@@ -182,9 +182,7 @@ class ExplorerOutageTests(unittest.TestCase):
     def test_exerciser_pagination_error_never_returns_partial_history(self):
         with patch("requests.get", side_effect=[
             response({"status": "1", "result": [{"hash": "one"}]}),
-            response({"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}),
-            response({"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}),
-            response({"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}),
+            *[response({"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}) for _ in range(5)],
         ]), patch.object(generate_exercisers, "PAGE_SIZE", 1), patch("time.sleep"):
             with self.assertRaises(RuntimeError):
                 generate_exercisers._get_all_transactions_once()

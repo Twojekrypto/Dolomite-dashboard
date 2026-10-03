@@ -209,6 +209,69 @@ class DashboardFreshnessTests(unittest.TestCase):
         runs = [{"status": "completed", "conclusion": "failure", "created_at": "2026-09-17T11:40:00Z", "event": "workflow_dispatch"}] * 2
         self.assertEqual(self.m.dispatch_gate(runs, policy, NOW), "retry_budget")
 
+    def test_failure_cooldown_starts_at_completion_not_creation(self):
+        runs = [{"status": "completed", "conclusion": "failure",
+                 "created_at": "2026-09-17T10:00:00Z",
+                 "updated_at": "2026-09-17T11:59:00Z"}]
+        policy = self.config["workflows"]["update-assets-live.yml"]
+        self.assertEqual(self.m.dispatch_gate(runs, policy, NOW), "cooldown")
+
+    def test_recent_long_running_failures_consume_retry_budget(self):
+        runs = [{"status": "completed", "conclusion": "failure",
+                 "created_at": "2026-09-16T10:00:00Z", "updated_at": end}
+                for end in ("2026-09-17T11:35:00Z", "2026-09-17T11:45:00Z")]
+        policy = dict(self.config["workflows"]["update-assets-live.yml"], maxDispatchesInWindow=2)
+        self.assertEqual(self.m.dispatch_gate(runs, policy, NOW), "retry_budget")
+
+    def test_invalid_completion_time_fails_closed(self):
+        policy = self.config["workflows"]["update-assets-live.yml"]
+        for value in (None, "broken", "2026-09-18T00:00:00Z", "2026-09-17T09:00:00Z"):
+            with self.subTest(value=value):
+                run = {"status": "completed", "conclusion": "failure",
+                       "created_at": "2026-09-17T10:00:00Z", "updated_at": value}
+                self.assertEqual(self.m.dispatch_gate([run], policy, NOW), "run_metadata_invalid")
+
+    def test_repeated_failures_back_off_and_success_resets_streak(self):
+        policy = {"failureCooldownMinutes": 15, "maxFailureCooldownMinutes": 60,
+                  "dispatchWindowMinutes": 1, "maxDispatchesInWindow": 3}
+        runs = [{"status": "completed", "conclusion": "failure",
+                 "created_at": end, "updated_at": end}
+                for end in ("2026-09-17T10:05:00Z", "2026-09-17T10:20:00Z", "2026-09-17T11:10:00Z")]
+        # Three consecutive failures: 15 -> 30 -> 60 minutes, independent of API order.
+        self.assertEqual(self.m.dispatch_gate(runs, policy, NOW), "cooldown")
+        self.assertEqual(self.m.dispatch_gate(list(reversed(runs)), policy, NOW), "cooldown")
+        success = {"status": "completed", "conclusion": "success",
+                   "created_at": "2026-09-17T11:15:00Z", "updated_at": "2026-09-17T11:20:00Z"}
+        self.assertEqual(self.m.dispatch_gate([success, *runs], policy, NOW), "ready")
+
+    def test_failure_backoff_is_bounded(self):
+        policy = {"failureCooldownMinutes": 15, "maxFailureCooldownMinutes": 60,
+                  "dispatchWindowMinutes": 1, "maxDispatchesInWindow": 3}
+        run = {"status": "completed", "conclusion": "failure",
+               "created_at": "2026-09-17T10:59:00Z", "updated_at": "2026-09-17T10:59:00Z"}
+        self.assertEqual(self.m.dispatch_gate([run] * 10, policy, NOW), "ready")
+
+    def test_invalid_failure_backoff_policy_is_rejected(self):
+        for value in (0, -1, 10, None, True, "broken", float("nan"), float("inf")):
+            with self.subTest(value=value):
+                config = copy.deepcopy(self.config)
+                config["workflows"]["update-assets-live.yml"]["maxFailureCooldownMinutes"] = value
+                with self.assertRaises(self.m.MonitorError):
+                    self.m.validate_config(config)
+
+    def test_stale_alarm_remains_failure_while_remediation_backs_off(self):
+        config = copy.deepcopy(self.config)
+        config["artifacts"] = [self.asset]
+        failed = {"status": "completed", "conclusion": "failure",
+                  "created_at": "2026-09-17T10:00:00Z", "updated_at": "2026-09-17T11:59:00Z"}
+        with patch.dict("os.environ", {"GH_TOKEN": "test"}), patch.object(self.m, "load_config", return_value=config), \
+                patch.object(self.m.time, "time", return_value=NOW), \
+                patch.object(self.m.HttpClient, "get_json", return_value={"generatedAt": NOW - 9*3600}), \
+                patch.object(self.m.GitHubAPI, "runs", return_value=[failed]), \
+                patch.object(self.m.GitHubAPI, "dispatch") as dispatch, patch("sys.stdout", io.StringIO()):
+            self.assertEqual(self.m.main(["--fail-on-stale"]), 1)
+            dispatch.assert_not_called()
+
     def test_bad_or_future_run_timestamps_fail_closed(self):
         policy = self.config["workflows"]["update-assets-live.yml"]
         for value in [None, "broken", "2026-09-18T00:00:00Z"]:
