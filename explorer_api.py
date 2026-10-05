@@ -47,6 +47,14 @@ def explorer_get(url, *, params, timeout, session=None, **kwargs):
         try:
             result = client.get(endpoint, params=query, timeout=timeout, **kwargs)
             result.raise_for_status()
+        except (requests.Timeout, requests.ConnectionError, requests.exceptions.ChunkedEncodingError) as exc:
+            # Preserve transport failures as retryable while stripping URLs
+            # (and API keys) from requests' original exception message.
+            raise ExplorerError(
+                f"Explorer transport failure on {urlsplit(endpoint).hostname} ({type(exc).__name__})",
+                category="transient",
+                response=getattr(exc, "response", None),
+            ) from None
         except requests.RequestException as exc:
             # requests' normal exception string can contain the API key URL.
             status = getattr(getattr(exc, "response", None), "status_code", None)

@@ -48,6 +48,51 @@ class ExplorerRetryBurstTests(unittest.TestCase):
                 self.assertEqual([call.kwargs["params"]["page"] for call in get.call_args_list], [1, 2, 2, 2, 2, 3])
                 self.assertEqual(get.call_args_list[1:5], [get.call_args_list[1]] * 4)
 
+    def test_transport_failure_on_fallback_retries_same_page_without_losing_rows(self):
+        for failure in (requests.Timeout, requests.ConnectionError, requests.exceptions.ChunkedEncodingError):
+            unsupported = {"status": "0", "message": "chain not supported", "result": None}
+            with self.subTest(failure=failure.__name__), patch.object(calculate_avg_lock, "PAGE_SIZE", 1), patch.dict(
+                "os.environ", {"ETHERSCAN_API_KEY": "private-test-key", "BERASCAN_API_KEY": ""}
+            ), patch("requests.get", side_effect=[
+                response({"status": "1", "message": "OK", "result": [TX]}),
+                response(unsupported), failure("https://api.etherscan.io/?apikey=private-test-key"),
+                response(unsupported), response({"status": "1", "message": "OK", "result": [{**TX, "hash": "second"}]}),
+                response({"status": "0", "message": "No transactions found", "result": []}),
+            ]) as get, patch("time.sleep"), contextlib.redirect_stdout(io.StringIO()):
+                rows = calculate_avg_lock.get_all_exercise_txs()
+                self.assertEqual([row["hash"] for row in rows], ["first", "second"])
+                self.assertEqual([call.kwargs["params"]["page"] for call in get.call_args_list], [1, 2, 2, 2, 2, 3])
+                self.assertEqual(get.call_args_list[2], get.call_args_list[4])
+
+    def test_exhausted_transport_retries_preserve_output_and_redact_credentials(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "avg_lock_data.json"
+            existing = b'{"avg_lock_days":262.7,"total_exercises":100}'
+            path.write_bytes(existing)
+            with patch.object(calculate_avg_lock, "OUTPUT_FILE", str(path)), patch.object(
+                calculate_avg_lock, "PAGE_SIZE", 1
+            ), patch("requests.get", side_effect=[
+                response({"status": "1", "message": "OK", "result": [TX]}),
+                *[requests.Timeout("https://example.com/?apikey=private-test-key") for _ in range(5)],
+            ]) as get, patch("time.sleep"), contextlib.redirect_stdout(io.StringIO()):
+                with self.assertRaises(explorer_api.ExplorerError) as raised:
+                    calculate_avg_lock.main()
+                self.assertEqual(raised.exception.category, "transient")
+                self.assertNotIn("private-test-key", str(raised.exception))
+                self.assertEqual([call.kwargs["params"]["page"] for call in get.call_args_list], [1, 2, 2, 2, 2, 2])
+            self.assertEqual(path.read_bytes(), existing)
+
+    def test_http_access_errors_are_not_retried_and_remain_sanitized(self):
+        for status in (400, 401, 403):
+            rejected = response({})
+            rejected.status_code = status
+            rejected.url = "https://example.com/?apikey=private-test-key"
+            with self.subTest(status=status), patch("requests.get", return_value=rejected) as get, patch("time.sleep"):
+                with self.assertRaises(requests.HTTPError) as raised:
+                    explorer_api.explorer_get_with_retry("https://example.com/api", params={}, timeout=1)
+                self.assertNotIn("private-test-key", str(raised.exception))
+                self.assertEqual(get.call_count, 1)
+
     def test_exhausted_default_budget_raises_without_partial_history(self):
         for module, scan in (
             (calculate_avg_lock, calculate_avg_lock.get_all_exercise_txs),

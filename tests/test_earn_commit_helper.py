@@ -83,10 +83,29 @@ class EarnCommitHelperIntegrationTest(unittest.TestCase):
             self.assertEqual("false", maintenance_auto)
             self.assertEqual("0", gc_auto)
 
+    def test_remote_receive_does_not_start_background_maintenance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, work = self._prepare_repo(Path(tmp))
+            hook = remote / "hooks" / "pre-receive"
+            hook.write_text(
+                '#!/bin/sh\n'
+                'git config --bool --get --default true maintenance.auto > maintenance-value\n'
+                'git config --int --get --default 6700 gc.auto > gc-value\n'
+                'cat > /dev/null\n', encoding="utf-8")
+            hook.chmod(0o755)
+            _run(["git", "commit", "--allow-empty", "-m", "receive check"], cwd=work)
+            _run(["git", "push", "origin", "master"], cwd=work)
+            self.assertEqual((remote / "maintenance-value").read_text().strip(), "false")
+            self.assertEqual((remote / "gc-value").read_text().strip(), "0")
+
     def _prepare_repo(self, tmp_path: Path) -> tuple[Path, Path]:
         remote = tmp_path / "remote.git"
         work = tmp_path / "work"
         _run(["git", "init", "--bare", str(remote)], cwd=tmp_path)
+        # Local transport strips GIT_CONFIG_* before receive-pack, so the
+        # bare receiver needs its own settings to prevent cleanup races.
+        _run(["git", "config", "maintenance.auto", "false"], cwd=remote)
+        _run(["git", "config", "gc.auto", "0"], cwd=remote)
         _run(["git", "init", str(work)], cwd=tmp_path)
         _run(["git", "checkout", "-b", "master"], cwd=work)
         _run(["git", "config", "user.name", "Test Bot"], cwd=work)
