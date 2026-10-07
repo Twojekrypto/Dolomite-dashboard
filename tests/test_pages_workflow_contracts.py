@@ -9,6 +9,18 @@ DOLO_FLOWS_WORKFLOW = ROOT / ".github" / "workflows" / "update-dolo-flows.yml"
 
 
 class PagesWorkflowContractTests(unittest.TestCase):
+    def test_pages_jobs_have_bounded_runner_execution(self):
+        workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+        build, deploy = workflow.split("  deploy:\n", 1)
+        self.assertIn("timeout-minutes: 30", build)
+        self.assertIn("timeout-minutes: 15", deploy)
+
+    def test_coalesced_pages_cancellations_do_not_start_freshness_feedback_loop(self):
+        guard = (ROOT / ".github/workflows/dashboard-freshness.yml").read_text(encoding="utf-8")
+        self.assertIn("github.event_name != 'workflow_run'", guard)
+        self.assertIn("github.event.workflow_run.conclusion != 'cancelled'", guard)
+        self.assertIn("github.event.workflow_run.conclusion != 'skipped'", guard)
+
     def test_guard_started_flows_explicitly_deploy_final_validated_commit(self):
         workflow = DOLO_FLOWS_WORKFLOW.read_text(encoding="utf-8")
         publish = workflow.split("- name: Publish refreshed flows to Pages", 1)[1]
@@ -48,6 +60,10 @@ class PagesWorkflowContractTests(unittest.TestCase):
         workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
 
         self.assertEqual(workflow.count("      - Update oDOLO Data\n"), 1)
+
+    def test_supply_history_bot_publication_triggers_pages(self):
+        workflow = PAGES_WORKFLOW.read_text(encoding="utf-8")
+        self.assertEqual(workflow.count("      - Update Supply History\n"), 1)
 
     def test_dolo_flows_workflow_validates_generated_artifact_before_commit(self):
         workflow = DOLO_FLOWS_WORKFLOW.read_text(encoding="utf-8")

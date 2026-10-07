@@ -5,7 +5,7 @@ import io
 import json
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -199,6 +199,98 @@ class DashboardFreshnessTests(unittest.TestCase):
         for state in ["queued", "in_progress", "waiting", "pending", "requested"]:
             runs = [{"status": state, "created_at": "2026-09-16T00:00:00Z", "event": "schedule"}]
             self.assertEqual(self.m.dispatch_gate(runs, self.config["workflows"]["update-assets-live.yml"], NOW), "active")
+
+    def test_stuck_pages_wait_is_cancelled_once_without_dispatching_over_it(self):
+        api = Mock()
+        api.runs.return_value = [{"id": 42, "status": "waiting", "head_branch": "master",
+                                  "created_at": NOW - 22*3600, "updated_at": NOW - 21*3600}]
+        api.pending_deployments.return_value = [{"environment": {"name": "github-pages"},
+                                                 "wait_timer": 0, "reviewers": []}]
+        api.custom_protection_rules.return_value = {"total_count": 0, "custom_deployment_protection_rules": []}
+        rows = [{"workflow": "pages.yml", "id": "odolo-data", "public": {"age_minutes": 1500}}]
+        result = self.m.remediate(rows * 2, self.config, api, NOW, True)
+        self.assertEqual(result[0]["action"], "cancelled_stalled_wait")
+        self.assertEqual(result[0]["run_id"], 42)
+        api.cancel.assert_called_once_with(42)
+        api.dispatch.assert_not_called()
+
+    def test_pages_wait_recovery_preserves_approvals_timers_and_active_deploys(self):
+        ordinary_wait = {"id": 42, "status": "waiting", "head_branch": "master",
+                         "created_at": NOW - 22*3600, "updated_at": NOW - 21*3600}
+        ordinary_gate = {"environment": {"name": "github-pages"}, "wait_timer": 0, "reviewers": []}
+        cases = [(dict(ordinary_wait, status="in_progress"), [ordinary_gate]),
+                 (dict(ordinary_wait, updated_at=NOW - 60), [ordinary_gate]),
+                 (dict(ordinary_wait, head_branch="other"), [ordinary_gate]),
+                 (ordinary_wait, [dict(ordinary_gate, reviewers=[{"type": "User"}])]),
+                 (ordinary_wait, [dict(ordinary_gate, wait_timer=60)]),
+                 (ordinary_wait, [dict(ordinary_gate, wait_timer_started_at="2026-09-17T11:00:00Z")]),
+                 (ordinary_wait, [dict(ordinary_gate, environment={"name": "production"})]),
+                 (ordinary_wait, [dict(ordinary_gate, environment=None)]),
+                 (ordinary_wait, [dict(ordinary_gate, environment=[])]),
+                 (ordinary_wait, [])]
+        for run, gates in cases:
+            with self.subTest(run=run, gates=gates):
+                api = Mock()
+                api.runs.return_value = [run]
+                api.pending_deployments.return_value = gates
+                result = self.m.remediate([{"workflow": "pages.yml"}], self.config, api, NOW, True)
+                self.assertEqual(result[0]["action"], "active")
+                api.cancel.assert_not_called()
+                api.dispatch.assert_not_called()
+
+    def test_old_waiting_pages_run_is_visible_beyond_latest_thirty_cancellations(self):
+        api = self.m.GitHubAPI(self.config, "test")
+        recent = [{"id": n, "status": "completed", "conclusion": "cancelled"} for n in range(100, 130)]
+        waiting = {"id": 42, "status": "waiting", "head_branch": "master"}
+        def request(method, path, body=None):
+            self.assertEqual(method, "GET")
+            return {"workflow_runs": [waiting] if "status=waiting" in path else recent}
+        with patch.object(api, "_request", side_effect=request):
+            self.assertIn(waiting, api.runs("pages.yml"))
+
+    def test_malformed_waiting_metadata_does_not_allow_a_new_deploy(self):
+        api = self.m.GitHubAPI(self.config, "test")
+        for waiting in ([None], [{"id": []}], [{"status": "waiting"}]):
+            def request(method, path, body=None):
+                self.assertEqual(method, "GET", "malformed metadata caused a mutation")
+                return {"workflow_runs": waiting if "status=waiting" in path else []}
+            with patch.object(api, "_request", side_effect=request):
+                result = self.m.remediate([{"workflow": "pages.yml"}], self.config, api, NOW, True)
+                self.assertEqual(result[0]["action"], "dispatch_failed")
+
+    def test_custom_deployment_gate_is_never_cancelled(self):
+        for rules in ({"total_count": 1, "custom_deployment_protection_rules": [{"enabled": True}]}, {}, None):
+            api = Mock()
+            api.runs.return_value = [{"id": 42, "status": "waiting", "head_branch": "master",
+                                      "created_at": NOW - 22*3600, "updated_at": NOW - 21*3600}]
+            api.pending_deployments.return_value = [{"environment": {"name": "github-pages"},
+                                                     "wait_timer": 0, "reviewers": []}]
+            api.custom_protection_rules.return_value = rules
+            result = self.m.remediate([{"workflow": "pages.yml"}], self.config, api, NOW, True)
+            self.assertEqual(result[0]["action"], "active")
+            api.cancel.assert_not_called()
+            api.dispatch.assert_not_called()
+
+    def test_stuck_wait_cancellation_is_not_retried_after_ambiguous_response(self):
+        api = Mock()
+        api.runs.return_value = [{"id": 42, "status": "waiting", "head_branch": "master",
+                                  "created_at": NOW - 22*3600, "updated_at": NOW - 21*3600}]
+        api.pending_deployments.return_value = [{"environment": {"name": "github-pages"},
+                                                 "wait_timer": 0, "reviewers": []}]
+        api.custom_protection_rules.return_value = {"total_count": 0, "custom_deployment_protection_rules": []}
+        api.cancel.side_effect = self.m.MonitorError("github_api_failed")
+        result = self.m.remediate([{"workflow": "pages.yml"}] * 2, self.config, api, NOW, True)
+        self.assertEqual(result[0]["action"], "dispatch_failed")
+        api.cancel.assert_called_once_with(42)
+        api.dispatch.assert_not_called()
+
+    def test_pages_wait_recovery_policy_is_bounded_and_pages_only(self):
+        for workflow, value in [("pages.yml", 0), ("pages.yml", True), ("pages.yml", 10),
+                                ("pages.yml", float("inf")), ("update-assets-live.yml", 60)]:
+            config = copy.deepcopy(self.config)
+            config["workflows"][workflow]["stalledWaitingMinutes"] = value
+            with self.assertRaises(self.m.MonitorError):
+                self.m.validate_config(config)
 
     def test_recent_completed_failure_and_scheduled_run_apply_cooldown(self):
         runs = [{"status": "completed", "conclusion": "failure", "created_at": "2026-09-17T11:59:00Z", "event": "schedule"}]

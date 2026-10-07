@@ -13,6 +13,9 @@
 ## Deployment & Verification
 - **GH Pages cache**: Always add a unique timestamp/version parameter to URLs when verifying deployed changes (e.g., `?v=abc123&t=<timestamp>`).
 - **Wait for GH Actions**: GitHub Pages deployment can take 30-60 seconds. Don't assume changes are live immediately after push.
+- **An old Pages environment wait can block every new publication.** Query waiting runs separately from the latest completed runs: replaced pending runs can push the blocker out of the first API page. Recover only an aged wait with no reviewer, timer or custom protection rule; never cancel a running deployment. Cancelled/coalesced Pages runs must not trigger a freshness repair feedback loop.
+- **Preserve actionable RPC range limits across provider fallbacks.** An archive-only fallback must not overwrite an earlier provider's smaller-range hint. Retry contiguous bounded ranges and fail the producer if a requested chain remains unrefreshed; a new wrapper timestamp does not repair source coverage.
+- **A truncated HTTP body is a retryable transport failure.** `http.client.IncompleteRead` is an `HTTPException`, not an `OSError`/`URLError`. Retry the same pinned page without discarding completed pages, and retain publication failure after retry exhaustion.
 
 ## CSS & Layout
 - **`text-align: center` on `<td>`**: Affects ALL child content including flex containers and breakdown text. When centering some columns, target them individually (`:nth-child(2)`, `:nth-child(3)`, etc.) rather than using ranges like `:nth-child(n+2)`.

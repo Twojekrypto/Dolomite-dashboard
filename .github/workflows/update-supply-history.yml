@@ -71,6 +71,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Test supply transport retries
+        run: python3 -m unittest discover -s tests -p 'test_supply_transport.py'
+
       - name: Generate static supply history
         run: |
           CHAINS="${{ github.event.inputs.chains }}"

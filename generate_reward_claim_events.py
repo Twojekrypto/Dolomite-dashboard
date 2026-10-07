@@ -195,6 +195,7 @@ def rpc_request(rpc_urls, method, params, timeout=30):
     if not rpc_urls:
         raise RuntimeError("no RPC URLs configured")
     last_error = None
+    range_error = None
     for attempt in range(len(rpc_urls) * 2):
         rpc = rpc_urls[attempt % len(rpc_urls)]
         try:
@@ -210,8 +211,14 @@ def rpc_request(rpc_urls, method, params, timeout=30):
             return payload.get("result")
         except (requests.RequestException, ValueError, RuntimeError) as exc:
             last_error = exc
+            # A later unavailable/archive-only endpoint must not hide the
+            # smaller range an earlier provider can serve. Still try every
+            # endpoint first: a capable fallback may accept the original range.
+            if method == "eth_getLogs" and is_block_range_error(exc):
+                if range_error is None or (provider_block_cap(exc) or 0) > (provider_block_cap(range_error) or 0):
+                    range_error = exc
             time.sleep(0.2 + attempt * 0.05)
-    raise RuntimeError(f"{method} failed: {last_error}")
+    raise RuntimeError(f"{method} failed: {range_error or last_error}")
 
 
 def rpc_batch_request(rpc_urls, calls, timeout=30):
@@ -505,6 +512,7 @@ def max_log_chunks(chain_key, config):
 def provider_block_cap(error):
     message = str(error or "").lower()
     patterns = (
+        r"\bonly\s+([0-9][0-9,_]*)\s+(?:blocks?\s+)?are\s+allowed\b",
         r"\branges?\s+(?:over|greater\s+than|larger\s+than|above)\s+([0-9][0-9,_]*)\s+blocks?\b",
         r"(?:maximum|max(?:imum)?(?:\s+block)?(?:\s+range)?|limit(?:ed)?(?:\s+to)?(?:\s+a)?)[^0-9]{0,24}([0-9][0-9,_]*)\s*(?:blocks?)?",
         r"(?:block\s+range|range)[^0-9]{0,24}([0-9][0-9,_]*)[^0-9]{0,24}(?:max(?:imum)?|limit)",
@@ -912,7 +920,13 @@ def scan_bounds_for_chain(chain_key, config, current_block, state, existing):
     meta_failed = coverage_status == "failed"
     existing_is_full_coverage = bool(existing_from_block and existing_from_block <= deploy_block and not meta_failed)
     state_chain = (state.get("chains") or {}).get(chain_key, {}) if isinstance(state, dict) else {}
-    state_is_usable = state.get("schemaVersion") == SCHEMA_VERSION and int(state_chain.get("lastBlock", 0) or 0) > 0
+    # The cache can survive failed validation/publication but does not contain
+    # the resulting events. Never advance beyond the published snapshot using
+    # only that cursor; replay the unpublished interval from its logs instead.
+    state_is_usable = (
+        state.get("schemaVersion") == SCHEMA_VERSION
+        and 0 < int(state_chain.get("lastBlock", 0) or 0) <= existing_to_block
+    )
 
     if env_start is not None:
         start_block = max(deploy_block, env_start)
@@ -1153,6 +1167,7 @@ def main():
     all_events = existing.get("events", []) if isinstance(existing, dict) else []
     chains_payload = dict(existing.get("chains") or {}) if isinstance(existing, dict) else {}
     state_chains = dict(state.get("chains") or {}) if isinstance(state, dict) else {}
+    failed_chains = []
 
     for chain_key in selected_chain_keys():
         config = CHAIN_CONFIGS[chain_key]
@@ -1181,6 +1196,7 @@ def main():
                 )
                 save_reward_claim_outputs(all_events, chains_payload, state_chains)
                 print(f"Skipped {config['name']} reward claim scan: configured RPC is required for full backfill")
+                failed_chains.append(chain_key)
                 continue
             start_block, end_block = scan_bounds_for_chain(chain_key, config, current_block, state, existing)
             existing_distributors = {
@@ -1241,6 +1257,7 @@ def main():
             save_reward_claim_outputs(all_events, chains_payload, state_chains)
             print(f"Saved {chains_payload[chain_key]['eventCount']:,} {config['name']} reward claim events")
         except (requests.RequestException, ValueError, RuntimeError) as exc:
+            failed_chains.append(chain_key)
             print(f"Warning: {config['name']} reward claim scan failed: {exc}")
             meta = chain_meta(existing, chain_key)
             if meta:
@@ -1266,6 +1283,8 @@ def main():
 
     print(f"Saved {len(payload['events']):,} reward claim events to {OUTPUT_JSON}")
     print(f"Saved Berachain oDOLO compatibility file to {LEGACY_ODOLO_OUTPUT_JSON}")
+    if failed_chains:
+        raise SystemExit(f"Reward claim refresh failed for: {', '.join(failed_chains)}; previous coverage preserved")
 
 
 if __name__ == "__main__":

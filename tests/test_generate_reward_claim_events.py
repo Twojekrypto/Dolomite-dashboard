@@ -4,6 +4,7 @@ import json
 import subprocess
 import tempfile
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -24,6 +25,119 @@ def _log(block):
         "logIndex": "0x0",
         "transactionHash": "0x" + "a" * 64,
     }
+
+
+class RewardClaimProducerFailureTests(unittest.TestCase):
+    def test_unpublished_cached_cursor_cannot_skip_claims_after_failed_publication(self):
+        config = {
+            "name": "Arbitrum", "deployBlock": 10, "blockTimeSeconds": 1,
+            "eventEmitter": "0x" + "1" * 40, "rpcUrls": ["https://rpc.example"],
+            "chunkSize": 100,
+        }
+        existing = {"chains": {"arbitrum": {
+            "fromBlock": 10, "toBlock": 100, "coverageStatus": "complete",
+        }}, "events": []}
+        state = {"schemaVersion": 2, "chains": {"arbitrum": {"lastBlock": 150}}}
+
+        def rpc(_urls, _method, params, **kwargs):
+            start, end = int(params[0]["fromBlock"], 16), int(params[0]["toBlock"], 16)
+            return [_log(125)] if start <= 125 <= end else []
+
+        with patch.dict(os.environ, {}, clear=True), patch.object(rce, "rpc_request", side_effect=rpc), patch.object(rce.time, "sleep"):
+            start, end = rce.scan_bounds_for_chain("arbitrum", config, 200, state, existing)
+            logs = rce.fetch_reward_claimed_logs("arbitrum", config, start, end, ["0x" + "2" * 40])
+        self.assertEqual(logs, [_log(125)])
+        self.assertEqual((start, end), (101, 200))
+
+    def test_cached_cursor_without_published_snapshot_cannot_certify_coverage(self):
+        state = {"schemaVersion": 2, "chains": {"arbitrum": {"lastBlock": 150}}}
+        with patch.dict(os.environ, {}, clear=True):
+            bounds = rce.scan_bounds_for_chain(
+                "arbitrum", {"deployBlock": 10, "blockTimeSeconds": 1}, 200, state, {},
+            )
+        self.assertEqual(bounds, (10, 200))
+
+    def test_rpc_fallback_preserves_range_limit_for_contiguous_claim_scan(self):
+        config = {
+            "name": "Arbitrum", "eventEmitter": "0x" + "1" * 40,
+            "rpcUrls": ["https://official.example", "https://drpc.example", "https://archive.example"],
+            "chunkSize": 250_000,
+        }
+        successful_ranges = []
+
+        def post(url, **kwargs):
+            query = kwargs["json"]["params"][0]
+            start, end = int(query["fromBlock"], 16), int(query["toBlock"], 16)
+            if url == "https://official.example" and end - start + 1 <= 100_000:
+                successful_ranges.append((start, end))
+                payload = {"jsonrpc": "2.0", "id": 1, "result": [_log(start), _log(end)]}
+            else:
+                message = {
+                    "https://official.example": "query spans 250000 blocks, but only 100000 are allowed for this request; narrow the block range, or send one value per position",
+                    "https://drpc.example": "ranges over 10000 blocks are not supported on free plan",
+                    "https://archive.example": "Archive requests require a personal token",
+                }[url]
+                payload = {"jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": message}}
+            response = rce.requests.Response()
+            response.status_code = 200
+            response._content = json.dumps(payload).encode()
+            return response
+
+        with patch.object(rce.requests, "post", side_effect=post), patch.object(rce.time, "sleep"):
+            logs = rce.fetch_reward_claimed_logs(
+                "arbitrum", config, 511_839_530, 512_089_529, ["0x" + "2" * 40],
+            )
+        self.assertEqual(successful_ranges, [
+            (511_839_530, 511_939_529), (511_939_530, 512_039_529), (512_039_530, 512_089_529),
+        ])
+        self.assertEqual(len(logs), 6)
+
+    def test_rpc_still_uses_capable_fallback_before_shrinking(self):
+        payloads = [
+            {"error": {"message": "ranges over 10000 blocks are not supported"}},
+            {"result": [_log(100)]},
+        ]
+        responses = []
+        for payload in payloads:
+            response = rce.requests.Response()
+            response.status_code = 200
+            response._content = json.dumps(payload).encode()
+            responses.append(response)
+        with patch.object(rce.requests, "post", side_effect=responses), patch.object(rce.time, "sleep"):
+            result = rce.rpc_request(["https://limited.example", "https://capable.example"], "eth_getLogs", [{}])
+        self.assertEqual(result, [_log(100)])
+
+    def test_failed_selected_chain_exits_nonzero_and_preserves_proven_cursor(self):
+        event = {"chainKey": "arbitrum", "txHash": "0x" + "a" * 64, "logIndex": 1, "blockNumber": 99, "timestamp": 900}
+        previous = {"schemaVersion": 2, "chains": {"arbitrum": {
+            "fromBlock": 10, "toBlock": 100, "fromTimestamp": 100,
+            "toTimestamp": 1000, "coverageStatus": "complete", "eventCount": 1,
+        }}, "events": [event]}
+        state = {"schemaVersion": 2, "chains": {"arbitrum": {"lastBlock": 100, "eventCount": 1}}}
+        with tempfile.TemporaryDirectory() as tmp, ExitStack() as stack:
+            root = Path(tmp)
+            for name, path in {
+                "OUTPUT_JSON": root / "manifest.json", "STATE_FILE": root / "state.json",
+                "CHAIN_OUTPUT_DIR": root / "chains", "LEGACY_ODOLO_OUTPUT_JSON": root / "odolo.json",
+            }.items():
+                stack.enter_context(patch.object(rce, name, str(path)))
+            (root / "state.json").write_text(json.dumps(state))
+            stack.enter_context(patch.object(rce, "load_existing_reward_claim_payload", return_value=previous))
+            stack.enter_context(patch.object(rce, "selected_chain_keys", return_value=["arbitrum"]))
+            stack.enter_context(patch.object(rce, "get_current_block", return_value=200))
+            stack.enter_context(patch.object(rce, "fetch_claim_distributors", return_value=["0x" + "2" * 40]))
+            stack.enter_context(patch.object(rce, "resolve_distributor_tokens", return_value={}))
+            stack.enter_context(patch.object(rce, "fetch_reward_claimed_logs", side_effect=RuntimeError("upstream unavailable")))
+            with self.assertRaisesRegex(SystemExit, "arbitrum"):
+                rce.main()
+            manifest = json.loads((root / "manifest.json").read_text())
+            saved_state = json.loads((root / "state.json").read_text())
+            shard = json.loads((root / "chains" / "arbitrum.json").read_text())
+        self.assertEqual(manifest["chains"]["arbitrum"]["toBlock"], 100)
+        self.assertEqual(manifest["chains"]["arbitrum"]["toTimestamp"], 1000)
+        self.assertEqual(saved_state["chains"], state["chains"])
+        self.assertEqual(shard["events"], [event])
+        self.assertIn("upstream unavailable", manifest["chains"]["arbitrum"]["warning"])
 
 
 class RewardClaimCheckpointTests(unittest.TestCase):

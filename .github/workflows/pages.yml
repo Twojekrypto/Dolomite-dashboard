@@ -15,6 +15,7 @@ on:
       - Update veDOLO Flows
       - Update TVL Data
       - Update Supply Health
+      - Update Supply History
       - Update Rewards Programs
       - Update Cross-chain Reward Claim Events
       - Audit Dolomite Revenue Onchain
@@ -38,6 +39,7 @@ jobs:
   build:
     if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -103,6 +105,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url || steps.deployment_retry2.outputs.page_url }}

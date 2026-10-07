@@ -49,12 +49,13 @@ jobs:
         run: python3 -m unittest tests.test_generate_reward_claim_events
 
       - name: Restore reward claim sync state
-        uses: actions/cache@v5
+        id: reward_claim_cache_restore
+        uses: actions/cache/restore@v5
         with:
           path: |
             reward_claim_events_state.json
             reward_claim_checkpoints
-          key: reward-claim-state-${{ github.run_number }}
+          key: reward-claim-state-${{ github.run_number }}-${{ github.run_attempt }}
           restore-keys: |
             reward-claim-state-
 
@@ -85,6 +86,15 @@ jobs:
           REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_MANTLE: '20'
           REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_XLAYER: '20'
         run: python generate_reward_claim_events.py
+
+      - name: Save reward claim checkpoints even on failed refresh
+        if: ${{ always() && steps.reward_claim_cache_restore.outcome == 'success' }}
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            reward_claim_events_state.json
+            reward_claim_checkpoints
+          key: ${{ steps.reward_claim_cache_restore.outputs.cache-primary-key }}
 
       - name: Validate generated data
         run: python3 validate_data.py data/reward-claim-events.json data/odolo-claim-events.json

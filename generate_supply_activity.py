@@ -11,6 +11,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from http.client import HTTPException
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib import request
@@ -108,7 +109,9 @@ def post_json(url: str, payload: Dict[str, Any], retries: int = 3) -> Dict[str, 
             if parsed.get("errors"):
                 raise RuntimeError(parsed["errors"][0].get("message", "GraphQL error"))
             return parsed.get("data") or {}
-        except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, json.JSONDecodeError) as exc:
+        # Body reads may raise IncompleteRead/HTTPException outside urllib's
+        # error hierarchy. Retry this request without losing completed pages.
+        except (HTTPError, URLError, TimeoutError, OSError, HTTPException, UnicodeDecodeError, RuntimeError, json.JSONDecodeError) as exc:
             last_error = exc
             if attempt < retries:
                 time.sleep(1.5 * attempt)

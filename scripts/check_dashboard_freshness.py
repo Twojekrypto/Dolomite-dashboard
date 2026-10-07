@@ -260,6 +260,45 @@ def dispatch_gate(runs: Iterable[Dict[str, Any]], policy: Dict[str, Any], now: i
     return "ready"
 
 
+def recover_stalled_pages_wait(runs, policy, config, api, now):
+    """Release an abandoned environment wait, never a running deploy or approval."""
+    limit = policy.get("stalledWaitingMinutes")
+    if limit is None:
+        return None
+    for run in runs:
+        if (not isinstance(run, dict) or run.get("status") != "waiting"
+                or run.get("head_branch") != config["branch"]):
+            continue
+        run_id = run.get("id")
+        if type(run_id) is not int or run_id <= 0:
+            raise MonitorError("run_metadata_invalid")
+        created = _run_created_at(run, now)
+        updated = parse_timestamp(run.get("updated_at"))
+        if updated < created or updated > now:
+            raise MonitorError("run_metadata_invalid")
+        if (now - updated) / 60 < limit:
+            continue
+        gates = api.pending_deployments(run_id)
+        # Do not bypass or cancel a deliberate human approval / wait timer.
+        if not isinstance(gates, list) or not gates:
+            continue
+        if any(not isinstance(gate, dict)
+               or not isinstance(gate.get("environment"), dict)
+               or gate.get("environment", {}).get("name") != "github-pages"
+               or gate.get("reviewers") != [] or gate.get("wait_timer") != 0
+               or gate.get("wait_timer_started_at") is not None for gate in gates):
+            continue
+        custom = api.custom_protection_rules()
+        if (not isinstance(custom, dict) or custom.get("total_count") != 0
+                or custom.get("custom_deployment_protection_rules") != []):
+            continue
+        api.cancel(run_id)
+        # Cancellation is asynchronous. The queued latest run can now proceed;
+        # the next guard tick may dispatch if no replacement is already queued.
+        return run_id
+    return None
+
+
 def remediate(rows: Iterable[Dict[str, Any]], config: Dict[str, Any], api: Any, now: int, allow_remediation: bool) -> List[Dict[str, Any]]:
     decisions: List[Dict[str, Any]] = []
     seen = set()
@@ -295,7 +334,13 @@ def remediate(rows: Iterable[Dict[str, Any]], config: Dict[str, Any], api: Any, 
             decisions.append(decision)
             continue
         try:
-            gate = dispatch_gate(api.runs(workflow), policy, now)
+            runs = api.runs(workflow)
+            recovered = recover_stalled_pages_wait(runs, policy, config, api, now)
+            if recovered is not None:
+                decision.update(action="cancelled_stalled_wait", run_id=recovered)
+                decisions.append(decision)
+                continue
+            gate = dispatch_gate(runs, policy, now)
             if gate != "ready":
                 decision["action"] = gate
                 decisions.append(decision)
@@ -379,7 +424,29 @@ class GitHubAPI:
     def runs(self, workflow: str) -> List[Dict[str, Any]]:
         payload = self._request("GET", f"/actions/workflows/{workflow}/runs?branch={self.config['branch']}&per_page=30")
         runs = payload.get("workflow_runs") if isinstance(payload, dict) else []
-        return runs if isinstance(runs, list) else []
+        runs = runs if isinstance(runs, list) else []
+        if self.config["workflows"].get(workflow, {}).get("stalledWaitingMinutes"):
+            # A long environment wait falls outside the latest 30 runs when
+            # newer pending runs repeatedly replace one another.
+            payload = self._request("GET", f"/actions/workflows/{workflow}/runs?branch={self.config['branch']}&status=waiting&per_page=100")
+            waiting = payload.get("workflow_runs") if isinstance(payload, dict) else None
+            if not isinstance(waiting, list):
+                raise MonitorError("run_metadata_invalid")
+            if any(not isinstance(run, dict) or type(run.get("id")) is not int
+                   or run["id"] <= 0 for run in runs + waiting):
+                raise MonitorError("run_metadata_invalid")
+            ids = {run["id"] for run in runs}
+            runs += [run for run in waiting if run["id"] not in ids]
+        return runs
+
+    def pending_deployments(self, run_id: int) -> Any:
+        return self._request("GET", f"/actions/runs/{run_id}/pending_deployments")
+
+    def custom_protection_rules(self) -> Any:
+        return self._request("GET", "/environments/github-pages/deployment_protection_rules")
+
+    def cancel(self, run_id: int) -> None:
+        self._request("POST", f"/actions/runs/{run_id}/cancel")
 
     def dispatch(self, workflow: str, inputs: Dict[str, Any]) -> None:
         self._request("POST", f"/actions/workflows/{workflow}/dispatches", {"ref": self.config["branch"], "inputs": inputs})
@@ -421,6 +488,12 @@ def validate_config(config: Dict[str, Any]) -> None:
                 raise MonitorError("config_invalid")
         if max_cooldown < base_cooldown:
             raise MonitorError("config_invalid")
+        if "stalledWaitingMinutes" in policy:
+            limit = policy["stalledWaitingMinutes"]
+            if (name != "pages.yml" or isinstance(limit, bool)
+                    or not isinstance(limit, (int, float)) or not math.isfinite(limit)
+                    or limit < 60 or limit > 360):
+                raise MonitorError("config_invalid")
     artifacts = config.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
         raise MonitorError("config_invalid")

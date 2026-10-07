@@ -27,6 +27,9 @@ permissions:
 
 jobs:
   freshness:
+    # Pending Pages runs are intentionally coalesced. Their cancellation did
+    # not publish data and must not trigger another repair/deploy feedback loop.
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion != 'cancelled' && github.event.workflow_run.conclusion != 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
