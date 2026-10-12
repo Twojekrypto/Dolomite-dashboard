@@ -84,6 +84,12 @@ jobs:
       - name: Validate shared Flow table UX
         run: node --test tests/wallet-flow-ux.test.js tests/dolo-flow-*.test.js
 
+      - name: Refresh short-cadence snapshots before packaging
+        run: |
+          python3 -m pip install requests
+          python3 -m unittest discover -s tests -p 'test_refresh_pages_snapshots.py'
+          python3 scripts/refresh_pages_snapshots.py
+
       - name: Build static site
         run: |
           rm -rf _site
