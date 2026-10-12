@@ -14,6 +14,12 @@ spec.loader.exec_module(module)
 
 
 class PagesSnapshotTests(unittest.TestCase):
+    def setUp(self):
+        # Simulated rollback warnings must not become real Actions annotations.
+        output = mock.patch('builtins.print')
+        output.start()
+        self.addCleanup(output.stop)
+
     def test_validated_data_is_retained(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
