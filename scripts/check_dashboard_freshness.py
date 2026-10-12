@@ -33,13 +33,15 @@ ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 SAFE_REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 SAFE_REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 SAFE_WORKFLOW_RE = re.compile(r"^[A-Za-z0-9_.-]+\.ya?ml$")
+PUBLIC_RETRY_DELAYS = (1, 2)
+RETRYABLE_HTTP_CODES = {408, 429, 500, 502, 503, 504}
 
 
 class NoRedirect(HTTPRedirectHandler):
     """Reject redirects so a public fetch cannot leave the configured host."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
-        raise HTTPError(req, code, "redirect rejected", headers, newurl)
+        raise HTTPError(req, code, "redirect rejected", headers, None)
 
 
 def _path_value(payload: Any, path: str) -> Any:
@@ -384,19 +386,25 @@ class HttpClient:
         if not self._allowed(url):
             raise MonitorError("request_failed")
         request = Request(url, headers={"Accept": "application/json", "User-Agent": "dashboard-freshness-guard/1"})
-        try:
-            with self.opener.open(request, timeout=self.timeout) as response:
-                length = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
-                if length and int(length) > max_bytes:
-                    raise MonitorError("response_too_large")
-                body = response.read(max_bytes + 1)
-                if len(body) > max_bytes:
-                    raise MonitorError("response_too_large")
-            return json.loads(body.decode("utf-8"))
-        except MonitorError:
-            raise
-        except (HTTPError, URLError, TimeoutError, socket.timeout, ValueError, OSError):
-            raise MonitorError("request_failed") from None
+        for attempt in range(len(PUBLIC_RETRY_DELAYS) + 1):
+            try:
+                with self.opener.open(request, timeout=self.timeout) as response:
+                    length = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
+                    if length and int(length) > max_bytes:
+                        raise MonitorError("response_too_large")
+                    body = response.read(max_bytes + 1)
+                    if len(body) > max_bytes:
+                        raise MonitorError("response_too_large")
+                return json.loads(body.decode("utf-8"))
+            except MonitorError:
+                raise
+            except ValueError:
+                raise MonitorError("request_failed") from None
+            except (HTTPError, URLError, TimeoutError, socket.timeout, OSError) as exc:
+                retryable = not isinstance(exc, HTTPError) or exc.code in RETRYABLE_HTTP_CODES
+                if not retryable or attempt == len(PUBLIC_RETRY_DELAYS):
+                    raise MonitorError("request_failed") from None
+                time.sleep(PUBLIC_RETRY_DELAYS[attempt])
 
 
 class GitHubAPI:

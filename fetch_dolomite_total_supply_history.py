@@ -28,6 +28,7 @@ METRICS_TIMEOUT_SECONDS = 30
 MAX_WORKERS = 16
 MIN_ACTIVE_SUPPLY_USD = Decimal("1")
 MIN_OFFICIAL_HISTORY_POINTS = 60
+MIN_OFFICIAL_REFRESH_POINTS = 30
 MAX_METRIC_STALENESS_SECONDS = 2 * 86400
 MAX_STALE_MARKET_SHARE = Decimal("0.001")
 
@@ -423,9 +424,53 @@ def preserve_archived_history(current_rows, previous_rows):
                   key=lambda row: row["date"])
 
 
+def preserve_official_history(fresh_rows, previous, metric, current_timestamp):
+    """Extend a verified archive with the API's complete rolling daily window."""
+    fresh = _history_rows(fresh_rows)
+    dates = sorted(fresh)
+    if (len(fresh) != len(fresh_rows)
+            or len(dates) < MIN_OFFICIAL_REFRESH_POINTS
+            or any(timestamp % 86400 for timestamp in dates)
+            or any(right - left != 86400 for left, right in zip(dates, dates[1:]))
+            or dates[-1] > current_timestamp
+            or current_timestamp - dates[-1] > MAX_METRIC_STALENESS_SECONDS):
+        raise ValueError(f"Official {metric} refresh is incomplete or stale")
+
+    archived = {}
+    compatible = (
+        previous.get("schemaVersion") == 2
+        and previous.get("source") == "defillama_then_dolomite_official_market_metrics"
+        and previous.get("activeChains") == sorted(ACTIVE_ASSETS_CHAINS)
+        and type(previous.get("officialWindowStart")) is int
+        and previous["officialWindowStart"] > 0
+    )
+    if compatible:
+        old_rows = previous.get(metric) or []
+        old_values = _history_rows(old_rows)
+        if len(old_values) != len(old_rows) or max(old_values, default=0) > current_timestamp:
+            raise ValueError(f"Previous official {metric} archive is invalid")
+        archived = {
+            timestamp: value for timestamp, value in old_values.items()
+            if previous["officialWindowStart"] <= timestamp < dates[0]
+            and timestamp % 86400 == 0
+        }
+        # An archive separated from the refreshed window is not proof of coverage.
+        if archived and not set(old_values).intersection(fresh):
+            raise ValueError(f"Official {metric} archive has no refresh overlap")
+
+    merged = {**archived, **fresh}
+    merged_dates = sorted(merged)
+    if (len(merged_dates) < MIN_OFFICIAL_HISTORY_POINTS
+            or any(right - left != 86400 for left, right in zip(merged_dates, merged_dates[1:]))):
+        raise ValueError(f"Official {metric} history is too short or has gaps")
+    return [{"date": timestamp, "totalLiquidityUSD": _json_number(merged[timestamp])}
+            for timestamp in merged_dates]
+
+
 def main():
     llama_data = _read_json(DEFILLAMA_FILE)
     official_snapshot = _read_json(OFFICIAL_SNAPSHOT_FILE)
+    previous = _read_json(OUTPUT_FILE) if os.path.exists(OUTPUT_FILE) else {}
     markets = _load_market_definitions()
     histories = _fetch_all_market_histories(markets)
     histories = retry_stale_market_histories(histories)
@@ -440,17 +485,15 @@ def main():
 
     official_supply_history = aggregate_market_histories(histories)
     official_tvl_history = aggregate_net_tvl_histories(histories)
-    if (
-        len(official_supply_history) < MIN_OFFICIAL_HISTORY_POINTS
-        or len(official_tvl_history) < MIN_OFFICIAL_HISTORY_POINTS
-    ):
-        raise ValueError(
-            "Official liquidity history is too short: "
-            f"{len(official_supply_history)} Total Supply points, "
-            f"{len(official_tvl_history)} Net TVL points"
-        )
-
     current_timestamp = _snapshot_timestamp(official_snapshot.get("last_updated"))
+    refresh_start = official_supply_history[0]["date"]
+    refresh_points = len(official_supply_history)
+    official_supply_history = preserve_official_history(
+        official_supply_history, previous, "totalSupply", current_timestamp,
+    )
+    official_tvl_history = preserve_official_history(
+        official_tvl_history, previous, "tvl", current_timestamp,
+    )
     total_supply_history = merge_total_supply_histories(
         llama_data.get("totalSupply", []),
         official_supply_history,
@@ -464,7 +507,6 @@ def main():
         current_tvl,
         "Net TVL",
     )
-    previous = _read_json(OUTPUT_FILE) if os.path.exists(OUTPUT_FILE) else {}
     total_supply_history = preserve_archived_history(total_supply_history, previous.get("totalSupply"))
     tvl_history = preserve_archived_history(tvl_history, previous.get("tvl"))
     active_market_count = sum(
@@ -488,6 +530,8 @@ def main():
         "tvl": tvl_history,
         "currentTvl": _json_number(current_tvl),
         "officialWindowStart": official_supply_history[0]["date"],
+        "officialRefreshWindowStart": refresh_start,
+        "officialRefreshPointCount": refresh_points,
         "officialMarketCount": official_market_count,
         "activeMarketCount": active_market_count,
         "allMarketCount": len(markets),

@@ -7,6 +7,68 @@ from validate_data import RULES
 
 
 class DolomiteTotalSupplyHistoryTest(unittest.TestCase):
+    def rolling_fixture(self):
+        module = self.history_module()
+        start = 1_780_000_000 // 86400 * 86400
+        previous_rows = [{'date': start + day * 86400, 'totalLiquidityUSD': 100 + day}
+                         for day in range(90)]
+        previous = {'schemaVersion': 2, 'source': 'defillama_then_dolomite_official_market_metrics',
+                    'activeChains': sorted(module.ACTIVE_ASSETS_CHAINS),
+                    'officialWindowStart': start, 'totalSupply': previous_rows,
+                    'tvl': [dict(row, totalLiquidityUSD=row['totalLiquidityUSD'] / 2) for row in previous_rows]}
+        fresh = [dict(row, totalLiquidityUSD=200 + day)
+                 for day, row in enumerate(previous_rows[-30:])]
+        return module, previous, fresh, start + 89 * 86400 + 3600
+
+    def test_rolling_30_days_preserve_verified_official_archive(self):
+        module, previous, fresh, now = self.rolling_fixture()
+        rows = module.preserve_official_history(fresh, previous, 'totalSupply', now)
+        self.assertEqual(rows, previous['totalSupply'][:-30] + fresh)
+        self.assertEqual(len(rows), 90)
+
+    def test_rolling_net_tvl_preserves_its_own_values(self):
+        module, previous, fresh, now = self.rolling_fixture()
+        rows = module.preserve_official_history(fresh, previous, 'tvl', now)
+        self.assertEqual(rows, previous['tvl'][:-30] + fresh)
+
+    def test_short_window_without_verified_archive_fails(self):
+        module, _, fresh, now = self.rolling_fixture()
+        for previous in ({}, {'source': 'unknown'}, {'schemaVersion': 1}):
+            with self.subTest(previous=previous), self.assertRaises(ValueError):
+                module.preserve_official_history(fresh, previous, 'totalSupply', now)
+
+    def test_incompatible_network_scope_cannot_fill_short_window(self):
+        module, previous, fresh, now = self.rolling_fixture()
+        previous['activeChains'] = ['Ethereum']
+        with self.assertRaises(ValueError):
+            module.preserve_official_history(fresh, previous, 'totalSupply', now)
+
+    def test_archive_cannot_hide_stale_or_incomplete_refresh(self):
+        module, previous, fresh, now = self.rolling_fixture()
+        for rows, target in ((fresh[:29], now), (fresh, now + 3 * 86400),
+                             (fresh[:-2] + fresh[-1:], now), (fresh, now - 86400)):
+            with self.subTest(rows=len(rows), target=target), self.assertRaises(ValueError):
+                module.preserve_official_history(rows, previous, 'totalSupply', target)
+
+    def test_archive_gap_is_not_filled_with_defillama(self):
+        module, previous, fresh, now = self.rolling_fixture()
+        previous['totalSupply'] = previous['totalSupply'][:59]
+        with self.assertRaises(ValueError):
+            module.preserve_official_history(fresh, previous, 'totalSupply', now)
+
+    def test_old_intraday_snapshot_is_not_retained_as_official_daily_history(self):
+        module, previous, fresh, now = self.rolling_fixture()
+        previous['totalSupply'].insert(1, {'date': previous['officialWindowStart'] + 3600,
+                                         'totalLiquidityUSD': 999})
+        rows = module.preserve_official_history(fresh, previous, 'totalSupply', now)
+        self.assertEqual(len(rows), 90)
+        self.assertNotIn(999, [row['totalLiquidityUSD'] for row in rows])
+
+    def test_full_fresh_window_can_bootstrap_without_archive(self):
+        module, previous, _, now = self.rolling_fixture()
+        self.assertEqual(module.preserve_official_history(previous['totalSupply'], {}, 'totalSupply', now),
+                         previous['totalSupply'])
+
     def history_module(self):
         try:
             return importlib.import_module("fetch_dolomite_total_supply_history")

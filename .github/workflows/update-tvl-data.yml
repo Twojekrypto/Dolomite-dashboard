@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Test TVL coverage and rolling history preservation
+        run: |
+          python3 -m unittest discover -s tests -p 'test_fetch_dolomite_tvl.py'
+          python3 -m unittest discover -s tests -p 'test_fetch_dolomite_total_supply_history.py'
+
       - name: Fetch DeFi Llama data
         run: python3 fetch_defillama.py
 

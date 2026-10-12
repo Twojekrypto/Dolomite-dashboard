@@ -13,6 +13,35 @@ NOW = 1789646400  # 2026-09-17T12:00:00Z
 
 
 class DashboardFreshnessTests(unittest.TestCase):
+    def test_public_transient_503_is_retried_before_assessment(self):
+        client = self.m.HttpClient(self.config)
+        response = io.BytesIO(json.dumps({'generatedAt': NOW}).encode())
+        response.headers = {}
+        url = self.config['public_base_url'] + 'assets_live.json'
+        with patch.object(client.opener, 'open', side_effect=[HTTPError(url, 503, 'unavailable', {}, None), response]) as opened, \
+                patch.object(self.m.time, 'sleep'):
+            self.assertEqual(client.get_json(url, 1024), {'generatedAt': NOW})
+            self.assertEqual(opened.call_count, 2)
+
+    def test_retry_exhaustion_still_reports_unavailable(self):
+        client = self.m.HttpClient(self.config)
+        with patch.object(client.opener, 'open', side_effect=URLError('offline')) as opened, \
+                patch.object(self.m.time, 'sleep'):
+            with self.assertRaisesRegex(self.m.MonitorError, 'request_failed'):
+                client.get_json(self.config['public_base_url'] + 'assets_live.json', 1024)
+            self.assertEqual(opened.call_count, 3)
+
+    def test_deterministic_http_failure_and_invalid_json_are_not_retried(self):
+        url = self.config['public_base_url'] + 'assets_live.json'
+        response = io.BytesIO(b'invalid-json')
+        response.headers = {}
+        for error in (HTTPError(url, 404, 'missing', {}, None), response):
+            client = self.m.HttpClient(self.config)
+            with patch.object(client.opener, 'open', side_effect=error if isinstance(error, Exception) else [error]) as opened, \
+                    patch.object(self.m.time, 'sleep'):
+                with self.assertRaises(self.m.MonitorError): client.get_json(url, 1024)
+                self.assertEqual(opened.call_count, 1)
+
     def test_flows_refresh_leaves_time_for_generation_before_eight_hour_deadline(self):
         for name in ("dolo-flows", "holder-wallet-history"):
             rule = next(a for a in self.config["artifacts"] if a["id"] == name)
