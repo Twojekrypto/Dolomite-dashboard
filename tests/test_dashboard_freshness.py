@@ -13,6 +13,23 @@ NOW = 1789646400  # 2026-09-17T12:00:00Z
 
 
 class DashboardFreshnessTests(unittest.TestCase):
+    def test_publication_during_a_slow_probe_is_not_a_future_timestamp(self):
+        config = dict(self.config, artifacts=[self.asset])
+        output = io.StringIO()
+        with patch.dict('os.environ', {}, clear=True), \
+                patch.object(self.m, 'load_config', return_value=config), \
+                patch.object(self.m.time, 'time', return_value=NOW) as clock, \
+                patch('sys.stdout', output):
+            def fetched(*_args):
+                # A producer publishes while the monitor waits for its download.
+                clock.return_value = NOW + 60
+                return {'generatedAt': NOW + 60}
+            with patch.object(self.m.HttpClient, 'get_json', side_effect=fetched):
+                self.assertEqual(self.m.main(['--no-remediation', '--fail-on-stale']), 0)
+        row = json.loads(output.getvalue())['rows'][0]
+        self.assertEqual(row['public']['state'], 'fresh')
+        self.assertEqual(row['repo']['state'], 'fresh')
+
     def test_merkl_fallback_cache_has_an_age_limit_and_automatic_repair(self):
         rule = next(a for a in self.config['artifacts'] if a['id'] == 'earn-merkl-rewards')
         stale = self.m.assess({'generatedAt': NOW - 9 * 3600}, rule, NOW)

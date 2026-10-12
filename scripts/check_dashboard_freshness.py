@@ -552,7 +552,6 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--fail-on-stale", action="store_true", help="Fail after remediation when a source is invalid/stale or publication exceeds 8h")
     args = parser.parse_args(argv)
     config = load_config(Path(args.config))
-    now = int(time.time())
     client = HttpClient(config)
     rows = []
     for configured_rule in config["artifacts"]:
@@ -561,7 +560,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             rule["productionStorage"] = "r2"
         try:
             public_payload = client.get_json(config["public_base_url"] + rule["path"], int(rule.get("maxBytes", config.get("maxResponseBytes", 20_000_000))))
-            public_result = assess(public_payload, rule, now)
+            public_result = assess(public_payload, rule, int(time.time()))
         except MonitorError as exc:
             public_result = {"state": "unavailable", "error": str(exc), "age_minutes": None}
         if rule.get("productionStorage") == "r2":
@@ -569,11 +568,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         else:
             try:
                 repo_payload = client.get_json(config["raw_base_url"] + rule["path"], int(rule.get("maxBytes", config.get("maxResponseBytes", 20_000_000))))
-                repo_result = assess(repo_payload, rule, now)
+                repo_result = assess(repo_payload, rule, int(time.time()))
             except MonitorError as exc:
                 repo_result = {"state": "unavailable", "error": str(exc), "age_minutes": None}
         rows.append(compare(rule, public_result, repo_result, config))
 
+    now = int(time.time())
     candidates = [row for row in rows if row.get("workflow")]
     token = __import__("os").environ.get("GH_TOKEN", "")
     decisions = []
