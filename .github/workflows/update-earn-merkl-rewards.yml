@@ -16,7 +16,8 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # A full 1,674-wallet scan plus checkout/audit needs about 29 minutes.
+    timeout-minutes: 60
     env:
       PYTHONUNBUFFERED: '1'
 

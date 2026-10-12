@@ -9,6 +9,14 @@
   "maxResponseBytes": 50000000,
   "maxDispatchesPerRun": 3,
   "workflows": {
+    "update-earn-merkl-rewards.yml": {
+      "workflow": "update-earn-merkl-rewards.yml",
+      "failureCooldownMinutes": 30,
+      "maxFailureCooldownMinutes": 120,
+      "dispatchWindowMinutes": 120,
+      "maxDispatchesInWindow": 2,
+      "allowedInputs": []
+    },
     "update-reward-claim-events.yml": {
       "workflow": "update-reward-claim-events.yml",
       "failureCooldownMinutes": 60,
@@ -135,6 +143,7 @@
     }
   },
   "artifacts": [
+    {"id": "earn-merkl-rewards", "path": "data/earn-merkl-rewards/manifest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 120, "earlyDueMinutes": 60, "workflow": "update-earn-merkl-rewards.yml", "inputs": {}, "maxBytes": 2000000},
     {"id": "reward-claim-arbitrum", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.arbitrum.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-reward-claim-events.yml", "inputs": {}, "maxBytes": 2000000},
     {"id": "reward-claim-berachain", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.berachain.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-odolo-flows.yml", "inputs": {}, "maxBytes": 2000000},
     {"id": "earn-source-coverage", "path": "data/earn-freshness/status.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.ethereum.canonical.updatedAt", "chains.berachain.canonical.updatedAt", "chains.arbitrum.canonical.updatedAt"], "sourceLagMinutes": ["chains.ethereum.canonical.estimatedLagMinutes", "chains.ethereum.netflow.estimatedLagMinutes", "chains.berachain.canonical.estimatedLagMinutes", "chains.berachain.netflow.estimatedLagMinutes", "chains.arbitrum.canonical.estimatedLagMinutes", "chains.arbitrum.netflow.estimatedLagMinutes"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "monitor-earn-freshness.yml", "inputs": {}, "maxBytes": 2000000},

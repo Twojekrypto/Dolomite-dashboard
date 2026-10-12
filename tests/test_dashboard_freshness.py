@@ -13,6 +13,24 @@ NOW = 1789646400  # 2026-09-17T12:00:00Z
 
 
 class DashboardFreshnessTests(unittest.TestCase):
+    def test_merkl_fallback_cache_has_an_age_limit_and_automatic_repair(self):
+        rule = next(a for a in self.config['artifacts'] if a['id'] == 'earn-merkl-rewards')
+        stale = self.m.assess({'generatedAt': NOW - 9 * 3600}, rule, NOW)
+        self.assertEqual(stale['state'], 'stale')
+        self.assertEqual(self.m.compare(rule, stale, stale, self.config)['workflow'],
+                         'update-earn-merkl-rewards.yml')
+        self.assertLessEqual(rule['maxAgeMinutes'], 120)
+
+    def test_merkl_workflow_has_headroom_for_the_observed_full_cohort(self):
+        import math
+        import re
+        workflow = (ROOT / '.github/workflows/update-earn-merkl-rewards.yml').read_text()
+        limit = int(re.search(r'timeout-minutes:\s*(\d+)', workflow).group(1))
+        # 1,674 sequential lookups, checkout, audit and push, with 2x headroom.
+        required = math.ceil(2 * (1674 * 0.6 + 480 + 120 + 120) / 60)
+        self.assertGreaterEqual(limit, required)
+        self.assertIn('cancel-in-progress: false', workflow)
+
     def test_public_transient_503_is_retried_before_assessment(self):
         client = self.m.HttpClient(self.config)
         response = io.BytesIO(json.dumps({'generatedAt': NOW}).encode())
