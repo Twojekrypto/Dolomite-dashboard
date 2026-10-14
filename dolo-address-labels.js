@@ -1,5 +1,7 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0xf3532f7efd9f7d9da8d6c345aecabd60e0d8ceaa": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xf3532f7efd9f7d9da8d6c345aecabd60e0d8ceaa", verifiedAt:"2026-10-14"},
+    "0x0b60c1ee6d01c3d5704eeae6c12552c7a63beead": {label:"Bybit", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x0b60c1ee6d01c3d5704eeae6c12552c7a63beead", verifiedAt:"2026-10-14"},
     "0x0051cc1d8bbf0b3373b02e22ea5a2fe483266cea": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x0051cc1d8bbf0b3373b02e22ea5a2fe483266cea", verifiedAt:"2026-10-10"},
     "0xab4d0bb9d3b3b4aebedc25070e5a1d767e3fc5f9": {label:"Bybit", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xab4d0bb9d3b3b4aebedc25070e5a1d767e3fc5f9", verifiedAt:"2026-10-08"},
     "0xa8a7d1479661a2400b876561e20c632c50d825fe": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xa8a7d1479661a2400b876561e20c632c50d825fe", verifiedAt:"2026-10-06"},
