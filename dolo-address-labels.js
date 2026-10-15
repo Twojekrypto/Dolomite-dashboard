@@ -1,5 +1,6 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0xa3222357a0eccf60c73606170be6c99adecb59b3": {label:"CA", type:"contract", chain:"ethereum", source:"blockscout-contract-metadata", confidence:"confirmed", sourceUrl:"https://eth.blockscout.com/address/0xa3222357a0eccf60c73606170be6c99adecb59b3", verifiedAt:"2026-10-15", description:"Smart contract on Ethereum. Source code is unverified; owner and protocol affiliation are unknown."},
     "0x05cfc8d3ca36bc774963c3999efd8a1e38f5b40b": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x05cfc8d3ca36bc774963c3999efd8a1e38f5b40b", verifiedAt:"2026-10-15"},
     "0xf3532f7efd9f7d9da8d6c345aecabd60e0d8ceaa": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xf3532f7efd9f7d9da8d6c345aecabd60e0d8ceaa", verifiedAt:"2026-10-14"},
     "0x0b60c1ee6d01c3d5704eeae6c12552c7a63beead": {label:"Bybit", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x0b60c1ee6d01c3d5704eeae6c12552c7a63beead", verifiedAt:"2026-10-14"},
