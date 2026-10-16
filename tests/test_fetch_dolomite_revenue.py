@@ -2304,7 +2304,17 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(epoch9["aggregateAdjustmentRaw"], -1_263_775_008_033_249_832_439)
         self.assertEqual(Decimal(str(epoch9["rebateUSD"])), Decimal("211.228479"))
         self.assertNotIn(10, [row["epoch"] for row in epochs])
-        self.assertEqual(chain["unsupportedCorrections"], [])
+        # Rejected corrections remain visible as diagnostics, but must never
+        # become evidence for a priced, published rebate.
+        published_transaction_hashes = {
+            row["transactionHash"].lower()
+            for epoch in epochs
+            for row in [epoch, *epoch["markets"]]
+            if row.get("transactionHash")
+        }
+        for correction in chain["unsupportedCorrections"]:
+            self.assertEqual(correction["reason"], "unsupported_aggregate_correction")
+            self.assertNotIn(correction["transactionHash"].lower(), published_transaction_hashes)
         self.assertEqual(
             [Decimal(str(row["maxRebateUSD"])) for row in historical_epochs],
             [

@@ -102,6 +102,8 @@ def vedolo_block_identifier():
 API_KEY = os.environ.get("BERASCAN_API_KEY", "")
 NFT_TRANSFER_PAGE_SIZE = 1_000
 NFT_TRANSFER_MAX_PAGES = 10
+NFT_TRANSFER_RETRIES = min(10, env_int("VEDOLO_EXPLORER_RETRIES", 5, minimum=1))
+NFT_TRANSFER_PAGE_DELAY_SECONDS = min(30, env_int("VEDOLO_EXPLORER_PAGE_DELAY_SECONDS", 1, minimum=1))
 
 
 class IncompleteNftTransferFetch(RuntimeError):
@@ -203,7 +205,7 @@ def fetch_all_nft_transfers():
             "apikey": API_KEY,
         }
 
-        for retry in range(3):
+        for retry in range(NFT_TRANSFER_RETRIES):
             try:
                 resp = requests.get(ETHERSCAN_V2, params=params, timeout=30)
                 data = resp.json()
@@ -245,7 +247,8 @@ def fetch_all_nft_transfers():
                         start_block = last_block
                         page = 1
 
-                    time.sleep(0.25)  # Rate limit
+                    # Leave headroom for other jobs sharing the explorer API key.
+                    time.sleep(NFT_TRANSFER_PAGE_DELAY_SECONDS)
                     if check_timeout("Phase1-pagination"):
                         raise IncompleteNftTransferFetch(
                             f"Timed out while fetching veDOLO NFT transfers after {len(all_txs):,} rows "
@@ -254,8 +257,10 @@ def fetch_all_nft_transfers():
                     break
 
                 elif "rate" in str(data.get("result", "")).lower() or "max rate" in str(data.get("message", "")).lower():
-                    print(f"  Rate limited, waiting {2*(retry+1)}s...", flush=True)
-                    time.sleep(2 * (retry + 1))
+                    if retry + 1 < NFT_TRANSFER_RETRIES:
+                        delay = min(2 ** (retry + 1), 30)
+                        print(f"  Rate limited, waiting {delay}s...", flush=True)
+                        time.sleep(delay)
                     if check_timeout("Phase1-rate-limit"):
                         raise IncompleteNftTransferFetch(
                             f"Timed out while fetching veDOLO NFT transfers after {len(all_txs):,} rows "
@@ -279,10 +284,11 @@ def fetch_all_nft_transfers():
             except IncompleteNftTransferFetch:
                 raise
             except Exception as e:
-                print(f"  Error: {e}, retry {retry+1}/3")
-                time.sleep(2 * (retry + 1))
+                print(f"  Error: {e}, attempt {retry+1}/{NFT_TRANSFER_RETRIES}")
+                if retry + 1 < NFT_TRANSFER_RETRIES:
+                    time.sleep(min(2 ** (retry + 1), 30))
         else:
-            print(f"  ❌ Failed after 3 retries at block {start_block}")
+            print(f"  ❌ Failed after {NFT_TRANSFER_RETRIES} attempts at block {start_block}")
             raise IncompleteNftTransferFetch(
                 f"Failed to fetch complete veDOLO NFT transfer history after {len(all_txs):,} rows "
                 f"(failed at block {start_block:,})"

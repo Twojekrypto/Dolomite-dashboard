@@ -184,6 +184,109 @@ class TestNftTransferPagination(unittest.TestCase):
             (4, 2, 2, 30),
         ])
 
+    def test_recovers_after_three_rate_limits_without_skipping_the_page(self):
+        calls = []
+        responses = [
+            {"status": "1", "message": "OK", "result": [
+                {**tx(1, ZERO, ALICE, 100), "hash": "0x01"},
+                {**tx(2, ZERO, ALICE, 101), "hash": "0x02"},
+            ]},
+            *[{"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}] * 3,
+            {"status": "1", "message": "OK", "result": [
+                {**tx(3, ZERO, ALICE, 102), "hash": "0x03"},
+            ]},
+        ]
+
+        class Response:
+            def __init__(self, payload):
+                self.payload = payload
+
+            def json(self):
+                return self.payload
+
+        def fake_get(_url, *, params, timeout):
+            calls.append((params["startblock"], params["page"], params["endblock"]))
+            return Response(responses.pop(0))
+
+        with (
+            patch.object(update_data, "API_KEY", "test-key"),
+            patch.object(update_data, "NFT_TRANSFER_PAGE_SIZE", 2),
+            patch.object(update_data, "VEDOLO_SNAPSHOT_BLOCK", 1234),
+            patch.object(update_data.requests, "get", side_effect=fake_get),
+            patch.object(update_data.time, "sleep") as sleep,
+        ):
+            transfers = update_data.fetch_all_nft_transfers()
+
+        self.assertEqual([row["tokenID"] for row in transfers], ["1", "2", "3"])
+        self.assertEqual(calls, [(0, 1, 1234), *[(0, 2, 1234)] * 4])
+        self.assertEqual([args.args[0] for args in sleep.call_args_list][1:], [2, 4, 8])
+
+    def test_exhausted_explorer_retries_keep_complete_files_unchanged(self):
+        calls = []
+
+        class Response:
+            def json(self):
+                if len(calls) == 1:
+                    return {"status": "1", "message": "OK", "result": [
+                        {**tx(1, ZERO, ALICE, 100), "hash": "0x01"},
+                        {**tx(2, ZERO, ALICE, 101), "hash": "0x02"},
+                    ]}
+                return {"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}
+
+        def fake_get(_url, *, params, timeout):
+            calls.append((params["startblock"], params["page"]))
+            return Response()
+
+        with tempfile.TemporaryDirectory() as directory:
+            files = {name: Path(directory) / name for name in [
+                "vedolo_holders.json", "vedolo_holders.csv", "vedolo_stats.json", "vedolo_expiry.json",
+            ]}
+            originals = {name: ("complete snapshot: " + name).encode() for name in files}
+            for name, path in files.items():
+                path.write_bytes(originals[name])
+            with (
+                patch.object(update_data, "API_KEY", "test-key"),
+                patch.object(update_data, "NFT_TRANSFER_PAGE_SIZE", 2),
+                patch.object(update_data, "NFT_TRANSFER_RETRIES", 5, create=True),
+                patch.object(update_data, "DATA_DIR", directory),
+                patch.object(update_data, "OUTPUT_JSON", str(files["vedolo_holders.json"])),
+                patch.object(update_data, "OUTPUT_CSV", str(files["vedolo_holders.csv"])),
+                patch.object(update_data.requests, "get", side_effect=fake_get),
+                patch.object(update_data.time, "sleep"),
+                patch.object(update_data, "check_timeout", return_value=False),
+            ):
+                with self.assertRaises(SystemExit) as raised:
+                    update_data.main()
+            self.assertEqual(raised.exception.code, 1)
+            self.assertEqual({name: path.read_bytes() for name, path in files.items()}, originals)
+        self.assertEqual(calls, [(0, 1), *[(0, 2)] * 5])
+
+    def test_successful_pages_are_paced_before_the_next_request(self):
+        request_times = []
+        clock = [0.0]
+
+        class Response:
+            def json(self):
+                rows = [{**tx(1, ZERO, ALICE, 100), "hash": "0x01"}] if len(request_times) == 1 else []
+                return {"status": "1", "message": "OK", "result": rows}
+
+        def fake_get(_url, *, params, timeout):
+            request_times.append(clock[0])
+            return Response()
+
+        def wait(seconds):
+            clock[0] += seconds
+
+        with (
+            patch.object(update_data, "API_KEY", "test-key"),
+            patch.object(update_data, "NFT_TRANSFER_PAGE_SIZE", 1),
+            patch.object(update_data.requests, "get", side_effect=fake_get),
+            patch.object(update_data.time, "sleep", side_effect=wait),
+        ):
+            transfers = update_data.fetch_all_nft_transfers()
+        self.assertEqual([row["tokenID"] for row in transfers], ["1"])
+        self.assertGreaterEqual(request_times[1] - request_times[0], 1.0)
+
     def test_snapshot_block_caps_explorer_ownership_history(self):
         seen_endblocks = []
 

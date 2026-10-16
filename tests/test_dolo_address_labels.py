@@ -201,7 +201,18 @@ console.log(JSON.stringify({known, unknown}));
         }
         for address in unverified:
             with self.subTest(address=address):
-                self.assertNotIn(address, self.labels)
+                info = self.labels.get(address)
+                if info is None:
+                    continue
+                # Verified bytecode permits a neutral structure marker, never
+                # an unverified owner, exchange or protocol identity.
+                self.assertEqual(info["label"], "CA")
+                self.assertEqual(info["type"], "contract")
+                self.assertEqual(info["chain"], "ethereum")
+                self.assertEqual(info["source"], "blockscout-contract-metadata")
+                self.assertEqual(info["confidence"], "confirmed")
+                self.assertEqual(info["sourceUrl"], f"https://eth.blockscout.com/address/{address}")
+                self.assertFalse(info.get("treasury"))
 
     def test_all_core_team_wallets_are_independent_confirmed_labels(self):
         team_addresses = [
