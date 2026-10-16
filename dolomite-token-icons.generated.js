@@ -29,7 +29,7 @@
   "bridge-dolo-coin": "https://app.dolomite.io/static/media/bridge-dolo-coin.5bd267687e1985bf97bf4c27646bb39e.svg",
   "bridge-dolo-glow": "https://app.dolomite.io/static/media/bridge-dolo-glow.90b099dc974d923f72aab46c0af2beb2.svg",
   "BTC": "https://app.dolomite.io/static/media/BTC.15d8961e4f5d8899a7fbae52b1750abf.svg",
-  "BTCcx": "https://app.dolomite.io/static/media/BTCcx.45aa66746e8c8acfeb7ee02edfb29f1a.svg",
+  "BTCcx": "https://app.dolomite.io/static/media/BTCcx.7f1a4a5c2edc10fee897b8cc009fbac3.svg",
   "BUSD": "https://app.dolomite.io/static/media/BUSD.30af12eabf7ac6edaa0829cdfd95815a.svg",
   "BYUSD": "https://app.dolomite.io/static/media/BYUSD.5c144de400fd1e17a31a7ac5db657893.svg",
   "CBBTC": "https://app.dolomite.io/static/media/CBBTC.74df4a77d4c0ea496e4a.webp",
