@@ -1,5 +1,6 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0x945d895281bec1b78b63abe4e14714de7e36f285": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x945d895281bec1b78b63abe4e14714de7e36f285", verifiedAt:"2026-10-19"},
     "0x271f95877f0de03e3718e7e440524d30f4cce47c": {label:"Bybit", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x271f95877f0de03e3718e7e440524d30f4cce47c", verifiedAt:"2026-10-18"},
     "0x6906d4ac9236849a755d16b38945cdc44dc01d07": {label:"Bybit", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x6906d4ac9236849a755d16b38945cdc44dc01d07", verifiedAt:"2026-10-17"},
     "0xa3222357a0eccf60c73606170be6c99adecb59b3": {label:"CA", type:"contract", chain:"ethereum", source:"blockscout-contract-metadata", confidence:"confirmed", sourceUrl:"https://eth.blockscout.com/address/0xa3222357a0eccf60c73606170be6c99adecb59b3", verifiedAt:"2026-10-15", description:"Smart contract on Ethereum. Source code is unverified; owner and protocol affiliation are unknown."},
