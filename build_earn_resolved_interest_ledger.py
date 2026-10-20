@@ -10,6 +10,7 @@ snapshot mismatches are skipped instead of being promoted to verified data.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from datetime import datetime, timezone
@@ -232,6 +233,9 @@ def preflight_strict_rpc_evidence(
     if comparison_block <= 0 or _integer(history_payload.get("lastScannedBlock"), 0) < comparison_block:
         _strict_diagnostic_failure(diagnostics, "stale_comparison_block")
         return None
+    if _integer(scan_range.get("toBlock"), 0) < _integer(history_payload.get("lastScannedBlock"), 0):
+        _strict_diagnostic_failure(diagnostics, "history_scan_range_incomplete")
+        return None
     wallet = chain_snapshots.get(address) or {}
     if not isinstance(wallet, dict):
         _strict_diagnostic_failure(diagnostics, "invalid_input")
@@ -254,6 +258,44 @@ def preflight_strict_rpc_evidence(
         "indexMap": index_map,
         "accounts": accounts,
     }
+
+
+def _source_fingerprint(chain, address, snapshot_date, snapshot_payload, history):
+    """Identify the exact public inputs at the pinned comparison block."""
+    context = preflight_strict_rpc_evidence(chain, address, snapshot_date, snapshot_payload, history)
+    if context is None:
+        return None
+    prefix = {}
+    for key, account in context["accounts"].items():
+        if not isinstance(account, dict) or not isinstance(account.get("markets"), dict):
+            return None
+        markets = {}
+        for market_id, market in account["markets"].items():
+            if not isinstance(market, dict) or not isinstance(market.get("events"), list):
+                return None
+            events = market["events"]
+            if any(not isinstance(event, dict) for event in events):
+                return None
+            included = [event for event in events if _integer(event.get("blockNumber"), 0) <= context["comparisonBlock"]]
+            markets[str(market_id)] = included
+        prefix[str(key)] = {"accountKnown": account.get("accountKnown"), "markets": markets}
+    inputs = {"version": 1, "chain": chain, "address": address, "snapshotDate": snapshot_date,
+              "comparisonBlock": context["comparisonBlock"], "snapshotMarkets": context["snapshotMarkets"],
+              "indexMap": context["indexMap"], "prefix": prefix}
+    return hashlib.sha256(json.dumps(inputs, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _reuse_resolved_ledger(payload, chain, address, snapshot_date, snapshot_payload, history):
+    # Reuse never skips the existing strict publication gate. A changed snapshot
+    # or corrected canonical event invalidates the evidence, even at the same head.
+    from build_earn_verified_ledger import _validate_resolved_interest_ledger
+
+    fingerprint = _source_fingerprint(chain, address, snapshot_date, snapshot_payload, history)
+    if not fingerprint or not isinstance(payload, dict) or payload.get("sourceFingerprint") != fingerprint:
+        return None
+    comparison = _integer(((snapshot_payload.get("chainMetadata") or {}).get(chain) or {}).get("blockNumber"), 0)
+    return _validate_resolved_interest_ledger(payload, chain=chain, address=address,
+        latest_date=snapshot_date, canonical_history=history, snapshot_comparison_block=comparison)
 
 
 def _build_rpc_resolved_ledger(
@@ -570,6 +612,8 @@ def main() -> int:
     parser.add_argument("--existing-addresses", action="store_true")
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
     parser.add_argument("--fetch-strict-rpc-evidence", action="store_true")
+    parser.add_argument("--max-rpc-wallets", type=int, default=None,
+                        help="Maximum newly checked wallets per chain; unchanged exact results do not consume this budget.")
     parser.add_argument(
         "--evidence-cache",
         type=Path,
@@ -585,6 +629,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.max_evidence_cache_entries < 1:
         raise SystemExit("max-evidence-cache-entries must be positive")
+    if args.max_rpc_wallets is not None and args.max_rpc_wallets < 0:
+        raise SystemExit("max-rpc-wallets must be non-negative")
 
     requested = []
     _extend_unique(requested, args.address)
@@ -601,6 +647,7 @@ def main() -> int:
     save_evidence_cache = None
     if args.fetch_strict_rpc_evidence:
         from earn_strict_rpc_evidence import (
+            EVIDENCE_CACHE_VERSION,
             load_evidence_cache,
             save_evidence_cache as persist_evidence_cache,
         )
@@ -610,7 +657,7 @@ def main() -> int:
                 args.evidence_cache,
                 max_entries=args.max_evidence_cache_entries,
             )
-            if args.evidence_cache else {}
+            if args.evidence_cache else {"version": EVIDENCE_CACHE_VERSION, "clock": 0, "entries": {}}
         )
         save_evidence_cache = persist_evidence_cache
     for chain in sorted({str(value).lower() for value in args.chain}):
@@ -636,13 +683,21 @@ def main() -> int:
         removed = 0
         chain_diagnostics = {}
         rpc_client = None
+        rpc_wallet_count = 0
         for address in addresses:
             history = _read_json(HISTORY_DIR / chain / f"{address}.json", None)
+            output_path = args.output_dir / chain / f"{address}.json"
+            reused = _reuse_resolved_ledger(_read_json(output_path, None), chain, address,
+                                           snapshot_date, snapshot_payload, history)
+            active_markets = (((snapshot_payload.get("snapshots") or {}).get(chain) or {}).get(address) or {}).get("markets") or {}
+            if args.fetch_strict_rpc_evidence and reused and set(reused["markets"]) != set(active_markets):
+                reused = None  # Retry unresolved markets; a partial artifact is not a whole-wallet proof.
             diagnostics = {}
             strict_evidence = None
             evidence_failed = False
             cache_diagnostics = {}
-            if args.fetch_strict_rpc_evidence:
+            rpc_attempted = False
+            if args.fetch_strict_rpc_evidence and not reused:
                 preflight = preflight_strict_rpc_evidence(
                     chain,
                     address,
@@ -651,7 +706,11 @@ def main() -> int:
                     history,
                     diagnostics=diagnostics,
                 )
-                if preflight is not None:
+                if preflight is not None and args.max_rpc_wallets is not None and rpc_wallet_count >= args.max_rpc_wallets:
+                    _strict_diagnostic_failure(diagnostics, "rpc_wallet_budget_deferred")
+                elif preflight is not None:
+                    rpc_wallet_count += 1
+                    rpc_attempted = True
                     try:
                         from earn_strict_rpc_evidence import fetch_strict_evidence
 
@@ -678,7 +737,11 @@ def main() -> int:
                 else:
                     strict_evidence = {}
 
-            if evidence_failed:
+            if reused:
+                ledger = reused
+                diagnostics.update({"strictStatus": "verified", "reason": "unchanged_pinned_evidence",
+                                    "comparisonBlock": reused["comparisonBlock"]})
+            elif evidence_failed:
                 ledger = None
             else:
                 ledger = build_resolved_ledger(
@@ -702,14 +765,29 @@ def main() -> int:
                     evidence_cache,
                     max_entries=args.max_evidence_cache_entries,
                 )
-            output_path = args.output_dir / chain / f"{address}.json"
             if ledger:
+                if not reused:
+                    ledger["sourceFingerprint"] = _source_fingerprint(chain, address, snapshot_date, snapshot_payload, history)
+                    if strict_evidence is None and diagnostics.get("strictStatus") != "verified":
+                        diagnostics.update({"strictStatus": "verified", "reason": "exact_supply_replay"})
                 _write_json(output_path, ledger)
                 wrote += 1
             elif output_path.is_file():
                 output_path.unlink()
                 removed += 1
             if args.fetch_strict_rpc_evidence:
+                if rpc_attempted and evidence_cache is not None:
+                    attempts = evidence_cache.get("walletAttempts")
+                    if not isinstance(attempts, dict):
+                        attempts = evidence_cache["walletAttempts"] = {}
+                    attempts.pop(f"{chain}:{address}", None)
+                    attempted_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                    attempts[f"{chain}:{address}"] = attempted_at
+                    diagnostics["attemptedAt"] = attempted_at
+                    while len(attempts) > args.max_evidence_cache_entries:
+                        attempts.pop(next(iter(attempts)))
+                    if args.evidence_cache and save_evidence_cache is not None:
+                        save_evidence_cache(args.evidence_cache, evidence_cache, max_entries=args.max_evidence_cache_entries)
                 diagnostics.setdefault("chain", chain)
                 diagnostics.setdefault("address", address)
                 diagnostics.setdefault("snapshotDate", snapshot_date)
@@ -723,6 +801,8 @@ def main() -> int:
             status_payload["chains"][chain] = {
                 "snapshotDate": snapshot_date,
                 "selectedAddressCount": len(addresses),
+                "rpcWalletCount": rpc_wallet_count,
+                "maxRpcWallets": args.max_rpc_wallets,
                 "summary": summary,
                 "addresses": chain_diagnostics,
                 "rpcEvidenceCache": {

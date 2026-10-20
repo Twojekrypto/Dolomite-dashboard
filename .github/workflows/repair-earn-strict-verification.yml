@@ -3,7 +3,7 @@ run-name: Repair Active EARN Strict Verification
 
 on:
   schedule:
-    - cron: '41 */4 * * *'
+    - cron: '24,54 * * * *'
   workflow_dispatch:
     inputs:
       chain:
@@ -110,6 +110,15 @@ jobs:
           cache_path="$RUNNER_TEMP/earn-strict-rpc-evidence/$CHAIN.json"
           printf 'EARN_STRICT_RPC_EVIDENCE_CACHE=%s\n' "$cache_path" >> "$GITHUB_ENV"
 
+      - name: Restore strict RPC evidence cache
+        if: env.REQUESTED_CHAIN == 'all' || env.REQUESTED_CHAIN == env.CHAIN
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.EARN_STRICT_RPC_EVIDENCE_CACHE }}
+          key: earn-strict-rpc-evidence-v1-${{ matrix.chain }}-${{ github.run_id }}
+          restore-keys: |
+            earn-strict-rpc-evidence-v1-${{ matrix.chain }}-
+
       - name: Select unresolved active wallets
         id: select
         run: |
@@ -135,6 +144,7 @@ jobs:
             --limit "$WALLET_LIMIT"
             --strict-remediation
             --strict-rpc-ready-only
+            --attempt-cache "$EARN_STRICT_RPC_EVIDENCE_CACHE"
             --material-usd-threshold "$MATERIAL_ACTIVE_USD_THRESHOLD"
             --priority-address-file config/earn_canonical_priority_addresses.txt
             --output "$selection_path"
@@ -150,15 +160,6 @@ jobs:
           echo "selected_count=$selected_count" >> "$GITHUB_OUTPUT"
           cat "$metadata_path"
 
-      - name: Restore strict RPC evidence cache
-        if: steps.select.outputs.selected_count != '0'
-        uses: actions/cache/restore@v5
-        with:
-          path: ${{ env.EARN_STRICT_RPC_EVIDENCE_CACHE }}
-          key: earn-strict-rpc-evidence-v1-${{ matrix.chain }}-${{ github.run_id }}
-          restore-keys: |
-            earn-strict-rpc-evidence-v1-${{ matrix.chain }}-
-
       - name: Build exact replay ledgers
         if: steps.select.outputs.selected_count != '0'
         run: |
@@ -168,6 +169,7 @@ jobs:
             --chain "$CHAIN" \
             --address-file "${{ steps.select.outputs.selection_path }}" \
             --fetch-strict-rpc-evidence \
+            --max-rpc-wallets "$WALLET_LIMIT" \
             --evidence-cache "$EARN_STRICT_RPC_EVIDENCE_CACHE" \
             --max-evidence-cache-entries "$EARN_STRICT_RPC_EVIDENCE_CACHE_MAX_ENTRIES" \
             --status-output "$diagnostic_path"

@@ -26,6 +26,7 @@ VERIFIED_AFTER_HOURS = 2
 STALE_AFTER_HOURS = 6
 SLA_WARNING_AFTER_HOURS = 2
 SLA_CRITICAL_AFTER_HOURS = 6
+OLDEST_WALLET_SAMPLE_LIMIT = 10
 ARCHIVED_CHAINS = {"botanix", "polygonzkevm", "mantle", "xlayer"}
 
 CHAIN_POLICIES: Dict[str, Dict[str, Any]] = {
@@ -281,8 +282,22 @@ def _known_addresses_from_public_data(data_dir: Path, chain: str) -> list[str]:
     netflow_payload = _read_json(data_dir / "earn-netflow" / f"{chain}.json", {})
     netflows = (netflow_payload.get("netflows") or {}) if isinstance(netflow_payload, dict) else {}
     addresses.update(str(address).lower() for address in netflows.keys())
+    addresses.update(
+        path.stem.lower()
+        for path in (data_dir / "earn-subaccount-history" / chain).glob("*.json")
+    )
 
     return sorted(address for address in addresses if address.startswith("0x") and len(address) == 42)
+
+
+def _positive_block(value: Any) -> Optional[int]:
+    # Do not truncate floats or accept booleans as apparently valid scan bounds.
+    if isinstance(value, bool) or not isinstance(value, (int, str)):
+        return None
+    if isinstance(value, str) and not value.isdecimal():
+        return None
+    block = int(value)
+    return block if block > 0 else None
 
 
 def _canonical_coverage_status(
@@ -291,76 +306,99 @@ def _canonical_coverage_status(
     chain: str,
     target_block: Optional[int],
     from_block: Optional[int] = None,
+    live_block: Optional[int] = None,
 ) -> Dict[str, Any]:
+    """Keep manifest catchup/backfill separate from live-head wallet recency."""
     target = _safe_int(target_block)
     canonical_from = _safe_int(from_block)
     addresses = _known_addresses_from_public_data(data_dir, chain)
-    if target <= 0:
-        return {
-            "status": "missing_target",
-            "backfillStatus": "missing_target",
-            "targetBlock": target_block,
-            "fromBlock": canonical_from or None,
-            "knownAddressCount": len(addresses),
-            "freshWalletCount": 0,
-            "headFreshWalletCount": 0,
-            "backfilledWalletCount": 0,
-            "incompleteBackfillWalletCount": 0,
-            "partialWalletCount": 0,
-            "missingWalletCount": len(addresses),
-            "freshCoverageRatio": 0.0,
-            "backfillCoverageRatio": 0.0,
-        }
-    if not addresses:
-        return {
-            "status": "unknown",
-            "backfillStatus": "unknown",
-            "targetBlock": target,
-            "fromBlock": canonical_from or None,
-            "knownAddressCount": 0,
-            "freshWalletCount": 0,
-            "headFreshWalletCount": 0,
-            "backfilledWalletCount": 0,
-            "incompleteBackfillWalletCount": 0,
-            "partialWalletCount": 0,
-            "missingWalletCount": 0,
-            "freshCoverageRatio": None,
-            "backfillCoverageRatio": None,
-        }
+    policy = CHAIN_POLICIES[chain]
+    verified_lag = int(policy["verifiedBlockLag"])
+    stale_lag = _threshold_blocks(policy, STALE_AFTER_HOURS * 60)
 
     fresh_count = 0
     backfilled_count = 0
     incomplete_backfill_count = 0
     partial_count = 0
     missing_count = 0
+    recent_count = 0
+    lagging_count = 0
+    stale_count = 0
+    ahead_count = 0
+    invalid_range_count = 0
+    unknown_recency_count = 0
     min_last_scanned: Optional[int] = None
     max_last_scanned: Optional[int] = None
+    min_wallet_lag: Optional[int] = None
+    max_wallet_lag: Optional[int] = None
+    oldest_wallets = []
     chain_dir = data_dir / "earn-subaccount-history" / chain
     for address in addresses:
         payload = _read_json(chain_dir / f"{address}.json", None)
         if not isinstance(payload, dict):
             missing_count += 1
             continue
-        last_scanned = _safe_int(payload.get("lastScannedBlock"))
+        last_scanned = _positive_block(payload.get("lastScannedBlock"))
         scan_range = payload.get("scanRange") or {}
-        scan_from = _safe_int(scan_range.get("fromBlock")) if isinstance(scan_range, dict) else 0
-        min_last_scanned = last_scanned if min_last_scanned is None else min(min_last_scanned, last_scanned)
-        max_last_scanned = last_scanned if max_last_scanned is None else max(max_last_scanned, last_scanned)
+        scan_from = _positive_block(scan_range.get("fromBlock")) if isinstance(scan_range, dict) else None
+        scan_to = _positive_block(scan_range.get("toBlock")) if isinstance(scan_range, dict) else None
+        valid_range = (
+            last_scanned is not None
+            and scan_from is not None
+            and scan_to == last_scanned
+            and scan_from <= scan_to
+        )
+        if last_scanned is not None:
+            min_last_scanned = last_scanned if min_last_scanned is None else min(min_last_scanned, last_scanned)
+            max_last_scanned = last_scanned if max_last_scanned is None else max(max_last_scanned, last_scanned)
         has_full_backfill = (
-            last_scanned > 0
+            valid_range
             and (
                 canonical_from <= 0
-                or (scan_from > 0 and scan_from <= canonical_from and last_scanned >= canonical_from)
+                or (scan_from <= canonical_from and last_scanned >= canonical_from)
             )
         )
         if has_full_backfill:
             backfilled_count += 1
         else:
             incomplete_backfill_count += 1
-        if last_scanned >= target:
+        if valid_range and target > 0 and last_scanned >= target:
             fresh_count += 1
         else:
             partial_count += 1
+
+        block_lag = None
+        if not valid_range:
+            invalid_range_count += 1
+            unknown_recency_count += 1
+            wallet_status = "invalid_range"
+        elif live_block is None:
+            unknown_recency_count += 1
+            wallet_status = "unknown"
+        else:
+            block_lag = int(live_block) - last_scanned
+            min_wallet_lag = block_lag if min_wallet_lag is None else min(min_wallet_lag, block_lag)
+            max_wallet_lag = block_lag if max_wallet_lag is None else max(max_wallet_lag, block_lag)
+            wallet_status = _status_for_lag(block_lag, policy)
+            if block_lag < 0:
+                ahead_count += 1
+            elif block_lag <= verified_lag:
+                recent_count += 1
+            else:
+                lagging_count += 1
+                if block_lag > stale_lag:
+                    stale_count += 1
+        oldest_wallets.append({
+            "address": address,
+            "lastScannedBlock": last_scanned,
+            "scanFromBlock": scan_from,
+            "scanToBlock": scan_to,
+            "blockLag": block_lag,
+            "estimatedLagMinutes": _estimated_minutes(block_lag, policy),
+            "status": wallet_status,
+        })
+        oldest_wallets.sort(key=lambda row: (row["lastScannedBlock"] or 0, row["address"]))
+        del oldest_wallets[OLDEST_WALLET_SAMPLE_LIMIT:]
 
     head_complete = fresh_count == len(addresses) and partial_count == 0 and missing_count == 0
     backfill_complete = (
@@ -368,9 +406,27 @@ def _canonical_coverage_status(
         and incomplete_backfill_count == 0
         and missing_count == 0
     )
+    if live_block is None or not addresses:
+        recency_status = "unknown"
+    elif stale_count:
+        recency_status = "stale"
+    elif lagging_count:
+        recency_status = "syncing"
+    elif unknown_recency_count:
+        recency_status = "unknown"
+    elif ahead_count:
+        recency_status = "ahead"
+    else:
+        recency_status = "verified" if recent_count else "unknown"
+    if target <= 0:
+        coverage_status = "missing_target"
+    elif not addresses:
+        coverage_status = "unknown"
+    else:
+        coverage_status = "full" if head_complete else "partial"
     return {
-        "status": "full" if head_complete else "partial",
-        "backfillStatus": "full" if backfill_complete else "partial",
+        "status": coverage_status,
+        "backfillStatus": "unknown" if not addresses else ("full" if backfill_complete else "partial"),
         "targetBlock": target,
         "fromBlock": canonical_from or None,
         "knownAddressCount": len(addresses),
@@ -380,10 +436,24 @@ def _canonical_coverage_status(
         "incompleteBackfillWalletCount": incomplete_backfill_count,
         "partialWalletCount": partial_count,
         "missingWalletCount": missing_count,
-        "freshCoverageRatio": round(fresh_count / len(addresses), 6),
-        "backfillCoverageRatio": round(backfilled_count / len(addresses), 6),
+        "freshCoverageRatio": round(fresh_count / len(addresses), 6) if addresses else None,
+        "backfillCoverageRatio": round(backfilled_count / len(addresses), 6) if addresses else None,
         "minLastScannedBlock": min_last_scanned,
         "maxLastScannedBlock": max_last_scanned,
+        "liveBlock": live_block,
+        "verifiedBlockLag": verified_lag,
+        "staleBlockLag": stale_lag,
+        "recencyStatus": recency_status,
+        "recentWalletCount": recent_count,
+        "laggingWalletCount": lagging_count,
+        "staleWalletCount": stale_count,
+        "aheadWalletCount": ahead_count,
+        "invalidRangeWalletCount": invalid_range_count,
+        "unknownRecencyWalletCount": unknown_recency_count,
+        "minWalletBlockLag": min_wallet_lag,
+        "maxWalletBlockLag": max_wallet_lag,
+        "maxWalletLagMinutes": _estimated_minutes(max_wallet_lag, policy),
+        "oldestWallets": oldest_wallets,
     }
 
 
@@ -401,14 +471,37 @@ def _apply_canonical_coverage(
     completeness = _canonical_coverage_completeness(policy)
     component["coverage"] = coverage
     component["coverageCompleteness"] = completeness
+    component["recencyStatus"] = component.get("status")
+    component["walletRecencyStatus"] = coverage.get("recencyStatus", "unknown")
+    wallet_lagging = bool(coverage.get("laggingWalletCount"))
+    wallet_sla = "ok"
+    if wallet_lagging:
+        critical_lag = _threshold_blocks(policy, SLA_CRITICAL_AFTER_HOURS * 60)
+        wallet_sla = "critical" if coverage["maxWalletBlockLag"] >= critical_lag else "warning"
+    elif coverage.get("unknownRecencyWalletCount"):
+        wallet_sla = "unknown"
+    component["walletSlaStatus"] = wallet_sla
+    component["slaStatus"] = _chain_sla_status(component, {"slaStatus": wallet_sla})
+    component["walletRecencyCatchup"] = wallet_lagging
     coverage_status = coverage.get("status")
     backfill_status = coverage.get("backfillStatus", coverage_status)
     incomplete = backfill_status == "partial" if completeness == "advisory" else coverage_status == "partial"
+    if wallet_lagging:
+        component["refreshRecommended"] = True
+        component["refreshMode"] = "catchup"
+        component["coverageCatchup"] = True
+        component["coverageBacklog"] = completeness == "advisory" and backfill_status == "partial"
+        if component.get("status") in {"verified", "ahead"}:
+            component["status"] = component["walletRecencyStatus"]
+        component["reason"] = (
+            f"canonical wallet recency: {coverage.get('laggingWalletCount')} wallets exceed "
+            f"the verified block window; oldest {_format_lag_reason_minutes(coverage.get('maxWalletLagMinutes'))}"
+        )
+        return component
     if not incomplete:
         component["coverageCatchup"] = False
         component["coverageBacklog"] = False
         return component
-    component["recencyStatus"] = component.get("status")
     if completeness == "advisory":
         component["coverageCatchup"] = False
         component["coverageBacklog"] = True
@@ -538,6 +631,11 @@ def _weak_point(
             return "snapshot-first coverage; canonical and netflow event ledgers are not enabled"
         return "snapshot-first coverage; snapshot is currently missing"
     canonical_coverage = canonical.get("coverage") or {}
+    if canonical.get("walletRecencyCatchup"):
+        return (
+            f"canonical wallet recency: {canonical_coverage.get('laggingWalletCount')} wallets beyond "
+            f"verified window, oldest {_format_lag_reason_minutes(canonical_coverage.get('maxWalletLagMinutes'))}"
+        )
     if canonical_coverage.get("status") == "partial" and canonical.get("coverageCatchup"):
         return (
             f"canonical coverage {canonical_coverage.get('freshWalletCount')}/"
@@ -636,6 +734,7 @@ def build_status(
                 chain=chain,
                 target_block=history_meta.get("lastBlock"),
                 from_block=history_meta.get("fromBlock"),
+                live_block=live_block,
             )
             canonical = _apply_canonical_coverage(canonical, coverage, policy=policy)
         netflow_supported = (CHAINS.get(chain) or {}).get("start_block", 0) >= 0
@@ -660,7 +759,9 @@ def build_status(
             workflow = str(policy["canonicalWorkflow"])
             refresh_workflows.add(workflow)
             coverage = canonical.get("coverage") or {}
-            if coverage.get("status") == "partial" and canonical.get("coverageCatchup"):
+            if canonical.get("walletRecencyCatchup"):
+                reason = f"{chain}: {canonical['reason']}"
+            elif coverage.get("status") == "partial" and canonical.get("coverageCatchup"):
                 reason = (
                     f"{chain}: canonical coverage catchup "
                     f"({coverage.get('freshWalletCount')}/{coverage.get('knownAddressCount')} wallets fresh, "

@@ -68,6 +68,10 @@ class EarnDashboardContractsTest(unittest.TestCase):
         self.assertIn("--strict-remediation", workflow)
         self.assertNotIn("--include-priority-even-if-unknown", workflow)
         self.assertIn("--fetch-strict-rpc-evidence", workflow)
+        self.assertIn('--max-rpc-wallets "$WALLET_LIMIT"', workflow)
+        self.assertIn('--attempt-cache "$EARN_STRICT_RPC_EVIDENCE_CACHE"', workflow)
+        self.assertLess(workflow.index("- name: Restore strict RPC evidence cache"),
+                        workflow.index("- name: Select unresolved active wallets"))
         self.assertIn("group: ${{ matrix.concurrency_group }}", workflow)
         for group in (
             "earn-ethereum-canonical-history",
@@ -1326,7 +1330,8 @@ if (wlfi.assignedPerToken['0xusdc'] !== 2 || wlfi.perAccountToken['0']['0xusdc']
         self.assertIn("--existing-history-only", workflow)
         self.assertNotIn("--include-priority-even-if-unknown", workflow)
         self.assertIn("--prefer-stale-history", workflow)
-        self.assertIn("Select material-active existing Ethereum canonical wallets", workflow)
+        self.assertIn("Select oldest existing Ethereum canonical wallets", workflow)
+        self.assertNotIn("--material-active-head", workflow)
         self.assertIn("MAX_RESUME_TARGET_LAG_BLOCKS: '600'", workflow)
         self.assertIn("CHECKPOINT_SLEEP_SECONDS: '2'", workflow)
         self.assertIn("MAX_DELTA_SCAN_BLOCKS_PER_TASK: '1000'", workflow)

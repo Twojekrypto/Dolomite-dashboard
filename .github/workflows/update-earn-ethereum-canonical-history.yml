@@ -77,9 +77,9 @@ jobs:
           restore-keys: |
             earn-canonical-runtime-ethereum-
 
-      # Keep the user-facing canonical ledger fresh even while the separate
-      # coverage queue is still backfilling newly discovered wallets.
-      - name: Select material-active existing Ethereum canonical wallets
+      # Keep pinned wallets first, then rotate the oldest existing histories.
+      # The separate coverage queue handles wallets without a published history.
+      - name: Select oldest existing Ethereum canonical wallets
         run: |
           set -euo pipefail
           python3 select_earn_canonical_hot_addresses.py \
@@ -88,7 +88,6 @@ jobs:
             --priority-address-file config/earn_canonical_priority_addresses.txt \
             --existing-history-only \
             --prefer-stale-history \
-            --material-active-head \
             --output "/tmp/earn-${CHAIN}-canonical-hot-addresses.txt" \
             --metadata-output "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"
           cat "/tmp/earn-${CHAIN}-canonical-hot-addresses.json"

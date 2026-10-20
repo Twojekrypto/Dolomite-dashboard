@@ -1,6 +1,7 @@
 import inspect
 import io
 import json
+import shlex
 import shutil
 import sys
 import tempfile
@@ -86,6 +87,53 @@ class EarnFreshnessSelectionTests(unittest.TestCase):
         self.write(self.history / "manifest.json", {"chains": {"ethereum": {"lastBlock": 120}}})
         selected, _ = self.select(material_active_head=True, limit=1)
         self.assertEqual(selected, [self.large])
+
+    def _run_ethereum_workflow_selection(self, priority_file):
+        workflow = Path(__file__).resolve().parents[1] / ".github/workflows/update-earn-ethereum-canonical-history.yml"
+        lines = workflow.read_text(encoding="utf-8").splitlines()
+        index = next(i for i, line in enumerate(lines)
+                     if line.strip().startswith("python3 select_earn_canonical_hot_addresses.py"))
+        command = []
+        while True:
+            line = lines[index].strip()
+            command.append(line.rstrip("\\").strip())
+            index += 1
+            if not line.endswith("\\"):
+                break
+        argv = shlex.split(" ".join(command))[2:]
+        argv = [{"$CHAIN": "ethereum", "$HOT_LIMIT": "2"}.get(value, value) for value in argv]
+        output = self.root / "selected.txt"
+        for option, value in (("--priority-address-file", priority_file),
+                              ("--output", output), ("--metadata-output", self.root / "selection.json")):
+            if option in argv:
+                argv[argv.index(option) + 1] = str(value)
+        argv += ["--history-dir", str(self.history), "--ledger-dir", str(self.ledger),
+                 "--assets-file", str(self.assets)]
+        with patch.object(sys, "argv", ["select_earn_canonical_hot_addresses.py", *argv]), redirect_stdout(io.StringIO()):
+            self.assertEqual(0, selector.main())
+        return output.read_text(encoding="utf-8").splitlines()
+
+    def test_ethereum_workflow_rotates_stale_inactive_histories_behind_pinned_wallet(self):
+        priority_file = self.root / "priority.txt"
+        priority_file.write_text(self.large + "\n", encoding="utf-8")
+        for in_public_sources in (True, False):
+            with self.subTest(in_public_sources=in_public_sources):
+                # The manifest is already at the live head. Existing inactive
+                # histories still need catchup, including published-only ones.
+                self.write(self.history / "manifest.json", {"chains": {"ethereum": {"lastBlock": 1_000_000}}})
+                for address in self.addresses:
+                    if address != self.missing:
+                        self.write_history(address, 1_000_000)
+                self.write_history(self.cold, 998_199)
+                self.write_history(self.dust, 998_800)
+                known = self.addresses if in_public_sources else [a for a in self.addresses if a != self.cold]
+                with patch.object(selector, "_load_known_addresses", return_value=known):
+                    selected = self._run_ethereum_workflow_selection(priority_file)
+                    self.assertEqual([self.large, self.cold], selected)
+                    self.write_history(self.cold, 1_000_000)
+                    selected = self._run_ethereum_workflow_selection(priority_file)
+                    self.assertEqual([self.large, self.dust], selected)
+                    self.assertNotIn(self.missing, selected)
 
     def test_actionable_background_returns_zero_when_complete(self):
         for address in self.addresses:
@@ -199,6 +247,76 @@ class EarnFreshnessSelectionTests(unittest.TestCase):
         self.assertEqual(reasons["invalid_input"], 1)
         self.assertGreater(reasons["stale_comparison_block"], 0)
         self.assertEqual(metadata["activeStrictVerifiedAddressCount"], 0)
+
+    def test_strict_attempt_cache_rotates_first_twenty_five_failures_behind_unattempted_wallet(self):
+        wallets = [f"0x{number:040x}" for number in range(1, 27)]
+        self.payload["snapshots"]["ethereum"] = {
+            address: {"markets": {"1": {"par": str(1000 - number), "wei": str(1000 - number), "decimals": 0}}}
+            for number, address in enumerate(wallets)
+        }
+        self.write(self.snapshots / f"{self.date}.json", self.payload)
+        for address in wallets:
+            self.write_history(address, 100)
+        cache = self.root / "evidence-cache.json"
+        with patch.object(selector, "_load_known_addresses", return_value=wallets):
+            selected, _ = self.select(strict_remediation=True, strict_rpc_ready_only=True, limit=25)
+            self.assertEqual(wallets[:25], selected)
+            self.write(cache, {"walletAttempts": {
+                f"ethereum:{address}": "2026-10-20T10:00:00Z" for address in selected
+            }})
+            selected, _ = self.select(strict_remediation=True, strict_rpc_ready_only=True,
+                                      attempt_cache=cache, limit=25)
+            self.assertEqual([wallets[25], *wallets[:24]], selected)
+
+            priority = self.root / "priority.txt"
+            priority.write_text(wallets[0] + "\n", encoding="utf-8")
+            selected, _ = self.select(strict_remediation=True, strict_rpc_ready_only=True,
+                                      attempt_cache=cache, priority_files=[priority], limit=2)
+            self.assertEqual([wallets[0], wallets[25]], selected)
+
+    def test_strict_attempt_cache_validates_timestamps_and_preserves_original_order_for_ties(self):
+        self.write_history(self.large, 100)
+        self.write_history(self.small, 100)
+        cache = self.root / "evidence-cache.json"
+        large_key, small_key = f"ethereum:{self.large}", f"ethereum:{self.small}"
+        cases = [
+            ({"walletAttempts": {large_key: "2026-10-20T12:00:00+02:00", small_key: "2026-10-20T09:00:00Z"}}, self.small),
+            ({"walletAttempts": {large_key: "2026-10-20T10:00:00Z", small_key: "bad-time"}}, self.small),
+            ({"walletAttempts": {large_key: "2026-10-20T10:00:00Z", small_key: "2026-10-20T09:00:00"}}, self.small),
+            ({"walletAttempts": {large_key: True, small_key: {"bad": "time"}}}, self.large),
+            ({"walletAttempts": {large_key: "2026-10-20T10:00:00Z", small_key: "2026-10-20T12:00:00+02:00"}}, self.large),
+            ({"walletAttempts": []}, self.large),
+            ([], self.large),
+        ]
+        for payload, first in cases:
+            with self.subTest(payload=payload):
+                self.write(cache, payload)
+                selected, _ = self.select(strict_remediation=True, strict_rpc_ready_only=True,
+                                          attempt_cache=cache, limit=1)
+                self.assertEqual([first], selected)
+        cache.write_text("{broken-json", encoding="utf-8")
+        selected, _ = self.select(strict_remediation=True, strict_rpc_ready_only=True,
+                                  attempt_cache=cache, limit=1)
+        self.assertEqual([self.large], selected)
+
+    def test_attempt_cache_has_no_effect_outside_strict_remediation(self):
+        cache = self.root / "evidence-cache.json"
+        self.write(cache, {"walletAttempts": {f"ethereum:{self.large}": "2026-10-20T10:00:00Z"}})
+        selected, _ = self.select(attempt_cache=cache, limit=1)
+        self.assertEqual([self.large], selected)
+
+    def test_selector_cli_applies_attempt_cache_after_strict_readiness(self):
+        self.write_history(self.large, 100)
+        self.write_history(self.small, 100)
+        cache = self.root / "evidence-cache.json"
+        self.write(cache, {"walletAttempts": {f"ethereum:{self.large}": "2026-10-20T10:00:00Z"}})
+        selected = self.root / "strict-selected.txt"
+        argv = ["selector", "--chain", "ethereum", "--strict-remediation", "--strict-rpc-ready-only",
+                "--attempt-cache", str(cache), "--limit", "1", "--history-dir", str(self.history),
+                "--ledger-dir", str(self.ledger), "--assets-file", str(self.assets), "--output", str(selected)]
+        with patch.object(sys, "argv", argv), redirect_stdout(io.StringIO()):
+            self.assertEqual(0, selector.main())
+        self.assertEqual([self.small], selected.read_text(encoding="utf-8").splitlines())
 
     def test_old_resolved_ledger_never_counts_as_latest_verified(self):
         ledger = {

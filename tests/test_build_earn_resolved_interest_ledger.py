@@ -3,6 +3,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -89,14 +90,14 @@ def strict_evidence(*, par="100", wei="120", **flags):
 
 
 class BuildEarnResolvedInterestLedgerTests(unittest.TestCase):
-    def _run_strict_cli(self, root, addresses, histories, *, fetch_side_effect=None):
+    def _run_strict_cli(self, root, addresses, histories, *, fetch_side_effect=None, strict=True, extra_args=()):
         snapshot_dir = root / "snapshots"
         history_dir = root / "history"
         output_dir = root / "output"
         status_path = root / "status.json"
         address_file = root / "addresses.txt"
-        snapshot_dir.mkdir(parents=True)
-        history_dir.joinpath("arbitrum").mkdir(parents=True)
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        history_dir.joinpath("arbitrum").mkdir(parents=True, exist_ok=True)
         snapshot = snapshot_payload()
         snapshot["snapshots"]["arbitrum"] = {
             address: snapshot_payload()["snapshots"]["arbitrum"][ADDRESS]
@@ -126,10 +127,12 @@ class BuildEarnResolvedInterestLedgerTests(unittest.TestCase):
             "build_earn_resolved_interest_ledger.py",
             "--chain", "arbitrum",
             "--address-file", str(address_file),
-            "--fetch-strict-rpc-evidence",
             "--output-dir", str(output_dir),
             "--status-output", str(status_path),
         ]
+        if strict:
+            argv.append("--fetch-strict-rpc-evidence")
+        argv.extend(extra_args)
         with (
             patch.object(ledger_builder, "SNAPSHOT_DIR", snapshot_dir),
             patch.object(ledger_builder, "HISTORY_DIR", history_dir),
@@ -138,6 +141,201 @@ class BuildEarnResolvedInterestLedgerTests(unittest.TestCase):
         ):
             self.assertEqual(0, ledger_builder.main())
         return rpc_calls, json.loads(status_path.read_text(encoding="utf-8"))
+
+    def test_regular_build_keeps_an_unchanged_exact_borrow_ledger(self):
+        event = {"blockNumber": 100, "transactionIndex": 1, "logIndex": 2,
+                 "deltaWei": "100", "newPar": "100", "accountKnown": True}
+        history = history_payload([event], has_borrow=True)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._run_strict_cli(root, [ADDRESS], {ADDRESS: history})
+            path = root / "output" / "arbitrum" / f"{ADDRESS}.json"
+            original = json.loads(path.read_text())
+            calls, _ = self._run_strict_cli(root, [ADDRESS], {ADDRESS: history}, strict=False)
+            self.assertTrue(path.exists(), "routine non-RPC refresh deleted exact borrow evidence")
+            self.assertEqual(original, json.loads(path.read_text()))
+            self.assertEqual([], calls)
+
+    def test_reuse_keeps_exact_evidence_when_known_canonical_tail_advances(self):
+        event = {"blockNumber": 100, "transactionIndex": 1, "logIndex": 2,
+                 "deltaWei": "100", "newPar": "100", "accountKnown": True}
+        history = history_payload([event], has_borrow=True)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._run_strict_cli(root, [ADDRESS], {ADDRESS: history})
+            path = root / "output" / "arbitrum" / f"{ADDRESS}.json"
+            saved = json.loads(path.read_text())
+            history["accounts"]["0"]["markets"]["7"]["events"].append({
+                **event, "blockNumber": 135, "deltaWei": "20", "newPar": "120",
+            })
+            history["lastScannedBlock"] = 140
+            history["scanRange"]["toBlock"] = 140
+            calls, status = self._run_strict_cli(
+                root, [ADDRESS], {ADDRESS: history}, extra_args=["--max-rpc-wallets", "0"],
+            )
+            self.assertEqual([], calls)
+            self.assertEqual(saved, json.loads(path.read_text()))
+            self.assertEqual("unchanged_pinned_evidence", status["chains"]["arbitrum"]["addresses"][ADDRESS]["reason"])
+            self.assertEqual(0, status["chains"]["arbitrum"]["rpcWalletCount"])
+
+    def test_daily_snapshot_rollover_invalidates_reuse_at_the_same_comparison_block(self):
+        event = {"blockNumber": 100, "transactionIndex": 1, "logIndex": 2,
+                 "deltaWei": "100", "newPar": "100", "accountKnown": True}
+        history = history_payload([event], has_borrow=True)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._run_strict_cli(root, [ADDRESS], {ADDRESS: history})
+            saved = json.loads((root / "output" / "arbitrum" / f"{ADDRESS}.json").read_text())
+            next_snapshot = snapshot_payload()
+            next_snapshot["date"] = "2026-07-19"
+            history["sourceMetadata"]["latestSnapshotDate"] = "2026-07-19"
+            self.assertIsNotNone(ledger_builder.preflight_strict_rpc_evidence(
+                "arbitrum", ADDRESS, "2026-07-19", next_snapshot, history,
+            ))
+            self.assertIsNone(ledger_builder._reuse_resolved_ledger(
+                saved, "arbitrum", ADDRESS, "2026-07-19", next_snapshot, history,
+            ))
+            fresh = build_resolved_ledger(
+                "arbitrum", ADDRESS, "2026-07-19", next_snapshot, history,
+                strict_evidence=strict_evidence(),
+            )
+            self.assertEqual(saved["comparisonBlock"], fresh["comparisonBlock"])
+            self.assertEqual("2026-07-19", fresh["snapshotDate"])
+
+    def test_reuse_rejects_corrected_prefix_or_adjusted_verification(self):
+        event = {"blockNumber": 100, "transactionIndex": 1, "logIndex": 2,
+                 "deltaWei": "100", "newPar": "100", "accountKnown": True}
+        for change in ("prefix", "adjustment"):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                history = history_payload([event], has_borrow=True)
+                self._run_strict_cli(root, [ADDRESS], {ADDRESS: history})
+                path = root / "output" / "arbitrum" / f"{ADDRESS}.json"
+                if change == "prefix":
+                    history["accounts"]["0"]["markets"]["7"]["events"] = [{**event, "deltaWei": "99"}]
+                else:
+                    saved = json.loads(path.read_text())
+                    saved["replayVerificationData"]["7"]["replayStateAdjusted"] = True
+                    path.write_text(json.dumps(saved))
+                self._run_strict_cli(root, [ADDRESS], {ADDRESS: history}, strict=False)
+                self.assertFalse(path.exists(), "changed or adjusted evidence must be invalidated")
+
+    def test_reuse_rejects_unknown_accounts_with_empty_or_future_only_markets(self):
+        event = {"blockNumber": 100, "transactionIndex": 1, "logIndex": 2,
+                 "deltaWei": "100", "newPar": "100", "accountKnown": True}
+        for unknown_events in ([], [{**event, "blockNumber": 130}]):
+            with self.subTest(unknown_events=unknown_events), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                history = history_payload([event], has_borrow=True)
+                self._run_strict_cli(root, [ADDRESS], {ADDRESS: history})
+                path = root / "output" / "arbitrum" / f"{ADDRESS}.json"
+                saved = json.loads(path.read_text())
+                history["accounts"]["unknown"] = {
+                    "accountKnown": False,
+                    "markets": {"7": {"events": unknown_events}},
+                }
+                diagnostics = {}
+                self.assertIsNone(build_resolved_ledger(
+                    "arbitrum", ADDRESS, "2026-07-18", snapshot_payload(), history,
+                    strict_evidence=strict_evidence(), diagnostics=diagnostics,
+                ))
+                self.assertEqual("coverage_incomplete", diagnostics["strictStatus"])
+                self.assertIsNone(ledger_builder._reuse_resolved_ledger(
+                    saved, "arbitrum", ADDRESS, "2026-07-18", snapshot_payload(), history,
+                ), "reuse must preserve the fresh replay's unknown-account gate")
+                self._run_strict_cli(root, [ADDRESS], {ADDRESS: history}, strict=False)
+                self.assertFalse(path.exists(), "unknown accounts must invalidate the saved exact artifact")
+
+    def test_partial_rpc_results_keep_mismatch_diagnostics_and_retry_unresolved_markets(self):
+        snapshot = snapshot_payload()
+        markets = snapshot["snapshots"]["arbitrum"][ADDRESS]["markets"]
+        markets["8"] = dict(markets["7"])
+        indexes = snapshot["chainMetadata"]["arbitrum"]["interestIndexes"]
+        indexes["8"] = dict(indexes["7"])
+        event = {"blockNumber": 100, "transactionIndex": 1, "logIndex": 2,
+                 "deltaWei": "100", "newPar": "100", "accountKnown": True}
+        history = history_payload([event], has_borrow=True)
+        history["accounts"]["0"]["markets"]["8"] = {"events": [{**event, "logIndex": 3}]}
+        evidence = strict_evidence()
+        evidence["currentIndexes"]["8"] = dict(evidence["currentIndexes"]["7"])
+        evidence["currentPositions"]["0|8"] = {"par": "99", "wei": "120"}
+        evidence["eventIndexPairs"]["100:1:3:0:8"] = dict(
+            evidence["eventIndexPairs"]["100:1:2:0:7"]
+        )
+
+        with tempfile.TemporaryDirectory() as temp, patch(
+            f"{__name__}.snapshot_payload", return_value=snapshot,
+        ):
+            root = Path(temp)
+            runs = [self._run_strict_cli(
+                root, [ADDRESS], {ADDRESS: history},
+                fetch_side_effect=lambda *args, **kwargs: evidence,
+            ) for _ in range(2)]
+            for run_number, (calls, status) in enumerate(runs):
+                with self.subTest(run=run_number):
+                    self.assertEqual(1, len(calls), "strict repair must retry unresolved active markets")
+                    self.assertEqual({"mismatch": 1}, status["chains"]["arbitrum"]["summary"])
+                    diagnostics = status["chains"]["arbitrum"]["addresses"][ADDRESS]
+                    self.assertEqual("mismatch", diagnostics["strictStatus"])
+                    self.assertEqual("mismatch", diagnostics["markets"]["8"]["status"])
+            path = root / "output" / "arbitrum" / f"{ADDRESS}.json"
+            saved = json.loads(path.read_text())
+            self.assertEqual({"7"}, set(saved["markets"]))
+            calls, _ = self._run_strict_cli(root, [ADDRESS], {ADDRESS: history}, strict=False)
+            self.assertEqual([], calls)
+            self.assertEqual(saved, json.loads(path.read_text()), "routine refresh should retain exact partial proof")
+
+    def test_rpc_budget_defers_other_borrow_wallets_without_marking_them_verified(self):
+        second = "0x3333333333333333333333333333333333333333"
+        event = {"blockNumber": 100, "transactionIndex": 1, "logIndex": 2,
+                 "deltaWei": "100", "newPar": "100", "accountKnown": True}
+        histories = {a: {**history_payload([event], has_borrow=True), "address": a} for a in [ADDRESS, second]}
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            calls, status = self._run_strict_cli(root, [ADDRESS, second], histories, extra_args=["--max-rpc-wallets", "1"])
+            self.assertEqual([ADDRESS], [call[1] for call in calls])
+            self.assertFalse((root / "output" / "arbitrum" / f"{second}.json").exists())
+            self.assertEqual("rpc_wallet_budget_deferred", status["chains"]["arbitrum"]["addresses"][second]["reason"])
+
+    def test_failed_rpc_attempts_persist_bounded_private_rotation_state(self):
+        second = "0x3333333333333333333333333333333333333333"
+        event = {"blockNumber": 100, "transactionIndex": 1, "logIndex": 2,
+                 "deltaWei": "100", "newPar": "100", "accountKnown": True}
+        histories = {
+            address: {**history_payload([event], has_borrow=True), "address": address}
+            for address in (ADDRESS, second)
+        }
+
+        def unavailable(*args, **kwargs):
+            raise RuntimeError("archive RPC unavailable")
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            cache_path = root / "private-cache.json"
+            calls, status = self._run_strict_cli(
+                root, [ADDRESS, second], histories, fetch_side_effect=unavailable,
+                extra_args=["--evidence-cache", str(cache_path), "--max-evidence-cache-entries", "1"],
+            )
+            self.assertEqual([ADDRESS, second], [call[1] for call in calls])
+            attempts = json.loads(cache_path.read_text())["walletAttempts"]
+            self.assertEqual({f"arbitrum:{second}"}, set(attempts))
+            for address in (ADDRESS, second):
+                diagnostics = status["chains"]["arbitrum"]["addresses"][address]
+                self.assertEqual("rpc_evidence_error", diagnostics["reason"])
+                self.assertEqual("coverage_incomplete", diagnostics["strictStatus"])
+                attempted_at = diagnostics["attemptedAt"]
+                self.assertTrue(attempted_at.endswith("Z"))
+                self.assertIsNotNone(datetime.fromisoformat(attempted_at.replace("Z", "+00:00")).tzinfo)
+                self.assertFalse((root / "output" / "arbitrum" / f"{address}.json").exists())
+            self.assertEqual(attempts[f"arbitrum:{second}"], status["chains"]["arbitrum"]["addresses"][second]["attemptedAt"])
+
+    def test_preflight_rejects_uncovered_scan_range_even_with_a_recent_last_block(self):
+        history = history_payload([], last_scanned=130)
+        history["scanRange"]["toBlock"] = 122
+        diagnostics = {}
+        self.assertIsNone(ledger_builder.preflight_strict_rpc_evidence(
+            "arbitrum", ADDRESS, "2026-07-18", snapshot_payload(), history, diagnostics=diagnostics))
+        self.assertEqual("history_scan_range_incomplete", diagnostics["reason"])
 
     def test_cli_exposes_strict_rpc_and_diagnostic_status_options(self):
         source = (

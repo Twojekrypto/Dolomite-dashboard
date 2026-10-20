@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
@@ -212,6 +213,17 @@ def _unique_preserve_order(addresses: Iterable[str]) -> List[str]:
     return ordered
 
 
+def _prior_attempt_timestamp(value: object) -> datetime:
+    missing = datetime.min.replace(tzinfo=timezone.utc)
+    if not isinstance(value, str):
+        return missing
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        return parsed.astimezone(timezone.utc) if parsed.tzinfo is not None else missing
+    except (ValueError, OverflowError):
+        return missing
+
+
 def _existing_history_addresses(history_dir: Path, chain: str) -> set:
     chain_dir = history_dir / chain
     if not chain_dir.exists():
@@ -356,6 +368,7 @@ def build_selection(
     material_active_head: bool = False,
     actionable_only: bool = False,
     strict_rpc_ready_only: bool = False,
+    attempt_cache: Path = None,
 ) -> Tuple[List[str], dict]:
     if material_active_head and (coverage_backfill or strict_remediation):
         raise ValueError("material_active_head cannot be combined with backfill or strict remediation")
@@ -434,6 +447,9 @@ def build_selection(
         stale_rows = []
         protocol_start = _intish((CHAINS.get(chain) or {}).get("start_block"))
         coverage_addresses = known | set(priority) if actionable_only else known
+        if existing_history_only:
+            # Published wallets may have left both current public cohorts.
+            coverage_addresses = coverage_addresses | existing_history
         for address in sorted(coverage_addresses):
             has_history = address in existing_history
             if existing_history_only and not has_history:
@@ -600,6 +616,17 @@ def build_selection(
                 reason = str(diagnostics.get("reason") or "invalid_input")
                 skipped_prerequisites[reason] = skipped_prerequisites.get(reason, 0) + 1
         selected = ready
+    if strict_remediation and attempt_cache is not None:
+        cache_payload = _read_json(attempt_cache, {})
+        attempts = cache_payload.get("walletAttempts") if isinstance(cache_payload, dict) else None
+        attempts = attempts if isinstance(attempts, dict) else {}
+        pinned = set(selection_priority)
+        # Pins remain first. Stable ties retain the existing materiality order;
+        # wallets without a valid previous attempt get the next bounded batch.
+        selected.sort(key=lambda address: (
+            address not in pinned,
+            _prior_attempt_timestamp(None if address in pinned else attempts.get(f"{chain}:{address}")),
+        ))
     if limit > 0:
         selected = selected[:limit]
 
@@ -691,6 +718,8 @@ def main() -> int:
     parser.add_argument("--material-active-head", action="store_true")
     parser.add_argument("--actionable-only", action="store_true")
     parser.add_argument("--strict-rpc-ready-only", action="store_true")
+    parser.add_argument("--attempt-cache", type=Path, default=None,
+                        help="Private evidence cache used to rotate strict RPC attempts fairly.")
     parser.add_argument("--output", required=True)
     parser.add_argument("--metadata-output", default=None)
     args = parser.parse_args()
@@ -711,6 +740,7 @@ def main() -> int:
         material_active_head=bool(args.material_active_head),
         actionable_only=bool(args.actionable_only),
         strict_rpc_ready_only=bool(args.strict_rpc_ready_only),
+        attempt_cache=args.attempt_cache,
     )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

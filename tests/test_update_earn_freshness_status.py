@@ -93,6 +93,192 @@ class EarnFreshnessStatusTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload), encoding="utf-8")
 
+    def _wallet_status(self, histories, *, chain="ethereum", live_block=1_000_000, known_addresses=None):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_json(root, "earn-subaccount-history/manifest.json", {
+                "chains": {
+                    name: {"fromBlock": 100, "lastBlock": 1_000_000, "updatedAt": "2026-05-08T11:59:00Z"}
+                    for name in CHAIN_POLICIES
+                },
+            })
+            for name in CHAIN_POLICIES:
+                self._write_json(root, f"earn-netflow/{name}.json", {
+                    "lastBlock": 1_000_000,
+                    "netflows": {
+                        address: {} for address in (histories if known_addresses is None else known_addresses)
+                    } if name == chain else {},
+                })
+            for address, history in histories.items():
+                if history is not None:
+                    self._write_json(root, f"earn-subaccount-history/{chain}/{address}.json", history)
+            return build_status(
+                data_dir=root,
+                live_blocks={name: live_block if name == chain else 1_000_000 for name in CHAIN_POLICIES},
+                now=datetime(2026, 5, 8, 12, 0, tzinfo=timezone.utc),
+            )
+
+    def test_stale_existing_wallet_triggers_catchup_even_when_chain_head_is_fresh(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        status = self._wallet_status({wallet: {
+            "lastScannedBlock": 998_199,
+            "scanRange": {"fromBlock": 100, "toBlock": 998_199},
+        }})
+
+        canonical = status["chains"]["ethereum"]["canonical"]
+        coverage = canonical["coverage"]
+        self.assertTrue(canonical["refreshRecommended"])
+        self.assertEqual("catchup", canonical["refreshMode"])
+        self.assertEqual("verified", canonical["recencyStatus"])
+        self.assertEqual("stale", canonical["walletRecencyStatus"])
+        self.assertEqual("critical", canonical["slaStatus"])
+        self.assertEqual(["ethereum"], status["summary"]["slaCriticalChains"])
+        self.assertEqual(0, coverage["recentWalletCount"])
+        self.assertEqual(1, coverage["laggingWalletCount"])
+        self.assertEqual(1, coverage["staleWalletCount"])
+        self.assertEqual(1_801, coverage["maxWalletBlockLag"])
+        self.assertEqual(1_801, coverage["minWalletBlockLag"])
+        self.assertEqual(wallet, coverage["oldestWallets"][0]["address"])
+        self.assertEqual(998_199, coverage["oldestWallets"][0]["lastScannedBlock"])
+        self.assertIn("wallet", status["chainReport"][0]["weakPoint"])
+        self._assert_refresh_job(
+            status["summary"]["refreshJobs"],
+            workflow="update-earn-ethereum-canonical-history.yml",
+            inputs={"hot_limit": "1000", "checkpoint_steps": "1200"},
+            mode="catchup",
+            priority=-20,
+        )
+
+    def test_wallet_recency_uses_each_chains_two_hour_window_not_manifest_equality(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        for chain, block_lag in (("ethereum", 600), ("arbitrum", 28_800), ("berachain", 3_600)):
+            with self.subTest(chain=chain):
+                last_block = 1_000_000 - block_lag
+                status = self._wallet_status({wallet: {
+                    "lastScannedBlock": last_block,
+                    "scanRange": {"fromBlock": 100, "toBlock": last_block},
+                }}, chain=chain)
+                canonical = status["chains"][chain]["canonical"]
+                self.assertFalse(canonical["refreshRecommended"])
+                self.assertEqual("verified", canonical["walletRecencyStatus"])
+                self.assertEqual("ok", canonical["slaStatus"])
+                self.assertEqual(1, canonical["coverage"]["recentWalletCount"])
+                self.assertEqual(0, canonical["coverage"]["laggingWalletCount"])
+                self.assertEqual(0, canonical["coverage"]["headFreshWalletCount"])
+
+    def test_wallet_just_outside_verified_window_is_syncing_not_six_hour_stale(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        status = self._wallet_status({wallet: {
+            "lastScannedBlock": 999_399,
+            "scanRange": {"fromBlock": 100, "toBlock": 999_399},
+        }})
+        canonical = status["chains"]["ethereum"]["canonical"]
+        self.assertEqual("syncing", canonical["walletRecencyStatus"])
+        self.assertEqual("warning", canonical["slaStatus"])
+        self.assertEqual(1, canonical["coverage"]["laggingWalletCount"])
+        self.assertEqual(0, canonical["coverage"]["staleWalletCount"])
+        self.assertTrue(canonical["refreshRecommended"])
+
+    def test_wallet_sla_uses_exact_six_hour_block_boundary_before_rounding(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        for block_lag, expected_sla in ((86_399, "warning"), (86_400, "critical")):
+            with self.subTest(block_lag=block_lag):
+                last_block = 1_000_000 - block_lag
+                status = self._wallet_status({wallet: {
+                    "lastScannedBlock": last_block,
+                    "scanRange": {"fromBlock": 100, "toBlock": last_block},
+                }}, chain="arbitrum")
+                canonical = status["chains"]["arbitrum"]["canonical"]
+                self.assertEqual(expected_sla, canonical["walletSlaStatus"])
+
+    def test_missing_historic_only_wallet_stays_advisory(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        missing = "0x2222222222222222222222222222222222222222"
+        status = self._wallet_status({wallet: {
+            "lastScannedBlock": 1_000_000,
+            "scanRange": {"fromBlock": 100, "toBlock": 1_000_000},
+        }, missing: None})
+        canonical = status["chains"]["ethereum"]["canonical"]
+        self.assertEqual(1, canonical["coverage"]["recentWalletCount"])
+        self.assertEqual(1, canonical["coverage"]["missingWalletCount"])
+        self.assertTrue(canonical["coverageBacklog"])
+        self.assertFalse(canonical["refreshRecommended"])
+        self.assertEqual("verified", canonical["status"])
+        self.assertEqual([], status["summary"]["refreshJobs"])
+
+    def test_malformed_scan_ranges_never_count_as_recent_or_complete(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        ranges = [
+            None,
+            "bad-range",
+            {"fromBlock": 100},
+            {"fromBlock": 1_000_001, "toBlock": 1_000_000},
+            {"fromBlock": 100, "toBlock": 999_999},
+            {"fromBlock": 100, "toBlock": 1_000_001},
+            {"fromBlock": True, "toBlock": 1_000_000},
+            {"fromBlock": 100.5, "toBlock": 1_000_000},
+            {"fromBlock": "bad", "toBlock": 1_000_000},
+        ]
+        for scan_range in ranges:
+            with self.subTest(scan_range=scan_range):
+                status = self._wallet_status({wallet: {
+                    "lastScannedBlock": 1_000_000,
+                    "scanRange": scan_range,
+                }})
+                canonical = status["chains"]["ethereum"]["canonical"]
+                coverage = canonical["coverage"]
+                self.assertEqual(0, coverage["headFreshWalletCount"])
+                self.assertEqual(0, coverage["backfilledWalletCount"])
+                self.assertEqual(0, coverage["recentWalletCount"])
+                self.assertEqual(1, coverage["invalidRangeWalletCount"])
+                self.assertEqual("invalid_range", coverage["oldestWallets"][0]["status"])
+                self.assertTrue(canonical["coverageBacklog"])
+                self.assertIsNone(coverage["maxWalletBlockLag"])
+                self.assertEqual("unknown", canonical["walletSlaStatus"])
+                self.assertFalse(canonical["refreshRecommended"])
+
+    def test_wallet_ahead_of_live_head_is_reported_without_a_stale_repair(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        status = self._wallet_status({wallet: {
+            "lastScannedBlock": 1_000_001,
+            "scanRange": {"fromBlock": 100, "toBlock": 1_000_001},
+        }})
+        canonical = status["chains"]["ethereum"]["canonical"]
+        self.assertEqual(1, canonical["coverage"]["aheadWalletCount"])
+        self.assertEqual(0, canonical["coverage"]["recentWalletCount"])
+        self.assertEqual(-1, canonical["coverage"]["minWalletBlockLag"])
+        self.assertEqual("ahead", canonical["walletRecencyStatus"])
+        self.assertFalse(canonical["refreshRecommended"])
+
+    def test_unknown_live_head_does_not_fabricate_wallet_staleness(self):
+        wallet = "0x1111111111111111111111111111111111111111"
+        status = self._wallet_status({wallet: {
+            "lastScannedBlock": 900_000,
+            "scanRange": {"fromBlock": 100, "toBlock": 900_000},
+        }}, live_block=None)
+        canonical = status["chains"]["ethereum"]["canonical"]
+        self.assertEqual("unknown", canonical["walletRecencyStatus"])
+        self.assertEqual("unknown", canonical["walletSlaStatus"])
+        self.assertEqual(1, canonical["coverage"]["unknownRecencyWalletCount"])
+        self.assertEqual(0, canonical["coverage"]["laggingWalletCount"])
+        self.assertIsNone(canonical["coverage"]["maxWalletBlockLag"])
+        self.assertFalse(canonical["refreshRecommended"])
+
+    def test_oldest_wallet_samples_are_bounded_and_include_published_only_histories(self):
+        histories = {
+            f"0x{number:040x}": {
+                "lastScannedBlock": 900_000 + number,
+                "scanRange": {"fromBlock": 100, "toBlock": 900_000 + number},
+            } for number in range(1, 13)
+        }
+        status = self._wallet_status(histories, known_addresses=[])
+        coverage = status["chains"]["ethereum"]["canonical"]["coverage"]
+        self.assertEqual(12, coverage["knownAddressCount"])
+        self.assertEqual(12, coverage["laggingWalletCount"])
+        self.assertEqual(10, len(coverage["oldestWallets"]))
+        self.assertEqual(900_001, coverage["oldestWallets"][0]["lastScannedBlock"])
+        self.assertEqual(900_010, coverage["oldestWallets"][-1]["lastScannedBlock"])
+
     def _assert_refresh_job(
         self,
         jobs: list[dict],

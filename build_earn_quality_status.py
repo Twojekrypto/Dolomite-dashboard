@@ -23,6 +23,22 @@ QUALITY_STATUSES = (
     "unavailable",
     "unknown",
 )
+DIAGNOSTIC_SAMPLE_LIMIT = 50
+DIAGNOSTIC_SAMPLES_PER_REASON = 5
+DIAGNOSTIC_CATEGORY_PRIORITY = {
+    "mismatch": 0, "unavailable": 1, "coverage_incomplete": 2,
+    "source_missing": 3, "coverage_backlog": 4, "inferred": 5,
+}
+# Copy stored integer strings verbatim; diagnostics must not recompute financial values.
+DIAGNOSTIC_MARKET_FIELDS = (
+    "token", "symbol", "decimals", "status", "method", "strictStatus", "strictMethod", "strictReason",
+    "snapshotYield", "netflowYield", "diff", "recentCycleYield", "recentCycleDiff", "recentCycleNetFlow",
+    "firstDate", "firstPar", "firstWei", "lastDate", "lastPar", "lastWei", "isLatestSnapshot",
+    "canonicalHistoryCoverageStatus", "canonicalHistoryLastScannedBlock", "canonicalHistoryComparisonBlock",
+    "canonicalHistoryConsistencyStatus", "canonicalHistoryTotalDeltaWei", "canonicalHistoryNetflowDiffWei",
+    "canonicalHistoryHasBorrowAccount", "canonicalHistoryHasLegacyUnknownAccount",
+    "verificationBaseline", "preSnapshotCarryYield", "preSnapshotCarryResidual",
+)
 
 
 def _read_json(path: Path, default: Any) -> Any:
@@ -72,6 +88,10 @@ def _normalize_status(value: Any) -> str:
 def _ledger_market_quality(data_dir: Path, chain: str, address: str, market_id: str) -> Dict[str, str]:
     ledger_path = data_dir / "earn-verified-ledger" / chain / f"{address.lower()}.json"
     payload = _read_json(ledger_path, None)
+    return _market_quality_from_payload(payload, market_id)
+
+
+def _market_quality_from_payload(payload: Any, market_id: str) -> Dict[str, str]:
     if not isinstance(payload, dict):
         return {
             "status": "missing_ledger",
@@ -205,6 +225,75 @@ def _is_actionable_blocking(row: Dict[str, str]) -> bool:
     return not (_is_coverage_backlog(row) or _is_source_gap(row))
 
 
+def _diagnostic_category(quality: Dict[str, str]) -> str:
+    status = quality["status"]
+    # Preserve actual mismatches even when an independent coverage issue also exists.
+    if status in {"mismatch", "inferred"}:
+        return status
+    if status in {"missing_ledger", "missing_market"} or _is_source_gap(quality):
+        return "source_missing"
+    if _is_coverage_backlog(quality):
+        return "coverage_backlog"
+    return "coverage_incomplete" if status == "coverage_incomplete" else "unavailable"
+
+
+def _diagnostic_sort_key(sample: dict) -> tuple:
+    market_id = sample["marketId"]
+    market_key = (0, int(market_id)) if market_id.isdigit() else (1, market_id)
+    return DIAGNOSTIC_CATEGORY_PRIORITY[sample["category"]], sample["address"], market_key
+
+
+def _market_diagnostic(chain: str, address: str, market_id: str, payload: Any, quality: dict) -> dict:
+    ledger = payload if isinstance(payload, dict) else {}
+    markets = ledger.get("markets") or {}
+    market = markets.get(market_id) if isinstance(markets, dict) else None
+    market = market if isinstance(market, dict) else {}
+    source = {"ledger": f"earn-verified-ledger/{chain}/{address}.json"}
+    for key in ("snapshotDate", "generatedAt", "sourceBlock", "comparisonBlock"):
+        if key in ledger:
+            source[key] = ledger[key]
+    canonical = ledger.get("canonicalHistory")
+    if isinstance(canonical, dict):
+        source["canonicalHistory"] = {
+            key: canonical[key] for key in ("coverageStatus", "lastScannedBlock", "comparisonBlock")
+            if key in canonical
+        }
+    resolved = ledger.get("resolvedInterestLedger")
+    if isinstance(resolved, dict):
+        evidence = {key: resolved[key] for key in (
+            "snapshotDate", "generatedAt", "comparisonBlock", "strictStatus", "strictMethod",
+            "canonicalHistoryCoverageStatus",
+        ) if key in resolved}
+        verification = resolved.get("replayVerificationData") or {}
+        if isinstance(verification, dict) and isinstance(verification.get(market_id), dict):
+            evidence["replayVerificationData"] = verification[market_id]
+        source["resolvedInterestLedger"] = evidence
+    return {
+        "address": address, "marketId": market_id, **quality,
+        "category": _diagnostic_category(quality), "source": source,
+        "marketData": {key: market[key] for key in DIAGNOSTIC_MARKET_FIELDS if key in market},
+    }
+
+
+def _bounded_diagnostics(groups: dict, category_counts: Counter, non_strict: int) -> dict:
+    remaining = DIAGNOSTIC_SAMPLE_LIMIT
+    # Allocate the global budget to blocking discrepancies before inference/coverage samples.
+    for reason in sorted(groups, key=lambda key: (_diagnostic_sort_key(groups[key]["samples"][0])[0], key)):
+        group = groups[reason]
+        group["samples"] = group["samples"][:remaining]
+        remaining -= len(group["samples"])
+        group["omittedMarketCount"] = group["marketCount"] - len(group["samples"])
+    sample_count = DIAGNOSTIC_SAMPLE_LIMIT - remaining
+    return {
+        "sampleLimit": DIAGNOSTIC_SAMPLE_LIMIT,
+        "samplesPerReasonLimit": DIAGNOSTIC_SAMPLES_PER_REASON,
+        "sampleCount": sample_count,
+        "omittedMarketCount": non_strict - sample_count,
+        "categoryCounts": dict(sorted(category_counts.items())),
+        "byReason": dict(sorted(groups.items())),
+    }
+
+
 def build_quality_status(*, data_dir: Path, snapshot_date: Optional[str] = None) -> Dict[str, Any]:
     snapshot_manifest = _read_json(data_dir / "earn-snapshots" / "manifest.json", {})
     chains = sorted({chain for values in (snapshot_manifest.get("chains") or {}).values() for chain in (values or [])} & {"ethereum", "berachain", "arbitrum"})
@@ -223,18 +312,21 @@ def build_quality_status(*, data_dir: Path, snapshot_date: Optional[str] = None)
         actionable_blocking = 0
         coverage_backlog = 0
         source_gap = 0
+        diagnostic_groups: Dict[str, Any] = {}
+        diagnostic_category_counts: Counter = Counter()
 
         for raw_address, wallet_payload in wallets.items():
             address = str(raw_address).lower()
             markets = (wallet_payload.get("markets") or {}) if isinstance(wallet_payload, dict) else {}
             if not markets:
                 continue
+            ledger = _read_json(data_dir / "earn-verified-ledger" / chain / f"{address}.json", None)
             active_address_count += 1
             address_has_verified = False
             address_has_non_strict = False
             for market_id in markets:
                 active_market_count += 1
-                quality = _ledger_market_quality(data_dir, chain, address, str(market_id))
+                quality = _market_quality_from_payload(ledger, str(market_id))
                 status = quality["status"]
                 market_counts[status] += 1
                 method_counts[quality["method"]] += 1
@@ -245,6 +337,14 @@ def build_quality_status(*, data_dir: Path, snapshot_date: Optional[str] = None)
                 source_gap += 1 if _is_source_gap(quality) else 0
                 address_has_verified = address_has_verified or status == "verified"
                 address_has_non_strict = address_has_non_strict or status != "verified"
+                if status != "verified":
+                    sample = _market_diagnostic(chain, address, str(market_id), ledger, quality)
+                    diagnostic_category_counts[sample["category"]] += 1
+                    group = diagnostic_groups.setdefault(quality["reason"], {"marketCount": 0, "samples": []})
+                    group["marketCount"] += 1
+                    group["samples"].append(sample)
+                    group["samples"].sort(key=_diagnostic_sort_key)
+                    del group["samples"][DIAGNOSTIC_SAMPLES_PER_REASON:]
             if address_has_verified:
                 address_counts["hasVerifiedMarket"] += 1
             if address_has_non_strict:
@@ -277,6 +377,7 @@ def build_quality_status(*, data_dir: Path, snapshot_date: Optional[str] = None)
             "marketReasonCounts": dict(sorted((key, value) for key, value in reason_counts.items() if value)),
             "marketCoverageCounts": dict(sorted((key, value) for key, value in coverage_counts.items() if value)),
             "addressStatusCounts": dict(sorted(address_counts.items())),
+            "nonStrictDiagnostics": _bounded_diagnostics(diagnostic_groups, diagnostic_category_counts, non_strict),
         }
         totals["activeAddressCount"] += active_address_count
         totals["activeMarketCount"] += active_market_count
