@@ -192,7 +192,7 @@ jobs:
 
           matches = [
               run
-              for status in ("queued", "in_progress")
+              for status in ("queued", "in_progress", "pending", "waiting", "requested")
               for run in active_runs(status)
               if covers_requested_chain(run)
           ]

@@ -1,7 +1,11 @@
 import importlib.util
+import io
 import json
+import os
 import tempfile
+import textwrap
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -14,6 +18,50 @@ spec.loader.exec_module(plan_earn_watchdog_dispatch)
 
 
 class EarnWatchdogDispatchPlanTest(unittest.TestCase):
+    def test_planner_treats_every_nonterminal_run_as_an_active_chain_repair(self):
+        workflow = "update-earn-arbitrum-canonical-history.yml"
+        rows = plan_earn_watchdog_dispatch.build_dispatch_rows({"refreshWorkflows": [workflow]})
+        for status, expected in (("queued", {"arbitrum"}), ("in_progress", {"arbitrum"}),
+                                 ("pending", {"arbitrum"}), ("waiting", {"arbitrum"}),
+                                 ("requested", {"arbitrum"}), ("completed", set())):
+            with self.subTest(status=status):
+                run = {"databaseId": 123, "status": status, "displayTitle": "Refresh Arbitrum Canonical EARN History"}
+
+                def gh_output(argv, **_kwargs):
+                    query_status = argv[argv.index("--status") + 1]
+                    return json.dumps([run] if query_status == status else [])
+
+                with mock.patch.object(plan_earn_watchdog_dispatch.subprocess, "check_output", side_effect=gh_output):
+                    chains = plan_earn_watchdog_dispatch.collect_active_repair_chains(
+                        rows, lambda name: plan_earn_watchdog_dispatch._load_active_runs("owner/repo", name),
+                    )
+                self.assertEqual(expected, chains)
+
+    def test_monitor_inline_detector_blocks_nonterminal_matching_runs(self):
+        source = (ROOT / ".github/workflows/monitor-earn-freshness.yml").read_text(encoding="utf-8")
+        inline = source.split('active="$(python3 - "$workflow" "${chain:-}" <<\'PY\'\n', 1)[1]
+        inline = textwrap.dedent(inline.split("\n          PY\n", 1)[0])
+        for status, label, expected in (
+            ("queued", "ethereum", "1"), ("in_progress", "ethereum", "1"),
+            ("pending", "ethereum", "1"), ("waiting", "ethereum", "1"),
+            ("requested", "ethereum", "1"), ("pending", "arbitrum", "0"),
+            ("completed", "ethereum", "0"),
+        ):
+            with self.subTest(status=status, chain=label):
+                run = {"databaseId": 123, "status": status, "displayTitle": f"Refresh Netflow [{label}]"}
+
+                def gh_output(argv, **_kwargs):
+                    query_status = argv[argv.index("--status") + 1]
+                    return json.dumps([run] if query_status == status else [])
+
+                output = io.StringIO()
+                with mock.patch("subprocess.check_output", side_effect=gh_output), \
+                     mock.patch("sys.argv", ["monitor", "update-earn-netflow.yml", "ethereum"]), \
+                     mock.patch.dict(os.environ, {"GITHUB_REPOSITORY": "owner/repo"}), \
+                     redirect_stdout(output), redirect_stderr(io.StringIO()):
+                    exec(compile(inline, "monitor-inline-detector", "exec"), {})
+                self.assertEqual(expected, output.getvalue().strip())
+
     def test_old_status_cannot_redispatch_retired_networks(self):
         jobs = [{"workflow": "update-earn-netflow.yml", "inputs": {"chain": chain}}
                 for chain in ("mantle", "xlayer", "botanix", "polygonzkevm")]

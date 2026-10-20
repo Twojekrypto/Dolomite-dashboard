@@ -80,7 +80,7 @@ def collect_active_repair_chains(
 
 def _load_active_runs(repo: str, workflow: str) -> List[Dict[str, Any]]:
     runs: List[Dict[str, Any]] = []
-    for status in ("queued", "in_progress"):
+    for status in ("queued", "in_progress", "pending", "waiting", "requested"):
         output = subprocess.check_output(
             [
                 "gh",
