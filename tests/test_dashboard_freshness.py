@@ -177,6 +177,47 @@ class DashboardFreshnessTests(unittest.TestCase):
                 patch("sys.stdout", io.StringIO()):
             self.assertEqual(self.m.main(["--fail-on-stale"]), 0)
 
+    def test_accepted_repair_dispatch_waits_without_claiming_stale_data_is_fresh(self):
+        config = dict(self.config, artifacts=[self.asset])
+        output = io.StringIO()
+        with patch.dict("os.environ", {"GH_TOKEN": "test-token"}, clear=True), \
+                patch.object(self.m, "load_config", return_value=config), \
+                patch.object(self.m.time, "time", return_value=NOW), \
+                patch.object(self.m.HttpClient, "get_json", return_value={"generatedAt": NOW - 9*3600}), \
+                patch.object(self.m.GitHubAPI, "runs", return_value=[]), \
+                patch.object(self.m.GitHubAPI, "dispatch") as dispatch, patch("sys.stdout", output):
+            self.assertEqual(self.m.main(["--fail-on-stale"]), 0)
+            dispatch.assert_called_once_with(self.asset["workflow"], {})
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["rows"][0]["public"]["state"], "stale")
+        self.assertEqual(report["decisions"][0]["action"], "dispatched")
+
+    def test_rejected_repair_dispatch_still_fails_the_stale_alarm(self):
+        config = dict(self.config, artifacts=[self.asset])
+        with patch.dict("os.environ", {"GH_TOKEN": "test-token"}, clear=True), \
+                patch.object(self.m, "load_config", return_value=config), \
+                patch.object(self.m.time, "time", return_value=NOW), \
+                patch.object(self.m.HttpClient, "get_json", return_value={"generatedAt": NOW - 9*3600}), \
+                patch.object(self.m.GitHubAPI, "runs", return_value=[]), \
+                patch.object(self.m.GitHubAPI, "dispatch", side_effect=self.m.MonitorError("request_failed")), \
+                patch("sys.stdout", io.StringIO()):
+            self.assertEqual(self.m.main(["--fail-on-stale"]), 1)
+
+    def test_accepted_repair_does_not_hide_another_producer_left_outside_budget(self):
+        price = next(rule for rule in self.config["artifacts"] if rule["id"] == "dolo-price")
+        config = dict(self.config, artifacts=[self.asset, price], maxDispatchesPerRun=1)
+        output = io.StringIO()
+        with patch.dict("os.environ", {"GH_TOKEN": "test-token"}, clear=True), \
+                patch.object(self.m, "load_config", return_value=config), \
+                patch.object(self.m.time, "time", return_value=NOW), \
+                patch.object(self.m.HttpClient, "get_json", return_value={"generatedAt": NOW - 9*3600, "last_updated": NOW - 9*3600}), \
+                patch.object(self.m.GitHubAPI, "runs", return_value=[]), \
+                patch.object(self.m.GitHubAPI, "dispatch") as dispatch, patch("sys.stdout", output):
+            self.assertEqual(self.m.main(["--fail-on-stale"]), 1)
+            self.assertEqual(dispatch.call_count, 1)
+        self.assertEqual([decision["action"] for decision in json.loads(output.getvalue())["decisions"]],
+                         ["dispatched", "run_budget"])
+
     def test_r2_read_only_audit_does_not_fetch_raw_git_artifact(self):
         rule = next(a for a in self.config["artifacts"] if a["id"] == "dolo-liquidity")
         config = dict(self.config, artifacts=[rule])
