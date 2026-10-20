@@ -2,9 +2,13 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import earn_strict_rpc_evidence as evidence_module
 from earn_strict_rpc_evidence import fetch_strict_evidence
+from earn_strict_replay import build_strict_replay
+from rpc_client import RpcClient, RpcError
+from requests.exceptions import HTTPError
 from scan_earn_netflow import CHAINS as EARN_CHAIN_CONFIG
 
 
@@ -13,6 +17,7 @@ SECOND_ADDRESS = "0x3333333333333333333333333333333333333333"
 INDEX_SCALE = 10**18
 ARBITRUM_MARGIN = EARN_CHAIN_CONFIG["arbitrum"]["margin"].lower()
 BLOCK_HASH = "0x" + "ab" * 32
+ENDPOINTS = ["https://provider-a.invalid", "https://provider-b.invalid"]
 
 
 def load_evidence_cache(*args, **kwargs):
@@ -82,6 +87,27 @@ def index_log(*, market=7, borrow=12 * INDEX_SCALE // 10, supply=12 * INDEX_SCAL
         "transactionIndex": hex(transaction_index),
         "logIndex": hex(log_index),
     }
+
+
+def successful_rpc_response(payload):
+    if isinstance(payload, list):
+        return [successful_rpc_response(entry) for entry in payload]
+    if payload["method"] == "eth_getBlockByNumber":
+        result = {"number": payload["params"][0], "hash": BLOCK_HASH}
+    elif payload["method"] == "eth_getLogs":
+        result = [index_log()]
+    elif payload["method"] == "eth_call":
+        data = payload["params"][0]["data"]
+        result = (encode_current_index(12 * INDEX_SCALE // 10, 12 * INDEX_SCALE // 10)
+                  if data.startswith("0x56ea84b2") else encode_account_balances(7, -50, -60))
+    else:
+        raise AssertionError(f"Unexpected RPC method: {payload['method']}")
+    return {"jsonrpc": "2.0", "id": payload["id"], "result": result}
+
+
+def rejected_rpc_response(payload):
+    return {"jsonrpc": "2.0", "id": 1 if isinstance(payload, list) else payload["id"],
+            "error": {"code": -32602, "message": "valid pinned query rejected by provider"}}
 
 
 def history_payload():
@@ -165,6 +191,239 @@ class FakeRpcClient:
 
 
 class EarnStrictRpcEvidenceTest(unittest.TestCase):
+    def _fetch_with_transport(self, transport):
+        client = RpcClient(endpoints=ENDPOINTS, timeout=4, retries_per_endpoint=3, quiet=True)
+        with patch.object(RpcClient, "_post", autospec=True, side_effect=transport), patch("rpc_client.time.sleep"):
+            return fetch_strict_evidence(
+                "arbitrum", ADDRESS, history_payload(), comparison_block=123, client=client,
+            )
+
+    def test_pinned_reads_retry_json_rpc_rejection_on_a_distinct_provider(self):
+        for rejected_method in ("eth_getBlockByNumber", "eth_getLogs"):
+            with self.subTest(rejected_method=rejected_method):
+                attempts = []
+
+                def transport(client, endpoint, payload):
+                    if not isinstance(payload, list) and payload["method"] == rejected_method:
+                        attempts.append((endpoint, payload["params"]))
+                        if endpoint == ENDPOINTS[0]:
+                            return rejected_rpc_response(payload)
+                    return successful_rpc_response(payload)
+
+                evidence = self._fetch_with_transport(transport)
+                self.assertEqual([ENDPOINTS[0], ENDPOINTS[1]], [row[0] for row in attempts])
+                self.assertEqual(attempts[0][1], attempts[1][1])
+                if rejected_method == "eth_getBlockByNumber":
+                    self.assertEqual(["0x64", False], attempts[1][1])
+                else:
+                    self.assertEqual(BLOCK_HASH, attempts[1][1][0]["blockHash"])
+                    self.assertNotIn("fromBlock", attempts[1][1][0])
+                self.assertEqual("-60", evidence["currentPositions"]["5|7"]["wei"])
+
+    def test_rejected_snapshot_batch_recovers_with_single_calls_at_the_same_block(self):
+        batches = []
+        singles = []
+
+        def transport(client, endpoint, payload):
+            if isinstance(payload, list):
+                batches.append(payload)
+                return rejected_rpc_response(payload)
+            if payload["method"] == "eth_call":
+                singles.append(payload)
+            return successful_rpc_response(payload)
+
+        evidence = self._fetch_with_transport(transport)
+        self.assertEqual(1, len(batches))
+        self.assertEqual(2, len(singles))
+        self.assertEqual(["0x7b", "0x7b"], [row["params"][1] for row in singles])
+        self.assertEqual([row["params"] for row in batches[0]], [row["params"] for row in singles])
+        self.assertEqual("-50", evidence["currentPositions"]["5|7"]["par"])
+        self.assertEqual({}, evidence["errors"])
+
+    def test_successful_pinned_provider_is_reused_for_later_event_reads(self):
+        history = history_payload()
+        events = history["accounts"]["5"]["markets"]["7"]["events"]
+        events.append({**events[0], "eventKey": "e2", "blockNumber": 101, "deltaWei": "0"})
+        next_hash = "0x" + "cd" * 32
+        log_attempts = []
+        block_attempts = []
+
+        def transport(client, endpoint, payload):
+            if not isinstance(payload, list) and payload["method"] == "eth_getBlockByNumber":
+                block_attempts.append(endpoint)
+                result = successful_rpc_response(payload)
+                if payload["params"][0] == "0x65":
+                    result["result"]["hash"] = next_hash
+                return result
+            if not isinstance(payload, list) and payload["method"] == "eth_getLogs":
+                log_attempts.append(endpoint)
+                if endpoint == ENDPOINTS[0]:
+                    return rejected_rpc_response(payload)
+                result = successful_rpc_response(payload)
+                if payload["params"][0]["blockHash"] == next_hash:
+                    result["result"][0].update({"blockHash": next_hash, "blockNumber": "0x65"})
+                return result
+            return successful_rpc_response(payload)
+
+        client = RpcClient(endpoints=ENDPOINTS, timeout=4, retries_per_endpoint=3, quiet=True)
+        with patch.object(RpcClient, "_post", autospec=True, side_effect=transport), patch("rpc_client.time.sleep"):
+            evidence = fetch_strict_evidence(
+                "arbitrum", ADDRESS, history, comparison_block=123, client=client,
+            )
+        self.assertEqual([ENDPOINTS[0], ENDPOINTS[1], ENDPOINTS[1]], log_attempts)
+        self.assertEqual(ENDPOINTS, block_attempts)
+        self.assertEqual({"e1", "e2"}, set(evidence["eventIndexes"]))
+        self.assertEqual(ENDPOINTS[1], client.last_endpoint)
+
+    def test_empty_index_log_result_retries_distinct_provider_without_changing_query(self):
+        attempts = []
+
+        def transport(client, endpoint, payload):
+            result = successful_rpc_response(payload)
+            if not isinstance(payload, list) and payload["method"] == "eth_getLogs":
+                attempts.append((endpoint, payload["params"]))
+                if endpoint == ENDPOINTS[0]:
+                    result["result"] = []
+            return result
+
+        evidence = self._fetch_with_transport(transport)
+        self.assertEqual(ENDPOINTS, [row[0] for row in attempts])
+        self.assertEqual(attempts[0][1], attempts[1][1])
+        self.assertEqual(BLOCK_HASH, attempts[1][1][0]["blockHash"])
+        self.assertEqual(str(12 * INDEX_SCALE // 10), evidence["eventIndexes"]["e1"])
+        self.assertEqual({}, evidence["errors"])
+
+    def test_capacity_exhausted_provider_stays_disabled_across_later_pinned_reads(self):
+        attempts = []
+
+        def transport(client, endpoint, payload):
+            result = successful_rpc_response(payload)
+            if not isinstance(payload, list) and payload["method"] == "eth_getLogs":
+                attempts.append(endpoint)
+                if endpoint == ENDPOINTS[0]:
+                    return {"jsonrpc": "2.0", "id": payload["id"],
+                            "error": {"code": -32005, "message": "monthly capacity exceeded"}}
+                if attempts.count(ENDPOINTS[1]) > 1:
+                    result["result"] = []
+            return result
+
+        client = RpcClient(endpoints=ENDPOINTS, timeout=4, retries_per_endpoint=3, quiet=True)
+        with patch.object(RpcClient, "_post", autospec=True, side_effect=transport), patch("rpc_client.time.sleep"):
+            first = fetch_strict_evidence(
+                "arbitrum", ADDRESS, history_payload(), comparison_block=123, client=client,
+            )
+            second = fetch_strict_evidence(
+                "arbitrum", ADDRESS, history_payload(), comparison_block=123, client=client,
+            )
+        self.assertIn("e1", first["eventIndexes"])
+        self.assertEqual("missing_event_index", second["errors"]["e1"])
+        self.assertEqual([ENDPOINTS[0], ENDPOINTS[1], ENDPOINTS[1]], attempts)
+        self.assertEqual({ENDPOINTS[0]}, client._disabled_endpoints)
+
+    def test_capacity_rejected_batch_disables_provider_before_single_call_recovery(self):
+        attempts = []
+
+        def transport(client, endpoint, payload):
+            if isinstance(payload, list) or payload["method"] == "eth_call":
+                attempts.append((endpoint, isinstance(payload, list)))
+                if endpoint == ENDPOINTS[0]:
+                    return {"jsonrpc": "2.0", "id": 1 if isinstance(payload, list) else payload["id"],
+                            "error": {"code": -32005, "message": "monthly capacity exceeded"}}
+            return successful_rpc_response(payload)
+
+        evidence = self._fetch_with_transport(transport)
+        self.assertEqual([(ENDPOINTS[0], True), (ENDPOINTS[1], False), (ENDPOINTS[1], False)], attempts)
+        self.assertEqual("-60", evidence["currentPositions"]["5|7"]["wei"])
+        self.assertEqual({}, evidence["errors"])
+
+    def test_empty_logs_and_unavailable_alternates_keep_missing_index_fail_closed(self):
+        for alternate_empty in (True, False):
+            with self.subTest(alternate_empty=alternate_empty):
+                attempts = []
+
+                def transport(client, endpoint, payload):
+                    result = successful_rpc_response(payload)
+                    if not isinstance(payload, list) and payload["method"] == "eth_getLogs":
+                        attempts.append(endpoint)
+                        if endpoint == ENDPOINTS[1] and not alternate_empty:
+                            return rejected_rpc_response(payload)
+                        result["result"] = []
+                    return result
+
+                evidence = self._fetch_with_transport(transport)
+                self.assertEqual(ENDPOINTS, attempts)
+                self.assertEqual({}, evidence["eventIndexes"])
+                self.assertEqual("missing_event_index", evidence["errors"]["e1"])
+                replay = build_strict_replay(history_payload(), evidence)
+                self.assertEqual("coverage_incomplete", replay["strictStatus"])
+                self.assertEqual({}, replay["markets"])
+
+    def test_missing_or_undecodable_batch_balance_retries_only_that_pinned_read(self):
+        for missing in (None, "0x", "0x0"):
+            with self.subTest(missing=missing):
+                singles = []
+
+                def transport(client, endpoint, payload):
+                    result = successful_rpc_response(payload)
+                    if isinstance(payload, list):
+                        result[1]["result"] = missing
+                    elif payload["method"] == "eth_call":
+                        singles.append(payload)
+                    return result
+
+                evidence = self._fetch_with_transport(transport)
+                self.assertEqual(1, len(singles))
+                self.assertTrue(singles[0]["params"][0]["data"].startswith("0x6a8194e7"))
+                self.assertEqual("0x7b", singles[0]["params"][1])
+                self.assertEqual("-60", evidence["currentPositions"]["5|7"]["wei"])
+                self.assertEqual({}, evidence["errors"])
+
+    def test_all_providers_rejecting_snapshot_balance_remains_coverage_incomplete(self):
+        attempts = []
+
+        def transport(client, endpoint, payload):
+            if isinstance(payload, list):
+                results = successful_rpc_response(payload)
+                results[1]["result"] = None
+                return results
+            if payload["method"] == "eth_call":
+                attempts.append((endpoint, payload["params"]))
+                return rejected_rpc_response(payload)
+            return successful_rpc_response(payload)
+
+        evidence = self._fetch_with_transport(transport)
+        self.assertEqual([ENDPOINTS[0], ENDPOINTS[1]], [row[0] for row in attempts])
+        self.assertEqual(attempts[0][1], attempts[1][1])
+        self.assertEqual("0x7b", attempts[0][1][1])
+        self.assertEqual({}, evidence["currentPositions"])
+        self.assertEqual("missing_current_positions", evidence["errors"]["currentPositions:5"])
+        replay = build_strict_replay(history_payload(), evidence)
+        self.assertEqual("coverage_incomplete", replay["strictStatus"])
+        self.assertEqual({}, replay["markets"])
+
+    def test_http_failures_try_each_distinct_provider_once_without_nested_rotation(self):
+        attempts = []
+
+        def transport(client, endpoint, payload):
+            if not isinstance(payload, list) and payload["method"] == "eth_getLogs":
+                attempts.append(endpoint)
+                raise HTTPError("provider unavailable")
+            return successful_rpc_response(payload)
+
+        with self.assertRaises(RpcError):
+            self._fetch_with_transport(transport)
+        self.assertEqual(ENDPOINTS, attempts)
+
+    def test_caller_without_endpoint_metadata_keeps_missing_batch_evidence_fail_closed(self):
+        client = FakeRpcClient([index_log()])
+        with patch.object(client, "eth_call_batch", return_value=[encode_current_index(INDEX_SCALE, INDEX_SCALE), None]):
+            evidence = fetch_strict_evidence(
+                "arbitrum", ADDRESS, history_payload(), comparison_block=123, client=client,
+            )
+        self.assertEqual({}, evidence["currentPositions"])
+        self.assertEqual("missing_current_positions", evidence["errors"]["currentPositions:5"])
+        self.assertFalse(any(call[0] == "eth_call" for call in client.calls))
+
     def test_fetches_exact_event_index_and_pinned_signed_position(self):
         fake_client = FakeRpcClient([index_log()])
 
@@ -240,6 +499,39 @@ class EarnStrictRpcEvidenceTest(unittest.TestCase):
         self.assertEqual(str(13 * INDEX_SCALE // 10), second["currentIndexes"]["7"]["supplyIndex"])
         self.assertEqual({"hits": 0, "misses": 1, "skipped": 0}, first_diagnostics)
         self.assertEqual({"hits": 1, "misses": 0, "skipped": 0}, second_diagnostics)
+
+    def test_empty_index_logs_are_not_persisted_as_successful_evidence(self):
+        cache = {}
+        first = fetch_strict_evidence(
+            "arbitrum", ADDRESS, history_payload(), comparison_block=123,
+            client=FakeRpcClient([]), evidence_cache=cache,
+        )
+        self.assertEqual("missing_event_index", first["errors"]["e1"])
+        self.assertEqual({}, cache.get("entries", {}))
+        diagnostics = {}
+        recovered = fetch_strict_evidence(
+            "arbitrum", ADDRESS, history_payload(), comparison_block=123,
+            client=FakeRpcClient([index_log()]), evidence_cache=cache, diagnostics=diagnostics,
+        )
+        self.assertIn("e1", recovered["eventIndexes"])
+        self.assertEqual({"hits": 0, "misses": 1, "skipped": 0}, diagnostics)
+
+    def test_legacy_cached_empty_index_logs_are_evicted_and_refetched(self):
+        cache = {}
+        fetch_strict_evidence(
+            "arbitrum", ADDRESS, history_payload(), comparison_block=123,
+            client=FakeRpcClient([index_log()]), evidence_cache=cache,
+        )
+        next(iter(cache["entries"].values()))["logs"] = []
+        diagnostics = {}
+        client = FakeRpcClient([index_log()])
+        recovered = fetch_strict_evidence(
+            "arbitrum", ADDRESS, history_payload(), comparison_block=123,
+            client=client, evidence_cache=cache, diagnostics=diagnostics,
+        )
+        self.assertIn("e1", recovered["eventIndexes"])
+        self.assertEqual(1, len([call for call in client.calls if call[0] == "eth_getLogs"]))
+        self.assertEqual({"hits": 0, "misses": 1, "skipped": 1}, diagnostics)
 
     def test_changed_block_hash_refetches_and_cache_survives_disk_round_trip(self):
         next_hash = "0x" + "cd" * 32

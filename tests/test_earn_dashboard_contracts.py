@@ -44,6 +44,37 @@ NETFLOW_WORKFLOW = ROOT / ".github" / "workflows" / "update-earn-netflow.yml"
 LIQUIDATION_PREVIEW = ROOT / "liquidation-preview.html"
 
 
+class EarnCanonicalQueueContractsTest(unittest.TestCase):
+    def test_shared_canonical_writers_queue_pending_repairs_without_cancellation(self):
+        groups = {f"earn-{chain}-canonical-history" for chain in ("ethereum", "arbitrum", "berachain")}
+        checked = set()
+        for path in sorted((ROOT / ".github/workflows").glob("*.yml")):
+            source = path.read_text(encoding="utf-8")
+            if not any(f"group: {group}\n" in source for group in groups):
+                continue
+            checked.add(path)
+            with self.subTest(workflow=path.name):
+                lines = source.splitlines()
+                start = next(i for i, line in enumerate(lines) if line.strip() == "concurrency:")
+                indent = len(lines[start]) - len(lines[start].lstrip())
+                concurrency = {}
+                for line in lines[start + 1:]:
+                    if not line.strip():
+                        continue
+                    depth = len(line) - len(line.lstrip())
+                    if depth <= indent:
+                        break
+                    if depth == indent + 2 and ":" in line:
+                        key, value = line.strip().split(":", 1)
+                        concurrency[key] = value.strip()
+                self.assertEqual("max", concurrency.get("queue"), "new head refreshes must retain queued repairs")
+                self.assertEqual("false", concurrency.get("cancel-in-progress"), "canonical writers must remain serialized")
+        self.assertTrue({
+            ETHEREUM_CANONICAL_WORKFLOW, ARBITRUM_CANONICAL_WORKFLOW, BERACHAIN_CANONICAL_WORKFLOW,
+            BERACHAIN_BORROW_ROUTE_WORKFLOW, EARN_COVERAGE_BACKFILL_WORKFLOW, EARN_STRICT_REPAIR_WORKFLOW,
+        }.issubset(checked))
+
+
 class EarnDashboardContractsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

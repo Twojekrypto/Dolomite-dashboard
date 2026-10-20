@@ -11,7 +11,7 @@ import re
 from typing import Dict, Iterable, Optional
 
 from earn_strict_replay import strict_event_key
-from rpc_client import RpcClient
+from rpc_client import RpcClient, RpcError
 from scan_earn_netflow import CHAINS as EARN_CHAIN_CONFIG
 
 
@@ -122,9 +122,97 @@ def _cache_key(identity: dict) -> str:
     return hashlib.sha256(serialized.encode("ascii")).hexdigest()
 
 
+def _pinned_endpoint_clients(client):
+    endpoints = getattr(client, "endpoints", None)
+    if not isinstance(endpoints, (list, tuple)) or not endpoints or any(
+        not isinstance(endpoint, str) or not endpoint for endpoint in endpoints
+    ):
+        return None
+    distinct = list(dict.fromkeys(endpoints))
+    preferred = getattr(client, "last_endpoint", None)
+    if preferred not in distinct:
+        preferred = endpoints[_integer(getattr(client, "_idx", 0), 0) % len(endpoints)]
+    offset = distinct.index(preferred)
+    ordered = distinct[offset:] + distinct[:offset]
+    disabled = getattr(client, "_disabled_endpoints", set())
+    return [(endpoint, RpcClient(
+        endpoints=[endpoint], timeout=client.timeout,
+        retries_per_endpoint=1, quiet=client.quiet,
+    )) for endpoint in ordered if endpoint not in disabled]
+
+
+def _pinned_rpc_call(client, method, params, *, decoder=None):
+    """Keep one attempt per distinct provider, with identical pinned parameters."""
+    endpoint_clients = _pinned_endpoint_clients(client)
+    if endpoint_clients is None:
+        return client.call(method, params)
+    last_error = RpcError("No available endpoint for pinned read")
+    empty_logs = False
+    for endpoint, bounded_client in endpoint_clients:
+        try:
+            result = bounded_client.call(method, params)
+        except RpcError as exc:
+            last_error = exc
+            continue
+        finally:
+            client._disabled_endpoints.update(bounded_client._disabled_endpoints)
+        if method == "eth_getLogs" and result == []:
+            empty_logs = True
+            continue
+        if decoder is not None:
+            try:
+                decoded = decoder(result)
+            except (TypeError, ValueError):
+                decoded = None
+            if decoded is None:
+                last_error = RpcError("Missing or malformed pinned result")
+                continue
+        client.last_endpoint = endpoint
+        client._idx = client.endpoints.index(endpoint)
+        return result
+    if empty_logs:
+        return []
+    raise last_error
+
+
+def _pinned_snapshot_batch(client, call_specs, block_tag):
+    calls = [(spec[2], spec[3]) for spec in call_specs]
+    endpoint_clients = _pinned_endpoint_clients(client)
+    if endpoint_clients is None:
+        return client.eth_call_batch(calls, block=block_tag)
+    bounded_client = endpoint_clients[0][1] if endpoint_clients else None
+    try:
+        results = bounded_client.eth_call_batch(calls, block=block_tag) if bounded_client else []
+    except (RpcError, TypeError, ValueError):
+        results = []
+    finally:
+        if bounded_client is not None:
+            client._disabled_endpoints.update(bounded_client._disabled_endpoints)
+    results = list(results) if isinstance(results, (list, tuple)) else []
+    for index, spec in enumerate(call_specs):
+        decoder = _decode_current_index if spec[0] == "index" else decode_account_balances
+        result = results[index] if index < len(results) else None
+        try:
+            decoded = decoder(result)
+        except (TypeError, ValueError):
+            decoded = None
+        if decoded is None:
+            try:
+                result = _pinned_rpc_call(
+                    client, "eth_call", [{"to": spec[2], "data": spec[3]}, block_tag], decoder=decoder,
+                )
+            except RpcError:
+                result = None
+        if index < len(results):
+            results[index] = result
+        else:
+            results.append(result)
+    return results
+
+
 def _validated_block_hash(client: RpcClient, block_number: int) -> str:
     block_tag = hex(block_number)
-    block = client.call("eth_getBlockByNumber", [block_tag, False])
+    block = _pinned_rpc_call(client, "eth_getBlockByNumber", [block_tag, False])
     if not isinstance(block, dict) or _integer(block.get("number"), None) != block_number:
         raise ValueError(f"Invalid block provenance for {block_number}")
     block_hash = str(block.get("hash") or "").lower()
@@ -187,6 +275,9 @@ def _cached_index_logs(cache: dict, identity: dict, max_entries: int):
     except (TypeError, ValueError):
         cache["entries"].pop(key, None)
         return None, True
+    if not rows:
+        cache["entries"].pop(key, None)
+        return None, True
     cache["clock"] += 1
     entry["used"] = cache["clock"]
     cache["entries"].pop(key)
@@ -195,6 +286,8 @@ def _cached_index_logs(cache: dict, identity: dict, max_entries: int):
 
 
 def _store_index_logs(cache: dict, identity: dict, rows: list[dict], max_entries: int) -> None:
+    if not rows:
+        return  # Empty responses cannot establish the event index needed for strict replay.
     cache = _prepare_evidence_cache(cache, max_entries)
     cache["clock"] += 1
     cache["entries"][_cache_key(identity)] = {
@@ -397,7 +490,7 @@ def fetch_strict_evidence(
                     cache_stats["hits"] += 1
             if rows is None:
                 cache_stats["misses"] += 1
-                fetched = client.call("eth_getLogs", [{
+                fetched = _pinned_rpc_call(client, "eth_getLogs", [{
                     "address": margin,
                     "blockHash": block_hash,
                     "topics": [index_topic, market_topics],
@@ -468,10 +561,7 @@ def fetch_strict_evidence(
             GET_ACCOUNT_BALANCES + _pad_address(address) + _pad_uint(account),
         ))
     block_tag = hex(comparison_block)
-    call_results = client.eth_call_batch(
-        [(spec[2], spec[3]) for spec in call_specs],
-        block=block_tag,
-    ) if call_specs else []
+    call_results = _pinned_snapshot_batch(client, call_specs, block_tag) if call_specs else []
 
     current_indexes = {}
     current_positions = {}

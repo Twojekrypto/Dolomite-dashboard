@@ -26,6 +26,7 @@ jobs:
     timeout-minutes: 105
     concurrency:
       group: ${{ matrix.concurrency_group }}
+      queue: max
       cancel-in-progress: false
     strategy:
       fail-fast: false
