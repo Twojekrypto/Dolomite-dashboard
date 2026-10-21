@@ -13,6 +13,7 @@ import argparse
 import json
 import time
 from datetime import datetime, timezone
+from http.client import HTTPException
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -144,7 +145,7 @@ def _graphql_query(endpoint, query, variables=None, timeout=60, retries=3):
             if data.get("errors"):
                 raise RuntimeError(data["errors"][0].get("message") or "GraphQL error")
             return data.get("data") or {}
-        except (HTTPError, URLError, TimeoutError, OSError, RuntimeError, ValueError) as exc:
+        except (HTTPError, URLError, HTTPException, TimeoutError, OSError, RuntimeError, ValueError) as exc:
             last_error = exc
             if attempt + 1 < retries:
                 time.sleep(1.5 * (attempt + 1))

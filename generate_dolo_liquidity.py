@@ -1256,6 +1256,7 @@ def build_v3_rows(
     pool_state: dict[str, Any],
     *,
     contract_addresses: set[str] | None = None,
+    initial_liquidity: dict[int, int] | None = None,
 ) -> dict[str, Any]:
     """Build exact v3 active and history rows from mapped NPM evidence."""
     chain_key = str(pool.get("chainKey") or "").strip().lower()
@@ -1275,6 +1276,12 @@ def build_v3_rows(
 
     owners: dict[int, str] = {}
     position_liquidity: defaultdict[int, int] = defaultdict(int)
+    for token_id, amount in (initial_liquidity or {}).items():
+        token_id = _exact_int(token_id, "initial V3 tokenId")
+        amount = _exact_int(amount, "initial V3 liquidity")
+        if token_id < 0 or amount < 0:
+            raise ValueError("initial V3 token IDs and liquidity must be nonnegative")
+        position_liquidity[token_id] = amount
     history = []
     ordered_events = sorted(
         mapped_events,
@@ -4807,16 +4814,21 @@ def _build_uniswap_v3_live_source(
 
 
 def _build_bulla_v3_live_source(
-    registry: dict[str, Any], pool: dict[str, Any], latest_block: int
+    registry: dict[str, Any], pool: dict[str, Any], latest_block: int,
+    *, previous_artifact: dict[str, Any] | None = None, full_history: bool = False,
 ) -> dict[str, Any]:
     chain_key = pool["chainKey"]
     chain = registry["chains"][chain_key]
     config = chain["adapters"]["bulla-v3"]
     position_manager = config["positionManager"]
-    scan_start = max(
-        chain["discoveryStartBlock"],
-        latest_block - BULLA_BOUNDED_LOOKBACK_BLOCKS,
+    previous = {} if full_history else (previous_artifact or {})
+    source_key = f"{chain_key}:bulla-v3"
+    context = incremental_pool_context(
+        previous, source_key, pool["identifier"], chain["discoveryStartBlock"],
     )
+    scan_start = context["scanStart"]
+    if not context["incremental"] and not full_history:
+        scan_start = max(scan_start, latest_block - BULLA_BOUNDED_LOOKBACK_BLOCKS)
     increase_logs = _routescan_logs(
         chain["chainId"],
         position_manager,
@@ -4824,7 +4836,11 @@ def _build_bulla_v3_live_source(
         scan_start,
         latest_block,
     )
-    token_ids = select_bulla_pool_token_ids(increase_logs, pool["identifier"])
+    token_ids = context["tokenIds"] | select_bulla_pool_token_ids(increase_logs, pool["identifier"])
+    token_ids.update(
+        _raw_integer(row["positionId"], "historical Bulla tokenId")
+        for row in context["history"] if row.get("positionId") is not None
+    )
     if not token_ids:
         raise RuntimeError("Bulla pool emitted no attributable position events")
     decrease_logs = _routescan_logs(
@@ -4846,24 +4862,20 @@ def _build_bulla_v3_live_source(
         and (event["kind"] != "increase" or event.get("pool") == pool["identifier"])
     ]
     related.sort(key=lambda row: (row["blockNumber"], row["transactionIndex"], row["logIndex"]))
-    first_blocks = {
-        token_id: min(event["blockNumber"] for event in related if event["tokenId"] == token_id)
-        for token_id in token_ids
-    }
+    first_blocks = first_v3_increase_blocks(related)
+    token0, = _eth_call(chain_key, pool["identifier"], "token0()", ["address"])
+    token1, = _eth_call(chain_key, pool["identifier"], "token1()", ["address"])
     snapshots = {}
-    unresolved = []
     for token_id in sorted(token_ids):
-        try:
-            snapshot = _bulla_position(chain_key, position_manager, token_id)
-            if snapshot["token0"] == ZERO_ADDRESS:
-                snapshot = _bulla_position(
-                    chain_key, position_manager, token_id, block=first_blocks[token_id]
-                )
-            if DOLO_ADDRESS not in {snapshot["token0"], snapshot["token1"]}:
-                raise ValueError("Bulla position does not contain DOLO")
-            snapshots[token_id] = snapshot
-        except Exception as exc:
-            unresolved.append({"tokenId": token_id, "reason": sanitize_error(exc)})
+        snapshot = _bulla_position(chain_key, position_manager, token_id)
+        if snapshot["token0"] == ZERO_ADDRESS:
+            if snapshot["liquidity"] != 0:
+                raise ValueError("Bulla zeroed position metadata has positive liquidity")
+            # Burned NFTs retain no position metadata; pool tokens are immutable.
+            snapshot = {**snapshot, "token0": str(token0).lower(), "token1": str(token1).lower()}
+        if DOLO_ADDRESS not in {snapshot["token0"], snapshot["token1"]}:
+            raise ValueError("Bulla position does not contain DOLO")
+        snapshots[token_id] = snapshot
     mapped = []
     for event in related:
         token_id = event["tokenId"]
@@ -4879,18 +4891,14 @@ def _build_bulla_v3_live_source(
                 "fee": 0,
                 "tickLower": snapshot["tickLower"],
                 "tickUpper": snapshot["tickUpper"],
-                "snapshotBlock": first_blocks[token_id],
+                "snapshotBlock": first_blocks.get(token_id, latest_block),
             }
         )
     latest_positions = {}
     for token_id, snapshot in snapshots.items():
         if snapshot["liquidity"] <= 0:
             continue
-        try:
-            owner = _bulla_owner(chain_key, position_manager, token_id)
-        except Exception as exc:
-            unresolved.append({"tokenId": token_id, "reason": sanitize_error(exc)})
-            continue
+        owner = _bulla_owner(chain_key, position_manager, token_id)
         latest_positions[token_id] = {
             **snapshot,
             "pool": pool["identifier"],
@@ -4905,17 +4913,25 @@ def _build_bulla_v3_live_source(
                 contract_addresses.add(owner)
         except Exception:
             contract_addresses.add(owner)
-    token0, = _eth_call(chain_key, pool["identifier"], "token0()", ["address"])
-    token1, = _eth_call(chain_key, pool["identifier"], "token1()", ["address"])
     state = _eth_call(
         chain_key, pool["identifier"], "globalState()",
         ["uint160", "int24", "uint16", "uint8", "uint16", "bool"],
     )
     decimals0, = _eth_call(chain_key, str(token0), "decimals()", ["uint8"])
     decimals1, = _eth_call(chain_key, str(token1), "decimals()", ["uint8"])
+    initial_liquidity = {}
+    history_events = mapped
+    if context["incremental"]:
+        cursor = next(source["lastScannedBlock"] for source in previous["sources"] if source["key"] == source_key)
+        history_events = [event for event in mapped if event["blockNumber"] > cursor]
+        initial_liquidity = {
+            int(row["positionId"]): _raw_integer(row["liquidityRaw"], "previous Bulla liquidity")
+            for row in previous.get("activePositions", [])
+            if row.get("sourceKey") == source_key and row.get("poolId") == pool["identifier"]
+        }
     result = build_v3_rows(
         pool,
-        mapped,
+        history_events,
         latest_positions,
         {
             "sqrtPriceX96": int(state[0]),
@@ -4924,13 +4940,15 @@ def _build_bulla_v3_live_source(
             "decimals1": int(decimals1),
         },
         contract_addresses=contract_addresses,
+        initial_liquidity=initial_liquidity,
     )
+    if context["incremental"]:
+        result["history"] = [*context["history"], *result["history"]]
     for row in result["history"]:
         if row.get("quality") == "verified":
             row["quality"] = "partial"
     result["sourceStatus"] = "partial"
     result["unresolved"] = [
-        *unresolved,
         {
             "reason": (
                 "Bulla discovery is bounded to recent blocks and historical standalone "

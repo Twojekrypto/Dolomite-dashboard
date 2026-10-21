@@ -2502,6 +2502,148 @@ class LiveAdapterOrchestrationTests(unittest.TestCase):
 
         self.assertEqual(token_ids, {7})
 
+    def test_bulla_refresh_retains_old_nft_discovery_but_reads_fresh_state(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(row for row in registry["pools"] if row["adapter"] == "bulla-v3")
+        source_key = "berachain:bulla-v3"
+        previous = {
+            "sources": [{"key": source_key, "lastScannedBlock": 4_500_000}],
+            "activePositions": [{
+                "sourceKey": source_key, "poolId": pool["identifier"],
+                "positionId": "77", "positionType": "concentrated_nft",
+                "liquidityRaw": "200", "custodian": "0x" + "aa" * 20,
+            }],
+            "history": [{"id": "old-event", "sourceKey": source_key,
+                         "poolId": pool["identifier"], "positionId": "77",
+                         "blockNumber": 3_000_000, "logIndex": 0, "quality": "partial"}],
+        }
+        owner = "0x" + "bb" * 20
+        def decrease(amount):
+            return {"address": registry["chains"]["berachain"]["adapters"]["bulla-v3"]["positionManager"],
+                    "blockNumber": 4_500_001, "transactionIndex": 0, "logIndex": 1,
+                    "transactionHash": "0x" + "11" * 32, "blockHash": "0x" + "22" * 32,
+                    "timestamp": 1_700_000_000, "removed": False,
+                    "topics": [liquidity.event_topic(liquidity.V3_EVENT_SIGNATURES["decrease"]),
+                               "0x" + f"{77:064x}"],
+                    "data": "0x" + encode(["uint128", "uint256", "uint256"], [amount, 10, 20]).hex()}
+        for current_liquidity, decreases, burned in [
+            (200, [], False), (0, [decrease(200)], False),
+            (150, [decrease(50)], False), (0, [decrease(200)], True),
+        ]:
+            with self.subTest(current_liquidity=current_liquidity, burned=burned), patch.object(
+                liquidity, "_routescan_logs", side_effect=[[], decreases]
+            ) as logs, patch.object(liquidity, "_bulla_position", return_value={
+                "token0": liquidity.ZERO_ADDRESS if burned else DOLO,
+                "token1": liquidity.ZERO_ADDRESS if burned else QUOTE,
+                "tickLower": 0 if burned else -100,
+                "tickUpper": 0 if burned else 100, "liquidity": current_liquidity,
+            }), patch.object(liquidity, "_bulla_owner", return_value=owner), patch.object(
+                liquidity, "_eth_code", return_value="0x"
+            ), patch.object(liquidity, "_eth_call", side_effect=[
+                (DOLO,), (QUOTE,), (liquidity.Q96, 0, 0, 0, 0, False), (18,), (18,),
+            ]):
+                result = liquidity.build_registered_source(
+                    registry, source_key, [pool], 4_500_001,
+                    previous_artifact=previous,
+                )
+                self.assertEqual(result["sourceStatus"], "partial")
+                self.assertEqual(result["history"][:1], previous["history"])
+                self.assertEqual(len(result["history"]), 1 + len(decreases))
+                if decreases:
+                    self.assertEqual(result["history"][-1]["action"], "Closed" if current_liquidity == 0 else "Removed")
+                    self.assertEqual(result["history"][-1]["doloRaw"], "10")
+                    self.assertEqual(result["history"][-1]["quality"], "partial")
+                self.assertGreater(logs.call_args_list[0].args[3], 4_400_000)
+                if current_liquidity:
+                    self.assertEqual(len(result["activePositions"]), 1)
+                    row = result["activePositions"][0]
+                    self.assertEqual(row["positionId"], "77")
+                    self.assertEqual(row["liquidityRaw"], str(current_liquidity))
+                    self.assertEqual(row["custodian"], owner)
+                else:
+                    self.assertEqual(result["activePositions"], [])
+
+    def test_bulla_closed_nft_history_keeps_empty_refresh_discovery(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(row for row in registry["pools"] if row["adapter"] == "bulla-v3")
+        source_key = "berachain:bulla-v3"
+        previous = {
+            "sources": [{"key": source_key, "lastScannedBlock": 4_500_001}],
+            "activePositions": [],
+            "history": [{"id": "closed-event", "sourceKey": source_key,
+                         "poolId": pool["identifier"], "positionId": "77",
+                         "blockNumber": 4_500_001, "logIndex": 1,
+                         "action": "Closed", "quality": "partial"}],
+        }
+        with patch.object(liquidity, "_routescan_logs", side_effect=[[], []]), patch.object(
+            liquidity, "_bulla_position", return_value={
+                "token0": liquidity.ZERO_ADDRESS, "token1": liquidity.ZERO_ADDRESS,
+                "tickLower": 0, "tickUpper": 0, "liquidity": 0,
+            }
+        ) as position, patch.object(liquidity, "_bulla_owner") as owner, patch.object(
+            liquidity, "_eth_call", side_effect=[
+                (DOLO,), (QUOTE,), (liquidity.Q96, 0, 0, 0, 0, False), (18,), (18,),
+            ]
+        ):
+            try:
+                result = liquidity.build_registered_source(
+                    registry, source_key, [pool], 4_500_002, previous_artifact=previous,
+                )
+            except RuntimeError as exc:
+                self.fail(f"Known empty Bulla pool failed its next refresh: {exc}")
+        self.assertEqual(result["sourceStatus"], "partial")
+        self.assertEqual(result["activePositions"], [])
+        self.assertEqual(result["history"], previous["history"])
+        self.assertEqual(position.call_args.args[2], 77)
+        owner.assert_not_called()
+
+    def test_bulla_live_position_or_owner_failure_aborts_source(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(row for row in registry["pools"] if row["adapter"] == "bulla-v3")
+        source_key = "berachain:bulla-v3"
+        previous = {
+            "sources": [{"key": source_key, "lastScannedBlock": 4_500_000}],
+            "activePositions": [{"sourceKey": source_key, "poolId": pool["identifier"],
+                                 "positionId": "77", "liquidityRaw": "200"}],
+            "history": [],
+        }
+        for failed_read in ("position", "owner", "invalid_position"):
+            with self.subTest(failed_read=failed_read), patch.object(
+                liquidity, "_routescan_logs", side_effect=[[], []]
+            ), patch.object(liquidity, "_bulla_position", return_value={
+                "token0": liquidity.ZERO_ADDRESS if failed_read == "invalid_position" else DOLO,
+                "token1": QUOTE, "tickLower": -100,
+                "tickUpper": 100, "liquidity": 200,
+            }, side_effect=RuntimeError("temporary position failure") if failed_read == "position" else None), patch.object(
+                liquidity, "_bulla_owner", side_effect=RuntimeError("temporary owner failure") if failed_read == "owner" else None,
+            ), patch.object(liquidity, "_eth_call", side_effect=[
+                (DOLO,), (QUOTE,), (liquidity.Q96, 0, 0, 0, 0, False), (18,), (18,),
+            ]):
+                error_type = ValueError if failed_read == "invalid_position" else RuntimeError
+                reason = "zeroed.*positive liquidity" if failed_read == "invalid_position" else f"temporary {failed_read} failure"
+                with self.assertRaisesRegex(error_type, reason):
+                    liquidity.build_registered_source(
+                        registry, source_key, [pool], 4_500_001, previous_artifact=previous,
+                    )
+
+    def test_v3_incremental_history_replays_decrease_from_exact_prior_liquidity(self):
+        registry = liquidity.load_registry(REGISTRY)
+        pool = next(row for row in registry["pools"] if row["adapter"] == "bulla-v3")
+        result = liquidity.build_v3_rows(
+            pool,
+            [{"tokenId": 77, "kind": "decrease", "liquidityRaw": 50,
+              "amount0Raw": 10, "amount1Raw": 20, "token0": DOLO,
+              "blockNumber": 4_500_001, "transactionIndex": 0, "logIndex": 0,
+              "txHash": "0x" + "11" * 32, "timestamp": 1_700_000_000}],
+            {},
+            {"sqrtPriceX96": liquidity.Q96, "currentTick": 0,
+             "decimals0": 18, "decimals1": 18},
+            initial_liquidity={77: 200},
+        )
+        self.assertEqual(len(result["history"]), 1)
+        self.assertEqual(result["history"][0]["action"], "Removed")
+        self.assertEqual(result["history"][0]["doloRaw"], "10")
+
     def test_kodiak_live_builder_replaces_island_custody_with_share_rows(self):
         registry = liquidity.load_registry(REGISTRY)
         pool = next(
