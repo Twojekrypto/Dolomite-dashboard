@@ -1,0 +1,38 @@
+name: Check Address Label Metadata
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'dolo-address-labels.js'
+      - 'tests/test_dolo_address_labels.py'
+      - '.github/workflows/check-address-labels.yml'
+  pull_request:
+    paths:
+      - 'dolo-address-labels.js'
+      - 'tests/test_dolo_address_labels.py'
+      - '.github/workflows/check-address-labels.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /dolo-address-labels.js
+            /tests/test_dolo_address_labels.py
+      - name: Validate label provenance and confidence
+        env:
+          PYTHONPATH: tests
+        run: |
+          node --check dolo-address-labels.js
+          python3 -m unittest \
+            test_dolo_address_labels.DoloAddressLabelsTest.test_label_script_exports_normalized_metadata \
+            test_dolo_address_labels.DoloAddressLabelsTest.test_binance_linked_wallet_keeps_unconfirmed_ownership

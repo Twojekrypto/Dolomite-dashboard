@@ -70,7 +70,28 @@ class DoloAddressLabelsTest(unittest.TestCase):
                 self.assertTrue(info.get("label"))
                 self.assertTrue(info.get("type"))
                 self.assertTrue(info.get("source"))
-                self.assertIn(info.get("confidence"), {"confirmed", "potential"})
+                self.assertIn(info.get("confidence"), {"confirmed", "potential", "unconfirmed"})
+                if info["confidence"] == "unconfirmed":
+                    # A documented transfer link is not proof of ownership.
+                    self.assertEqual(info["type"], "watch")
+                    self.assertIn("unconfirmed", info.get("labelDetail", "").lower())
+                    self.assertTrue(info.get("sourceUrl"))
+                    self.assertTrue(info.get("evidenceTxs"))
+                    self.assertFalse(info.get("treasury"))
+                if info["type"] == "cex":
+                    self.assertEqual(info["confidence"], "confirmed")
+
+    def test_binance_linked_wallet_keeps_unconfirmed_ownership(self):
+        address = "0x5a1e5b56aa33c056ed7bb93b88b1774a456f6694"
+        for labels in (self.loaded["base"], self.labels):
+            info = labels[address]
+            self.assertEqual(info["label"], "Binance-linked")
+            self.assertEqual(info["type"], "watch")
+            self.assertEqual(info["confidence"], "unconfirmed")
+            self.assertEqual(info["labelDetail"], "Ownership unconfirmed")
+            self.assertEqual(info["source"], "manual-onchain-transfer-review")
+            self.assertIn("ownership", info["description"])
+            self.assertGreaterEqual(len(info["evidenceTxs"]), 2)
 
     def test_label_script_exports_one_canonical_wallet_resolver(self):
         node_script = """
