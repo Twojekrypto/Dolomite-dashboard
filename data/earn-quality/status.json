@@ -3289,57 +3289,61 @@
       "strictVerifiedMarketRatio": 0.0
     },
     "ethereum": {
-      "actionableBlockingMarketCount": 1508,
+      "actionableBlockingMarketCount": 1429,
       "activeAddressCount": 1683,
       "activeMarketCount": 2181,
       "addressStatusCounts": {
-        "hasNonStrictMarket": 1683
+        "hasNonStrictMarket": 1480,
+        "hasVerifiedMarket": 203
       },
-      "blockingMarketCount": 1513,
+      "blockingMarketCount": 1434,
       "coverageBacklogMarketCount": 5,
       "coverageIncompleteMarketCount": 5,
-      "inferredMarketCount": 668,
+      "inferredMarketCount": 544,
       "marketCoverageCounts": {
         "fresh": 2176,
         "missing": 5
       },
       "marketMethodCounts": {
         "canonical-history-coverage": 5,
-        "canonical-history-mismatch": 1117,
-        "netflow+pre-snapshot-carry": 456,
-        "netflow+snapshot": 212,
-        "snapshot-fallback": 391
+        "canonical-history-mismatch": 1065,
+        "interest-ledger": 203,
+        "netflow+pre-snapshot-carry": 418,
+        "netflow+snapshot": 126,
+        "snapshot-fallback": 364
       },
       "marketReasonCounts": {
-        "canonical_history_mismatch": 1117,
+        "canonical_history_mismatch": 1065,
         "canonical_history_not_fresh": 5,
-        "pre_snapshot_carry_requires_inference": 456,
-        "snapshot_netflow_match_requires_inference": 212,
-        "snapshot_netflow_mismatch": 391
+        "exact_replay_reconciled": 203,
+        "pre_snapshot_carry_requires_inference": 418,
+        "snapshot_netflow_match_requires_inference": 126,
+        "snapshot_netflow_mismatch": 364
       },
       "marketStatusCounts": {
         "coverage_incomplete": 5,
-        "inferred": 668,
-        "mismatch": 1508
+        "inferred": 544,
+        "mismatch": 1429,
+        "verified": 203
       },
-      "mismatchMarketCount": 1508,
+      "mismatchMarketCount": 1429,
       "nonStrictDiagnostics": {
         "byReason": {
           "canonical_history_mismatch": {
-            "marketCount": 1117,
-            "omittedMarketCount": 1112,
+            "marketCount": 1065,
+            "omittedMarketCount": 1060,
             "samples": [
               {
                 "address": "0x0034a39e3454452be2cdd8d64fc6ce41629b459f",
                 "category": "mismatch",
                 "coverage": "fresh",
                 "marketData": {
-                  "canonicalHistoryComparisonBlock": 26270416,
+                  "canonicalHistoryComparisonBlock": 26270839,
                   "canonicalHistoryConsistencyStatus": "mismatch",
                   "canonicalHistoryCoverageStatus": "fresh",
                   "canonicalHistoryHasBorrowAccount": true,
                   "canonicalHistoryHasLegacyUnknownAccount": false,
-                  "canonicalHistoryLastScannedBlock": 26270569,
+                  "canonicalHistoryLastScannedBlock": 26271087,
                   "canonicalHistoryNetflowDiffWei": "45697110634208",
                   "canonicalHistoryTotalDeltaWei": "10000000000000000",
                   "decimals": 18,
@@ -3369,11 +3373,11 @@
                 "reason": "canonical_history_mismatch",
                 "source": {
                   "canonicalHistory": {
-                    "comparisonBlock": 26270416,
+                    "comparisonBlock": 26270839,
                     "coverageStatus": "fresh",
-                    "lastScannedBlock": 26270569
+                    "lastScannedBlock": 26271087
                   },
-                  "generatedAt": "2026-10-25T16:53:27.529909Z",
+                  "generatedAt": "2026-10-25T17:09:08.513586Z",
                   "ledger": "earn-verified-ledger/ethereum/0x0034a39e3454452be2cdd8d64fc6ce41629b459f.json",
                   "snapshotDate": "2026-10-25"
                 },
@@ -3828,8 +3832,8 @@
             ]
           },
           "pre_snapshot_carry_requires_inference": {
-            "marketCount": 456,
-            "omittedMarketCount": 451,
+            "marketCount": 418,
+            "omittedMarketCount": 413,
             "samples": [
               {
                 "address": "0x000b5e83dd32ba4bab4b3d1744a73b36caaac715",
@@ -4036,12 +4040,12 @@
                 "category": "inferred",
                 "coverage": "fresh",
                 "marketData": {
-                  "canonicalHistoryComparisonBlock": 26270416,
+                  "canonicalHistoryComparisonBlock": 26270839,
                   "canonicalHistoryConsistencyStatus": "match",
                   "canonicalHistoryCoverageStatus": "fresh",
                   "canonicalHistoryHasBorrowAccount": false,
                   "canonicalHistoryHasLegacyUnknownAccount": false,
-                  "canonicalHistoryLastScannedBlock": 26270569,
+                  "canonicalHistoryLastScannedBlock": 26271087,
                   "canonicalHistoryNetflowDiffWei": "0",
                   "canonicalHistoryTotalDeltaWei": "-92457853507548098565",
                   "decimals": 18,
@@ -4071,11 +4075,11 @@
                 "reason": "pre_snapshot_carry_requires_inference",
                 "source": {
                   "canonicalHistory": {
-                    "comparisonBlock": 26270416,
+                    "comparisonBlock": 26270839,
                     "coverageStatus": "fresh",
-                    "lastScannedBlock": 26270569
+                    "lastScannedBlock": 26271087
                   },
-                  "generatedAt": "2026-10-25T15:25:04.837227Z",
+                  "generatedAt": "2026-10-25T17:09:08.522892Z",
                   "ledger": "earn-verified-ledger/ethereum/0x02998e4194d593a23721bd5b0a4f58a41c4e0c8e.json",
                   "snapshotDate": "2026-10-25"
                 },
@@ -4084,8 +4088,8 @@
             ]
           },
           "snapshot_netflow_match_requires_inference": {
-            "marketCount": 212,
-            "omittedMarketCount": 207,
+            "marketCount": 126,
+            "omittedMarketCount": 121,
             "samples": [
               {
                 "address": "0x0257b4b0aee6f8d60626f6e3d6afe38617a8391d",
@@ -4140,12 +4144,12 @@
                 "category": "inferred",
                 "coverage": "fresh",
                 "marketData": {
-                  "canonicalHistoryComparisonBlock": 26270416,
+                  "canonicalHistoryComparisonBlock": 26270839,
                   "canonicalHistoryConsistencyStatus": "match",
                   "canonicalHistoryCoverageStatus": "fresh",
                   "canonicalHistoryHasBorrowAccount": false,
                   "canonicalHistoryHasLegacyUnknownAccount": false,
-                  "canonicalHistoryLastScannedBlock": 26270569,
+                  "canonicalHistoryLastScannedBlock": 26271087,
                   "canonicalHistoryNetflowDiffWei": "0",
                   "canonicalHistoryTotalDeltaWei": "890000000000000000",
                   "decimals": 18,
@@ -4173,60 +4177,12 @@
                 "reason": "snapshot_netflow_match_requires_inference",
                 "source": {
                   "canonicalHistory": {
-                    "comparisonBlock": 26270416,
+                    "comparisonBlock": 26270839,
                     "coverageStatus": "fresh",
-                    "lastScannedBlock": 26270569
+                    "lastScannedBlock": 26271087
                   },
-                  "generatedAt": "2026-10-25T16:53:27.578765Z",
+                  "generatedAt": "2026-10-25T17:09:08.765382Z",
                   "ledger": "earn-verified-ledger/ethereum/0x0645ca4cf2b42fbe8a8a7b4750d4361ab7aead51.json",
-                  "snapshotDate": "2026-10-25"
-                },
-                "status": "inferred"
-              },
-              {
-                "address": "0x06e8ebc0499ec135935ceae2602201a611668145",
-                "category": "inferred",
-                "coverage": "fresh",
-                "marketData": {
-                  "canonicalHistoryComparisonBlock": 26270416,
-                  "canonicalHistoryConsistencyStatus": "match",
-                  "canonicalHistoryCoverageStatus": "fresh",
-                  "canonicalHistoryHasBorrowAccount": false,
-                  "canonicalHistoryHasLegacyUnknownAccount": false,
-                  "canonicalHistoryLastScannedBlock": 26270569,
-                  "canonicalHistoryNetflowDiffWei": "0",
-                  "canonicalHistoryTotalDeltaWei": "103400000000000000000",
-                  "decimals": 18,
-                  "diff": "0",
-                  "firstDate": "2026-04-15",
-                  "firstPar": "103400000000000000000",
-                  "firstWei": "103400000000000000000",
-                  "isLatestSnapshot": true,
-                  "lastDate": "2026-10-25",
-                  "lastPar": "103400000000000000000",
-                  "lastWei": "103400000000000000000",
-                  "method": "netflow+snapshot",
-                  "netflowYield": "0",
-                  "snapshotYield": "0",
-                  "status": "verified",
-                  "strictMethod": "netflow+snapshot",
-                  "strictReason": "snapshot_netflow_match_requires_inference",
-                  "strictStatus": "inferred",
-                  "symbol": "WLFI",
-                  "token": "0xda5e1988097297dcdc1f90d4dfe7909e847cbef6",
-                  "verificationBaseline": "all-time-netflow"
-                },
-                "marketId": "13",
-                "method": "netflow+snapshot",
-                "reason": "snapshot_netflow_match_requires_inference",
-                "source": {
-                  "canonicalHistory": {
-                    "comparisonBlock": 26270416,
-                    "coverageStatus": "fresh",
-                    "lastScannedBlock": 26270569
-                  },
-                  "generatedAt": "2026-10-25T16:53:27.586770Z",
-                  "ledger": "earn-verified-ledger/ethereum/0x06e8ebc0499ec135935ceae2602201a611668145.json",
                   "snapshotDate": "2026-10-25"
                 },
                 "status": "inferred"
@@ -4326,12 +4282,60 @@
                   "snapshotDate": "2026-10-25"
                 },
                 "status": "inferred"
+              },
+              {
+                "address": "0x084caf1bf60e49aec07ec4148a3f1f0f57fd11eb",
+                "category": "inferred",
+                "coverage": "fresh",
+                "marketData": {
+                  "canonicalHistoryComparisonBlock": 26270221,
+                  "canonicalHistoryConsistencyStatus": "match",
+                  "canonicalHistoryCoverageStatus": "fresh",
+                  "canonicalHistoryHasBorrowAccount": false,
+                  "canonicalHistoryHasLegacyUnknownAccount": false,
+                  "canonicalHistoryLastScannedBlock": 26270392,
+                  "canonicalHistoryNetflowDiffWei": "0",
+                  "canonicalHistoryTotalDeltaWei": "634077056019604548973183",
+                  "decimals": 18,
+                  "diff": "0",
+                  "firstDate": "2026-04-15",
+                  "firstPar": "634077056019604548973183",
+                  "firstWei": "634077056019604548973183",
+                  "isLatestSnapshot": true,
+                  "lastDate": "2026-10-25",
+                  "lastPar": "634077056019604548973183",
+                  "lastWei": "634077056019604548973183",
+                  "method": "netflow+snapshot",
+                  "netflowYield": "0",
+                  "snapshotYield": "0",
+                  "status": "verified",
+                  "strictMethod": "netflow+snapshot",
+                  "strictReason": "snapshot_netflow_match_requires_inference",
+                  "strictStatus": "inferred",
+                  "symbol": "WLFI",
+                  "token": "0xda5e1988097297dcdc1f90d4dfe7909e847cbef6",
+                  "verificationBaseline": "all-time-netflow"
+                },
+                "marketId": "13",
+                "method": "netflow+snapshot",
+                "reason": "snapshot_netflow_match_requires_inference",
+                "source": {
+                  "canonicalHistory": {
+                    "comparisonBlock": 26270221,
+                    "coverageStatus": "fresh",
+                    "lastScannedBlock": 26270392
+                  },
+                  "generatedAt": "2026-10-25T16:53:27.604518Z",
+                  "ledger": "earn-verified-ledger/ethereum/0x084caf1bf60e49aec07ec4148a3f1f0f57fd11eb.json",
+                  "snapshotDate": "2026-10-25"
+                },
+                "status": "inferred"
               }
             ]
           },
           "snapshot_netflow_mismatch": {
-            "marketCount": 391,
-            "omittedMarketCount": 386,
+            "marketCount": 364,
+            "omittedMarketCount": 359,
             "samples": [
               {
                 "address": "0x000001ac4e512d670c34fedf6c71ce2f49fb160a",
@@ -4573,37 +4577,37 @@
         },
         "categoryCounts": {
           "coverage_backlog": 5,
-          "inferred": 668,
-          "mismatch": 1508
+          "inferred": 544,
+          "mismatch": 1429
         },
-        "omittedMarketCount": 2156,
+        "omittedMarketCount": 1953,
         "sampleCount": 25,
         "sampleLimit": 50,
         "samplesPerReasonLimit": 5
       },
-      "nonStrictMarketCount": 2181,
+      "nonStrictMarketCount": 1978,
       "qualityTier": "partial",
       "snapshotDate": "2026-10-25",
       "sourceGapMarketCount": 0,
-      "strictVerifiedMarketCount": 0,
-      "strictVerifiedMarketRatio": 0.0
+      "strictVerifiedMarketCount": 203,
+      "strictVerifiedMarketRatio": 0.093077
     }
   },
-  "generatedAt": "2026-10-25T17:09:29.523535Z",
+  "generatedAt": "2026-10-25T17:12:07.033966Z",
   "snapshotDate": null,
   "summary": {
-    "actionableBlockingMarketCount": 44025,
+    "actionableBlockingMarketCount": 43946,
     "activeAddressCount": 45154,
     "activeMarketCount": 58004,
-    "blockingMarketCount": 51270,
+    "blockingMarketCount": 51191,
     "coverageBacklogMarketCount": 4762,
     "coverageIncompleteMarketCount": 7245,
-    "inferredMarketCount": 6734,
-    "mismatchMarketCount": 44025,
-    "nonStrictMarketCount": 58004,
+    "inferredMarketCount": 6610,
+    "mismatchMarketCount": 43946,
+    "nonStrictMarketCount": 57801,
     "sourceGapMarketCount": 4294,
-    "strictVerifiedMarketCount": 0,
-    "strictVerifiedMarketRatio": 0.0
+    "strictVerifiedMarketCount": 203,
+    "strictVerifiedMarketRatio": 0.0035
   },
   "version": 1
 }
