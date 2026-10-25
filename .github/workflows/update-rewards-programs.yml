@@ -30,7 +30,10 @@ jobs:
           python-version: '3.11'
 
       - name: Fetch Rewards Programs (Merkl + oDOLO)
-        run: python3 fetch_rewards_programs.py
+        # Validate source-boundary handling before publishing refreshed metrics.
+        run: |
+          python3 -m unittest discover -s tests -p 'test_fetch_rewards_programs.py'
+          python3 fetch_rewards_programs.py
 
       - name: Commit & push changes
         run: |
@@ -49,3 +52,4 @@ jobs:
             sleep "$sleep_for"
           done
           if [ "$pushed" != "true" ]; then echo "::error::Failed to push after 12 attempts. Rewards data NOT published"; exit 1; fi
+

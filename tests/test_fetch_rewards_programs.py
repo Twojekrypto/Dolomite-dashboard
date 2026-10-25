@@ -1,9 +1,41 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import fetch_rewards_programs as rewards
+
+
+class RewardsSourceQualityTest(unittest.TestCase):
+    def test_missing_merkl_values_remain_unknown_but_real_zero_survives(self):
+        for value in (None, "", "NaN", "Infinity"):
+            row=rewards.normalize_merkl_program({"id":"test","apr":value,"tvl":value,"dailyRewards":value})
+            for key in ("apr","tvlUsd","dailyRewardsUsd"):
+                self.assertIsNone(row[key])
+        row=rewards.normalize_merkl_program({"id":"test","apr":0,"tvl":0,"dailyRewards":0})
+        self.assertEqual((row["apr"],row["tvlUsd"],row["dailyRewardsUsd"]),(0,0,0))
+
+    def test_empty_or_stale_odolo_metadata_is_not_a_complete_source(self):
+        now=1792927200
+        valid={"currentEpochIndex":77,"currentEpochStartTimestamp":now-3600,"currentEpochRewards":100,"allChainWeights":{"1":{"0xtoken":"100"}}}
+        self.assertEqual(rewards.validate_odolo_metadata({"metadata":valid},now),valid)
+        for response in ({},{"metadata":{}},{"metadata":{**valid,"allChainWeights":{}}},{"metadata":{**valid,"currentEpochStartTimestamp":now-8*86400}},{"metadata":{**valid,"allChainWeights":{"1":{"0xtoken":"NaN"}}}},{"metadata":{**valid,"allChainWeights":{"1":{"0xtoken":"50"}}}}):
+            with self.subTest(response=response), self.assertRaises(RuntimeError):
+                rewards.validate_odolo_metadata(response,now)
+
+    def test_empty_odolo_response_publishes_explicit_partial_coverage(self):
+        opportunity={"id":"test","chainId":1,"status":"LIVE","apr":2,"tvl":100000,"dailyRewards":10}
+        with tempfile.TemporaryDirectory() as tmp:
+            output=Path(tmp)/"programs.json"
+            args=["fetch_rewards_programs.py","--out",str(output),"--history-out",str(Path(tmp)/"history.json")]
+            with patch.object(rewards.sys,"argv",args), patch.object(rewards,"load_json",return_value={}), patch.object(rewards,"enrich_merkl_campaign_windows"), patch.object(rewards,"get_json",side_effect=lambda url:[opportunity] if url==rewards.MERKL_OPPORTUNITIES_URL else {}):
+                self.assertEqual(rewards.main(),0)
+            payload=json.loads(output.read_text())
+            self.assertEqual(len(payload["programs"]),1)
+            self.assertTrue(payload["sources"]["merkl"]["ok"])
+            self.assertFalse(payload["sources"]["odolo"]["ok"])
+            self.assertTrue(any(error.startswith("odolo:") for error in payload["errors"]))
 
 
 class RewardsProgramSupplyHistoryTest(unittest.TestCase):
@@ -127,3 +159,4 @@ class RewardsProgramSupplyHistoryTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

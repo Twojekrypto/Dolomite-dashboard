@@ -60,6 +60,43 @@ def float_or_zero(value: Any) -> float:
     return parsed if parsed == parsed and parsed not in (float("inf"), float("-inf")) else 0.0
 
 
+def optional_float(value: Any) -> Optional[float]:
+    """Missing financial observations are unknown, not measured zeroes."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed == parsed and parsed not in (float("inf"), float("-inf")) else None
+
+
+def validate_odolo_metadata(response: Any, now_ts: int) -> Dict[str, Any]:
+    metadata = response.get("metadata") if isinstance(response, dict) else None
+    if not isinstance(metadata, dict):
+        raise RuntimeError("oDOLO metadata is missing")
+    weights = metadata.get("allChainWeights")
+    start = int_or_none(metadata.get("currentEpochStartTimestamp"))
+    epoch = int_or_none(metadata.get("currentEpochIndex"))
+    rewards = optional_float(metadata.get("currentEpochRewards"))
+    if not isinstance(weights, dict) or not weights or start is None or epoch is None or epoch < 0 or rewards is None or rewards < 0:
+        raise RuntimeError("oDOLO metadata has incomplete epoch or allocation fields")
+    if not start <= now_ts < start + 7 * 86400:
+        raise RuntimeError("oDOLO allocation epoch is not current")
+    allocated = Decimal(0)
+    for allocations in weights.values():
+        if not isinstance(allocations, dict):
+            raise RuntimeError("oDOLO allocation map is invalid")
+        for value in allocations.values():
+            amount = optional_float(value)
+            if amount is None or amount < 0:
+                raise RuntimeError("oDOLO allocation amount is invalid")
+            allocated += Decimal(str(value))
+    if allocated != Decimal(str(metadata["currentEpochRewards"])):
+        raise RuntimeError("oDOLO allocations do not reconcile to the epoch total")
+    return metadata
+
+
 def round_or_none(value: Optional[float], digits: int = 2) -> Optional[float]:
     if value is None:
         return None
@@ -333,12 +370,12 @@ def normalize_merkl_program(opportunity: Dict[str, Any]) -> Dict[str, Any]:
         "action": opportunity.get("action"),
         "chainId": chain_id,
         "chain": CHAIN_ID_NAMES.get(chain_id, str(chain_id)),
-        "apr": round_or_none(float_or_zero(opportunity.get("apr")), 4),
-        "totalApr": round_or_none(float_or_zero(opportunity.get("totalApr")), 4),
-        "nativeApr": round_or_none(float_or_zero(opportunity.get("nativeApr")), 4),
+        "apr": round_or_none(optional_float(opportunity.get("apr")), 4),
+        "totalApr": round_or_none(optional_float(opportunity.get("totalApr")), 4),
+        "nativeApr": round_or_none(optional_float(opportunity.get("nativeApr")), 4),
         "aprSource": "merkl",
-        "tvlUsd": round_or_none(float_or_zero(opportunity.get("tvl")), 2),
-        "dailyRewardsUsd": round_or_none(float_or_zero(opportunity.get("dailyRewards")), 2),
+        "tvlUsd": round_or_none(optional_float(opportunity.get("tvl")), 2),
+        "dailyRewardsUsd": round_or_none(optional_float(opportunity.get("dailyRewards")), 2),
         "rewardTokens": reward_tokens,
         "marketTokens": market_tokens,
         "marketTokenIds": market_token_ids,
@@ -458,6 +495,7 @@ def main() -> int:
     generated_at = utc_now()
     now_ts = int(generated_at.timestamp())
     errors: List[str] = []
+    source_coverage = {"merkl": {"ok": False}, "odolo": {"ok": False}}
 
     merkl_programs: List[Dict[str, Any]] = []
     try:
@@ -465,6 +503,7 @@ def main() -> int:
         if not isinstance(opportunities, list):
             raise RuntimeError("Merkl opportunities response is not a list")
         merkl_programs = [normalize_merkl_program(item) for item in opportunities]
+        source_coverage["merkl"] = {"ok": True, "programCount": len(merkl_programs)}
         enrich_merkl_campaign_windows(merkl_programs, errors)
         print(f"Merkl: {len(merkl_programs)} programs", flush=True)
     except RuntimeError as exc:
@@ -474,13 +513,16 @@ def main() -> int:
     supply_history_manifest = load_json(Path(args.supply_history_manifest))
     symbol_map = build_symbol_map(supply_history_manifest)
     supply_history_index = build_supply_history_index(supply_history_manifest)
-    supply_map = build_supply_usd_map(load_json(Path(args.supply_health)))
-    dolo_price = float_or_zero((load_json(Path(args.dolo_price)) or {}).get("price"))
+    supply_health = load_json(Path(args.supply_health)) or {}
+    price_payload = load_json(Path(args.dolo_price)) or {}
+    supply_map = build_supply_usd_map(supply_health)
+    dolo_price = float_or_zero(price_payload.get("price"))
 
     odolo_programs: List[Dict[str, Any]] = []
     try:
-        metadata = (get_json(ODOLO_METADATA_URL) or {}).get("metadata") or {}
+        metadata = validate_odolo_metadata(get_json(ODOLO_METADATA_URL), now_ts)
         odolo_programs = build_odolo_programs(metadata, symbol_map, supply_map, dolo_price)
+        source_coverage["odolo"] = {"ok": True, "programCount": len(odolo_programs), "epochStart": metadata["currentEpochStartTimestamp"]}
         print(f"oDOLO: {len(odolo_programs)} live market allocations", flush=True)
     except RuntimeError as exc:
         errors.append(f"odolo: {exc}"[:500])
@@ -492,7 +534,7 @@ def main() -> int:
         print("No programs fetched — refusing to overwrite existing data", file=sys.stderr)
         return 1
     enrich_program_supply_ranges(
-        [program for program in programs if program.get("status") != "LIVE"],
+        [program for program in programs if program.get("status") in ("PAST", "ENDED")],
         supply_history_index,
         Path("."),
     )
@@ -511,6 +553,12 @@ def main() -> int:
         "generatedAt": generated_at.isoformat().replace("+00:00", "Z"),
         "doloPriceUsd": dolo_price if dolo_price > 0 else None,
         "errors": errors,
+        "sources": source_coverage,
+        "inputs": {
+            "supplyHealthGeneratedAt": supply_health.get("generatedAt"),
+            "supplyHistoryGeneratedAt": (supply_history_manifest or {}).get("generatedAt"),
+            "doloPriceUpdatedAt": price_payload.get("last_updated"),
+        },
         "programs": programs,
     }
     Path(args.out).write_text(json.dumps(payload, separators=(",", ":"), ensure_ascii=False) + "\n", encoding="utf-8")
@@ -522,3 +570,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
