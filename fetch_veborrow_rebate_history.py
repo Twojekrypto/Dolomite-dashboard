@@ -12,6 +12,7 @@ import re
 import time
 from datetime import datetime, timezone
 from decimal import Decimal, localcontext
+from eth_hash.auto import keccak
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -21,6 +22,55 @@ METADATA_URL = 'https://api.dolomite.io/liquidity-mining/ve-dolo-rebate/metadata
 OUTPUT = Path(__file__).resolve().parent / 'veborrow_rebate_history.json'
 CHAINS = {'80094': 'Berachain', '42161': 'Arbitrum'}
 WEEK = 7 * 86400
+VALIDATION_VERSION = 2
+# The pre-July27 calculator added cumulative user allocations to the previous
+# market totals again. Only these immutable BERA files have been audited against
+# all 70 MarketIdToMerkleRootSet roots published by RollingClaims on chain.
+# SHA256 pins the complete file; leaf and tree validation is still mandatory.
+VERIFIED_RECOVERIES = {
+    "02054e55015c2de3a2a585884bbb124cf1666bfd": {
+        "epoch": 2,
+        "sha256": "1a065cbe4a5c1923e8a3429a6871fe7589338f32e42f894653a9b9603d9812db",
+        "block": 22370291,
+        "transaction": "0x7917bf3dc28eebf19c93f1dbb4dc6e2c16182dae291238c66940215f0a35e66b"
+    },
+    "b46e764cf1c56e01db21f18e044f6f3e8236dee3": {
+        "epoch": 3,
+        "sha256": "a2c26177135e9b875141863656c3bd4fd3dc64a8282a6c4dc3a551560cbefa6f",
+        "block": 22370490,
+        "transaction": "0x05d0b86c65f4ff461caa00cf5f59d93e2bdbe408e85c9aff3fa0aa7fe39cad0d"
+    },
+    "f16516ad1fc17084c774bc37c2ee60fce8266588": {
+        "epoch": 4,
+        "sha256": "3ff518ce16e0572b76c0d65c9628ba9620379fb31671091211f9247cbdf14317",
+        "block": 22370636,
+        "transaction": "0xd973c92b720b9dcbbcdffdae53aa6b1bd02b99de1416b0835a31a15c4867b121"
+    },
+    "a4d517fbf98a3051794fab86547cb28e77b4c372": {
+        "epoch": 5,
+        "sha256": "2cce4cce60c91c474d5979b7e2632244e8566adec1fcf5a942dd34df9776efbb",
+        "block": 23263814,
+        "transaction": "0xe3890949a6af10d46a5be11248f61acc4b7af3e3aecfa803b98273957a190667"
+    },
+    "3ff90638b58a259d15c96c2b1fdc516346067f50": {
+        "epoch": 6,
+        "sha256": "74647e839eb72b153a5908ce599a45ea9dffbf7eabed08aaec238f5f199e1fce",
+        "block": 23263931,
+        "transaction": "0x821139559bf956524b819c57abdc7fca8734076d0066dc245725330145ec5111"
+    },
+    "906f42252e7d5803d00dce467bd500eb28877090": {
+        "epoch": 7,
+        "sha256": "efe97a2177b9c13f275c60c85a082cd072a434ae863eecb773bfe67931c7fb51",
+        "block": 23270368,
+        "transaction": "0x06739ad211a20519d9d50c4895603ecdca9ad34e30101862f6d8783b613a073a"
+    },
+    "8cd53fdcc62d7c95a27f01f67bafe449f1cee949": {
+        "epoch": 8,
+        "sha256": "4712b3c8c6692b2e305b6160575ef682f1fa88faf1cdb4b4c6bb59639c12023c",
+        "block": 23572770,
+        "transaction": "0x40308acbd20cc1bdb8284aaf619be4e609c1881dbdaa42577475729c58f34251"
+    }
+}
 
 class SnapshotMismatch(ValueError):
     """An official aggregate cannot be reconciled with its user allocations."""
@@ -49,26 +99,54 @@ def read_json(url, *, optional=False):
                 raise
         time.sleep(2 ** attempt)
 
-def summarize_snapshot(data, commit, committed_at, digest):
+def merkle_root(leaves):
+    layer = sorted(leaves)
+    if not layer:
+        raise ValueError('Market has no allocation leaves')
+    while len(layer) > 1:
+        layer = [keccak(b''.join(sorted(layer[i:i+2]))) if i+1 < len(layer) else layer[i]
+                 for i in range(0, len(layer), 2)]
+    return '0x' + layer[0].hex()
+
+def summarize_snapshot(data, commit, committed_at, digest, *, chain=None):
     meta = data['metadata']
     totals = {str(k): str(uint(v)) for k, v in meta['marketToTotalRebate'].items()}
     roots = meta['marketToMerkleRoot']
     if set(roots) != set(totals) or any(not re.fullmatch(r'0x[0-9a-fA-F]{64}', v) for v in roots.values()):
         raise ValueError('Invalid market roots')
-    sums, counts = {}, {}
-    for markets in data['users'].values():
+    sums, counts, leaves, addresses = {}, {}, {}, set()
+    for address, markets in data['users'].items():
+        if not re.fullmatch(r'0x[0-9a-fA-F]{40}', address) or address.lower() in addresses:
+            raise ValueError('Invalid or duplicate wallet address')
+        addresses.add(address.lower())
         for market, record in markets.items():
-            sums[market] = sums.get(market, 0) + uint(record['amount'])
+            amount = uint(record['amount'])
+            if amount >= 2**256:
+                raise ValueError('Raw allocation exceeds uint256')
+            leaf = keccak(bytes.fromhex(address[2:]).rjust(32, b'\0') + amount.to_bytes(32, 'big'))
+            if record.get('leaf', '').lower() != '0x' + leaf.hex():
+                raise ValueError('User allocation leaf mismatch')
+            leaves.setdefault(market, []).append(leaf)
+            sums[market] = sums.get(market, 0) + amount
             counts[market] = counts.get(market, 0) + 1
-    if set(sums) - set(totals):
-        raise ValueError('User market missing from aggregate')
-    # The official calculator rounds user and market totals independently.
-    for market, amount in totals.items():
-        if abs(sums.get(market, 0) - int(amount)) > counts.get(market, 0) + 1:
+    if set(sums) != set(totals):
+        raise ValueError('User and aggregate market sets differ')
+    if any(merkle_root(leaves[market]) != root.lower() for market, root in roots.items()):
+        raise ValueError('User allocation Merkle root mismatch')
+    result = {'epoch': int(meta['epoch']), 'totals': totals, 'roots': roots,
+              'totalUsers': int(meta['totalUsers']), 'commit': commit,
+              'committedAt': committed_at, 'sha256': digest,
+              'validationVersion': VALIDATION_VERSION, 'merkleVerified': True}
+    # Ordinary snapshots retain official independently rounded market totals.
+    mismatch = any(abs(sums[market] - int(amount)) > counts[market] + 1 for market, amount in totals.items())
+    if mismatch:
+        proof = VERIFIED_RECOVERIES.get(commit)
+        if chain != '80094' or not proof or proof['epoch'] != result['epoch'] or proof['sha256'] != digest:
             raise SnapshotMismatch('Aggregate exceeds independent rounding bound')
-    return {'epoch': int(meta['epoch']), 'totals': totals, 'roots': roots,
-            'totalUsers': int(meta['totalUsers']), 'commit': commit,
-            'committedAt': committed_at, 'sha256': digest}
+        result.update({'totals': {market: str(sums[market]) for market in totals},
+                       'reportedTotals': totals, 'totalsSource': 'merkle_verified_user_allocations',
+                       'recovery': proof})
+    return result
 
 def value_usd(amounts, prices):
     with localcontext() as context:
@@ -108,12 +186,13 @@ def build_chain(snapshots, start_epoch, published_epoch, start_ts, prices):
         rows.append({**row, 'status': status, 'deltaRaw': delta,
                      'deltaUSD': value_usd(delta, prices), 'cumulativeUSD': value_usd(totals, prices),
                      'revisionCount': len(versions[epoch]), 'coversEpochs': list(range(previous_epoch + 1, epoch + 1)),
-                     'commit': snapshot['commit'], 'committedAt': snapshot['committedAt']})
+                     'commit': snapshot['commit'], 'committedAt': snapshot['committedAt'],
+                     **({'recovery': snapshot['recovery']} if snapshot.get('recovery') else {})})
         previous, previous_epoch = totals, epoch
     if any(accumulated.get(market, 0) != int(previous.get(market, 0)) for market in set(accumulated) | set(previous)):
         raise ValueError('Raw allocation reconciliation failed')
     return {'startEpoch': start_epoch, 'publishedEpoch': published_epoch,
-            'epochs': rows, 'missingEpochs': missing, 'reconciled': True,
+            'epochs': rows, 'missingEpochs': missing, 'recoveredEpochs': [row['epoch'] for row in rows if row.get('recovery')], 'reconciled': True,
             'totalsRaw': previous, 'totalUSD': value_usd(previous, prices),
             'marketToMerkleRoot': versions[published_epoch][-1]['roots'],
             'sourceCommit': versions[published_epoch][-1]['commit'], 'referencePrices': prices,
@@ -128,7 +207,7 @@ def fetch_snapshots(chain, cache):
         if len(batch) < 100:
             break
         page += 1
-    by_commit = {row['commit']: row for row in cache}
+    by_commit = {row['commit']: row for row in cache if row.get('validationVersion') == VALIDATION_VERSION}
     snapshots = []
     for commit in commits:
         sha = commit['sha']
@@ -138,13 +217,13 @@ def fetch_snapshots(chain, cache):
         data, digest = read_json(f'{RAW}/{sha}/{path}', optional=True)
         stamp = commit['commit']['committer']['date']
         if data is None:
-            snapshots.append({'commit': sha, 'committedAt': stamp, 'deleted': True})
+            snapshots.append({'commit': sha, 'committedAt': stamp, 'deleted': True, 'validationVersion': VALIDATION_VERSION})
         else:
             try:
-                snapshots.append(summarize_snapshot(data, sha, stamp, digest))
+                snapshots.append(summarize_snapshot(data, sha, stamp, digest, chain=chain))
             except SnapshotMismatch as error:
                 snapshots.append({'commit': sha, 'committedAt': stamp, 'sha256': digest,
-                                  'epoch': int(data['metadata']['epoch']), 'invalid': str(error)})
+                                  'epoch': int(data['metadata']['epoch']), 'invalid': str(error), 'validationVersion': VALIDATION_VERSION})
     return snapshots
 
 def generate(previous=None):
