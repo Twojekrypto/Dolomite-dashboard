@@ -6698,7 +6698,10 @@ def main():
     for period in PERIODS:
         balance_changes[period] = merge_balance_changes(neutralized_flows_cache[period])
 
-    holder_history_base_ts = int(time.time())
+    # Long scans can cross midnight; history must not outrun either pinned head.
+    holder_history_base_ts = int(datetime.fromisoformat(
+        flow_snapshot_timestamp(period_boundaries).replace("Z", "+00:00")
+    ).timestamp())
     fresh_coverage_ok, fresh_coverage_meta = fresh_holder_history_coverage(state, all_transfers, cutoff_blocks)
     if not fresh_coverage_ok:
         raise RuntimeError(f"Fresh DOLO wallet cohorts require full transfer history coverage: {fresh_coverage_meta}")
@@ -6919,3 +6922,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

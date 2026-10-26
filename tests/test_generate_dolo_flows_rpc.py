@@ -1,6 +1,8 @@
+import ast
 import os
 import sys
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -167,6 +169,37 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
                 1_022,
                 timestamps.__getitem__,
             )
+
+    def test_holder_history_does_not_advance_past_pinned_heads_after_midnight(self):
+        # Execute main's actual clock selection without repeating the full RPC scan.
+        module = ast.parse(Path(flows.__file__).read_text())
+        main = next(node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == "main")
+        clock = next(node for node in ast.walk(main) if isinstance(node, ast.Assign)
+                     and any(isinstance(target, ast.Name) and target.id == "holder_history_base_ts"
+                             for target in node.targets))
+        clock_code = compile(ast.Module(body=[clock], type_ignores=[]), flows.__file__, "exec")
+        start = int(flows.datetime.fromisoformat("2026-10-23T00:00:00+00:00").timestamp())
+        chains = {
+            "eth": {"name": "Ethereum", "deploy_block": 1, "block_time": 1716},
+            "bera": {"name": "Berachain", "deploy_block": 1, "block_time": 1710},
+        }
+        heads = {key: start + 100 * cfg["block_time"] for key, cfg in chains.items()}
+        boundaries = {key: {"all": {"endTimestamp": stamp}} for key, stamp in heads.items()}
+        for finished_at in ["2026-10-25T01:15:00+00:00", "2026-10-27T01:15:00+00:00"]:
+            with self.subTest(finished_at=finished_at), patch.object(flows, "CHAINS", chains), \
+                 patch.object(flows, "HOLDER_HISTORY_START_TIMESTAMP", start), \
+                 patch.object(flows.time, "time", return_value=flows.datetime.fromisoformat(finished_at).timestamp()), \
+                 patch.object(flows, "load_block_timestamps_batch", side_effect=lambda key, blocks, _cache: {
+                     block: start + block * chains[key]["block_time"] for block in blocks
+                 }):
+                context = dict(vars(flows), period_boundaries=boundaries)
+                exec(clock_code, context)
+                points = flows.build_holder_history_schedule(context["holder_history_base_ts"])
+                cutoffs, meta = flows.load_holder_history_cutoff_blocks({}, points, {"eth": 100, "bera": 100})
+                self.assertEqual(context["holder_history_base_ts"], min(heads.values()))
+                self.assertEqual([point["key"] for point in points], ["hist_20261023", "hist_20261024"])
+                self.assertEqual(meta["status"], "complete")
+                self.assertTrue(all(set(values) == set(chains) for values in cutoffs.values()))
 
     def test_exact_holder_cutoffs_resolve_multiple_irregular_timestamps(self):
         timestamps = {
@@ -1109,3 +1142,4 @@ class GenerateDoloFlowsRpcTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
