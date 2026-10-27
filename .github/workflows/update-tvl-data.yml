@@ -39,6 +39,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_fetch_dolomite_tvl.py'
           python3 -m unittest discover -s tests -p 'test_fetch_dolomite_total_supply_history.py'
           python3 -m unittest discover -s tests -p 'test_veborrow_rebate_history.py'
+          python3 -m unittest discover -s tests -p 'test_fetch_dolomite_revenue*.py'
 
       - name: Refresh verified historical veDOLO rebates
         run: python3 fetch_veborrow_rebate_history.py
@@ -98,3 +99,4 @@ jobs:
             sleep "$sleep_for"
           done
           if [ "$pushed" != "true" ]; then echo "::error::Failed to push after 12 attempts. TVL data NOT published"; exit 1; fi
+

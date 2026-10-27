@@ -1049,7 +1049,8 @@ def _dolomite_revenue_series_valid(data):
             return False
         if not all(isinstance(value, (int, float)) for value in (fees, revenue, gross_revenue, rebate, supply_side)):
             return False
-        if fees < 0 or revenue < 0 or gross_revenue < 0 or rebate < 0 or revenue > gross_revenue + 1 or gross_revenue > fees + 1:
+        signed = row.get("borrowFeeRebateCalculationMode") == "canonical_signed_delta"
+        if fees < 0 or revenue < 0 or gross_revenue < 0 or (rebate < 0 and not signed) or (revenue > gross_revenue + 1 and not signed) or gross_revenue > fees + 1:
             return False
         if not _nearly_equal(gross_revenue, revenue + rebate, abs_tol=1):
             return False
@@ -1092,6 +1093,13 @@ def _dolomite_revenue_window_totals_valid(data):
         ("borrowFeeRebate30dUSD", "borrowFeeRebateUSD", 30),
         ("fees30dUSD", "feesUSD", 30),
     )
+    if (data.get("borrowFeeRebates") or {}).get("dataStatus") == "canonical_reconciled":
+        for total_key, row_key in (("revenueAllTimeUSD", "revenueUSD"),
+                                   ("grossRevenueAllTimeUSD", "grossRevenueUSD"),
+                                   ("borrowFeeRebateAllTimeUSD", "borrowFeeRebateUSD"),
+                                   ("feesAllTimeUSD", "feesUSD")):
+            if not _nearly_equal(totals.get(total_key), sum(_safe_number(row.get(row_key)) for row in rows), abs_tol=0.000001, rel=0):
+                return False
     return all(
         _nearly_equal(totals.get(total_key), sum(_safe_number(row.get(row_key)) for row in rows[-days:]), abs_tol=1)
         for total_key, row_key, days in checks
@@ -1127,6 +1135,107 @@ def _dolomite_revenue_chain_windows_valid(data):
     return True
 
 
+def _dolomite_revenue_canonical_rebates_valid(data):
+    """Require exact signed raw conservation and epoch-priced daily netting."""
+    def raw(value):
+        if not isinstance(value, str) or not re.fullmatch(r"-?(0|[1-9][0-9]*)", value):
+            raise ValueError("not an exact canonical integer string")
+        return int(value)
+
+    def units(value):
+        if not _finite_real_json_number(value):
+            raise ValueError("not a finite canonical USD number")
+        return int((Decimal(str(value)) * 1_000_000).to_integral_value(rounding=ROUND_HALF_UP))
+
+    try:
+        rebates, series = data["borrowFeeRebates"], data["series"]
+        chains = rebates["chains"]
+        if rebates.get("dataStatus") != "canonical_reconciled" or set(chains) != {"Berachain", "Arbitrum"}:
+            return False
+        if not isinstance(series, list) or not series:
+            return False
+        for chain_name, chain_id in (("Berachain", 80094), ("Arbitrum", 42161)):
+            chain = chains[chain_name]
+            if (chain.get("chainId") != chain_id or chain.get("rawReconciled") is not True
+                    or chain.get("calculationMode") != "canonical_signed_delta"):
+                return False
+            start, published, epochs = chain["startEpoch"], chain["authoritativePublishedEpoch"], chain["epochRebates"]
+            if type(start) is not int or type(published) is not int or not 0 < start <= published:
+                return False
+            if [row["epoch"] for row in epochs] != list(range(start, published + 1)):
+                return False
+            expected = {market: raw(value) for market, value in chain["totalsRaw"].items()}
+            if not expected or any(not re.fullmatch(r"0|[1-9][0-9]*", market) or value < 0 for market, value in expected.items()):
+                return False
+            cumulative, allocated_days, epoch_units = {}, set(), 0
+            previous_end = None
+            for row in epochs:
+                if row.get("calculationMode") != "canonical_signed_delta":
+                    return False
+                begin, end = row["periodStartTimestamp"], row["periodEndTimestamp"]
+                if type(begin) is not int or type(end) is not int or end <= begin or (previous_end is not None and begin != previous_end):
+                    return False
+                previous_end = end
+                official_source = rf"https://raw\.githubusercontent\.com/dolomite-exchange/liquidity-mining-data/(?:master|[0-9a-f]{{40}})/finalized/{chain_id}/borrow-interest/epoch-{row['epoch']}-output\.json"
+                if not re.fullmatch(official_source, row.get("maxRebateSourceUrl", "")) or not re.fullmatch(r"[a-f0-9]{64}", row.get("maxRebateSourceSha256", "")):
+                    return False
+                deltas = {market: raw(value) for market, value in row["deltaRaw"].items()}
+                if any(not re.fullmatch(r"0|[1-9][0-9]*", market) for market in deltas):
+                    return False
+                for market, delta in deltas.items():
+                    cumulative[market] = cumulative.get(market, 0) + delta
+                    if cumulative[market] < 0:
+                        return False
+                markets = row["markets"]
+                if not isinstance(markets, list) or row.get("marketCount") != len(markets):
+                    return False
+                by_market = {str(market["marketId"]): market for market in markets}
+                if len(by_market) != len(markets) or set(by_market) != {key for key, delta in deltas.items() if delta}:
+                    return False
+                epoch_usd = Decimal(0)
+                for market_id, market in by_market.items():
+                    price, delta = raw(market["encodedPrice"]), raw(market["deltaRaw"])
+                    if price <= 0 or delta != deltas[market_id] or market.get("priceSource") != "official_epoch_closing_market_price":
+                        return False
+                    market_usd = Decimal(delta) * price / (Decimal(10) ** 36)
+                    if not _finite_real_json_number(market.get("rebateUSD")) or abs(Decimal(str(market["rebateUSD"])) - market_usd) > Decimal("0.000001"):
+                        return False
+                    epoch_usd += market_usd
+                target = int((epoch_usd * 1_000_000).to_integral_value(rounding=ROUND_HALF_UP))
+                if units(row["rebateUSD"]) != target:
+                    return False
+                epoch_units += target
+                daily = []
+                for index, day in enumerate(series):
+                    if begin <= day["timestamp"] < end:
+                        if index in allocated_days or chain_name not in day["chains"]:
+                            return False
+                        allocated_days.add(index)
+                        daily.append(day["chains"][chain_name])
+                if (target and not daily) or sum(units(day.get("borrowFeeRebateUSD", 0)) for day in daily) != target:
+                    return False
+            if any(cumulative.get(market, 0) != expected.get(market, 0) for market in set(cumulative) | set(expected)):
+                return False
+            if units(chain["totalRebateUSD"]) != epoch_units:
+                return False
+            for index, day in enumerate(series):
+                payload = day.get("chains", {}).get(chain_name, {})
+                rebate = units(payload.get("borrowFeeRebateUSD", 0))
+                if index not in allocated_days and rebate != 0:
+                    return False
+                if rebate and payload.get("borrowFeeRebateCalculationMode") != "canonical_signed_delta":
+                    return False
+                if payload and units(payload["grossRevenueUSD"]) - rebate != units(payload["revenueUSD"]):
+                    return False
+        for day in series:
+            total_rebate = sum(units(chain.get("borrowFeeRebateUSD", 0)) for chain in day["chains"].values())
+            if units(day["borrowFeeRebateUSD"]) != total_rebate or units(day["grossRevenueUSD"]) - total_rebate != units(day["revenueUSD"]):
+                return False
+        return True
+    except (KeyError, TypeError, ValueError, InvalidOperation, AttributeError):
+        return False
+
+
 def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
     if "borrowFeeRebates" not in data:
         return True
@@ -1135,6 +1244,14 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
         return False
     chains = rebates.get("chains")
     if not isinstance(chains, dict):
+        return False
+    canonical = rebates.get("dataStatus") == "canonical_reconciled" or any(
+        isinstance(chain, dict) and (chain.get("calculationMode") == "canonical_signed_delta" or any(
+            isinstance(row, dict) and row.get("calculationMode") == "canonical_signed_delta"
+            for row in (chain.get("epochRebates") if isinstance(chain.get("epochRebates"), list) else [])
+        )) for chain in chains.values()
+    )
+    if canonical and not _dolomite_revenue_canonical_rebates_valid(data):
         return False
     for chain_name, chain in chains.items():
         if not isinstance(chain_name, str) or not chain_name or not isinstance(chain, dict):
@@ -1223,6 +1340,7 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
                     "cumulative_delta",
                     "known_epoch_snapshot_reset",
                     "same_epoch_snapshot_replacement",
+                    "canonical_signed_delta",
                 }
             ):
                 return False
@@ -1244,7 +1362,7 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
                     or row.get("sourceLabel") != "Published epoch snapshot reset"
                 ):
                     return False
-            if rebate_usd <= 0:
+            if rebate_usd <= 0 and calculation_mode != "canonical_signed_delta":
                 continue
             epoch = row.get("epoch")
             if (
@@ -1279,9 +1397,11 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
                 or not _finite_json_integer_number(claim_start)
                 or not _finite_json_integer_number(claim_end)
                 or claim_end <= claim_start
-                or not _finite_json_integer_number(claim_start_block)
-                or not _finite_json_integer_number(claim_end_block)
-                or claim_end_block < claim_start_block
+                or (calculation_mode != "canonical_signed_delta" and (
+                    not _finite_json_integer_number(claim_start_block)
+                    or not _finite_json_integer_number(claim_end_block)
+                    or claim_end_block < claim_start_block
+                ))
                 or not _finite_json_integer_number(period_seconds)
                 or period_seconds != claim_end - claim_start
                 or coverage_status not in {"matched", "mismatch"}
@@ -1461,10 +1581,12 @@ def _dolomite_revenue_totals_valid(data):
     if not all(isinstance(value, (int, float)) for value in (daily_fees, daily_revenue, daily_gross_revenue, daily_rebate, daily_supply_side, daily_cut, latest_fees, latest_revenue, latest_gross_revenue, latest_rebate)):
         return False
     expected_cut = daily_revenue / daily_fees if daily_fees > 0 else 0
+    signed = latest.get("borrowFeeRebateCalculationMode") == "canonical_signed_delta"
     return (
         daily_fees > 0
-        and 0 <= daily_revenue <= daily_gross_revenue <= daily_fees
-        and daily_rebate >= 0
+        and 0 <= daily_revenue and 0 <= daily_gross_revenue <= daily_fees
+        and (signed or daily_revenue <= daily_gross_revenue)
+        and (signed or daily_rebate >= 0)
         and _nearly_equal(daily_gross_revenue, daily_revenue + daily_rebate, abs_tol=1)
         and _nearly_equal(daily_fees, daily_gross_revenue + daily_supply_side, abs_tol=1)
         and _nearly_equal(daily_cut, expected_cut, abs_tol=0.0001)
@@ -3110,3 +3232,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

@@ -1303,7 +1303,7 @@ h1{
         <div class="veborrow-sim-actions">
           <div class="revenue-mode-toggles veborrow-sim-modes" aria-label="veBorrow simulation mode">
             <button class="revenue-mode-toggle active" type="button" data-veborrow-sim-mode="current"><span>Current veDOLO</span></button>
-            <button class="revenue-mode-toggle" type="button" data-veborrow-sim-mode="max"><span>Max theoretical</span></button>
+            <button class="revenue-mode-toggle" type="button" data-veborrow-sim-mode="max"><span>Maximum rebate</span></button>
           </div>
           <div class="veborrow-sim-price" id="veBorrowSimulationPrice">DOLO price -</div>
         </div>
@@ -1323,7 +1323,7 @@ h1{
               <th>Chain</th>
               <th>Borrow interest</th>
               <th>Current veDOLO saved</th>
-              <th>Max theoretical</th>
+              <th>Maximum rebate</th>
               <th>veDOLO coverage</th>
             </tr>
           </thead>
@@ -1332,7 +1332,7 @@ h1{
           </tbody>
         </table>
       </div>
-      <div class="veborrow-sim-note">Simulation only on Ethereum. Arbitrum and Berachain use the eligible markets configured in current official metadata; claim availability is shown separately. Current veDOLO mode annualizes the selected borrow-interest rate and applies current on-chain veDOLO vote weight. Official closed epochs remain the source of truth for paid rebates.</div>
+      <div class="veborrow-sim-note">Maximum uses complete official finalized eligible-market periods and each market’s revenue factor with the official 5% tolerance. Current estimates allocate those totals using today’s debt and votes; they are not actual recipients or claimable amounts. Required units are veDOLO votes; DOLO to lock depends on lock duration. Live eligibility combines Berachain + Arbitrum; independent hypothetical Ethereum never changes that requirement. Unfinished epochs are excluded. Missing essential live-chain inputs suppress live estimates. ETH-only wallets show their independent hypothetical coverage and vote requirement.</div>
     </div>
   </section>
 
@@ -1341,10 +1341,10 @@ h1{
       <div class="revenue-section-primary">
         <div class="revenue-section-copy">
           <div class="revenue-section-title-line">
-            <div class="panel-title">Current discount</div>
+            <div class="panel-title">Current discount · modeled</div>
             <div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">Berachain rebate configuration</div>
           </div>
-          <div class="panel-sub">Daily Berachain wallets using discount from current debt and veDOLO vote weight.</div>
+          <div class="panel-sub">Estimate from current debt and vote weight applied to historical daily interest; not historical recipients or claimable balances.</div>
         </div>
         <div class="revenue-section-updated" data-revenue-updated><span class="dot"></span><span>Loading data update…</span></div>
       </div>
@@ -1811,13 +1811,9 @@ h1{
     return { status, label: auditStatusLabel(status), detail };
   }
   function auditStatusHtml(chain){
-    const audit = auditStatusForChain(chain);
-    const cls = String(audit.status || "missing").toLowerCase().replace(/_/g, "-");
-    const detail = String(audit.detail || "");
-    const detailHtml = detail && !detail.startsWith("target ")
-      ? `<div class="chain-audit-detail">${esc(detail)}</div>`
-      : "";
-    return `<div class="chain-audit ${esc(cls)}">${esc(audit.label)}</div>${detailHtml}`;
+    const audit=auditStatusForChain(chain),target=String(revenueData?.assurance?.onchainAuditTargetDate||"not run");
+    const cls=String(audit.status||"missing").toLowerCase().replace(/_/g,"-");
+    return `<div class="chain-audit ${esc(cls)}">${esc(audit.label)} · ${esc(target)}</div><div class="chain-audit-detail">One-day ${esc(chain)} check only; full history not certified. ${esc(audit.detail||"")}</div>`;
   }
   function formatDay(ts, compact){
     const opts = compact
@@ -2817,36 +2813,8 @@ h1{
     return issues;
   }
   function veBorrowMaxRebateForRows(rows){
-    const selected = rows || [];
-    const covered = new Set();
-    const groupedEpochIds = new Set();
-    let maxRebate = 0;
-    veBorrowRebateAuditGroups().forEach(group => {
-      const periodStart = n(group?.periodStartTimestamp);
-      const periodEnd = n(group?.periodEndTimestamp);
-      const auditedMax = n(group?.maxRebateUSD);
-      if (periodStart <= 0 || periodEnd <= periodStart || auditedMax <= 0) return;
-      const groupRows = veBorrowRowsInPeriod(selected, periodStart, periodEnd);
-      groupRows.forEach(row => covered.add(n(row.ts)));
-      if (groupRows.length === veBorrowExpectedPeriodDays(periodStart, periodEnd)) maxRebate += auditedMax;
-      for (let epoch = n(group?.startEpoch); epoch <= n(group?.endEpoch); epoch += 1) groupedEpochIds.add(epoch);
-    });
-    (veBorrowRebateInfo().epochRebates || []).forEach(epoch => {
-      if (groupedEpochIds.has(n(epoch?.epoch))) return;
-      const auditedMax = n(epoch?.maxRebateUSD);
-      const periodStart = n(epoch?.periodStartTimestamp);
-      const periodEnd = n(epoch?.periodEndTimestamp);
-      if (auditedMax <= 0 || periodStart <= 0 || periodEnd <= periodStart) return;
-      const epochRows = veBorrowRowsInPeriod(selected, periodStart, periodEnd);
-      const expectedDays = veBorrowExpectedPeriodDays(periodStart, periodEnd);
-      if (epochRows.length !== expectedDays) return;
-      maxRebate += auditedMax;
-      epochRows.forEach(row => covered.add(n(row.ts)));
-    });
-    selected.forEach(row => {
-      if (!covered.has(n(row.ts))) maxRebate += veBorrowRowMaxRebate(row);
-    });
-    return maxRebate;
+    const config=veBorrowSimulationConfig();
+    return (config.activeRebateChains||[]).reduce((sum,chain)=>sum+n(veBorrowFinalizedBasis(rows,chain,config).maxUsersSavedUSD),0);
   }
   function updateVeBorrowModeControls(){
     document.querySelectorAll("[data-veborrow-mode]").forEach(btn => {
@@ -2862,7 +2830,8 @@ h1{
     const selectedSaved = publishedSelected.reduce((sum, row) => sum + n(row.borrowFeeRebateUSD), 0);
     const maxRebate = veBorrowMaxRebateForRows(publishedSelected);
     const utilization = maxRebate > 0 ? selectedSaved / maxRebate : 0;
-    const auditIssues = veBorrowSelectedAuditIssues(publishedSelected);
+    const config=veBorrowSimulationConfig();
+    const auditIssues=(config.activeRebateChains||[]).filter(chain=>!veBorrowFinalizedBasis(publishedSelected,chain,config).available);
     const utilizationAvailable = maxRebate > 0 && !auditIssues.length;
     const latest = veBorrowRebateInfo().latestRebateDate || "";
     const rebateDataAvailable = veBorrowPublishedThroughTimestamp() > 0
@@ -2875,8 +2844,8 @@ h1{
       : `${dayCount.toLocaleString("en-US")} daily bars selected`;
     wrap.innerHTML = `
       <div class="veborrow-stat primary"><span>Users saved</span><b>${rebateDataAvailable ? usdFull(selectedSaved) : "N/A"}</b><small>${rebateDataAvailable ? `${selectedLabel} · estimated daily allocation` : "Published rebate history unavailable"}</small></div>
-      <div class="veborrow-stat"><span>Max rebate</span><b>${utilizationAvailable ? usdMetric(maxRebate) : "N/A"}</b><small>${!rebateDataAvailable ? "Published rebate history unavailable" : auditIssues.length ? "selected range lacks one complete official window" : "official finalized data"}</small></div>
-      <div class="veborrow-stat"><span>Utilization</span><b>${utilizationAvailable ? pctFine(utilization) : "N/A"}</b><small>${auditIssues.length ? "Unavailable · select the complete catch-up window" : "saved / max rebate"}</small></div>
+      <div class="veborrow-stat"><span>Max rebate</span><b>${utilizationAvailable ? usdMetric(maxRebate) : "N/A"}</b><small>${!rebateDataAvailable ? "Published rebate history unavailable" : auditIssues.length ? "essential official period data unavailable" : "official eligible closed periods · per-market factors"}</small></div>
+      <div class="veborrow-stat"><span>Utilization</span><b>${utilizationAvailable ? pctFine(utilization) : "N/A"}</b><small>${auditIssues.length ? "Unavailable · official inputs incomplete" : "saved / max rebate"}</small></div>
       <div class="veborrow-stat"><span>Latest epoch</span><b>${esc(latestDate)}</b><small>published rebate</small></div>
     `;
   }
@@ -3371,7 +3340,7 @@ h1{
     wrap.innerHTML = `
       <div class="veborrow-wallet-card-head">
         <div class="veborrow-wallet-heading">
-          <h2 class="veborrow-wallet-title">Top users saved with current veDOLO</h2>
+          <h2 class="veborrow-wallet-title">Top estimated savings with current veDOLO</h2>
           <span class="veborrow-wallet-count-badge" id="veBorrowWalletCount">${rows.length.toLocaleString("en-US")} shown</span>
         </div>
         <div class="veborrow-wallet-meta"><span class="pulse"></span>Data updated · ${dataAgeLabel(revenueData?.generatedAt)}</div>
@@ -3404,7 +3373,7 @@ h1{
               <th class="${veBorrowWalletThClass("borrowInterest", "num")}" data-veborrow-wallet-sort="borrowInterest" aria-sort="${veBorrowWalletAriaSort("borrowInterest")}">${veBorrowWalletSortHeader("borrowInterest", "Borrow interest")}</th>
               <th class="${veBorrowWalletThClass("vedolo", "num")}" data-veborrow-wallet-sort="vedolo" aria-sort="${veBorrowWalletAriaSort("vedolo")}">${veBorrowWalletSortHeader("vedolo", "Current veDOLO")}</th>
               <th class="${veBorrowWalletThClass("saved", "num")}" data-veborrow-wallet-sort="saved" aria-sort="${veBorrowWalletAriaSort("saved")}">${veBorrowWalletSortHeader("saved", "Users saved")}</th>
-              <th class="${veBorrowWalletThClass("missing", "num")}" data-veborrow-wallet-sort="missing" aria-sort="${veBorrowWalletAriaSort("missing")}">${veBorrowWalletSortHeader("missing", "Missing for max")}</th>
+              <th class="${veBorrowWalletThClass("missing", "num")}" data-veborrow-wallet-sort="missing" aria-sort="${veBorrowWalletAriaSort("missing")}">${veBorrowWalletSortHeader("missing", "veDOLO votes for max")}</th>
             </tr>
           </thead>
           <tbody>
@@ -3593,11 +3562,11 @@ h1{
     if (!veBorrowSimulationOpen) return;
     renderVeBorrowSimulationMode();
 
-    const model = selected && selected.length ? selected : selectedVeBorrowRows(rows);
+    const model = rows || [];
     const dayCount = model.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
     const config = veBorrowSimulationConfig();
-    const maxRows = veBorrowSimulationRows(model, dayCount, config);
-    const currentModel = veBorrowCurrentSimulationRows(model, config);
+    const maxRows = veBorrowFinalizedSimulationRows(model, config);
+    const currentModel = veBorrowFinalizedCurrentSimulationRows(model, config);
     const simRows = veBorrowSimulationMode === "current" ? currentModel.chains : maxRows;
     const totals = simRows.reduce((acc, row) => {
       acc.borrowInterestUSD += n(row.borrowInterestUSD);
@@ -3622,46 +3591,46 @@ h1{
     const displayChainLabel = veBorrowDisplayChainLabel(config.displayChains);
     const rebateLabel = veBorrowRebateLabel(config);
     if (rangeEl) {
-      const rangeText = first && last ? `${formatRangeDay(first)} -> ${formatRangeDay(last)}` : "selected range";
+      const rangeText = first && last ? `${formatRangeDay(first)} -> ${formatRangeDay(last)}` : "complete finalized periods";
       const eligibilityText = config.eligibilityChains.join(" + ");
       rangeEl.textContent = veBorrowSimulationMode === "current"
-        ? `Current-footprint simulation · ${rangeText} · ${displayChainLabel} · current on-chain veDOLO votes · eligibility includes ${eligibilityText}.`
-        : `Annualized simulation · ${rangeText} · ${displayChainLabel} · assumes every borrower reaches max ${rebateLabel} rebate · ${config.annualizationPeriods} weekly periods · ${config.veDoloHoldingFactor.toFixed(1).replace(".0", "")}x veDOLO threshold.`;
+        ? `Modeled current debt and votes against complete official finalized eligible-market periods. Live eligibility: Berachain + Arbitrum. ETH is a separate hypothetical 10% interest scenario.`
+        : `Official finalized eligible markets and individual market revenue factors, with 5% tolerance. Full available closed history; unfinished epochs excluded. ETH is a separate hypothetical 10% interest scenario.`;
     }
     if (priceEl) {
       priceEl.textContent = config.doloPriceUSD > 0
-        ? `DOLO price $${config.doloPriceUSD.toFixed(4)} · ${priceSource}`
+        ? `DOLO price ${config.doloPriceUSD.toFixed(4)} · ${priceSource}`
         : "DOLO price unavailable";
     }
     if (cardsEl) {
       if (veBorrowSimulationMode === "current") {
         cardsEl.innerHTML = `
           <div class="veborrow-sim-card primary"><span>Current veDOLO saved</span><b>${currentDataReady ? usdFull(currentTotals.currentVeDoloSavedUSD) : "-"}</b><small>${esc(displayChainLabel || "ETH + ARB + BERA")} payout estimate</small></div>
-          <div class="veborrow-sim-card"><span>Max theoretical</span><b>${usdFull(currentTotals.maxUsersSavedUSD || totals.maxUsersSavedUSD)}</b><small>after protocol revenue factor</small></div>
-          <div class="veborrow-sim-card"><span>veDOLO coverage</span><b>${pct(currentTotals.coverageRatio)}</b><small>${currentDataReady ? "all displayed chains threshold" : "current data unavailable"}</small></div>
-          <div class="veborrow-sim-card"><span>Borrow interest</span><b>${usdFull(currentTotals.borrowInterestUSD || totals.borrowInterestUSD)}</b><small>${dayCount.toLocaleString("en-US")} selected daily bars</small></div>
+          <div class="veborrow-sim-card"><span>Maximum rebate</span><b>${usdFull(currentTotals.maxUsersSavedUSD || totals.maxUsersSavedUSD)}</b><small>official per-market factors</small></div>
+          <div class="veborrow-sim-card"><span>veDOLO coverage</span><b>${pct(currentTotals.coverageRatio)}</b><small>${currentDataReady ? "live-chain voting threshold" : "current data unavailable"}</small></div>
+          <div class="veborrow-sim-card"><span>Borrow interest</span><b>${usdFull(currentTotals.borrowInterestUSD || totals.borrowInterestUSD)}</b><small>${dayCount.toLocaleString("en-US")} daily history observations</small></div>
         `;
       } else {
         cardsEl.innerHTML = `
-          <div class="veborrow-sim-card primary"><span>Max users saved</span><b>${usdFull(totals.maxUsersSavedUSD)}</b><small>after protocol revenue factor</small></div>
-          <div class="veborrow-sim-card"><span>Required locked DOLO</span><b>${config.doloPriceUSD > 0 ? tokenCompact(totals.requiredLockedDolo, " DOLO") : "-"}</b><small>${rebateLabel} · annualized threshold</small></div>
-          <div class="veborrow-sim-card"><span>Borrow interest</span><b>${usdFull(totals.borrowInterestUSD)}</b><small>${dayCount.toLocaleString("en-US")} selected daily bars</small></div>
-          <div class="veborrow-sim-card"><span>Sim net revenue</span><b>${usdFull(totals.simNetRevenueUSD)}</b><small>after max user savings</small></div>
+          <div class="veborrow-sim-card primary"><span>Max users saved</span><b>${usdFull(totals.maxUsersSavedUSD)}</b><small>official per-market factors</small></div>
+          <div class="veborrow-sim-card"><span>Required veDOLO votes</span><b>${config.doloPriceUSD > 0 ? tokenCompact(totals.requiredLockedDolo, " veDOLO votes") : "-"}</b><small>${rebateLabel} · annualized threshold</small></div>
+          <div class="veborrow-sim-card"><span>Borrow interest</span><b>${usdFull(totals.borrowInterestUSD)}</b><small>${dayCount.toLocaleString("en-US")} daily history observations</small></div>
+          <div class="veborrow-sim-card"><span>Sim net revenue</span><b>N/A</b><small>not modeled for official finalized scope</small></div>
         `;
       }
     }
     if (!rowsEl) return;
     if (headEl) {
       headEl.innerHTML = veBorrowSimulationMode === "current"
-        ? `<th>Chain</th><th>Borrow interest</th><th>Current veDOLO saved</th><th>Max theoretical</th><th>veDOLO coverage</th>`
-        : `<th>Chain</th><th>Borrow interest</th><th>Max users saved</th><th>Sim net revenue</th><th>Required locked DOLO</th>`;
+        ? `<th>Chain</th><th>Borrow interest</th><th>Current veDOLO saved</th><th>Maximum rebate</th><th>veDOLO coverage</th>`
+        : `<th>Chain</th><th>Borrow interest</th><th>Max users saved</th><th>Sim net revenue</th><th>Required veDOLO votes</th>`;
     }
     if (veBorrowSimulationMode === "current" && !currentDataReady) {
       rowsEl.innerHTML = '<tr><td colspan="5" class="empty-state">Current borrower + veDOLO simulation data is not available yet.</td></tr>';
       return;
     }
     if (!simRows.some(row => n(row.borrowInterestUSD) > 0)) {
-      rowsEl.innerHTML = `<tr><td colspan="5" class="empty-state">No ${esc(config.displayChains.join(", "))} borrow interest in this selected range.</td></tr>`;
+      rowsEl.innerHTML = `<tr><td colspan="5" class="empty-state">No ${esc(config.displayChains.join(", "))} borrow interest in this complete finalized periods.</td></tr>`;
       return;
     }
     rowsEl.innerHTML = simRows.map(row => {
@@ -3674,22 +3643,24 @@ h1{
       const programStatus = rebateConfigured
         ? (config.claimsEnabledByChain[row.chain] ? "claims enabled" : "rebate configured")
         : "simulation-only";
-      const chainSub = `${abbr} · ${programStatus}`;
+      const chainSub=row.hypothetical?"Hypothetical · 10% interest":row.noEligiblePeriods?"No complete finalized periods":row.available?`Finalized epochs ${row.startEpoch}–${row.endEpoch}`:"Finalized data unavailable";
+      const scope=row.available&&!row.hypothetical&&!row.noEligiblePeriods?`${formatRangeDay(row.periodStartTimestamp)} – ${formatRangeDay(row.periodEndTimestamp)}`:row.hypothetical?"independent ETH scenario":"no eligible closed periods";
+      if(!row.available)return `<tr><td><div class="chain-name">${esc(row.chain)}</div></td><td colspan="4" class="empty-state">Official finalized data unavailable; live estimates withheld.</td></tr>`;
       if (veBorrowSimulationMode === "current") {
         return `<tr>
-          <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${esc(chainSub)}</div></div></div></td>
+          <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${esc(chainSub)}</div><div class="chain-sub">${esc(scope)}</div></div></div></td>
           <td><div class="num-main">${usdFull(row.borrowInterestUSD)}</div><div class="num-sub">${n(row.borrowerCount).toLocaleString("en-US")} current borrowers</div></td>
           <td><div class="num-main">${usdFull(row.currentVeDoloSavedUSD)}</div><div class="num-sub">${n(row.borrowersWithVeDoloCount).toLocaleString("en-US")} borrowers with veDOLO</div></td>
-          <td><div class="num-main">${usdFull(row.maxUsersSavedUSD)}</div><div class="num-sub">after revenue factor</div></td>
+          <td><div class="num-main">${usdFull(row.maxUsersSavedUSD)}</div><div class="num-sub">per-market factors</div></td>
           <td><div class="num-main">${pct(row.coverageRatio)}</div><div class="num-sub">${config.doloPriceUSD > 0 ? tokenCompact(row.requiredLockedDolo, " veDOLO") : "price unavailable"} annualized threshold</div></td>
         </tr>`;
       }
       return `<tr>
-        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${esc(chainSub)}</div></div></div></td>
-        <td><div class="num-main">${usdFull(row.borrowInterestUSD)}</div><div class="num-sub">selected range</div></td>
-        <td><div class="num-main">${usdFull(row.maxUsersSavedUSD)}</div><div class="num-sub">after revenue factor</div></td>
-        <td><div class="num-main">${usdFull(row.simNetRevenueUSD)}</div><div class="num-sub">gross ${usdFull(row.grossProtocolRevenueUSD)}</div></td>
-        <td><div class="num-main">${config.doloPriceUSD > 0 ? tokenCompact(row.requiredLockedDolo, " DOLO") : "Price unavailable"}</div><div class="num-sub">${usdFull(row.requiredVeDoloValueUSD)} veDOLO value</div></td>
+        <td><div class="chain-cell"><div class="chain-badge">${badge}</div><div><div class="chain-name">${esc(row.chain)}</div><div class="chain-sub">${esc(chainSub)}</div><div class="chain-sub">${esc(scope)}</div></div></div></td>
+        <td><div class="num-main">${usdFull(row.borrowInterestUSD)}</div><div class="num-sub">complete finalized periods</div></td>
+        <td><div class="num-main">${usdFull(row.maxUsersSavedUSD)}</div><div class="num-sub">per-market factors</div></td>
+        <td><div class="num-main">N/A</div><div class="num-sub">outside this finalized maximum scope</div></td>
+        <td><div class="num-main">${config.doloPriceUSD > 0 ? tokenCompact(row.requiredLockedDolo, " veDOLO votes") : "Price unavailable"}</div><div class="num-sub">${usdFull(row.requiredVeDoloValueUSD)} required vote value</div></td>
       </tr>`;
     }).join("");
   }
@@ -3697,7 +3668,7 @@ h1{
     const model = selected && selected.length ? selected : selectedVeBorrowRows(rows);
     const dayCount = model.length || rangeDays(brushSelFor(VEBORROW_CHART_KEY).from, brushSelFor(VEBORROW_CHART_KEY).to);
     const config = veBorrowSimulationConfig();
-    const currentModel = veBorrowCurrentSimulationRows(model, config);
+    const currentModel = veBorrowFinalizedCurrentSimulationRows(model, config);
     renderVeBorrowCurrentWalletTable(currentModel.wallets);
   }
   function renderVeBorrowBrush(rows, options = {}){
@@ -4082,6 +4053,82 @@ h1{
     }
   });
   renderProtocolInfo();
+  let veBorrowHistoryData=null;
+  // Active programs use complete, finalized official eligible-market periods.
+  // Current wallet allocations remain a debt/vote model, not historical payouts.
+  function veBorrowFinalizedBasis(selected,chain,config){
+    const timestamps=(selected||[]).map(row=>n(row.ts)).filter(ts=>ts>0);
+    const from=timestamps.length?Math.min(...timestamps):0,to=timestamps.length?Math.max(...timestamps)+86400:0;
+    const active=(config.activeRebateChains||[]).includes(chain);
+    if(!active){
+      const interest=(selected||[]).reduce((sum,row)=>sum+n(row.chains?.[chain]?.feesUSD),0);
+      return {chain,available:timestamps.length>0,hypothetical:true,borrowInterestUSD:interest,eligibilityMaxUsersSavedUSD:interest*.1,maxUsersSavedUSD:interest*.1,days:timestamps.length,periodStartTimestamp:from,periodEndTimestamp:to,epochCount:0};
+    }
+    const source=veBorrowHistoryData?.chains?.[chain];
+    if(!source||!Array.isArray(source.epochs)||!source.epochs.length||source.epochs.some(row=>{const p=row.officialInterest;return p?.status!=='verified'||!['eligibleBorrowInterestUSD','unscaledMaximumRebateUSD','maximumRebateUSD'].every(key=>typeof p[key]==='number'&&Number.isFinite(p[key])&&p[key]>=0)||!(n(p.periodStartTimestamp)>0&&n(p.periodEndTimestamp)>n(p.periodStartTimestamp));}))return {chain,available:false,days:0};
+    // Select complete labeled epochs; source windows can include catch-up days.
+    const periods=source.epochs.filter(row=>{const p=row.officialInterest;return (n(row.ts||p.periodStartTimestamp)>=from||n(p.periodStartTimestamp)>=from)&&(n(row.endTimestamp||p.periodEndTimestamp)<=to||n(p.periodEndTimestamp)<=to);});
+    if(!periods.length)return {chain,available:true,noEligiblePeriods:true,borrowInterestUSD:0,eligibilityMaxUsersSavedUSD:0,maxUsersSavedUSD:0,days:0,epochCount:0};
+    const totals=periods.reduce((sum,row)=>{const p=row.officialInterest;sum.borrowInterestUSD+=n(p.eligibleBorrowInterestUSD);sum.eligibilityMaxUsersSavedUSD+=n(p.unscaledMaximumRebateUSD);sum.maxUsersSavedUSD+=n(p.maximumRebateUSD);sum.days+=(n(p.periodEndTimestamp)-n(p.periodStartTimestamp))/86400;return sum;},{borrowInterestUSD:0,eligibilityMaxUsersSavedUSD:0,maxUsersSavedUSD:0,days:0});
+    return {chain,available:true,hypothetical:false,...totals,periodStartTimestamp:periods[0].officialInterest.periodStartTimestamp,periodEndTimestamp:periods.at(-1).officialInterest.periodEndTimestamp,epochCount:periods.length,startEpoch:periods[0].epoch,endEpoch:periods.at(-1).epoch};
+  }
+  function veBorrowFinalizedSimulationRows(selected,config){
+    return config.displayChains.map(chain=>{
+      const basis=veBorrowFinalizedBasis(selected,chain,config);
+      const requiredVeDoloValueUSD=n(basis.eligibilityMaxUsersSavedUSD)*veBorrowClaimPeriodScale(basis.days)*config.annualizationPeriods*config.veDoloHoldingFactor;
+      return {...basis,requiredVeDoloValueUSD,requiredLockedDolo:config.doloPriceUSD>0?requiredVeDoloValueUSD/config.doloPriceUSD:0};
+    }).sort((a,b)=>n(b.borrowInterestUSD)-n(a.borrowInterestUSD));
+  }
+  function veBorrowFinalizedCurrentSimulationRows(selected,config){
+    const active=new Set(config.activeRebateChains||[]),display=new Set(config.displayChains||[]);
+    const modelChains=[...new Set([...active,...display])];
+    const bases=new Map(veBorrowFinalizedSimulationRows(selected,{...config,displayChains:modelChains}).map(row=>[row.chain,row]));
+    // A missing essential active-chain basis cannot lower any live borrower's
+    // cross-chain threshold. Suppress live models until all bases are known.
+    const liveBasisAvailable=[...active].every(chain=>bases.get(chain)?.available);
+    if(!liveBasisAvailable)for(const chain of active)bases.set(chain,{...bases.get(chain),available:false});
+    const chains=new Map([...display].map(chain=>[chain,{...bases.get(chain),borrowInterestUSD:0,maxUsersSavedUSD:0,eligibilityMaxUsersSavedUSD:0,currentVeDoloSavedUSD:0,requiredLockedDolo:0,borrowerCount:n(veBorrowSimulationData?.chains?.[chain]?.borrowerCount),borrowersWithVeDoloCount:0,discountUserCount:0,borrowersWithDiscountCount:0}]));
+    const wallets=[];
+    for(const borrower of veBorrowSimulationData?.borrowers||[]){
+      const address=String(borrower.address||'').toLowerCase();if(!address)continue;
+      const hasLiveDebt=[...active].some(chain=>n(borrower.chains?.[chain]?.currentDebtUSD)>0);
+      if(hasLiveDebt&&!liveBasisAvailable)continue;
+      const voteWeight=n(borrower.veDoloVoteWeight),voteValue=voteWeight*n(config.doloPriceUSD),payload={};
+      let liveRequirement=0,liveInterest=0,liveUnscaled=0;
+      for(const chain of modelChains){
+        const basis=bases.get(chain),total=n(veBorrowSimulationData?.chains?.[chain]?.currentDebtUSD),debt=n(borrower.chains?.[chain]?.currentDebtUSD);
+        if(!basis?.available||total<=0||debt<=0)continue;
+        const share=debt/total;
+        payload[chain]={borrowInterestUSD:n(basis.borrowInterestUSD)*share,maxUsersSavedUSD:n(basis.maxUsersSavedUSD)*share,eligibilityMaxUsersSavedUSD:n(basis.eligibilityMaxUsersSavedUSD)*share,requiredVeDoloValueUSD:n(basis.requiredVeDoloValueUSD)*share,display:display.has(chain)};
+        if(active.has(chain)){liveRequirement+=payload[chain].requiredVeDoloValueUSD;liveInterest+=payload[chain].borrowInterestUSD;liveUnscaled+=payload[chain].eligibilityMaxUsersSavedUSD;}
+      }
+      const liveRatio=liveRequirement>0?Math.min(1,voteValue/liveRequirement):0;
+      let displayInterest=0,displayMaximum=0,displaySaved=0;
+      for(const [chain,value] of Object.entries(payload)){
+        // Ethereum has an independent hypothetical requirement. It never changes
+        // the live Berachain + Arbitrum voting threshold.
+        const ratio=active.has(chain)?liveRatio:(value.requiredVeDoloValueUSD>0?Math.min(1,voteValue/value.requiredVeDoloValueUSD):0);
+        value.eligibilityRatio=ratio;value.currentVeDoloSavedUSD=value.maxUsersSavedUSD*ratio;
+        if(!value.display)continue;
+        displayInterest+=value.borrowInterestUSD;displayMaximum+=value.maxUsersSavedUSD;displaySaved+=value.currentVeDoloSavedUSD;
+        const row=chains.get(chain);row.borrowInterestUSD+=value.borrowInterestUSD;row.maxUsersSavedUSD+=value.maxUsersSavedUSD;row.eligibilityMaxUsersSavedUSD+=value.eligibilityMaxUsersSavedUSD;row.currentVeDoloSavedUSD+=value.currentVeDoloSavedUSD;
+        row.requiredLockedDolo+=config.doloPriceUSD>0?value.requiredVeDoloValueUSD/config.doloPriceUSD:0;
+        if(voteWeight>0)row.borrowersWithVeDoloCount++;
+        if(value.currentVeDoloSavedUSD>0){row.discountUserCount++;row.borrowersWithDiscountCount++;}
+      }
+      if(displayInterest<=0)continue;
+      const requirement=hasLiveDebt?liveRequirement:n(payload.Ethereum?.requiredVeDoloValueUSD);
+      const coverage=hasLiveDebt?liveRatio:n(payload.Ethereum?.eligibilityRatio);
+      const requiredVotes=config.doloPriceUSD>0?requirement/config.doloPriceUSD:0;
+      wallets.push({address,borrowInterestUSD:displayInterest,eligibilityBorrowInterestUSD:liveInterest,maxUsersSavedUSD:displayMaximum,eligibilityMaxUsersSavedUSD:liveUnscaled,currentVeDoloSavedUSD:displaySaved,eligibilityRatio:coverage,hypotheticalOnly:!hasLiveDebt,veDoloVoteWeight:voteWeight,veDoloLockedDolo:n(borrower.veDoloLockedDolo),veDoloVoteSource:borrower.veDoloVoteSource||'',requiredLockedDolo:requiredVotes,missingVeDoloForMax:Math.max(0,requiredVotes-voteWeight),chains:Object.fromEntries(Object.entries(payload).filter(([,value])=>value.display))});
+    }
+    const chainRows=[...chains.values()].map(row=>({...row,coverageRatio:row.maxUsersSavedUSD>0?row.currentVeDoloSavedUSD/row.maxUsersSavedUSD:0})).sort((a,b)=>n(b.borrowInterestUSD)-n(a.borrowInterestUSD));
+    const totals=chainRows.reduce((sum,row)=>{for(const key of ['borrowInterestUSD','maxUsersSavedUSD','currentVeDoloSavedUSD','eligibilityMaxUsersSavedUSD','requiredLockedDolo','borrowerCount','borrowersWithVeDoloCount','discountUserCount','borrowersWithDiscountCount'])sum[key]=(sum[key]||0)+n(row[key]);return sum;},{});
+    totals.coverageRatio=totals.maxUsersSavedUSD>0?totals.currentVeDoloSavedUSD/totals.maxUsersSavedUSD:0;
+    wallets.sort((a,b)=>b.currentVeDoloSavedUSD-a.currentVeDoloSavedUSD);
+    return {chains:chainRows,wallets,totals};
+  }
+
   function fetchJson(url){
     return fetch(url, { cache:"no-cache" }).then(response => {
       if (!response.ok) throw new Error("HTTP " + response.status);
@@ -4102,13 +4149,17 @@ h1{
       console.warn("veBorrow simulation data failed", error);
       return null;
     }),
+    fetchJson("veborrow_rebate_history.json?v=revenue-20261026-official-v31").catch(error=>{
+      console.warn("Finalized official rebate inputs unavailable",error);return null;
+    }),
     veBorrowLabelsPromise
   ])
-    .then(([data, exercises, doloPrice, veBorrowSimulation]) => {
+    .then(([data, exercises, doloPrice, veBorrowSimulation, rebateHistory]) => {
       revenueData = data;
       odoloExerciseData = exercises;
       doloPriceData = doloPrice;
       veBorrowSimulationData = veBorrowSimulation;
+      veBorrowHistoryData=rebateHistory;
       odoloExerciseDaily = null;
       if (!odoloExerciseData && selectedRevenueSeries.has("odoloUsdc")) selectedRevenueSeries = new Set(["revenue"]);
       render();
@@ -4127,3 +4178,4 @@ h1{
 </script>
 </body>
 </html>
+

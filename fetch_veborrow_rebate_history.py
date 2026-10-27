@@ -12,6 +12,7 @@ import re
 import time
 from datetime import datetime, timezone
 from decimal import Decimal, localcontext
+from concurrent.futures import ThreadPoolExecutor
 from eth_hash.auto import keccak
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -158,6 +159,61 @@ def value_usd(amounts, prices):
             total += Decimal(raw) * Decimal(prices.get(market, '0')) / Decimal(10 ** 36)
         return float(total)
 
+def summarize_official_interest(data, epoch, source_url, digest):
+    """Price only the eligible markets in this finalized official calculator file."""
+    meta = data['metadata']
+    start, end = meta['claimStartTimestamp'], meta['claimEndTimestamp']
+    if meta['epoch'] != epoch or not isinstance(start, int) or not isinstance(end, int) or start <= 0 or end <= start:
+        raise ValueError('Invalid official interest epoch/window')
+    if not re.fullmatch(r'[0-9a-f]{64}', digest):
+        raise ValueError('Invalid official interest digest')
+    prices = {str(market): str(uint(price)) for market, price in meta['marketPrices'].items()}
+    interest, maxima, factors = {}, {}, {}
+    with localcontext() as context:
+        context.prec = 100
+        for market, raw in meta['marketTotalBorrowInterest'].items():
+            if market not in prices or uint(prices[market]) <= 0:
+                raise ValueError('Missing official interest price for market ' + market)
+            revenues = []
+            for key in ['marketExpectedTotalRevenue', 'marketFoundTotalRevenue']:
+                text = meta[key].get(market)
+                if not isinstance(text, str) or not re.fullmatch(r'\d+(?:\.\d+)?', text):
+                    raise ValueError('Invalid official market revenue for market ' + market)
+                revenues.append(Decimal(text))
+            expected, found = revenues
+            factor = found / expected if expected > 0 and found < expected * Decimal('.95') else Decimal(1)
+            amount = Decimal(uint(raw)) * Decimal(prices[market]) / Decimal(10**36)
+            interest[market], factors[market], maxima[market] = amount, factor, amount * Decimal('.1') * factor
+        total_interest, total_maximum = sum(interest.values(), Decimal(0)), sum(maxima.values(), Decimal(0))
+        return {'status': 'verified', 'validationVersion': 1, 'periodStartTimestamp': start, 'periodEndTimestamp': end,
+                'eligibleBorrowInterestUSD': float(total_interest), 'unscaledMaximumRebateUSD': float(total_interest * Decimal('.1')),
+                'maximumRebateUSD': float(total_maximum), 'marketPrices': prices,
+                'marketRevenueFactors': {market: float(value) for market, value in factors.items()},
+                'marketBorrowInterestUSD': {market: float(value) for market, value in interest.items()},
+                'marketMaximumRebateUSD': {market: float(value) for market, value in maxima.items()},
+                'sourceUrl': source_url, 'sha256': digest,
+                'sourceMetadata': {key: meta[key] for key in ['epoch', 'claimStartTimestamp', 'claimEndTimestamp', 'marketTotalBorrowInterest',
+                                                            'marketExpectedTotalRevenue', 'marketFoundTotalRevenue', 'marketPrices']}}
+
+def enrich_official_interest(history, load_period):
+    """Enrich in place; retain allocation/Merkle validation and chart reference USD."""
+    for name, chain in history['chains'].items():
+        chain_id = str(chain['chainId'])
+        def load_row(row):
+            data, digest, url = load_period(chain_id, row['epoch'])
+            official = summarize_official_interest(data, row['epoch'], url, digest)
+            for market, amount in row.get('deltaRaw', {}).items():
+                if int(amount) and uint(official['marketPrices'].get(market, '0')) <= 0:
+                    raise ValueError('Missing allocation-period price for market ' + market)
+            return official
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            periods = list(executor.map(load_row, chain['epochs']))
+        for row, official in zip(chain['epochs'], periods):
+            row['officialInterest'] = official
+        chain['interestWindows'] = {str(row['epoch']): {'start': official['periodStartTimestamp'], 'end': official['periodEndTimestamp']}
+                                    for row, official in zip(chain['epochs'], periods)}
+    return history
+
 def build_chain(snapshots, start_epoch, published_epoch, start_ts, prices):
     versions = {}
     for snapshot in sorted(snapshots, key=lambda row: (row['committedAt'], row['commit'])):
@@ -229,7 +285,7 @@ def fetch_snapshots(chain, cache):
 def generate(previous=None):
     metadata_response, meta_hash = read_json(METADATA_URL)
     metadata = metadata_response['metadata']
-    chains = {}
+    chains, interest_revisions = {}, {}
     for chain, name in CHAINS.items():
         config = metadata['allChainRebateInfo'][chain]
         # Both official publication indices must agree; a mid-publication run is retried later.
@@ -254,6 +310,28 @@ def generate(previous=None):
                        'referencePriceSource': price_url, 'referencePriceSha256': price_hash,
                        'interestWindows': {str(published): {'start': price_meta['claimStartTimestamp'], 'end': price_meta['claimEndTimestamp']}}})
         chains[name] = result
+        path = f'finalized/{chain}/borrow-interest'
+        commits, _ = read_json(f'https://api.github.com/repos/{REPO}/commits?path={path}&per_page=1')
+        revision = commits[0]['sha']
+        if not re.fullmatch(r'[0-9a-f]{40}', revision):
+            raise ValueError('Invalid official interest revision')
+        interest_revisions[chain] = revision
+        result['officialInterestSourceCommit'] = revision
+    def load_period(chain, epoch):
+        name = CHAINS[chain]
+        url = f'{RAW}/{interest_revisions[chain]}/finalized/{chain}/borrow-interest/epoch-{epoch}-output.json'
+        cached = next((row.get('officialInterest', {}) for row in (previous or {}).get('chains', {}).get(name, {}).get('epochs', [])
+                       if row.get('epoch') == epoch), {})
+        if cached.get('sourceUrl') == url and cached.get('validationVersion') == 1 and cached.get('sourceMetadata'):
+            # Revalidate cached metadata; only identical immutable revisions can
+            # skip a download, so corrected official files never retain old math.
+            return {'metadata': cached['sourceMetadata']}, cached['sha256'], url
+        data, digest = read_json(url)
+        return data, digest, url
+    # Immutable source revisions make future refreshed histories reproducible.
+    # Snapshot archives above already reuse validated prior commits; interest
+    # files use four bounded workers instead of serial large-file downloads.
+    enrich_official_interest({'chains': chains}, load_period)
     # Ensure publication did not change while collecting the archive.
     final_meta, _ = read_json(METADATA_URL)
     if final_meta['metadata'] != metadata:
@@ -274,3 +352,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

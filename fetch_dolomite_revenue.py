@@ -36,6 +36,9 @@ DATA_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_FILE = os.path.join(DATA_DIR, "dolomite_revenue.json")
 ONCHAIN_AUDIT_FILE = os.path.join(DATA_DIR, "data", "dolomite-revenue-onchain-audit.json")
 ONCHAIN_REVENUE_OVERRIDES_FILE = os.path.join(DATA_DIR, "data", "dolomite-revenue-onchain-overrides.json")
+BORROW_FEE_REBATE_HISTORY_FILE = os.path.join(DATA_DIR, "veborrow_rebate_history.json")
+BORROW_FEE_REBATE_CHAINS = {"Berachain": 80094, "Arbitrum": 42161}
+CANONICAL_REBATE_MODE = "canonical_signed_delta"
 ONCHAIN_AUDIT_EXPECTED_TARGET_AFTER_UTC_HOUR = 10
 BASE_URL = "https://api.llama.fi/summary/fees/dolomite"
 BORROW_FEE_REBATE_METADATA_URL = "https://api.dolomite.io/liquidity-mining/ve-dolo-rebate/metadata"
@@ -82,6 +85,7 @@ BORROW_FEE_REBATE_CALCULATION_MODES = {
     "cumulative_delta",
     "known_epoch_snapshot_reset",
     "same_epoch_snapshot_replacement",
+    CANONICAL_REBATE_MODE,
 }
 BORROW_FEE_REBATE_MAX_AUDIT_PUBLIC_DAY_DELAY_SECONDS = 8.0
 LOG_CHUNK_SIZE = 10_000
@@ -191,6 +195,8 @@ def validated_borrow_fee_rebate_epoch(epoch_rebate):
         or calculation_mode not in BORROW_FEE_REBATE_CALCULATION_MODES
     ):
         raise ValueError("unsupported borrow fee rebate calculationMode")
+    if rebate_usd < 0 and calculation_mode != CANONICAL_REBATE_MODE:
+        raise ValueError("signed borrow fee rebate requires canonical signed delta provenance")
     return rebate_usd, calculation_mode
 
 
@@ -306,6 +312,141 @@ def fetch_borrow_fee_rebate_metadata():
         return None
     metadata = payload.get("metadata") if isinstance(payload, dict) else None
     return metadata if isinstance(metadata, dict) else None
+
+
+def canonical_raw_integer(value):
+    """Read exact integer strings without accepting floats, booleans or truncation."""
+    if type(value) is int:
+        return value
+    if isinstance(value, str) and value and value.removeprefix("-").isascii() and value.removeprefix("-").isdigit():
+        return int(value)
+    raise ValueError("canonical rebate raw values must be exact integers")
+
+
+def canonical_borrow_fee_rebate_data(history):
+    """Price reconciled signed epoch deltas, never cumulative/reference snapshots."""
+    if not isinstance(history, dict) or not isinstance(history.get("chains"), dict):
+        raise ValueError("canonical borrow fee rebate history is missing")
+    chains = {}
+    for chain, chain_id in BORROW_FEE_REBATE_CHAINS.items():
+        source = history["chains"].get(chain)
+        if not isinstance(source, dict) or source.get("reconciled") is not True or source.get("missingEpochs") != []:
+            raise ValueError(f"canonical {chain} rebate history is missing or unreconciled")
+        if source.get("chainId") != chain_id:
+            raise ValueError(f"canonical {chain} rebate chainId is invalid")
+        start, published = source.get("startEpoch"), source.get("publishedEpoch")
+        if type(start) is not int or type(published) is not int or not 0 < start <= published:
+            raise ValueError(f"canonical {chain} rebate epoch range is invalid")
+        rows = source.get("epochs")
+        totals = source.get("totalsRaw")
+        if not isinstance(rows, list) or not isinstance(totals, dict) or not totals:
+            raise ValueError(f"canonical {chain} rebate epochs/totalsRaw are missing")
+        if any(not isinstance(row, dict) or type(row.get("epoch")) is not int for row in rows):
+            raise ValueError(f"canonical {chain} rebate epoch row is invalid")
+        rows = sorted(rows, key=lambda row: row["epoch"])
+        if [row["epoch"] for row in rows] != list(range(start, published + 1)):
+            raise ValueError(f"canonical {chain} rebate epochs are missing or duplicated")
+        expected = {market: canonical_raw_integer(value) for market, value in totals.items()}
+        if any(not isinstance(market, str) or not market.isascii() or not market.isdigit() or value < 0
+               for market, value in expected.items()):
+            raise ValueError(f"canonical {chain} rebate market totals are invalid")
+        cumulative = {}
+        epochs = []
+        for row in rows:
+            epoch = row["epoch"]
+            period_start, period_end = row.get("ts"), row.get("endTimestamp")
+            if type(period_start) is not int or type(period_end) is not int or period_end <= period_start:
+                raise ValueError(f"canonical {chain} epoch {epoch} scheduled period is invalid")
+            raw_deltas = row.get("deltaRaw")
+            official = row.get("officialInterest")
+            if (row.get("status") not in {"allocated", "correction"} or not isinstance(raw_deltas, dict)
+                    or not isinstance(official, dict) or official.get("status") != "verified"
+                    or not isinstance(official.get("marketPrices"), dict)):
+                raise ValueError(f"canonical {chain} epoch {epoch} requires verified official interest/prices")
+            claim_start, claim_end = official.get("periodStartTimestamp"), official.get("periodEndTimestamp")
+            if type(claim_start) is not int or type(claim_end) is not int or claim_end <= claim_start:
+                raise ValueError(f"canonical {chain} epoch {epoch} official period is invalid")
+            maximum = official.get("maximumRebateUSD")
+            if (not is_finite_real_json_number(maximum) or maximum < 0
+                    or not isinstance(official.get("sourceUrl"), str) or not official["sourceUrl"]
+                    or not isinstance(official.get("sha256"), str) or len(official["sha256"]) != 64):
+                raise ValueError(f"canonical {chain} epoch {epoch} official maximum/provenance is invalid")
+            markets, epoch_usd = [], Decimal(0)
+            for market, raw in sorted(raw_deltas.items(), key=lambda item: str(item[0])):
+                if not isinstance(market, str) or not market.isascii() or not market.isdigit():
+                    raise ValueError(f"canonical {chain} epoch {epoch} market ID is invalid")
+                delta = canonical_raw_integer(raw)
+                cumulative[market] = cumulative.get(market, 0) + delta
+                if cumulative[market] < 0:
+                    raise ValueError(f"canonical {chain} epoch {epoch} negative cumulative allocation")
+                if not delta:
+                    continue
+                encoded_price = canonical_raw_integer(official["marketPrices"].get(market))
+                if encoded_price <= 0:
+                    raise ValueError(f"canonical {chain} epoch {epoch} closing price is missing")
+                market_usd = Decimal(delta) * encoded_price / (Decimal(10) ** 36)
+                epoch_usd += market_usd
+                markets.append({
+                    "marketId": int(market), "deltaRaw": str(delta), "rebateUSD": float(market_usd),
+                    "encodedPrice": str(encoded_price), "priceSource": "official_epoch_closing_market_price",
+                    "calculationMode": CANONICAL_REBATE_MODE,
+                })
+            rebate_usd = rebate_usd_micro_units(epoch_usd) / BORROW_FEE_REBATE_USD_SCALE
+            anomaly_limit = (Decimal(str(maximum)) * (1 + BORROW_FEE_REBATE_ANOMALY_RELATIVE_TOLERANCE)
+                             + BORROW_FEE_REBATE_ANOMALY_ABSOLUTE_TOLERANCE_USD)
+            anomaly = epoch_usd > anomaly_limit
+            published_markets = {str(market["marketId"]) for market in markets}
+            official_markets = set(official.get("marketMaximumRebateUSD", {}))
+            published_only = sorted(published_markets - official_markets, key=int)
+            official_only = sorted(official_markets - published_markets, key=int)
+            epoch_row = {
+                "epoch": epoch, "periodStartTimestamp": period_start, "periodEndTimestamp": period_end,
+                "rebateUSD": rebate_usd, "marketCount": len(markets), "markets": markets,
+                "calculationMode": CANONICAL_REBATE_MODE, "sourceLabel": "Reconciled signed epoch allocation",
+                "deltaRaw": {market: str(canonical_raw_integer(value)) for market, value in raw_deltas.items()},
+                "sourceCommit": row.get("commit"), "sourceRevisionCount": row.get("revisionCount"),
+                "claimStartTimestamp": claim_start, "claimEndTimestamp": claim_end,
+                "maxRebatePeriodSeconds": claim_end - claim_start,
+                "maxRebateDayCount": max(1, math.ceil((claim_end - claim_start) / SECONDS_PER_DAY)),
+                "maxRebateUSD": maximum, "maxRebateMethod": BORROW_FEE_REBATE_MAX_REBATE_METHOD,
+                "maxRebateSource": BORROW_FEE_REBATE_MAX_REBATE_SOURCE,
+                "maxRebateSourceUrl": official["sourceUrl"], "maxRebateSourceSha256": official["sha256"],
+                "maxRebateCalculatorUrl": BORROW_FEE_REBATE_OFFICIAL_CALCULATOR_URL,
+                "marketRevenueFactors": official.get("marketRevenueFactors", {}),
+                "maxRebateEligibleMarketIds": sorted(official.get("marketMaximumRebateUSD", {}), key=int),
+                "maxRebateMarketCount": len(official.get("marketMaximumRebateUSD", {})),
+                "maxRebateAuditStatus": "source_anomaly" if anomaly else "verified",
+                "maxRebateCoverageStatus": "mismatch" if published_only or official_only else "matched",
+                "maxRebatePublishedOnlyMarketIds": published_only,
+                "maxRebateOfficialOnlyMarketIds": official_only,
+            }
+            if anomaly:
+                epoch_row["maxRebateAuditReason"] = "published_rebate_exceeds_official_max"
+            epochs.append(epoch_row)
+        if any(cumulative.get(market, 0) != expected.get(market, 0) for market in set(cumulative) | set(expected)):
+            raise ValueError(f"canonical {chain} signed rebate deltas do not reconcile with totalsRaw")
+        groups = reconcile_borrow_fee_rebate_catchup_groups(epochs)
+        chains[chain] = {
+            "status": "active", "chainId": chain_id, "startEpoch": start,
+            "authoritativePublishedEpoch": published, "onchainFeeRebateEpoch": published,
+            "source": "veborrow_rebate_history.json", "calculationMode": CANONICAL_REBATE_MODE,
+            "rawReconciled": True, "totalsRaw": {market: str(value) for market, value in expected.items()},
+            "epochRebates": epochs, "totalRebateUSD": round(sum(row["rebateUSD"] for row in epochs), 6),
+            "latestRebateDate": day_from_timestamp(max(row["periodEndTimestamp"] for row in epochs)),
+            "nettingStatus": "netted_closed_epochs", "missingPriceCount": 0, "priceFallbackCount": 0,
+            "valuation": "signed raw delta * official epoch closing encoded market price / 1e36",
+            "officialAggregateSource": f"https://raw.githubusercontent.com/dolomite-exchange/liquidity-mining-data/master/finalized/{chain_id}/rebate/rebate-aggregated-output.json",
+            "officialCalculatorSource": BORROW_FEE_REBATE_OFFICIAL_CALCULATOR_URL,
+            "maxRebateAuditGroups": groups,
+        }
+    return {"status": "canonical_reconciled", "generatedAt": history.get("generatedAt"), "chains": chains,
+            "currentEpochIndex": history.get("currentEpoch"),
+            "currentEpochStartTimestamp": history.get("currentEpochStartTimestamp")}
+
+
+def load_canonical_borrow_fee_rebate_data(path=BORROW_FEE_REBATE_HISTORY_FILE):
+    with open(path) as handle:
+        return canonical_borrow_fee_rebate_data(json.load(handle))
 
 
 def normalized_symbol(symbol):
@@ -1000,7 +1141,7 @@ def apply_onchain_revenue_overrides(series, onchain_audit, overrides_payload=Non
 def apply_epoch_rebate_to_chain(series, chain, epoch_rebate):
     rebate_usd, calculation_mode = validated_borrow_fee_rebate_epoch(epoch_rebate)
     target_units = rebate_usd_micro_units(rebate_usd)
-    if target_units <= 0:
+    if target_units == 0:
         return 0.0
 
     period_start = int_or_none(epoch_rebate.get("periodStartTimestamp"))
@@ -1013,6 +1154,8 @@ def apply_epoch_rebate_to_chain(series, chain, epoch_rebate):
         if period_start <= int(row.get("timestamp") or 0) < period_end
         and isinstance((row.get("chains") or {}).get(chain), dict)
     ]
+    if not rows:
+        raise ValueError("borrow fee rebate epoch has no matching daily rows")
     weights = [
         Decimal(str(max(safe_number(row["chains"][chain].get("feesUSD")), 0)))
         for row in rows
@@ -1037,14 +1180,16 @@ def apply_epoch_rebate_to_chain(series, chain, epoch_rebate):
             (Decimal(str(gross_revenue)) * BORROW_FEE_REBATE_USD_SCALE)
             .to_integral_value(rounding=ROUND_FLOOR)
         ))
-        current_units = max(0, rebate_usd_micro_units(current_rebate))
+        current_units = rebate_usd_micro_units(current_rebate)
         existing_units.append(current_units)
-        capacities.append(max(gross_units - current_units, 0))
+        # A signed correction reverses an allocation; it is not a new payout
+        # and must not be clamped away or capped by that day's gross revenue.
+        capacities.append(abs(target_units) if target_units < 0 else max(gross_units - current_units, 0))
 
-    allocations = allocate_weighted_rebate_micro_units(target_units, weights, capacities)
+    allocations = allocate_weighted_rebate_micro_units(abs(target_units), weights, capacities)
     for index, row in enumerate(rows):
         payload = row["chains"][chain]
-        total_units = existing_units[index] + allocations[index]
+        total_units = existing_units[index] + allocations[index] * (-1 if target_units < 0 else 1)
         payload["borrowFeeRebateUSD"] = total_units / BORROW_FEE_REBATE_USD_SCALE
         if calculation_mode:
             payload["borrowFeeRebateCalculationMode"] = calculation_mode
@@ -1082,7 +1227,8 @@ def apply_borrow_fee_rebates(series, rebate_metadata):
             chain_gross = safe_number(payload.get("grossRevenueUSD", payload.get("revenueUSD")))
             chain_gross_units = rebate_usd_micro_units(chain_gross)
             chain_rebate_units = rebate_usd_micro_units(payload.get("borrowFeeRebateUSD"))
-            if chain_rebate_units < 0 or chain_rebate_units > chain_gross_units:
+            signed_correction = payload.get("borrowFeeRebateCalculationMode") == CANONICAL_REBATE_MODE
+            if (chain_rebate_units < 0 and not signed_correction) or chain_rebate_units > chain_gross_units:
                 raise ValueError("borrow fee rebate exceeds chain gross revenue capacity")
             chain_rebate = chain_rebate_units / BORROW_FEE_REBATE_USD_SCALE
             chain_net = (
@@ -2123,6 +2269,29 @@ def int_or_none(value):
 
 
 def normalized_borrow_fee_rebate_metadata(metadata, rebate_data=None, previous_metadata=None):
+    if isinstance(rebate_data, dict) and rebate_data.get("status") == "canonical_reconciled":
+        normalized = json.loads(json.dumps(rebate_data))
+        normalized.update({
+            "status": "active", "netting": "netted_closed_epochs",
+            "source": BORROW_FEE_REBATE_METADATA_URL, "docs": BORROW_FEE_REBATE_DOCS_URL,
+            "metadataStatus": "live" if isinstance(metadata, dict) else "canonical_history",
+            "dataStatus": "canonical_reconciled", "dataGeneratedAt": rebate_data.get("generatedAt"),
+        })
+        if isinstance(metadata, dict):
+            for field in ("veDoloStartTimestamp", "veDoloHoldingFactor", "currentEpochIndex", "currentEpochStartTimestamp"):
+                normalized[field] = metadata.get(field)
+            for chain, chain_id in BORROW_FEE_REBATE_CHAINS.items():
+                chain_info = borrow_fee_rebate_chain_info(metadata, chain_id)
+                published = (metadata.get("onchainFeeRebateEpochIndexMap") or {}).get(str(chain_id))
+                if published != normalized["chains"][chain]["authoritativePublishedEpoch"]:
+                    raise ValueError(f"canonical {chain} rebate history is stale against official metadata")
+                normalized["chains"][chain].update({
+                    "rebatePercentage": float(borrow_fee_rebate_percentage_from_metadata(metadata, chain_id)),
+                    "claimsEnabled": bool(chain_info.get("claimsEnabled")),
+                    "marketCount": len(chain_info.get("marketToRebateInfo") or {}),
+                    "onchainRollingClaimsEpoch": (metadata.get("onchainRollingClaimsEpochIndexMap") or {}).get(str(chain_id)),
+                })
+        return normalized
     if not isinstance(metadata, dict):
         if (
             isinstance(previous_metadata, dict)
@@ -2291,8 +2460,9 @@ def apply_active_network_scope(series):
         row = dict(original)
         row["chains"] = {key: value for key, value in chains.items() if key not in {"Mantle", "X Layer"}}
         for field in ("feesUSD", "revenueUSD", "grossRevenueUSD", "borrowFeeRebateUSD", "supplySideRevenueUSD"):
-            row[field] = round(max(0, safe_number(row.get(field)) -
-                                   sum(safe_number(value.get(field)) for value in retired)), 6)
+            # Reconcile to the kept chains without clamping signed corrections.
+            row[field] = round(sum(safe_number(value.get(field))
+                                   for value in row["chains"].values()), 6)
         fees = row["feesUSD"]
         row["protocolCut"] = round(row["revenueUSD"] / fees, 8) if fees else 0
         row["grossProtocolCut"] = round(row["grossRevenueUSD"] / fees, 8) if fees else 0
@@ -2320,7 +2490,7 @@ def metric_totals(revenue_data, fees_data, series):
     previous_gross_revenue = previous.get("grossRevenueUSD", revenue_data.get("total48hto24h"))
     previous_rebate = previous.get("borrowFeeRebateUSD", 0)
     previous_fees = previous.get("feesUSD", fees_data.get("total48hto24h"))
-    gross_revenue_all_time = max(0, safe_number(revenue_data.get("totalAllTime")) - retired_adapter_total(revenue_data))
+    gross_revenue_all_time = window_sum(series, 0, "grossRevenueUSD")
     rebate_all_time = window_sum(series, 0, "borrowFeeRebateUSD")
     return {
         "dailyRevenueUSD": round(revenue_24h, 6),
@@ -2342,10 +2512,10 @@ def metric_totals(revenue_data, fees_data, series):
         "grossRevenue30dUSD": round(window_sum(series, 30, "grossRevenueUSD"), 6),
         "borrowFeeRebate30dUSD": round(window_sum(series, 30, "borrowFeeRebateUSD"), 6),
         "fees30dUSD": round(window_sum(series, 30, "feesUSD"), 6),
-        "revenueAllTimeUSD": round(max(gross_revenue_all_time - rebate_all_time, 0.0), 6),
+        "revenueAllTimeUSD": round(window_sum(series, 0, "revenueUSD"), 6),
         "grossRevenueAllTimeUSD": round(gross_revenue_all_time, 6),
         "borrowFeeRebateAllTimeUSD": round(rebate_all_time, 6),
-        "feesAllTimeUSD": round(max(0, safe_number(fees_data.get("totalAllTime")) - retired_adapter_total(fees_data)), 6),
+        "feesAllTimeUSD": round(window_sum(series, 0, "feesUSD"), 6),
     }
 
 
@@ -2382,6 +2552,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "adapter": "https://github.com/DefiLlama/dimension-adapters/tree/master/fees/dolomite",
             "onchainAudit": "data/dolomite-revenue-onchain-audit.json",
             "borrowFeeRebates": BORROW_FEE_REBATE_METADATA_URL,
+            "borrowFeeRebateHistory": "veborrow_rebate_history.json",
             "borrowFeeRebateDocs": BORROW_FEE_REBATE_DOCS_URL,
             "borrowFeeRebateDeployments": FEE_REBATE_DEPLOYMENTS_URL,
             "borrowFeeRebateOfficialAggregate": BORROW_FEE_REBATE_OFFICIAL_AGGREGATE_URL,
@@ -2394,7 +2565,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "fees": "Interest paid by borrowers.",
             "revenue": "Net protocol-retained borrower interest after closed-epoch borrow-fee rebates.",
             "grossRevenue": "Protocol-retained borrower interest before borrower rebate programs.",
-            "borrowFeeRebates": "Claimable veDOLO borrow-fee rebates for finalized epochs, read from Berachain rolling-claims Merkle root totals. Daily chart bars are an estimated allocation across the scheduled earning period by daily borrow-interest share; epoch totals are authoritative.",
+            "borrowFeeRebates": "Finalized Berachain and Arbitrum veDOLO borrow-fee rebates use reconciled signed raw epoch deltas. Each delta is valued at that epoch's official closing market price. Daily bars are estimated allocations across scheduled earning periods by daily borrow-interest share; signed corrections reverse prior allocations.",
             "supplySideRevenue": "The portion of borrower interest paid to lenders.",
             "formula": "grossRevenue = interestEarned * (1 - earningsRate); revenue = grossRevenue - borrowFeeRebates; supplySideRevenue = dailyFees - grossRevenue",
             "scope": "Dolomite borrow-interest economics from the DeFiLlama adapter, with audited Ethereum and Berachain rows replaced by independent current-index onchain audit rows when available. Gas fees, token emissions, treasury transfers, trading spreads, liquidator earnings and protocol liquidation-rake attribution are excluded.",
@@ -2415,7 +2586,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "rollingTotalsSource": "Saved daily series rows, matching chart and chain breakdowns for borrow interest",
             "berachainRevenueSource": "current-index onchain audit for audited daily rows; DeFiLlama adapter fallback outside audited coverage",
             "onchainOverrideRevenueSource": "current-index onchain audit for audited Ethereum/Berachain/Mantle daily rows; DeFiLlama adapter fallback outside audited coverage",
-            "netRevenueAfterBorrowFeeRebates": "closed-epoch Berachain veDOLO borrow-fee rebates are netted from displayed revenue; active/unpublished epochs remain gross",
+            "netRevenueAfterBorrowFeeRebates": "closed-epoch Berachain and Arbitrum signed veDOLO borrow-fee rebates are netted from displayed revenue; active/unpublished epochs remain gross",
             "borrowFeeRebateStatus": borrow_fee_rebate_status(rebate_metadata),
             **onchain_audit_assurance(onchain_audit, now=now),
         },
@@ -2431,19 +2602,10 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
 def main():
     print("Fetching Dolomite revenue data...")
     try:
-        previous_output = load_existing_revenue_output()
         revenue_data = fetch_metric("dailyRevenue")
         fees_data = fetch_metric("dailyFees")
         rebate_metadata = fetch_borrow_fee_rebate_metadata()
-        rebate_data = preserve_previous_borrow_fee_rebate_data(
-            fetch_borrow_fee_rebate_data(
-                previous_borrow_fee_rebate_market_metadata(previous_output),
-            ),
-            previous_output,
-        )
-        rebate_data = audit_borrow_fee_rebate_max_rebates(rebate_metadata, rebate_data)
-        if rebate_data.get("status") == "fallback_previous_closed_epochs":
-            print("   Borrow fee rebate fetch unavailable; preserving previous closed-epoch rebate data")
+        rebate_data = load_canonical_borrow_fee_rebate_data()
         onchain_audit = load_onchain_audit()
         onchain_revenue_overrides = merge_onchain_revenue_override_history(
             load_onchain_revenue_overrides(),
@@ -2457,7 +2619,6 @@ def main():
             borrow_fee_rebate_metadata=rebate_metadata,
             borrow_fee_rebate_data=rebate_data,
             onchain_revenue_overrides=onchain_revenue_overrides,
-            previous_borrow_fee_rebate_metadata=previous_output.get("borrowFeeRebates"),
         )
         with open(OUTPUT_FILE, "w") as f:
             json.dump(output, f, separators=(",", ":"))
@@ -2471,9 +2632,9 @@ def main():
         print(f"Revenue fetch failed: {exc}")
         if os.path.exists(OUTPUT_FILE):
             print(f"Keeping existing {OUTPUT_FILE}")
-            return
         raise
 
 
 if __name__ == "__main__":
     main()
+

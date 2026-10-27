@@ -2252,7 +2252,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(html.count("${rebateSourceRow}"), 2)
         self.assertIn("Published Berachain rebate totals, allocated to daily bars as an estimate.", html)
         self.assertIn("veBorrowSelectedAuditIssues", html)
-        self.assertIn("select the complete catch-up window", html)
+        self.assertIn("Maximum uses complete official finalized eligible-market periods", html)
         self.assertIn("Estimated daily allocation", html)
 
     def test_current_revenue_file_has_audited_max_rebate_for_every_closed_epoch(self):
@@ -2277,115 +2277,40 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
 
         self.assertEqual(missing, [])
 
-    def test_current_revenue_file_uses_only_authoritatively_published_rebate_epochs(self):
+    def test_current_revenue_file_uses_reconciled_canonical_signed_epoch_deltas(self):
         data = json.loads((ROOT / "dolomite_revenue.json").read_text())
-        chain = data["borrowFeeRebates"]["chains"]["Berachain"]
-        epochs = chain["epochRebates"]
-        rows_by_date = {row["date"]: row for row in data["series"]}
-
-        epoch_ids = [row["epoch"] for row in epochs]
-        self.assertEqual(epoch_ids, sorted(set(epoch_ids)))
-        self.assertTrue(all(0 < epoch <= chain["authoritativePublishedEpoch"] for epoch in epoch_ids))
-        self.assertEqual(chain["authoritativePublishedEpoch"], chain["onchainFeeRebateEpoch"])
-        self.assertEqual(chain["latestRebateDate"], datetime.fromtimestamp(max(row["periodEndTimestamp"] for row in epochs), timezone.utc).strftime("%Y-%m-%d"))
-        self.assertLessEqual(abs(Decimal(str(chain["totalRebateUSD"])) - sum(Decimal(str(row["rebateUSD"])) for row in epochs)), Decimal("0.000001"))
-        # Fixed regression evidence concerns the original epochs, not the
-        # ever-growing published dataset. Later finalized epochs are valid.
-        historical_epochs = [row for row in epochs if row["epoch"] <= 9]
-        self.assertEqual([row["epoch"] for row in historical_epochs], list(range(1, 10)))
-        self.assertEqual(Decimal(str(epochs[0]["rebateUSD"])), Decimal("3.781538"))
-        self.assertEqual(Decimal(str(epochs[2]["rebateUSD"])), Decimal("89.39844"))
-        epoch9 = epochs[8]
-        self.assertEqual(epoch9["calculationMode"], "known_epoch_snapshot_reset")
-        self.assertEqual(epoch9["sourceLabel"], "Published epoch snapshot reset")
-        self.assertEqual(epoch9["transactionHash"].lower(), KNOWN_RESET_TX_HASH)
-        self.assertEqual(epoch9["eventBlock"], 24_055_329)
-        self.assertEqual(epoch9["resetMarketCount"], 10)
-        self.assertEqual(epoch9["aggregateAdjustmentRaw"], -1_263_775_008_033_249_832_439)
-        self.assertEqual(Decimal(str(epoch9["rebateUSD"])), Decimal("211.228479"))
-        self.assertNotIn(10, [row["epoch"] for row in epochs])
-        # Rejected corrections remain visible as diagnostics, but must never
-        # become evidence for a priced, published rebate.
-        published_transaction_hashes = {
-            row["transactionHash"].lower()
-            for epoch in epochs
-            for row in [epoch, *epoch["markets"]]
-            if row.get("transactionHash")
-        }
-        for correction in chain["unsupportedCorrections"]:
-            self.assertEqual(correction["reason"], "unsupported_aggregate_correction")
-            self.assertNotIn(correction["transactionHash"].lower(), published_transaction_hashes)
-        self.assertEqual(
-            [Decimal(str(row["maxRebateUSD"])) for row in historical_epochs],
-            [
-                Decimal("19.043333"), Decimal("556.684707"), Decimal("550.375291"),
-                Decimal("530.640242"), Decimal("1639.415747"), Decimal("0.737705"),
-                Decimal("8.5759"), Decimal("370.659521"), Decimal("351.572999"),
-            ],
-        )
-        self.assertEqual(
-            [row["maxRebateAuditStatus"] for row in historical_epochs],
-            ["verified", "verified", "verified", "verified", "verified_grouped", "verified_grouped", "verified_grouped", "verified", "verified"],
-        )
-        self.assertEqual(
-            [group for group in chain["maxRebateAuditGroups"] if group["endEpoch"] <= 9],
-            [{
-                "id": "epochs-5-7",
-                "startEpoch": 5,
-                "endEpoch": 7,
-                "periodStartTimestamp": 1781740800,
-                "periodEndTimestamp": 1783555200,
-                "claimStartTimestamp": 1781747566,
-                "claimEndTimestamp": 1783555224,
-                "rebateUSD": 532.145678,
-                "maxRebateUSD": 1648.729352,
-                "auditStatus": "verified",
-                "auditReason": "official_catchup_window_grouped",
-            }],
-        )
-        self.assertEqual(
-            [(row["claimStartTimestamp"], row["claimEndTimestamp"]) for row in historical_epochs],
-            [
-                (1779920962, 1779942644), (1779942644, 1780532970),
-                (1780532970, 1781136158), (1781136158, 1781747566),
-                (1781747566, 1783541240), (1783541240, 1783542346),
-                (1783542346, 1783555224), (1783555224, 1784160044),
-                (1784160044, 1784764864),
-            ],
-        )
-
-        for epoch in epochs:
-            daily = [
-                row for row in data["series"]
-                if epoch["periodStartTimestamp"] <= row["timestamp"] < epoch["periodEndTimestamp"]
-            ]
-            self.assertEqual(len(daily), 7)
-            self.assertEqual(
-                sum(Decimal(str(row["borrowFeeRebateUSD"])) for row in daily),
-                Decimal(str(epoch["rebateUSD"])),
-            )
-
-        for day in range(16, 23):
-            row = rows_by_date[f"2026-07-{day:02d}"]
-            self.assertGreater(row["borrowFeeRebateUSD"], 0)
-            self.assertEqual(row["borrowFeeRebateCalculationMode"], "known_epoch_snapshot_reset")
+        history = json.loads((ROOT / "veborrow_rebate_history.json").read_text())
+        self.assertEqual(set(data["borrowFeeRebates"]["chains"]), {"Berachain", "Arbitrum"})
+        for chain_name, canonical in history["chains"].items():
+            chain = data["borrowFeeRebates"]["chains"][chain_name]
+            epochs = chain["epochRebates"]
+            self.assertTrue(chain["rawReconciled"])
+            self.assertEqual(chain["totalsRaw"], canonical["totalsRaw"])
+            self.assertEqual([row["epoch"] for row in epochs], list(range(canonical["startEpoch"], canonical["publishedEpoch"] + 1)))
+            self.assertEqual(chain["authoritativePublishedEpoch"], canonical["publishedEpoch"])
+            raw_totals = {}
+            for row, original in zip(epochs, canonical["epochs"]):
+                self.assertEqual(row["calculationMode"], "canonical_signed_delta")
+                self.assertEqual(row["deltaRaw"], original["deltaRaw"])
+                expected_usd = Decimal(0)
+                for market in row["markets"]:
+                    market_id = str(market["marketId"])
+                    raw = int(market["deltaRaw"])
+                    raw_totals[market_id] = raw_totals.get(market_id, 0) + raw
+                    price = int(original["officialInterest"]["marketPrices"][market_id])
+                    self.assertEqual(market["encodedPrice"], str(price))
+                    expected_usd += Decimal(raw) * price / (Decimal(10) ** 36)
+                self.assertLessEqual(abs(Decimal(str(row["rebateUSD"])) - expected_usd), Decimal("0.000001"))
+                daily = [day["chains"][chain_name] for day in data["series"]
+                         if row["periodStartTimestamp"] <= day["timestamp"] < row["periodEndTimestamp"]
+                         and chain_name in day["chains"]]
+                self.assertEqual(sum(Decimal(str(day["borrowFeeRebateUSD"])) for day in daily), Decimal(str(row["rebateUSD"])))
+            self.assertEqual({key: str(value) for key, value in raw_totals.items()}, canonical["totalsRaw"])
+            self.assertLessEqual(abs(Decimal(str(chain["totalRebateUSD"])) - sum(Decimal(str(row["rebateUSD"])) for row in epochs)), Decimal("0.000001"))
         for row in data["series"]:
-            if not any(epoch["periodStartTimestamp"] <= row["timestamp"] < epoch["periodEndTimestamp"] for epoch in epochs):
-                self.assertEqual(row["borrowFeeRebateUSD"], 0)
-
-        for row in data["series"]:
-            self.assertLessEqual(
-                abs(Decimal(str(row["grossRevenueUSD"]))
-                    - Decimal(str(row["revenueUSD"]))
-                    - Decimal(str(row["borrowFeeRebateUSD"]))),
-                Decimal("0.000001"),
-            )
-        for epoch in epochs:
-            for market in epoch["markets"]:
-                self.assertFalse(market["symbol"].lower().startswith("0x"))
-                self.assertIs(type(market["decimals"]), int)
-                self.assertGreaterEqual(market["decimals"], 0)
-
+            self.assertLessEqual(abs(Decimal(str(row["grossRevenueUSD"])) - Decimal(str(row["revenueUSD"])) - Decimal(str(row["borrowFeeRebateUSD"]))), Decimal("0.000001"))
+        for field, key in (("grossRevenueUSD", "grossRevenueAllTimeUSD"), ("revenueUSD", "revenueAllTimeUSD"), ("feesUSD", "feesAllTimeUSD")):
+            self.assertLessEqual(abs(sum(Decimal(str(row[field])) for row in data["series"]) - Decimal(str(data["totals"][key]))), Decimal("0.000001"))
         self.assertTrue(_dolomite_revenue_totals_valid(data))
         self.assertTrue(_dolomite_revenue_window_totals_valid(data))
         self.assertTrue(_dolomite_revenue_chain_windows_valid(data))
@@ -2519,8 +2444,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260903-official-rebate-audit', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn("network-filter-20260805-fast-wallet-sort-20260805-strategic-round-20260805", route_html)
-        self.assertIn("annualized-rebate-20260903-v2", route_html)
+        self.assertIn('"version": "revenue-20261026-finalized-official-v31"', route_html)
+        self.assertIn('"target": "../revenue-preview.html"', route_html)
         self.assertIn("veborrow_simulation.json?v=revenue-20260903-annualized-v2", html)
         self.assertLess(
             html.index("Protocol Revenue by Chain"),
@@ -2543,7 +2468,8 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn(".chain-status.archived", html)
         self.assertIn(".chain-status.shutting-down", html)
         self.assertIn('class="chain-status ${esc(lifecycle.className)}"', html)
-        self.assertIn('!detail.startsWith("target ")', html)
+        self.assertIn('${esc(audit.label)} · ${esc(target)}', html)
+        self.assertIn('One-day ${esc(chain)} check only; full history not certified.', html)
         self.assertIn('<tr><td colspan="4" class="empty-state">Loading protocol revenue...</td></tr>', html)
         self.assertIn('No protocol revenue available for selected range.', html)
         self.assertIn('Protocol revenue data could not be loaded.', html)
@@ -2585,7 +2511,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn("veborrow_simulation.json", html)
         self.assertIn("Current veDOLO", html)
         self.assertIn("Current veDOLO saved", html)
-        self.assertIn("Max theoretical", html)
+        self.assertIn('data-veborrow-sim-mode="max"><span>Maximum rebate</span>', html)
         self.assertIn("Max rebate", html)
         self.assertIn("Utilization", html)
         self.assertIn("veBorrowMaxRebateForRows", html)
@@ -2601,7 +2527,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('const isVeBorrowCumulative = veBorrowChartMode === "cumulative"', html)
         self.assertIn('<div class="tt-row active"><span>Cumulative saved</span><b>${usdFull(row.borrowFeeRebateCumulativeUSD)}</b></div>', html)
         self.assertIn("isVeBorrowCumulative ? cumulativeRows", html)
-        self.assertIn("Required locked DOLO", html)
+        self.assertIn("Required veDOLO votes", html)
         self.assertIn("Simulation only", html)
         self.assertIn("simulate ETH + ARB + BERA", html)
         veborrow_panel = html[html.index('id="veBorrowPanel"'):html.index('id="veBorrowDiscountUsersPanel"')]
@@ -2647,7 +2573,7 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('document.querySelectorAll("[data-veborrow-mode]")', html)
         self.assertIn("discountUserCount", html)
         self.assertIn("Current discount", html)
-        self.assertIn("Daily Berachain wallets using discount", html)
+        self.assertIn("Estimate from current debt and vote weight applied to historical daily interest; not historical recipients or claimable balances.", html)
         self.assertIn("Berachain rebate configuration", html)
         self.assertIn('id="veBorrowCurrentWalletsPanel"', html)
         self.assertIn("renderVeBorrowWalletPager", html)
@@ -2913,7 +2839,7 @@ assert.strictEqual(result.page, 1);
         self.assertEqual(html.count(" data-revenue-updated>"), 5)
         self.assertRegex(
             html,
-            r'<div class="panel-title">Current discount</div>\s*<div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">',
+            r'<div class="panel-title">Current discount · modeled</div>\s*<div class="veborrow-discount-meta" id="veBorrowDiscountUsersMeta">',
         )
         self.assertNotIn('<div class="panel-title">Current discount users</div>', html)
         self.assertIn(
@@ -2959,3 +2885,4 @@ assert.strictEqual(result.page, 1);
 
 if __name__ == "__main__":
     unittest.main()
+

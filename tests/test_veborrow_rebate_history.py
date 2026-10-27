@@ -1,6 +1,10 @@
 import unittest
 from unittest.mock import patch
 from eth_hash.auto import keccak
+from copy import deepcopy
+import fetch_veborrow_rebate_history as producer
+import json
+from pathlib import Path
 from fetch_veborrow_rebate_history import build_chain, summarize_snapshot, VERIFIED_RECOVERIES, fetch_snapshots
 
 def source_snapshot(amounts=(100, 200, 300)):
@@ -20,6 +24,50 @@ def snapshot(epoch, amount, stamp='2026-06-01T00:00:00Z', sha='a'*40):
             'commit': sha, 'committedAt': stamp, 'sha256': 'f'*64, 'totalUsers': 1}
 
 class RebateHistoryTests(unittest.TestCase):
+    def interest(self, found='40', expected='40'):
+        return {'metadata': {'epoch': 1, 'claimStartTimestamp': 100, 'claimEndTimestamp': 604900,
+                'marketTotalBorrowInterest': {'0': '200000000'}, 'marketExpectedTotalRevenue': {'0': expected},
+                'marketFoundTotalRevenue': {'0': found}, 'marketPrices': {'0': '1000000000000000000000000000000'}}}
+
+    def test_official_maximum_uses_interest_not_protocol_revenue_and_five_percent_tolerance(self):
+        self.assertTrue(hasattr(producer, 'summarize_official_interest'), 'official per-market interest validation is missing')
+        result = producer.summarize_official_interest(self.interest('38', '40'), 1, 'url', 'f'*64)
+        self.assertEqual(result['eligibleBorrowInterestUSD'], 200)
+        self.assertEqual(result['maximumRebateUSD'], 20)
+        self.assertEqual(result['maximumRebateUSD']*52*5, 5200)
+        self.assertEqual(result['marketRevenueFactors'], {'0': 1})
+        scaled = producer.summarize_official_interest(self.interest('37.9', '40'), 1, 'url', 'f'*64)
+        self.assertEqual(scaled['maximumRebateUSD'], 18.95)
+
+    def test_official_interest_rejects_missing_prices_markets_and_invalid_windows(self):
+        self.assertTrue(hasattr(producer, 'summarize_official_interest'))
+        for field, value in [('marketPrices', {}), ('marketFoundTotalRevenue', {}), ('claimEndTimestamp', 100), ('epoch', 2)]:
+            data = deepcopy(self.interest()); data['metadata'][field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                producer.summarize_official_interest(data, 1, 'url', 'f'*64)
+        data=self.interest('-1','40')
+        with self.assertRaises(ValueError): producer.summarize_official_interest(data, 1, 'url', 'f'*64)
+
+    def test_captured_arbitrum22_and_berachain5_official_per_market_maxima(self):
+        fixtures=json.loads((Path(__file__).parent/'fixtures/official_rebate_interest.json').read_text())
+        for name, fixture in fixtures.items():
+            with self.subTest(period=name):
+                result=producer.summarize_official_interest(fixture,fixture['metadata']['epoch'],'url','f'*64)
+                self.assertAlmostEqual(result['maximumRebateUSD'],fixture['expectedMaximumRebateUSD'],places=9)
+                self.assertAlmostEqual(result['maximumRebateUSD'],sum(result['marketMaximumRebateUSD'].values()),places=9)
+
+    def test_enrichment_keeps_signed_allocations_reference_prices_and_chart_values(self):
+        chain=build_chain([snapshot(1,100)],1,1,100,{'0':'1'})
+        chain['chainId']=80094
+        before=deepcopy(chain)
+        result=producer.enrich_official_interest({'chains':{'Berachain':chain}},lambda *_:(self.interest(),'f'*64,'url'))
+        enriched=result['chains']['Berachain']
+        self.assertEqual(enriched['referencePrices'],before['referencePrices'])
+        self.assertEqual(enriched['totalsRaw'],before['totalsRaw'])
+        self.assertEqual({key:value for key,value in enriched['epochs'][0].items() if key!='officialInterest'},before['epochs'][0])
+        data=self.interest();data['metadata']['marketPrices']={}
+        with self.assertRaises(ValueError):producer.enrich_official_interest({'chains':{'Berachain':chain}},lambda *_:(data,'f'*64,'url'))
+
     def test_same_epoch_revision_replaces_and_negative_correction_is_retained(self):
         chain=build_chain([snapshot(1,100),snapshot(2,200),snapshot(2,50,'2026-06-02T00:00:00Z','b'*40),snapshot(3,80)],1,3,0,{'0':'1000000000000000000000000000000000000'})
         self.assertEqual([r['deltaRaw']['0'] for r in chain['epochs']],['100','-50','30'])
@@ -108,3 +156,4 @@ class RebateHistoryTests(unittest.TestCase):
         with self.assertRaises(ValueError):build_chain([snapshot(1,100),invalid],1,2,0,{'0':'1'})
 
 if __name__=='__main__':unittest.main()
+
