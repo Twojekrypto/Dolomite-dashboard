@@ -2444,7 +2444,9 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertIn('dolomite_revenue.json?v=revenue-20260903-official-rebate-audit', html)
         self.assertNotIn('dolomite_revenue.json?v=revenue-20260625-borrow-fee-weighted-rebate', html)
         route_html = (ROOT / "revenue/index.html").read_text(encoding="utf-8")
-        self.assertIn('"version": "revenue-20261026-finalized-official-v31"', route_html)
+        self.assertIn("revenue-20261026-finalized-official-v31", route_html)
+        self.assertIn("hero-value-chip-20260718-typography", route_html)
+        self.assertIn("row-address-peers-20260809", route_html)
         self.assertIn('"target": "../revenue-preview.html"', route_html)
         self.assertIn("veborrow_simulation.json?v=revenue-20260903-annualized-v2", html)
         self.assertLess(
