@@ -126,16 +126,24 @@ jobs:
           python3 generate_supply_activity.py "${ACTIVITY_ARGS[@]}"
           if [ "$ACTIVITY_RECENT_ENABLED" = "true" ] || [ "$ACTIVITY_RECENT_ENABLED" = "1" ]; then
             python3 generate_supply_activity.py --chains "$CHAINS" --token-limit "$ACTIVITY_RECENT_TOKEN_LIMIT" --symbols "" --tokens "$TOKENS" --max-pages-per-entity "$MAX_PAGES" --recent-only
+            OVERVIEW_CHAINS=",${CHAINS//[[:space:]]/},"
+            if [[ "$OVERVIEW_CHAINS" == *",ethereum,"* && "$OVERVIEW_CHAINS" == *",arbitrum,"* && "$OVERVIEW_CHAINS" == *",berachain,"* && "$ACTIVITY_RECENT_TOKEN_LIMIT" == "0" && -z "${TOKENS//[[:space:]]/}" ]]; then
+              python3 generate_supply_activity_overview.py
+            else
+              echo "Preserving activity overview: targeted refresh does not cover the complete overview universe"
+            fi
           fi
 
       - name: Validate static supply history
         run: |
+          python3 -m unittest discover -s tests -p 'test_supply_activity_overview.py'
           python3 -m unittest discover -s tests -p 'test_supply_activity_semantics.py'
           python3 -m unittest discover -s tests -p 'test_generate_supply_activity.py'
           python3 -m unittest discover -s tests -p 'test_generate_supply_apr_history.py'
           node --test tests/supply-activity-semantics.test.js
           python3 -m py_compile generate_supply_history.py
           python3 -m py_compile generate_supply_activity.py
+          python3 -m py_compile generate_supply_activity_overview.py
           python3 -m py_compile generate_supply_apr_history.py
           python3 - <<'PY'
           import json
@@ -306,7 +314,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/supply-history data/supply-activity data/supply-apr config/supply_activity_static_tokens.json generate_supply_history.py generate_supply_activity.py generate_supply_apr_history.py
+          git add data/supply-history data/supply-activity data/supply-apr config/supply_activity_static_tokens.json generate_supply_history.py generate_supply_activity.py generate_supply_apr_history.py generate_supply_activity_overview.py
           git diff --staged --quiet && echo "No supply history changes to commit" && exit 0
           git commit -m "📊 Refresh Supply history - $(date -u '+%Y-%m-%d %H:%M UTC')"
           pushed=false
@@ -316,3 +324,4 @@ jobs:
             sleep $((5 + RANDOM % 15))
           done
           if [ "$pushed" != "true" ]; then echo "::error::Push failed after 12 attempts — data NOT published"; exit 1; fi
+
