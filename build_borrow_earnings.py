@@ -210,7 +210,7 @@ def build_output(risk, rate_payloads, now):
                 excluded['Chain unavailable'] += 1
                 continue
             if position.get('earningsComplete') is not True:
-                excluded['Incomplete source principal'] += 1
+                excluded['Incomplete position source'] += 1
                 continue
             try:
                 collateral, income, collateral_conditional, collateral_tokens = token_side(position.get('collateralTokens'), indexes[chain], 'collateral')

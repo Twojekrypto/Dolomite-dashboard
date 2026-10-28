@@ -79,11 +79,12 @@ def valid_results(count):
 
 
 class RiskRpcFallbackTests(unittest.TestCase):
-    def run_overrides(self, outcomes, count=1):
+    def run_overrides(self, outcomes, count=1, unresolved=None, fallbacks=None):
         requests, providers, individual = [], [], []
         module = fake_web3(outcomes, requests, providers, individual)
         with patch.dict(sys.modules, {"web3": module}), patch.object(risk.time, "sleep"), redirect_stdout(StringIO()):
-            result = risk.fetch_risk_overrides("https://primary", "0x" + "a" * 40, accounts(count), rpc_fallbacks=["https://healthy"])
+            kwargs = {} if unresolved is None else {"unresolved_accounts": unresolved}
+            result = risk.fetch_risk_overrides("https://primary", "0x" + "a" * 40, accounts(count), rpc_fallbacks=["https://healthy"] if fallbacks is None else fallbacks, **kwargs)
         return result, requests, providers, individual
 
     def test_failed_primary_uses_whole_batch_fallback_then_keeps_healthy_provider(self):
@@ -121,6 +122,83 @@ class RiskRpcFallbackTests(unittest.TestCase):
     def test_incomplete_results_from_every_provider_raise(self):
         with self.assertRaises(RuntimeError):
             self.run_overrides({"https://primary": lambda n: [], "https://healthy": lambda n: [(False, b"")] * n})
+
+    def test_one_unknown_account_preserves_other_49_with_explicit_uncertainty(self):
+        unresolved = set()
+        result, requests, _, individual = self.run_overrides({
+            "https://primary": lambda n: valid_results(n - 1) + [(False, b"")],
+            "https://healthy": RuntimeError("offline"),
+        }, count=50, unresolved=unresolved)
+        self.assertEqual(result, {f"account-{index}": 0.1 for index in range(49)})
+        self.assertEqual(unresolved, {"account-49"})
+        self.assertEqual([len(owners) for _, owners in requests], [50, 1, 1, 1])
+        self.assertEqual(individual, [])
+
+    def test_next_provider_receives_only_unresolved_subset(self):
+        unresolved = set()
+        result, requests, _, individual = self.run_overrides({
+            "https://primary": lambda n: valid_results(n - 1) + [(False, b"")],
+            "https://healthy": valid_results,
+        }, count=50, unresolved=unresolved)
+        self.assertEqual(result, {f"account-{index}": 0.1 for index in range(50)})
+        self.assertEqual(unresolved, set())
+        self.assertEqual([len(owners) for _, owners in requests], [50, 1])
+        self.assertEqual(individual, [])
+
+    def test_single_provider_has_one_bounded_subset_retry(self):
+        unresolved = set()
+        result, requests, _, individual = self.run_overrides({
+            "https://primary": lambda n: valid_results(n - 1) + [(False, b"")] if n > 1 else valid_results(n),
+        }, count=50, unresolved=unresolved, fallbacks=[])
+        self.assertEqual(len(result), 50)
+        self.assertEqual([len(owners) for _, owners in requests], [50, 1])
+        self.assertEqual(unresolved, set())
+        self.assertEqual(individual, [])
+
+    def test_known_zero_overrides_survive_alongside_one_unknown(self):
+        unresolved = set()
+        result, requests, _, individual = self.run_overrides({
+            "https://primary": lambda n: [(True, bytes(64))] * (n - 1) + [(False, b"")],
+        }, count=50, unresolved=unresolved, fallbacks=[])
+        self.assertEqual(result, {})
+        self.assertEqual(unresolved, {"account-49"})
+        self.assertEqual([len(owners) for _, owners in requests], [50, 1])
+        self.assertEqual(individual, [])
+
+    def test_all_accounts_unknown_still_fails_chain(self):
+        with self.assertRaises(RuntimeError):
+            self.run_overrides({"https://primary": lambda n: [(False, b"")] * n}, unresolved=set(), fallbacks=[])
+
+    def test_default_caller_remains_strict_on_partial_account_results(self):
+        with self.assertRaises(RuntimeError):
+            self.run_overrides({"https://primary": lambda n: valid_results(n - 1) + [(False, b"")]}, count=2, fallbacks=[])
+
+    def test_unknown_override_excludes_only_that_emitted_account(self):
+        token = {"id": "0xtoken", "symbol": "T", "marketId": "1"}
+        chain_accounts = accounts(2)
+        for account in chain_accounts:
+            account["tokenValues"] = [{"token": token, "valuePar": "-100"}]
+        responses = {
+            risk.QUERY_DOLOMITE_MARGIN: {"dolomiteMargins": [{"id": "0xmargin", "liquidationRatio": "1.15", "liquidationReward": "0.05", "numberOfMarkets": 1, "defaultAccountRiskOverrideSetter": "0x" + "a" * 40}]},
+            risk.QUERY_MARKET_RISK_INFO: {"marketRiskInfos": []},
+            risk.QUERY_ORACLE_PRICES: {"oraclePrices": [{"token": token, "price": "1"}]},
+            risk.QUERY_INTEREST_INDICES: {"interestIndexes": [{"token": token, "supplyIndex": "1", "borrowIndex": "1"}]},
+            risk.QUERY_TOTAL_PARS: {"totalPars": []},
+            risk.QUERY_MARGIN_ACCOUNTS: {"marginAccounts": chain_accounts},
+        }
+        module = fake_web3({"https://primary": lambda n: valid_results(n - 1) + [(False, b"")]}, [], [], [])
+        with patch.dict(sys.modules, {"web3": module}), patch.object(risk.time, "sleep"), redirect_stdout(StringIO()), \
+             patch.object(risk, "graphql_request", side_effect=lambda url, query, **kwargs: responses[query]), \
+             patch.object(risk, "fetch_live_oracle_prices", side_effect=lambda *args, **kwargs: args[2]), \
+             patch.object(risk, "fetch_live_interest_indices", side_effect=lambda *args, **kwargs: args[2]):
+            result = risk.fetch_chain_data("arbitrum", {"label": "Arbitrum", "subgraph_name": "test", "rpc": "https://primary", "explorer": "https://example.invalid/"})
+        positions = {row["accountId"]: row for row in result["positions"]}
+        self.assertIs(positions["account-0"]["earningsComplete"], True)
+        self.assertIs(positions["account-1"]["earningsComplete"], False)
+        self.assertIs(positions["account-0"].get("riskOverrideVerified"), True)
+        self.assertIs(positions["account-1"].get("riskOverrideVerified"), False)
+        self.assertEqual(positions["account-0"]["debtUSD"], 100.0)
+        self.assertEqual(positions["account-1"]["debtUSD"], 100.0)
 
 
 

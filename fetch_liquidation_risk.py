@@ -646,8 +646,8 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
     }
 
 
-def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallbacks=None):
-    """Fetch complete E-Mode batches, failing the chain if all providers fail."""
+def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallbacks=None, unresolved_accounts=None):
+    """Fetch verified E-Mode results and expose bounded per-account uncertainty."""
     try:
         from web3 import Web3
     except ImportError as exc:
@@ -674,61 +674,80 @@ def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallba
     
     rpc_urls = list(dict.fromkeys([rpc_url] + (rpc_fallbacks or [])))
     overrides = {}
+    verified_accounts = set()
+    failed_accounts = set()
     batch_size = 50
     total = len(accounts)
     current_rpc_idx = 0
     print(f"  🔗 Fetching E-Mode overrides via Multicall3 ({total} accounts, {batch_size}/batch, {len(rpc_urls)} RPCs)...")
 
     for i in range(0, total, batch_size):
-        batch = accounts[i:i + batch_size]
+        pending = accounts[i:i + batch_size]
+        provider_order = [(current_rpc_idx + offset) % len(rpc_urls) for offset in range(len(rpc_urls))]
+        has_valid_frame = False
         last_error = None
-        for offset in range(len(rpc_urls)):
-            candidate_idx = (current_rpc_idx + offset) % len(rpc_urls)
-            current_rpc = rpc_urls[candidate_idx]
-            try:
-                # Bound each attempt once; SDK retries would multiply the batch budget.
-                w3 = Web3(Web3.HTTPProvider(
-                    current_rpc, request_kwargs={"timeout": 30},
-                    exception_retry_configuration=None,
-                ))
-                setter = w3.eth.contract(address=Web3.to_checksum_address(setter_address), abi=SETTER_ABI)
-                multicall = w3.eth.contract(address=Web3.to_checksum_address(MULTICALL3), abi=MULTICALL3_ABI)
-                calls = []
-                for acct in batch:
-                    # Vault/proxy positions require the actual owner, not effectiveUser.
-                    owner = Web3.to_checksum_address(acct["user"]["id"])
-                    account_num = int(acct["accountNumber"])
-                    calldata = setter.functions.getAccountRiskOverride((owner, account_num))._encode_transaction_data()
-                    calls.append((Web3.to_checksum_address(setter_address), True, bytes.fromhex(calldata[2:])))
+        # Retry only unresolved subcalls, at most twice per configured provider.
+        for retry_round in range(2):
+            for candidate_idx in provider_order:
+                if not pending:
+                    break
+                current_rpc = rpc_urls[candidate_idx]
+                try:
+                    w3 = Web3(Web3.HTTPProvider(
+                        current_rpc, request_kwargs={"timeout": 30},
+                        exception_retry_configuration=None,
+                    ))
+                    setter = w3.eth.contract(address=Web3.to_checksum_address(setter_address), abi=SETTER_ABI)
+                    multicall = w3.eth.contract(address=Web3.to_checksum_address(MULTICALL3), abi=MULTICALL3_ABI)
+                    calls = []
+                    for acct in pending:
+                        # Vault/proxy positions require the actual owner, not effectiveUser.
+                        owner = Web3.to_checksum_address(acct["user"]["id"])
+                        account_num = int(acct["accountNumber"])
+                        calldata = setter.functions.getAccountRiskOverride((owner, account_num))._encode_transaction_data()
+                        calls.append((Web3.to_checksum_address(setter_address), True, bytes.fromhex(calldata[2:])))
 
-                results = multicall.functions.aggregate3(calls).call()
-                rpc_usage.record_request("eth_call")
-                if len(results) != len(batch):
-                    raise RuntimeError(f"Expected {len(batch)} E-Mode results, received {len(results)}")
-                if any(success is not True or not isinstance(data, (bytes, bytearray)) or len(data) < 64
-                       for success, data in results):
-                    raise RuntimeError("E-Mode batch contains an unsuccessful or short result")
-
-                batch_overrides = {}
-                for acct, (_, return_data) in zip(batch, results):
-                    mr_raw = int.from_bytes(return_data[:32], "big")
-                    mr = mr_raw / 10**18
-                    if mr > 0:
-                        batch_overrides[acct["id"]] = mr
-                overrides.update(batch_overrides)
-                current_rpc_idx = candidate_idx
+                    results = multicall.functions.aggregate3(calls).call()
+                    rpc_usage.record_request("eth_call")
+                    if len(results) != len(pending) or any(not isinstance(row, (list, tuple)) or len(row) != 2 for row in results):
+                        raise RuntimeError(f"Malformed E-Mode frame for {len(pending)} accounts")
+                    has_valid_frame = True
+                    unresolved = []
+                    resolved_count = 0
+                    for acct, (success, return_data) in zip(pending, results):
+                        if success is not True or not isinstance(return_data, (bytes, bytearray)) or len(return_data) < 64:
+                            unresolved.append(acct)
+                            continue
+                        mr_raw = int.from_bytes(return_data[:32], "big")
+                        mr = mr_raw / 10**18
+                        verified_accounts.add(acct["id"])
+                        resolved_count += 1
+                        if mr > 0:
+                            overrides[acct["id"]] = mr
+                    pending = unresolved
+                    if resolved_count:
+                        current_rpc_idx = candidate_idx
+                except Exception as exc:
+                    last_error = exc
+                    host = current_rpc.split("//")[-1].split("/")[0]
+                    print(f"     ⚠️ E-Mode batch {i // batch_size + 1} failed on {host}: {exc}")
+            if not pending:
                 break
-            except Exception as exc:
-                last_error = exc
-                host = current_rpc.split("//")[-1].split("/")[0]
-                print(f"     ⚠️ E-Mode batch {i // batch_size + 1} failed on {host}: {exc}")
-        else:
-            raise RuntimeError(f"All RPCs failed complete E-Mode batch {i // batch_size + 1} for {label}") from last_error
+            if not has_valid_frame:
+                raise RuntimeError(f"All RPCs failed E-Mode batch {i // batch_size + 1} for {label}") from last_error
 
+        if pending:
+            if unresolved_accounts is None:
+                raise RuntimeError(f"Unverified E-Mode overrides for {len(pending)} accounts on {label}")
+            failed_accounts.update(acct["id"] for acct in pending)
         time.sleep(0.3)
-        print(f"     Processed {min(i + batch_size, total)}/{total} accounts ({len(overrides)} E-Mode)...")
+        print(f"     Processed {min(i + batch_size, total)}/{total} accounts ({len(overrides)} E-Mode, {len(failed_accounts)} unverified)...")
 
-    print(f"     ✅ Found {len(overrides)} accounts with E-Mode overrides")
+    if total and not verified_accounts:
+        raise RuntimeError(f"No verified E-Mode accounts on {label}")
+    if unresolved_accounts is not None:
+        unresolved_accounts.update(failed_accounts)
+    print(f"     ✅ Found {len(overrides)} accounts with E-Mode overrides; {len(failed_accounts)} unverified")
     return overrides
 
 
@@ -1125,10 +1144,11 @@ def fetch_chain_data(chain_key, chain_config):
     
     # 5b. Fetch E-Mode risk overrides via RPC
     risk_overrides = {}
+    unresolved_overrides = set()
     rpc_url = chain_config.get("rpc")
     if rpc_url and default_setter:
         rpc_fallbacks = chain_config.get("rpc_fallbacks", [])
-        risk_overrides = fetch_risk_overrides(rpc_url, default_setter, all_accounts, label, rpc_fallbacks=rpc_fallbacks)
+        risk_overrides = fetch_risk_overrides(rpc_url, default_setter, all_accounts, label, rpc_fallbacks=rpc_fallbacks, unresolved_accounts=unresolved_overrides)
     else:
         print(f"  ℹ️  No E-Mode setter on {label} — using global liquidation ratio for all accounts")
     
@@ -1170,7 +1190,8 @@ def fetch_chain_data(chain_key, chain_config):
             "debtUSD": round(result["debtUSD"], 2),
             "collateralTokens": result["collateralTokens"],
             "debtTokens": result["debtTokens"],
-            "earningsComplete": result["earningsComplete"],
+            "earningsComplete": result["earningsComplete"] and account_id not in unresolved_overrides,
+            "riskOverrideVerified": account_id not in unresolved_overrides,
             "eMode": mr_override is not None and mr_override > 0,
             "explorer": chain_config["explorer"] + user_addr,
             "lastUpdated": account.get("lastUpdatedTimestamp", ""),
