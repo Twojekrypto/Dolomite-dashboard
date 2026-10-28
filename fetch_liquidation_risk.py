@@ -427,14 +427,18 @@ def graphql_request(url, query, variables=None, retries=3):
             )
             with urllib.request.urlopen(req, timeout=60) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
-                if "errors" in result:
-                    print(f"  ⚠️  GraphQL errors: {result['errors']}")
-                return result.get("data", {})
+                if result.get("errors"):
+                    raise RuntimeError(f"GraphQL errors: {result['errors']}")
+                if not isinstance(result.get("data"), dict) or not result["data"]:
+                    raise RuntimeError("GraphQL response has no data object")
+                if any(value is None for value in result["data"].values()):
+                    raise RuntimeError("GraphQL response has a null query result")
+                return result["data"]
         except (urllib.error.URLError, urllib.error.HTTPError) as e:
             print(f"  ⚠️  Request failed (attempt {attempt+1}/{retries}): {e}")
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
-    return {}
+    raise RuntimeError(f"GraphQL request failed after {retries} attempts")
 
 
 def safe_float(value, default=0.0):
@@ -548,6 +552,7 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
     
     collateral_tokens = []
     debt_tokens = []
+    earnings_complete = True
     
     for tv in token_values:
         token_id = tv["token"]["id"]
@@ -563,6 +568,9 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
         price = Decimal("0")
         if token_id in oracle_prices:
             price = Decimal(oracle_prices[token_id])
+
+        if not price.is_finite() or price <= 0:
+            earnings_complete = False
         
         if price == 0:
             continue
@@ -573,6 +581,9 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
         if token_id in interest_indices:
             supply_index = Decimal(interest_indices[token_id]["supplyIndex"])
             borrow_index = Decimal(interest_indices[token_id]["borrowIndex"])
+        active_index = supply_index if value_par > 0 else borrow_index
+        if token_id not in interest_indices or not active_index.is_finite() or active_index <= 0:
+            earnings_complete = False
         
         # Get margin premium — zeroed in E-Mode
         margin_premium = Decimal("0")
@@ -591,6 +602,10 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
                 "symbol": symbol,
                 "usd": float(usd_value),
                 "marginPremium": float(margin_premium),
+                "tokenAddress": str(token_id).lower(),
+                "marketId": str(market_id),
+                "amount": format(wei_value, "f"),
+                "usdExact": format(usd_value, "f"),
             })
         else:
             # Debt (borrow) — valuePar is negative
@@ -604,6 +619,10 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
                 "symbol": symbol,
                 "usd": float(usd_value),
                 "marginPremium": float(margin_premium),
+                "tokenAddress": str(token_id).lower(),
+                "marketId": str(market_id),
+                "amount": format(wei_value, "f"),
+                "usdExact": format(usd_value, "f"),
             })
     
     # Health factor = adjusted collateral / (adjusted debt × liquidation ratio)
@@ -623,6 +642,7 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
         "debtUSD": float(total_debt_usd),
         "collateralTokens": collateral_tokens,
         "debtTokens": debt_tokens,
+        "earningsComplete": earnings_complete,
     }
 
 
@@ -1222,6 +1242,7 @@ def fetch_chain_data(chain_key, chain_config):
             "debtUSD": round(result["debtUSD"], 2),
             "collateralTokens": result["collateralTokens"],
             "debtTokens": result["debtTokens"],
+            "earningsComplete": result["earningsComplete"],
             "eMode": mr_override is not None and mr_override > 0,
             "explorer": chain_config["explorer"] + user_addr,
             "lastUpdated": account.get("lastUpdatedTimestamp", ""),
@@ -1860,3 +1881,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

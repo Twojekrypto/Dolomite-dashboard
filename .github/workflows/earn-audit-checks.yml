@@ -3,6 +3,9 @@ name: Earn Audit Checks
 on:
   pull_request:
     paths:
+      - 'fetch_liquidation_risk.py'
+      - 'build_borrow_earnings.py'
+      - '.github/workflows/update-liquidation-risk.yml'
       - 'explorer_api.py'
       - 'calculate_avg_lock.py'
       - 'generate_exercisers.py'
@@ -40,6 +43,9 @@ on:
       - main
       - master
     paths:
+      - 'fetch_liquidation_risk.py'
+      - 'build_borrow_earnings.py'
+      - '.github/workflows/update-liquidation-risk.yml'
       - 'explorer_api.py'
       - 'calculate_avg_lock.py'
       - 'generate_exercisers.py'
@@ -100,3 +106,4 @@ jobs:
 
       - name: Check holder history ranges and wallet changes
         run: node --test tests/holder-distribution-contract.test.js tests/holder-range-wallet-change.test.js tests/dolo-flow-balance-display.test.js
+
