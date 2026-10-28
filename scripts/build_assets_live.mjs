@@ -61,7 +61,7 @@ const STABLE_SYMBOLS = new Set([
   "NECT", "RUSD", "SRUSD", "WSRUSD", "POL-RUSD",
   "BYUSD", "MIM", "USDS", "SUSDS", "USDA", "SUSDA", "USDAI", "SUSDAI",
   "SAVUSD", "USD0", "USD0++", "USD1", "USDY", "USDM", "WUSDM",
-  "CUSD", "STCUSD", "OUSDT",
+  "CUSD", "STCUSD", "OUSDT", "USDG",
 ]);
 const BTC_SYMBOLS = new Set([
   "BTC", "WBTC", "LBTC", "EBTC", "SOLVBTC", "SOLVBTC.A", "SOLVBTC.BBN",
