@@ -189,6 +189,13 @@ class BorrowEarningsTests(unittest.TestCase):
         self.assertEqual(len(output['sources']['rates']['ethereum']['sha256']), 64)
         self.assertEqual(output['coverage']['rankedPositions'], len(output['positions']))
 
+    def test_exact_rate_inputs_are_retained_for_independent_rederivation(self):
+        risk, rates = fixture()
+        output = self.build(risk, rates)
+        self.assertEqual(output['sources']['rates']['ethereum'].get('payload'), rates['ethereum']['payload'])
+        rates['ethereum']['payload']['interestRates'][0]['supplyInterestRate'] = '99'
+        self.assertEqual(output['sources']['rates']['ethereum']['payload']['interestRates'][0]['supplyInterestRate'], '0.10')
+
     def test_nonfinite_inputs_are_not_ranked(self):
         risk, rates = fixture()
         risk['positions'][0]['collateralTokens'][0]['usdExact'] = 'NaN'

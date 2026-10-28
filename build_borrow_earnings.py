@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, localcontext
 import hashlib
@@ -180,7 +181,7 @@ def build_output(risk, rate_payloads, now):
             fetched = check_age(item.get('fetchedAt'), now, RATE_MAX_AGE_SECONDS)
             indexes[chain] = rate_index(item.get('payload'))
             rate_sources[chain] = {'fetchedAt': iso(fetched), 'url': str(item.get('url') or ''),
-                                   'sha256': sha256(item['payload'])}
+                                   'sha256': sha256(item['payload']), 'payload': deepcopy(item['payload'])}
             statuses[chain] = {'status': 'ok'}
         except (ValueError, TypeError, AttributeError) as exc:
             statuses[chain] = {'status': 'unavailable', 'reason': str(exc)}

@@ -72,8 +72,8 @@ CHAINS = {
         "subgraph_name": "dolomite-ethereum",
         "label": "Ethereum",
         "explorer": "https://etherscan.io/address/",
-        "rpc": "https://rpc.ankr.com/eth",
-        "rpc_fallbacks": ["https://eth.drpc.org", "https://eth.llamarpc.com", "https://cloudflare-eth.com"],
+        "rpc": "https://eth.drpc.org",
+        "rpc_fallbacks": ["https://eth.llamarpc.com", "https://cloudflare-eth.com"],
     },
     "xlayer": {
         "subgraph_name": "dolomite-x-layer",
@@ -647,23 +647,15 @@ def compute_health_factor(token_values, oracle_prices, interest_indices, market_
 
 
 def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallbacks=None):
-    """
-    Batch-query per-account E-Mode risk overrides via Multicall3.
-    Uses smaller batch sizes to avoid 413 Payload Too Large on free RPCs.
-    Falls back to individual calls with retry+backoff if multicall fails.
-    Returns dict: {accountId: marginRatioOverride} where override > 0 means E-Mode.
-    """
+    """Fetch complete E-Mode batches, failing the chain if all providers fail."""
     try:
         from web3 import Web3
-        from eth_abi import encode, decode
-    except ImportError:
-        print(f"  ⚠️  web3/eth_abi not installed — skipping E-Mode overrides for {label}")
-        print(f"     Install with: pip3 install web3 eth_abi")
-        return {}
-    
+    except ImportError as exc:
+        raise RuntimeError(f"web3 is required for E-Mode overrides on {label}") from exc
+
     if not setter_address or setter_address == "0x0000000000000000000000000000000000000000":
         return {}
-    
+
     # Multicall3 is deployed at same address on all EVM chains
     MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
     MULTICALL3_ABI = [{
@@ -680,127 +672,63 @@ def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallba
         "stateMutability": "payable", "type": "function"
     }]
     
-    w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 120}))
-    setter = w3.eth.contract(
-        address=Web3.to_checksum_address(setter_address),
-        abi=SETTER_ABI
-    )
-    multicall = w3.eth.contract(
-        address=Web3.to_checksum_address(MULTICALL3),
-        abi=MULTICALL3_ABI
-    )
-    setter_addr_cs = Web3.to_checksum_address(setter_address)
-    
-    # Build list of RPC URLs to try (primary + fallbacks)
-    rpc_urls = [rpc_url] + (rpc_fallbacks or [])
-    
+    rpc_urls = list(dict.fromkeys([rpc_url] + (rpc_fallbacks or [])))
     overrides = {}
-    # Use smaller batch size to avoid 413 Payload Too Large on free RPCs (Ethereum)
     batch_size = 50
     total = len(accounts)
-    emode_count = 0
-    failed_count = 0
     current_rpc_idx = 0
-    
     print(f"  🔗 Fetching E-Mode overrides via Multicall3 ({total} accounts, {batch_size}/batch, {len(rpc_urls)} RPCs)...")
-    
+
     for i in range(0, total, batch_size):
         batch = accounts[i:i + batch_size]
-        
-        # Create fresh Web3 connection for this batch (using current RPC)
-        current_rpc = rpc_urls[current_rpc_idx % len(rpc_urls)]
-        w3 = Web3(Web3.HTTPProvider(current_rpc, request_kwargs={"timeout": 120}))
-        setter = w3.eth.contract(address=Web3.to_checksum_address(setter_address), abi=SETTER_ABI)
-        multicall = w3.eth.contract(address=Web3.to_checksum_address(MULTICALL3), abi=MULTICALL3_ABI)
-        setter_addr_cs = Web3.to_checksum_address(setter_address)
-        
-        # Build multicall3 call array
-        calls = []
-        batch_meta = []  # track account_id for each call
-        for acct in batch:
-            # IMPORTANT: use user.id (actual on-chain owner/vault), NOT effectiveUser.id
-            # For vault/proxy accounts, getAccountRiskOverride needs the vault address
-            # (user), not the wallet behind it (effectiveUser).
-            owner = acct["user"]["id"]
-            account_num = int(acct["accountNumber"])
-            account_id = acct["id"]
-            
-            # Encode the calldata for getAccountRiskOverride((address,uint256))
-            calldata = setter.functions.getAccountRiskOverride(
-                (Web3.to_checksum_address(owner), account_num)
-            )._encode_transaction_data()
-            
-            calls.append((setter_addr_cs, True, bytes.fromhex(calldata[2:])))
-            batch_meta.append(account_id)
-        
-        # Execute multicall3.aggregate3 — single RPC request for entire batch
-        batch_ok = False
-        try:
-            results = multicall.functions.aggregate3(calls).call()
-            rpc_usage.record_request("eth_call")  # Multicall3 aggregate3 = 1 eth_call
-            batch_ok = True
-            
-            for j, (success, return_data) in enumerate(results):
-                if success and len(return_data) >= 64:
-                    # Decode (uint256 marginRatioOverride, uint256 liquidationSpreadOverride)
+        last_error = None
+        for offset in range(len(rpc_urls)):
+            candidate_idx = (current_rpc_idx + offset) % len(rpc_urls)
+            current_rpc = rpc_urls[candidate_idx]
+            try:
+                # Bound each attempt once; SDK retries would multiply the batch budget.
+                w3 = Web3(Web3.HTTPProvider(
+                    current_rpc, request_kwargs={"timeout": 30},
+                    exception_retry_configuration=None,
+                ))
+                setter = w3.eth.contract(address=Web3.to_checksum_address(setter_address), abi=SETTER_ABI)
+                multicall = w3.eth.contract(address=Web3.to_checksum_address(MULTICALL3), abi=MULTICALL3_ABI)
+                calls = []
+                for acct in batch:
+                    # Vault/proxy positions require the actual owner, not effectiveUser.
+                    owner = Web3.to_checksum_address(acct["user"]["id"])
+                    account_num = int(acct["accountNumber"])
+                    calldata = setter.functions.getAccountRiskOverride((owner, account_num))._encode_transaction_data()
+                    calls.append((Web3.to_checksum_address(setter_address), True, bytes.fromhex(calldata[2:])))
+
+                results = multicall.functions.aggregate3(calls).call()
+                rpc_usage.record_request("eth_call")
+                if len(results) != len(batch):
+                    raise RuntimeError(f"Expected {len(batch)} E-Mode results, received {len(results)}")
+                if any(success is not True or not isinstance(data, (bytes, bytearray)) or len(data) < 64
+                       for success, data in results):
+                    raise RuntimeError("E-Mode batch contains an unsuccessful or short result")
+
+                batch_overrides = {}
+                for acct, (_, return_data) in zip(batch, results):
                     mr_raw = int.from_bytes(return_data[:32], "big")
                     mr = mr_raw / 10**18
                     if mr > 0:
-                        overrides[batch_meta[j]] = mr
-                        emode_count += 1
-        except Exception as e:
-            # Fallback: try individual calls with retry + RPC rotation if multicall fails
-            print(f"     ⚠️ Multicall3 failed for batch {i//batch_size + 1} on {current_rpc.split('//')[1].split('/')[0]}, falling back to individual calls: {e}")
-            batch_failed = 0
-            for k, acct in enumerate(batch):
-                owner = acct["user"]["id"]
-                account_num = int(acct["accountNumber"])
-                account_id = acct["id"]
-                
-                # Retry with exponential backoff + RPC rotation
-                success = False
-                for attempt in range(len(rpc_urls) * 2):  # try each RPC twice
-                    try:
-                        retry_rpc = rpc_urls[attempt % len(rpc_urls)]
-                        retry_w3 = Web3(Web3.HTTPProvider(retry_rpc, request_kwargs={"timeout": 30}))
-                        retry_setter = retry_w3.eth.contract(address=Web3.to_checksum_address(setter_address), abi=SETTER_ABI)
-                        margin_override, _ = retry_setter.functions.getAccountRiskOverride(
-                            (Web3.to_checksum_address(owner), account_num)
-                        ).call()
-                        rpc_usage.record_request("eth_call")
-                        mr = margin_override[0] / 10**18
-                        if mr > 0:
-                            overrides[account_id] = mr
-                            emode_count += 1
-                        success = True
-                        break
-                    except Exception as call_err:
-                        if attempt < len(rpc_urls) * 2 - 1:
-                            time.sleep(1.0 + attempt * 0.5)
-                        else:
-                            batch_failed += 1
-                
-                # Small delay between individual calls to avoid rate limiting
-                if k % 10 == 9:
-                    time.sleep(0.5)
-            
-            if batch_failed > 0:
-                failed_count += batch_failed
-                print(f"     ⚠️ {batch_failed}/{len(batch)} individual calls failed in this batch")
-        
-        # Rotate to next RPC after each batch to distribute load
-        if not batch_ok:
-            current_rpc_idx += 1
-            time.sleep(2.0)
+                        batch_overrides[acct["id"]] = mr
+                overrides.update(batch_overrides)
+                current_rpc_idx = candidate_idx
+                break
+            except Exception as exc:
+                last_error = exc
+                host = current_rpc.split("//")[-1].split("/")[0]
+                print(f"     ⚠️ E-Mode batch {i // batch_size + 1} failed on {host}: {exc}")
         else:
-            time.sleep(0.3)
-        
-        progress = min(i + batch_size, total)
-        print(f"     Processed {progress}/{total} accounts ({emode_count} E-Mode)...")
-    
-    if failed_count > 0:
-        print(f"     ⚠️ WARNING: {failed_count} accounts failed E-Mode check — results may be incomplete")
-    print(f"     ✅ Found {emode_count} accounts with E-Mode overrides")
+            raise RuntimeError(f"All RPCs failed complete E-Mode batch {i // batch_size + 1} for {label}") from last_error
+
+        time.sleep(0.3)
+        print(f"     Processed {min(i + batch_size, total)}/{total} accounts ({len(overrides)} E-Mode)...")
+
+    print(f"     ✅ Found {len(overrides)} accounts with E-Mode overrides")
     return overrides
 
 
