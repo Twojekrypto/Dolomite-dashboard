@@ -5,6 +5,8 @@ from pathlib import Path
 from unittest import mock
 
 from audit_dolomite_revenue_onchain import (
+    CHAIN_CONFIGS,
+    audit_chain_onchain,
     audit_window_for_date,
     build_audit_report,
     check_endpoint_budget,
@@ -78,6 +80,34 @@ class _FakeContract:
 
 
 class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
+    def test_arbitrum_archive_fallback_finishes_when_primary_endpoints_have_no_state(self):
+        config = CHAIN_CONFIGS["arbitrum"]
+        row = {
+            "marketId": 0,
+            "token": "0x0000000000000000000000000000000000000001",
+            "symbol": "WETH",
+            "borrowInterestAmount": Decimal("2"),
+            "protocolRevenueAmount": Decimal("0.4"),
+        }
+
+        def provider(endpoint, _config):
+            if endpoint == "https://unavailable.invalid":
+                raise RuntimeError("historical state is not available")
+            return object()
+
+        with mock.patch("audit_dolomite_revenue_onchain.rpc_client.get_endpoints", return_value=["https://unavailable.invalid"]), \
+             mock.patch("audit_dolomite_revenue_onchain.make_web3", side_effect=provider), \
+             mock.patch("audit_dolomite_revenue_onchain.find_block_at_or_before", side_effect=[100, 200]), \
+             mock.patch("audit_dolomite_revenue_onchain.market_interest_rows", return_value=[row]), \
+             mock.patch("audit_dolomite_revenue_onchain.fetch_historical_prices", return_value={"arbitrum:" + row["token"]: Decimal("10")}):
+            result = audit_chain_onchain("arbitrum", config, 1793059200, 1792972800)
+
+        self.assertEqual(result.get("status"), "audited")
+        self.assertEqual(result.get("feesUSD"), 20.0)
+        self.assertEqual(result.get("revenueUSD"), 4.0)
+        self.assertEqual(result.get("fromBlock"), 100)
+        self.assertEqual(result.get("toBlock"), 200)
+
     def test_default_target_date_uses_t_minus_two_closed_day(self):
         now = datetime(2026, 6, 23, 12, 0, tzinfo=timezone.utc)
 
@@ -96,6 +126,25 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
 
         self.assertEqual(start, 1782000000)
         self.assertEqual(end, 1782086400)
+
+    def test_repeat_audit_compares_with_preserved_adapter_values_not_previous_override(self):
+        baseline = revenue_chain_totals({"series": [{
+            "date": "2026-10-26", "chains": {"Berachain": {
+                "source": "onchain-current-index-audit",
+                "feesUSD": 444.26056, "grossRevenueUSD": 90.326684,
+                "revenueUSD": 90.326684, "defillamaFeesUSD": 465.0,
+                "defillamaGrossRevenueUSD": 94.0,
+            }},
+        }]}, "2026-10-26")["Berachain"]
+        result = classify_chain_result("Berachain", baseline, {
+            "status": "audited", "feesUSD": 444.26056,
+            "revenueUSD": 90.326684, "protocolCut": 0.20331916,
+        })
+
+        self.assertEqual(result["status"], "warn")
+        self.assertEqual(result["defillamaFeesUSD"], 465.0)
+        self.assertEqual(result["defillamaRevenueUSD"], 94.0)
+        self.assertIn("revenue_diff_exceeds_tolerance", result["warnReasons"])
 
     def test_revenue_chain_totals_uses_gross_revenue_for_audit_baseline(self):
         totals = revenue_chain_totals(
@@ -406,3 +455,4 @@ class AuditDolomiteRevenueOnchainTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

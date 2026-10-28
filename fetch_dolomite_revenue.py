@@ -2202,6 +2202,29 @@ def merge_onchain_revenue_override_history(overrides_payload, onchain_audit):
     }
 
 
+def onchain_revenue_audit_coverage(overrides_payload, onchain_audit=None):
+    """Describe saved audited days without implying continuous or current coverage."""
+    coverage = {}
+    for row in normalized_onchain_revenue_overrides(overrides_payload, onchain_audit):
+        date = row["date"]
+        try:
+            datetime.fromisoformat(date)
+        except (TypeError, ValueError):
+            continue
+        chain = row["chain"]
+        item = coverage.setdefault(chain, {
+            "firstDate": date,
+            "lastDate": date,
+            "dayCount": 0,
+            "latestGeneratedAt": None,
+            "source": ONCHAIN_CURRENT_INDEX_SOURCE,
+        })
+        item["dayCount"] += 1
+        item["lastDate"] = date
+        item["latestGeneratedAt"] = row.get("auditGeneratedAt")
+    return coverage
+
+
 def write_onchain_revenue_overrides(payload, path=ONCHAIN_REVENUE_OVERRIDES_FILE):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
@@ -2588,6 +2611,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "onchainOverrideRevenueSource": "current-index onchain audit for audited Ethereum/Berachain/Mantle daily rows; DeFiLlama adapter fallback outside audited coverage",
             "netRevenueAfterBorrowFeeRebates": "closed-epoch Berachain and Arbitrum signed veDOLO borrow-fee rebates are netted from displayed revenue; active/unpublished epochs remain gross",
             "borrowFeeRebateStatus": borrow_fee_rebate_status(rebate_metadata),
+            "onchainAuditHistoricalCoverage": onchain_revenue_audit_coverage(onchain_revenue_overrides, onchain_audit),
             **onchain_audit_assurance(onchain_audit, now=now),
         },
         "borrowFeeRebates": rebate_metadata,
@@ -2637,4 +2661,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

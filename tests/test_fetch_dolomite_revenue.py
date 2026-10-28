@@ -984,6 +984,39 @@ class FetchDolomiteRevenueTest(unittest.TestCase):
         self.assertEqual(assurance["onchainAuditExpectedTargetDate"], "2026-06-23")
         self.assertTrue(assurance["onchainAuditStale"])
 
+    def test_build_output_keeps_retired_chain_audit_coverage_separate_from_current_audit(self):
+        row = {
+            "chain": "Mantle", "date": "2026-09-17", "feesUSD": 1.675085,
+            "revenueUSD": 0.251263, "source": "onchain-current-index-audit",
+            "auditGeneratedAt": "2026-09-19T16:05:59Z",
+        }
+        output = build_output(
+            metric_payload(total24h=100, latest_value=100, step=2),
+            metric_payload(total24h=500, latest_value=500, step=10),
+            onchain_audit={
+                "status": "missing", "targetDate": "2026-10-26",
+                "chains": {"Arbitrum": {"status": "missing", "error": "archive unavailable"}},
+            },
+            onchain_revenue_overrides={"overrides": [
+                row, dict(row),
+                dict(row, date="2026-09-18", feesUSD=1.800629, revenueUSD=0.270094,
+                     auditGeneratedAt="2026-10-28T08:28:55Z"),
+                dict(row, date="2026-09-19", source="unverified"),
+                dict(row, chain="Arbitrum"),
+            ]},
+        )
+
+        self.assertEqual(output["assurance"].get("onchainAuditHistoricalCoverage"), {
+            "Mantle": {
+                "firstDate": "2026-09-17", "lastDate": "2026-09-18", "dayCount": 2,
+                "latestGeneratedAt": "2026-10-28T08:28:55Z",
+                "source": "onchain-current-index-audit",
+            },
+        })
+        self.assertEqual(output["assurance"]["onchainAuditTargetDate"], "2026-10-26")
+        self.assertEqual(output["assurance"]["onchainAuditChains"]["Arbitrum"]["status"], "missing")
+        self.assertNotIn("Mantle", output["assurance"]["onchainAuditChains"])
+
     def test_expected_onchain_audit_target_allows_morning_workflow_delay(self):
         self.assertEqual(
             expected_onchain_audit_target_date(datetime(2026, 6, 26, 8, 45, tzinfo=timezone.utc)),
@@ -2887,4 +2920,5 @@ assert.strictEqual(result.page, 1);
 
 if __name__ == "__main__":
     unittest.main()
+
 

@@ -152,6 +152,12 @@ CHAIN_CONFIGS = {
         "coinChain": "arbitrum",
         "mode": "arbitrum",
         "margin": "0x6Bd780E7fDf01D77e4d475c821f1e7AE05409072",
+        # Verified with a full closed-day replay; the official public endpoint
+        # prunes state and the other shared public endpoints reject archive calls.
+        "archiveRpcFallbacks": [
+            "https://arbitrum.gateway.tenderly.co",
+            "https://arbitrum-one.public.blastapi.io",
+        ],
     },
     "berachain": {
         "name": "Berachain",
@@ -436,6 +442,10 @@ def revenue_chain_totals(revenue_data, target_date):
                 item = dict(payload)
                 item["netRevenueUSD"] = payload.get("revenueUSD")
                 item["revenueUSD"] = payload.get("grossRevenueUSD", payload.get("revenueUSD"))
+                if payload.get("source") == "onchain-current-index-audit":
+                    # A repeat audit must still compare independent sources.
+                    item["feesUSD"] = payload.get("defillamaFeesUSD", item.get("feesUSD"))
+                    item["revenueUSD"] = payload.get("defillamaGrossRevenueUSD", item["revenueUSD"])
                 gross_baseline[chain] = item
             return gross_baseline
     raise ValueError(f"No dolomite_revenue.json row for target date {target_date}")
@@ -620,7 +630,10 @@ def market_interest_rows(w3, config, from_block, to_block, endpoint_started_at=N
 
 def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timestamp):
     try:
-        endpoints = rpc_client.get_endpoints(chain_key)
+        endpoints = list(rpc_client.get_endpoints(chain_key))
+        for endpoint in config.get("archiveRpcFallbacks", []):
+            if endpoint not in endpoints:
+                endpoints.append(endpoint)
     except Exception as exc:
         print(f"  {config['name']}: no RPC endpoints: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
         return {
@@ -756,3 +769,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

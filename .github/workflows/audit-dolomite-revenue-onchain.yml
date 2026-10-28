@@ -34,6 +34,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Test revenue audit integrity and historical coverage
+        run: |
+          python3 -m unittest discover -s tests -p 'test_audit_dolomite_revenue_onchain.py'
+          python3 -m unittest discover -s tests -p 'test_fetch_dolomite_revenue*.py'
+
       - name: Run onchain revenue audit
         run: python3 audit_dolomite_revenue_onchain.py
         env:
@@ -89,3 +94,4 @@ jobs:
             sleep "$sleep_for"
           done
           if [ "$pushed" != "true" ]; then echo "::error::Failed to push after 12 attempts. Revenue audit NOT published"; exit 1; fi
+
