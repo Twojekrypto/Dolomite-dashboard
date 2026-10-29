@@ -73,23 +73,11 @@ const BTC_SYMBOLS = new Set([
 const ETH_SYMBOLS = new Set([
   "ETH", "WETH", "WSTETH", "STETH", "RETH", "WEETH", "BERAETH",
   "EZETH", "RSETH", "RSWETH", "STONE", "WOETH", "METH", "CMETH",
-  "TETH", "ETH+", "ETHX", "YLSTETH",
+  "TETH", "ETH+", "ETHX", "YLSTETH", "SAVETH", "DSAVETH",
   "PT-RETH", "PT-WSTETH", "PT-WEETH", "PT-EETH", "PT-EZETH",
   "PT-RSETH", "PT-METH", "PT-CMETH",
   "GMETH", "GMETH-USD", "GMWSTETH-USD", "GLV-ETH",
 ]);
-const SKIP_PREFIXES = [
-  "dPT-",
-  "dYT-",
-  "Dolomite Isolation",
-  "djUSDC",
-  "dfsGLP",
-  "dplvGLP",
-  "dARB",
-  "dGMX",
-  "mGLP",
-  "sGLP",
-];
 const MONTH_INDEX = {
   JAN: 0,
   FEB: 1,
@@ -184,8 +172,7 @@ function isExpiredMarket(sym, name = "") {
 function shouldSkipMarket(row) {
   const sym = row.token?.tokenSymbol || "";
   const name = row.token?.tokenName || "";
-  if (isExpiredMarket(sym, name)) return true;
-  return SKIP_PREFIXES.some((prefix) => sym.startsWith(prefix) || name.startsWith(prefix));
+  return isExpiredMarket(sym, name);
 }
 
 function parseYieldParts(parts) {
@@ -308,8 +295,8 @@ async function fetchMarketDepth() {
           supplied: cleanNumber(scaledToNumber(suppliedScaled), 14),
           borrowed: cleanNumber(scaledToNumber(borrowedScaled), 14),
           availableLiquidity: cleanNumber(scaledToNumber(availableScaled), 14),
-          supplyCap: cleanNumber(scaledToNumber(cap.supplyCap), 14),
-          borrowCap: cleanNumber(scaledToNumber(cap.borrowCap), 14),
+          supplyCap: cleanNumber(scaledToNumber(cap.supplyCap, 18, 18), 14),
+          borrowCap: cleanNumber(scaledToNumber(cap.borrowCap, 18, 18), 14),
           borrowDisabled: cap.disabled,
           price: cleanNumber(scaledToNumber(prices[addr] || 0n), 14),
         };
@@ -488,3 +475,4 @@ try {
   console.error(error);
   process.exit(1);
 }
+

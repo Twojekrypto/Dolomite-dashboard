@@ -30,6 +30,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Test asset catalog coverage
+        run: python3 -m unittest discover -s tests -p 'test_assets_*classification.py' && python3 -m unittest discover -s tests -p 'test_assets_market_coverage.py'
+
       - name: Build assets snapshot
         run: node scripts/build_assets_live.mjs
 
@@ -103,3 +106,4 @@ jobs:
             sleep 5
           done
           [ "$pushed" = "true" ] || { echo "Failed to push after 12 attempts."; exit 1; }
+
