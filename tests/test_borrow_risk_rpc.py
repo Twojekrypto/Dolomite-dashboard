@@ -102,6 +102,48 @@ class RiskRpcFallbackTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.run_overrides({"https://primary": RuntimeError("offline"), "https://healthy": RuntimeError("offline")})
 
+    def test_transient_transport_failure_retries_without_losing_verified_batches(self):
+        attempts = []
+
+        def flaky_provider(count):
+            attempts.append(count)
+            if len(attempts) == 2:
+                raise RuntimeError("429 Too Many Requests")
+            return valid_results(count)
+
+        result, requests, _, individual = self.run_overrides({
+            "https://primary": flaky_provider,
+        }, count=51, unresolved=set(), fallbacks=[])
+        self.assertEqual(result, {f"account-{index}": 0.1 for index in range(51)})
+        self.assertEqual([len(owners) for _, owners in requests], [50, 1, 1])
+        self.assertEqual(individual, [])
+
+    def test_transient_malformed_frame_is_retried_before_rejecting_chain(self):
+        attempts = []
+
+        def flaky_frame(count):
+            attempts.append(count)
+            return [] if len(attempts) == 1 else valid_results(count)
+
+        result, requests, _, individual = self.run_overrides({
+            "https://primary": flaky_frame,
+        }, count=2, unresolved=set(), fallbacks=[])
+        self.assertEqual(result, {"account-0": 0.1, "account-1": 0.1})
+        self.assertEqual([len(owners) for _, owners in requests], [2, 2])
+        self.assertEqual(individual, [])
+
+    def test_transport_failure_exhausts_only_two_rounds_with_backoff(self):
+        requests, providers, individual = [], [], []
+        module = fake_web3({"https://primary": RuntimeError("429 Too Many Requests")}, requests, providers, individual)
+        with patch.dict(sys.modules, {"web3": module}), patch.object(risk.time, "sleep") as sleep, redirect_stdout(StringIO()):
+            with self.assertRaisesRegex(RuntimeError, "All RPCs failed E-Mode batch"):
+                risk.fetch_risk_overrides("https://primary", "0x" + "a" * 40, accounts(2), unresolved_accounts=set())
+        self.assertEqual([len(owners) for _, owners in requests], [2, 2])
+        self.assertEqual(len(sleep.call_args_list), 1)
+        self.assertGreaterEqual(sleep.call_args.args[0], 1)
+        self.assertLessEqual(sleep.call_args.args[0], 5)
+        self.assertEqual(individual, [])
+
     def test_incomplete_aggregate_results_retry_whole_batch_on_next_provider(self):
         for bad in (lambda n: [], lambda n: valid_results(n + 1), lambda n: [(False, bytes(64))] * n, lambda n: [(True, bytes(32))] * n):
             with self.subTest(response=bad):

@@ -2,7 +2,7 @@ name: Update Liquidation Risk Data
 
 on:
   schedule:
-    - cron: '12 * * * *'  # Hourly, staggered
+    - cron: '17,47 * * * *'  # Twice hourly, away from the busy hour boundary
   workflow_dispatch:  # Allow manual trigger
 
 concurrency:
@@ -20,6 +20,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/workflows/update-liquidation-risk.yml
+            /requirements.txt
+            /fetch_liquidation_risk.py
+            /build_borrow_earnings.py
+            /rpc_usage.py
+            /validate_data.py
+            /vedolo_vote_power.py
+            /tests/test_borrow_risk_*.py
+            /tests/test_borrow_earnings*.py
+            /liquidation_risk.json
+            /liquidation_history.json
+            /borrow_earnings.json
+            /data/liquidation-risk/
 
       - name: Set up Python
         uses: actions/setup-python@v6

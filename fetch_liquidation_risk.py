@@ -48,6 +48,7 @@ CHAINS = {
         "label": "Berachain",
         "explorer": "https://berascan.com/address/",
         "rpc": "https://rpc.berachain.com",
+        "rpc_fallbacks": ["https://berachain-rpc.publicnode.com/", "https://berachain.drpc.org/"],
     },
     "arbitrum": {
         "subgraph_name": "dolomite-arbitrum",
@@ -733,8 +734,13 @@ def fetch_risk_overrides(rpc_url, setter_address, accounts, label="", rpc_fallba
                     print(f"     ⚠️ E-Mode batch {i // batch_size + 1} failed on {host}: {exc}")
             if not pending:
                 break
-            if not has_valid_frame:
-                raise RuntimeError(f"All RPCs failed E-Mode batch {i // batch_size + 1} for {label}") from last_error
+            if retry_round == 0:
+                # A transient transport/frame failure must reach the second
+                # bounded round; give rate-limited providers time to recover.
+                time.sleep(2)
+
+        if not has_valid_frame:
+            raise RuntimeError(f"All RPCs failed E-Mode batch {i // batch_size + 1} for {label}") from last_error
 
         if pending:
             if unresolved_accounts is None:
