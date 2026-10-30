@@ -11,6 +11,10 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
+import threading
+from email.utils import parsedate_to_datetime
+from http.client import responses as HTTP_REASONS
 import os
 from pathlib import Path
 import re
@@ -25,7 +29,7 @@ BASE='https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8
 CONFIG={
  'ethereum': dict(chainId=1,graph='dolomite-ethereum',rpc='https://mainnet.gateway.tenderly.co',chunk=9999,confirmations=64,span=260000),
  'arbitrum': dict(chainId=42161,graph='dolomite-arbitrum',rpc='https://arbitrum.gateway.tenderly.co',chunk=49999,confirmations=256,span=12000000),
- 'berachain': dict(chainId=80094,graph='dolomite-berachain-mainnet',rpc='https://rpc.berachain.com/',chunk=9999,confirmations=64,span=1600000),
+ 'berachain': dict(chainId=80094,graph='dolomite-berachain-mainnet',rpc='https://rpc.berachain.com/',chunk=9999,confirmations=64,span=1600000,rpc_interval=1.0),
 }
 ORACLE='0x223e16b9e4703ea2acd14a8caa0fcbbf4a42d3e8b7a33234e841bd1808ee9ec0'
 OPERATION='0x91b01baeee3a24b590d112613814d86801005c7ef9353e7fc1eaeaf33ccf83b0'
@@ -122,6 +126,48 @@ def validate_ranges(ranges,start,end):
     return cursor==end+1
 
 
+class RequestPacer:
+    """One chain/provider gate shared by its header, log and mark workers."""
+    def __init__(self, interval):
+        self.interval = interval
+        self.next_start = 0.0
+        self.paused_until = 0.0
+        self.lock = threading.Lock()
+
+    def wait(self):
+        while True:
+            with self.lock:
+                now = time.monotonic()
+                delay = max(self.next_start, self.paused_until) - now
+                if delay <= 0:
+                    self.next_start = now + self.interval
+                    return now
+            # Release the lock while waiting: a worker receiving 429 can extend
+            # the deadline. Every waiter rechecks that shared deadline on wake.
+            time.sleep(min(delay, 60.0))
+
+    def cooldown(self, seconds):
+        with self.lock:
+            self.paused_until = max(self.paused_until, time.monotonic() + seconds)
+
+
+def rate_retry_delay(headers, attempt):
+    """Bounded Retry-After (seconds or HTTP date), matching RPC cooldown caps."""
+    fallback = min(5.0 * 2 ** min(attempt, 4), 60.0)
+    value = (headers or {}).get('Retry-After')
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        try:
+            stamp = parsedate_to_datetime(value)
+            seconds = stamp.timestamp() - time.time() if stamp.tzinfo else float('nan')
+        except (TypeError, ValueError, OverflowError):
+            seconds = float('nan')
+    if not math.isfinite(seconds) or seconds < 0:
+        return fallback
+    return min(max(seconds, 1.0), 60.0)
+
+
 class Source:
     def __init__(self,chain,cache):
         self.chain=chain;self.config=CONFIG[chain]; self.margin=decoder.CHAINS[chain]['margin']
@@ -129,6 +175,10 @@ class Source:
         self.graph_url=BASE+self.config['graph']+'/latest/gn'
         self.cache=Path(cache)/chain;self.cache.mkdir(parents=True,exist_ok=True)
         self.refs=set();self.requests=0;self.hits=0
+        # Public BERA throttles bursts from hosted runners. This is a per-chain
+        # aggregate one-request/second start rate, not a per-thread sleep.
+        self.rpc_pacer = RequestPacer(self.config.get('rpc_interval', 0.0))
+        self.graph_pacer = RequestPacer(0.0)
 
     def request(self,url,payload,anchor=None):
         key=digest({'source':url,'request':payload,'anchor':anchor})
@@ -137,15 +187,32 @@ class Source:
             saved=json.loads(path.read_text())
             if saved.get('responseHash')!=digest(saved['response']): raise ValueError('Corrupt immutable source cache')
             self.refs.add(key);self.hits+=1;return saved['response']
-        for attempt in range(3):
+        pacer = self.rpc_pacer if url == self.rpc_url else self.graph_pacer
+        method = payload.get('method', 'graphql')
+        for attempt in range(8):
             try:
+                pacer.wait()
                 req=Request(url,data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','User-Agent':'DolomiteHistoricalPnL/1'})
                 with urlopen(req,timeout=40) as response: data=json.load(response)
+                if isinstance(data,dict) and isinstance(data.get('error'),dict) and data['error'].get('code') == 429:
+                    raise HTTPError('',429,'Too Many Requests',getattr(response,'headers',{}),None)
                 if isinstance(data,dict) and (data.get('error') or data.get('errors')): raise ValueError(str(data.get('error') or data.get('errors'))[:250])
                 break
             except Exception as error:
-                if isinstance(error,HTTPError) and error.code in (400,401,403,404):raise
-                if attempt==2:raise
+                if isinstance(error,HTTPError):
+                    rate_limited = error.code == 429
+                    delay = rate_retry_delay(error.headers, attempt) if rate_limited else None
+                    if rate_limited:
+                        pacer.cooldown(delay)
+                    # Never print URL, response text, headers, or the original
+                    # exception: configured providers may contain credentials.
+                    print(f'[borrow-pnl] chain={self.chain} method={method} status={error.code} attempt={attempt+1}/8 cooldownSeconds={delay if delay is not None else 0}',flush=True)
+                    terminal = error.code in (400,401,403,404) or attempt == 7 or (not rate_limited and attempt >= 2)
+                    if terminal:
+                        raise HTTPError('',error.code,HTTP_REASONS.get(error.code,'HTTP failure'),{},None) from None
+                    if rate_limited:
+                        continue
+                if attempt >= 2:raise
                 time.sleep(0.5*2**attempt)
         self.requests+=1
         if anchor:
@@ -210,7 +277,7 @@ class Source:
         except Exception as error:
             detail=str(error).lower()
             splittable=(isinstance(error,HTTPError) and error.code==413) or any(word in detail for word in ('too many results','block range','response size','result cap','range limit','query timeout','timed out','timeout'))
-            if isinstance(error,HTTPError) and error.code in (401,403,404):splittable=False
+            if isinstance(error,HTTPError) and error.code in (401,403,404,429):splittable=False
             if not splittable or b-a<10:raise
             mid=(a+b)//2
             left,x=self.log_range((a,mid));right,y=self.log_range((mid+1,b))

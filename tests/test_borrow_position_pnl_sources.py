@@ -278,4 +278,131 @@ class SparseFilesystemTests(unittest.TestCase):
             result=subprocess.run(['python3','-m','unittest','discover','-s','tests','-p','test_borrow_position_pnl*.py'],cwd=sparse,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
 
+
+class RpcRateLimitTests(unittest.TestCase):
+    class Clock:
+        def __init__(self):
+            self.now=0.0;self.sleeps=[]
+        def monotonic(self):return self.now
+        def sleep(self,seconds):self.sleeps.append(seconds);self.now+=seconds
+
+    def test_429_recovery_honors_retry_after_and_preserves_exact_cache(self):
+        import io,json,tempfile,contextlib
+        from pathlib import Path
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from fetch_borrow_position_pnl import Source,digest
+        clock=self.Clock();attempts=[];payload={'jsonrpc':'2.0','id':1,'method':'eth_getLogs','params':[]}
+        expected={'jsonrpc':'2.0','id':1,'result':[{'exact':'9007199254740993123456789'}]}
+        secret_url='https://provider.invalid/private-key?token=secret'
+        def reply(request,timeout):
+            attempts.append(clock.now)
+            if len(attempts)<=4:raise HTTPError(secret_url,429,'Too Many Requests',{'Retry-After':'7'},None)
+            return io.BytesIO(json.dumps(expected).encode())
+        with tempfile.TemporaryDirectory() as root,patch('fetch_borrow_position_pnl.time.monotonic',clock.monotonic),patch('fetch_borrow_position_pnl.time.sleep',clock.sleep),patch('fetch_borrow_position_pnl.urlopen',reply),contextlib.redirect_stdout(io.StringIO()) as output:
+            source=Source('berachain',root);source.rpc_url=secret_url
+            actual=source.request(secret_url,payload,'0xpin')
+            self.assertEqual(actual,expected);self.assertEqual(len(attempts),5)
+            self.assertTrue(all(b-a>=7 for a,b in zip(attempts,attempts[1:])))
+            key=digest({'source':secret_url,'request':payload,'anchor':'0xpin'})
+            path=Path(root)/'berachain'/(key+'.json');saved=path.read_bytes()
+            self.assertEqual(json.loads(saved)['responseHash'],digest(expected))
+            self.assertEqual(source.request(secret_url,payload,'0xpin'),expected)
+            self.assertEqual(len(attempts),5);self.assertEqual(path.read_bytes(),saved)
+            self.assertIn('chain=berachain method=eth_getLogs status=429',output.getvalue())
+            self.assertNotIn('private-key',output.getvalue());self.assertNotIn('token=secret',output.getvalue())
+
+    def test_permanent_403_has_one_attempt_and_sanitized_failure(self):
+        import io,tempfile,contextlib
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from fetch_borrow_position_pnl import Source
+        clock=self.Clock();calls=[]
+        def forbidden(*args,**kwargs):
+            calls.append(1);raise HTTPError('https://secret.invalid/key',403,'Forbidden https://secret.invalid/key',{},None)
+        with tempfile.TemporaryDirectory() as root,patch('fetch_borrow_position_pnl.time.monotonic',clock.monotonic),patch('fetch_borrow_position_pnl.time.sleep',clock.sleep),patch('fetch_borrow_position_pnl.urlopen',forbidden),contextlib.redirect_stdout(io.StringIO()) as output:
+            source=Source('berachain',root)
+            with self.assertRaises(HTTPError) as error:source.rpc('eth_getLogs',[])
+            self.assertEqual(len(calls),1);self.assertEqual(clock.sleeps,[])
+            self.assertNotIn('secret.invalid',str(error.exception)+output.getvalue())
+
+    def test_429_exhaustion_is_bounded_and_never_splits_ranges(self):
+        import io,tempfile,contextlib
+        from unittest.mock import patch
+        from urllib.error import HTTPError
+        from fetch_borrow_position_pnl import Source
+        clock=self.Clock();calls=[]
+        def limited(*args,**kwargs):
+            calls.append(clock.now);raise HTTPError('https://private.invalid/key',429,'Too Many Requests',{},None)
+        with tempfile.TemporaryDirectory() as root,patch('fetch_borrow_position_pnl.time.monotonic',clock.monotonic),patch('fetch_borrow_position_pnl.time.sleep',clock.sleep),patch('fetch_borrow_position_pnl.urlopen',limited),contextlib.redirect_stdout(io.StringIO()):
+            source=Source('berachain',root);source.block=lambda n:{'hash':'0xpin'}
+            with self.assertRaises(HTTPError):source.log_range((1,9999))
+            self.assertEqual(len(calls),8);self.assertLessEqual(clock.now,300)
+            self.assertGreaterEqual(clock.now,120)
+            self.assertEqual(list(source.cache.glob('*.json')),[])
+
+    def test_four_worker_starts_obey_shared_spacing_and_cooldown(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from unittest.mock import patch
+        from fetch_borrow_position_pnl import RequestPacer
+        clock=self.Clock()
+        with patch('fetch_borrow_position_pnl.time.monotonic',clock.monotonic),patch('fetch_borrow_position_pnl.time.sleep',clock.sleep):
+            pacer=RequestPacer(1.0);pacer.cooldown(7)
+            with ThreadPoolExecutor(max_workers=4) as pool:starts=sorted(pool.map(lambda _:pacer.wait(),range(4)))
+            self.assertEqual(len(starts),4);self.assertGreaterEqual(starts[0],7)
+            self.assertTrue(all(b-a>=1 for a,b in zip(starts,starts[1:])))
+            # Another worker cannot shorten an already announced provider pause.
+            before=clock.now;pacer.cooldown(30);pacer.cooldown(1)
+            self.assertGreaterEqual(pacer.wait(),before+30)
+
+    def test_source_paces_bera_headers_and_logs_without_changing_rpc_responses(self):
+        import io,json,tempfile
+        from unittest.mock import patch
+        from fetch_borrow_position_pnl import Source
+        clock=self.Clock();starts=[]
+        def reply(*args,**kwargs):
+            starts.append(clock.now);return io.BytesIO(json.dumps({'jsonrpc':'2.0','id':1,'result':'0x123'}).encode())
+        with tempfile.TemporaryDirectory() as root,patch('fetch_borrow_position_pnl.time.monotonic',clock.monotonic),patch('fetch_borrow_position_pnl.time.sleep',clock.sleep),patch('fetch_borrow_position_pnl.urlopen',reply):
+            source=Source('berachain',root)
+            for method in ['eth_getBlockByNumber','eth_getLogs','eth_call']:
+                self.assertEqual(source.rpc(method,[]),'0x123')
+            self.assertEqual(starts,[0,1,2])
+
+    def test_json_rpc_429_shares_the_http_cooldown_budget(self):
+        import io,json,tempfile,contextlib
+        from unittest.mock import patch
+        from fetch_borrow_position_pnl import Source
+        clock=self.Clock();starts=[]
+        def reply(*args,**kwargs):
+            starts.append(clock.now)
+            data={'error':{'code':429,'message':'private provider detail'}} if len(starts)<=2 else {'result':'0x456'}
+            return io.BytesIO(json.dumps(data).encode())
+        with tempfile.TemporaryDirectory() as root,patch('fetch_borrow_position_pnl.time.monotonic',clock.monotonic),patch('fetch_borrow_position_pnl.time.sleep',clock.sleep),patch('fetch_borrow_position_pnl.urlopen',reply),contextlib.redirect_stdout(io.StringIO()) as output:
+            source=Source('berachain',root)
+            self.assertEqual(source.rpc('eth_call',[]),'0x456');self.assertEqual(starts,[0,5,15])
+            self.assertNotIn('private provider detail',output.getvalue())
+
+    def test_429_never_becomes_a_range_split_even_with_timeout_text(self):
+        from fetch_borrow_position_pnl import Source
+        from urllib.error import HTTPError
+        source=Source.__new__(Source);source.margin=OWNER;source.block=lambda n:{'hash':'0xa'}
+        calls=[]
+        def fail(*args):
+            calls.append(args);raise HTTPError('https://example.invalid',429,'query timeout',{},None)
+        source.rpc=fail
+        with self.assertRaises(HTTPError):source.log_range((1,9999))
+        self.assertEqual(len(calls),1)
+
+    def test_retry_after_seconds_date_and_fallback_are_bounded(self):
+        from fetch_borrow_position_pnl import rate_retry_delay
+        from unittest.mock import patch
+        from email.utils import formatdate
+        self.assertEqual(rate_retry_delay({'Retry-After':'7'},0),7)
+        self.assertEqual(rate_retry_delay({'Retry-After':'900'},0),60)
+        for bad in ['invalid','NaN','-9','inf']:
+            self.assertEqual(rate_retry_delay({'Retry-After':bad},0),5)
+        self.assertEqual(rate_retry_delay({},7),60)
+        with patch('fetch_borrow_position_pnl.time.time',return_value=1000):
+            self.assertEqual(rate_retry_delay({'Retry-After':formatdate(1012,usegmt=True)},0),12)
+
 if __name__=='__main__': unittest.main()
