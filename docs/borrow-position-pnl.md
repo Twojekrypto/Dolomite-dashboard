@@ -229,6 +229,43 @@ its own proof before verification.
 
 ## Initial real snapshot (2026-10-30)
 
+### Complex capital recovery
+
+The follow-up retained-window audit proves the remaining twelve capital cases:
+all 12,745 positions remain, verified dollar P&L increases from 12,672 to
+12,684, and verified TWR from 11,734 to 11,737. The 61 boundary-quote cases are
+independent of this capital classification change.
+
+`capitalProof` records the exact economic classification; `capitalFlowProof`
+records every external cash flow for rows with such classifications. The strict
+validator recomputes capital amounts from signed Wei and operation quotes and
+requires their count/net/inflow/outflow totals to agree with the public row.
+Four narrow proof classes recover these cases:
+
+- A direct owner call to Margin whose decoded `operate` calldata contains one
+  exact raw account and only the emitted deposit/withdrawal actions. No Call or
+  trade action can hide a flash-funded collateral swap.
+- A raw position that starts empty and whose withdrawals each start at
+  nonpositive Par and create debt. These are borrow proceeds and external
+  collateral/repayment, including zero-collateral flash cycles; an existing or
+  newly deposited positive collateral balance cannot be consumed. External DEX
+  arbitrage profits are excluded; the actual raw-position rounding result is
+  retained.
+- An official V6 liquidation fee matched to the historical registry fee agent
+  and rake. The exact fee is
+  `floor((heldDelta - floor(owedDelta*owedQuote/heldQuote))*rake/1e18)`.
+  The liquidation and matching fee transfer must be in the same `LogOperation`.
+  This fee is performance, while every remaining transfer across distinct raw
+  subaccounts remains external capital, including same-owner accounts.
+- An isolation liquidation whose decoded official V6 calldata proves wrapper/
+  unwrapper trader type and maximum input amount, for which the implementation
+  explicitly omits rake. Its raw transfers keep their ordinary boundary meaning.
+
+Wrong action types, recipient/amount mismatches, a different operation, existing
+collateral, an unproved operator/configuration, or an unsupported route retain
+unknown status. These are actual oracle-marked raw-position results, including
+unrealized changes; they are not substituted wallet profit or realized cash P&L.
+
 The first final collection covers September 30 to October 30, approximately
 10:22 UTC, with 12,744 borrower positions and 171 closed positions across
 Ethereum, Arbitrum and Berachain. All 10,091 balance-event identities reconcile
@@ -252,3 +289,44 @@ The reduced example's percentage remains unavailable; the closed example has
 verified TWR -1.209726467722771009825685810652327367%. The test suite embeds an
 additional real pinned Arbitrum account fixture with raw getter responses,
 principals, exact indices and quotes, including the cached/current index mismatch.
+
+
+## Archived market valuation reconstruction
+
+The current producer retains active Margin quote failures and can reconstruct
+an exact **original official contract formula** for two identified Arbitrum
+markets. This is a distinct valuation source, not an active Margin price or a
+guaranteed executable withdrawal. No current/daily/stale mark, peg assumption,
+or financial zero replaces an unavailable quote.
+
+- Market 9 / plvGLP: the active automation oracle is expired. At each pinned
+  block, the original official Plutus oracle is checked against the active
+  GLP mark, actual vault totalAssets/totalSupply, and exact original/current
+  unwrapper exit fees. Solidity floor ordering is preserved.
+- Market 41 / matured PT-GLP: AdminPauseMarket deliberately returns zero while
+  paused. The original official aggregator/PT oracle chain is evaluated using
+  the same-block active GLP mark, exact matured PT rate and coefficient.
+
+The helper accepts only these exact chain/market/token/configuration identities,
+known runtime bytecodes and expected structured EVM failures. Every input and
+RPC response is retained by the existing immutable source cache. Four public
+quote proofs are stored once as `valuation.reconstructedPrices[block:market]`;
+recovered balances carry that `valuationRef`, exact raw Wei and quote. The
+strict validator recalculates quote formulas and balance values and binds them
+to their historical block hash, market and token. Affected rows explicitly use
+`valuationMethod: official_oracle_formula_reconstruction`; the interface marks
+this source in the amount tooltip and expanded result. Other rows use
+`protocol_market_oracle`.
+
+Exact account-balance getters remain mandatory in the audit sample. If the
+account-value getter hits the same proved paused/expired oracle, its structured
+failure is recorded separately; it is never represented as an agreeing NAV.
+Deterministic anchored EVM reverts are retained, while transport/provider
+failures remain failures. Reconstruction runs serially after ordinary marks to
+avoid racing identical immutable-cache writes.
+
+The current capital policy is `operation_oracle_proven_capital_v2`. Public
+capital proofs retain direct owner-only calls, zero-start borrowed capital,
+same-operation protocol fee math and isolation no-rake evidence. Actual RPC
+transaction hash and block hash must match the raw event before calldata can
+attest a route. Unsupported or inconsistent evidence remains unavailable.

@@ -53,6 +53,15 @@ class SourceTests(unittest.TestCase):
 
 
 class FlowTests(unittest.TestCase):
+    def test_isolation_exemption_requires_the_exact_transaction_and_block(self):
+        from fetch_borrow_position_pnl import isolation_liquidation_proof
+        event={'txHash':'0x'+'a'*64,'blockHash':'0x'+'b'*64,'logIndex':1,'legs':[{'owner':OWNER,'account':'7','market':'1'},{'owner':OWNER,'account':'7','market':'2'},{'owner':OWNER,'account':'0','market':'1'}]}
+        w=[0]*15;w[0]=32;w[1]=int(OWNER,16);w[2]=7;w[3]=int(OWNER,16);w[4]=0;w[5]=8*32;w[6]=2**256-1;w[8]=11*32;w[9]=2;w[10]=1;w[11]=2;w[12]=1;w[13]=32;w[14]=2
+        transaction={'to':'0x8564f36e53ac4f16a2c0b8449cf98d51c3438efd','hash':event['txHash'],'blockHash':event['blockHash'],'input':'0x507a5249'+''.join(format(v,'064x') for v in w)}
+        self.assertIsNotNone(isolation_liquidation_proof(transaction,event))
+        for change in [{'hash':'0x'+'c'*64},{'blockHash':'0x'+'c'*64}]:
+            self.assertIsNone(isolation_liquidation_proof(dict(transaction,**change),event))
+
     def test_unidirectional_router_repayment_is_external_capital(self):
         from fetch_borrow_position_pnl import row_flows
         event=decode_event(log(data=[7,1,1,10,0,90,0]))
@@ -126,6 +135,71 @@ class FlowTests(unittest.TestCase):
         ctx=operation_context([op,quote,first,nextop,second])
         self.assertEqual(ctx[('0xdef',2)]['prices'],{'1':3})
         self.assertEqual(ctx[('0xdef',4)]['prices'],{})
+
+class CapitalRecoveryTests(unittest.TestCase):
+    def event(self,kind,index,market,delta,par):
+        return dict(kind=kind,txHash='0x'+'a'*64,logIndex=index,blockNumber=10,txIndex=0,
+                    legs=[dict(owner=OWNER,account=str(2**255+7),market=market,delta=delta,new_par=par)],routeAddress=OWNER)
+
+    def test_zero_start_borrow_and_repayment_are_exact_external_capital(self):
+        from fetch_borrow_position_pnl import mixed_capital_proof
+        events=[self.event('withdraw',1,'1',-100,-100),self.event('deposit',2,'1',99,0)]
+        ctx={(e['txHash'],e['logIndex']):{'id':e['txHash']+':0x0','prices':{'1':3}} for e in events}
+        proof=mixed_capital_proof({},events,OWNER,str(2**255+7),ctx)
+        self.assertEqual(proof['kind'],'zero_start_borrow_capital')
+        self.assertEqual(proof['externalUsdExact'],'-0.'+'0'*33+'003')
+
+    def test_existing_collateral_funded_route_is_never_capitalized(self):
+        from fetch_borrow_position_pnl import mixed_capital_proof
+        events=[self.event('withdraw',1,'1',-100,0),self.event('deposit',2,'2',99,99)]
+        ctx={(e['txHash'],e['logIndex']):{'id':'op','prices':{'1':3,'2':3}} for e in events}
+        self.assertIsNone(mixed_capital_proof({'1':100},events,OWNER,str(2**255+7),ctx))
+
+    def test_zero_start_does_not_certify_later_collateral_withdrawal(self):
+        from fetch_borrow_position_pnl import mixed_capital_proof
+        events=[self.event('deposit',1,'1',100,100),self.event('withdraw',2,'1',-50,50)]
+        ctx={(e['txHash'],e['logIndex']):{'id':'op','prices':{'1':3}} for e in events}
+        self.assertIsNone(mixed_capital_proof({},events,OWNER,str(2**255+7),ctx))
+
+    def test_liquidation_fee_formula_and_recipient_must_both_match(self):
+        from fetch_borrow_position_pnl import liquidation_fee_proof
+        e=self.event('liquidation',1,'1',110,110)
+        e['legs'] += [dict(owner=OWNER,account=str(2**255+7),market='2',delta=-100,new_par=-100)]
+        fee=self.event('transfer',2,'1',-1,109)
+        fee['legs'].append(dict(owner='0x'+'2'*40,account='0',market='1',delta=1,new_par=1))
+        config=dict(operator='0x8564f36e53ac4f16a2c0b8449cf98d51c3438efd',registry='0x'+'3'*40,feeAgent='0x'+'2'*40,rakeRaw=str(10**17))
+        context={'id':e['txHash']+':0x0','prices':{'1':10,'2':10}}
+        proof=liquidation_fee_proof(e,fee,context,config,context)
+        self.assertEqual(proof['feeWeiRaw'],'1')
+        self.assertIsNone(liquidation_fee_proof(e,fee,context,config,dict(context,id=e['txHash']+':0x2')))
+        fee['legs'][1]['delta']=2
+        self.assertIsNone(liquidation_fee_proof(e,fee,context,config,context))
+
+    def direct_transaction(self,events):
+        account=[1,int(OWNER,16),2**255+7];n=len(events);offsets=[n*32+i*384 for i in range(n)];actions=[]
+        for e in events:
+            leg=e['legs'][0];actions += [int(e['kind']=='withdraw'),0,int(leg['delta']>0),0,0,abs(leg['delta']),int(leg['market']),0,int(OWNER,16),0,352,0]
+        return dict(to='0x'+'3'*40,**{'from':OWNER},input='0xa67a6a45'+''.join(word(v) for v in [64,160]+account+[n]+offsets+actions))
+
+    def test_prefunded_direct_margin_close_has_no_callback_action(self):
+        from fetch_borrow_position_pnl import mixed_capital_proof
+        events=[self.event('deposit',1,'2',10,0),self.event('withdraw',2,'1',-100,0)]
+        contexts={(e['txHash'],e['logIndex']):{'id':e['txHash']+':0x0','prices':{'1':3,'2':3}} for e in events}
+        tx=self.direct_transaction(events)
+        p=mixed_capital_proof({'1':100,'2':-10},events,OWNER,str(2**255+7),contexts,tx,tx['to'])
+        self.assertEqual(p['kind'],'direct_margin_owner_actions')
+        for key,value in [('from','0x'+'4'*40),('to','0x'+'4'*40)]:
+            modified=dict(tx);modified[key]=value
+            self.assertIsNone(mixed_capital_proof({'1':100,'2':-10},events,OWNER,str(2**255+7),contexts,modified,tx['to']))
+        raw=tx['input'];start=10+8*64
+        tx['input']=raw[:start]+word(8)+raw[start+64:]
+        self.assertIsNone(mixed_capital_proof({'1':100,'2':-10},events,OWNER,str(2**255+7),contexts,tx,tx['to']))
+
+    def test_zero_start_withdrawal_cannot_cross_a_positive_balance(self):
+        from fetch_borrow_position_pnl import mixed_capital_proof
+        events=[self.event('deposit',1,'1',10,10),self.event('withdraw',2,'1',-20,-10),self.event('deposit',3,'1',10,0)]
+        ctx={(e['txHash'],e['logIndex']):{'id':'op','prices':{'1':3}} for e in events}
+        self.assertIsNone(mixed_capital_proof({},events,OWNER,str(2**255+7),ctx))
 
 class FlowNavTests(unittest.TestCase):
     def test_flow_nav_uses_all_markets_and_exact_event_order(self):
@@ -216,6 +290,7 @@ class WorkflowPublicationTests(unittest.TestCase):
             git('init','--bare','--initial-branch=master',str(remote));git('clone',str(remote),str(work))
             git('config','user.name','Fixture',cwd=work);git('config','user.email','fixture@example.invalid',cwd=work)
             (work/'build_borrow_position_pnl.py').write_text((root/'build_borrow_position_pnl.py').read_text())
+            (work/'borrow_pnl_oracle_recovery.py').write_text((root/'borrow_pnl_oracle_recovery.py').read_text())
             for name in ['fetch_borrow_position_pnl.py','scan_earn_netflow.py','rpc_usage.py']:(work/name).write_text('# initial\n')
             (work/'other.txt').write_text('original')
             previous=PublicationTests().snapshot();(work/'borrow_position_pnl.json').write_text(json.dumps(previous))
@@ -309,7 +384,7 @@ class SparseFilesystemTests(unittest.TestCase):
         patterns='\n'.join(line.strip() for line in patterns.splitlines())+'\n'
         with tempfile.TemporaryDirectory() as temporary:
             base=Path(temporary);source=base/'source';source.mkdir();sparse=base/'sparse'
-            paths=['build_borrow_position_pnl.py','fetch_borrow_position_pnl.py','scan_earn_netflow.py','rpc_usage.py',
+            paths=['borrow_pnl_oracle_recovery.py','tests/test_borrow_position_pnl_oracle_recovery.py','tests/fixtures/borrow_pnl_oracle_recovery.json','build_borrow_position_pnl.py','fetch_borrow_position_pnl.py','scan_earn_netflow.py','rpc_usage.py',
                    '.github/workflows/update-borrow-position-pnl.yml','tests/test_borrow_position_pnl.py','tests/test_borrow_position_pnl_sources.py']
             for relative in paths:
                 dest=source/relative;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(root/relative,dest)

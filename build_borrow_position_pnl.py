@@ -4,6 +4,8 @@
 This module has no network or Decimal-context dependency. The collector supplies
 source proofs; missing evidence is never coerced to a financial zero.
 """
+from borrow_pnl_oracle_recovery import validate_reconstruction
+
 import argparse
 import json
 import hashlib
@@ -120,6 +122,85 @@ def _boolean(value):
     return value
 
 
+def validate_capital_proofs(row,margin):
+    """Check compact economic classifications and their complete capital ledger."""
+    address=r'0x[0-9a-f]{40}';hash_pattern=r'0x[0-9a-f]{64}';integer=r'(?:0|-?[1-9][0-9]*)';natural=r'(?:0|[1-9][0-9]*)'
+    proofs=row['capitalProof'];flows=row['capitalFlowProof']
+    if not isinstance(proofs,list) or not isinstance(flows,list) or not proofs and flows:raise ValueError('Invalid capital proof lists')
+    known=row['pnl']['status']=='verified';by_event={}
+    if proofs and known:
+        for flow in flows:
+            _require_fields(flow,('eventRef','operationRef','marketId','deltaWeiRawSigned','oraclePriceRaw','signedUsdExact'))
+            _match(flow['eventRef'],hash_pattern+':'+natural);_match(flow['operationRef'],hash_pattern+r':0x[0-9a-f]+');_match(flow['marketId'],natural)
+            _match(flow['deltaWeiRawSigned'],integer);_match(flow['oraclePriceRaw'],r'[1-9][0-9]*')
+            if flow['eventRef'].split(':')[0]!=flow['operationRef'].split(':')[0] or int(flow['operationRef'].split(':')[1],16)>=int(flow['eventRef'].split(':')[1]):raise ValueError('Invalid capital operation reference')
+            if usd36(flow['signedUsdExact'])!=int(flow['deltaWeiRawSigned'])*int(flow['oraclePriceRaw']) or flow['eventRef'] in by_event:raise ValueError('Invalid capital proof valuation/identity')
+            by_event[flow['eventRef']]=flow
+        amounts=[usd36(f['signedUsdExact']) for f in flows]
+        if len(flows)!=row['externalFlowCount'] or sum(amounts)!=usd36(row['netInflowUsdExact']) or sum(max(v,0) for v in amounts)!=usd36(row['totalInflowUsdExact']) or -sum(min(v,0) for v in amounts)!=usd36(row['totalOutflowUsdExact']):raise ValueError('Complex capital proof totals disagree')
+    elif flows:raise ValueError('Unverified capital cannot claim a complete ledger')
+    boundary_txs={p.get('transactionHash') for p in proofs if isinstance(p,dict) and p.get('kind')=='liquidation_raw_position_boundary'}
+    for proof in proofs:
+        _require_fields(proof,('kind','transactionHash'));tx=_match(proof['transactionHash'],hash_pattern);kind=proof['kind']
+        if kind in ('zero_start_borrow_capital','direct_margin_owner_actions'):
+            _require_fields(proof,('openingPar','events','externalUsdExact'))
+            if not isinstance(proof['openingPar'],dict) or not isinstance(proof['events'],list) or not proof['events']:raise ValueError('Invalid mixed capital proof')
+            state={}
+            for market,value in proof['openingPar'].items():_match(market,natural);state[market]=int(_match(value,integer))
+            if kind=='zero_start_borrow_capital' and state:raise ValueError('Borrow capital starts with existing collateral/debt')
+            if kind=='direct_margin_owner_actions':
+                _require_fields(proof,('sender','to','actionTypes','transactionEvidenceHash'))
+                if proof['sender']!=row['address'] or proof['to']!=margin or proof['actionTypes']!=[int(e['kind']=='withdraw') for e in proof['events']]:raise ValueError('Direct owner call proof mismatch')
+                _match(proof['transactionEvidenceHash'],r'[0-9a-f]{64}')
+            total=0;last=-1
+            for event in proof['events']:
+                _require_fields(event,('kind','logIndex','operationRef','marketId','deltaWeiRawSigned','newParRawSigned','oraclePriceRaw'))
+                market=_match(event['marketId'],natural);delta=int(_match(event['deltaWeiRawSigned'],integer));par=int(_match(event['newParRawSigned'],integer));price=int(_match(event['oraclePriceRaw'],r'[1-9][0-9]*'))
+                index=_natural(event['logIndex']);_match(event['operationRef'],hash_pattern+r':0x[0-9a-f]+')
+                if index<=last or event['operationRef'].split(':')[0]!=tx or int(event['operationRef'].split(':')[1],16)>=index or event['kind'] not in ('deposit','withdraw') or (delta>0)!=(event['kind']=='deposit') or delta==0:raise ValueError('Invalid mixed event proof')
+                if kind=='zero_start_borrow_capital' and event['kind']=='withdraw' and (state.get(market,0)>0 or par>=0):raise ValueError('Borrow proof consumes collateral')
+                if par:state[market]=par
+                else:state.pop(market,None)
+                last=index;total+=delta*price
+                if known:
+                    flow=by_event.get(tx+':'+str(index))
+                    if not flow or any(flow[k]!=event[k] for k in ('operationRef','marketId','deltaWeiRawSigned','oraclePriceRaw')):raise ValueError('Mixed proof disagrees with capital ledger')
+            if total!=usd36(proof['externalUsdExact']):raise ValueError('Mixed proof valuation disagrees')
+        elif kind=='liquidation_protocol_fee':
+            fields=('operationRef','transferOperationRef','liquidationLogIndex','transferLogIndex','owner','accountNumber','marketId','owedMarketId','heldDeltaWeiRaw','owedDeltaWeiRaw','heldPriceRaw','owedPriceRaw','feeWeiRaw','recipient','recipientAccountNumber','operator','registry','feeAgent','rakeRaw')
+            _require_fields(proof,fields)
+            if tx not in boundary_txs or proof['owner']!=row['address'] or proof['accountNumber']!=row['accountNumber'] or proof['operator']!='0x8564f36e53ac4f16a2c0b8449cf98d51c3438efd':raise ValueError('Invalid liquidation fee owner/operator')
+            expected_registry='0x2a059d6d682e5fb1226eb8bc2977b512698c2404' if row['chain']=='arbitrum' else '0x0f38bfbd9c1450bcf7a758e80e148ce78cfe09fd'
+            if proof['registry']!=expected_registry or proof['recipient']!=proof['feeAgent'] or proof['recipientAccountNumber']!='0':raise ValueError('Invalid historical fee registry/recipient')
+            _match(proof['operationRef'],hash_pattern+r':0x[0-9a-f]+')
+            if proof['transferOperationRef']!=proof['operationRef'] or proof['operationRef'].split(':')[0]!=tx or int(proof['operationRef'].split(':')[1],16)>=proof['liquidationLogIndex']:raise ValueError('Liquidation fee crosses operation boundary')
+            _match(proof['feeAgent'],address);_match(proof['marketId'],natural);_match(proof['owedMarketId'],natural)
+            values={key:int(_match(proof[key],r'[1-9][0-9]*')) for key in ('heldDeltaWeiRaw','owedDeltaWeiRaw','heldPriceRaw','owedPriceRaw','feeWeiRaw')};rake=int(_match(proof['rakeRaw'],natural))
+            expected=(values['heldDeltaWeiRaw']-values['owedDeltaWeiRaw']*values['owedPriceRaw']//values['heldPriceRaw'])*rake//10**18
+            if not 0<=rake<=10**18 or expected!=values['feeWeiRaw'] or _natural(proof['transferLogIndex'])<=_natural(proof['liquidationLogIndex']) or tx+':'+str(proof['transferLogIndex']) in by_event:raise ValueError('Liquidation fee formula/ledger mismatch')
+        elif kind=='isolation_liquidation_no_rake':
+            _require_fields(proof,('liquidationLogIndex','traderType','inputAmountWeiRaw','transactionEvidenceHash'))
+            if tx not in boundary_txs or proof['traderType'] not in (2,3) or proof['inputAmountWeiRaw']!=str(2**256-1):raise ValueError('Invalid isolation rake exemption')
+            _natural(proof['liquidationLogIndex']);_match(proof['transactionEvidenceHash'],r'[0-9a-f]{64}')
+        elif kind=='liquidation_raw_position_boundary':
+            _require_fields(proof,('owner','accountNumber','eventRefs','transfers','withdrawals'))
+            if proof['owner']!=row['address'] or proof['accountNumber']!=row['accountNumber'] or not isinstance(proof['eventRefs'],list) or not proof['eventRefs']:raise ValueError('Invalid liquidation raw boundary')
+            for ref in proof['eventRefs']:_match(ref,tx+':'+natural)
+            for transfer in proof['transfers']:
+                _require_fields(transfer,('logIndex','marketId','fromOwner','fromAccount','toOwner','toAccount','amountWeiRaw'))
+                for key in ('fromOwner','toOwner'):_match(transfer[key],address)
+                for key in ('fromAccount','toAccount','marketId'):_match(transfer[key],natural)
+                amount=int(_match(transfer['amountWeiRaw'],r'[1-9][0-9]*'));index=_natural(transfer['logIndex'])
+                if transfer['fromOwner']!=row['address'] or transfer['toOwner']!=row['address'] or transfer['fromAccount']==transfer['toAccount'] or row['accountNumber'] not in (transfer['fromAccount'],transfer['toAccount']):raise ValueError('Unproved liquidation transfer counterparty')
+                if known:
+                    flow=by_event.get(tx+':'+str(index));delta=amount if transfer['toAccount']==row['accountNumber'] else -amount
+                    if not flow or flow['marketId']!=transfer['marketId'] or int(flow['deltaWeiRawSigned'])!=delta:raise ValueError('Liquidation raw transfer ledger mismatch')
+            for withdrawal in proof['withdrawals']:
+                _require_fields(withdrawal,('logIndex','recipient'));_natural(withdrawal['logIndex'])
+                if withdrawal['recipient']!=row['address'] or known and tx+':'+str(withdrawal['logIndex']) not in by_event:raise ValueError('Invalid liquidation reward withdrawal')
+        else:raise ValueError('Unknown complex capital proof classification')
+
+
 def _validate_snapshot(data):
     chain_ids = {'ethereum': 1, 'arbitrum': 42161, 'berachain': 80094}
     families = {'deposits', 'withdrawals', 'transfers', 'trades', 'liquidations', 'vaporizations'}
@@ -136,6 +217,7 @@ def _validate_snapshot(data):
         raise ValueError('Invalid UTC generation time')
     if not isinstance(data['chains'], dict) or set(data['chains']) != set(chain_ids):
         raise ValueError('Full three-chain manifest required')
+    reconstructed_by_chain={}
     for chain, manifest in data['chains'].items():
         _require_fields(manifest, ('chainId','margin','graphDeployment','opening','closing','openingNextBlock','coverage','valuation','failures','unavailableMarkets','sourceHashes','sourceCacheManifestHash','runtimeSeconds'))
         if _natural(manifest['chainId']) != chain_ids[chain]: raise ValueError('Chain ID mismatch')
@@ -147,6 +229,14 @@ def _validate_snapshot(data):
             header = manifest[field]; _require_fields(header, ('number','hash','timestamp'))
             _natural(header['number']); _natural(header['timestamp']); _match(header['hash'], hash_pattern)
         opening, closing, following = (manifest[field] for field in ('opening','closing','openingNextBlock'))
+        quotes=manifest['valuation'].get('reconstructedPrices',{})
+        if not isinstance(quotes,dict):raise ValueError('Invalid reconstructed quote manifest')
+        reconstructed_by_chain[chain]=quotes
+        for ref,quote in quotes.items():
+            validate_reconstruction(quote)
+            header=next((h for h in (opening,closing) if h['number']==quote['blockNumber'] and h['hash']==quote['blockHash']),None)
+            if chain!='arbitrum' or header is None or ref!=str(header['number'])+':'+quote['marketId']:raise ValueError('Reconstructed quote endpoint mismatch')
+
         if not 0 <= now - closing['timestamp'] <= data['maxAgeSeconds'] or generated.timestamp() < closing['timestamp']:
             raise ValueError('Stale/future chain closing boundary')
         target = closing['timestamp'] - data['windowSeconds']
@@ -189,15 +279,21 @@ def _validate_snapshot(data):
             _match(audit['accountId'],address_pattern+'-'+uint_pattern)
             if _natural(audit['blockNumber']) not in (opening['number'],closing['number']) or not _boolean(audit['balancesMatch']) or audit['valuesSemantics'] != semantics: raise ValueError('Invalid getter audit')
             _boolean(audit['valuesMatchCurrentIndex']); _match(audit['balancesResponseHash'],r'[0-9a-f]{64}')
-            if not isinstance(audit['valuesResponseUsd36'],list) or len(audit['valuesResponseUsd36']) != 2: raise ValueError('Invalid getter value pair')
-            for value in audit['valuesResponseUsd36']: _match(value,uint_pattern)
+            if audit['valuesResponseUsd36'] is None:
+                refs=audit.get('reconstructedValuationRefs');failure=audit.get('valuesFailure',{})
+                if chain!='arbitrum' or audit.get('valuesUnavailableReason')!='reconstructed_market_oracle' or audit['valuesMatchCurrentIndex'] or not isinstance(refs,list) or not refs:raise ValueError('Unproved unavailable value getter')
+                candidates=[quotes[ref] for ref in refs if ref in quotes and quotes[ref]['blockNumber']==audit['blockNumber']]
+                if len(candidates)!=len(refs) or not any(failure=={'code':3,'message':'execution reverted: '+q['directFailure'],'data':q['directErrorData'],'responseHash':q['directResponseHash']} for q in candidates):raise ValueError('Value getter revert is not a reconstructed market')
+            else:
+                if not isinstance(audit['valuesResponseUsd36'],list) or len(audit['valuesResponseUsd36']) != 2: raise ValueError('Invalid getter value pair')
+                for value in audit['valuesResponseUsd36']: _match(value,uint_pattern)
     closings = [m['closing']['timestamp'] for m in data['chains'].values()]
     if _natural(data['sourceAsOf']) != min(closings) or max(closings)-min(closings) > 1800:
         raise ValueError('Inconsistent source boundary/skew')
     if not isinstance(data['positions'],list): raise ValueError('Invalid position list')
     seen, counts = set(), {chain:0 for chain in chain_ids}
     financial = ('openingEquityUsdExact','closingEquityUsdExact','openingCollateralUsdExact','openingDebtUsdExact','closingCollateralUsdExact','closingDebtUsdExact','netInflowUsdExact','totalInflowUsdExact','totalOutflowUsdExact','historicalSizeUsdExact','currentSizeUsdExact')
-    fields = ('chain','chainId','address','effectiveAddress','accountId','accountNumber','closed','historicalSizeMethod','openingBalances','closingBalances','tokens','eventCount','externalFlowCount','pnl','return','returnProof','provenance') + financial
+    fields = ('chain','chainId','address','effectiveAddress','accountId','accountNumber','closed','historicalSizeMethod','openingBalances','closingBalances','tokens','eventCount','externalFlowCount','pnl','return','returnProof','capitalProof','capitalFlowProof','provenance') + financial
     for row in data['positions']:
         _require_fields(row, fields)
         if row['chain'] not in chain_ids or _natural(row['chainId']) != chain_ids[row['chain']]: raise ValueError('Invalid row chain')
@@ -214,7 +310,7 @@ def _validate_snapshot(data):
         amounts = {field:None if row[field] is None else usd36(row[field]) for field in financial}
         for field in financial:
             if field not in ('openingEquityUsdExact','closingEquityUsdExact','netInflowUsdExact') and amounts[field] is not None and amounts[field] < 0: raise ValueError('Negative unsigned amount')
-        known_sizes = []
+        known_sizes = []; reconstructed_refs=[]
         for boundary in ('opening','closing'):
             balances = row[boundary+'Balances']
             if not isinstance(balances,list): raise ValueError('Invalid balance list')
@@ -224,6 +320,15 @@ def _validate_snapshot(data):
                 _match(balance['marketId'],uint_pattern); _match(balance['address'],address_pattern); _natural(balance['decimals'])
                 if balance['decimals'] > 255 or not isinstance(balance['symbol'],str) or balance['marketId'] in markets: raise ValueError('Invalid market metadata')
                 markets.add(balance['marketId']); value = usd36(balance['usdExact'])
+                if 'valuationRef' in balance:
+                    ref=balance['valuationRef'];quotes=reconstructed_by_chain[row['chain']]
+                    if ref not in quotes:raise ValueError('Missing balance reconstruction proof')
+                    q=quotes[ref];header=data['chains'][row['chain']][boundary]
+                    if q['blockNumber']!=header['number'] or q['blockHash']!=header['hash'] or q['marketId']!=balance['marketId'] or q['token']!=balance['address'] or q['decimals']!=balance['decimals']:raise ValueError('Balance reconstruction identity mismatch')
+                    _match(balance.get('weiRawSigned'),int_pattern);_match(balance.get('oraclePriceRaw'),uint_pattern)
+                    if balance['oraclePriceRaw']!=q['price'] or value!=int(balance['weiRawSigned'])*int(q['price']):raise ValueError('Reconstructed balance amount mismatch')
+                    reconstructed_refs.append(ref)
+
                 supply += max(value,0); debt += max(-value,0)
             equity, collateral, borrowed = (amounts[boundary+name+'UsdExact'] for name in ('Equity','Collateral','Debt'))
             if equity is None:
@@ -240,10 +345,11 @@ def _validate_snapshot(data):
         elif inflow is None or outflow is None or net != inflow-outflow: raise ValueError('Capital totals disagree')
         if row['externalFlowCount'] == 0 and (net,inflow,outflow) != (0,0,0): raise ValueError('No-flow position has capital flow')
         proof = row['provenance']
+        if proof.get('valuationMethod')!=('official_oracle_formula_reconstruction' if reconstructed_refs else 'protocol_market_oracle'):raise ValueError('Valuation provenance mismatch')
         _require_fields(proof, ('endpointMethod','eventRangeComplete','endingParReconciled','flowMethod','boundaryGetterAudited','boundaryBalancesHash'))
         for field in ('eventRangeComplete','endingParReconciled','boundaryGetterAudited'): _boolean(proof[field])
         _match(proof['boundaryBalancesHash'],r'[0-9a-f]{64}')
-        if proof['endpointMethod'] != 'graph_par_rpc_current_index_oracle' or proof['flowMethod'] != 'operation_oracle_transaction_boundary_or_position_transfer' or not proof['eventRangeComplete']: raise ValueError('Invalid row proof method/coverage')
+        if proof['endpointMethod'] != 'graph_par_rpc_current_index_oracle' or proof['flowMethod'] != 'operation_oracle_proven_capital_v2' or not proof['eventRangeComplete']: raise ValueError('Invalid row proof method/coverage')
         for field,value_key in (('pnl','valueUsdExact'),('return','pctExact')):
             metric = row[field]; _require_fields(metric, ('status',value_key,'reasonCodes'))
             if not isinstance(metric['reasonCodes'],list) or any(not isinstance(r,str) or not r for r in metric['reasonCodes']): raise ValueError('Invalid metric reason list')
@@ -256,6 +362,7 @@ def _validate_snapshot(data):
             if not proof['endingParReconciled'] or opening is None or closing is None or net is None: raise ValueError('Missing verified P&L evidence')
             if usd36(row['pnl']['valueUsdExact']) != closing-opening-net: raise ValueError('Financial total mismatch')
         ret = row['return']; _require_fields(ret, ('ratioNumerator','ratioDenominator'))
+        validate_capital_proofs(row,data['chains'][row['chain']]['margin'])
         if not isinstance(row['returnProof'],list): raise ValueError('Missing return proof list')
         if ret['status'] == 'unavailable':
             if ret['ratioNumerator'] is not None or ret['ratioDenominator'] is not None or row['returnProof']: raise ValueError('Unavailable return must not claim proof or ratio')

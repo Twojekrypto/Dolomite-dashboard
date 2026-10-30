@@ -5,7 +5,9 @@ on:
     paths:
       - 'fetch_borrow_position_pnl.py'
       - 'build_borrow_position_pnl.py'
+      - 'borrow_pnl_oracle_recovery.py'
       - 'tests/test_borrow_position_pnl*.py'
+      - 'tests/fixtures/borrow_pnl_oracle_recovery.json'
       - '.github/workflows/update-borrow-position-pnl.yml'
   schedule:
     - cron: '37 */2 * * *'
@@ -28,9 +30,11 @@ jobs:
             /.github/workflows/update-borrow-position-pnl.yml
             /fetch_borrow_position_pnl.py
             /build_borrow_position_pnl.py
+            /borrow_pnl_oracle_recovery.py
             /scan_earn_netflow.py
             /rpc_usage.py
             /tests/test_borrow_position_pnl*.py
+            /tests/fixtures/borrow_pnl_oracle_recovery.json
             /borrow_position_pnl.json
       - uses: actions/setup-python@v6
         with:
@@ -64,7 +68,7 @@ jobs:
           cp borrow_position_pnl.json "$candidate"
           for attempt in 1 2 3; do
             git fetch origin master
-            if ! git diff --quiet "$base" origin/master -- fetch_borrow_position_pnl.py build_borrow_position_pnl.py scan_earn_netflow.py rpc_usage.py; then
+            if ! git diff --quiet "$base" origin/master -- fetch_borrow_position_pnl.py build_borrow_position_pnl.py borrow_pnl_oracle_recovery.py scan_earn_netflow.py rpc_usage.py; then
               echo '::error::Producer source changed during collection; refresh required'
               exit 1
             fi

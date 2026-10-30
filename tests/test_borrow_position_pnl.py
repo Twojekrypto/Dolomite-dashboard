@@ -99,8 +99,8 @@ class PublicationTests(unittest.TestCase):
                  openingEquityUsdExact='100',closingEquityUsdExact='110',openingCollateralUsdExact='140',openingDebtUsdExact='40',closingCollateralUsdExact='150',closingDebtUsdExact='40',
                  historicalSizeUsdExact='190',currentSizeUsdExact='190',historicalSizeMethod='max_observed_boundary_operation_gross_exposure_or_verified_flow',
                  openingBalances=[balance('0','140'),balance('1','-40')],closingBalances=[balance('0','150'),balance('1','-40')],tokens=['ASSET','DEBT'],
-                 totalInflowUsdExact='0',totalOutflowUsdExact='0',eventCount=0,externalFlowCount=0,returnProof=[],
-                 provenance={'endpointMethod':'graph_par_rpc_current_index_oracle','flowMethod':'operation_oracle_transaction_boundary_or_position_transfer','endingParReconciled':True,'eventRangeComplete':True,'boundaryGetterAudited':False,'boundaryBalancesHash':'a'*64},**result)
+                 totalInflowUsdExact='0',totalOutflowUsdExact='0',eventCount=0,externalFlowCount=0,returnProof=[],capitalProof=[],capitalFlowProof=[],
+                 provenance={'endpointMethod':'graph_par_rpc_current_index_oracle','flowMethod':'operation_oracle_proven_capital_v2','valuationMethod':'protocol_market_oracle','endingParReconciled':True,'eventRangeComplete':True,'boundaryGetterAudited':False,'boundaryBalancesHash':'a'*64},**result)
         chains={}
         source_hashes=['a'*64]
         for c,cid in [('ethereum',1),('arbitrum',42161),('berachain',80094)]:
@@ -133,6 +133,14 @@ class PublicationTests(unittest.TestCase):
         for method in ['operation_oracle_direct_owner_or_position_transfer','router_allowlist','']:
             d=self.snapshot();d['positions'][0]['provenance']['flowMethod']=method
             with self.assertRaises(ValueError):validate_snapshot(d)
+
+    def test_unknown_complex_capital_proof_is_rejected(self):
+        d=self.snapshot();d['positions'][0]['capitalProof']=[{'kind':'router_allowlist'}]
+        with self.assertRaises(ValueError):validate_snapshot(d)
+
+    def test_complex_flow_proof_cannot_change_external_capital_totals(self):
+        d=self.snapshot();d['positions'][0]['capitalFlowProof']=[{'signedUsdExact':'1000'}]
+        with self.assertRaises(ValueError):validate_snapshot(d)
 
     def test_each_chain_boundary_proof_is_required_and_fresh(self):
         for mutate in [lambda d:d['chains']['arbitrum']['closing'].update(timestamp=d['sourceAsOf']+86400),
