@@ -352,6 +352,14 @@ def operation_context(logs):
 
 
 def row_flows(events,owner,number,contexts):
+    # Complete transaction balance logs prove that a one-way deposit/withdrawal
+    # crosses this raw position's boundary, regardless of payer or recipient.
+    # Opposite directions may instead be a collateral-funded router swap. Do
+    # not net by wallet or accept that route without its own economic proof.
+    directions=defaultdict(set)
+    for event in events:
+        if event['kind'] in ('deposit','withdraw') and any(leg['owner']==owner and leg['account']==number and leg['delta'] for leg in event['legs']):
+            directions[event['txHash']].add(event['kind'])
     flows=[]
     for event in events:
         if event['kind'] in ('trade','liquidation','vaporization'):continue
@@ -359,13 +367,13 @@ def row_flows(events,owner,number,contexts):
         for leg in event['legs']:
             if leg['owner']!=owner or leg['account']!=number or not leg['delta']:continue
             reason=None
-            if event['kind'] in ('deposit','withdraw') and event['routeAddress']!=owner:
+            if event['kind'] in ('deposit','withdraw') and len(directions[event['txHash']])>1:
                 reason='ambiguous_router_capital_flow'
             price=ctx['prices'].get(leg['market']) if ctx else None
             if price is None or price<=0:reason=reason or 'missing_operation_oracle_quote'
             flows.append(dict(usd36=None if reason else leg['delta']*price,reason=reason,exactNav=False,preNavUsd36=None,postNavUsd36=None,
                               blockNumber=event['blockNumber'],transactionIndex=event['txIndex'],logIndex=event['logIndex'],eventRef=event['txHash']+':'+str(event['logIndex']),operationRef=ctx['id'] if ctx else None,marketId=leg['market'],deltaWeiRawSigned=str(leg['delta']),oraclePriceRaw=str(price) if price else None,
-                              classification='position_transfer' if event['kind']=='transfer' else 'direct_owner_'+event['kind']))
+                              classification='position_transfer' if event['kind']=='transfer' else 'transaction_boundary_'+event['kind']))
     return flows
 
 
@@ -495,7 +503,7 @@ def collect_chain(chain,cache,target):
                  historicalSizeUsdExact=from_usd36(size) if size is not None else None,currentSizeUsdExact=from_usd36(z['supplyUsd36']+z['borrowUsd36']) if z else None,
                  historicalSizeMethod='max_observed_boundary_operation_gross_exposure_or_verified_flow',openingBalances=public_balances(a),closingBalances=public_balances(z),
                  tokens=sorted({tokens[m]['symbol'] for m in set(op)|set(cp)|{l['market'] for e in evs for l in e['legs'] if l['owner']==owner and l['account']==number} if m in tokens}),
-                 totalInflowUsdExact=from_usd36(sum(f['usd36'] for f in flows if f['usd36']>0)) if all(f['usd36'] is not None for f in flows) else None,totalOutflowUsdExact=from_usd36(-sum(f['usd36'] for f in flows if f['usd36']<0)) if all(f['usd36'] is not None for f in flows) else None,eventCount=len(evs),externalFlowCount=len(flows),returnProof=public_return_proof(flows) if perf['return']['status']=='verified' else [],provenance={'endpointMethod':'graph_par_rpc_current_index_oracle','eventRangeComplete':True,'endingParReconciled':ending==cp,'flowMethod':'operation_oracle_direct_owner_or_position_transfer','boundaryGetterAudited':False,'boundaryBalancesHash':digest({'opening':a,'closing':z})},**perf)
+                 totalInflowUsdExact=from_usd36(sum(f['usd36'] for f in flows if f['usd36']>0)) if all(f['usd36'] is not None for f in flows) else None,totalOutflowUsdExact=from_usd36(-sum(f['usd36'] for f in flows if f['usd36']<0)) if all(f['usd36'] is not None for f in flows) else None,eventCount=len(evs),externalFlowCount=len(flows),returnProof=public_return_proof(flows) if perf['return']['status']=='verified' else [],provenance={'endpointMethod':'graph_par_rpc_current_index_oracle','eventRangeComplete':True,'endingParReconciled':ending==cp,'flowMethod':'operation_oracle_transaction_boundary_or_position_transfer','boundaryGetterAudited':False,'boundaryBalancesHash':digest({'opening':a,'closing':z})},**perf)
         rows.append(row)
     # Deterministic stratification: first/last/positive/negative/reduced/closed.
     candidates={}

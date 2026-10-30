@@ -243,7 +243,7 @@ def _validate_snapshot(data):
         _require_fields(proof, ('endpointMethod','eventRangeComplete','endingParReconciled','flowMethod','boundaryGetterAudited','boundaryBalancesHash'))
         for field in ('eventRangeComplete','endingParReconciled','boundaryGetterAudited'): _boolean(proof[field])
         _match(proof['boundaryBalancesHash'],r'[0-9a-f]{64}')
-        if proof['endpointMethod'] != 'graph_par_rpc_current_index_oracle' or proof['flowMethod'] != 'operation_oracle_direct_owner_or_position_transfer' or not proof['eventRangeComplete']: raise ValueError('Invalid row proof method/coverage')
+        if proof['endpointMethod'] != 'graph_par_rpc_current_index_oracle' or proof['flowMethod'] != 'operation_oracle_transaction_boundary_or_position_transfer' or not proof['eventRangeComplete']: raise ValueError('Invalid row proof method/coverage')
         for field,value_key in (('pnl','valueUsdExact'),('return','pctExact')):
             metric = row[field]; _require_fields(metric, ('status',value_key,'reasonCodes'))
             if not isinstance(metric['reasonCodes'],list) or any(not isinstance(r,str) or not r for r in metric['reasonCodes']): raise ValueError('Invalid metric reason list')

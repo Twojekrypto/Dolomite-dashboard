@@ -16,6 +16,16 @@ are economic activity. Router-dependent ambiguous capital legs are unavailable.
 Gas, unobserved external activity, rewards, points and projected APR are excluded.
 This is marked P&L, including unrealized changes, not tax or realized profit.
 
+Classification inspects the complete transaction at the **raw owner plus account
+number** boundary. Deposits without withdrawals into that position prove
+external capital, including third-party debt repayment. Withdrawals without
+deposits prove external outflow, including borrow proceeds to another recipient.
+A router address alone is neither a rejection nor an allowlist. Opposite
+directions in the same raw position remain unavailable without a proved route,
+even if both route addresses equal the owner: an internal collateral swap and
+its fees must not become fresh capital. Distinct raw subaccounts are never
+wallet-netted.
+
 All valuation arithmetic uses Python integers: signed raw token Wei times the
 raw protocol oracle quote is USD with 36 decimals. Graph normalized Par converts
 exactly to raw token principal. `Interest.parToWei` rounds half-up on **both**
@@ -112,7 +122,7 @@ Each position:
     "endpointMethod": "graph_par_rpc_current_index_oracle",
     "eventRangeComplete": true,
     "endingParReconciled": true,
-    "flowMethod": "operation_oracle_direct_owner_or_position_transfer",
+    "flowMethod": "operation_oracle_transaction_boundary_or_position_transfer",
     "boundaryGetterAudited": false
   }
 }
@@ -135,7 +145,7 @@ The strict gate verifies raw Wei times quote equals flow USD36, pre/post NAV
 matches the flow, the proof count and totals match capital summaries, and the
 geometrically linked rational equals the published return. No-flow ratios are
 recomputed directly from endpoints. Nonpositive opening capital cannot receive
-a verified percentage. Only 69 initial rows need nonempty return proofs.
+a verified percentage. The nonempty-proof count varies with the source window.
 
 Every chain is checked independently for identity, block/hash framing, cutoff
 window, next-opening-block proof, freshness, source hashes and coverage counts.
@@ -194,6 +204,28 @@ Official semantics: [Interest.sol](https://github.com/dolomite-exchange/dolomite
 [legacy Getters.sol](https://github.com/dolomite-exchange/dolomite-margin/blob/master/contracts/protocol/Getters.sol),
 [Graph schema](https://github.com/dolomite-exchange/dolomite-subgraph/blob/master/schema.graphql).
 
+
+## Transaction-boundary classification repair (2026-10-30)
+
+An exact replay of the initial retained window keeps all 12,744 positions and
+171 closed positions. Verified P&L increases from 12,423 to 12,671; independently
+verified returns increase from 11,640 to 11,732. It verifies 253 formerly unknown
+positions and conservatively withdraws verification from five mixed-direction
+positions whose direct-owner check did not prove the route economics. The strict
+schema, exact arithmetic, ending-Par reconciliation, full event identity/range
+coverage and independent TWR requirements remain mandatory.
+
+The remaining 73 unavailable dollar values comprise 61 Arbitrum boundary-quote
+failures, six liquidation-route cases and six mixed-direction router cases.
+These rows remain visible and unknown. Arbitrum market 9 is plvGLP with an
+expired automation quote; market 41 is matured PT-GLP whose configured oracle
+returns zero at the historical boundary and is rejected by DolomiteMargin.
+Market 77 (USDG) was not yet available at opening and has no opening exposure in
+these positions. Maturity or a redeemable underlying does not establish a fresh
+USD quote for the wrapped claim. No stale/current quote, peg or zero replaces
+missing historical evidence. Liquidator routes include protocol-fee transfers
+and swaps through temporary raw subaccounts; fee/capital attribution requires
+its own proof before verification.
 
 ## Initial real snapshot (2026-10-30)
 

@@ -53,6 +53,56 @@ class SourceTests(unittest.TestCase):
 
 
 class FlowTests(unittest.TestCase):
+    def test_unidirectional_router_repayment_is_external_capital(self):
+        from fetch_borrow_position_pnl import row_flows
+        event=decode_event(log(data=[7,1,1,10,0,90,0]))
+        context={(event['txHash'],event['logIndex']):{'id':'op','prices':{'1':3}}}
+        flow=row_flows([event],OWNER,'7',context)[0]
+        self.assertEqual(flow['usd36'],30)
+        self.assertEqual(flow['classification'],'transaction_boundary_deposit')
+
+    def test_third_party_withdrawal_is_external_even_with_high_uint_account(self):
+        from fetch_borrow_position_pnl import row_flows
+        from scan_earn_netflow import LOG_WITHDRAW
+        number=2**255+123
+        event=decode_event(log(LOG_WITHDRAW,[number,1,0,10,0,90,0]))
+        context={(event['txHash'],event['logIndex']):{'id':'op','prices':{'1':3}}}
+        self.assertEqual(row_flows([event],OWNER,str(number),context)[0]['usd36'],-30)
+
+    def test_opposite_router_legs_remain_unknown_without_route_proof(self):
+        from fetch_borrow_position_pnl import row_flows
+        from scan_earn_netflow import LOG_WITHDRAW
+        out=decode_event(log(LOG_WITHDRAW,[7,1,0,100,1,100,0]))
+        returned=decode_event(dict(log(data=[7,2,1,95,1,95,0]),logIndex='0x2'))
+        contexts={(e['txHash'],e['logIndex']):{'id':'op','prices':{'1':3,'2':3}} for e in [out,returned]}
+        flows=row_flows([out,returned],OWNER,'7',contexts)
+        self.assertEqual([f['reason'] for f in flows],['ambiguous_router_capital_flow']*2)
+        self.assertTrue(all(f['usd36'] is None for f in flows))
+
+    def test_opposite_flows_in_different_raw_accounts_are_not_wallet_netted(self):
+        from fetch_borrow_position_pnl import row_flows
+        from scan_earn_netflow import LOG_WITHDRAW
+        out=decode_event(log(LOG_WITHDRAW,[7,1,0,100,1,100,0]))
+        returned=decode_event(dict(log(data=[8,2,1,95,1,95,0]),logIndex='0x2'))
+        contexts={(e['txHash'],e['logIndex']):{'id':'op','prices':{'1':3,'2':3}} for e in [out,returned]}
+        self.assertEqual(row_flows([out,returned],OWNER,'7',contexts)[0]['usd36'],-300)
+        self.assertEqual(row_flows([out,returned],OWNER,'8',contexts)[0]['usd36'],285)
+
+    def test_liquidation_trade_path_preserves_each_raw_subaccount_transfer(self):
+        from fetch_borrow_position_pnl import row_flows,replay
+        def leg(account,market,delta,new_par):
+            return dict(owner=OWNER,account=account,market=market,delta=delta,new_par=new_par)
+        common=dict(txHash='0xdef',blockNumber=10,txIndex=0)
+        events=[dict(common,kind='liquidation',logIndex=1,legs=[leg('7','1',100,100),leg('7','2',-90,-90)]),
+                dict(common,kind='transfer',logIndex=2,legs=[leg('7','1',-100,0),leg('8','1',100,100)]),
+                dict(common,kind='trade',logIndex=3,legs=[leg('8','1',-100,0),leg('8','2',95,95)]),
+                dict(common,kind='transfer',logIndex=4,legs=[leg('8','2',-95,0),leg('7','2',95,5)])]
+        contexts={('0xdef',i):{'id':'op','prices':{'1':1,'2':1}} for i in range(1,5)}
+        self.assertEqual([x['usd36'] for x in row_flows(events,OWNER,'7',contexts)],[-100,95])
+        self.assertEqual([x['usd36'] for x in row_flows(events,OWNER,'8',contexts)],[100,-95])
+        self.assertEqual(replay({},events,OWNER,'7'),({'2':5},True))
+        self.assertEqual(replay({},events,OWNER,'8'),({},False))
+
     def test_direct_owner_flow_uses_operation_quote_and_same_owner_transfer_is_external(self):
         from fetch_borrow_position_pnl import row_flows
         event=decode_event(log(data=[7,1,1,10,1,10,int(OWNER,16)]))
