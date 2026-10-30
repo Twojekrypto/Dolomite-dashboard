@@ -1,0 +1,89 @@
+name: Update Historical Borrow Position P&L
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'fetch_borrow_position_pnl.py'
+      - 'build_borrow_position_pnl.py'
+      - 'tests/test_borrow_position_pnl*.py'
+      - '.github/workflows/update-borrow-position-pnl.yml'
+  schedule:
+    - cron: '37 */2 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: update-borrow-position-pnl
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: master
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /.github/workflows/update-borrow-position-pnl.yml
+            /fetch_borrow_position_pnl.py
+            /build_borrow_position_pnl.py
+            /scan_earn_netflow.py
+            /rpc_usage.py
+            /tests/test_borrow_position_pnl*.py
+            /borrow_position_pnl.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: actions/cache/restore@v4
+        with:
+          path: .cache/borrow-position-pnl
+          key: borrow-position-pnl-v1-${{ github.run_id }}
+          restore-keys: borrow-position-pnl-v1-
+      - name: Verify exact accounting and source contracts
+        run: python3 -m unittest discover -s tests -p 'test_borrow_position_pnl*.py'
+      - name: Collect complete historical universe
+        env:
+          PYTHONUNBUFFERED: '1'
+        run: python3 fetch_borrow_position_pnl.py --cache .cache/borrow-position-pnl --output borrow_position_pnl.json
+      - name: Validate published schema
+        run: python3 build_borrow_position_pnl.py --validate borrow_position_pnl.json
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .cache/borrow-position-pnl
+          key: borrow-position-pnl-v1-${{ github.run_id }}
+      - name: Publish only validated snapshot on latest master
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          base=$(git rev-parse HEAD)
+          candidate=$(mktemp)
+          cp borrow_position_pnl.json "$candidate"
+          for attempt in 1 2 3; do
+            git fetch origin master
+            if ! git diff --quiet "$base" origin/master -- fetch_borrow_position_pnl.py build_borrow_position_pnl.py scan_earn_netflow.py rpc_usage.py; then
+              echo '::error::Producer source changed during collection; refresh required'
+              exit 1
+            fi
+            git reset --hard origin/master
+            cp "$candidate" borrow_position_pnl.json
+            python3 build_borrow_position_pnl.py --validate borrow_position_pnl.json
+            git add borrow_position_pnl.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m 'Refresh oracle-marked historical borrow position P&L'
+            if git push origin HEAD:master; then exit 0; fi
+            sleep 5
+          done
+          echo '::error::Snapshot push failed; generated candidate remains in run evidence'
+          exit 1
+      - uses: actions/upload-artifact@v4
+        if: always() && (failure() || github.event_name == 'workflow_dispatch')
+        with:
+          name: borrow-position-pnl-source-evidence
+          path: |
+            .cache/borrow-position-pnl
+            borrow_position_pnl.json
+          retention-days: 7
