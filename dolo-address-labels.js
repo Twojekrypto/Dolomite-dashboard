@@ -1,5 +1,11 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0x31a2ee8b5e84b969ecf70d637016ae3b74cdfdda": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x31a2ee8b5e84b969ecf70d637016ae3b74cdfdda", verifiedAt:"2026-10-30"},
+    "0xcc7b9a1d36e23e00292688eccf5b26f7ea2fb9da": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xcc7b9a1d36e23e00292688eccf5b26f7ea2fb9da", verifiedAt:"2026-10-30"},
+    "0xa0b540a12e5d3bc3af9b4780fa0b85d3cc2dc8d4": {label:"MEXC", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xa0b540a12e5d3bc3af9b4780fa0b85d3cc2dc8d4", verifiedAt:"2026-10-30"},
+    "0xdd04f596569b09bb967ab9f20cdc1b7bc7495afd": {label:"Gate.io", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xdd04f596569b09bb967ab9f20cdc1b7bc7495afd", verifiedAt:"2026-10-30"},
+    "0xd4a2bb3554095d76eb12c34e61e898e4ceae775e": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xd4a2bb3554095d76eb12c34e61e898e4ceae775e", verifiedAt:"2026-10-30"},
+    "0x30402f800c8fe01d845b54ad3de13f00b64dedde": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x30402f800c8fe01d845b54ad3de13f00b64dedde", verifiedAt:"2026-10-30"},
     "0x7919635d4b726d386ba8adaed76a36b7d0ef37ba": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x7919635d4b726d386ba8adaed76a36b7d0ef37ba", verifiedAt:"2026-10-29"},
     "0x494e7adb618dbb9f640f1c7d65518af426336f1f": {label:"Bybit", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x494e7adb618dbb9f640f1c7d65518af426336f1f", verifiedAt:"2026-10-27"},
     "0x03631c388fb01e0d929627b614eeb501c0ef9dce": {label:"MEXC", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x03631c388fb01e0d929627b614eeb501c0ef9dce", verifiedAt:"2026-10-25"},
