@@ -7,6 +7,20 @@ const html = fs.readFileSync(path.resolve(__dirname, '../dolo-preview.html'), 'u
 const rootRoute = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
 const doloRoute = fs.readFileSync(path.resolve(__dirname, '../dolo/index.html'), 'utf8');
 
+test('wallet search and sorting use canonical names independently of custody role', () => {
+  const address = '0x6e939bbaceb45159982a2cac3a1fcbf7e93cf682';
+  const labels = {[address]: {label:'Ecosystem Incentives 1'}};
+  const walletLabel = Function('window','walletAddress',`return (${extractNamedFunction('walletLabel')});`)(
+    {DOLO_ADDR_LABELS:labels}, row => String(row.beneficialOwner || row.custodian || '').toLowerCase(),
+  );
+  for (const row of [
+    {chainKey:'ethereum',beneficialOwner:address},
+    {chainKey:'berachain',custodian:address,adapter:'kodiak-v3'},
+    {chainKey:'ethereum',custodian:address.toUpperCase(),positionType:'uniswap_v4_manager_custody'},
+  ]) assert.equal(walletLabel(row),'Ecosystem Incentives 1');
+  assert.equal(walletLabel({custodian:'0x'+'1'.repeat(40)}),'Protocol custody');
+});
+
 function extractNamedFunction(name) {
   const marker = `function ${name}(`;
   const start = html.indexOf(marker);

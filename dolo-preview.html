@@ -6766,6 +6766,8 @@ renderCexSupplyChart();
   }
   function walletAddress(row){ return normalized(row.beneficialOwner || row.custodian); }
   function walletLabel(row){
+    const info = window.DOLO_ADDR_LABELS?.[walletAddress(row)];
+    if(info?.label) return info.label;
     if(!row.beneficialOwner){
       if(row.positionType === "kodiak_island_share") return "Kodiak Island custody";
       if(["uniswap_v4_vault_share","uniswap_v4_manager_custody"].includes(row.positionType)) return "Uniswap v4 vault custody";
@@ -6773,8 +6775,7 @@ renderCexSupplyChart();
       if(row.adapter === "bulla-v3") return "Bulla position custody";
       return "Protocol custody";
     }
-    const info = window.DOLO_ADDR_LABELS?.[walletAddress(row)];
-    return info?.label || "";
+    return "";
   }
   function rowMatchesFilters(row){
     const pool = poolFor(row);
