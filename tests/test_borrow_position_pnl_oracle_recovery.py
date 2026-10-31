@@ -1,6 +1,7 @@
 import copy,json,unittest,hashlib,io,tempfile
 from unittest.mock import patch
 from pathlib import Path
+from datetime import datetime,timezone
 from borrow_pnl_oracle_recovery import recover_price,plutus_formula,validate_reconstruction,RecoveryRejected
 ROOT=Path(__file__).parent.parent
 class FixtureRpcRevert(ValueError):
@@ -100,6 +101,10 @@ class RecoveryTests(unittest.TestCase):
 if __name__=='__main__':unittest.main()
 
 class SnapshotQuoteProofTests(unittest.TestCase):
+ def setUp(self):
+  # These immutable archive proofs belong to this block's clock, not the CI date.
+  clock=patch('build_borrow_position_pnl.time.time',return_value=h(519668970)['timestamp'])
+  clock.start();self.addCleanup(clock.stop)
  def fixture(self):
   from test_borrow_position_pnl import PublicationTests
   from build_borrow_position_pnl import from_usd36,performance
@@ -110,7 +115,7 @@ class SnapshotQuoteProofTests(unittest.TestCase):
    count=int(chain=='arbitrum');m['coverage'].update(discoveredAccounts=count,borrowPositions=count)
    m['valuation']['reconstructedPrices']=proofs if count else {}
   d['chains']['arbitrum']['unavailableMarkets']={boundary:{'9':{'error':'contract_revert','failureType':'RpcRevert','reconstructionRef':str(block)+':9'}} for boundary,block in [('opening',510338545),('closing',519668970)]}
-  d['sourceAsOf']=h(519668970)['timestamp'];values=[]
+  d['sourceAsOf']=h(519668970)['timestamp'];d['generatedAt']=datetime.fromtimestamp(d['sourceAsOf'],timezone.utc).isoformat();values=[]
   for boundary,b in [('opening',510338545),('closing',519668970)]:
    ref=str(b)+':9';quote=proofs[ref]['price'];value=10**18*int(quote);values.append(value)
    r[boundary+'Balances']=[{'marketId':'9','address':TOKENS[9],'symbol':'plvGLP','decimals':18,'usdExact':from_usd36(value),'valuationRef':ref,'weiRawSigned':str(10**18),'oraclePriceRaw':quote}]
@@ -129,3 +134,20 @@ class SnapshotQuoteProofTests(unittest.TestCase):
   from build_borrow_position_pnl import validate_snapshot
   d=self.fixture();d['chains']['ethereum']['valuation']['reconstructedPrices']=d['chains']['arbitrum']['valuation']['reconstructedPrices']
   with self.assertRaises(ValueError):validate_snapshot(d)
+
+class FixtureClockRegressionTests(unittest.TestCase):
+ def test_archived_quote_validation_test_survives_later_wall_clocks(self):
+  closing=h(519668970)['timestamp']
+  for now in [closing+21601,closing+86400,closing+10*365*86400]:
+   with self.subTest(now=now),patch('build_borrow_position_pnl.time.time',return_value=now):
+    result=unittest.TestResult()
+    SnapshotQuoteProofTests('test_snapshot_binds_exact_reconstructed_balances_to_endpoint_and_token').run(result)
+    self.assertTrue(result.wasSuccessful(),result.errors+result.failures)
+
+ def test_real_snapshot_freshness_still_rejects_stale_and_future_boundaries(self):
+  from build_borrow_position_pnl import validate_snapshot
+  data=SnapshotQuoteProofTests().fixture();closing=h(519668970)['timestamp']
+  for now in [closing,closing+21600]:
+   with self.subTest(now=now),patch('build_borrow_position_pnl.time.time',return_value=now):validate_snapshot(data)
+  for now in [closing+21601,closing-1]:
+   with self.subTest(now=now),patch('build_borrow_position_pnl.time.time',return_value=now),self.assertRaisesRegex(ValueError,'Stale/future chain closing boundary'):validate_snapshot(data)
