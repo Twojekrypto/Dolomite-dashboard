@@ -1,5 +1,6 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0x0f9f949a30b97c42ace87aae6f24ee2607003e37": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x0f9f949a30b97c42ace87aae6f24ee2607003e37", verifiedAt:"2026-11-01"},
     "0x9f2fa8543a0458c5e33c83693f5889237a8fec60": {label:"KuCoin", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x9f2fa8543a0458c5e33c83693f5889237a8fec60", verifiedAt:"2026-10-31"},
     "0x0a367f918340d47d36b21c93e9a2b6853cc9d6f0": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x0a367f918340d47d36b21c93e9a2b6853cc9d6f0", verifiedAt:"2026-10-31"},
     "0x05cb186ab8ec85378a2cbf8a858568a8fb216b07": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x05cb186ab8ec85378a2cbf8a858568a8fb216b07", verifiedAt:"2026-10-31"},
