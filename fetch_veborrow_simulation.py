@@ -41,7 +41,7 @@ CHAIN_CONFIGS = {
     "Arbitrum": {
         "chainKey": "arbitrum",
         "chainId": 42161,
-        "subgraphName": "dolomite-arbitrum",
+        "subgraphUrl": "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn",
     },
     "Berachain": {
         "chainKey": "berachain",

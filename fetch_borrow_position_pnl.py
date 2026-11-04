@@ -30,7 +30,7 @@ import scan_earn_netflow as decoder
 BASE='https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/'
 CONFIG={
  'ethereum': dict(chainId=1,graph='dolomite-ethereum',rpc='https://mainnet.gateway.tenderly.co',chunk=9999,confirmations=64,span=260000),
- 'arbitrum': dict(chainId=42161,graph='dolomite-arbitrum',rpc='https://arbitrum.gateway.tenderly.co',chunk=49999,confirmations=256,span=12000000),
+ 'arbitrum': dict(chainId=42161,graph='dolomite-arbitrum',graph_url='https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn',rpc='https://arbitrum.gateway.tenderly.co',chunk=49999,confirmations=256,span=12000000),
  'berachain': dict(chainId=80094,graph='dolomite-berachain-mainnet',rpc='https://rpc.berachain.com/',chunk=9999,confirmations=64,span=1600000,rpc_interval=1.0),
 }
 ORACLE='0x223e16b9e4703ea2acd14a8caa0fcbbf4a42d3e8b7a33234e841bd1808ee9ec0'
@@ -183,7 +183,7 @@ class Source:
     def __init__(self,chain,cache):
         self.chain=chain;self.config=CONFIG[chain]; self.margin=decoder.CHAINS[chain]['margin']
         self.rpc_url=os.environ.get('BORROW_PNL_'+chain.upper()+'_RPC',self.config['rpc'])
-        self.graph_url=BASE+self.config['graph']+'/latest/gn'
+        self.graph_url=self.config.get('graph_url',BASE+self.config['graph']+'/latest/gn')
         self.cache=Path(cache)/chain;self.cache.mkdir(parents=True,exist_ok=True)
         self.refs=set();self.requests=0;self.hits=0
         # Public BERA throttles bursts from hosted runners. This is a per-chain

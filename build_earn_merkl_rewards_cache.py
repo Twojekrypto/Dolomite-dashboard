@@ -308,13 +308,13 @@ def build_cache(chain: str, limit: Optional[int], only_address: Optional[str], s
     reward_addresses: set[str] = set()
     successful_empty: set[str] = set()
 
-    for index, address in enumerate(addresses, start=1):
+    def refresh_wallet(index: int, address: str) -> Optional[Exception]:
         try:
             payload = fetch_merkl(chain, address, timeout, retries)
             rewards = parse_merkl_rewards(chain, payload)
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
-            failures.append({"address": address, "error": str(exc)})
             print(f"[{index}/{len(addresses)}] {address}: failed ({exc})")
+            return exc
         else:
             if rewards:
                 reward_addresses.add(address)
@@ -336,7 +336,28 @@ def build_cache(chain: str, limit: Optional[int], only_address: Optional[str], s
                 if stale_path.exists():
                     stale_path.unlink()
                 print(f"[{index}/{len(addresses)}] {address}: no rewards")
+        return None
+
+    retry_wallets: list[tuple[int, str]] = []
+    for index, address in enumerate(addresses, start=1):
+        error = refresh_wallet(index, address)
+        if error is not None:
+            if isinstance(error, urllib.error.HTTPError) and error.code not in {429, 500, 502, 503, 504}:
+                failures.append({"address": address, "error": str(error)})
+            else:
+                retry_wallets.append((index, address))
         if sleep_seconds > 0 and index < len(addresses):
+            time.sleep(sleep_seconds)
+
+    # Adjacent attempts can all hit the same short outage. Retry only failed
+    # wallets once after the scan, retaining this scan's original source time.
+    if retry_wallets:
+        print(f"Retrying {len(retry_wallets)} MERKL wallet(s) after the initial scan")
+    for retry_index, (index, address) in enumerate(retry_wallets, start=1):
+        error = refresh_wallet(index, address)
+        if error is not None:
+            failures.append({"address": address, "error": str(error)})
+        if sleep_seconds > 0 and retry_index < len(retry_wallets):
             time.sleep(sleep_seconds)
 
     if only_address is None:

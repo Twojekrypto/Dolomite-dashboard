@@ -25,7 +25,7 @@ DOLOMITE_SUPPLY_BASE = (
 
 GRAPH_ENDPOINTS = {
     "berachain": f"{DOLOMITE_SUPPLY_BASE}/dolomite-berachain-mainnet/latest/gn",
-    "arbitrum": f"{DOLOMITE_SUPPLY_BASE}/dolomite-arbitrum/latest/gn",
+    "arbitrum": "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn",
     "mantle": f"{DOLOMITE_SUPPLY_BASE}/dolomite-mantle/latest/gn",
     "ethereum": f"{DOLOMITE_SUPPLY_BASE}/dolomite-ethereum/latest/gn",
     "botanix": f"{DOLOMITE_SUPPLY_BASE}/dolomite-botanix/latest/gn",

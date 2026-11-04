@@ -36,6 +36,9 @@ jobs:
       - name: Install check dependencies
         run: python3 -m pip install --upgrade pip && pip install -r requirements.txt
 
+      - name: Test bounded Merkl recovery and complete-publication gate
+        run: python3 -m unittest discover -s tests -p 'test_build_earn_merkl_rewards_cache.py'
+
       - name: Guard — detect Merkl campaigns outside the eligible-market list
         run: |
           python3 - <<'PY'

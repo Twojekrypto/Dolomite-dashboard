@@ -1,13 +1,16 @@
 import unittest
 from decimal import Decimal
+from unittest.mock import patch
 
 from fetch_veborrow_simulation import (
+    CHAIN_CONFIGS,
     DISPLAY_SIMULATION_CHAINS,
     ELIGIBILITY_CHAINS,
     active_rebate_chains_from_metadata,
     active_rebate_market_ids_by_chain,
     debt_usd_for_token_value,
     encode_get_votes_call,
+    fetch_current_borrow_debt_for_chain,
     fetch_onchain_vedolo_vote_weights,
     merge_vedolo_vote_sources,
     simulate_current_vedolo_rebates,
@@ -16,6 +19,37 @@ from validate_data import _veborrow_simulation_valid
 
 
 class VeBorrowSimulationTest(unittest.TestCase):
+    def test_arbitrum_borrower_collection_uses_current_official_deployment(self):
+        active_url = "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn"
+        token = {"id": "0xasset", "symbol": "ASSET", "decimals": "18", "marketId": "0"}
+
+        def subgraph_response(url, payload):
+            if url != active_url:
+                return {"errors": [{"message": "deployment `dolomite-arbitrum_4fbfc6c5-3175-4204-ab94-947d923cc239` does not exist"}]}
+            if "oraclePrices" in payload["query"]:
+                return {"data": {
+                    "_meta": {"block": {"number": 123, "timestamp": 1793783700}},
+                    "oraclePrices": [{"token": token, "price": "2"}],
+                    "interestIndexes": [{"token": token, "borrowIndex": "1.25", "supplyIndex": "1"}],
+                }}
+            return {"data": {"marginAccounts": [{
+                "id": "0xowner-0", "user": {"id": "0xowner"}, "effectiveUser": {"id": "0xowner"},
+                "tokenValues": [{"token": token, "valuePar": "-100"}],
+            }]}}
+
+        with patch("fetch_veborrow_simulation.http_json", side_effect=subgraph_response):
+            try:
+                result = fetch_current_borrow_debt_for_chain(
+                    "Arbitrum", CHAIN_CONFIGS["Arbitrum"], eligible_market_ids={"0"},
+                )
+            except RuntimeError as exc:
+                self.fail(f"Arbitrum borrower collection failed: {exc}")
+
+        self.assertEqual(result["debtByUser"], {"0xowner": Decimal("250")})
+        self.assertEqual(result["borrowerCount"], 1)
+        self.assertEqual(result["currentDebtUSD"], Decimal("250"))
+        self.assertEqual(result["subgraphBlockNumber"], 123)
+
     def test_display_simulation_chains_include_active_berachain_baseline(self):
         self.assertEqual(DISPLAY_SIMULATION_CHAINS, ["Ethereum", "Arbitrum", "Berachain"])
         self.assertEqual(DISPLAY_SIMULATION_CHAINS, ELIGIBILITY_CHAINS)
@@ -249,3 +283,4 @@ class VeBorrowSimulationTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

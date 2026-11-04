@@ -9,6 +9,29 @@ def log(topic=LOG_DEPOSIT,data=None):
     return {'topics':[topic,'0x'+OWNER[2:].zfill(64)],'data':'0x'+''.join(word(x) for x in (data or [7,1,1,10,1,10,0])), 'blockNumber':'0xa','blockHash':'0xabc','transactionHash':'0xdef','transactionIndex':'0x0','logIndex':'0x1'}
 
 class SourceTests(unittest.TestCase):
+    def test_arbitrum_graph_uses_active_deployment_and_retains_pinned_cache(self):
+        import json
+        import tempfile
+        from io import StringIO
+        from unittest.mock import patch
+        import fetch_borrow_position_pnl as producer
+        active = 'https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn'
+        calls = []
+        query = '{ marginAccounts(block: { number: 42 }) { id } }'
+        def open_response(req, timeout):
+            calls.append((req.full_url, json.loads(req.data)))
+            if req.full_url != active:
+                return StringIO(json.dumps({'errors': [{'message': 'deployment dolomite-arbitrum_4fbfc6c5 does not exist'}]}))
+            return StringIO(json.dumps({'data': {'marginAccounts': [{'id': 'account'}]}}))
+        with tempfile.TemporaryDirectory() as cache, patch.object(producer, 'urlopen', side_effect=open_response), patch.object(producer.time, 'sleep'):
+            source = producer.Source('arbitrum', cache)
+            anchor = {'number': 42, 'hash': '0xpin'}
+            expected = {'marginAccounts': [{'id': 'account'}]}
+            self.assertEqual(source.graph(query, anchor), expected)
+            self.assertEqual(source.graph(query, anchor), expected)
+            self.assertEqual(source.hits, 1)
+        self.assertEqual(calls, [(active, {'query': query})])
+
     def test_exact_graph_par_large_and_fractional(self):
         self.assertEqual(exact_par('123456789123456789.000000000000000001',18),123456789123456789000000000000000001)
         with self.assertRaises(ValueError): exact_par('1.0000001',6)

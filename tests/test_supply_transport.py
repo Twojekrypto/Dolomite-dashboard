@@ -47,6 +47,30 @@ def response(data, missing_bytes=0):
 
 
 class SupplyTransportTests(unittest.TestCase):
+    def test_arbitrum_collectors_use_the_active_deployment_for_current_and_historical_data(self):
+        active = "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn"
+        calls = []
+
+        def open_response(req, timeout):
+            payload = json.loads(req.data)
+            calls.append((req.full_url, payload))
+            if req.full_url != active:
+                return raw_response(json.dumps({"errors": [{"message": "deployment dolomite-arbitrum_4fbfc6c5 does not exist"}]}).encode())
+            if "timestamp" in payload.get("variables", {}):
+                return response({"transactions": [{"timestamp": "100", "blockNumber": "42"}]})
+            return response({"tokens": [{"id": "token", "supplyLiquidity": "12", "borrowLiquidity": "3"}],
+                             "interestRates": [{"token": {"id": "token"}, "supplyInterestRate": "0.02"}]})
+
+        with patch.object(history.request, "urlopen", side_effect=open_response), patch.object(history.time, "sleep"):
+            history.fetch_bundle(history.GRAPH_ENDPOINTS["arbitrum"])
+            activity.fetch_tokens(activity.GRAPH_ENDPOINTS["arbitrum"])
+            snapshot = apr.fetch_rate_snapshot(apr.GRAPH_ENDPOINTS["arbitrum"], 100)
+        self.assertTrue(all(url == active for url, _ in calls))
+        self.assertEqual(snapshot["blockNumber"], 42)
+        self.assertEqual(snapshot["rates"], {"token": "2"})
+        self.assertEqual(snapshot["markets"], {"token": {"supply": "12", "debt": "3"}})
+        self.assertEqual(calls[-1][1]["variables"], {"block": 42})
+
     def test_incomplete_page_is_retried_without_restarting_successful_pages(self):
         for generator in (activity, history):
             with self.subTest(generator=generator.__name__):
