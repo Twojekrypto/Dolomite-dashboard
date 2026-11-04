@@ -13,6 +13,20 @@ NOW = 1789646400  # 2026-09-17T12:00:00Z
 
 
 class DashboardFreshnessTests(unittest.TestCase):
+    def test_borrow_pnl_checks_every_chain_source_and_dispatches_its_producer(self):
+        rule = next(a for a in self.config['artifacts'] if a['id'] == 'borrow-position-pnl')
+        payload = {'generatedAt': NOW, 'sourceAsOf': NOW, 'chains': {
+            chain: {'closing': {'timestamp': NOW}} for chain in ('ethereum', 'arbitrum', 'berachain')}}
+        self.assertEqual(self.m.assess(payload, rule, NOW)['state'], 'fresh')
+        payload['chains']['arbitrum']['closing']['timestamp'] = NOW - 7 * 3600
+        stale = self.m.assess(payload, rule, NOW)
+        self.assertEqual(stale['state'], 'source_stale')
+        self.assertEqual(self.m.compare(rule, stale, stale, self.config)['workflow'],
+                         'update-borrow-position-pnl.yml')
+        self.assertLessEqual(rule['sourceMaxAgeMinutes'], 360)
+        del payload['chains']['arbitrum']['closing']['timestamp']
+        self.assertEqual(self.m.assess(payload, rule, NOW)['state'], 'invalid')
+
     def test_publication_during_a_slow_probe_is_not_a_future_timestamp(self):
         config = dict(self.config, artifacts=[self.asset])
         output = io.StringIO()

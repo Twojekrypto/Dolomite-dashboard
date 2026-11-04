@@ -9,6 +9,72 @@ import fetch_liquidation_risk as risk
 
 
 class RiskEarningsSourceTests(unittest.TestCase):
+    def test_live_arbitrum_positions_use_available_official_subgraph(self):
+        supply = {"id": "0xsupply", "symbol": "S", "marketId": "1", "decimals": "18"}
+        debt = {"id": "0xdebt", "symbol": "D", "marketId": "2", "decimals": "18"}
+        responses = {
+            risk.QUERY_DOLOMITE_MARGIN: {"dolomiteMargins": [{"id": "0xmargin", "liquidationRatio": "1.15", "liquidationReward": "1.05", "numberOfMarkets": 3}]},
+            risk.QUERY_MARKET_RISK_INFO: {"marketRiskInfos": []},
+            risk.QUERY_ORACLE_PRICES: {"oraclePrices": [{"token": token, "price": "1"} for token in (supply, debt)]},
+            risk.QUERY_INTEREST_INDICES: {"interestIndexes": [{"token": token, "supplyIndex": "1", "borrowIndex": "1"} for token in (supply, debt)]},
+            risk.QUERY_TOTAL_PARS: {"totalPars": []},
+            risk.QUERY_MARGIN_ACCOUNTS: {"marginAccounts": [{
+                "id": "account", "effectiveUser": {"id": "0xwallet"}, "accountNumber": "0",
+                "tokenValues": [{"token": supply, "valuePar": "200"}, {"token": debt, "valuePar": "-100"}],
+            }]},
+        }
+        with patch.object(risk.urllib.request, "urlopen", side_effect=self.official_arbitrum_response(responses)), \
+             patch.object(risk.time, "sleep"), redirect_stdout(StringIO()), \
+             patch.object(risk, "fetch_live_oracle_prices", side_effect=lambda *args, **kwargs: args[2]), \
+             patch.object(risk, "fetch_live_interest_indices", side_effect=lambda *args, **kwargs: args[2]):
+            try:
+                result = risk.fetch_chain_data("arbitrum", risk.CHAINS["arbitrum"])
+            except RuntimeError as exc:
+                self.fail(f"Arbitrum positions could not refresh: {exc}")
+        self.assertEqual(result["stats"]["total"], 1)
+        self.assertEqual(result["stats"]["totalDebtUSD"], 100)
+        self.assertEqual(result["positions"][0]["address"], "0xwallet")
+        self.assertIs(result["positions"][0]["earningsComplete"], True)
+
+    def test_live_arbitrum_liquidation_history_uses_available_official_subgraph(self):
+        responses = {
+            risk.QUERY_LIQUIDATIONS: {"liquidations": [{
+                "id": "liquidation", "serialId": "1", "transaction": {"id": "0xtx", "timestamp": "1793790000"},
+                "borrowedTokenAmountUSD": "50", "heldTokenAmountUSD": "52.5",
+            }]},
+            risk.QUERY_PROTOCOL_LIQUIDATION_FEE_TRANSFERS: {"transfers": []},
+        }
+        with patch.object(risk.urllib.request, "urlopen", side_effect=self.official_arbitrum_response(responses)), \
+             patch.object(risk.time, "sleep"), redirect_stdout(StringIO()):
+            try:
+                rows = risk.fetch_chain_liquidation_history("arbitrum", risk.CHAINS["arbitrum"])
+            except RuntimeError as exc:
+                self.fail(f"Arbitrum history could not refresh: {exc}")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]["chain"], rows[0]["txHash"], rows[0]["debtRepaidUSD"]), ("arbitrum", "0xtx", 50))
+
+    def official_arbitrum_response(self, responses):
+        def urlopen(request, timeout):
+            if request.full_url != "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn":
+                payload = {"errors": [{"message": "deployment `dolomite-arbitrum_4fbfc6c5-3175-4204-ab94-947d923cc239` does not exist"}]}
+            elif request.get_header("User-agent") != "DolomiteDashboard/liquidation-risk":
+                raise urllib.error.HTTPError(request.full_url, 403, "browser_signature_banned", {}, None)
+            else:
+                payload = {"data": responses[json.loads(request.data)["query"]]}
+
+            class Response:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, *args):
+                    return False
+
+                def read(self):
+                    return json.dumps(payload).encode()
+
+            return Response()
+        return urlopen
+
     def test_identity_and_exact_principal_are_additive_to_risk_output(self):
         supply = "0x" + "A" * 40
         debt = "0x" + "b" * 40

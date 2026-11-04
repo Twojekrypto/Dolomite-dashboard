@@ -52,6 +52,7 @@ CHAINS = {
     },
     "arbitrum": {
         "subgraph_name": "dolomite-arbitrum",
+        "subgraph_url": "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn",
         "label": "Arbitrum",
         "explorer": "https://arbiscan.io/address/",
         "rpc": "https://arb1.arbitrum.io/rpc",
@@ -121,6 +122,8 @@ DOLOMITE_MARGIN_ABI = [
 
 def get_subgraph_url(chain_config):
     """Build the subgraph URL for a chain."""
+    if chain_config.get("subgraph_url"):
+        return chain_config["subgraph_url"]
     return f"{DOLOMITE_SUBGRAPH_BASE}/{chain_config['subgraph_name']}/latest/gn"
 
 # Health factor thresholds — standard
@@ -424,6 +427,7 @@ def graphql_request(url, query, variables=None, retries=3):
                 headers={
                     "Content-Type": "application/json",
                     "Accept": "application/json",
+                    "User-Agent": "DolomiteDashboard/liquidation-risk",
                 },
             )
             with urllib.request.urlopen(req, timeout=60) as resp:
@@ -1836,4 +1840,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

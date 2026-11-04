@@ -29,6 +29,9 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Test source coverage and complete-publication gate
+        run: python3 -m unittest discover -s tests -p 'test_generate_supply_health.py'
+
       - name: Generate Supply Pool Health data
         run: python3 generate_supply_health.py
 

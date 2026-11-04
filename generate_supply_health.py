@@ -34,7 +34,7 @@ DOLOMITE_SUPPLY_BASE = (
 
 GRAPH_ENDPOINTS = {
     "berachain": f"{DOLOMITE_SUPPLY_BASE}/dolomite-berachain-mainnet/latest/gn",
-    "arbitrum": f"{DOLOMITE_SUPPLY_BASE}/dolomite-arbitrum/latest/gn",
+    "arbitrum": "https://api.goldsky.com/api/public/project_clyuw4gvq4d5801tegx0aafpu/subgraphs/dolomite-arbitrum/latest/gn",
     "mantle": f"{DOLOMITE_SUPPLY_BASE}/dolomite-mantle/latest/gn",
     "ethereum": f"{DOLOMITE_SUPPLY_BASE}/dolomite-ethereum/latest/gn",
     "botanix": f"{DOLOMITE_SUPPLY_BASE}/dolomite-botanix/latest/gn",
@@ -474,6 +474,10 @@ def main() -> int:
                 if entry:
                     markets.append(entry)
                     print(f"{chain} {symbol}: {entry['wallets']} wallets, top10 {entry['top10Pct']}%", flush=True)
+
+    if errors:
+        print(f"{len(errors)} required fetches failed — refusing to publish partial health data", file=sys.stderr)
+        return 1
 
     if not markets:
         print("No markets produced — refusing to overwrite existing data", file=sys.stderr)
