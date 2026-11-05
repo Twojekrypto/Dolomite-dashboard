@@ -113,6 +113,11 @@ def assess(payload: Any, rule: Dict[str, Any], now: int) -> Dict[str, Any]:
         publication_age = _safe_age(publication, now)
         source_ages: List[float] = []
         for field in source_fields:
+            # Ranking rate inputs exist only for chains actually modeled. An
+            # explicit unavailable status must not invalidate healthy chains.
+            if (rule.get("id") == "borrow-earnings" and field.startswith("sources.rates.")
+                    and _path_value(payload, f"chainStatus.{field.split('.')[2]}.status") == "unavailable"):
+                continue
             source_value = _path_value(payload, field)
             if source_value is None:
                 raise MonitorError("required_source_timestamp_missing")
