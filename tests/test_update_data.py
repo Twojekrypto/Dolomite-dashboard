@@ -367,6 +367,17 @@ class TestRpcEndpoints(unittest.TestCase):
         self.assertIn("if: always()", save_block)
         self.assertIn("uses: actions/cache/save@v5", save_block)
 
+    def test_update_workflow_saves_locked_progress_even_after_validation_failure(self):
+        workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "update-data.yml").read_text()
+        restore = workflow.split("- name: Restore locked DOLO cache", 1)[1].split("- name:", 1)[0]
+        self.assertIn("uses: actions/cache/restore@v5", restore)
+        save = workflow.split("- name: Save locked DOLO cache progress", 1)[1].split("- name:", 1)[0]
+        self.assertIn("if: always()", save)
+        self.assertIn("uses: actions/cache/save@v5", save)
+        self.assertIn("path: locked_cache.json", save)
+        self.assertLess(workflow.index("run: python update_data.py"), workflow.index("- name: Save locked DOLO cache progress"))
+        self.assertLess(workflow.index("validate_vedolo_locked_history.py"), workflow.index("- name: Commit & push changes"))
+
 
 class TestCanonicalVoteWeight(unittest.TestCase):
     def test_canonical_snapshot_replaces_only_aggregate_vote_weight(self):
@@ -404,6 +415,34 @@ class TestCanonicalVoteWeight(unittest.TestCase):
 
 
 class TestBoundedHolderRefresh(unittest.TestCase):
+    def test_unresolved_lock_keeps_published_snapshot_and_reports_token_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "vedolo_holders.json"
+            output.write_text("complete previous snapshot")
+            with patch.object(update_data, "OUTPUT_JSON", str(output)), \
+                 patch.object(update_data, "CACHE_FILE", str(Path(directory) / "locked_cache.json")), \
+                 patch.object(update_data, "make_batch_call", return_value=({}, [660])), \
+                 patch.object(update_data, "fetch_contract_dolo_balance", return_value=0), \
+                 patch.object(update_data, "LOCKED_FAILED_RETRY_LIMIT", 0), \
+                 patch.object(update_data.time, "sleep"), \
+                 patch("builtins.print") as output_log:
+                with self.assertRaises(SystemExit) as raised:
+                    update_data.fetch_locked_dolo([660])
+            self.assertEqual(1, raised.exception.code)
+            self.assertEqual("complete previous snapshot", output.read_text())
+            self.assertTrue(any("#660" in str(call) for call in output_log.call_args_list))
+
+    def test_vote_only_cache_entry_is_refetched_as_missing_locked_data(self):
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(update_data, "CACHE_FILE", str(Path(directory) / "locked_cache.json")), \
+             patch.object(update_data, "make_batch_call", return_value=({660: {"amount": 1.5, "end": 1808352000}}, [])), \
+             patch.object(update_data, "fetch_contract_dolo_balance", return_value=0), \
+             patch.object(update_data.time, "sleep"):
+            update_data.save_cache({"660": {"vote_weight": 20, "vote_fetched_at": 9999999999, "fetched_at": 9999999999}})
+            cache = update_data.fetch_locked_dolo([660])
+        self.assertEqual(1.5, cache["660"]["amount"])
+        self.assertEqual(1808352000, cache["660"]["end"])
+
     def test_recent_flow_fallbacks_sum_new_lock_rows(self):
         now_ts = 1782040000
         with tempfile.TemporaryDirectory() as tmp:
@@ -540,6 +579,92 @@ class TestBoundedHolderRefresh(unittest.TestCase):
 
 
 class TestVedoloMulticall(unittest.TestCase):
+    def test_multicall_failure_reports_type_without_credential_bearing_message(self):
+        from web3 import Web3
+        with patch.object(update_data, "RPC_URLS", ["https://rpc.example/private-key"]), \
+             patch.object(Web3, "HTTPProvider", side_effect=RuntimeError("https://rpc.example/private-key")), \
+             patch("builtins.print") as output_log:
+            result = update_data._multicall_vedolo_reads([660], update_data.LOCKED_SELECTOR)
+        self.assertEqual({}, result)
+        output = " ".join(str(call) for call in output_log.call_args_list)
+        self.assertIn("RuntimeError", output)
+        self.assertNotIn("private-key", output)
+
+    def test_rpc_fallback_retries_only_unresolved_ids_on_next_provider(self):
+        raw = "0x" + (10 * 10**18).to_bytes(32, "big").hex() + (1808352000).to_bytes(32, "big").hex()
+
+        class Response:
+            status_code = 200
+            def __init__(self, rows):
+                self.rows = rows
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return self.rows
+
+        calls = []
+        def post(url, *, json, timeout, headers):
+            calls.append((url, [row["id"] for row in json]))
+            if url == "https://first.example":
+                return Response([{"id": 1, "error": {"code": -32005, "message": "rate limit"}}, {"id": 0, "result": raw}])
+            return Response([{"id": -1, "result": raw}, {"id": 1, "result": raw}])
+
+        with patch.object(update_data, "_multicall_vedolo_reads", return_value={}), \
+             patch.object(update_data, "RPC_URLS", ["https://first.example", "https://second.example"]), \
+             patch.object(update_data, "RPC_RETRIES", 1), \
+             patch.object(update_data.requests.Session, "post", side_effect=post):
+            out, failed = update_data.make_batch_call([660, 25088])
+        self.assertEqual([], failed)
+        self.assertEqual({660, 25088}, set(out))
+        self.assertEqual([("https://first.example", [0, 1]), ("https://second.example", [1])], calls)
+
+    def test_empty_rpc_result_remains_unknown_instead_of_becoming_zero(self):
+        class Response:
+            status_code = 200
+            def raise_for_status(self):
+                pass
+            def json(self):
+                return [{"id": 0, "result": "0x"}]
+
+        with patch.object(update_data, "_multicall_vedolo_reads", return_value={}), \
+             patch.object(update_data, "RPC_URLS", ["https://rpc.example"]), \
+             patch.object(update_data, "RPC_RETRIES", 1), \
+             patch.object(update_data.requests.Session, "post", return_value=Response()):
+            out, failed = update_data.make_batch_call([660])
+        self.assertEqual({}, out)
+        self.assertEqual([660], failed)
+
+    def test_pinned_multicall_uses_web3_integer_block_identifier(self):
+        from eth_abi import encode
+        from web3 import Web3
+        from web3.providers.base import BaseProvider
+
+        # Public Berachain eth_call at block 28,425,304 for NFT #660.
+        locked = bytes.fromhex(
+            "0000000000000000000000000000000000000000000195f2bed8d0f508597b4900"
+            "000000000000000000000000000000000000000000000000000000006bc94300"
+        )
+
+        class PinnedProvider(BaseProvider):
+            def make_request(self, method, params):
+                if method == "eth_chainId":
+                    result = "0x138de"
+                elif method == "eth_call":
+                    if params[1] != "0x1b1bc58":
+                        raise AssertionError(f"unexpected block: {params[1]}")
+                    result = "0x" + encode(["(bool,bytes)[]"], [[(True, locked)]]).hex()
+                else:
+                    raise AssertionError(f"unexpected RPC method: {method}")
+                return {"jsonrpc": "2.0", "id": 1, "result": result}
+
+        provider = PinnedProvider()
+        with patch.object(update_data, "VEDOLO_SNAPSHOT_BLOCK", 28425304), \
+             patch.object(update_data, "RPC_URLS", ["https://rpc.example"]), \
+             patch.object(Web3, "HTTPProvider", return_value=provider):
+            results = update_data._multicall_vedolo_reads([660], update_data.LOCKED_SELECTOR)
+
+        self.assertEqual({660: locked}, results)
+
     def test_make_batch_call_uses_multicall_fast_path(self):
         # locked() returns (int128 amount, uint end). Positive + a negative
         # int128 (sign handling must mirror the existing hex decode).
@@ -573,3 +698,4 @@ class TestVedoloMulticall(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

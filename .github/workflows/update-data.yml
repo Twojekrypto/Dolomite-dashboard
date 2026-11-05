@@ -36,8 +36,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Test pinned RPC reads and locked-history validation
+        run: |
+          python3 -m unittest discover -s tests -p 'test_update_data.py'
+          python3 -m unittest discover -s tests -p 'test_validate_vedolo_locked_history.py'
+
       - name: Restore locked DOLO cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: locked_cache.json
           key: locked-cache-v6-${{ github.run_id }}
@@ -74,6 +79,15 @@ jobs:
           VEDOLO_VOTE_STALE_REFRESH_LIMIT: '100'
           VEDOLO_VOTE_FAILED_RETRY_LIMIT: '20'
           VEDOLO_VOTE_ZERO_RETRY_LIMIT: '20'
+
+      # Preserve successful RPC reads even when a later validation blocks
+      # publication. Incomplete cache entries are retried by update_data.py.
+      - name: Save locked DOLO cache progress
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: locked_cache.json
+          key: locked-cache-v6-${{ github.run_id }}
 
       - name: Generate canonical veDOLO vote power history
         run: python3 generate_vedolo_vote_power_history.py --sync-stats

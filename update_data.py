@@ -5,7 +5,7 @@ Phase 1: Fetches all NFT transfers via Etherscan V2 tokennfttx (paginated, 100% 
 Phase 2: Fetches locked DOLO amounts from Berachain RPC (batched, cached).
 Outputs: vedolo_holders.json, vedolo_holders.csv
 """
-import json, time, os, csv, sys
+import json, time, os, csv, sys, math
 import requests
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -383,6 +383,7 @@ def _multicall_vedolo_reads(token_ids, selector):
     multicall_addr = Web3.to_checksum_address(MULTICALL3_ADDR)
     sel = selector[2:] if selector.startswith("0x") else selector
     rpc_idx = 0
+    reported_errors = set()
 
     for start in range(0, len(ids), max(1, BATCH_SIZE)):
         chunk = ids[start:start + max(1, BATCH_SIZE)]
@@ -394,19 +395,27 @@ def _multicall_vedolo_reads(token_ids, selector):
                 w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": RPC_TIMEOUT_SECONDS}))
                 multicall = w3.eth.contract(address=multicall_addr, abi=MULTICALL3_AGG3_ABI)
                 results = multicall.functions.aggregate3(calls).call(
-                    block_identifier=vedolo_block_identifier()
+                    # Web3 accepts an integer height; a JSON-RPC hex quantity
+                    # raises BlockNumberOutOfRange before sending eth_call.
+                    block_identifier=VEDOLO_SNAPSHOT_BLOCK or "latest"
                 )
                 rpc_usage.record_request("eth_call")  # one aggregate3 == one eth_call
                 rpc_idx = (rpc_idx + attempt) % len(rpc_list)
                 break
-            except Exception:
+            except Exception as exc:
+                error_type = type(exc).__name__
+                if error_type not in reported_errors:
+                    # Exception messages can contain credential-bearing URLs.
+                    print(f"  ⚠️ veDOLO Multicall3 failed ({error_type}); trying RPC fallback.", flush=True)
+                    reported_errors.add(error_type)
                 results = None
                 continue
         if not results or len(results) != len(chunk):
             continue  # whole chunk unresolved -> per-call fallback handles it
         for tid, item in zip(chunk, results):
             data = bytes(item[1]) if item[1] is not None else b""
-            if bool(item[0]) and len(data) >= 32:
+            required_bytes = 64 if selector == LOCKED_SELECTOR else 32
+            if bool(item[0]) and len(data) >= required_bytes:
                 out[tid] = data
             # else: leave unresolved -> fallback (failed call, not a trusted zero)
     return out
@@ -443,7 +452,8 @@ def make_batch_call(token_ids):
     for rpc_url in RPC_URLS:
         for retry in range(RPC_RETRIES):
             try:
-                resp = s.post(rpc_url, json=batch, timeout=RPC_TIMEOUT_SECONDS,
+                pending = [row for row in batch if token_ids[row["id"]] not in responded_ids]
+                resp = s.post(rpc_url, json=pending, timeout=RPC_TIMEOUT_SECONDS,
                               headers={"Content-Type": "application/json"})
                 if resp.status_code == 429:
                     time.sleep(1 * (retry + 1))
@@ -454,36 +464,30 @@ def make_batch_call(token_ids):
                     time.sleep(0.5 * (retry + 1))
                     continue
                 for r in results:
-                    idx = r.get("id", 0)
-                    if idx < len(token_ids):
-                        tid = token_ids[idx]
-                        if "error" in r:
-                            # RPC error (e.g. batch limit exceeded) — skip, don't set 0
-                            pass
-                        elif "result" in r and r["result"] and len(r["result"]) >= 66:
-                            raw = r["result"]
-                            amount_raw = int(raw[2:66], 16)
-                            if amount_raw >= 2**127:
-                                amount_raw -= 2**128
-                            end_raw = int(raw[66:130], 16)
-                            out[tid] = {"amount": amount_raw / 1e18, "end": end_raw}
-                            responded_ids.add(tid)
-                        else:
-                            # Explicit zero result from RPC — genuinely no lock
-                            out[tid] = {"amount": 0, "end": 0}
-                            responded_ids.add(tid)
-                failed = [tid for tid in token_ids if tid not in responded_ids]
-                return out, failed
+                    idx = r.get("id")
+                    if isinstance(idx, bool) or not isinstance(idx, int) or not 0 <= idx < len(token_ids):
+                        continue
+                    tid = token_ids[idx]
+                    raw = r.get("result")
+                    if tid in responded_ids or "error" in r or not isinstance(raw, str) or not raw.startswith("0x") or len(raw) < 130:
+                        continue
+                    try:
+                        amount_raw = int(raw[2:66], 16)
+                        end_raw = int(raw[66:130], 16)
+                    except ValueError:
+                        continue
+                    if amount_raw >= 2**127:
+                        amount_raw -= 2**128
+                    out[tid] = {"amount": amount_raw / 1e18, "end": end_raw}
+                    responded_ids.add(tid)
+                if all(tid in responded_ids for tid in token_ids):
+                    return out, []
+                # Keep successful reads; retry only unresolved IDs elsewhere.
+                break
             except Exception as e:
                 if retry < RPC_RETRIES - 1:
                     time.sleep(0.3 * (retry + 1))
-        # If this RPC failed entirely, try next one
-        if out:
-            failed = [tid for tid in token_ids if tid not in responded_ids]
-            return out, failed
-
-    # Complete failure — all RPCs failed
-    return out, list(token_ids)
+    return out, [tid for tid in token_ids if tid not in responded_ids]
 
 
 def load_cache():
@@ -611,6 +615,22 @@ def fetch_contract_dolo_balance():
     return 0
 
 
+def locked_position_complete(entry):
+    if not isinstance(entry, dict):
+        return False
+    amount = entry.get("amount")
+    end = entry.get("end")
+    return (
+        not isinstance(amount, bool)
+        and isinstance(amount, (int, float))
+        and math.isfinite(amount)
+        and amount >= 0
+        and not isinstance(end, bool)
+        and isinstance(end, int)
+        and end > 0
+    )
+
+
 def fetch_locked_dolo(all_token_ids, vote_weights=None, priority_token_ids=None, fallback_locks=None):
     """Fetch locked DOLO with bounded stale refresh so snapshots can publish.
 
@@ -631,7 +651,7 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None, priority_token_ids=None,
     suspicious_zero = []
     for tid in all_token_ids:
         entry = cache.get(str(tid))
-        if entry is None:
+        if not locked_position_complete(entry):
             missing.append(tid)
         elif entry.get("source") == "vedolo_flows_recent_lock" and now_ts - entry.get("fetched_at", 0) > FALLBACK_CACHE_MAX_AGE:
             stale.append(tid)
@@ -806,6 +826,12 @@ def fetch_locked_dolo(all_token_ids, vote_weights=None, priority_token_ids=None,
     else:
         print(f"  ⚠️  Could not fetch on-chain DOLO balance for ground truth check")
 
+    unresolved = [tid for tid in all_token_ids if not locked_position_complete(cache.get(str(tid)))]
+    if unresolved:
+        sample = ", ".join(f"#{tid}" for tid in unresolved[:20])
+        preserve_existing_vedolo_snapshot(
+            f"Unresolved locked DOLO data for {len(unresolved):,} position(s): {sample}"
+        )
     return cache
 
 
