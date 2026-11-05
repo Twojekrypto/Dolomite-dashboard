@@ -15,9 +15,11 @@ import math
 import os
 import re
 import socket
+import ssl
 import sys
 import time
 from datetime import date, datetime, timezone
+from http.client import HTTPException, IncompleteRead
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 from urllib.error import HTTPError, URLError
@@ -27,6 +29,13 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 class MonitorError(RuntimeError):
     """Safe, fixed-message monitor failure."""
+
+    def __init__(self, message, *, reason=None, attempts=0, error_class=None, retryable=False):
+        super().__init__(message)
+        self.reason = reason
+        self.attempts = attempts
+        self.error_class = error_class
+        self.retryable = retryable
 
 
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -382,29 +391,59 @@ class HttpClient:
                 return True
         return False
 
-    def get_json(self, url: str, max_bytes: int) -> Any:
+    def get_json(self, url: str, max_bytes: int, *, retry: bool = True) -> Any:
         if not self._allowed(url):
-            raise MonitorError("request_failed")
+            raise MonitorError("request_failed", reason="url_not_allowed")
         request = Request(url, headers={"Accept": "application/json", "User-Agent": "dashboard-freshness-guard/1"})
-        for attempt in range(len(PUBLIC_RETRY_DELAYS) + 1):
+        delays = PUBLIC_RETRY_DELAYS if retry else ()
+        for attempt in range(len(delays) + 1):
             try:
                 with self.opener.open(request, timeout=self.timeout) as response:
                     length = response.headers.get("Content-Length") if getattr(response, "headers", None) else None
-                    if length and int(length) > max_bytes:
-                        raise MonitorError("response_too_large")
+                    try:
+                        expected = int(length) if length is not None else None
+                        if expected is not None and expected < 0:
+                            raise ValueError
+                    except ValueError:
+                        raise MonitorError("request_failed", reason="invalid_content_length", attempts=attempt + 1) from None
+                    if expected is not None and expected > max_bytes:
+                        raise MonitorError("response_too_large", reason="response_too_large", attempts=attempt + 1)
                     body = response.read(max_bytes + 1)
                     if len(body) > max_bytes:
-                        raise MonitorError("response_too_large")
+                        raise MonitorError("response_too_large", reason="response_too_large", attempts=attempt + 1)
+                    # A bounded read can silently return a short body. Even a
+                    # valid JSON prefix must not pass as the complete artifact.
+                    if expected is not None and len(body) < expected:
+                        raise IncompleteRead(body, expected - len(body))
                 return json.loads(body.decode("utf-8"))
             except MonitorError:
                 raise
-            except ValueError:
-                raise MonitorError("request_failed") from None
-            except (HTTPError, URLError, TimeoutError, socket.timeout, OSError) as exc:
+            except ValueError as exc:
+                raise MonitorError("request_failed", reason="invalid_json", attempts=attempt + 1,
+                                   error_class=type(exc).__name__) from None
+            except (HTTPError, URLError, TimeoutError, OSError, HTTPException) as exc:
                 retryable = not isinstance(exc, HTTPError) or exc.code in RETRYABLE_HTTP_CODES
-                if not retryable or attempt == len(PUBLIC_RETRY_DELAYS):
-                    raise MonitorError("request_failed") from None
-                time.sleep(PUBLIC_RETRY_DELAYS[attempt])
+                cause = exc.reason if isinstance(exc, URLError) and not isinstance(exc, HTTPError) else exc
+                if isinstance(exc, HTTPError):
+                    reason = f"http_{exc.code}"
+                elif isinstance(cause, TimeoutError):
+                    reason = "timeout"
+                elif isinstance(cause, socket.gaierror):
+                    reason = "dns_error"
+                elif isinstance(cause, ssl.SSLError):
+                    reason = "tls_error"
+                    retryable = not isinstance(cause, ssl.SSLCertVerificationError)
+                elif isinstance(exc, IncompleteRead):
+                    reason = "incomplete_response"
+                elif isinstance(exc, HTTPException):
+                    reason = "http_protocol_error"
+                else:
+                    reason = "connection_error"
+                if not retryable or attempt == len(delays):
+                    # Never include exception messages, URLs, headers or bodies.
+                    raise MonitorError("request_failed", reason=reason, attempts=attempt + 1,
+                                       error_class=type(exc).__name__, retryable=retryable) from None
+                time.sleep(delays[attempt])
 
 
 class GitHubAPI:
@@ -426,13 +465,14 @@ class GitHubAPI:
             with build_opener(NoRedirect()).open(request, timeout=20) as response:
                 data = response.read(2_000_000)
             return json.loads(data.decode("utf-8")) if data else {}
-        except (HTTPError, URLError, TimeoutError, socket.timeout, ValueError, OSError):
+        except (HTTPError, URLError, TimeoutError, socket.timeout, ValueError, OSError, HTTPException):
             raise MonitorError("github_api_failed") from None
 
     def runs(self, workflow: str) -> List[Dict[str, Any]]:
         payload = self._request("GET", f"/actions/workflows/{workflow}/runs?branch={self.config['branch']}&per_page=30")
-        runs = payload.get("workflow_runs") if isinstance(payload, dict) else []
-        runs = runs if isinstance(runs, list) else []
+        runs = payload.get("workflow_runs") if isinstance(payload, dict) else None
+        if not isinstance(runs, list):
+            raise MonitorError("run_metadata_invalid")
         if self.config["workflows"].get(workflow, {}).get("stalledWaitingMinutes"):
             # A long environment wait falls outside the latest 30 runs when
             # newer pending runs repeatedly replace one another.
@@ -460,6 +500,69 @@ class GitHubAPI:
         self._request("POST", f"/actions/workflows/{workflow}/dispatches", {"ref": self.config["branch"], "inputs": inputs})
 
 
+def dashboard_guard_gate(runs: Any, config: Dict[str, Any], now: int) -> str:
+    """Check run metadata only; success/failure conclusions prove a check ran."""
+    active_statuses = {"queued", "in_progress", "waiting", "pending", "requested"}
+    conclusions = {"success", "failure", "cancelled", "skipped", "timed_out", "neutral", "action_required", "stale", "startup_failure"}
+    active = False
+    recent = False
+    if not isinstance(runs, list):
+        return "run_metadata_invalid"
+    for run in runs:
+        if not isinstance(run, dict):
+            return "run_metadata_invalid"
+        status = run.get("status")
+        conclusion = run.get("conclusion")
+        if not isinstance(status, str) or status not in active_statuses | {"completed"}:
+            return "run_metadata_invalid"
+        try:
+            created = _run_created_at(run, now)
+            ended = parse_timestamp(run.get("updated_at"))
+            if ended < created or ended > now:
+                raise MonitorError("run_metadata_invalid")
+        except MonitorError:
+            return "run_metadata_invalid"
+        if status in active_statuses:
+            if conclusion is not None:
+                return "run_metadata_invalid"
+            active = True
+        else:
+            if not isinstance(conclusion, str) or conclusion not in conclusions:
+                return "run_metadata_invalid"
+            # Cancelled/skipped jobs did not verify public data. Other terminal
+            # conclusions also cannot stand in for a completed success/failure.
+            if conclusion in {"success", "failure"}:
+                recent |= (now - ended) / 60 < config.get("dashboardGuardMinimumIntervalMinutes", 15)
+    return "active" if active else "recent_check" if recent else "ready"
+
+
+def ensure_dashboard_check(config: Dict[str, Any], api: Any, allow_remediation: bool) -> Dict[str, Any]:
+    """Backstop dropped cron events with at most two reads and one dispatch."""
+    decision = {"mode": "ensure_check_due", "workflow": "dashboard-freshness.yml"}
+    for _ in range(2):
+        try:
+            runs = api.runs(decision["workflow"])
+        except MonitorError as exc:
+            decision["action"] = "run_metadata_invalid" if str(exc) == "run_metadata_invalid" else "metadata_failed"
+            return decision
+        gate = dashboard_guard_gate(runs, config, int(time.time()))
+        if gate != "ready":
+            decision["action"] = gate
+            return decision
+        if not allow_remediation:
+            decision["action"] = "dry_run"
+            return decision
+    try:
+        # Dispatch acceptance is asynchronous; an ambiguous error must never
+        # trigger a second dispatch in this invocation.
+        api.dispatch(decision["workflow"], {})
+    except MonitorError:
+        decision["action"] = "dispatch_failed"
+        return decision
+    decision["action"] = "dispatched"
+    return decision
+
+
 def _validate_relative_path(path: Any) -> None:
     if not isinstance(path, str) or not path or path.startswith("/") or "://" in path or "\\" in path:
         raise MonitorError("config_invalid")
@@ -470,6 +573,12 @@ def _validate_relative_path(path: Any) -> None:
 
 def validate_config(config: Dict[str, Any]) -> None:
     if not isinstance(config, dict) or not SAFE_REPOSITORY_RE.fullmatch(str(config.get("repository", ""))):
+        raise MonitorError("config_invalid")
+    deferred_budget = config.get("maxDeferredProbeRequests", 3)
+    if type(deferred_budget) is not int or not 0 <= deferred_budget <= 10:
+        raise MonitorError("config_invalid")
+    guard_interval = config.get("dashboardGuardMinimumIntervalMinutes", 15)
+    if type(guard_interval) is not int or not 5 <= guard_interval <= 60:
         raise MonitorError("config_invalid")
     for key in ("public_base_url", "raw_base_url"):
         parsed = urlparse(str(config.get(key, "")))
@@ -550,28 +659,67 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--config", default="config/dashboard_freshness.json")
     parser.add_argument("--no-remediation", action="store_true")
     parser.add_argument("--fail-on-stale", action="store_true", help="Fail after remediation when a source is invalid/stale or publication exceeds 8h")
+    parser.add_argument("--ensure-check-due", action="store_true", help="Use Actions metadata only to dispatch one overdue dashboard guard")
     args = parser.parse_args(argv)
     config = load_config(Path(args.config))
+    if args.ensure_check_due:
+        try:
+            api = GitHubAPI(config, os.environ.get("GH_TOKEN", ""))
+            decision = ensure_dashboard_check(config, api, not args.no_remediation)
+        except MonitorError:
+            decision = {"mode": "ensure_check_due", "workflow": "dashboard-freshness.yml", "action": "metadata_failed"}
+        print(json.dumps(decision, sort_keys=True))
+        return int(decision["action"] in {"run_metadata_invalid", "metadata_failed", "dispatch_failed"})
     client = HttpClient(config)
     rows = []
+    deferred = []
+
+    def probe(rule, side, *, retry=True):
+        base = config["public_base_url" if side == "public" else "raw_base_url"]
+        maximum = int(rule.get("maxBytes", config.get("maxResponseBytes", 20_000_000)))
+        try:
+            if retry:
+                payload = client.get_json(base + rule["path"], maximum)
+            else:
+                payload = client.get_json(base + rule["path"], maximum, retry=False)
+            return assess(payload, rule, int(time.time()))
+        except MonitorError as exc:
+            result = {"state": "unavailable", "error": str(exc), "age_minutes": None}
+            if exc.reason:
+                result["transport"] = {"reason": exc.reason, "attempts": exc.attempts}
+                if exc.error_class:
+                    result["transport"]["error_class"] = exc.error_class
+            if retry and exc.retryable:
+                deferred.append((len(rows), rule, side))
+            return result
+
     for configured_rule in config["artifacts"]:
         rule = dict(configured_rule)
         if rule.get("id") == "dolo-liquidity" and os.environ.get("LP_DATA_STORAGE", "git") == "r2":
             rule["productionStorage"] = "r2"
-        try:
-            public_payload = client.get_json(config["public_base_url"] + rule["path"], int(rule.get("maxBytes", config.get("maxResponseBytes", 20_000_000))))
-            public_result = assess(public_payload, rule, int(time.time()))
-        except MonitorError as exc:
-            public_result = {"state": "unavailable", "error": str(exc), "age_minutes": None}
+        public_result = probe(rule, "public")
         if rule.get("productionStorage") == "r2":
             repo_result = {"state": "recovery_baseline", "age_minutes": None}
         else:
-            try:
-                repo_payload = client.get_json(config["raw_base_url"] + rule["path"], int(rule.get("maxBytes", config.get("maxResponseBytes", 20_000_000))))
-                repo_result = assess(repo_payload, rule, int(time.time()))
-            except MonitorError as exc:
-                repo_result = {"state": "unavailable", "error": str(exc), "age_minutes": None}
+            repo_result = probe(rule, "repo")
         rows.append(compare(rule, public_result, repo_result, config))
+
+    # Separate a short outage from the adjacent retries without refetching
+    # healthy artifacts. At most three extra requests by default, one per
+    # selected failed endpoint; persistent failures remain unavailable.
+    for index, rule, side in deferred[:config.get("maxDeferredProbeRequests", 3)]:
+        row = rows[index]
+        previous = row[side]["transport"]
+        result = probe(rule, side, retry=False)
+        transport = result.setdefault("transport", {})
+        transport["attempts"] = previous["attempts"] + transport.get("attempts", 1)
+        transport["initial_reason"] = previous["reason"]
+        if previous.get("error_class"):
+            transport["initial_error_class"] = previous["error_class"]
+        transport["deferred_retry"] = True
+        public_result = result if side == "public" else row["public"]
+        repo_result = result if side == "repo" else row["repo"]
+        rows[index] = compare(rule, public_result, repo_result, config)
 
     now = int(time.time())
     candidates = [row for row in rows if row.get("workflow")]

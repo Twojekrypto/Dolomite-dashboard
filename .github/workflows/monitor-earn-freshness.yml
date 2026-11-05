@@ -271,6 +271,13 @@ jobs:
             --active-repairs /tmp/earn-refresh-active-chains.txt \
             --summary "$GITHUB_STEP_SUMMARY"
 
+      - name: Backstop dashboard freshness cadence
+        if: ${{ success() && (github.event_name != 'workflow_dispatch' || inputs.allow_remediation) }}
+        # This is a secondary trigger, independent of the EARN data SLA above.
+        # A GitHub API outage must not block publishing verified EARN data.
+        continue-on-error: true
+        run: python3 scripts/check_dashboard_freshness.py --config config/dashboard_freshness.json --ensure-check-due
+
       - name: Deploy verified EARN snapshot
         if: ${{ success() }}
         run: |

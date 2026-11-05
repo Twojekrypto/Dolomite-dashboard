@@ -8,6 +8,8 @@
   "requestTimeoutSeconds": 20,
   "maxResponseBytes": 50000000,
   "maxDispatchesPerRun": 3,
+  "maxDeferredProbeRequests": 3,
+  "dashboardGuardMinimumIntervalMinutes": 15,
   "workflows": {
     "update-earn-merkl-rewards.yml": {
       "workflow": "update-earn-merkl-rewards.yml",
@@ -175,7 +177,7 @@
     {"id": "vedolo-holders", "path": "vedolo_holders.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 10000000},
     {"id": "vedolo-expiry", "path": "vedolo_expiry.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 1000000},
     {"id": "vedolo-vote-power", "path": "data/vedolo-vote-power-history.json", "timestamps": ["targetTimestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 5000000},
-    {"id": "vedolo-early-unlock", "path": "vedolo_early_unlock.json", "timestamps": ["generatedAt", "sourceTimestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 25000000},
+    {"id": "vedolo-early-unlock", "path": "vedolo_early_unlock.json", "timestamps": ["generatedAt", "sourceTimestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 25000000},
     {"id": "holder-wallet-history", "path": "dolo_holder_wallet_history.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 180, "workflow": "update-dolo-flows.yml", "inputs": {}, "maxBytes": 100000000},
     {"id": "liquidation-history", "path": "liquidation_history.json", "timestamps": ["generatedAtISO"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-liquidation-risk.yml", "inputs": {}, "maxBytes": 15000000},
     {"id": "rewards", "path": "rewards_programs.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 360, "earlyDueMinutes": 270, "workflow": "update-rewards-programs.yml", "inputs": {}, "maxBytes": 5000000},

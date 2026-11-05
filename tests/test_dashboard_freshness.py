@@ -13,6 +13,33 @@ NOW = 1789646400  # 2026-09-17T12:00:00Z
 
 
 class DashboardFreshnessTests(unittest.TestCase):
+    def test_stale_early_unlock_uses_its_actual_parent_repair(self):
+        rule = next(a for a in self.config['artifacts'] if a['id'] == 'vedolo-early-unlock')
+        old = {'generatedAt': NOW, 'sourceTimestamp': NOW - 9 * 3600}
+        state = self.m.assess(old, rule, NOW)
+        self.assertEqual(state['state'], 'source_stale')
+        self.assertEqual(self.m.compare(rule, state, state, self.config)['workflow'], 'update-data.yml')
+        self.assertEqual(rule['maxAgeMinutes'], 480)
+
+    def test_running_vedolo_parent_is_recognized_without_relabeling_stale_quotes(self):
+        rule = next(a for a in self.config['artifacts'] if a['id'] == 'vedolo-early-unlock')
+        config = dict(self.config, artifacts=[rule])
+        output = io.StringIO()
+        old = {'generatedAt': NOW, 'sourceTimestamp': NOW - 9 * 3600}
+        active = [{'status': 'in_progress', 'created_at': '2026-09-17T11:55:00Z'}]
+        with patch.dict('os.environ', {'GH_TOKEN': 'test-token'}, clear=True), \
+                patch.object(self.m, 'load_config', return_value=config), \
+                patch.object(self.m.time, 'time', return_value=NOW), \
+                patch.object(self.m.HttpClient, 'get_json', return_value=old), \
+                patch.object(self.m.GitHubAPI, 'runs', return_value=active), \
+                patch.object(self.m.GitHubAPI, 'dispatch') as dispatched, \
+                patch('sys.stdout', output):
+            self.assertEqual(self.m.main(['--fail-on-stale']), 0)
+            dispatched.assert_not_called()
+        row = json.loads(output.getvalue())['rows'][0]
+        self.assertEqual(row['public']['state'], 'source_stale')
+        self.assertEqual(row['workflow'], 'update-data.yml')
+
     def test_borrow_pnl_checks_every_chain_source_and_dispatches_its_producer(self):
         rule = next(a for a in self.config['artifacts'] if a['id'] == 'borrow-position-pnl')
         payload = {'generatedAt': NOW, 'sourceAsOf': NOW, 'chains': {
