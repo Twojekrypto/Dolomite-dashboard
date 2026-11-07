@@ -92,6 +92,7 @@ jobs:
 
       - name: Run DOLO flow and holder exposure tests
         run: |
+          python3 -m unittest discover -s tests -p 'test_dispatch_pages.py'
           python3 -m unittest tests/test_fresh_wallets.py tests/test_generate_dolo_flows_integrity.py tests/test_generate_dolo_flows_rpc.py tests/test_flow_tx_metadata.py tests/test_validate_dolo_flows.py tests/test_cex_holder_history.py
           node --test tests/dolo-flow-balance-display.test.js tests/dolo-flow-lp-display.test.js tests/dolo-holder-protocol-exposure.test.js tests/dolo-flow-protocol-filter.test.js tests/holder-distribution-contract.test.js
 
@@ -153,7 +154,7 @@ jobs:
               sleep $((5 + RANDOM % 15))
             done
             if [ "$pushed" != "true" ]; then echo "::error::DOLO holder publication failed"; exit 1; fi
-            gh workflow run pages.yml --ref master
+            python3 scripts/dispatch_pages.py --repo "$GITHUB_REPOSITORY" --commit "$(git rev-parse HEAD)"
           fi
 
       - name: Generate DOLO flows data
@@ -253,4 +254,4 @@ jobs:
       - name: Publish refreshed flows to Pages
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run pages.yml --ref master
+        run: python3 scripts/dispatch_pages.py --repo "$GITHUB_REPOSITORY" --commit "$(git rev-parse HEAD)"

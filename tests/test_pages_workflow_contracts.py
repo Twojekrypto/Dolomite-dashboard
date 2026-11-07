@@ -25,7 +25,7 @@ class PagesWorkflowContractTests(unittest.TestCase):
         workflow = DOLO_FLOWS_WORKFLOW.read_text(encoding="utf-8")
         publish = workflow.split("- name: Publish refreshed flows to Pages", 1)[1]
         self.assertIn("GH_TOKEN: ${{ github.token }}", publish)
-        self.assertIn("gh workflow run pages.yml --ref master", publish)
+        self.assertIn('python3 scripts/dispatch_pages.py --repo "$GITHUB_REPOSITORY" --commit "$(git rev-parse HEAD)"', publish)
         self.assertNotIn("always()", publish)
         self.assertLess(workflow.index("Push failed after 3 attempts"),
                         workflow.index("- name: Publish refreshed flows to Pages"))
