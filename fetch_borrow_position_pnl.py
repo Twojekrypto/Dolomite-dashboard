@@ -24,7 +24,7 @@ import time
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
-from build_borrow_position_pnl import atomic_write, from_usd36, par_to_wei, performance
+from build_borrow_position_pnl import atomic_write, from_usd36, par_to_wei, performance, validate_vaporization_keeper
 import scan_earn_netflow as decoder
 
 BASE='https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/'
@@ -445,8 +445,39 @@ def isolation_liquidation_proof(transaction,event):
     except (IndexError,ValueError,TypeError):return None
 
 
+def vaporization_keeper_proof(opening,events,owner,number,contexts):
+    """Certify only a complete, unfunded, owner-operated vaporization keeper."""
+    if opening or not events or len({e['txHash'] for e in events})!=1 or len({e['blockHash'] for e in events})!=1:return None
+    proof=dict(kind='vaporization_keeper_boundary',transactionHash=events[0]['txHash'],blockHash=events[0]['blockHash'],openingPar={},events=[])
+    try:
+        for event in events:
+            kind=event['kind'];legs=event['legs'];ctx=contexts[(event['txHash'],event['logIndex'])]
+            if kind=='vaporization':
+                if len(legs)!=3 or any((l['owner'],l['account'])!=(owner,number) for l in legs[:2]):return None
+                own=legs[:2];target=legs[2]
+            elif kind=='trade':
+                if event['topic0'] not in (decoder.CURRENT_LOG_BUY,decoder.CURRENT_LOG_SELL) or len(legs)!=2 or any((l['owner'],l['account'])!=(owner,number) for l in legs):return None
+                own=legs
+            elif kind=='withdraw':
+                if len(legs)!=1 or (legs[0]['owner'],legs[0]['account'])!=(owner,number):return None
+                own=legs
+            else:return None
+            item=dict(kind=kind,topic0=event['topic0'],logIndex=event['logIndex'],operationRef=ctx['id'],operator=ctx['operator'],legs=[])
+            for leg in own:
+                market=leg['market'];index=ctx['indices'][market]
+                item['legs'].append(dict(marketId=market,deltaWeiRawSigned=str(leg['delta']),newParRawSigned=str(leg['new_par']),oraclePriceRaw=str(ctx['prices'][market]),supplyIndexRaw=str(index['supply']),borrowIndexRaw=str(index['borrow'])))
+            if kind=='vaporization':item['vaporAccount']=dict(owner=target['owner'],accountNumber=target['account'],marketId=target['market'],deltaWeiRawSigned=str(target['delta']),newParRawSigned=str(target['new_par']))
+            if kind=='withdraw':item['recipient']=event['routeAddress']
+            proof['events'].append(item)
+        validate_vaporization_keeper(proof,owner,number)
+    except (KeyError,ValueError,TypeError,IndexError):return None
+    return proof
+
+
 def recover_capital(source,opening,events,owner,number,contexts,liquidation_txs):
     """Build operation proofs first; unproved groups retain the old guard."""
+    keeper=vaporization_keeper_proof(opening,events,owner,number,contexts)
+    if keeper:return [keeper],{keeper['transactionHash']}
     state=dict(opening);groups=defaultdict(list);proofs=[];certified_liquidations=set()
     for event in events:groups[event['txHash']].append(event)
     for tx,evs in groups.items():

@@ -8,6 +8,7 @@ on:
       - 'borrow_pnl_oracle_recovery.py'
       - 'tests/test_borrow_position_pnl*.py'
       - 'tests/fixtures/borrow_pnl_oracle_recovery.json'
+      - 'tests/fixtures/borrow_pnl_vaporization_keepers.json'
       - '.github/workflows/update-borrow-position-pnl.yml'
   schedule:
     - cron: '37 */2 * * *'
@@ -35,6 +36,7 @@ jobs:
             /rpc_usage.py
             /tests/test_borrow_position_pnl*.py
             /tests/fixtures/borrow_pnl_oracle_recovery.json
+            /tests/fixtures/borrow_pnl_vaporization_keepers.json
             /borrow_position_pnl.json
       - uses: actions/setup-python@v6
         with:
