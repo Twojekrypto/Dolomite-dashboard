@@ -127,6 +127,8 @@
     "0x7efd088ae500598a19a242d6d48b9f7e0d061176": {label:"Strategic Investor Claims", type:"protocol", treasury:true, source:"dolomite-docs-module-dolo", confidence:"confirmed"},
 
     "0xdfe8c48608db1dc34e057916dcb3deea0b7bfbf5": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0xdfe8c48608db1dc34e057916dcb3deea0b7bfbf5", verifiedAt:"2026-11-08"},
+    "0xe40d548eb4fa4d9188fd21723f2fd377456c0876": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0xe40d548eb4fa4d9188fd21723f2fd377456c0876", verifiedAt:"2026-11-08"},
+    "0x8f90008577d6b6be3972558143ec4163199b7aa3": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x8f90008577d6b6be3972558143ec4163199b7aa3", verifiedAt:"2026-11-08"},
     "0xf977814e90da44bfa03b6295a0616a897441acec": {label:"Binance Hot Wallet 20", type:"cex", source:"etherscan-public-label"},
     "0x06fd4ba7973a0d39a91734bbc35bc2bcaa99e3b0": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed"},
     "0x28c6c06298d514db089934071355e5743bf21d60": {label:"Binance 14", type:"cex", source:"etherscan-public-label"},
