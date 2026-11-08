@@ -314,6 +314,7 @@ class WorkflowPublicationTests(unittest.TestCase):
             git('config','user.name','Fixture',cwd=work);git('config','user.email','fixture@example.invalid',cwd=work)
             (work/'build_borrow_position_pnl.py').write_text((root/'build_borrow_position_pnl.py').read_text())
             (work/'borrow_pnl_oracle_recovery.py').write_text((root/'borrow_pnl_oracle_recovery.py').read_text())
+            (work/'borrow_pnl_activity.py').write_text((root/'borrow_pnl_activity.py').read_text())
             for name in ['fetch_borrow_position_pnl.py','scan_earn_netflow.py','rpc_usage.py']:(work/name).write_text('# initial\n')
             (work/'other.txt').write_text('original')
             previous=PublicationTests().snapshot();(work/'borrow_position_pnl.json').write_text(json.dumps(previous))
@@ -322,6 +323,14 @@ class WorkflowPublicationTests(unittest.TestCase):
             changed='fetch_borrow_position_pnl.py' if change_source else 'other.txt'
             (competitor/changed).write_text('concurrent update\n');git('add',changed,cwd=competitor);git('commit','-m','Concurrent unrelated update',cwd=competitor);git('push','origin','master',cwd=competitor)
             candidate=PublicationTests().snapshot();candidate['generationLabel']='new candidate'
+            from borrow_pnl_activity import write_bundle
+            row=candidate['positions'][0];item={'events':[]}
+            for field in ('openingBalances','closingBalances'):
+                item[field]=[dict(b,parRawSigned='1' if b['marketId']=='0' else '-1',weiRawSigned='1' if b['marketId']=='0' else '-1',oraclePriceRaw=str(abs(int(b['usdExact']))*10**36),supplyIndexRaw=str(10**18),borrowIndexRaw=str(10**18)) for b in row[field]]
+            tokens={b['marketId']:{'id':b['address'],'symbol':b['symbol'],'decimals':b['decimals']} for b in row['openingBalances']}
+            activity={chain:{'tokens':tokens,'positions':{}} for chain in candidate['chains']}
+            activity['ethereum']['positions'][row['accountId']]=item
+            write_bundle(candidate,activity,work)
             (work/'borrow_position_pnl.json').write_text(json.dumps(candidate))
             result=subprocess.run(['bash','-c',script],cwd=work,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             published=json.loads(git('show','master:borrow_position_pnl.json',cwd=remote))
@@ -332,7 +341,14 @@ class WorkflowPublicationTests(unittest.TestCase):
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
                 self.assertEqual(published['generationLabel'],'new candidate')
                 self.assertEqual(git('show','master:other.txt',cwd=remote),'concurrent update')
-                self.assertEqual(git('diff-tree','--no-commit-id','--name-only','-r','master',cwd=remote),'borrow_position_pnl.json')
+                changed_paths=git('diff-tree','--no-commit-id','--name-only','-r','master',cwd=remote).splitlines()
+                self.assertEqual(len(changed_paths),49)
+                self.assertIn('borrow_position_pnl.json',changed_paths)
+                for ref in published['activity']['files'].values():
+                    raw=git('show','master:'+ref['path'],cwd=remote)
+                    self.assertEqual(json.loads(raw)['closing'],published['chains'][json.loads(raw)['chain']]['closing'])
+                    import hashlib
+                    self.assertEqual(hashlib.sha256((raw+'\n').encode()).hexdigest(),ref['sha256'])
 
     def test_actual_publisher_preserves_concurrent_unrelated_update(self):self.execute_publish()
     def test_actual_publisher_rejects_changed_producer_source(self):self.execute_publish(True)
@@ -407,7 +423,7 @@ class SparseFilesystemTests(unittest.TestCase):
         patterns='\n'.join(line.strip() for line in patterns.splitlines())+'\n'
         with tempfile.TemporaryDirectory() as temporary:
             base=Path(temporary);source=base/'source';source.mkdir();sparse=base/'sparse'
-            paths=['borrow_pnl_oracle_recovery.py','tests/test_borrow_position_pnl_oracle_recovery.py','tests/fixtures/borrow_pnl_oracle_recovery.json','build_borrow_position_pnl.py','fetch_borrow_position_pnl.py','scan_earn_netflow.py','rpc_usage.py',
+            paths=['borrow_pnl_activity.py','tests/test_borrow_position_pnl_activity.py','tests/test_borrow_position_pnl_vaporization.py','tests/fixtures/borrow_pnl_vaporization_keepers.json','borrow_pnl_oracle_recovery.py','tests/test_borrow_position_pnl_oracle_recovery.py','tests/fixtures/borrow_pnl_oracle_recovery.json','build_borrow_position_pnl.py','fetch_borrow_position_pnl.py','scan_earn_netflow.py','rpc_usage.py',
                    '.github/workflows/update-borrow-position-pnl.yml','tests/test_borrow_position_pnl.py','tests/test_borrow_position_pnl_sources.py']
             for relative in paths:
                 dest=source/relative;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(root/relative,dest)

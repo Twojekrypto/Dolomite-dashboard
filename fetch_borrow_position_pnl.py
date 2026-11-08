@@ -70,7 +70,10 @@ def decode_event(log):
     if not entries or any('account' not in e or 'new_par' not in e for e in entries): raise ValueError('Missing exact account/Par')
     for e in entries:
         if not 0<=int(e['account'])<2**256: raise ValueError('Invalid uint256 account')
+    stamp=log.get('blockTimestamp')
+    timestamp=int(stamp,16) if isinstance(stamp,str) and re.fullmatch(r'0x[0-9a-fA-F]+',stamp) else None
     return dict(kind=kind,legs=entries,routeAddress=('0x'+format(values[6],'040x')) if kind in ('deposit','withdraw') else None,
+                timestamp=timestamp,
                 blockNumber=int(log['blockNumber'],16),blockHash=log['blockHash'],txHash=log['transactionHash'],txIndex=int(log['transactionIndex'],16),logIndex=int(log['logIndex'],16),topic0=topic)
 
 
@@ -631,7 +634,7 @@ def getter_audit(source,header,account,expected):
         return dict(audit,valuesResponseUsd36=None,valuesMatchCurrentIndex=False,valuesUnavailableReason='reconstructed_market_oracle',reconstructedValuationRefs=refs,valuesFailure={'code':error.code,'message':error.message,'data':error.data,'responseHash':error.response_hash})
 
 
-def collect_chain(chain,cache,target):
+def collect_chain(chain,cache,target,include_activity=False):
     source=Source(chain,cache); started=time.time()
     meta=source.graph('{_meta{block{number} deployment hasIndexingErrors}}')['_meta']
     if meta['hasIndexingErrors']:raise ValueError('Graph indexing errors')
@@ -663,7 +666,7 @@ def collect_chain(chain,cache,target):
             market_ids.add(str(v['token']['marketId']));tokens[str(v['token']['marketId'])]=v['token']
     for e in events:market_ids.update(l['market'] for l in e['legs'])
     opening_marks=source.marks(opening,market_ids,tokens);closing_marks=source.marks(closing,market_ids,tokens)
-    rows=[];nonborrow=0;audits=[];failures=Counter()
+    rows=[];nonborrow=0;audits=[];failures=Counter();activity_positions={}
     audit_candidates=[]
     for aid in sorted(ids):
         account=closed.get(aid) or opened.get(aid)
@@ -699,6 +702,11 @@ def collect_chain(chain,cache,target):
                  tokens=sorted({tokens[m]['symbol'] for m in set(op)|set(cp)|{l['market'] for e in evs for l in e['legs'] if l['owner']==owner and l['account']==number} if m in tokens}),
                  totalInflowUsdExact=from_usd36(sum(f['usd36'] for f in flows if f['usd36']>0)) if all(f['usd36'] is not None for f in flows) else None,totalOutflowUsdExact=from_usd36(-sum(f['usd36'] for f in flows if f['usd36']<0)) if all(f['usd36'] is not None for f in flows) else None,eventCount=len(evs),externalFlowCount=len(flows),returnProof=public_return_proof(flows) if perf['return']['status']=='verified' else [],provenance={'endpointMethod':'graph_par_rpc_current_index_oracle','eventRangeComplete':True,'endingParReconciled':ending==cp,'flowMethod':'operation_oracle_proven_capital_v2','valuationMethod':'official_oracle_formula_reconstruction' if any(b.get('valuationRef') for point in (a,z) if point for b in point['balances']) else 'protocol_market_oracle','boundaryGetterAudited':False,'boundaryBalancesHash':digest({'opening':a,'closing':z})},**perf)
         row.update(capitalProof=capital_proofs,capitalFlowProof=public_capital_flows(flows) if capital_proofs else [])
+        if include_activity:
+            from borrow_pnl_activity import export_position,ActivityUnavailable
+            try:activity_positions[aid]=export_position(op,cp,evs,owner,number,contexts,a,z,opening_marks,closing_marks)
+            except ActivityUnavailable as error:
+                activity_positions[aid]={'status':'unavailable','reasonCodes':[str(error)],'openingBalances':[],'closingBalances':[],'events':[]}
         rows.append(row)
     # Deterministic stratification: first/last/positive/negative/reduced/closed.
     candidates={}
@@ -720,6 +728,7 @@ def collect_chain(chain,cache,target):
                   valuation={'method':'exact_graph_par_times_rpc_current_index_times_rpc_oracle','rounding':'Solidity Interest.parToWei half-up both signs','accountValuesSemantics':'cached_index' if chain=='arbitrum' else 'current_index','sampleGetterAudits':audits,'reconstructedPrices':{v['valuationRef']:v['reconstruction'] for marks in (opening_marks,closing_marks) for v in marks.values() if v.get('valuationRef')}},
                   failures=dict(failures),unavailableMarkets={'opening':{m:(v if v.get('error') else {'error':'contract_revert','failureType':'RpcRevert','reconstructionRef':v['valuationRef']}) for m,v in opening_marks.items() if v.get('error') or v.get('valuationRef')},'closing':{m:(v if v.get('error') else {'error':'contract_revert','failureType':'RpcRevert','reconstructionRef':v['valuationRef']}) for m,v in closing_marks.items() if v.get('error') or v.get('valuationRef')}},sourceHashes=sorted(source.refs),sourceCacheManifestHash=digest(sorted(source.refs)),runtimeSeconds=round(time.time()-started,3))
     chain_output={'manifest':manifest,'positions':rows}
+    if include_activity:chain_output['activity']={'tokens':tokens,'positions':activity_positions}
     (source.cache/'latest-chain.json').write_text(json.dumps(chain_output,separators=(',',':')))
     print(chain,'complete',len(rows),'positions',sum(r['pnl']['status']=='verified' for r in rows),'verified P&L',sum(r['return']['status']=='verified' for r in rows),'verified returns',flush=True)
     return chain_output
@@ -738,6 +747,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cache',default='.cache/borrow-position-pnl')
     parser.add_argument('--output',default='borrow_position_pnl.json')
+    parser.add_argument('--activity-dir',choices=['data/borrow-position-pnl-history'],help='Enable complete lazy activity export beside the output snapshot')
     parser.add_argument('--target-timestamp',type=int)
     parser.add_argument('--chain',choices=list(CONFIG),help='Collect one chain evidence only; never publish an incomplete universe')
     parser.add_argument('--assemble-cache',action='store_true',help='Validate and assemble completed per-chain evidence')
@@ -746,7 +756,7 @@ def main():
     if args.assemble_cache:
         outputs=[json.loads((Path(args.cache)/c/'latest-chain.json').read_text()) for c in CONFIG]
     else:
-        with ThreadPoolExecutor(max_workers=3) as pool:outputs=list(pool.map(lambda c:collect_chain(c,args.cache,target),chains))
+        with ThreadPoolExecutor(max_workers=3) as pool:outputs=list(pool.map(lambda c:collect_chain(c,args.cache,target,include_activity=bool(args.activity_dir)),chains))
     if args.chain:return
     manifests={c:o['manifest'] for c,o in zip(CONFIG,outputs)};rows=[row for o in outputs for row in o['positions']]
     now=int(time.time())
@@ -756,6 +766,11 @@ def main():
     if not verified:raise ValueError('No verified real positions; preserve previous snapshot')
     snapshot=dict(schemaVersion=1,methodology='dolomite-oracle-marked-equity-v1',generatedAt=datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),windowSeconds=2592000,maxAgeSeconds=21600,
                   sourceAsOf=min(m['closing']['timestamp'] for m in manifests.values()),chains=manifests,summary={'positions':len(rows),'verifiedPnl':verified,'verifiedReturn':sum(r['return']['status']=='verified' for r in rows),'unavailablePnl':len(rows)-verified,'closedPositions':sum(r['closed'] for r in rows)},positions=rows)
-    atomic_write(args.output,snapshot);prune_cache(args.cache,manifests);print('Published local snapshot',args.output,snapshot['summary'],flush=True)
+    if args.activity_dir:
+        from borrow_pnl_activity import write_bundle,prune_generations
+        write_bundle(snapshot,{c:o['activity'] for c,o in zip(CONFIG,outputs)},Path(args.output).parent)
+    atomic_write(args.output,snapshot)
+    if args.activity_dir:prune_generations(Path(args.output).parent,now=now)
+    prune_cache(args.cache,manifests);print('Published local snapshot',args.output,snapshot['summary'],flush=True)
 
 if __name__=='__main__':main()

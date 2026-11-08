@@ -458,7 +458,10 @@ def _validate_snapshot(data):
 def validate_snapshot(data):
     """Strict public contract, including independently recomputable TWR proof."""
     try:
-        return _validate_snapshot(data)
+        result=_validate_snapshot(data)
+        from borrow_pnl_activity import validate_metadata
+        validate_metadata(result)
+        return result
     except (KeyError,TypeError,AttributeError,ZeroDivisionError,OverflowError) as error:
         raise ValueError('Malformed snapshot contract') from error
 
@@ -476,4 +479,7 @@ if __name__ == '__main__':
     parser.add_argument('--validate',required=True)
     args=parser.parse_args()
     data=validate_snapshot(json.loads(Path(args.validate).read_text()))
+    if 'activity' in data:
+        from borrow_pnl_activity import validate_bundle
+        validate_bundle(data,Path(args.validate).parent)
     print('Validated',len(data['positions']),'borrow positions')
