@@ -112,6 +112,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      actions: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url || steps.deployment_retry2.outputs.page_url }}
@@ -154,7 +159,20 @@ jobs:
           ref: master
           sparse-checkout: |
             scripts/smoke_live_pages.py
+            scripts/check_dashboard_freshness.py
+            config/dashboard_freshness.json
           sparse-checkout-cone-mode: false
 
       - name: Smoke test live Pages
         run: python3 scripts/smoke_live_pages.py "${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url || steps.deployment_retry2.outputs.page_url }}"
+
+      - name: Backstop dashboard freshness cadence
+        if: ${{ success() }}
+        # Nested publications may not emit a further workflow_run. Reuse the
+        # metadata-only gate: 15-minute minimum, active/race checks, one POST.
+        # An optional dispatch outage must not invalidate a verified deployment.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python3 scripts/check_dashboard_freshness.py --config config/dashboard_freshness.json --ensure-check-due
