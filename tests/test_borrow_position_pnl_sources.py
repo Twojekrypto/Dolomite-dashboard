@@ -424,6 +424,7 @@ class SparseFilesystemTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             base=Path(temporary);source=base/'source';source.mkdir();sparse=base/'sparse'
             paths=['borrow_pnl_activity.py','tests/test_borrow_position_pnl_activity.py','tests/test_borrow_position_pnl_vaporization.py','tests/fixtures/borrow_pnl_vaporization_keepers.json','borrow_pnl_oracle_recovery.py','tests/test_borrow_position_pnl_oracle_recovery.py','tests/fixtures/borrow_pnl_oracle_recovery.json','build_borrow_position_pnl.py','fetch_borrow_position_pnl.py','scan_earn_netflow.py','rpc_usage.py',
+                   'tests/test_borrow_position_pnl_liquidation_keeper.py','tests/fixtures/borrow_pnl_liquidation_keeper.json',
                    '.github/workflows/update-borrow-position-pnl.yml','tests/test_borrow_position_pnl.py','tests/test_borrow_position_pnl_sources.py']
             for relative in paths:
                 dest=source/relative;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(root/relative,dest)

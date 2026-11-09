@@ -24,7 +24,7 @@ import time
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
-from build_borrow_position_pnl import atomic_write, from_usd36, par_to_wei, performance, validate_vaporization_keeper
+from build_borrow_position_pnl import atomic_write, from_usd36, par_to_wei, performance, validate_vaporization_keeper, validate_liquidation_keeper
 import scan_earn_netflow as decoder
 
 BASE='https://subgraph.api.dolomite.io/api/public/1301d2d1-7a9d-4be4-9e9a-061cb8611549/subgraphs/'
@@ -477,9 +477,48 @@ def vaporization_keeper_proof(opening,events,owner,number,contexts):
     return proof
 
 
+def liquidation_keeper_proof(source,opening,events,owner,number,contexts):
+    """Certify the raw receipt of an unfunded liquidation/sale/owner payout."""
+    if opening or len(events)!=3 or [e['kind'] for e in events]!=['liquidation','trade','withdraw'] or len({e['txHash'] for e in events})!=1 or len({e['blockHash'] for e in events})!=1:return None
+    first=events[0];tx=first['txHash'];block=first['blockHash']
+    transaction=source.rpc('eth_getTransactionByHash',[tx],block)
+    receipt=source.rpc('eth_getTransactionReceipt',[tx],block)
+    try:
+        if not transaction or not receipt or transaction.get('hash')!=tx or receipt.get('transactionHash')!=tx or transaction.get('blockHash')!=block or receipt.get('blockHash')!=block or receipt.get('status')!='0x1':return None
+        if any(int(item['blockNumber'],16)!=first['blockNumber'] or int(item['transactionIndex'],16)!=first['txIndex'] for item in (transaction,receipt)) or transaction['from']!=receipt['from']:return None
+        logs=[log for log in receipt['logs'] if log['address'].lower()==source.margin.lower()]
+        if any(log.get('removed') or log['transactionHash']!=tx or log['blockHash']!=block or int(log['blockNumber'],16)!=first['blockNumber'] or int(log['transactionIndex'],16)!=first['txIndex'] for log in logs):return None
+        decoded=[decode_event(log) for log in logs if log['topics'][0].lower() in decoder.ALL_EVENTS]
+        # eth_getLogs may omit blockTimestamp. Compare exact economic identities
+        # and all receipt balance events, including other raw accounts.
+        canonical=lambda es:[{k:v for k,v in e.items() if k!='timestamp'} for e in es]
+        actual_contexts=operation_context(logs)
+        if canonical(decoded)!=canonical(events) or any(actual_contexts.get((tx,e['logIndex']))!=contexts.get((tx,e['logIndex'])) for e in events):return None
+        proof=dict(kind='liquidation_keeper_boundary',owner=owner,accountNumber=number,transactionHash=tx,blockHash=block,openingPar={},events=[],
+            sender=transaction['from'],transactionTo=transaction['to'],transactionValueRaw=str(int(transaction['value'],16)),receiptTo=receipt['to'],receiptStatus=receipt['status'],
+            transactionEvidenceHash=digest(transaction),receiptEvidenceHash=digest(receipt),marginBalanceEventCount=len(decoded))
+        for event in events:
+            kind=event['kind'];legs=event['legs'];ctx=actual_contexts[(tx,event['logIndex'])]
+            own=legs[:2] if kind=='liquidation' else legs
+            if any((l['owner'],l['account'])!=(owner,number) for l in own):return None
+            item=dict(kind=kind,topic0=event['topic0'],logIndex=event['logIndex'],operationRef=ctx['id'],operator=ctx['operator'],legs=[])
+            for leg in own:
+                market=leg['market'];index=ctx['indices'][market]
+                item['legs'].append(dict(marketId=market,deltaWeiRawSigned=str(leg['delta']),newParRawSigned=str(leg['new_par']),oraclePriceRaw=str(ctx['prices'][market]),supplyIndexRaw=str(index['supply']),borrowIndexRaw=str(index['borrow'])))
+            if kind=='liquidation':
+                if len(legs)!=4 or (legs[2]['owner'],legs[2]['account'])!=(legs[3]['owner'],legs[3]['account']):return None
+                item['liquidAccount']=dict(owner=legs[2]['owner'],accountNumber=legs[2]['account'],legs=[dict(marketId=l['market'],deltaWeiRawSigned=str(l['delta']),newParRawSigned=str(l['new_par'])) for l in legs[2:]])
+            if kind=='withdraw':item['recipient']=event['routeAddress']
+            proof['events'].append(item)
+        validate_liquidation_keeper(proof,owner,number)
+    except (KeyError,ValueError,TypeError,IndexError):return None
+    return proof
+
+
 def recover_capital(source,opening,events,owner,number,contexts,liquidation_txs):
     """Build operation proofs first; unproved groups retain the old guard."""
     keeper=vaporization_keeper_proof(opening,events,owner,number,contexts)
+    if keeper is None:keeper=liquidation_keeper_proof(source,opening,events,owner,number,contexts)
     if keeper:return [keeper],{keeper['transactionHash']}
     state=dict(opening);groups=defaultdict(list);proofs=[];certified_liquidations=set()
     for event in events:groups[event['txHash']].append(event)

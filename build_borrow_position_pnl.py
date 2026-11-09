@@ -169,6 +169,67 @@ def validate_vaporization_keeper(proof,owner,number):
     return withdrawals
 
 
+def validate_liquidation_keeper(proof,owner,number):
+    """Prove a complete unfunded liquidation -> sale -> owner payout cycle.
+
+    This separate boundary excludes funded liquidators, targets, routed capital
+    transfers and partial lifecycles. Its sole cash flow is the earned payout.
+    """
+    address=r'0x[0-9a-f]{40}';natural=r'(?:0|[1-9][0-9]*)';integer=r'(?:0|-?[1-9][0-9]*)'
+    tx=_match(proof['transactionHash'],r'0x[0-9a-f]{64}')
+    _match(proof['blockHash'],r'0x[0-9a-f]{64}')
+    for key in ('transactionEvidenceHash','receiptEvidenceHash'):_match(proof[key],r'[0-9a-f]{64}')
+    _match(proof['sender'],address)
+    if proof['owner']!=owner or proof['accountNumber']!=number:raise ValueError('Keeper raw account identity mismatch')
+    if proof['openingPar']!={} or proof['receiptStatus']!='0x1' or proof['transactionTo']!=owner or proof['receiptTo']!=owner or proof['transactionValueRaw']!='0' or proof['marginBalanceEventCount']!=3:
+        raise ValueError('Unproved liquidation keeper initiation/receipt')
+    events=proof['events']
+    if len(events)!=3 or [e['kind'] for e in events]!=['liquidation','trade','withdraw']:
+        raise ValueError('Keeper requires a complete three-action liquidation cycle')
+    liquid,trade,withdraw=events
+    if liquid['topic0']!='0x1b9e65b359b871d74b1af1fc8b13b11635bfb097c4631b091eb762fda7e67dc7' or trade['topic0'] not in ('0x2e346762bf4ae4568971c30b51fcebd2138275aafcfe12d872956e9f3e120893','0xcc3330184b6d88cad87f9e9543b4d4110a6a3eaf20164ca5252d598d0acba3f1') or withdraw['topic0']!='0xbc83c08f0b269b1726990c8348ffdf1ae1696244a14868d766e542a2f18cd7d4':
+        raise ValueError('Unsupported liquidation keeper ABI')
+    if liquid['operationRef']!=trade['operationRef'] or liquid['operator']!=trade['operator'] or withdraw['operator']!=owner or withdraw['recipient']!=owner:
+        raise ValueError('Keeper sale/payout operation boundary mismatch')
+    if len(liquid['legs'])!=2 or len(trade['legs'])!=2 or len(withdraw['legs'])!=1:
+        raise ValueError('Unexpected liquidation keeper leg count')
+    held,owed=liquid['legs'];targets=liquid['liquidAccount']
+    if held['marketId']==owed['marketId'] or int(held['deltaWeiRawSigned'])<=0 or int(owed['deltaWeiRawSigned'])>=0:
+        raise ValueError('Invalid keeper seizure/debt direction')
+    _match(targets['owner'],address);_match(targets['accountNumber'],natural)
+    if (targets['owner'],targets['accountNumber'])==(owner,number) or len(targets['legs'])!=2:
+        raise ValueError('Keeper cannot be the liquidation target')
+    for i,(own,target) in enumerate(zip(liquid['legs'],targets['legs'])):
+        if own['marketId']!=target['marketId'] or int(_match(target['deltaWeiRawSigned'],integer))!=-int(own['deltaWeiRawSigned']) or (int(_match(target['newParRawSigned'],integer))<0 if i==0 else int(target['newParRawSigned'])>0):
+            raise ValueError('Liquidation counterparty legs do not reconcile')
+    trade_legs={leg['marketId']:leg for leg in trade['legs']}
+    if set(trade_legs)!={held['marketId'],owed['marketId']} or int(trade_legs[held['marketId']]['newParRawSigned'])!=0 or int(trade_legs[held['marketId']]['deltaWeiRawSigned'])!=-int(held['deltaWeiRawSigned']) or int(trade_legs[owed['marketId']]['deltaWeiRawSigned'])<=0 or int(trade_legs[owed['marketId']]['newParRawSigned'])<=0 or withdraw['legs'][0]['marketId']!=owed['marketId']:
+        raise ValueError('Keeper must sell all seized collateral and repay debt')
+    state={};last=-1;operation_marks={};withdrawals={}
+    for event in events:
+        index=_natural(event['logIndex']);operation=_match(event['operationRef'],r'0x[0-9a-f]{64}:0x[0-9a-f]+')
+        _match(event['operator'],address)
+        if index<=last or operation.split(':')[0]!=tx or int(operation.split(':')[1],16)>=index or event is withdraw and int(operation.split(':')[1],16)<=trade['logIndex']:
+            raise ValueError('Invalid keeper operation identity/order')
+        last=index
+        if len({l['marketId'] for l in event['legs']})!=len(event['legs']):raise ValueError('Keeper action repeats a market')
+        for leg in event['legs']:
+            market=_match(leg['marketId'],natural);delta=int(_match(leg['deltaWeiRawSigned'],integer));par=int(_match(leg['newParRawSigned'],integer))
+            price=int(_match(leg['oraclePriceRaw'],r'[1-9][0-9]*'));supply=int(_match(leg['supplyIndexRaw'],r'[1-9][0-9]*'));borrow=int(_match(leg['borrowIndexRaw'],r'[1-9][0-9]*'))
+            mark=(price,supply,borrow)
+            if operation_marks.setdefault((operation,market),mark)!=mark:raise ValueError('Conflicting keeper operation mark')
+            before=par_to_wei(state.get(market,0),supply,borrow);after=before+delta;interest_index=supply if after>=0 else borrow
+            expected=(abs(after)*10**18+interest_index//2)//interest_index
+            if par!=(-expected if after<0 else expected):raise ValueError('Keeper principal transition does not reconcile')
+            if event is withdraw:
+                if before<=0 or par!=0 or delta!=-before:raise ValueError('Keeper payout must exactly close earned positive balance')
+                withdrawals[tx+':'+str(index)]=(operation,market,str(delta),str(price))
+            if par:state[market]=par
+            else:state.pop(market,None)
+    if state or len(withdrawals)!=1:raise ValueError('Keeper lifecycle is incomplete')
+    return withdrawals
+
+
 def validate_capital_proofs(row,margin):
     """Check compact economic classifications and their complete capital ledger."""
     address=r'0x[0-9a-f]{40}';hash_pattern=r'0x[0-9a-f]{64}';integer=r'(?:0|-?[1-9][0-9]*)';natural=r'(?:0|[1-9][0-9]*)'
@@ -213,10 +274,11 @@ def validate_capital_proofs(row,margin):
                     flow=by_event.get(tx+':'+str(index))
                     if not flow or any(flow[k]!=event[k] for k in ('operationRef','marketId','deltaWeiRawSigned','oraclePriceRaw')):raise ValueError('Mixed proof disagrees with capital ledger')
             if total!=usd36(proof['externalUsdExact']):raise ValueError('Mixed proof valuation disagrees')
-        elif kind=='vaporization_keeper_boundary':
+        elif kind in ('vaporization_keeper_boundary','liquidation_keeper_boundary'):
             _require_fields(proof,('openingPar','blockHash','events'))
             if row['openingBalances'] or row['closingBalances'] or len(proofs)!=1 or len(proof['events'])!=row['eventCount']:raise ValueError('Keeper proof must cover the complete unfunded position lifecycle')
-            expected=validate_vaporization_keeper(proof,row['address'],row['accountNumber'])
+            validator=validate_vaporization_keeper if kind=='vaporization_keeper_boundary' else validate_liquidation_keeper
+            expected=validator(proof,row['address'],row['accountNumber'])
             if known:
                 if set(expected)!=set(by_event):raise ValueError('Keeper capital ledger is incomplete')
                 for ref,values in expected.items():
