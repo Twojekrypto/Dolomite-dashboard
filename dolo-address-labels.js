@@ -1,5 +1,7 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0x35ea34834b3d53069d74353f9976b4348227e005": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x35ea34834b3d53069d74353f9976b4348227e005", verifiedAt:"2026-11-09"},
+    "0x0ba95f8b0d96ae5c7f69b5d02ea97c122d575c98": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x0ba95f8b0d96ae5c7f69b5d02ea97c122d575c98", verifiedAt:"2026-11-09"},
     "0x68dabe79b4cb57502a8771ca7ddca75050012852": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x68dabe79b4cb57502a8771ca7ddca75050012852", verifiedAt:"2026-11-07"},
     "0x55423582c0903793f8a5b332c750e499047410ff": {label:"MEXC", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x55423582c0903793f8a5b332c750e499047410ff", verifiedAt:"2026-11-07"},
     "0x5a6c74c991129aee4431df7d259856b7a3ed5652": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x5a6c74c991129aee4431df7d259856b7a3ed5652", verifiedAt:"2026-11-05"},
