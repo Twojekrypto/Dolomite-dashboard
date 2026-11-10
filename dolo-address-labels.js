@@ -1,5 +1,8 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0xf330cf5bfc9d60ddac0236723d95dd426120060e": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xf330cf5bfc9d60ddac0236723d95dd426120060e", verifiedAt:"2026-11-10"},
+    "0x6eb9fec1aa0e3053b3aba0cc320a87f724e284af": {label:"Gate.io", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x6eb9fec1aa0e3053b3aba0cc320a87f724e284af", verifiedAt:"2026-11-10"},
+    "0x857d9e9aadf406c579f9cf38741b327b0077bfdd": {label:"Gate.io", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x857d9e9aadf406c579f9cf38741b327b0077bfdd", verifiedAt:"2026-11-10"},
     "0x670e862b82cbca8a9ecf5cbe28ddd85f93c7e2d0": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x670e862b82cbca8a9ecf5cbe28ddd85f93c7e2d0", verifiedAt:"2026-11-10"},
     "0x35ea34834b3d53069d74353f9976b4348227e005": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x35ea34834b3d53069d74353f9976b4348227e005", verifiedAt:"2026-11-09"},
     "0x0ba95f8b0d96ae5c7f69b5d02ea97c122d575c98": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x0ba95f8b0d96ae5c7f69b5d02ea97c122d575c98", verifiedAt:"2026-11-09"},
