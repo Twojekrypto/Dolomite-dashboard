@@ -1,5 +1,6 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0x670e862b82cbca8a9ecf5cbe28ddd85f93c7e2d0": {label:"Binance Deposit", type:"cex", source:"etherscan-public-label", confidence:"confirmed", sourceUrl:"https://etherscan.io/address/0x670e862b82cbca8a9ecf5cbe28ddd85f93c7e2d0", verifiedAt:"2026-11-10"},
     "0x35ea34834b3d53069d74353f9976b4348227e005": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x35ea34834b3d53069d74353f9976b4348227e005", verifiedAt:"2026-11-09"},
     "0x0ba95f8b0d96ae5c7f69b5d02ea97c122d575c98": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x0ba95f8b0d96ae5c7f69b5d02ea97c122d575c98", verifiedAt:"2026-11-09"},
     "0x68dabe79b4cb57502a8771ca7ddca75050012852": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x68dabe79b4cb57502a8771ca7ddca75050012852", verifiedAt:"2026-11-07"},
