@@ -1,5 +1,6 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0x5a52e96bacdabb82fd05763e25335261b270efcb": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x5a52e96bacdabb82fd05763e25335261b270efcb", verifiedAt:"2026-11-11"},
     "0xf330cf5bfc9d60ddac0236723d95dd426120060e": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xf330cf5bfc9d60ddac0236723d95dd426120060e", verifiedAt:"2026-11-10"},
     "0x6eb9fec1aa0e3053b3aba0cc320a87f724e284af": {label:"Gate.io", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x6eb9fec1aa0e3053b3aba0cc320a87f724e284af", verifiedAt:"2026-11-10"},
     "0x857d9e9aadf406c579f9cf38741b327b0077bfdd": {label:"Gate.io", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x857d9e9aadf406c579f9cf38741b327b0077bfdd", verifiedAt:"2026-11-10"},
