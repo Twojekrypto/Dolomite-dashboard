@@ -13,6 +13,46 @@ NOW = 1789646400  # 2026-09-17T12:00:00Z
 
 
 class DashboardFreshnessTests(unittest.TestCase):
+    def borrow_payload(self, wrapper_age=0, source_age=0):
+        return {'generatedAt': NOW - wrapper_age, 'sources': {
+            'positionsGeneratedAt': NOW - source_age,
+            'rates': {chain: {'fetchedAt': NOW - source_age}
+                      for chain in ('ethereum', 'arbitrum', 'berachain')}},
+            'chainStatus': {chain: {'status': 'ok'}
+                            for chain in ('ethereum', 'arbitrum', 'berachain')}}
+
+    def test_borrow_refresh_starts_before_a_delayed_guard_can_expire_rates(self):
+        # Actual Nov12 gap: prior rates were33min old when the last guard ran;
+        # the next guard arrived59min later, after the90min consumer deadline.
+        rule = next(a for a in self.config['artifacts'] if a['id'] == 'borrow-earnings')
+        state = self.m.assess(self.borrow_payload(33 * 60, 33 * 60), rule, NOW)
+        self.assertEqual(state['state'], 'early_due')
+        self.assertEqual(self.m.compare(rule, state, state, self.config)['workflow'],
+                         'update-liquidation-risk.yml')
+
+    def test_borrow_refresh_uses_input_age_even_with_a_new_wrapper(self):
+        rule = next(a for a in self.config['artifacts'] if a['id'] == 'borrow-earnings')
+        for age, expected in [(29 * 60 + 59, 'fresh'), (30 * 60, 'early_due'),
+                              (89 * 60, 'early_due'), (90 * 60, 'source_stale')]:
+            with self.subTest(age=age):
+                state = self.m.assess(self.borrow_payload(0, age), rule, NOW)
+                self.assertEqual(state['state'], expected)
+        missing = self.borrow_payload()
+        del missing['sources']['rates']['arbitrum']['fetchedAt']
+        self.assertEqual(self.m.assess(missing, rule, NOW)['state'], 'invalid')
+        self.assertEqual(self.m.assess(self.borrow_payload(0, -1), rule, NOW)['state'], 'invalid')
+
+    def test_source_early_refresh_is_opt_in_for_other_artifacts(self):
+        rule = {'timestamps': ['generatedAt'], 'sourceTimestamps': ['inputAt'],
+                'maxAgeMinutes': 90, 'earlyDueMinutes': 30}
+        payload = {'generatedAt': NOW, 'inputAt': NOW - 60 * 60}
+        self.assertEqual(self.m.assess(payload, rule, NOW)['state'], 'fresh')
+        rule['sourceEarlyDueMinutes'] = 30
+        self.assertEqual(self.m.assess(payload, rule, NOW)['state'], 'early_due')
+        for bad in [-1, 91, float('inf'), float('nan')]:
+            rule['sourceEarlyDueMinutes'] = bad
+            self.assertEqual(self.m.assess(payload, rule, NOW)['state'], 'invalid')
+
     def test_stale_early_unlock_uses_its_actual_parent_repair(self):
         rule = next(a for a in self.config['artifacts'] if a['id'] == 'vedolo-early-unlock')
         old = {'generatedAt': NOW, 'sourceTimestamp': NOW - 9 * 3600}
@@ -626,3 +666,4 @@ class DashboardFreshnessTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

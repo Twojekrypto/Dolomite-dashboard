@@ -139,6 +139,12 @@ def assess(payload: Any, rule: Dict[str, Any], now: int) -> Dict[str, Any]:
         max_age = float(rule.get("maxAgeMinutes", 360))
         source_max_age = float(rule.get("sourceMaxAgeMinutes", max_age))
         early_due = float(rule.get("earlyDueMinutes", max_age * 0.75))
+        source_early_value = rule.get("sourceEarlyDueMinutes", source_max_age)
+        if isinstance(source_early_value, bool) or not isinstance(source_early_value, (int, float)):
+            raise MonitorError("timestamp_policy_invalid")
+        source_early_due = float(source_early_value)
+        if not math.isfinite(source_early_due) or source_early_due < 0 or source_early_due > source_max_age:
+            raise MonitorError("timestamp_policy_invalid")
         if not math.isfinite(max_age) or max_age <= 0 or early_due < 0 or not math.isfinite(source_max_age) or source_max_age <= 0:
             raise MonitorError("timestamp_policy_invalid")
     except MonitorError as exc:
@@ -155,7 +161,7 @@ def assess(payload: Any, rule: Dict[str, Any], now: int) -> Dict[str, Any]:
         }
     if publication_age >= max_age:
         state = "stale"
-    elif publication_age >= early_due:
+    elif publication_age >= early_due or source_age >= source_early_due:
         state = "early_due"
     else:
         state = "fresh"
@@ -766,3 +772,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
