@@ -1,5 +1,7 @@
 (function(){
   const DOLO_ADDRESS_LABELS = {
+    "0xf8d3360cc21a829c3cfc73c64cd51a6f8ee4ffd5": {label:"Coinbase", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xf8d3360cc21a829c3cfc73c64cd51a6f8ee4ffd5", verifiedAt:"2026-11-13"},
+    "0x6eec8b8c15cbdb20c75956551d16abdcbc041637": {label:"Bitrue", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x6eec8b8c15cbdb20c75956551d16abdcbc041637", verifiedAt:"2026-11-13"},
     "0x5a52e96bacdabb82fd05763e25335261b270efcb": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x5a52e96bacdabb82fd05763e25335261b270efcb", verifiedAt:"2026-11-11"},
     "0xf330cf5bfc9d60ddac0236723d95dd426120060e": {label:"Binance", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0xf330cf5bfc9d60ddac0236723d95dd426120060e", verifiedAt:"2026-11-10"},
     "0x6eb9fec1aa0e3053b3aba0cc320a87f724e284af": {label:"Gate.io", type:"cex", source:"debank-public-label", confidence:"confirmed", sourceUrl:"https://debank.com/profile/0x6eb9fec1aa0e3053b3aba0cc320a87f724e284af", verifiedAt:"2026-11-10"},
