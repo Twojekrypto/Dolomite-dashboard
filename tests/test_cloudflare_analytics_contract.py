@@ -1,4 +1,5 @@
 import json
+import re
 import unittest
 from html.parser import HTMLParser
 from pathlib import Path
@@ -30,7 +31,8 @@ class CloudflareAnalyticsContractTests(unittest.TestCase):
         for entrypoint in entrypoints:
             with self.subTest(entrypoint=entrypoint.relative_to(ROOT)):
                 parser = _ScriptTagParser()
-                parser.feed(entrypoint.read_text(encoding="utf-8"))
+                markup = entrypoint.read_text(encoding="utf-8")
+                parser.feed(markup)
                 beacons = [
                     script
                     for script in parser.scripts
@@ -39,7 +41,7 @@ class CloudflareAnalyticsContractTests(unittest.TestCase):
                 uses_route_loader = any(
                     script.get("src", "").split("?", 1)[0].endswith("route-loader.js")
                     for script in parser.scripts
-                )
+                ) and re.search(r"\bloadDoloRoute\s*\(", markup) is not None
 
                 if uses_route_loader:
                     self.assertEqual(beacons, [], "route-loader injects the shared beacon")
@@ -69,3 +71,4 @@ class CloudflareAnalyticsContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
