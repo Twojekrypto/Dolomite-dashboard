@@ -140,7 +140,15 @@ def replay(legs, balances, block_number, require_zero=False):
                     'sourceIds':sorted({leg['sourceId'] for leg in evidence})}
             amount = text(abs(number(meta['supplyChange'])-number(meta['debtChange']))) if exact else first.get('amount','0')
             meta['amountBasis'] = 'net-wallet-balance-change' if exact else 'legacy-source-leg'
-            meta['usdStatus'] = 'verified' if exact and len(meta['sourceIds']) == 1 and number(amount) == abs(number(first.get('amount','0'))) else 'unavailable'
+            quote_matches = number(amount) == abs(number(first.get('amount','0')))
+            if not quote_matches and len(evidence) == 1 and first.get('decimals') is not None:
+                # Balance endpoints are rounded independently; their difference
+                # can differ from the event amount by one smallest token unit.
+                unit = Decimal(1).scaleb(-int(first['decimals']))
+                quote_matches = abs(number(amount)-abs(number(first.get('amount','0')))) <= unit
+            quoted_usd = first.get('usd')
+            quote_known = quoted_usd is not None and number(quoted_usd) >= 0 and (number(amount) == 0 or number(quoted_usd) > 0)
+            meta['usdStatus'] = 'verified' if exact and len(meta['sourceIds']) == 1 and quote_matches and quote_known else 'unavailable'
             for leg in evidence:
                 if leg['account'] in tainted:
                     leg['beforePar'] = leg['afterPar'] = None
@@ -212,3 +220,4 @@ def fetch_semantic_rows(endpoint, token_id, max_pages, since_ts, post, paginate)
             leg['decimals'] = token.get('decimals')
         legs.extend(event_items)
     return replay(legs,balances,block,require_zero=since_ts is None)
+

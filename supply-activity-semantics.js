@@ -13,7 +13,27 @@
         const row = {id:item[0] || '',type:item[1] || '',timestamp:Number(item[2] || 0),txHash:item[3] || '',
             amount:item[4] ?? '0',usd:item[5] ?? '0',primaryAddress:item[6] || '',secondaryAddress:item[7] || ''};
         if (item[8] && item[8].version === 2) row.semantics = item[8];
+        restoreRoundedSourceQuote(row);
         return row;
+    }
+    function restoreRoundedSourceQuote(row) {
+        const meta = row.semantics, leg = meta?.legs?.[0];
+        if (meta?.status !== 'verified' || meta.quantityStatus !== 'verified' || meta.usdStatus !== 'unavailable'
+            || meta.amountBasis !== 'net-wallet-balance-change' || !Array.isArray(meta.legs) || meta.legs.length !== 1 || !leg || meta.sourceIds?.length !== 1
+            || meta.sourceIds[0] !== leg.sourceId || leg.ambiguous !== false
+            || leg.wallet !== row.primaryAddress || leg.txHash !== row.txHash) return;
+        const decimal = value => typeof value === 'string' && value.length <= 1024 && /^\d+(?:\.\d+)?$/.test(value);
+        if (!/^\d+$/.test(String(leg.decimals)) || Number(leg.decimals) > 255
+            || !decimal(row.amount) || !decimal(leg.amount) || !decimal(leg.usd) || !/[1-9]/.test(leg.usd)) return;
+        const units = value => {
+            const [whole, fraction = ''] = value.split('.');
+            return fraction.length > Number(leg.decimals) ? null : BigInt(whole + fraction.padEnd(Number(leg.decimals), '0'));
+        };
+        const amount = units(row.amount), quoted = units(leg.amount);
+        if (amount === null || quoted === null || amount <= 0n || quoted <= 0n || amount-quoted > 1n || quoted-amount > 1n) return;
+        // Repair old snapshots/caches using their own event-time quote only.
+        row.usd = leg.usd;
+        row.semantics = {...meta, usdStatus:'verified'};
     }
     function actions(row) {
         const meta = row.semantics;
@@ -64,3 +84,4 @@
     }
     return { types, pack, unpack, actions, matches, toggle, merge, periodContext };
 });
+

@@ -1,9 +1,33 @@
 import unittest
 import importlib.util
+import json
+import subprocess
 from pathlib import Path
 
 
 class SemanticsTests(unittest.TestCase):
+    def test_browser_cache_recovers_event_quotes_without_inventing_missing_values(self):
+        root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(['node', '--test', str(root / 'tests/supply-activity-value.test.js')], cwd=root, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_historical_repay_quote_survives_one_token_unit_rounding(self):
+        row = json.loads((Path(__file__).parent / 'fixtures/wbera-repay-value.json').read_text())
+        evidence = row[8]['legs']
+        result = self.api().replay(evidence, {leg['account']: leg['afterPar'] for leg in evidence}, row[8]['blockNumber'])[0]
+        self.assertEqual(result['semantics']['actions'], ['repay'])
+        self.assertEqual(result['amount'], '92158.097260185595240867')
+        self.assertEqual(result['usd'], '8170.524939464356447186')
+        self.assertEqual(result['semantics']['usdStatus'], 'verified')
+
+    def test_rounding_allowance_does_not_accept_missing_quotes_or_larger_discrepancies(self):
+        row = json.loads((Path(__file__).parent / 'fixtures/wbera-repay-value.json').read_text())
+        for changes in ({'amount':'92158.097260185595240865'}, {'usd':None}, {'usd':'0'}, {'decimals':None}):
+            with self.subTest(changes=changes):
+                leg = dict(row[8]['legs'][0], **changes)
+                result = self.api().replay([leg], {leg['account']:leg['afterPar']}, row[8]['blockNumber'])[0]
+                self.assertEqual(result['semantics']['usdStatus'], 'unavailable')
+
     def test_netzero_deposit_withdraw_retains_technical_actions(self):
         common=dict(account='a',wallet='w',index={'supplyIndex':'1','borrowIndex':'1'},txHash='tx',timestamp=1,blockNumber=1)
         legs=[dict(common,id='d',sourceId='deposit-1',type='deposit',deltaPar='5',logIndex=1),dict(common,id='w',sourceId='withdraw-2',type='withdraw',deltaPar='-5',logIndex=2)]
@@ -94,3 +118,4 @@ class SemanticsTests(unittest.TestCase):
         self.assertEqual(next(row for row in rows if row['primaryAddress']=='lw')['secondaryAddress'],'sw')
 
 if __name__ == '__main__': unittest.main()
+
