@@ -15,6 +15,19 @@
  *   scripts  – optional extra script srcs (or {src, defer}) injected into <head>
  */
 (function () {
+  // Public navigation moves to DoloView; embedded views and data URLs stay available.
+  var legacyLocation = window.location;
+  var legacyRoute = legacyLocation && legacyLocation.origin === "https://twojekrypto.github.io" &&
+    legacyLocation.pathname.match(/^\/Dolomite-dashboard(?:\/(dolo|odolo|vedolo|portfolio|assets|tvl|earn|borrow|liquidation|supply|rewards|revenue|history))?(?:\/index\.html|\/)?$/);
+  if (legacyRoute && window.top === window) {
+    var destination = legacyRoute[1] || "";
+    if (destination === "dolo") destination = "";
+    if (destination === "liquidation") destination = "borrow";
+    window.loadDoloRoute = function () {};
+    legacyLocation.replace("https://doloview.pages.dev/" + destination + legacyLocation.search + legacyLocation.hash);
+    return;
+  }
+
   var NAV_VERSIONS = {
     nav: "mobile-nav-responsive-20260801",
     polish: "mobile-polish-safari-details-20260805",
