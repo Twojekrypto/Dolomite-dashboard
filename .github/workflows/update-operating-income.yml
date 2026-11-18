@@ -18,11 +18,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Checkout
+      - name: Checkout income sources only
         uses: actions/checkout@v6
         with:
           ref: master
           fetch-depth: 1
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /requirements.txt
+            /rpc_client.py
+            /rpc_usage.py
+            /scan_earn_netflow.py
+            /fetch_operating_income.py
+            /operating_income_treasury.py
+            /operating_income_liquidations.py
+            /config/operating_income.json
+            /tests/test_operating_income.py
+            /tests/test_operating_income_treasury.py
+            /tests/test_operating_income_liquidations.py
+            /data/operating-income/latest.json
 
       - name: Set up Python
         uses: actions/setup-python@v6
