@@ -119,6 +119,48 @@ class PaginationTests(CollectorTest):
             with self.assertRaises(ValueError): COLLECTOR.paginate(fetch, size, limit)
 
 
+class HeaderFallbackTests(CollectorTest):
+    def header(self, values, calls=None):
+        endpoints = ['https://lagging.invalid', 'https://ready.invalid']
+        rpc = COLLECTOR.RpcClient(endpoints=endpoints, timeout=1, retries_per_endpoint=1, quiet=True)
+        if calls is None: calls = []
+        def post(client, endpoint, payload):
+            calls.append(endpoint)
+            return {'jsonrpc':'2.0', 'id':1, 'result':values[endpoint]}
+        with patch.object(COLLECTOR.RpcClient, '_post', post):
+            result = COLLECTOR._header(rpc, {'blockNumber':BLOCK, 'blockHash':HASH})
+        return result, calls
+
+    def valid(self):
+        return {'number':hex(BLOCK), 'hash':HASH, 'timestamp':hex(NOW-10)}
+
+    def test_null_header_rotates_to_existing_endpoint_with_same_pin(self):
+        try:
+            stamp, calls = self.header({'https://lagging.invalid':None, 'https://ready.invalid':self.valid()})
+        except ValueError as error:
+            self.fail('A lagging null header must try the next configured endpoint: ' + str(error))
+        self.assertEqual(stamp, NOW-10)
+        self.assertEqual(calls, ['https://lagging.invalid', 'https://ready.invalid'])
+
+    def test_malformed_header_rotates_without_relaxing_requested_block(self):
+        try:
+            stamp, _ = self.header({'https://lagging.invalid':{'number':hex(BLOCK)}, 'https://ready.invalid':self.valid()})
+        except ValueError as error:
+            self.fail('An incomplete header must try the next configured endpoint: ' + str(error))
+        self.assertEqual(stamp, NOW-10)
+
+    def test_all_null_headers_fail_after_bounded_existing_endpoints(self):
+        calls = []
+        with self.assertRaises(ValueError):
+            self.header({'https://lagging.invalid':None, 'https://ready.invalid':None}, calls)
+        self.assertEqual(calls, ['https://lagging.invalid', 'https://ready.invalid'])
+
+    def test_conflicting_canonical_hash_fails_even_if_another_endpoint_agrees(self):
+        wrong = dict(self.valid(), hash='0x'+'c'*64)
+        with self.assertRaisesRegex(ValueError, 'hash mismatch'):
+            self.header({'https://lagging.invalid':wrong, 'https://ready.invalid':self.valid()})
+
+
 class SourceTests(CollectorTest):
     def configs(self):
         return {chain: {'chainId': chain_id, 'subgraph':'https://example.invalid/'+chain,

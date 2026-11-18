@@ -15,7 +15,7 @@ from decimal import Decimal, localcontext
 
 import requests
 
-from rpc_client import RpcClient
+from rpc_client import RpcClient, RpcError
 
 
 FEE_AGENT = '0x4d5f0344d245f1d13607e5b61dd317de3b3178b8'
@@ -243,16 +243,48 @@ def _meta(value, expected_pin=None):
     return {'blockNumber': number, 'blockHash': block_hash, 'deployment': deployment}
 
 
-def _header(rpc, pin):
-    header = rpc.call('eth_getBlockByNumber', [hex(pin['blockNumber']), False])
+def _header_timestamp(header, pin):
     if not isinstance(header, dict) or header.get('number') != hex(pin['blockNumber']):
-        raise ValueError('Missing pinned RPC block header')
-    if _hex(header.get('hash'), 32, 'RPC block hash') != pin['blockHash']:
+        return None
+    block_hash = header.get('hash')
+    if not isinstance(block_hash, str) or not re.fullmatch(r'0x[0-9a-fA-F]{64}', block_hash):
+        return None
+    # A real conflicting hash is a canonicality failure, never a retry hint.
+    if block_hash.lower() != pin['blockHash']:
         raise ValueError('Indexed/RPC pinned block hash mismatch')
     timestamp = header.get('timestamp')
     if not isinstance(timestamp, str) or not re.fullmatch(r'0x[0-9a-fA-F]+', timestamp):
-        raise ValueError('Missing pinned block timestamp')
+        return None
     return int(timestamp, 16)
+
+
+def _header(rpc, pin):
+    params = [hex(pin['blockNumber']), False]
+    try:
+        header = rpc.call('eth_getBlockByNumber', params)
+    except RpcError:
+        header = None
+    timestamp = _header_timestamp(header, pin)
+    if timestamp is not None:
+        return timestamp
+    # RpcClient already rotates transport/rate-limit failures. A lagging node
+    # can instead return a successful null/incomplete result; try each remaining
+    # configured provider once, retaining RpcClient's timeout/rate-limit guards.
+    failed_endpoint = getattr(rpc, 'last_endpoint', None)
+    disabled = getattr(rpc, '_disabled_endpoints', set())
+    for endpoint in dict.fromkeys(getattr(rpc, 'endpoints', [])):
+        if endpoint == failed_endpoint or endpoint in disabled:
+            continue
+        fallback = RpcClient(endpoints=[endpoint], timeout=getattr(rpc, 'timeout', 30),
+                             retries_per_endpoint=1, quiet=True)
+        try:
+            header = fallback.call('eth_getBlockByNumber', params)
+        except RpcError:
+            continue
+        timestamp = _header_timestamp(header, pin)
+        if timestamp is not None:
+            return timestamp
+    raise ValueError('Missing pinned RPC block header on every configured endpoint')
 
 
 def collect_liquidation_income(chain_configs, start_timestamp, end_timestamp, *, options=None):
