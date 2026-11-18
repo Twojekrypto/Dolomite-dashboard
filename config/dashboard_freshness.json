@@ -11,6 +11,14 @@
   "maxDeferredProbeRequests": 3,
   "dashboardGuardMinimumIntervalMinutes": 15,
   "workflows": {
+    "update-wlfi-markets.yml": {
+      "workflow": "update-wlfi-markets.yml",
+      "failureCooldownMinutes": 20,
+      "maxFailureCooldownMinutes": 120,
+      "dispatchWindowMinutes": 120,
+      "maxDispatchesInWindow": 2,
+      "allowedInputs": []
+    },
     "update-earn-merkl-rewards.yml": {
       "workflow": "update-earn-merkl-rewards.yml",
       "failureCooldownMinutes": 30,
@@ -153,6 +161,7 @@
     }
   },
   "artifacts": [
+    {"id": "wlfi-markets", "path": "data/wlfi-markets/latest.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["source.timestamp"], "sourceMaxAgeMinutes": 120, "maxAgeMinutes": 120, "earlyDueMinutes": 30, "remediateSourceStale": true, "workflow": "update-wlfi-markets.yml", "inputs": {}, "maxBytes": 1000000},
     {"id": "earn-merkl-rewards", "path": "data/earn-merkl-rewards/manifest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 120, "earlyDueMinutes": 60, "workflow": "update-earn-merkl-rewards.yml", "inputs": {}, "maxBytes": 2000000},
     {"id": "reward-claim-arbitrum", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.arbitrum.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-reward-claim-events.yml", "inputs": {}, "maxBytes": 2000000},
     {"id": "reward-claim-berachain", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.berachain.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-odolo-flows.yml", "inputs": {}, "maxBytes": 2000000},
@@ -190,4 +199,5 @@
     {"id": "earn-quality", "path": "data/earn-quality/status.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 60, "earlyDueMinutes": 45, "workflow": "monitor-earn-freshness.yml", "inputs": {}, "maxBytes": 2000000}
   ]
 }
+
 

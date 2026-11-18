@@ -20,6 +20,8 @@ from pathlib import Path
 import re
 import sys
 
+from wlfi_markets import account_number, account_origin
+
 
 CHAINS = ('ethereum', 'arbitrum', 'berachain')
 WINDOW_SECONDS = 30 * 86400
@@ -49,7 +51,7 @@ def decimal_string(value, field):
     return parsed
 
 
-def event_row(event, token_index):
+def event_row(event, token_index, *, chain=None):
     kind = event.get('type')
     event_id = event.get('sourceId')
     if not isinstance(event_id, str) or not event_id.startswith(kind + '-'):
@@ -74,11 +76,13 @@ def event_row(event, token_index):
         unavailable = unavailable or (quote == 0 and amount != 0)
     row = [event_id, kind, timestamp, event['txHash'], event['amount'],
            None if unavailable else usd, event['wallet'], secondary, token_index]
+    metadata = {'accountNumber': account_number(event.get('account')),
+                'accountOrigin': account_origin(chain, event.get('account'))}
     if unavailable:
-        metadata = {'usdStatus': 'unavailable'}
+        metadata['usdStatus'] = 'unavailable'
         if usd is not None and usd != '':
             metadata['sourceUsd'] = usd
-        row.append(metadata)
+    row.append(metadata)
     return row
 
 
@@ -156,7 +160,7 @@ def read_chain(input_dir, entry, generated, period_start, period_end):
                        'symbol': payload.get('symbol') or token.get('symbol') or token_id,
                        'name': payload.get('name'), 'marketId': payload.get('marketId')})
         for event in source_events(payload):
-            row = event_row(event, token_index)
+            row = event_row(event, token_index, chain=chain)
             if not period_start <= row[2] <= period_end:
                 continue
             key = (row[1], row[0])
@@ -245,3 +249,4 @@ def main():
 
 if __name__ == '__main__':
     raise SystemExit(main())
+
