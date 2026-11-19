@@ -115,6 +115,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Claims were private scan inputs; the independent publisher owns them.
+          # Keep cached checkpoints, but clear tracked inputs before rebasing.
+          git restore --worktree -- data/odolo-claim-events.json data/reward-claim-events.json data/reward-claim-events
           git add odolo_flows.json
           git diff --cached --quiet && echo "No changes to commit" && exit 0
           git commit -m "🔄 Update oDOLO flows data — $(date -u '+%Y-%m-%d %H:%M UTC')"

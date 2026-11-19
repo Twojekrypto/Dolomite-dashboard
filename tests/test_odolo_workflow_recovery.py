@@ -1,5 +1,8 @@
 import json
+import os
+import subprocess
 import tempfile
+import textwrap
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -80,6 +83,48 @@ class TransferRecoveryTests(unittest.TestCase):
 
 
 class PublicationIsolationTests(unittest.TestCase):
+    def test_flow_publication_keeps_newer_independent_claims_and_cache(self):
+        workflow = (ROOT/'.github/workflows/update-odolo-flows.yml').read_text()
+        script = textwrap.dedent(workflow.split('      - name: Commit and push\n', 1)[1].split('        run: |\n', 1)[1]).replace('sleep 5', 'true')
+        env = dict(os.environ, GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull,
+                   GIT_TERMINAL_PROMPT='0')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote, seed, runner = [root/name for name in ['remote.git', 'seed', 'runner']]
+            def git(path, *args):
+                return subprocess.run(['git', *args], cwd=path, env=env,
+                                      text=True, capture_output=True, check=True)
+            git(root, 'init', '--bare', '--initial-branch=master', str(remote))
+            git(root, 'init', '--initial-branch=master', str(seed))
+            git(seed, 'config', 'user.name', 'Fixture')
+            git(seed, 'config', 'user.email', 'fixture@example.invalid')
+            claims = ['data/odolo-claim-events.json', 'data/reward-claim-events.json',
+                      'data/reward-claim-events/berachain.json']
+            for name in claims+['odolo_flows.json']:
+                path = seed/name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('baseline\n')
+            git(seed, 'add', '.')
+            git(seed, 'commit', '-m', 'baseline')
+            git(seed, 'remote', 'add', 'origin', str(remote))
+            git(seed, 'push', '-u', 'origin', 'master')
+            git(root, 'clone', str(remote), str(runner))
+            # The independent publisher advances while the private flow scan runs.
+            for name in claims:
+                (seed/name).write_text('newer independent claims\n')
+                (runner/name).write_text('private regenerated claims\n')
+            git(seed, 'commit', '-am', 'independent claims')
+            git(seed, 'push')
+            (runner/'odolo_flows.json').write_text('fresh flow\n')
+            (runner/'reward_claim_events_state.json').write_text('keep private cache\n')
+            result = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', script],
+                                    cwd=runner, env=env, text=True, capture_output=True, timeout=20)
+            self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
+            self.assertEqual(git(remote, 'show', 'master:odolo_flows.json').stdout, 'fresh flow\n')
+            for name in claims:
+                self.assertEqual(git(remote, 'show', 'master:'+name).stdout, 'newer independent claims\n')
+            self.assertEqual((runner/'reward_claim_events_state.json').read_text(), 'keep private cache\n')
+
     def test_sparse_checkout_preserves_wallet_classification_input(self):
         workflow = (ROOT/'.github/workflows/update-odolo-flows.yml').read_text()
         self.assertIn('/dolo-address-labels.js', workflow,
