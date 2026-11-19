@@ -55,6 +55,7 @@ IMMATERIAL_MISSING_CHAIN_FEES_USD_CAP = 5.0
 IMMATERIAL_MISSING_CHAIN_REVENUE_USD_CAP = 1.0
 
 DOLOMITE_MARGIN_ABI = [
+    {"inputs": [{"type": "uint256", "name": "marketId"}], "name": "getMarketPrice", "outputs": [{"type": "tuple", "components": [{"name": "value", "type": "uint256"}]}], "stateMutability": "view", "type": "function"},
     {"inputs": [], "name": "getNumMarkets", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
     {"inputs": [], "name": "getEarningsRate", "outputs": [{"type": "uint256"}], "stateMutability": "view", "type": "function"},
     {"inputs": [{"type": "uint256", "name": "marketId"}], "name": "getMarketTokenAddress", "outputs": [{"type": "address"}], "stateMutability": "view", "type": "function"},
@@ -339,6 +340,7 @@ def classify_chain_result(chain, defillama, onchain, tolerance_pct=0.02, protoco
         "rawTokens": onchain.get("rawTokens") or [],
         "priceFallbackCount": int(onchain.get("priceFallbackCount") or 0),
         "priceOmissionCount": price_omission_count,
+        **{key: onchain[key] for key in ("fromBlock", "toBlock", "rpcHost") if key in onchain},
     }
     if warn_reasons:
         result["warnReasons"] = warn_reasons
@@ -547,6 +549,20 @@ def resolve_token_price(row, price):
     return None, None
 
 
+def historical_market_oracle_price(w3, config, row, block_number):
+    """Use Dolomite's own USD quote at the audited boundary, never today's price."""
+    decimals = row.get("decimals")
+    if not isinstance(decimals, int) or isinstance(decimals, bool) or not 0 <= decimals <= 36:
+        return None
+    contract = w3.eth.contract(address=Web3.to_checksum_address(config["margin"]), abi=DOLOMITE_MARGIN_ABI)
+    token = contract.functions.getMarketTokenAddress(row["marketId"]).call(block_identifier=block_number)
+    if str(token).lower() != str(row["token"]).lower():
+        return None
+    raw_price = decimal_struct_value(contract.functions.getMarketPrice(row["marketId"]).call(block_identifier=block_number))
+    price = Decimal(raw_price) / (Decimal(10) ** (36 - decimals))
+    return price if price.is_finite() and price > 0 else None
+
+
 def fetch_historical_prices(timestamp, coin_ids):
     prices = {}
     coin_ids = [coin_id for coin_id in coin_ids if coin_id]
@@ -658,7 +674,14 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
             price_fallback_count = 0
             price_omission_count = 0
             for row, coin_id in zip(rows, coin_ids):
-                price, price_source = resolve_token_price(row, prices.get(coin_id))
+                primary_price = prices.get(coin_id)
+                oracle_price = None
+                if primary_price is None:
+                    try:
+                        oracle_price = historical_market_oracle_price(w3, config, row, to_block)
+                    except Exception as exc:
+                        print(f"  {config['name']} market {row['marketId']}: historical oracle unavailable: {type(exc).__name__}: {rpc_client.sanitize_error(exc)}")
+                price, price_source = (oracle_price, "dolomite-market-oracle") if oracle_price is not None else resolve_token_price(row, primary_price)
                 fee_amount = row["borrowInterestAmount"]
                 revenue_amount = row["protocolRevenueAmount"]
                 if price is not None:
@@ -678,6 +701,8 @@ def audit_chain_onchain(chain_key, config, target_timestamp, window_start_timest
                     "protocolRevenueAmount": str(row["protocolRevenueAmount"]),
                     "priceUSD": float(price) if price is not None else None,
                     "priceSource": price_source,
+                    "decimals": row.get("decimals"),
+                    **({"priceBlock": to_block} if price_source == "dolomite-market-oracle" else {}),
                 })
             if missing_price_count:
                 return {
@@ -769,4 +794,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

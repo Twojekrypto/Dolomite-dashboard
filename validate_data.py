@@ -1462,6 +1462,31 @@ def _dolomite_revenue_borrow_fee_rebate_max_audits_valid(data):
     return True
 
 
+def _dolomite_revenue_displayed_audit_valid(data):
+    """A green display badge must be reproducible from the saved audited day."""
+    from fetch_dolomite_revenue import displayed_onchain_audit_assurance
+
+    assurance = data.get("assurance") or {}
+    chains = assurance.get("onchainAuditChains") or {}
+    declared = assurance.get("onchainDisplayedAuditChains")
+    if not chains:
+        return declared in (None, {})
+    if not isinstance(declared, dict):
+        return False
+    audit = {
+        "targetDate": assurance.get("onchainAuditTargetDate"),
+        "generatedAt": assurance.get("onchainAuditGeneratedAt"),
+        "status": assurance.get("onchainAuditRawStatus"),
+        "chains": chains,
+    }
+    try:
+        generated = datetime.fromisoformat(str(data.get("generatedAt")).replace("Z", "+00:00"))
+        expected = displayed_onchain_audit_assurance(data.get("series") or [], audit, now=generated)
+    except (ValueError, TypeError, KeyError, InvalidOperation):
+        return False
+    return declared == expected
+
+
 def _dolomite_revenue_onchain_audit_valid(data):
     statuses = {"pass", "warn", "partial", "missing"}
     status = data.get("status")
@@ -2957,6 +2982,7 @@ RULES = {
             ("revenue totals must reconcile with latest row", _dolomite_revenue_totals_valid),
             ("revenue rolling windows must reconcile with series", _dolomite_revenue_window_totals_valid),
             ("revenue chain windows must reconcile with series", _dolomite_revenue_chain_windows_valid),
+            ("displayed revenue audit must reconcile with the saved target day", _dolomite_revenue_displayed_audit_valid),
             ("revenue history must be sorted and populated", _dolomite_revenue_series_valid),
             ("closed veBorrow rebate epochs must have audited max rebate baselines", _dolomite_revenue_borrow_fee_rebate_max_audits_valid),
         ],
@@ -3232,4 +3258,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

@@ -2471,6 +2471,55 @@ def onchain_audit_assurance(onchain_audit, now=None):
     }
 
 
+def displayed_onchain_audit_assurance(series, onchain_audit, now=None):
+    """Reconcile the actual saved day; keep adapter-parity warnings independent."""
+    assurance = onchain_audit_assurance(onchain_audit, now=now)
+    target = assurance.get("onchainAuditTargetDate")
+    day = next((row for row in series if row.get("date") == target), None)
+    results = {}
+    tolerance = min(Decimal("0.02"), max(Decimal(0), Decimal(str((onchain_audit or {}).get("tolerancePct", .02)))))
+
+    def number(payload, key):
+        try:
+            value = Decimal(str(payload[key]))
+            return value if value.is_finite() else None
+        except (KeyError, TypeError, ValueError, InvalidOperation):
+            return None
+
+    def close(actual, expected, relative=Decimal(0)):
+        return actual is not None and expected is not None and abs(actual - expected) <= max(Decimal("0.000002"), abs(expected) * relative)
+
+    for chain, audit in ((onchain_audit or {}).get("chains") or {}).items():
+        record = {"status": "missing", "targetDate": target, "adapterStatus": audit.get("status"), "reason": "audited_day_missing"}
+        results[chain] = record
+        if assurance.get("onchainAuditStale"):
+            record.update(status="stale", reason="audit_outdated")
+            continue
+        row = (day or {}).get("chains", {}).get(chain)
+        if not isinstance(row, dict) or audit.get("status") not in {"pass", "warn"} or audit.get("error") or audit.get("missingReasons"):
+            continue
+        if int(audit.get("priceOmissionCount") or 0):
+            record.update(status="warn", reason="unpriced_tokens_omitted_immaterial")
+            continue
+        fees, gross = number(row, "feesUSD"), number(row, "grossRevenueUSD")
+        net, rebate, supply = number(row, "revenueUSD"), number(row, "borrowFeeRebateUSD"), number(row, "supplySideRevenueUSD")
+        valid = all(value is not None for value in (fees, gross, net, rebate, supply))
+        valid = valid and fees >= 0 and gross >= 0 and close(gross - rebate, net) and close(fees - gross, supply)
+        source = row.get("source", "defillama-adapter")
+        record["source"] = source
+        if source == ONCHAIN_CURRENT_INDEX_SOURCE:
+            same_audit = row.get("onchainAuditTargetDate") == target and row.get("onchainAuditGeneratedAt") == (onchain_audit or {}).get("generatedAt")
+            matches = close(fees, number(audit, "feesUSD")) and close(gross, number(audit, "revenueUSD"))
+            if not valid or not same_audit or not matches:
+                raise ValueError(f"Displayed {chain} revenue does not reconcile with the {target} onchain audit")
+            record.update(status="pass", reason="current_index_reconciled")
+        elif valid and audit.get("status") == "pass" and close(fees, number(audit, "feesUSD"), tolerance) and close(gross, number(audit, "revenueUSD"), tolerance):
+            record.update(status="pass", reason="adapter_within_tolerance")
+        else:
+            record.update(status="warn", reason="displayed_values_differ_from_audit")
+    return results
+
+
 def apply_active_network_scope(series):
     """Keep earned history; exclude retired activity only from the retirement date."""
     scoped = []
@@ -2613,6 +2662,7 @@ def build_output(revenue_data, fees_data, onchain_audit=None, borrow_fee_rebate_
             "borrowFeeRebateStatus": borrow_fee_rebate_status(rebate_metadata),
             "onchainAuditHistoricalCoverage": onchain_revenue_audit_coverage(onchain_revenue_overrides, onchain_audit),
             **onchain_audit_assurance(onchain_audit, now=now),
+            "onchainDisplayedAuditChains": displayed_onchain_audit_assurance(series, onchain_audit, now=now),
         },
         "borrowFeeRebates": rebate_metadata,
         "totals": metric_totals(revenue_data, fees_data, series),
@@ -2661,5 +2711,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
