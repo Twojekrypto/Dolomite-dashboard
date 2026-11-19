@@ -80,6 +80,11 @@ class TransferRecoveryTests(unittest.TestCase):
 
 
 class PublicationIsolationTests(unittest.TestCase):
+    def test_sparse_checkout_preserves_wallet_classification_input(self):
+        workflow = (ROOT/'.github/workflows/update-odolo-flows.yml').read_text()
+        self.assertIn('/dolo-address-labels.js', workflow,
+                      'contract custody labels must survive sparse checkout')
+
     def test_claim_publication_is_independent_of_the_long_flow_scan(self):
         workflow = (ROOT/'.github/workflows/update-reward-claim-events.yml').read_text()
         self.assertIn('REWARD_CLAIM_CHAINS: arbitrum,berachain', workflow)
