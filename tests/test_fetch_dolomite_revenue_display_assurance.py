@@ -1,4 +1,5 @@
 import copy
+from pathlib import Path
 import unittest
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -39,6 +40,12 @@ class DisplayedRevenueAssuranceTests(unittest.TestCase):
         self.assertTrue(hasattr(revenue, 'displayed_onchain_audit_assurance'),
             'Displayed amounts need their own audit reconciliation')
         return revenue.displayed_onchain_audit_assurance(self.series, self.audit, now=NOW)
+
+    def test_workflow_checkout_excludes_the_large_unrelated_archive(self):
+        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/audit-dolomite-revenue-onchain.yml').read_text()
+        self.assertIn('sparse-checkout-cone-mode: false', workflow)
+        for path in ['/*.py', '/requirements.txt', '/dolomite_revenue.json', '/veborrow_rebate_history.json', '/data/dolomite-revenue-onchain-*.json', '/tests/', '/.github/workflows/', '/revenue-preview.html', '/revenue/index.html']:
+            self.assertIn(path, workflow)
 
     def test_corrected_berachain_values_are_checked_without_erasing_adapter_warning(self):
         original = copy.deepcopy(self.audit)

@@ -25,6 +25,18 @@ jobs:
         with:
           ref: master
           fetch-depth: 1
+          # Revenue needs no wallet/history archives; keep the complete audit inputs.
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*.py
+            /requirements.txt
+            /dolomite_revenue.json
+            /veborrow_rebate_history.json
+            /data/dolomite-revenue-onchain-*.json
+            /tests/
+            /.github/workflows/
+            /revenue-preview.html
+            /revenue/index.html
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -94,4 +106,5 @@ jobs:
             sleep "$sleep_for"
           done
           if [ "$pushed" != "true" ]; then echo "::error::Failed to push after 12 attempts. Revenue audit NOT published"; exit 1; fi
+
 
