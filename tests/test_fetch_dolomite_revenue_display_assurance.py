@@ -118,6 +118,7 @@ class MissingRevenuePriceTests(unittest.TestCase):
         functions = w3.eth.contract.return_value.functions
         functions.getMarketTokenAddress.return_value.call.return_value = token
         functions.getMarketPrice.return_value.call.return_value = (4057925613569,)
+        functions.decimals.return_value.call.return_value = 18
         with mock.patch.object(audit.rpc_client, 'get_endpoints', return_value=['https://rpc.invalid']), \
              mock.patch.object(audit, 'make_web3', return_value=w3), \
              mock.patch.object(audit, 'find_block_at_or_before', side_effect=[100, 200]), \
@@ -129,6 +130,14 @@ class MissingRevenuePriceTests(unittest.TestCase):
         self.assertAlmostEqual(result['rawTokens'][0]['priceUSD'], .000004057925613569, places=20)
         functions.getMarketPrice.return_value.call.assert_called_once_with(block_identifier=200)
 
+    def test_oracle_rejects_unverified_decimal_scaling(self):
+        w3 = mock.MagicMock();functions = w3.eth.contract.return_value.functions
+        token = '0x0000000000000000000000000000000000000001'
+        functions.getMarketTokenAddress.return_value.call.return_value = token
+        functions.getMarketPrice.return_value.call.return_value = (10**18,)
+        functions.decimals.return_value.call.return_value = 6
+        self.assertIsNone(audit.historical_market_oracle_price(w3, audit.CHAIN_CONFIGS['arbitrum'], {'marketId': 20, 'token': token, 'decimals': 18}, 200))
+
     def test_oracle_rejects_wrong_token_and_nonpositive_price(self):
         self.assertTrue(hasattr(audit, 'historical_market_oracle_price'))
         w3 = mock.MagicMock();functions = w3.eth.contract.return_value.functions
@@ -138,6 +147,7 @@ class MissingRevenuePriceTests(unittest.TestCase):
         self.assertIsNone(audit.historical_market_oracle_price(w3, audit.CHAIN_CONFIGS['arbitrum'], row, 200))
         functions.getMarketTokenAddress.return_value.call.return_value = token
         functions.getMarketPrice.return_value.call.return_value = (0,)
+        functions.decimals.return_value.call.return_value = 18
         self.assertIsNone(audit.historical_market_oracle_price(w3, audit.CHAIN_CONFIGS['arbitrum'], row, 200))
 
 

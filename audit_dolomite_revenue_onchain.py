@@ -558,6 +558,9 @@ def historical_market_oracle_price(w3, config, row, block_number):
     token = contract.functions.getMarketTokenAddress(row["marketId"]).call(block_identifier=block_number)
     if str(token).lower() != str(row["token"]).lower():
         return None
+    token_contract = w3.eth.contract(address=Web3.to_checksum_address(token), abi=ERC20_ABI)
+    if token_contract.functions.decimals().call(block_identifier=block_number) != decimals:
+        return None
     raw_price = decimal_struct_value(contract.functions.getMarketPrice(row["marketId"]).call(block_identifier=block_number))
     price = Decimal(raw_price) / (Decimal(10) ** (36 - decimals))
     return price if price.is_finite() and price > 0 else None
