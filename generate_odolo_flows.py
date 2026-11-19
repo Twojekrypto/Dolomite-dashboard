@@ -614,93 +614,112 @@ def _is_capacity_rpc_error(error_obj):
     )
 
 
-def fetch_transfer_logs(start_block, end_block):
-    chunk_size = CHUNK_SIZE
+def fetch_transfer_logs(start_block, end_block, checkpoint_path=None):
+    """Read complete ranges, retaining a resumable ledger only for long scans."""
     if start_block > end_block:
         return []
+    identity = {"schemaVersion": 1, "chain": "berachain", "contract": ODOLO_CONTRACT,
+                "topic": TRANSFER_TOPIC, "fromBlock": start_block}
+    all_transfers, current = [], start_block
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        try:
+            with open(checkpoint_path) as stream:
+                saved = json.load(stream)
+            next_block, transfers = saved["nextBlock"], saved["transfers"]
+            valid = (saved.get("identity") == identity and type(next_block) is int
+                     and start_block <= next_block <= end_block + 1 and isinstance(transfers, list))
+            valid = valid and all(
+                isinstance(t, list) and len(t) == 4
+                and all(isinstance(v, str) and re.fullmatch(r"0x[0-9a-f]{40}", v) for v in t[:2])
+                and type(t[2]) is int and t[2] >= 0 and type(t[3]) is int
+                and start_block <= t[3] < next_block for t in transfers)
+            if valid:
+                current = max(start_block, next_block - REORG_BUFFER_BLOCKS)
+                all_transfers = [tuple(t) for t in transfers if t[3] < current]
+                print(f"  Resuming oDOLO Transfer scan at {current:,}; retained {len(all_transfers):,} transfers", flush=True)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(f"  Ignoring invalid oDOLO scan checkpoint: {type(exc).__name__}", flush=True)
 
-    total_blocks = end_block - start_block + 1
-    print(f"  Berachain: scanning blocks {start_block:,} → {end_block:,} ({total_blocks:,} blocks)")
+    def save_checkpoint(next_block):
+        if not checkpoint_path:
+            return
+        directory = os.path.dirname(checkpoint_path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        temporary = checkpoint_path + ".tmp"
+        with open(temporary, "w") as stream:
+            json.dump({"identity": identity, "nextBlock": next_block, "transfers": all_transfers}, stream, separators=(",", ":"))
+        os.replace(temporary, checkpoint_path)
 
-    all_transfers = []
-    current = start_block
-    chunks_done = 0
-
+    chunk_size, chunks_done = CHUNK_SIZE, 0
+    rpc_order, limited = list(RPC_URLS), set()
+    last_checkpoint = time.monotonic()
+    print(f"  Berachain: scanning blocks {current:,} → {end_block:,}", flush=True)
     while current <= end_block:
         chunk_end = min(current + chunk_size - 1, end_block)
-
-        success = False
-        last_error = None
-        for attempt in range(len(RPC_URLS) * 2):
-            rpc = RPC_URLS[attempt % len(RPC_URLS)]
+        candidates = [rpc for rpc in rpc_order if rpc not in limited] or rpc_order
+        success, last_error = False, None
+        for rpc in candidates * RPC_RETRIES_PER_ENDPOINT:
             try:
                 resp = requests.post(rpc, json={
                     "jsonrpc": "2.0", "method": "eth_getLogs",
-                    "params": [{
-                        "address": ODOLO_CONTRACT,
-                        "topics": [TRANSFER_TOPIC],
-                        "fromBlock": hex(current),
-                        "toBlock": hex(chunk_end),
-                    }], "id": 1
+                    "params": [{"address": ODOLO_CONTRACT, "topics": [TRANSFER_TOPIC],
+                                "fromBlock": hex(current), "toBlock": hex(chunk_end)}], "id": 1,
                 }, timeout=30, headers={"Content-Type": "application/json"})
-
-                r = resp.json()
-                if "error" in r:
-                    err_msg = r["error"].get("message", "")
-                    last_error = f"{_rpc_safe_host(rpc)}: {err_msg or r['error']}"
-                    if _is_capacity_rpc_error(r["error"]):
-                        # Endpoint out of quota / rate-limited — rotate to the
-                        # next RPC, do not shrink the chunk.
-                        time.sleep(0.5)
-                        continue
-                    if "range" in err_msg.lower() or "limit" in err_msg.lower():
+                resp.raise_for_status()
+                result = resp.json()
+                if not isinstance(result, dict):
+                    raise ValueError("eth_getLogs response is not an object")
+                if "error" in result:
+                    error = result["error"]
+                    last_error = f"{_rpc_safe_host(rpc)}: {_rpc_sanitize_error(str(error))}"
+                    if _is_capacity_rpc_error(error):
+                        limited.add(rpc)
+                    elif "range" in str(error).lower() or "limit" in str(error).lower():
                         chunk_size = max(chunk_size // 2, 1000)
                         chunk_end = min(current + chunk_size - 1, end_block)
-                        continue
-                    time.sleep(0.5)
                     continue
-
-                logs = r.get("result", [])
+                logs = result.get("result")
+                if not isinstance(logs, list):
+                    raise ValueError("eth_getLogs is missing its result array")
+                chunk_transfers = []
                 for log in logs:
-                    if len(log.get("topics", [])) < 3:
-                        continue
-                    from_addr = "0x" + log["topics"][1][26:].lower()
-                    to_addr = "0x" + log["topics"][2][26:].lower()
-                    value_wei = int(log["data"], 16)
-                    block_num = int(log["blockNumber"], 16)
-                    all_transfers.append((from_addr, to_addr, value_wei, block_num))
-
+                    if (not isinstance(log, dict) or len(log.get("topics", [])) < 3
+                            or log.get("removed") or str(log.get("address", "")).lower() != ODOLO_CONTRACT
+                            or str(log["topics"][0]).lower() != TRANSFER_TOPIC):
+                        raise ValueError("malformed or unrelated Transfer log")
+                    if not all(isinstance(topic, str) and re.fullmatch(r"0x[0-9a-fA-F]{64}", topic) for topic in log["topics"][:3]):
+                        raise ValueError("invalid Transfer topics")
+                    value, block = int(log["data"], 16), int(log["blockNumber"], 16)
+                    if value < 0 or not current <= block <= chunk_end:
+                        raise ValueError("Transfer outside the requested range")
+                    chunk_transfers.append(("0x" + log["topics"][1][-40:].lower(), "0x" + log["topics"][2][-40:].lower(), value, block))
+                # A malformed response must never append half a chunk before retry.
+                all_transfers.extend(chunk_transfers)
+                rpc_order.remove(rpc)
+                rpc_order.insert(0, rpc)
                 success = True
                 break
+            except requests.exceptions.HTTPError as exc:
+                if getattr(exc.response, "status_code", None) == 429:
+                    limited.add(rpc)
+                last_error = f"{_rpc_safe_host(rpc)}: HTTP error"
             except requests.exceptions.Timeout:
                 last_error = f"{_rpc_safe_host(rpc)}: timeout"
-                chunk_size = max(chunk_size // 2, 1000)
-                chunk_end = min(current + chunk_size - 1, end_block)
-                time.sleep(1)
             except Exception as exc:
                 last_error = f"{_rpc_safe_host(rpc)}: {type(exc).__name__}: {_rpc_sanitize_error(exc)}"
-                time.sleep(0.5)
-
         if not success:
-            raise RuntimeError(
-                f"Failed to fetch complete oDOLO Transfer logs for block range "
-                f"{current:,} → {chunk_end:,}; refusing to write partial flow data. "
-                f"Last error: {last_error or 'unknown'}"
-            )
-
+            raise RuntimeError(f"Failed to fetch complete oDOLO Transfer logs for block range {current:,} → {chunk_end:,}; refusing to write partial flow data. Last error: {last_error or 'unknown'}")
         current = chunk_end + 1
         chunks_done += 1
-
+        if checkpoint_path and (chunks_done == 1 or time.monotonic() - last_checkpoint >= 30 or current > end_block):
+            save_checkpoint(current)
+            last_checkpoint = time.monotonic()
         if chunks_done % 20 == 0 or current > end_block:
-            pct = min(100, (current - start_block) * 100 // max(total_blocks, 1))
-            print(f"    Berachain: {pct}% (block {current:,}/{end_block:,}, {len(all_transfers):,} txs)", flush=True)
-
+            print(f"    Berachain: reached {current - 1:,}/{end_block:,}; {len(all_transfers):,} transfers", flush=True)
         if chunk_size < CHUNK_SIZE:
             chunk_size = min(chunk_size * 2, CHUNK_SIZE)
-
         time.sleep(0.05)
-
-    print(f"  ✅ Berachain: {len(all_transfers):,} transfers found")
     return all_transfers
 
 
@@ -1122,7 +1141,7 @@ def main():
         historical_backfill = []
         if cached_min_block and cached_min_block > oldest_needed:
             print(f"  Berachain: backfilling missing all-time range {oldest_needed:,} → {cached_min_block - 1:,}")
-            historical_backfill = fetch_transfer_logs(oldest_needed, cached_min_block - 1)
+            historical_backfill = fetch_transfer_logs(oldest_needed, cached_min_block - 1, checkpoint_path=os.path.join(DATA_DIR, "odolo_flow_checkpoints", "backfill.json"))
 
         # Merge: historical backfill + cached, with the recent overlap replaced.
         merged = historical_backfill + replace_transfer_range(
@@ -1137,7 +1156,7 @@ def main():
               f"{len(restored):,} cached → {len(merged):,} total (after pruning)")
     else:
         # Full scan from the oldest needed block
-        all_transfers = fetch_transfer_logs(oldest_needed, current_block)
+        all_transfers = fetch_transfer_logs(oldest_needed, current_block, checkpoint_path=os.path.join(DATA_DIR, "odolo_flow_checkpoints", "full.json"))
 
     # Update state
     state["last_block"] = current_block
@@ -1146,6 +1165,14 @@ def main():
         list(t) for t in all_transfers
         if t[3] >= oldest_needed
     ]
+
+    # The authoritative Transfer scan is complete even if later enrichment fails.
+    # This is an event-ledger checkpoint, never a partially generated public table.
+    save_state(state)
+    for name in ("full.json", "backfill.json"):
+        checkpoint = os.path.join(DATA_DIR, "odolo_flow_checkpoints", name)
+        if os.path.exists(checkpoint):
+            os.remove(checkpoint)
 
     # Detect contracts — check top 100 by gross outflow
     print("\n🔍 Detecting contract addresses to exclude...")
@@ -1514,3 +1541,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

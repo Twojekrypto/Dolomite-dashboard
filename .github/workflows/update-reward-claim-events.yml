@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Both producers rewrite the shared manifest; serialize their publications.
+  # One producer owns the shared reward manifest; flow scans publish separately.
   group: reward-claim-data
   cancel-in-progress: false
 
@@ -59,16 +59,24 @@ jobs:
           restore-keys: |
             reward-claim-state-
 
-      - name: Generate non-Berachain reward claim events
+      - name: Generate active-chain reward claim events
         env:
           PYTHONUNBUFFERED: '1'
-          REWARD_CLAIM_CHAINS: arbitrum
+          REWARD_CLAIM_CHAINS: arbitrum,berachain
           ALCHEMY_ARBITRUM_RPC: ${{ secrets.ALCHEMY_ARBITRUM_RPC }}
           ALCHEMY_ARBITRUM_RPC_KAT: ${{ secrets.ALCHEMY_ARBITRUM_RPC_KAT }}
           ALCHEMY_ARBITRUM_RPC_DAN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_DAN }}
           ALCHEMY_ARBITRUM_RPC_ZEN: ${{ secrets.ALCHEMY_ARBITRUM_RPC_ZEN }}
           ALCHEMY_ARBITRUM_RPC_2: ${{ secrets.ALCHEMY_ARBITRUM_RPC_2 }}
           ALCHEMY_ARBITRUM_RPC_3: ${{ secrets.ALCHEMY_ARBITRUM_RPC_3 }}
+          ALCHEMY_BERACHAIN_RPC: ${{ secrets.ALCHEMY_BERACHAIN_RPC }}
+          ALCHEMY_BERACHAIN_RPC_2_JEFF: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2_JEFF }}
+          ALCHEMY_BERACHAIN_RPC_2: ${{ secrets.ALCHEMY_BERACHAIN_RPC_2 }}
+          DRPC_BERACHAIN_RPC_ZEN: ${{ secrets.DRPC_BERACHAIN_RPC_ZEN }}
+          QUICKNODE_BERACHAIN_RPC_2: ${{ secrets.QUICKNODE_BERACHAIN_RPC_2 }}
+          REWARD_CLAIM_CHUNK_SIZE_BERACHAIN: '10000'
+          REWARD_CLAIM_TIMESTAMP_BATCH_SIZE_BERACHAIN: '20'
+
           ALCHEMY_MANTLE_RPC: ${{ secrets.ALCHEMY_MANTLE_RPC }}
           ALCHEMY_MANTLE_RPC_2_JEFF: ${{ secrets.ALCHEMY_MANTLE_RPC_2_JEFF }}
           ALCHEMY_MANTLE_RPC_2: ${{ secrets.ALCHEMY_MANTLE_RPC_2 }}
@@ -108,8 +116,9 @@ jobs:
           git commit -m "Update cross-chain reward claim events — $(date -u '+%Y-%m-%d %H:%M UTC')"
           pushed=false
           for i in 1 2 3; do
-            if git pull --rebase -X theirs origin master && git push; then pushed=true; break; fi
+            if git pull --rebase -X ours origin master && git push; then pushed=true; break; fi
             echo "Push attempt $i failed, retrying..."
             sleep 5
           done
           if [ "$pushed" != "true" ]; then echo "::error::Push failed after 3 attempts"; exit 1; fi
+

@@ -161,43 +161,492 @@
     }
   },
   "artifacts": [
-    {"id": "wlfi-markets", "path": "data/wlfi-markets/latest.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["source.timestamp"], "sourceMaxAgeMinutes": 120, "maxAgeMinutes": 120, "earlyDueMinutes": 30, "remediateSourceStale": true, "workflow": "update-wlfi-markets.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "earn-merkl-rewards", "path": "data/earn-merkl-rewards/manifest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 120, "earlyDueMinutes": 60, "workflow": "update-earn-merkl-rewards.yml", "inputs": {}, "maxBytes": 2000000},
-    {"id": "reward-claim-arbitrum", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.arbitrum.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-reward-claim-events.yml", "inputs": {}, "maxBytes": 2000000},
-    {"id": "reward-claim-berachain", "path": "data/reward-claim-events.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.berachain.toTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-odolo-flows.yml", "inputs": {}, "maxBytes": 2000000},
-    {"id": "earn-source-coverage", "path": "data/earn-freshness/status.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["chains.ethereum.canonical.updatedAt", "chains.berachain.canonical.updatedAt", "chains.arbitrum.canonical.updatedAt"], "sourceLagMinutes": ["chains.ethereum.canonical.estimatedLagMinutes", "chains.ethereum.netflow.estimatedLagMinutes", "chains.berachain.canonical.estimatedLagMinutes", "chains.berachain.netflow.estimatedLagMinutes", "chains.arbitrum.canonical.estimatedLagMinutes", "chains.arbitrum.netflow.estimatedLagMinutes"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "monitor-earn-freshness.yml", "inputs": {}, "maxBytes": 2000000},
-    {"id": "tvl-source-coverage", "path": "dolomite_tvl.json", "timestamps": ["last_updated"], "sourceTimestamps": ["chainMeta.Ethereum.blockTimestamp", "chainMeta.Berachain.blockTimestamp", "chainMeta.Arbitrum.blockTimestamp"], "sourceMaxAgeMinutes": 480, "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-tvl-data.yml", "inputs": {}, "maxBytes": 2000000},
-    {"id": "assets", "path": "assets_live.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 15, "earlyDueMinutes": 10, "workflow": "update-assets-live.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "dolo-price", "path": "dolo_price.json", "timestamps": ["last_updated"], "maxAgeMinutes": 60, "earlyDueMinutes": 45, "workflow": "update-dolo-price.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "tvl", "path": "dolomite_tvl.json", "timestamps": ["last_updated"], "maxAgeMinutes": 30, "earlyDueMinutes": 20, "workflow": "update-tvl-data.yml", "inputs": {}, "maxBytes": 2000000},
-    {"id": "revenue", "path": "dolomite_revenue.json", "timestamps": ["lastUpdated", "generatedAt"], "maxAgeMinutes": 360, "earlyDueMinutes": 270, "workflow": "update-tvl-data.yml", "inputs": {}, "maxBytes": 5000000},
-    {"id": "borrow-earnings", "path": "borrow_earnings.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["sources.positionsGeneratedAt", "sources.rates.ethereum.fetchedAt", "sources.rates.arbitrum.fetchedAt", "sources.rates.berachain.fetchedAt"], "maxAgeMinutes": 90, "earlyDueMinutes": 30, "sourceEarlyDueMinutes": 30, "remediateSourceStale": true, "workflow": "update-liquidation-risk.yml", "inputs": {}, "maxBytes": 25000000},
-    {"id": "liquidation-risk", "path": "liquidation_risk.json", "timestamps": ["generatedAtISO"], "maxAgeMinutes": 120, "earlyDueMinutes": 90, "workflow": "update-liquidation-risk.yml", "inputs": {}, "maxBytes": 15000000},
-    {"id": "dolo-liquidity", "path": "data/dolo-liquidity.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-dolo-liquidity.yml", "inputs": {}, "maxBytes": 1500000},
-    {"id": "dolo-flows", "path": "dolo_flows.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 180, "workflow": "update-dolo-flows.yml", "inputs": {}, "maxBytes": 50000000},
-    {"id": "dolo-holders", "path": "dolo_holders.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-dolo-flows.yml", "inputs": {}, "maxBytes": 10000000},
-    {"id": "odolo-flows", "path": "odolo_flows.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-odolo-flows.yml", "inputs": {}, "maxBytes": 10000000},
-    {"id": "odolo-data", "path": "odolo_contract_data.json", "timestamps": ["last_updated"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-odolo-data.yml", "inputs": {}, "maxBytes": 5000000},
-    {"id": "odolo-exercisers", "path": "exercisers_by_address.json", "timestamps": ["updated"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-odolo-data.yml", "inputs": {}, "maxBytes": 15000000},
-    {"id": "odolo-exercised-usd", "path": "exercised_usd.json", "timestamps": ["last_updated"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-odolo-data.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "odolo-average-lock", "path": "avg_lock_data.json", "timestamps": ["last_updated"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-odolo-data.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "early-exits", "path": "early_exits.json", "timestamps": ["stats.last_updated"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-odolo-data.yml", "inputs": {}, "maxBytes": 15000000},
-    {"id": "vedolo-flows", "path": "vedolo_flows.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-vedolo-flows.yml", "inputs": {}, "maxBytes": 15000000},
-    {"id": "vedolo-stats", "path": "vedolo_stats.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "vedolo-holders", "path": "vedolo_holders.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 10000000},
-    {"id": "vedolo-expiry", "path": "vedolo_expiry.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "vedolo-vote-power", "path": "data/vedolo-vote-power-history.json", "timestamps": ["targetTimestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 5000000},
-    {"id": "vedolo-early-unlock", "path": "vedolo_early_unlock.json", "timestamps": ["generatedAt", "sourceTimestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "remediateSourceStale": true, "workflow": "update-data.yml", "inputs": {}, "maxBytes": 25000000},
-    {"id": "holder-wallet-history", "path": "dolo_holder_wallet_history.json", "timestamps": ["timestamp"], "maxAgeMinutes": 480, "earlyDueMinutes": 180, "workflow": "update-dolo-flows.yml", "inputs": {}, "maxBytes": 100000000},
-    {"id": "liquidation-history", "path": "liquidation_history.json", "timestamps": ["generatedAtISO"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-liquidation-risk.yml", "inputs": {}, "maxBytes": 15000000},
-    {"id": "rewards", "path": "rewards_programs.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 360, "earlyDueMinutes": 270, "workflow": "update-rewards-programs.yml", "inputs": {}, "maxBytes": 5000000},
-    {"id": "supply-health", "path": "data/supply-health/latest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-supply-health.yml", "inputs": {}, "maxBytes": 3000000},
-    {"id": "supply-history", "path": "data/supply-history/manifest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-supply-history.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "borrow-position-pnl", "path": "borrow_position_pnl.json", "timestamps": ["generatedAt"], "sourceTimestamps": ["sourceAsOf", "chains.ethereum.closing.timestamp", "chains.arbitrum.closing.timestamp", "chains.berachain.closing.timestamp"], "sourceMaxAgeMinutes": 360, "maxAgeMinutes": 360, "earlyDueMinutes": 240, "remediateSourceStale": true, "workflow": "update-borrow-position-pnl.yml", "inputs": {}, "maxBytes": 50000000},
-    {"id": "supply-activity", "path": "data/supply-activity/manifest.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 480, "earlyDueMinutes": 360, "workflow": "update-supply-history.yml", "inputs": {}, "maxBytes": 1000000},
-    {"id": "earn-freshness", "path": "data/earn-freshness/status.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 30, "earlyDueMinutes": 20, "workflow": "monitor-earn-freshness.yml", "inputs": {}, "maxBytes": 2000000},
-    {"id": "earn-quality", "path": "data/earn-quality/status.json", "timestamps": ["generatedAt"], "maxAgeMinutes": 60, "earlyDueMinutes": 45, "workflow": "monitor-earn-freshness.yml", "inputs": {}, "maxBytes": 2000000}
+    {
+      "id": "wlfi-markets",
+      "path": "data/wlfi-markets/latest.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "sourceTimestamps": [
+        "source.timestamp"
+      ],
+      "sourceMaxAgeMinutes": 120,
+      "maxAgeMinutes": 120,
+      "earlyDueMinutes": 30,
+      "remediateSourceStale": true,
+      "workflow": "update-wlfi-markets.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "earn-merkl-rewards",
+      "path": "data/earn-merkl-rewards/manifest.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 120,
+      "earlyDueMinutes": 60,
+      "workflow": "update-earn-merkl-rewards.yml",
+      "inputs": {},
+      "maxBytes": 2000000
+    },
+    {
+      "id": "reward-claim-arbitrum",
+      "path": "data/reward-claim-events.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "sourceTimestamps": [
+        "chains.arbitrum.toTimestamp"
+      ],
+      "sourceMaxAgeMinutes": 480,
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "remediateSourceStale": true,
+      "workflow": "update-reward-claim-events.yml",
+      "inputs": {},
+      "maxBytes": 2000000
+    },
+    {
+      "id": "reward-claim-berachain",
+      "path": "data/reward-claim-events.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "sourceTimestamps": [
+        "chains.berachain.toTimestamp"
+      ],
+      "sourceMaxAgeMinutes": 480,
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "remediateSourceStale": true,
+      "workflow": "update-reward-claim-events.yml",
+      "inputs": {},
+      "maxBytes": 2000000
+    },
+    {
+      "id": "earn-source-coverage",
+      "path": "data/earn-freshness/status.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "sourceTimestamps": [
+        "chains.ethereum.canonical.updatedAt",
+        "chains.berachain.canonical.updatedAt",
+        "chains.arbitrum.canonical.updatedAt"
+      ],
+      "sourceLagMinutes": [
+        "chains.ethereum.canonical.estimatedLagMinutes",
+        "chains.ethereum.netflow.estimatedLagMinutes",
+        "chains.berachain.canonical.estimatedLagMinutes",
+        "chains.berachain.netflow.estimatedLagMinutes",
+        "chains.arbitrum.canonical.estimatedLagMinutes",
+        "chains.arbitrum.netflow.estimatedLagMinutes"
+      ],
+      "sourceMaxAgeMinutes": 480,
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "remediateSourceStale": true,
+      "workflow": "monitor-earn-freshness.yml",
+      "inputs": {},
+      "maxBytes": 2000000
+    },
+    {
+      "id": "tvl-source-coverage",
+      "path": "dolomite_tvl.json",
+      "timestamps": [
+        "last_updated"
+      ],
+      "sourceTimestamps": [
+        "chainMeta.Ethereum.blockTimestamp",
+        "chainMeta.Berachain.blockTimestamp",
+        "chainMeta.Arbitrum.blockTimestamp"
+      ],
+      "sourceMaxAgeMinutes": 480,
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-tvl-data.yml",
+      "inputs": {},
+      "maxBytes": 2000000
+    },
+    {
+      "id": "assets",
+      "path": "assets_live.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 15,
+      "earlyDueMinutes": 10,
+      "workflow": "update-assets-live.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "dolo-price",
+      "path": "dolo_price.json",
+      "timestamps": [
+        "last_updated"
+      ],
+      "maxAgeMinutes": 60,
+      "earlyDueMinutes": 45,
+      "workflow": "update-dolo-price.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "tvl",
+      "path": "dolomite_tvl.json",
+      "timestamps": [
+        "last_updated"
+      ],
+      "maxAgeMinutes": 30,
+      "earlyDueMinutes": 20,
+      "workflow": "update-tvl-data.yml",
+      "inputs": {},
+      "maxBytes": 2000000
+    },
+    {
+      "id": "revenue",
+      "path": "dolomite_revenue.json",
+      "timestamps": [
+        "lastUpdated",
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 360,
+      "earlyDueMinutes": 270,
+      "workflow": "update-tvl-data.yml",
+      "inputs": {},
+      "maxBytes": 5000000
+    },
+    {
+      "id": "borrow-earnings",
+      "path": "borrow_earnings.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "sourceTimestamps": [
+        "sources.positionsGeneratedAt",
+        "sources.rates.ethereum.fetchedAt",
+        "sources.rates.arbitrum.fetchedAt",
+        "sources.rates.berachain.fetchedAt"
+      ],
+      "maxAgeMinutes": 90,
+      "earlyDueMinutes": 30,
+      "sourceEarlyDueMinutes": 30,
+      "remediateSourceStale": true,
+      "workflow": "update-liquidation-risk.yml",
+      "inputs": {},
+      "maxBytes": 25000000
+    },
+    {
+      "id": "liquidation-risk",
+      "path": "liquidation_risk.json",
+      "timestamps": [
+        "generatedAtISO"
+      ],
+      "maxAgeMinutes": 120,
+      "earlyDueMinutes": 90,
+      "workflow": "update-liquidation-risk.yml",
+      "inputs": {},
+      "maxBytes": 15000000
+    },
+    {
+      "id": "dolo-liquidity",
+      "path": "data/dolo-liquidity.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-dolo-liquidity.yml",
+      "inputs": {},
+      "maxBytes": 1500000
+    },
+    {
+      "id": "dolo-flows",
+      "path": "dolo_flows.json",
+      "timestamps": [
+        "timestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 180,
+      "workflow": "update-dolo-flows.yml",
+      "inputs": {},
+      "maxBytes": 50000000
+    },
+    {
+      "id": "dolo-holders",
+      "path": "dolo_holders.json",
+      "timestamps": [
+        "timestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-dolo-flows.yml",
+      "inputs": {},
+      "maxBytes": 10000000
+    },
+    {
+      "id": "odolo-flows",
+      "path": "odolo_flows.json",
+      "timestamps": [
+        "timestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-odolo-flows.yml",
+      "inputs": {},
+      "maxBytes": 10000000
+    },
+    {
+      "id": "odolo-data",
+      "path": "odolo_contract_data.json",
+      "timestamps": [
+        "last_updated"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-odolo-data.yml",
+      "inputs": {},
+      "maxBytes": 5000000
+    },
+    {
+      "id": "odolo-exercisers",
+      "path": "exercisers_by_address.json",
+      "timestamps": [
+        "updated"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-odolo-data.yml",
+      "inputs": {},
+      "maxBytes": 15000000
+    },
+    {
+      "id": "odolo-exercised-usd",
+      "path": "exercised_usd.json",
+      "timestamps": [
+        "last_updated"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-odolo-data.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "odolo-average-lock",
+      "path": "avg_lock_data.json",
+      "timestamps": [
+        "last_updated"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-odolo-data.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "early-exits",
+      "path": "early_exits.json",
+      "timestamps": [
+        "stats.last_updated"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-odolo-data.yml",
+      "inputs": {},
+      "maxBytes": 15000000
+    },
+    {
+      "id": "vedolo-flows",
+      "path": "vedolo_flows.json",
+      "timestamps": [
+        "timestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-vedolo-flows.yml",
+      "inputs": {},
+      "maxBytes": 15000000
+    },
+    {
+      "id": "vedolo-stats",
+      "path": "vedolo_stats.json",
+      "timestamps": [
+        "timestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-data.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "vedolo-holders",
+      "path": "vedolo_holders.json",
+      "timestamps": [
+        "timestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-data.yml",
+      "inputs": {},
+      "maxBytes": 10000000
+    },
+    {
+      "id": "vedolo-expiry",
+      "path": "vedolo_expiry.json",
+      "timestamps": [
+        "timestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-data.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "vedolo-vote-power",
+      "path": "data/vedolo-vote-power-history.json",
+      "timestamps": [
+        "targetTimestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-data.yml",
+      "inputs": {},
+      "maxBytes": 5000000
+    },
+    {
+      "id": "vedolo-early-unlock",
+      "path": "vedolo_early_unlock.json",
+      "timestamps": [
+        "generatedAt",
+        "sourceTimestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "remediateSourceStale": true,
+      "workflow": "update-data.yml",
+      "inputs": {},
+      "maxBytes": 25000000
+    },
+    {
+      "id": "holder-wallet-history",
+      "path": "dolo_holder_wallet_history.json",
+      "timestamps": [
+        "timestamp"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 180,
+      "workflow": "update-dolo-flows.yml",
+      "inputs": {},
+      "maxBytes": 100000000
+    },
+    {
+      "id": "liquidation-history",
+      "path": "liquidation_history.json",
+      "timestamps": [
+        "generatedAtISO"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-liquidation-risk.yml",
+      "inputs": {},
+      "maxBytes": 15000000
+    },
+    {
+      "id": "rewards",
+      "path": "rewards_programs.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 360,
+      "earlyDueMinutes": 270,
+      "workflow": "update-rewards-programs.yml",
+      "inputs": {},
+      "maxBytes": 5000000
+    },
+    {
+      "id": "supply-health",
+      "path": "data/supply-health/latest.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-supply-health.yml",
+      "inputs": {},
+      "maxBytes": 3000000
+    },
+    {
+      "id": "supply-history",
+      "path": "data/supply-history/manifest.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-supply-history.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "borrow-position-pnl",
+      "path": "borrow_position_pnl.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "sourceTimestamps": [
+        "sourceAsOf",
+        "chains.ethereum.closing.timestamp",
+        "chains.arbitrum.closing.timestamp",
+        "chains.berachain.closing.timestamp"
+      ],
+      "sourceMaxAgeMinutes": 360,
+      "maxAgeMinutes": 360,
+      "earlyDueMinutes": 240,
+      "remediateSourceStale": true,
+      "workflow": "update-borrow-position-pnl.yml",
+      "inputs": {},
+      "maxBytes": 50000000
+    },
+    {
+      "id": "supply-activity",
+      "path": "data/supply-activity/manifest.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 480,
+      "earlyDueMinutes": 360,
+      "workflow": "update-supply-history.yml",
+      "inputs": {},
+      "maxBytes": 1000000
+    },
+    {
+      "id": "earn-freshness",
+      "path": "data/earn-freshness/status.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 30,
+      "earlyDueMinutes": 20,
+      "workflow": "monitor-earn-freshness.yml",
+      "inputs": {},
+      "maxBytes": 2000000
+    },
+    {
+      "id": "earn-quality",
+      "path": "data/earn-quality/status.json",
+      "timestamps": [
+        "generatedAt"
+      ],
+      "maxAgeMinutes": 60,
+      "earlyDueMinutes": 45,
+      "workflow": "monitor-earn-freshness.yml",
+      "inputs": {},
+      "maxBytes": 2000000
+    }
   ]
 }
-
-
