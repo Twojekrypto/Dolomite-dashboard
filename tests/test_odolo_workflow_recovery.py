@@ -83,6 +83,15 @@ class TransferRecoveryTests(unittest.TestCase):
 
 
 class PublicationIsolationTests(unittest.TestCase):
+    def test_successful_flow_refresh_triggers_public_data_deployment(self):
+        workflow = (ROOT/'.github/workflows/update-odolo-flows.yml').read_text()
+        pages = (ROOT/'.github/workflows/pages.yml').read_text()
+        producer_name = workflow.split('name: ', 1)[1].splitlines()[0]
+        triggers = pages.split('  workflow_run:', 1)[1].split('    types:', 1)[0]
+        self.assertIn('- '+producer_name+'\n', triggers)
+        self.assertIn('/.github/workflows/pages.yml', workflow,
+                      'the publication contract must be available in sparse CI checkout')
+
     def test_flow_publication_keeps_newer_independent_claims_and_cache(self):
         workflow = (ROOT/'.github/workflows/update-odolo-flows.yml').read_text()
         script = textwrap.dedent(workflow.split('      - name: Commit and push\n', 1)[1].split('        run: |\n', 1)[1]).replace('sleep 5', 'true')
